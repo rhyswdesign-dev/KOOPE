@@ -57,6 +57,9 @@ export interface Recipe {
 
   // Nutrition (optional)
   nutrition?: NutritionInfo;
+
+  // Historical Context (for classic cocktails)
+  history?: CocktailHistory;
 }
 
 // Supporting Types
@@ -136,6 +139,20 @@ export interface NutritionInfo {
   calories?: number;
   sugar?: number; // grams
   carbs?: number; // grams
+}
+
+export interface CocktailHistory {
+  era?: string; // e.g., "Pre-Prohibition", "Golden Age", "Tiki Renaissance", "Modern Classic"
+  year?: number; // Year of creation (e.g., 1915)
+  yearEstimate?: string; // If exact year unknown (e.g., "Early 1900s", "1920s")
+  origin?: string; // Location where created (e.g., "New York", "Havana, Cuba")
+  creator?: string; // Bartender/person who created it
+  establishment?: string; // Bar/hotel where created
+  story?: string; // Main historical narrative (2-3 paragraphs)
+  notableFigures?: string[]; // Famous people associated with the drink
+  culturalContext?: string; // Historical/cultural significance
+  evolution?: string; // How the recipe changed over time
+  trivia?: string[]; // Fun facts ("Did You Know?")
 }
 
 // Recipe with user-specific data (for displaying in feeds)

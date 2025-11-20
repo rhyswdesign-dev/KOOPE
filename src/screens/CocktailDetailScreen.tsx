@@ -861,26 +861,80 @@ export default function CocktailDetailScreen() {
   const hardcodedCocktail = cocktailData[route.params.cocktailId as keyof typeof cocktailData];
   const transformedCocktail = getDetailedCocktail(route.params.cocktailId);
 
-  // Convert Firebase recipe to cocktail format if available
-  const firebaseCocktail = firebaseRecipe?.aiFormattedData ? {
-    id: firebaseRecipe.id,
-    title: firebaseRecipe.aiFormattedData.title || firebaseRecipe.title || 'Untitled Recipe',
-    subtitle: `Custom Recipe • ${firebaseRecipe.aiFormattedData.tags?.[0] || 'Mixed'}`,
-    description: firebaseRecipe.aiFormattedData.description || 'Custom recipe created with AI assistance',
-    img: firebaseRecipe.imageUrl || 'https://images.unsplash.com/photo-1536935338788-846bb9981813?auto=format&fit=crop&w=1200&q=60',
-    difficulty: firebaseRecipe.aiFormattedData.difficulty || 'Medium',
-    time: firebaseRecipe.aiFormattedData.time || '5 min',
-    ingredients: firebaseRecipe.aiFormattedData.ingredients?.map((ing: any) => ({
-      name: `${ing.amount || ''} ${ing.name || ''}`.trim(),
-      note: ing.notes || ''
-    })) || [],
-    instructions: firebaseRecipe.aiFormattedData.instructions || [],
-    tips: firebaseRecipe.aiFormattedData.tags?.map((tag: string) => `Tagged as: ${tag}`) || [],
-    glassware: firebaseRecipe.aiFormattedData.glassware || 'Rocks Glass',
-    kitAvailable: false,
-    kitPrice: 0,
-    isFirebaseRecipe: true
-  } : null;
+  // Convert Supabase/Firebase recipe to cocktail format if available
+  const firebaseCocktail = firebaseRecipe ? (() => {
+    // Check if it's an AI-formatted recipe first
+    if (firebaseRecipe.aiFormattedData) {
+      return {
+        id: firebaseRecipe.id,
+        title: firebaseRecipe.aiFormattedData.title || firebaseRecipe.title || 'Untitled Recipe',
+        subtitle: `Custom Recipe • ${firebaseRecipe.aiFormattedData.tags?.[0] || 'Mixed'}`,
+        description: firebaseRecipe.aiFormattedData.description || 'Custom recipe created with AI assistance',
+        img: firebaseRecipe.imageUrl || 'https://images.unsplash.com/photo-1536935338788-846bb9981813?auto=format&fit=crop&w=1200&q=60',
+        difficulty: firebaseRecipe.aiFormattedData.difficulty || 'Medium',
+        time: firebaseRecipe.aiFormattedData.time || '5 min',
+        ingredients: firebaseRecipe.aiFormattedData.ingredients?.map((ing: any) => ({
+          name: `${ing.amount || ''} ${ing.name || ''}`.trim(),
+          note: ing.notes || ''
+        })) || [],
+        instructions: firebaseRecipe.aiFormattedData.instructions || [],
+        tips: firebaseRecipe.aiFormattedData.tags?.map((tag: string) => `Tagged as: ${tag}`) || [],
+        glassware: firebaseRecipe.aiFormattedData.glassware || 'Rocks Glass',
+        kitAvailable: false,
+        kitPrice: 0,
+        isFirebaseRecipe: true
+      };
+    }
+
+    // Otherwise, it's a Supabase recipe - convert it to display format
+    return {
+      id: firebaseRecipe.id,
+      title: firebaseRecipe.title || 'Untitled Recipe',
+      subtitle: `${firebaseRecipe.category || 'Classic'} • ${firebaseRecipe.baseSpirit || 'Mixed'}-based`,
+      description: firebaseRecipe.description && firebaseRecipe.description.length > 50 ? firebaseRecipe.description : `A classic ${firebaseRecipe.baseSpirit || 'cocktail'} recipe.`,
+      img: firebaseRecipe.image || firebaseRecipe.imageUrl || 'https://images.unsplash.com/photo-1536935338788-846bb9981813?auto=format&fit=crop&w=1200&q=60',
+      difficulty: firebaseRecipe.difficulty === 'beginner' ? 'Easy' : firebaseRecipe.difficulty === 'intermediate' ? 'Medium' : firebaseRecipe.difficulty === 'advanced' ? 'Hard' : 'Medium',
+      time: firebaseRecipe.time || `${firebaseRecipe.preparationTime || 5} min`,
+      ingredients: firebaseRecipe.ingredients?.map((ing: any) => {
+        // Handle different ingredient formats
+        if (typeof ing === 'string') {
+          return { name: ing, note: undefined };
+        }
+        // Supabase format: { item: "White Rum", amount: "1 oz", type: "spirit" }
+        if (ing.item && ing.amount) {
+          return {
+            name: `${ing.amount} ${ing.item}`,
+            note: ing.notes || undefined
+          };
+        }
+        // Legacy format with amount: { name: "White Rum", amount: "1 oz" }
+        if (ing.name && ing.amount && ing.amount.trim()) {
+          return {
+            name: `${ing.amount} ${ing.name}`,
+            note: ing.notes || undefined
+          };
+        }
+        // Format where full ingredient is in name field: { name: "1 oz White Rum", amount: "" }
+        if (ing.name && (!ing.amount || !ing.amount.trim())) {
+          return {
+            name: ing.name,
+            note: ing.notes || undefined
+          };
+        }
+        // Fallback - try to convert to string safely
+        if (typeof ing === 'object' && ing !== null) {
+          return { name: ing.name || JSON.stringify(ing), note: undefined };
+        }
+        return { name: String(ing), note: undefined };
+      }) || [],
+      instructions: firebaseRecipe.instructions || [],
+      tips: firebaseRecipe.tags?.slice(0, 3) || [],
+      glassware: firebaseRecipe.glassware || 'Rocks Glass',
+      kitAvailable: true,
+      kitPrice: undefined,
+      isSupabaseRecipe: true
+    };
+  })() : null;
 
   // Priority order: non-alcoholic > firebase > hardcoded > transformed centralized
   const cocktail = nonAlcoholicRecipe || firebaseCocktail || hardcodedCocktail || transformedCocktail;
@@ -965,7 +1019,10 @@ export default function CocktailDetailScreen() {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Hero Image */}
         <View style={styles.heroImageContainer}>
-          <Image source={{ uri: cocktail.img }} style={styles.heroImage} />
+          <Image
+            source={typeof cocktail.img === 'string' ? { uri: cocktail.img } : cocktail.img}
+            style={styles.heroImage}
+          />
           
           {/* Action Buttons Overlay */}
           <View style={styles.actionButtonsContainer}>
@@ -1003,7 +1060,6 @@ export default function CocktailDetailScreen() {
           <View style={styles.header}>
             <Text style={styles.title}>{cocktail.title}</Text>
             <Text style={styles.subtitle}>{cocktail.subtitle}</Text>
-            <Text style={styles.description}>{cocktail.description}</Text>
           </View>
 
           {/* Stats */}
@@ -1028,7 +1084,7 @@ export default function CocktailDetailScreen() {
             {cocktail.ingredients.map((ingredient, index) => (
               <View key={`ingredient-${index}-${ingredient.name}`} style={styles.ingredientItem}>
                 <Text style={styles.ingredientName}>{ingredient.name}</Text>
-                <Text style={styles.ingredientNote}>{ingredient.note}</Text>
+                {ingredient.note && <Text style={styles.ingredientNote}>{ingredient.note}</Text>}
               </View>
             ))}
           </View>
@@ -1119,6 +1175,7 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 300,
     backgroundColor: colors.card,
+    resizeMode: 'cover',
   },
   actionButtonsContainer: {
     position: 'absolute',
@@ -1196,20 +1253,25 @@ const styles = StyleSheet.create({
   ingredientItem: {
     backgroundColor: colors.card,
     borderRadius: radii.lg,
-    padding: spacing(2.5),
-    marginBottom: spacing(1),
+    paddingVertical: spacing(1.25),
+    paddingHorizontal: spacing(2),
+    marginBottom: spacing(0.5),
     borderWidth: 1,
     borderColor: colors.line,
+    justifyContent: 'center',
+    minHeight: 44, // Ensures consistent height for touch targets
   },
   ingredientName: {
     fontSize: 16,
     fontWeight: '700',
     color: colors.text,
-    marginBottom: spacing(0.5),
+    marginBottom: 0,
+    lineHeight: 20, // Tight line height for vertical centering
   },
   ingredientNote: {
     fontSize: 14,
     color: colors.subtext,
+    lineHeight: 18, // Tight line height
   },
   instructionItem: {
     flexDirection: 'row',

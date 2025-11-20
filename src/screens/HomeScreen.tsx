@@ -1,48 +1,109 @@
 // src/screens/HomeScreen.tsx
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { colors, spacing, radii } from '../theme/tokens';
+import { getCocktailOfTheMonth } from '../services/cocktailOfTheMonth';
+import { RecipesRepository } from '../repos/supabase';
+import CocktailOfTheMonthCard from '../components/CocktailOfTheMonthCard';
+import { Recipe } from '../types/recipe';
 
 export default function HomeScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const [featuredRecipe, setFeaturedRecipe] = useState<Recipe | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadFeaturedCocktail();
+  }, []);
+
+  async function loadFeaturedCocktail() {
+    try {
+      setLoading(true);
+      const cocktailId = await getCocktailOfTheMonth();
+      const recipe = await RecipesRepository.getRecipeById(cocktailId);
+      if (recipe) {
+        setFeaturedRecipe(recipe);
+      }
+    } catch (error) {
+      console.error('Error loading featured cocktail:', error);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const handleRecipePress = (recipe: Recipe) => {
+    navigation.navigate('CocktailDetail', { cocktail: recipe as any });
+  };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Home</Text>
+    <ScrollView style={styles.scrollContainer} contentContainerStyle={styles.scrollContent}>
+      <View style={styles.container}>
+        <Text style={styles.title}>Home</Text>
 
-      {/* Demo Button for Personalization System */}
-      <TouchableOpacity
-        style={styles.demoButton}
-        onPress={() => navigation.navigate('PersonalizedHome')}
-      >
-        <Text style={styles.demoButtonEmoji}>🧠</Text>
-        <Text style={styles.demoButtonTitle}>Personalization Demo</Text>
-        <Text style={styles.demoButtonSubtitle}>
-          See mood-based organization & real-time learning
-        </Text>
-      </TouchableOpacity>
+        {/* Cocktail of the Month */}
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={colors.gold} />
+          </View>
+        ) : featuredRecipe ? (
+          <CocktailOfTheMonthCard
+            recipe={featuredRecipe}
+            onPress={handleRecipePress}
+            style={styles.featuredCard}
+          />
+        ) : null}
 
-      <View style={styles.infoBox}>
-        <Text style={styles.infoTitle}>What you'll see:</Text>
-        <Text style={styles.infoItem}>✅ Mood categories personalized by preferences</Text>
-        <Text style={styles.infoItem}>✅ Recipe recommendations with scoring</Text>
-        <Text style={styles.infoItem}>✅ Real-time behavioral learning</Text>
-        <Text style={styles.infoItem}>✅ Engagement tracking</Text>
+        {/* Demo Button for Personalization System */}
+        <TouchableOpacity
+          style={styles.demoButton}
+          onPress={() => navigation.navigate('PersonalizedHome')}
+        >
+          <Text style={styles.demoButtonEmoji}>🧠</Text>
+          <Text style={styles.demoButtonTitle}>Personalization Demo</Text>
+          <Text style={styles.demoButtonSubtitle}>
+            See mood-based organization & real-time learning
+          </Text>
+        </TouchableOpacity>
+
+        <View style={styles.infoBox}>
+          <Text style={styles.infoTitle}>What you'll see:</Text>
+          <Text style={styles.infoItem}>✅ Mood categories personalized by preferences</Text>
+          <Text style={styles.infoItem}>✅ Recipe recommendations with scoring</Text>
+          <Text style={styles.infoItem}>✅ Real-time behavioral learning</Text>
+          <Text style={styles.infoItem}>✅ Engagement tracking</Text>
+        </View>
       </View>
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
+  scrollContainer: {
+    flex: 1,
+    backgroundColor: colors.bg,
+  },
+  scrollContent: {
+    flexGrow: 1,
+  },
   container: {
     flex: 1,
     alignItems: 'center',
+    paddingTop: spacing(4),
+    paddingHorizontal: spacing(2),
+    paddingBottom: spacing(6),
+  },
+  loadingContainer: {
+    width: '100%',
+    height: 320,
+    alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.bg,
-    padding: spacing(3),
+    marginBottom: spacing(3),
+  },
+  featuredCard: {
+    marginBottom: spacing(3),
   },
   title: {
     fontSize: 32,

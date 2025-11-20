@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   View,
   Text,
@@ -19,11 +19,12 @@ interface RecipeCardProps {
     subtitle?: string;
     description?: string;
     category?: string;
-    image: string;
+    image: string | number; // string for URI, number for require()
     difficulty: string;
     time: string;
     rating?: number;
     ingredients?: any[];
+    tags?: string[];
   };
   onPress: (recipe: any) => void;
   onSave?: (recipe: any) => void;
@@ -54,6 +55,19 @@ export default function RecipeCard({
     transform: [{ scale: scale.value }],
   }));
 
+  // Get a random fact/insight from tags, or use subtitle/description as fallback
+  // useMemo ensures the same fact is shown consistently for this recipe
+  const displayText = useMemo(() => {
+    // If recipe has tags (pro tips/facts), show a random one
+    if (recipe.tags && Array.isArray(recipe.tags) && recipe.tags.length > 0) {
+      const randomIndex = Math.floor(Math.random() * recipe.tags.length);
+      return recipe.tags[randomIndex];
+    }
+
+    // Fallback to subtitle or description
+    return recipe.subtitle || recipe.description || '';
+  }, [recipe.id, recipe.tags, recipe.subtitle, recipe.description]);
+
   return (
     <Animated.View style={[animatedStyle, style]}>
       <Pressable
@@ -66,10 +80,13 @@ export default function RecipeCard({
           scale.value = withSpring(1, { damping: 15, stiffness: 300 });
         }}
       >
-        <Image source={{ uri: recipe.image }} style={styles.cocktailImage} />
+        <Image
+          source={typeof recipe.image === 'string' ? { uri: recipe.image } : recipe.image}
+          style={styles.cocktailImage}
+        />
         <View style={styles.cocktailInfo}>
           <Text style={styles.cardTitle}>{recipe.name || recipe.title}</Text>
-          <Text style={styles.cardSub}>{recipe.subtitle || recipe.description}</Text>
+          <Text style={styles.cardSub}>{displayText}</Text>
           <View style={styles.cocktailMeta}>
             <Text style={styles.cocktailDifficulty}>{recipe.difficulty}</Text>
             <Text style={styles.cocktailTime}>{recipe.time}</Text>
@@ -145,7 +162,9 @@ const styles = StyleSheet.create({
   },
   cocktailImage: {
     width: '100%',
-    height: 160,
+    height: 180,
+    resizeMode: 'cover',
+    backgroundColor: colors.card,
   },
   cocktailInfo: {
     padding: spacing(2),

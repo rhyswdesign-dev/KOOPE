@@ -77,7 +77,7 @@ export const vaultItems: VaultItem[] = [
     totalStock: 500,
     currentStock: 428,
     cycleId: 'cycle_2025_01',
-    partner: 'HomeGameAdvantage',
+    partner: 'KŌOPE',
     contents: ['Digital Badge', 'Profile Display', 'Member Recognition'],
     estimatedValue: '$5 Value',
     isActive: true,
@@ -115,8 +115,8 @@ export const vaultItems: VaultItem[] = [
 
   {
     id: 'vault_merch_hoodie',
-    name: 'HGA Premium Hoodie',
-    description: 'Limited edition hoodie with embroidered HomeGameAdvantage logo',
+    name: 'KŌOPE Premium Hoodie',
+    description: 'Limited edition hoodie with embroidered KŌOPE logo',
     image: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=800&q=60',
     category: 'merch',
     type: 'physical',
@@ -126,7 +126,7 @@ export const vaultItems: VaultItem[] = [
     totalStock: 100,
     currentStock: 47,
     cycleId: 'cycle_2025_01',
-    partner: 'HomeGameAdvantage',
+    partner: 'KŌOPE',
     contents: ['Premium Cotton Hoodie', 'Embroidered Logo', 'Limited Edition Tag'],
     estimatedValue: '$65 Value',
     isActive: true,
@@ -422,7 +422,7 @@ export const monetizationItems: MonetizationItem[] = [
   // PHYSICAL MERCH (Real money only, no keys)
   {
     id: 'merch_tshirt',
-    name: 'HomeGameAdvantage T-Shirt',
+    name: 'KŌOPE T-Shirt',
     type: 'merch',
     description: 'Premium cotton tee with embroidered logo',
     image: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=400&q=60',

@@ -37,7 +37,9 @@ import RecipeCard from '../components/RecipeCard';
 import { createRecipeCardProps } from '../utils/recipeActions';
 import { StatusBar } from 'expo-status-bar';
 import { RecipesRepository } from '../repos/supabase';
+import { getCocktailImage } from '../../assets/images/cocktails';
 import { usePersonalization } from '../store/usePersonalization';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useUserRecipes } from '../store/useUserRecipes';
 import RecipePreferencesModal from '../components/RecipePreferencesModal';
 
@@ -49,12 +51,12 @@ const GOLD = '#C9A15A'; // spotlight color
 
 /* ------------------------- DATA ------------------------- */
 
-// Featured Cocktail of the Month
-const COCKTAIL_OF_THE_MONTH = {
+// Featured Cocktail of the Week
+const COCKTAIL_OF_THE_WEEK = {
   id: 'old-fashioned',
   name: 'Old Fashioned',
-  subtitle: 'Cocktail of the Month',
-  image: 'https://images.unsplash.com/photo-1536935338788-846bb9981813?auto=format&fit=crop&w=1200&q=60',
+  subtitle: 'Cocktail of the Week',
+  image: getCocktailImage('old-fashioned'),
   description: 'A timeless classic that defined the cocktail era.',
   badge: 'GOLD' as const
 };
@@ -590,19 +592,22 @@ function MoodCard({ title, image, subtitle, onPress, index = 0 }: { title: strin
   );
 }
 
-function HeroCard({ cocktail, onPress }: { cocktail: typeof COCKTAIL_OF_THE_MONTH; onPress: () => void }) {
+function HeroCard({ cocktail, onPress }: { cocktail: typeof COCKTAIL_OF_THE_WEEK; onPress: () => void }) {
   const cardW = width - spacing(2) * 2;
   const cardH = Math.round(cardW * 0.56);
 
   return (
     <Animated.View entering={FadeIn.duration(600)} style={{ marginHorizontal: spacing(2), borderRadius: radii.xl, overflow: 'hidden', backgroundColor: colors.card, marginBottom: spacing(1.5) }}>
       <Pressable onPress={onPress} style={{ width: cardW, height: cardH }}>
-        <Image source={{ uri: cocktail.image }} style={{ width: '100%', height: '100%' }} />
+        <Image
+          source={typeof cocktail.image === 'string' ? { uri: cocktail.image } : cocktail.image}
+          style={{ width: '100%', height: '100%' }}
+        />
       </Pressable>
 
       {/* gold label */}
       <View style={{ position: 'absolute', top: 10, left: 10, backgroundColor: GOLD, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999 }}>
-        <Text style={{ color: '#120D07', fontWeight: '900' }}>COCKTAIL OF THE MONTH</Text>
+        <Text style={{ color: '#120D07', fontWeight: '900' }}>COCKTAIL OF THE WEEK</Text>
       </View>
 
       <View style={{ padding: spacing(2) }}>
@@ -656,7 +661,12 @@ export default function RecipesScreen() {
   useEffect(() => {
     async function loadRecipes() {
       try {
-        // This will return instantly if cache exists, or fetch if not
+        // TEMPORARY: Force clear ALL caches to reload with local images
+        // Remove this after images are working correctly
+        await RecipesRepository.clearAllCaches();
+        console.log('🔄 Cleared ALL recipe caches - will reload with local images');
+
+        // This will fetch fresh data since cache is cleared
         const recipes = await RecipesRepository.getInitialRecipes(150);
         setAllRecipes(recipes);
         setRecipesLoading(false);
@@ -1085,11 +1095,11 @@ export default function RecipesScreen() {
                 {/* Only show featured content when not searching */}
                 {!searchQuery.trim() && (
                   <>
-                    {/* Cocktail of the Month */}
+                    {/* Cocktail of the Week */}
                     <View style={{ marginTop: spacing(1) }}>
               <HeroCard
-                cocktail={COCKTAIL_OF_THE_MONTH}
-                onPress={() => navigation.navigate('CocktailDetail', { cocktailId: COCKTAIL_OF_THE_MONTH.id })}
+                cocktail={COCKTAIL_OF_THE_WEEK}
+                onPress={() => navigation.navigate('CocktailDetail', { cocktailId: COCKTAIL_OF_THE_WEEK.id })}
               />
             </View>
 

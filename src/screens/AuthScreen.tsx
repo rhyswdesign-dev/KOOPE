@@ -148,7 +148,7 @@ export default function AuthScreen({ onComplete, onSkip }: AuthScreenProps = {})
           >
             {/* Hero Section */}
             <View style={styles.heroSection}>
-              <Text style={styles.welcomeTitle}>Welcome to MixedMinds</Text>
+              <Text style={styles.welcomeTitle}>Welcome to KŌOPE</Text>
               <Text style={styles.welcomeSubtitle}>
                 Your personal bartender. Learn, build, and discover cocktails tailored to you.
               </Text>

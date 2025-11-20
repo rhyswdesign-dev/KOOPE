@@ -38,7 +38,7 @@ const categoryProducts: Record<string, Product[]> = {
     {
       id: 'mystery-winter-2025',
       name: 'Winter Mystery Box 2025',
-      brand: 'HomeGameAdvantage',
+      brand: 'KŌOPE',
       description: 'Premium surprise collection with seasonal spirits and bar essentials worth over $350',
       image: 'https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?auto=format&fit=crop&w=800&q=60',
       xpRequired: 2000,

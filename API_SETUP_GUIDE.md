@@ -1,8 +1,8 @@
-# API Setup Guide for HomeGameAdvantage AI Features
+# API Setup Guide for KŌOPE AI Features
 
 ## Overview
 
-HomeGameAdvantage includes powerful AI features that can transform your cocktail recipes, analyze images, and transcribe voice input. These features use OpenAI's GPT-4 and Google Cloud Vision APIs to provide the best experience.
+KŌOPE includes powerful AI features that can transform your cocktail recipes, analyze images, and transcribe voice input. These features use OpenAI's GPT-4 and Google Cloud Vision APIs to provide the best experience.
 
 ## Current Status
 

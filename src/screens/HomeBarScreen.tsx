@@ -339,6 +339,9 @@ export default function HomeBarScreen() {
       >
         <View style={styles.headerTop}>
           <View style={styles.headerLeft}>
+            <TouchableOpacity onPress={() => nav.goBack()} style={styles.backButton}>
+              <Ionicons name="chevron-back" size={24} color={colors.text} />
+            </TouchableOpacity>
             <Text style={styles.headerTitle}>My Bar Inventory</Text>
           </View>
 
@@ -472,10 +475,21 @@ const styles = StyleSheet.create({
   },
   headerLeft: {
     flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(1),
   },
   headerRight: {
     flexDirection: 'row',
     gap: spacing(1.5),
+  },
+  backButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.card,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   headerButton: {
     width: 40,

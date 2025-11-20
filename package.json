@@ -18,7 +18,9 @@
     "recipes:upload": "npx tsx scripts/upload-recipes.ts",
     "recipes:upload-missing": "npx tsx scripts/upload-missing-recipes.ts",
     "recipes:verify": "npx tsx scripts/verify-recipes.ts",
-    "recipes:list": "npx tsx scripts/list-all-recipes.ts"
+    "recipes:list": "npx tsx scripts/list-all-recipes.ts",
+    "images:verify": "npx tsx scripts/verify-image-mappings.ts",
+    "images:fix": "npx tsx scripts/auto-fix-image-mappings.ts"
   },
   "dependencies": {
     "@esbuild/darwin-arm64": "^0.25.12",

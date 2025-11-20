@@ -6,6 +6,7 @@
 import { supabase } from '../../lib/supabase';
 import { Recipe, RecipeFilters } from '../../types/recipe';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getCocktailImage } from '../../../assets/images/cocktails';
 
 // Cache keys
 const CACHE_KEY = '@recipes_cache';
@@ -22,6 +23,24 @@ export class RecipesRepository {
   private static memoryCache: Map<string, CacheEntry> = new Map();
   private static isInitialized = false;
   private static persistentCache: Recipe[] | null = null;
+
+  /**
+   * Force clear all caches (both AsyncStorage and in-memory)
+   * Use this when you need to completely reset recipe data
+   */
+  static async clearAllCaches(): Promise<void> {
+    console.log('🗑️ Clearing all recipe caches...');
+
+    // Clear AsyncStorage
+    await AsyncStorage.multiRemove([CACHE_KEY, CACHE_TIMESTAMP_KEY]);
+
+    // Clear in-memory caches
+    this.persistentCache = null;
+    this.memoryCache.clear();
+    this.isInitialized = false;
+
+    console.log('✅ All caches cleared');
+  }
 
   /**
    * Initialize cache from AsyncStorage
@@ -41,8 +60,14 @@ export class RecipesRepository {
 
         // Check if cache is still valid
         if (now - timestamp < CACHE_DURATION) {
-          this.persistentCache = JSON.parse(cachedData);
-          console.log(`✅ Loaded ${this.persistentCache.length} recipes from cache`);
+          // Parse cached data and restore local image references
+          const cachedRecipes = JSON.parse(cachedData);
+          this.persistentCache = cachedRecipes.map((recipe: Recipe) => ({
+            ...recipe,
+            // Restore local image reference using getCocktailImage
+            image: getCocktailImage(recipe.id, recipe.imageUrl || recipe.image as any),
+          }));
+          console.log(`✅ Loaded ${this.persistentCache.length} recipes from cache (images restored)`);
         } else {
           console.log('🔄 Cache expired, will fetch fresh data');
           await this.clearPersistentCache();
@@ -181,7 +206,7 @@ export class RecipesRepository {
 
     const { data, error } = await supabase
       .from('recipes')
-      .select('id, title, image_url, difficulty, preparation_time, category, base_spirit')
+      .select('id, title, image_url, difficulty, preparation_time, category, base_spirit, tags, description')
       .eq('is_public', true)
       .order('title')
       .limit(limit);
@@ -260,7 +285,7 @@ export class RecipesRepository {
       .from('recipes')
       .select('*')
       .eq('id', id)
-      .single();
+      .maybeSingle();
 
     if (error) {
       console.error('Error fetching recipe:', error);
@@ -379,7 +404,7 @@ export class RecipesRepository {
       id: data.id,
       title: data.title,
       name: data.title,
-      description: '',
+      description: data.description || '',
       createdAt: new Date(),
       updatedAt: new Date(),
 
@@ -401,10 +426,10 @@ export class RecipesRepository {
       servings: 1,
       tools: [],
 
-      image: data.image_url || 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=240&h=160&fit=crop',
+      image: getCocktailImage(data.id, data.image_url || 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=240&h=160&fit=crop'),
       imageUrl: data.image_url,
 
-      tags: [],
+      tags: data.tags || [],
       isPublic: true,
       likes: 0,
       saves: 0,
@@ -446,7 +471,7 @@ export class RecipesRepository {
       servings: data.servings || 1,
       tools: data.tools || [],
 
-      image: data.image_url || 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=240&h=160&fit=crop', // Map imageUrl to image for RecipeCard compatibility
+      image: getCocktailImage(data.id, data.image_url || 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=240&h=160&fit=crop'), // Map imageUrl to image for RecipeCard compatibility
       imageUrl: data.image_url,
       sourceUrl: data.source_url,
       videoUrl: data.video_url,
@@ -465,7 +490,10 @@ export class RecipesRepository {
         calories: data.calories,
         sugar: data.sugar ? parseFloat(data.sugar) : undefined,
         carbs: data.carbs ? parseFloat(data.carbs) : undefined,
-      }
+      },
+
+      // Parse history data from JSON if available
+      history: data.history ? (typeof data.history === 'string' ? JSON.parse(data.history) : data.history) : undefined,
     };
   }
 }

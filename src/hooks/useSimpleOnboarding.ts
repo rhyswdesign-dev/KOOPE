@@ -21,7 +21,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type AppState = 'loading' | 'splash' | 'bartending_welcome' | 'welcome' | 'onboarding' | 'survey' | 'xp_reminder' | 'main';
 
-const ONBOARDING_COMPLETED_KEY = '@HomeGameAdvantage:onboarding_completed';
+const ONBOARDING_COMPLETED_KEY = '@KOOPE:onboarding_completed';
 
 export function useSimpleOnboarding() {
   const [appState, setAppState] = useState<AppState>('loading');
@@ -35,6 +35,11 @@ export function useSimpleOnboarding() {
     try {
       // Clear saved items for fresh session
       await clearSavedItems();
+
+      // DEV MODE: Clear onboarding completion to always show full flow
+      // TODO: Remove this line in production
+      await AsyncStorage.removeItem(ONBOARDING_COMPLETED_KEY);
+      console.log('DEV MODE: Cleared onboarding status for fresh flow');
 
       // Show splash screen
       setAppState('splash');

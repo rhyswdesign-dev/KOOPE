@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "HomeGameAdvantage",
-    "slug": "HomeGameAdvantage",
+    "name": "KŌOPE",
+    "slug": "KOOPE",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -15,7 +15,7 @@
     "ios": {
       "supportsTablet": true,
       "statusBarStyle": "light",
-      "bundleIdentifier": "com.anonymous.HomeGameAdvantage"
+      "bundleIdentifier": "com.koope.app"
     },
     "android": {
       "adaptiveIcon": {
@@ -24,7 +24,7 @@
       },
       "statusBarStyle": "light",
       "edgeToEdgeEnabled": true,
-      "package": "com.anonymous.HomeGameAdvantage"
+      "package": "com.koope.app"
     },
     "web": {
       "favicon": "./assets/favicon.png"
