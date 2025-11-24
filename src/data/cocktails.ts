@@ -153,7 +153,8 @@ const SPIRIT_FORWARD_COCKTAILS = [
     rating: 4.6,
     image: 'https://images.unsplash.com/photo-1580424805313-04ac2b1fef66?q=80&w=1200&auto=format&fit=crop',
     era: 'pre-prohibition',
-    base: 'whiskey'
+    base: 'whiskey',
+    glassware: 'Rocks Glass'
   },
   {
     id: 'negroni',
@@ -167,7 +168,8 @@ const SPIRIT_FORWARD_COCKTAILS = [
     rating: 4.8,
     image: 'https://images.unsplash.com/photo-1574671928146-5c89a22b2e85?q=80&w=1200&auto=format&fit=crop',
     era: 'classic',
-    base: 'gin'
+    base: 'gin',
+    glassware: 'Rocks Glass'
   },
   {
     id: 'manhattan',
@@ -175,13 +177,14 @@ const SPIRIT_FORWARD_COCKTAILS = [
     subtitle: 'Classic • Whiskey-based',
     description: 'The king of whiskey cocktails with sweet vermouth and bitters.',
     ingredients: ['2 oz rye whiskey', '1 oz sweet vermouth', '2 dashes Angostura bitters', 'Maraschino cherry garnish'],
-    instructions: ['Add all ingredients to mixing glass with ice', 'Stir until well-chilled', 'Strain into coupe glass', 'Garnish with maraschino cherry'],
+    instructions: ['Add all ingredients to mixing glass with ice', 'Stir until well-chilled', 'Strain into Coupe glass', 'Garnish with maraschino cherry'],
     difficulty: 'Medium-Hard',
     time: '3 min',
     rating: 4.9,
     image: 'https://images.unsplash.com/photo-1580424805313-04ac2b1fef66?q=80&w=1200&auto=format&fit=crop',
     era: 'classic',
-    base: 'whiskey'
+    base: 'whiskey',
+    glassware: 'Coupe Glass'
   },
   {
     id: 'sazerac',
@@ -195,7 +198,8 @@ const SPIRIT_FORWARD_COCKTAILS = [
     rating: 4.7,
     image: 'https://images.unsplash.com/photo-1580424805313-04ac2b1fef66?q=80&w=1200&auto=format&fit=crop',
     era: 'pre-prohibition',
-    base: 'whiskey'
+    base: 'whiskey',
+    glassware: 'Rocks Glass'
   },
   {
     id: 'vieux-carre',
@@ -203,13 +207,14 @@ const SPIRIT_FORWARD_COCKTAILS = [
     subtitle: 'Pre-Prohibition • Complex',
     description: 'Complex cocktail from Hotel Monteleone in New Orleans.',
     ingredients: ['1 oz rye whiskey', '1 oz cognac', '1 oz sweet vermouth', '1 barspoon Bénédictine', '2 dashes Peychaud\'s bitters', '2 dashes Angostura bitters', 'Lemon peel garnish'],
-    instructions: ['Add all ingredients to mixing glass with ice', 'Stir until well-chilled', 'Strain into rocks glass over large ice cube', 'Garnish with lemon peel'],
+    instructions: ['Add all ingredients to mixing glass with ice', 'Stir until well-chilled', 'Strain into Coupe glass', 'Garnish with lemon peel'],
     difficulty: 'Hard',
     time: '4 min',
     rating: 4.5,
     image: 'https://images.unsplash.com/photo-1574671928146-5c89a22b2e85?q=80&w=1200&auto=format&fit=crop',
     era: 'pre-prohibition',
-    base: 'whiskey'
+    base: 'whiskey',
+    glassware: 'Rocks Glass'
   },
   {
     id: 'brooklyn',
@@ -217,13 +222,14 @@ const SPIRIT_FORWARD_COCKTAILS = [
     subtitle: 'Pre-Prohibition • Dry Manhattan variation',
     description: 'Dry Manhattan variation with maraschino liqueur.',
     ingredients: ['2 oz rye whiskey', '1 oz dry vermouth', '1/4 oz maraschino liqueur', '1/4 oz Amer Picon', 'Orange peel garnish'],
-    instructions: ['Add all ingredients to mixing glass with ice', 'Stir until well-chilled', 'Strain into coupe glass', 'Garnish with orange peel'],
+    instructions: ['Add all ingredients to mixing glass with ice', 'Stir until well-chilled', 'Strain into Coupe glass', 'Garnish with orange peel'],
     difficulty: 'Medium',
     time: '3 min',
     rating: 4.4,
     image: 'https://images.unsplash.com/photo-1546171753-97d2d2da3f2e?q=80&w=1200&auto=format&fit=crop',
     era: 'pre-prohibition',
-    base: 'whiskey'
+    base: 'whiskey',
+    glassware: 'Coupe Glass'
   },
   {
     id: 'hanky-panky',
@@ -237,21 +243,23 @@ const SPIRIT_FORWARD_COCKTAILS = [
     rating: 4.3,
     image: 'https://images.unsplash.com/photo-1551538827-9c037cb4f32a?q=80&w=1200&auto=format&fit=crop',
     era: 'pre-prohibition',
-    base: 'gin'
+    base: 'gin',
+    glassware: 'Coupe Glass'
   },
   {
     id: 'old-fashioned-classic',
     name: 'Old Fashioned',
     subtitle: 'Classic • Whiskey muddled',
     description: 'The original cocktail - whiskey, sugar, bitters, and a twist.',
-    ingredients: ['2 oz bourbon whiskey', '1 sugar cube', '2-3 dashes Angostura bitters', '1 splash water', 'Orange peel garnish'],
-    instructions: ['Place sugar cube in rocks glass', 'Add bitters and splash of water', 'Muddle until sugar dissolves', 'Add whiskey and large ice cube', 'Stir gently to combine', 'Garnish with orange peel'],
+    ingredients: ['2 oz bourbon whiskey', '1 sugar cube', '2-3 dashes Angostura bitters', 'Orange peel garnish'],
+    instructions: ['Place sugar cube in rocks glass', 'Add bitters', 'Muddle until sugar dissolves', 'Add whiskey and large ice cube', 'Stir gently to combine and dilute', 'Express orange peel oils over drink', 'Garnish with orange peel'],
     difficulty: 'Easy-Medium',
     time: '3 min',
     rating: 4.9,
     image: 'https://images.unsplash.com/photo-1536935338788-846bb9981813?q=80&w=1200&auto=format&fit=crop',
     era: 'classic',
-    base: 'whiskey'
+    base: 'whiskey',
+    glassware: 'Rocks Glass'
   },
   {
     id: 'mojito',
@@ -265,7 +273,8 @@ const SPIRIT_FORWARD_COCKTAILS = [
     rating: 4.8,
     image: 'https://images.unsplash.com/photo-1551538827-9c037cb4f32a?q=80&w=1200&auto=format&fit=crop',
     era: 'classic',
-    base: 'rum'
+    base: 'rum',
+    glassware: 'Highball Glass'
   },
   {
     id: 'martinez',
@@ -279,7 +288,8 @@ const SPIRIT_FORWARD_COCKTAILS = [
     rating: 4.4,
     image: 'https://images.unsplash.com/photo-1551538827-9c037cb4f32a?q=80&w=1200&auto=format&fit=crop',
     era: 'pre-prohibition',
-    base: 'gin'
+    base: 'gin',
+    glassware: 'Coupe Glass'
   },
   {
     id: 'corpse-reviver-2',
@@ -293,7 +303,8 @@ const SPIRIT_FORWARD_COCKTAILS = [
     rating: 4.5,
     image: 'https://images.unsplash.com/photo-1551538827-9c037cb4f32a?q=80&w=1200&auto=format&fit=crop',
     era: 'pre-prohibition',
-    base: 'gin'
+    base: 'gin',
+    glassware: 'Coupe Glass'
   },
   {
     id: 'aviation',
@@ -307,7 +318,8 @@ const SPIRIT_FORWARD_COCKTAILS = [
     rating: 4.6,
     image: 'https://images.unsplash.com/photo-1551538827-9c037cb4f32a?q=80&w=1200&auto=format&fit=crop',
     era: 'pre-prohibition',
-    base: 'gin'
+    base: 'gin',
+    glassware: 'Coupe Glass'
   },
   {
     id: 'last-word',
@@ -321,7 +333,8 @@ const SPIRIT_FORWARD_COCKTAILS = [
     rating: 4.7,
     image: 'https://images.unsplash.com/photo-1551538827-9c037cb4f32a?q=80&w=1200&auto=format&fit=crop',
     era: 'pre-prohibition',
-    base: 'gin'
+    base: 'gin',
+    glassware: 'Coupe Glass'
   },
   {
     id: 'mint-julep',
@@ -335,7 +348,8 @@ const SPIRIT_FORWARD_COCKTAILS = [
     rating: 4.5,
     image: 'https://images.unsplash.com/photo-1580424805313-04ac2b1fef66?q=80&w=1200&auto=format&fit=crop',
     era: 'pre-prohibition',
-    base: 'whiskey'
+    base: 'whiskey',
+    glassware: 'Rocks Glass'
   },
   {
     id: 'whiskey-smash',
@@ -349,7 +363,8 @@ const SPIRIT_FORWARD_COCKTAILS = [
     rating: 4.4,
     image: 'https://images.unsplash.com/photo-1580424805313-04ac2b1fef66?q=80&w=1200&auto=format&fit=crop',
     era: 'pre-prohibition',
-    base: 'whiskey'
+    base: 'whiskey',
+    glassware: 'Rocks Glass'
   },
   {
     id: 'bramble',
@@ -363,7 +378,8 @@ const SPIRIT_FORWARD_COCKTAILS = [
     rating: 4.6,
     image: 'https://images.unsplash.com/photo-1551538827-9c037cb4f32a?q=80&w=1200&auto=format&fit=crop',
     era: 'modern',
-    base: 'gin'
+    base: 'gin',
+    glassware: 'Rocks Glass'
   },
   {
     id: 'bee-knees',
@@ -377,7 +393,8 @@ const SPIRIT_FORWARD_COCKTAILS = [
     rating: 4.4,
     image: 'https://images.unsplash.com/photo-1551538827-9c037cb4f32a?q=80&w=1200&auto=format&fit=crop',
     era: 'prohibition',
-    base: 'gin'
+    base: 'gin',
+    glassware: 'Coupe Glass'
   },
   {
     id: 'southside',
@@ -391,7 +408,8 @@ const SPIRIT_FORWARD_COCKTAILS = [
     rating: 4.5,
     image: 'https://images.unsplash.com/photo-1551538827-9c037cb4f32a?q=80&w=1200&auto=format&fit=crop',
     era: 'prohibition',
-    base: 'gin'
+    base: 'gin',
+    glassware: 'Coupe Glass'
   },
   {
     id: 'french-75',
@@ -405,7 +423,8 @@ const SPIRIT_FORWARD_COCKTAILS = [
     rating: 4.7,
     image: 'https://images.unsplash.com/photo-1551538827-9c037cb4f32a?q=80&w=1200&auto=format&fit=crop',
     era: 'classic',
-    base: 'gin'
+    base: 'gin',
+    glassware: 'Champagne Flute'
   },
   {
     id: 'ramos-gin-fizz',
@@ -419,7 +438,8 @@ const SPIRIT_FORWARD_COCKTAILS = [
     rating: 4.8,
     image: 'https://images.unsplash.com/photo-1551538827-9c037cb4f32a?q=80&w=1200&auto=format&fit=crop',
     era: 'classic',
-    base: 'gin'
+    base: 'gin',
+    glassware: 'Highball Glass'
   },
   {
     id: 'vesper',
@@ -427,13 +447,14 @@ const SPIRIT_FORWARD_COCKTAILS = [
     subtitle: 'Literary • James Bond',
     description: 'James Bond\'s preferred martini variation.',
     ingredients: ['3 oz gin', '1 oz vodka', '1/2 oz Lillet Blanc', 'Lemon peel garnish'],
-    instructions: ['Add all ingredients to mixing glass with ice', 'Stir until well-chilled', 'Strain into coupe glass', 'Garnish with lemon peel'],
+    instructions: ['Add all ingredients to mixing glass with ice', 'Stir until well-chilled', 'Strain into Martini glass', 'Garnish with lemon peel'],
     difficulty: 'Easy',
     time: '3 min',
     rating: 4.5,
     image: 'https://images.unsplash.com/photo-1551538827-9c037cb4f32a?q=80&w=1200&auto=format&fit=crop',
     era: 'literary',
-    base: 'gin'
+    base: 'gin',
+    glassware: 'Martini Glass'
   },
   {
     id: 'dry-martini',
@@ -447,7 +468,8 @@ const SPIRIT_FORWARD_COCKTAILS = [
     rating: 4.7,
     image: 'https://images.unsplash.com/photo-1551538827-9c037cb4f32a?q=80&w=1200&auto=format&fit=crop',
     era: 'classic',
-    base: 'gin'
+    base: 'gin',
+    glassware: 'Martini Glass'
   },
   {
     id: 'gin-rickey',
@@ -461,7 +483,8 @@ const SPIRIT_FORWARD_COCKTAILS = [
     rating: 4.3,
     image: 'https://images.unsplash.com/photo-1551538827-9c037cb4f32a?q=80&w=1200&auto=format&fit=crop',
     era: 'classic',
-    base: 'gin'
+    base: 'gin',
+    glassware: 'Highball Glass'
   },
   {
     id: 'tom-collins',
@@ -475,7 +498,8 @@ const SPIRIT_FORWARD_COCKTAILS = [
     rating: 4.4,
     image: 'https://images.unsplash.com/photo-1551538827-9c037cb4f32a?q=80&w=1200&auto=format&fit=crop',
     era: 'classic',
-    base: 'gin'
+    base: 'gin',
+    glassware: 'Collins Glass'
   },
   {
     id: 'john-collins',
@@ -489,7 +513,8 @@ const SPIRIT_FORWARD_COCKTAILS = [
     rating: 4.3,
     image: 'https://images.unsplash.com/photo-1580424805313-04ac2b1fef66?q=80&w=1200&auto=format&fit=crop',
     era: 'classic',
-    base: 'whiskey'
+    base: 'whiskey',
+    glassware: 'Collins Glass'
   },
   {
     id: 'paper-plane',
@@ -503,7 +528,8 @@ const SPIRIT_FORWARD_COCKTAILS = [
     rating: 4.6,
     image: 'https://images.unsplash.com/photo-1580424805313-04ac2b1fef66?q=80&w=1200&auto=format&fit=crop',
     era: 'modern',
-    base: 'whiskey'
+    base: 'whiskey',
+    glassware: 'Coupe Glass'
   },
   {
     id: 'penicillin',
@@ -517,7 +543,8 @@ const SPIRIT_FORWARD_COCKTAILS = [
     rating: 4.7,
     image: 'https://images.unsplash.com/photo-1580424805313-04ac2b1fef66?q=80&w=1200&auto=format&fit=crop',
     era: 'modern',
-    base: 'whiskey'
+    base: 'whiskey',
+    glassware: 'Rocks Glass'
   }
 ];
 
@@ -535,7 +562,8 @@ const SOUR_CITRUS_COCKTAILS = [
     rating: 4.8,
     image: 'https://images.unsplash.com/photo-1582745689430-86cd52ad5bf1?q=80&w=1200&auto=format&fit=crop',
     era: 'classic',
-    base: 'tequila'
+    base: 'tequila',
+    glassware: 'Coupe Glass'
   },
   {
     id: 'daiquiri',
@@ -549,7 +577,8 @@ const SOUR_CITRUS_COCKTAILS = [
     rating: 4.7,
     image: 'https://images.unsplash.com/photo-1581795669633-91ef2c6cebaf?q=80&w=1200&auto=format&fit=crop',
     era: 'classic',
-    base: 'rum'
+    base: 'rum',
+    glassware: 'Coupe Glass'
   },
   {
     id: 'whiskey-sour',
@@ -563,7 +592,8 @@ const SOUR_CITRUS_COCKTAILS = [
     rating: 4.6,
     image: 'https://images.unsplash.com/photo-1580424805313-04ac2b1fef66?q=80&w=1200&auto=format&fit=crop',
     era: 'classic',
-    base: 'whiskey'
+    base: 'whiskey',
+    glassware: 'Rocks Glass'
   },
   {
     id: 'gimlet',
@@ -577,7 +607,8 @@ const SOUR_CITRUS_COCKTAILS = [
     rating: 4.5,
     image: 'https://images.unsplash.com/photo-1551538827-9c037cb4f32a?q=80&w=1200&auto=format&fit=crop',
     era: 'classic',
-    base: 'gin'
+    base: 'gin',
+    glassware: 'Coupe Glass'
   },
   {
     id: 'sidecar',
@@ -591,7 +622,8 @@ const SOUR_CITRUS_COCKTAILS = [
     rating: 4.6,
     image: 'https://images.unsplash.com/photo-1574671928146-5c89a22b2e85?q=80&w=1200&auto=format&fit=crop',
     era: 'classic',
-    base: 'cognac'
+    base: 'cognac',
+    glassware: 'Coupe Glass'
   },
   {
     id: 'cosmopolitan',
@@ -605,7 +637,8 @@ const SOUR_CITRUS_COCKTAILS = [
     rating: 4.4,
     image: 'https://images.unsplash.com/photo-1569529465841-dfecdab7503b?q=80&w=1200&auto=format&fit=crop',
     era: 'modern',
-    base: 'vodka'
+    base: 'vodka',
+    glassware: 'Coupe Glass'
   },
   {
     id: 'amaretto-sour',
@@ -619,7 +652,8 @@ const SOUR_CITRUS_COCKTAILS = [
     rating: 4.5,
     image: 'https://images.unsplash.com/photo-1574671928146-5c89a22b2e85?q=80&w=1200&auto=format&fit=crop',
     era: 'modern',
-    base: 'liqueur'
+    base: 'liqueur',
+    glassware: 'Rocks Glass'
   },
   {
     id: 'pisco-sour',
@@ -633,7 +667,8 @@ const SOUR_CITRUS_COCKTAILS = [
     rating: 4.6,
     image: 'https://images.unsplash.com/photo-1574671928146-5c89a22b2e85?q=80&w=1200&auto=format&fit=crop',
     era: 'traditional',
-    base: 'pisco'
+    base: 'pisco',
+    glassware: 'Coupe Glass'
   },
   {
     id: 'caipirinha',
@@ -647,7 +682,8 @@ const SOUR_CITRUS_COCKTAILS = [
     rating: 4.5,
     image: 'https://images.unsplash.com/photo-1582745689430-86cd52ad5bf1?q=80&w=1200&auto=format&fit=crop',
     era: 'traditional',
-    base: 'cachaça'
+    base: 'cachaça',
+    glassware: 'Rocks Glass'
   },
   {
     id: 'tommy-margarita',
@@ -661,7 +697,8 @@ const SOUR_CITRUS_COCKTAILS = [
     rating: 4.7,
     image: 'https://images.unsplash.com/photo-1582745689430-86cd52ad5bf1?q=80&w=1200&auto=format&fit=crop',
     era: 'modern',
-    base: 'tequila'
+    base: 'tequila',
+    glassware: 'Rocks Glass'
   },
   {
     id: 'paloma',
@@ -675,7 +712,8 @@ const SOUR_CITRUS_COCKTAILS = [
     rating: 4.6,
     image: 'https://images.unsplash.com/photo-1582745689430-86cd52ad5bf1?q=80&w=1200&auto=format&fit=crop',
     era: 'traditional',
-    base: 'tequila'
+    base: 'tequila',
+    glassware: 'Highball Glass'
   },
   {
     id: 'clover-club',
@@ -689,7 +727,8 @@ const SOUR_CITRUS_COCKTAILS = [
     rating: 4.5,
     image: 'https://images.unsplash.com/photo-1551538827-9c037cb4f32a?q=80&w=1200&auto=format&fit=crop',
     era: 'pre-prohibition',
-    base: 'gin'
+    base: 'gin',
+    glassware: 'Coupe Glass'
   },
   {
     id: 'moscow-mule',
@@ -703,7 +742,8 @@ const SOUR_CITRUS_COCKTAILS = [
     rating: 4.4,
     image: 'https://images.unsplash.com/photo-1569529465841-dfecdab7503b?q=80&w=1200&auto=format&fit=crop',
     era: 'classic',
-    base: 'vodka'
+    base: 'vodka',
+    glassware: 'Copper Mug'
   },
   {
     id: 'dark-stormy',
@@ -717,7 +757,8 @@ const SOUR_CITRUS_COCKTAILS = [
     rating: 4.3,
     image: 'https://images.unsplash.com/photo-1581795669633-91ef2c6cebaf?q=80&w=1200&auto=format&fit=crop',
     era: 'traditional',
-    base: 'rum'
+    base: 'rum',
+    glassware: 'Highball Glass'
   },
   {
     id: 'kentucky-mule',
@@ -731,7 +772,8 @@ const SOUR_CITRUS_COCKTAILS = [
     rating: 4.4,
     image: 'https://images.unsplash.com/photo-1580424805313-04ac2b1fef66?q=80&w=1200&auto=format&fit=crop',
     era: 'modern',
-    base: 'whiskey'
+    base: 'whiskey',
+    glassware: 'Copper Mug'
   },
   {
     id: 'bee-sting',
@@ -745,7 +787,8 @@ const SOUR_CITRUS_COCKTAILS = [
     rating: 4.5,
     image: 'https://images.unsplash.com/photo-1582745689430-86cd52ad5bf1?q=80&w=1200&auto=format&fit=crop',
     era: 'modern',
-    base: 'mezcal'
+    base: 'mezcal',
+    glassware: 'Rocks Glass'
   },
   {
     id: 'corpse-reviver-1',
@@ -759,7 +802,8 @@ const SOUR_CITRUS_COCKTAILS = [
     rating: 4.3,
     image: 'https://images.unsplash.com/photo-1574671928146-5c89a22b2e85?q=80&w=1200&auto=format&fit=crop',
     era: 'pre-prohibition',
-    base: 'cognac'
+    base: 'cognac',
+    glassware: 'Coupe Glass'
   },
   {
     id: 'hemingway-daiquiri',
@@ -773,7 +817,8 @@ const SOUR_CITRUS_COCKTAILS = [
     rating: 4.6,
     image: 'https://images.unsplash.com/photo-1581795669633-91ef2c6cebaf?q=80&w=1200&auto=format&fit=crop',
     era: 'literary',
-    base: 'rum'
+    base: 'rum',
+    glassware: 'Coupe Glass'
   },
   {
     id: 'south-side-fizz',
@@ -787,7 +832,8 @@ const SOUR_CITRUS_COCKTAILS = [
     rating: 4.4,
     image: 'https://images.unsplash.com/photo-1551538827-9c037cb4f32a?q=80&w=1200&auto=format&fit=crop',
     era: 'classic',
-    base: 'gin'
+    base: 'gin',
+    glassware: 'Highball Glass'
   },
   {
     id: 'ward-8',
@@ -801,7 +847,8 @@ const SOUR_CITRUS_COCKTAILS = [
     rating: 4.3,
     image: 'https://images.unsplash.com/photo-1580424805313-04ac2b1fef66?q=80&w=1200&auto=format&fit=crop',
     era: 'american',
-    base: 'whiskey'
+    base: 'whiskey',
+    glassware: 'Coupe Glass'
   }
 ];
 
@@ -812,14 +859,15 @@ const TIKI_EXOTIC_COCKTAILS = [
     name: 'Mai Tai',
     subtitle: 'Tiki • Rum blend',
     description: 'Classic tiki cocktail created by Victor Bergeron.',
-    ingredients: ['1 oz aged rum', '1 oz dark rum', '1/2 oz orange curaçao', '1/4 oz orgeat syrup', '1 oz fresh lime juice', 'Fresh mint sprig and lime wheel garnish'],
+    ingredients: ['2 oz aged Jamaican rum', '1/2 oz orange curaçao', '1/4 oz orgeat syrup', '1 oz fresh lime juice', 'Fresh mint sprig and lime wheel garnish'],
     instructions: ['Add all ingredients to shaker with ice', 'Shake vigorously', 'Strain into rocks glass filled with crushed ice', 'Garnish with fresh mint sprig and lime wheel'],
     difficulty: 'Medium',
     time: '4 min',
     rating: 4.7,
     image: 'https://images.unsplash.com/photo-1581795669633-91ef2c6cebaf?q=80&w=1200&auto=format&fit=crop',
     era: 'tiki',
-    base: 'rum'
+    base: 'rum',
+    glassware: 'Rocks Glass'
   },
   {
     id: 'zombie',
@@ -833,7 +881,8 @@ const TIKI_EXOTIC_COCKTAILS = [
     rating: 4.6,
     image: 'https://images.unsplash.com/photo-1581795669633-91ef2c6cebaf?q=80&w=1200&auto=format&fit=crop',
     era: 'tiki',
-    base: 'rum'
+    base: 'rum',
+    glassware: 'Hurricane Glass'
   },
   {
     id: 'scorpion-bowl',
@@ -847,7 +896,8 @@ const TIKI_EXOTIC_COCKTAILS = [
     rating: 4.4,
     image: 'https://images.unsplash.com/photo-1581795669633-91ef2c6cebaf?q=80&w=1200&auto=format&fit=crop',
     era: 'tiki',
-    base: 'rum'
+    base: 'rum',
+    glassware: 'Punch Bowl'
   },
   {
     id: 'hurricane',
@@ -861,7 +911,8 @@ const TIKI_EXOTIC_COCKTAILS = [
     rating: 4.3,
     image: 'https://images.unsplash.com/photo-1581795669633-91ef2c6cebaf?q=80&w=1200&auto=format&fit=crop',
     era: 'new-orleans',
-    base: 'rum'
+    base: 'rum',
+    glassware: 'Hurricane Glass'
   },
   {
     id: 'blue-hawaiian',
@@ -875,7 +926,8 @@ const TIKI_EXOTIC_COCKTAILS = [
     rating: 4.2,
     image: 'https://images.unsplash.com/photo-1581795669633-91ef2c6cebaf?q=80&w=1200&auto=format&fit=crop',
     era: 'tiki',
-    base: 'rum'
+    base: 'rum',
+    glassware: 'Hurricane Glass'
   },
   {
     id: 'painkiller',
@@ -889,7 +941,8 @@ const TIKI_EXOTIC_COCKTAILS = [
     rating: 4.5,
     image: 'https://images.unsplash.com/photo-1581795669633-91ef2c6cebaf?q=80&w=1200&auto=format&fit=crop',
     era: 'caribbean',
-    base: 'rum'
+    base: 'rum',
+    glassware: 'Hurricane Glass'
   },
   {
     id: 'jungle-bird',
@@ -903,7 +956,8 @@ const TIKI_EXOTIC_COCKTAILS = [
     rating: 4.6,
     image: 'https://images.unsplash.com/photo-1581795669633-91ef2c6cebaf?q=80&w=1200&auto=format&fit=crop',
     era: 'tiki',
-    base: 'rum'
+    base: 'rum',
+    glassware: 'Rocks Glass'
   },
   {
     id: 'fog-cutter',
@@ -917,7 +971,8 @@ const TIKI_EXOTIC_COCKTAILS = [
     rating: 4.4,
     image: 'https://images.unsplash.com/photo-1581795669633-91ef2c6cebaf?q=80&w=1200&auto=format&fit=crop',
     era: 'tiki',
-    base: 'rum'
+    base: 'rum',
+    glassware: 'Hurricane Glass'
   },
   {
     id: 'navy-grog',
@@ -931,7 +986,8 @@ const TIKI_EXOTIC_COCKTAILS = [
     rating: 4.5,
     image: 'https://images.unsplash.com/photo-1581795669633-91ef2c6cebaf?q=80&w=1200&auto=format&fit=crop',
     era: 'tiki',
-    base: 'rum'
+    base: 'rum',
+    glassware: 'Hurricane Glass'
   },
   {
     id: 'test-pilot',
@@ -945,7 +1001,8 @@ const TIKI_EXOTIC_COCKTAILS = [
     rating: 4.3,
     image: 'https://images.unsplash.com/photo-1581795669633-91ef2c6cebaf?q=80&w=1200&auto=format&fit=crop',
     era: 'tiki',
-    base: 'rum'
+    base: 'rum',
+    glassware: 'Hurricane Glass'
   },
   {
     id: 'saturn',
@@ -959,7 +1016,8 @@ const TIKI_EXOTIC_COCKTAILS = [
     rating: 4.4,
     image: 'https://images.unsplash.com/photo-1551538827-9c037cb4f32a?q=80&w=1200&auto=format&fit=crop',
     era: 'tiki',
-    base: 'gin'
+    base: 'gin',
+    glassware: 'Rocks Glass'
   },
   {
     id: 'trader-vics-grog',
@@ -973,7 +1031,8 @@ const TIKI_EXOTIC_COCKTAILS = [
     rating: 4.5,
     image: 'https://images.unsplash.com/photo-1581795669633-91ef2c6cebaf?q=80&w=1200&auto=format&fit=crop',
     era: 'tiki',
-    base: 'rum'
+    base: 'rum',
+    glassware: 'Rocks Glass'
   },
   {
     id: 'pearl-diver',
@@ -987,7 +1046,8 @@ const TIKI_EXOTIC_COCKTAILS = [
     rating: 4.3,
     image: 'https://images.unsplash.com/photo-1581795669633-91ef2c6cebaf?q=80&w=1200&auto=format&fit=crop',
     era: 'tiki',
-    base: 'rum'
+    base: 'rum',
+    glassware: 'Hurricane Glass'
   },
   {
     id: 'missionary-downfall',
@@ -1001,7 +1061,8 @@ const TIKI_EXOTIC_COCKTAILS = [
     rating: 4.4,
     image: 'https://images.unsplash.com/photo-1581795669633-91ef2c6cebaf?q=80&w=1200&auto=format&fit=crop',
     era: 'tiki',
-    base: 'rum'
+    base: 'rum',
+    glassware: 'Hurricane Glass'
   },
   {
     id: 'three-dots-dash',
@@ -1015,7 +1076,8 @@ const TIKI_EXOTIC_COCKTAILS = [
     rating: 4.5,
     image: 'https://images.unsplash.com/photo-1581795669633-91ef2c6cebaf?q=80&w=1200&auto=format&fit=crop',
     era: 'tiki',
-    base: 'rum'
+    base: 'rum',
+    glassware: 'Hurricane Glass'
   }
 ];
 
@@ -1033,7 +1095,8 @@ const REFRESHING_HIGHBALL_COCKTAILS = [
     rating: 4.7,
     image: 'https://images.unsplash.com/photo-1551538827-9c037cb4f32a?q=80&w=1200&auto=format&fit=crop',
     era: 'classic',
-    base: 'gin'
+    base: 'gin',
+    glassware: 'Champagne Flute'
   },
   {
     id: 'aperol-spritz',
@@ -1047,7 +1110,8 @@ const REFRESHING_HIGHBALL_COCKTAILS = [
     rating: 4.5,
     image: 'https://images.unsplash.com/photo-1574671928146-5c89a22b2e85?q=80&w=1200&auto=format&fit=crop',
     era: 'italian',
-    base: 'aperol'
+    base: 'aperol',
+    glassware: 'Wine Glass'
   },
   {
     id: 'hugo',
@@ -1061,7 +1125,8 @@ const REFRESHING_HIGHBALL_COCKTAILS = [
     rating: 4.4,
     image: 'https://images.unsplash.com/photo-1574671928146-5c89a22b2e85?q=80&w=1200&auto=format&fit=crop',
     era: 'austrian',
-    base: 'elderflower'
+    base: 'elderflower',
+    glassware: 'Wine Glass'
   },
   {
     id: 'gin-tonic',
@@ -1075,7 +1140,8 @@ const REFRESHING_HIGHBALL_COCKTAILS = [
     rating: 4.6,
     image: 'https://images.unsplash.com/photo-1551538827-9c037cb4f32a?q=80&w=1200&auto=format&fit=crop',
     era: 'classic',
-    base: 'gin'
+    base: 'gin',
+    glassware: 'Highball Glass'
   },
   {
     id: 'vodka-soda',
@@ -1089,7 +1155,8 @@ const REFRESHING_HIGHBALL_COCKTAILS = [
     rating: 4.2,
     image: 'https://images.unsplash.com/photo-1569529465841-dfecdab7503b?q=80&w=1200&auto=format&fit=crop',
     era: 'modern',
-    base: 'vodka'
+    base: 'vodka',
+    glassware: 'Highball Glass'
   },
   {
     id: 'ranch-water',
@@ -1103,7 +1170,8 @@ const REFRESHING_HIGHBALL_COCKTAILS = [
     rating: 4.4,
     image: 'https://images.unsplash.com/photo-1582745689430-86cd52ad5bf1?q=80&w=1200&auto=format&fit=crop',
     era: 'texas',
-    base: 'tequila'
+    base: 'tequila',
+    glassware: 'Highball Glass'
   },
   {
     id: 'highball',
@@ -1117,7 +1185,8 @@ const REFRESHING_HIGHBALL_COCKTAILS = [
     rating: 4.3,
     image: 'https://images.unsplash.com/photo-1580424805313-04ac2b1fef66?q=80&w=1200&auto=format&fit=crop',
     era: 'japanese',
-    base: 'whiskey'
+    base: 'whiskey',
+    glassware: 'Highball Glass'
   },
   {
     id: 'americano',
@@ -1131,7 +1200,8 @@ const REFRESHING_HIGHBALL_COCKTAILS = [
     rating: 4.4,
     image: 'https://images.unsplash.com/photo-1574671928146-5c89a22b2e85?q=80&w=1200&auto=format&fit=crop',
     era: 'italian',
-    base: 'campari'
+    base: 'campari',
+    glassware: 'Collins Glass'
   },
   {
     id: 'negroni-sbagliato',
@@ -1145,7 +1215,8 @@ const REFRESHING_HIGHBALL_COCKTAILS = [
     rating: 4.5,
     image: 'https://images.unsplash.com/photo-1574671928146-5c89a22b2e85?q=80&w=1200&auto=format&fit=crop',
     era: 'italian',
-    base: 'campari'
+    base: 'campari',
+    glassware: 'Wine Glass'
   },
   {
     id: 'spritz-veneziano',
@@ -1159,7 +1230,8 @@ const REFRESHING_HIGHBALL_COCKTAILS = [
     rating: 4.5,
     image: 'https://images.unsplash.com/photo-1574671928146-5c89a22b2e85?q=80&w=1200&auto=format&fit=crop',
     era: 'venetian',
-    base: 'aperol'
+    base: 'aperol',
+    glassware: 'Wine Glass'
   }
 ];
 
@@ -1177,7 +1249,8 @@ const AFTER_DINNER_COCKTAILS = [
     rating: 4.8,
     image: 'https://images.unsplash.com/photo-1609951651556-5334e2706168?q=80&w=1200&auto=format&fit=crop',
     era: 'modern',
-    base: 'vodka'
+    base: 'vodka',
+    glassware: 'Martini Glass'
   },
   {
     id: 'white-russian',
@@ -1191,7 +1264,8 @@ const AFTER_DINNER_COCKTAILS = [
     rating: 4.5,
     image: 'https://images.unsplash.com/photo-1569529465841-dfecdab7503b?q=80&w=1200&auto=format&fit=crop',
     era: 'modern',
-    base: 'vodka'
+    base: 'vodka',
+    glassware: 'Rocks Glass'
   },
   {
     id: 'black-russian',
@@ -1205,7 +1279,8 @@ const AFTER_DINNER_COCKTAILS = [
     rating: 4.3,
     image: 'https://images.unsplash.com/photo-1569529465841-dfecdab7503b?q=80&w=1200&auto=format&fit=crop',
     era: 'modern',
-    base: 'vodka'
+    base: 'vodka',
+    glassware: 'Rocks Glass'
   },
   {
     id: 'brandy-alexander',
@@ -1219,7 +1294,8 @@ const AFTER_DINNER_COCKTAILS = [
     rating: 4.4,
     image: 'https://images.unsplash.com/photo-1574671928146-5c89a22b2e85?q=80&w=1200&auto=format&fit=crop',
     era: 'classic',
-    base: 'cognac'
+    base: 'cognac',
+    glassware: 'Coupe Glass'
   },
   {
     id: 'grasshopper',
@@ -1233,7 +1309,8 @@ const AFTER_DINNER_COCKTAILS = [
     rating: 4.2,
     image: 'https://images.unsplash.com/photo-1574671928146-5c89a22b2e85?q=80&w=1200&auto=format&fit=crop',
     era: 'classic',
-    base: 'liqueur'
+    base: 'liqueur',
+    glassware: 'Coupe Glass'
   },
   {
     id: 'mudslide',
@@ -1247,7 +1324,8 @@ const AFTER_DINNER_COCKTAILS = [
     rating: 4.3,
     image: 'https://images.unsplash.com/photo-1569529465841-dfecdab7503b?q=80&w=1200&auto=format&fit=crop',
     era: 'modern',
-    base: 'vodka'
+    base: 'vodka',
+    glassware: 'Rocks Glass'
   },
   {
     id: 'golden-cadillac',
@@ -1261,7 +1339,8 @@ const AFTER_DINNER_COCKTAILS = [
     rating: 4.1,
     image: 'https://images.unsplash.com/photo-1574671928146-5c89a22b2e85?q=80&w=1200&auto=format&fit=crop',
     era: 'classic',
-    base: 'liqueur'
+    base: 'liqueur',
+    glassware: 'Coupe Glass'
   },
   {
     id: 'pink-squirrel',
@@ -1275,7 +1354,8 @@ const AFTER_DINNER_COCKTAILS = [
     rating: 4.0,
     image: 'https://images.unsplash.com/photo-1574671928146-5c89a22b2e85?q=80&w=1200&auto=format&fit=crop',
     era: 'classic',
-    base: 'liqueur'
+    base: 'liqueur',
+    glassware: 'Coupe Glass'
   },
   {
     id: 'revolver',
@@ -1289,7 +1369,8 @@ const AFTER_DINNER_COCKTAILS = [
     rating: 4.5,
     image: 'https://images.unsplash.com/photo-1580424805313-04ac2b1fef66?q=80&w=1200&auto=format&fit=crop',
     era: 'modern',
-    base: 'whiskey'
+    base: 'whiskey',
+    glassware: 'Coupe Glass'
   },
   {
     id: 'porto-flip',
@@ -1303,7 +1384,8 @@ const AFTER_DINNER_COCKTAILS = [
     rating: 4.3,
     image: 'https://images.unsplash.com/photo-1574671928146-5c89a22b2e85?q=80&w=1200&auto=format&fit=crop',
     era: 'classic',
-    base: 'port'
+    base: 'port',
+    glassware: 'Coupe Glass'
   },
   {
     id: 'brandy-milk-punch',
@@ -1317,7 +1399,8 @@ const AFTER_DINNER_COCKTAILS = [
     rating: 4.2,
     image: 'https://images.unsplash.com/photo-1574671928146-5c89a22b2e85?q=80&w=1200&auto=format&fit=crop',
     era: 'new-orleans',
-    base: 'cognac'
+    base: 'cognac',
+    glassware: 'Highball Glass'
   },
   {
     id: 'stinger',
@@ -1331,7 +1414,8 @@ const AFTER_DINNER_COCKTAILS = [
     rating: 4.1,
     image: 'https://images.unsplash.com/photo-1574671928146-5c89a22b2e85?q=80&w=1200&auto=format&fit=crop',
     era: 'classic',
-    base: 'cognac'
+    base: 'cognac',
+    glassware: 'Coupe Glass'
   },
   {
     id: 'brandy-crusta',
@@ -1345,7 +1429,8 @@ const AFTER_DINNER_COCKTAILS = [
     rating: 4.4,
     image: 'https://images.unsplash.com/photo-1574671928146-5c89a22b2e85?q=80&w=1200&auto=format&fit=crop',
     era: 'classic',
-    base: 'cognac'
+    base: 'cognac',
+    glassware: 'Wine Glass'
   },
   {
     id: 'alexander',
@@ -1359,7 +1444,8 @@ const AFTER_DINNER_COCKTAILS = [
     rating: 4.2,
     image: 'https://images.unsplash.com/photo-1551538827-9c037cb4f32a?q=80&w=1200&auto=format&fit=crop',
     era: 'classic',
-    base: 'gin'
+    base: 'gin',
+    glassware: 'Coupe Glass'
   }
 ];
 
