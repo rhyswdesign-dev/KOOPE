@@ -22,6 +22,7 @@ import type { RootStackParamList } from '../navigation/RootNavigator';
 import { LinearGradient } from 'expo-linear-gradient';
 import { HomeBar, BarIngredient, HomeBarService } from '../services/homeBarService';
 import { ShoppingListStore } from '../services/shoppingListStore';
+import EmptyState from '../components/EmptyState';
 
 // Import images from assets
 import * as Images from '../../assets/images';
@@ -429,13 +430,19 @@ export default function HomeBarScreen() {
         )}
 
         {all.length === 0 && (
-          <View style={styles.emptyState}>
-            <Ionicons name="wine-outline" size={64} color={colors.muted} />
-            <Text style={styles.emptyStateTitle}>No items found</Text>
-            <Text style={styles.emptyStateText}>
-              {searchQuery ? 'Try a different search term' : 'Add items to your inventory to get started'}
-            </Text>
-          </View>
+          <EmptyState
+            icon="wine-outline"
+            title="No items found"
+            message={searchQuery ? 'Try a different search term' : 'Add items to your inventory to get started'}
+            actionLabel={searchQuery ? "Clear Search" : "Explore Recipes"}
+            onAction={() => {
+              if (searchQuery) {
+                setSearchQuery('');
+              } else {
+                nav.navigate('Recipes');
+              }
+            }}
+          />
         )}
 
         {/* Bottom Spacing */}
@@ -647,24 +654,6 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '700',
     color: colors.bg,
-  },
-  emptyState: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: spacing(10),
-    paddingHorizontal: spacing(4),
-  },
-  emptyStateTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: colors.text,
-    marginTop: spacing(2),
-    marginBottom: spacing(1),
-  },
-  emptyStateText: {
-    fontSize: 14,
-    color: colors.muted,
-    textAlign: 'center',
   },
   bottomSpacing: {
     height: spacing(4),

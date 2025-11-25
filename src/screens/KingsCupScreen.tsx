@@ -13,11 +13,12 @@ import {
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { colors, spacing, radii } from '../theme/tokens';
+import { games } from '../../assets/images/games';
 
 const { width } = Dimensions.get('window');
 
 // Data
-const KINGS_IMG = 'https://images.unsplash.com/photo-1528819622765-d6bcf132fca4?q=80&w=1200&auto=format&fit=crop';
+const KINGS_IMG = games.kingsCup;
 
 const meta = { origin: 'USA' };
 
@@ -128,7 +129,7 @@ function AccentButton({ title, onPress, style }: { title: string; onPress: () =>
 
 export default function KingsCupScreen() {
   const nav = useNavigation();
-  const imageHeight = Math.round((width * 9) / 16); // 16:9 ratio
+  const imageHeight = Math.round(width * 1.2); // Full size hero image
 
 
   return (
@@ -139,9 +140,10 @@ export default function KingsCupScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* Header Image */}
-        <Image 
-          source={{ uri: KINGS_IMG }} 
+        <Image
+          source={KINGS_IMG}
           style={[styles.headerImage, { height: imageHeight }]}
+          resizeMode="cover"
         />
 
         {/* Content Container */}
@@ -228,8 +230,6 @@ const styles = StyleSheet.create({
   },
   headerImage: {
     width: '100%',
-    borderBottomLeftRadius: radii.lg,
-    borderBottomRightRadius: radii.lg,
   },
   contentContainer: {
     paddingHorizontal: spacing(2),

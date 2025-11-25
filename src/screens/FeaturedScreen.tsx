@@ -18,6 +18,8 @@ import FilterDrawer from '../components/FilterDrawer';
 import CreateRecipeModal from '../components/CreateRecipeModal';
 import { useScreenTracking } from '../context/AnalyticsContext';
 import { FEATURED_SPIRIT_IMAGES } from '../data/barImages';
+import { getCocktailImage } from '../../assets/images/cocktails';
+import { getCocktailsOfTheWeek } from '../utils/weeklyRotation';
 
 const chips: Array<{ key: string; label: string }> = [
   { key: 'Home', label: 'Home' },
@@ -79,48 +81,9 @@ const games = [
     img:'https://images.unsplash.com/photo-1582719478250-c89cae4dc84a?auto=format&fit=crop&w=880&q=60' },
 ];
 
-const featuredCocktails = [
-  {
-    id: 'old-fashioned',
-    title: 'Old Fashioned',
-    subtitle: 'Classic • Whiskey-based',
-    description: 'A timeless cocktail made with whiskey, sugar, bitters, and an orange twist.',
-    img: 'https://images.unsplash.com/photo-1536935338788-846bb9981813?auto=format&fit=crop&w=1200&q=60',
-    difficulty: 'Easy',
-    time: '3 min',
-    ingredients: ['2 oz Whiskey', '1/4 oz Simple Syrup', '2 dashes Angostura Bitters', 'Orange Peel']
-  },
-  {
-    id: 'manhattan',
-    title: 'Manhattan',
-    subtitle: 'Classic • Whiskey-based',
-    description: 'An elegant mix of whiskey, sweet vermouth, and bitters, garnished with a cherry.',
-    img: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?auto=format&fit=crop&w=1200&q=60',
-    difficulty: 'Easy',
-    time: '2 min',
-    ingredients: ['2 oz Rye Whiskey', '1 oz Sweet Vermouth', '2 dashes Angostura Bitters', 'Maraschino Cherry']
-  },
-  {
-    id: 'negroni',
-    title: 'Negroni',
-    subtitle: 'Classic • Gin-based',
-    description: 'A bitter and sweet Italian cocktail with gin, Campari, and sweet vermouth.',
-    img: 'https://images.unsplash.com/photo-1541745537411-b8046dc6d66c?auto=format&fit=crop&w=1200&q=60',
-    difficulty: 'Easy',
-    time: '2 min',
-    ingredients: ['1 oz Gin', '1 oz Campari', '1 oz Sweet Vermouth', 'Orange Peel']
-  },
-  {
-    id: 'espresso-martini',
-    title: 'Espresso Martini',
-    subtitle: 'Modern • Vodka-based',
-    description: 'A sophisticated coffee cocktail with vodka, coffee liqueur, and fresh espresso.',
-    img: 'https://images.unsplash.com/photo-1609951651556-5334e2706168?auto=format&fit=crop&w=1200&q=60',
-    difficulty: 'Medium',
-    time: '5 min',
-    ingredients: ['2 oz Vodka', '1/2 oz Coffee Liqueur', '1 shot Fresh Espresso', '1/4 oz Simple Syrup']
-  }
-];
+// Get cocktails of the week (automatically rotates weekly with randomized order)
+// All classic cocktails get a spotlight in rotation
+const featuredCocktails = getCocktailsOfTheWeek(4);
 
 const videos = [
   { id: 'perfect-pour-techniques', title:'Perfect Pour Techniques', duration:'Watch Now · 2 min',
@@ -314,16 +277,22 @@ export default function FeaturedScreen() {
         }} />
       </Section>
 
-      <Section title="Featured Cocktails">
+      <Section title="Cocktails of the Week">
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: spacing(2), paddingHorizontal: spacing(2) }}>
-          {featuredCocktails.map(cocktail => (
-            <TouchableOpacity 
-              key={cocktail.id} 
-              style={styles.cocktailCard} 
+          {featuredCocktails.map(cocktail => {
+            const resolvedImage = getCocktailImage(cocktail.id, cocktail.img);
+            return (
+            <TouchableOpacity
+              key={cocktail.id}
+              style={styles.cocktailCard}
               onPress={() => nav.navigate('CocktailDetail', { cocktailId: cocktail.id })}
               activeOpacity={0.8}
             >
-              <Image source={{ uri: cocktail.img }} style={styles.cocktailImage}/>
+              <Image
+                source={typeof resolvedImage === 'string' ? { uri: resolvedImage } : resolvedImage}
+                style={styles.cocktailImage}
+                resizeMode="cover"
+              />
               <View style={styles.cocktailInfo}>
                 <Text style={styles.cardTitle}>{cocktail.title}</Text>
                 <Text style={styles.cardSub}>{cocktail.subtitle}</Text>
@@ -332,24 +301,28 @@ export default function FeaturedScreen() {
                   <Text style={styles.cocktailTime}>{cocktail.time}</Text>
                 </View>
               </View>
-              <TouchableOpacity 
-                style={styles.saveButton} 
+              <TouchableOpacity
+                style={styles.saveButton}
                 activeOpacity={0.7}
-                onPress={() => toggleSavedCocktail({
-                  id: cocktail.id,
-                  name: cocktail.title,
-                  subtitle: cocktail.description,
-                  image: cocktail.img
-                })}
+                onPress={(e) => {
+                  e.stopPropagation();
+                  toggleSavedCocktail({
+                    id: cocktail.id,
+                    name: cocktail.title,
+                    subtitle: cocktail.description,
+                    image: cocktail.img
+                  });
+                }}
               >
-                <Ionicons 
-                  name={isCocktailSaved(cocktail.id) ? "bookmark" : "bookmark-outline"} 
-                  size={20} 
-                  color={isCocktailSaved(cocktail.id) ? colors.accent : colors.text} 
+                <Ionicons
+                  name={isCocktailSaved(cocktail.id) ? "bookmark" : "bookmark-outline"}
+                  size={20}
+                  color={isCocktailSaved(cocktail.id) ? colors.accent : colors.text}
                 />
               </TouchableOpacity>
             </TouchableOpacity>
-          ))}
+            );
+          })}
         </ScrollView>
       </Section>
 
@@ -637,9 +610,9 @@ const styles = StyleSheet.create({
     lineHeight: 20
   },
 
-  // Cocktail Cards
+  // Cocktail Cards - horizontal scroll
   cocktailCard: {
-    width: 280,
+    width: 260,
     backgroundColor: colors.card,
     borderRadius: radii.lg,
     borderWidth: 1,
@@ -648,8 +621,8 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   cocktailImage: {
-    width: '100%',
-    height: 160,
+    width: 260,
+    height: 180,
   },
   cocktailInfo: {
     padding: spacing(2),

@@ -1,6 +1,6 @@
 import React, { useState, useLayoutEffect, useEffect } from 'react';
 import {
-  View, Text, ScrollView, Image, TouchableOpacity, StyleSheet, Share, Alert, Pressable
+  View, Text, ScrollView, Image, TouchableOpacity, StyleSheet, Share, Alert, Pressable, RefreshControl
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -15,6 +15,9 @@ import { ShoppingListStore } from '../services/shoppingListStore';
 import { GroceryListService } from '../services/groceryListService';
 import { getDetailedCocktail } from '../utils/cocktailDataTransformer';
 import GroceryListModal from '../components/GroceryListModal';
+import { getCocktailImage } from '../../assets/images/cocktails';
+import Toast from '../components/Toast';
+import { useToast } from '../hooks/useToast';
 
 type CocktailDetailScreenRouteProp = {
   params: {
@@ -467,7 +470,6 @@ const cocktailData = {
     title: 'Old Fashioned',
     subtitle: 'Classic • Whiskey-based',
     description: 'A timeless cocktail made with whiskey, sugar, bitters, and an orange twist. This drink represents the essence of what a cocktail should be - simple, balanced, and perfectly executed.',
-    img: 'https://images.unsplash.com/photo-1536935338788-846bb9981813?auto=format&fit=crop&w=1200&q=60',
     difficulty: 'Easy',
     time: '3 min',
     ingredients: [
@@ -511,7 +513,7 @@ const cocktailData = {
     instructions: [
       'Add whiskey, vermouth, and bitters to mixing glass',
       'Add ice and stir for 30 seconds',
-      'Strain into chilled coupe glass',
+      'Strain into chilled Coupe glass',
       'Garnish with cherry'
     ],
     tips: [
@@ -598,7 +600,7 @@ const cocktailData = {
     instructions: [
       'Add gin and vermouth to mixing glass with ice',
       'Stir for 30 seconds until well chilled',
-      'Strain into chilled coupe glass',
+      'Strain into chilled Coupe glass',
       'Garnish with olive or lemon twist'
     ],
     tips: [
@@ -689,7 +691,7 @@ const cocktailData = {
     instructions: [
       'Add all ingredients to shaker with ice',
       'Shake vigorously for 10-15 seconds',
-      'Double strain into chilled coupe glass',
+      'Double strain into chilled Coupe glass',
       'Garnish with lime wheel if desired'
     ],
     tips: [
@@ -712,7 +714,7 @@ const cocktailData = {
     ingredients: [
       { name: '2 oz Blanco Tequila', note: '100% agave preferred' },
       { name: '1 oz Fresh Lime Juice', note: 'Freshly squeezed' },
-      { name: '3/4 oz Orange Liqueur', note: 'Cointreau or Triple Sec' },
+      { name: '1 oz Orange Liqueur', note: 'Cointreau or Triple Sec' },
       { name: 'Salt', note: 'For rim' },
       { name: 'Lime Wheel', note: 'For garnish' }
     ],
@@ -744,13 +746,13 @@ const cocktailData = {
       { name: '1.5 oz Vodka', note: 'Premium vodka preferred' },
       { name: '1/2 oz Orange Liqueur', note: 'Cointreau or Triple Sec' },
       { name: '1/2 oz Fresh Lime Juice', note: 'Freshly squeezed' },
-      { name: '1/4 oz Cranberry Juice', note: 'For color and flavor' },
+      { name: '1/2 oz Cranberry Juice', note: 'For color and flavor' },
       { name: 'Lime Wheel', note: 'For garnish' }
     ],
     instructions: [
       'Add all ingredients to shaker with ice',
       'Shake vigorously for 10-15 seconds',
-      'Double strain into chilled coupe glass',
+      'Double strain into chilled Coupe glass',
       'Garnish with lime wheel on rim'
     ],
     tips: [
@@ -831,9 +833,11 @@ export default function CocktailDetailScreen() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute<CocktailDetailScreenRouteProp>();
   const { toggleSavedCocktail, isCocktailSaved } = useSavedItems();
+  const { toast, showToast, hideToast } = useToast();
 
   const [firebaseRecipe, setFirebaseRecipe] = useState<Recipe | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [groceryListVisible, setGroceryListVisible] = useState(false);
 
   // Load recipe from Supabase first
@@ -844,6 +848,7 @@ export default function CocktailDetailScreen() {
         setFirebaseRecipe(recipe);
       } catch (error) {
         console.error('Error loading recipe:', error);
+        showToast('Failed to load recipe details', 'error');
       } finally {
         setLoading(false);
       }
@@ -851,6 +856,21 @@ export default function CocktailDetailScreen() {
 
     loadRecipe();
   }, [route.params.cocktailId]);
+
+  // Pull-to-refresh handler
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      const recipe = await RecipesRepository.getRecipeById(route.params.cocktailId);
+      setFirebaseRecipe(recipe);
+      showToast('Recipe refreshed!', 'success');
+    } catch (error) {
+      console.error('Error refreshing recipe:', error);
+      showToast('Failed to refresh recipe', 'error');
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   // Check data sources in priority order:
   // 1. Non-alcoholic recipes
@@ -879,7 +899,7 @@ export default function CocktailDetailScreen() {
         })) || [],
         instructions: firebaseRecipe.aiFormattedData.instructions || [],
         tips: firebaseRecipe.aiFormattedData.tags?.map((tag: string) => `Tagged as: ${tag}`) || [],
-        glassware: firebaseRecipe.aiFormattedData.glassware || 'Rocks Glass',
+        glassware: firebaseRecipe.aiFormattedData.glassware,
         kitAvailable: false,
         kitPrice: 0,
         isFirebaseRecipe: true
@@ -929,7 +949,7 @@ export default function CocktailDetailScreen() {
       }) || [],
       instructions: firebaseRecipe.instructions || [],
       tips: firebaseRecipe.tags?.slice(0, 3) || [],
-      glassware: firebaseRecipe.glassware || 'Rocks Glass',
+      glassware: firebaseRecipe.glassware,
       kitAvailable: true,
       kitPrice: undefined,
       isSupabaseRecipe: true
@@ -938,6 +958,10 @@ export default function CocktailDetailScreen() {
 
   // Priority order: non-alcoholic > firebase > hardcoded > transformed centralized
   const cocktail = nonAlcoholicRecipe || firebaseCocktail || hardcodedCocktail || transformedCocktail;
+
+  // GLOBAL IMAGE RESOLVER: Use local images if available
+  const resolvedImage = cocktail ? getCocktailImage(cocktail.id, cocktail.img) : null;
+
   const isSaved = isCocktailSaved(route.params.cocktailId);
 
   const handleShare = async () => {
@@ -954,12 +978,22 @@ export default function CocktailDetailScreen() {
 
   const handleSave = () => {
     if (!cocktail) return;
+
+    const wasSaved = isCocktailSaved(route.params.cocktailId);
+
     toggleSavedCocktail({
       id: route.params.cocktailId,
       name: cocktail.title,
       subtitle: cocktail.subtitle,
       image: cocktail.img
     });
+
+    // Show toast notification
+    if (wasSaved) {
+      showToast(`${cocktail.title} removed from saved`, 'info');
+    } else {
+      showToast(`${cocktail.title} saved!`, 'success');
+    }
   };
 
   const handleAddToCart = () => {
@@ -1016,11 +1050,21 @@ export default function CocktailDetailScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['left', 'right', 'bottom']}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.accent}
+            colors={[colors.accent]}
+          />
+        }
+      >
         {/* Hero Image */}
         <View style={styles.heroImageContainer}>
           <Image
-            source={typeof cocktail.img === 'string' ? { uri: cocktail.img } : cocktail.img}
+            source={typeof resolvedImage === 'string' ? { uri: resolvedImage } : resolvedImage}
             style={styles.heroImage}
           />
           
@@ -1072,10 +1116,12 @@ export default function CocktailDetailScreen() {
               <MaterialCommunityIcons name="speedometer" size={20} color={colors.accent} />
               <Text style={styles.statText}>{cocktail.difficulty}</Text>
             </View>
-            <View style={styles.statItem}>
-              <MaterialCommunityIcons name="glass-cocktail" size={20} color={colors.accent} />
-              <Text style={styles.statText}>{cocktail.glassware}</Text>
-            </View>
+            {cocktail.glassware && (
+              <View style={styles.statItem}>
+                <MaterialCommunityIcons name="glass-cocktail" size={20} color={colors.accent} />
+                <Text style={styles.statText}>{cocktail.glassware}</Text>
+              </View>
+            )}
           </View>
 
           {/* Ingredients */}
@@ -1156,6 +1202,14 @@ export default function CocktailDetailScreen() {
           recipeId={cocktail.id}
         />
       )}
+
+      {/* Toast Notification */}
+      <Toast
+        message={toast.message}
+        type={toast.type}
+        visible={toast.visible}
+        onHide={hideToast}
+      />
     </SafeAreaView>
   );
 }

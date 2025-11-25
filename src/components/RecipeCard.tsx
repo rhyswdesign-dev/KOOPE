@@ -10,6 +10,7 @@ import {
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, radii, fonts } from '../theme/tokens';
+import { getCocktailImage } from '../../assets/images/cocktails';
 
 interface RecipeCardProps {
   recipe: {
@@ -68,6 +69,11 @@ export default function RecipeCard({
     return recipe.subtitle || recipe.description || '';
   }, [recipe.id, recipe.tags, recipe.subtitle, recipe.description]);
 
+  // GLOBAL IMAGE RESOLVER: Always use local images if available
+  const resolvedImage = useMemo(() => {
+    return getCocktailImage(recipe.id, recipe.image);
+  }, [recipe.id, recipe.image]);
+
   return (
     <Animated.View style={[animatedStyle, style]}>
       <Pressable
@@ -81,7 +87,7 @@ export default function RecipeCard({
         }}
       >
         <Image
-          source={typeof recipe.image === 'string' ? { uri: recipe.image } : recipe.image}
+          source={typeof resolvedImage === 'string' ? { uri: resolvedImage } : resolvedImage}
           style={styles.cocktailImage}
         />
         <View style={styles.cocktailInfo}>

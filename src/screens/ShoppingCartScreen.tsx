@@ -19,12 +19,16 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { ShoppingListStore } from '../services/shoppingListStore';
 import { HomeBarService, BarIngredient } from '../services/homeBarService';
+import EmptyState from '../components/EmptyState';
+import Toast from '../components/Toast';
+import { useToast } from '../hooks/useToast';
 
 type ViewMode = 'cocktail' | 'ingredient';
 type CategoryFilter = 'all' | 'spirits' | 'mixers' | 'garnishes' | 'syrups';
 
 export default function ShoppingCartScreen() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const { toast, showToast, hideToast } = useToast();
   const [viewMode, setViewMode] = useState<ViewMode>('cocktail');
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('all');
   const [savedShoppingLists, setSavedShoppingLists] = useState<any[]>([]);
@@ -86,17 +90,10 @@ export default function ShoppingCartScreen() {
       await ShoppingListStore.deleteShoppingItem(itemId);
       await loadShoppingLists();
 
-      Alert.alert(
-        'Added to Inventory!',
-        `${item.name} has been purchased and added to your home bar.`,
-        [
-          { text: 'OK' },
-          { text: 'View Inventory', onPress: () => nav.navigate('HomeBar') }
-        ]
-      );
+      showToast(`${item.name} added to your home bar!`, 'success');
     } catch (error) {
       console.error('Error marking item as purchased:', error);
-      Alert.alert('Error', 'Failed to mark item as purchased');
+      showToast('Failed to mark item as purchased', 'error');
     }
   };
 
@@ -129,13 +126,14 @@ export default function ShoppingCartScreen() {
     return 0;
   };
 
-  const deleteShoppingItem = async (itemId: string) => {
+  const deleteShoppingItem = async (itemId: string, itemName?: string) => {
     try {
       await ShoppingListStore.deleteShoppingItem(itemId);
       await loadShoppingLists();
+      showToast(itemName ? `${itemName} removed from cart` : 'Item removed from cart', 'info');
     } catch (error) {
       console.error('Delete error:', error);
-      Alert.alert('Error', 'Failed to delete item');
+      showToast('Failed to delete item', 'error');
     }
   };
 
@@ -175,13 +173,13 @@ export default function ShoppingCartScreen() {
   const renderCocktailGroupView = () => {
     if (savedShoppingLists.length === 0) {
       return (
-        <View style={styles.emptyState}>
-          <Ionicons name="basket-outline" size={64} color={colors.muted} />
-          <Text style={styles.emptyStateTitle}>No shopping lists yet</Text>
-          <Text style={styles.emptyStateText}>
-            Add ingredients from cocktail recipes to start shopping
-          </Text>
-        </View>
+        <EmptyState
+          icon="basket-outline"
+          title="No shopping lists yet"
+          message="Add ingredients from cocktail recipes to start shopping"
+          actionLabel="Explore Recipes"
+          onAction={() => nav.navigate('Recipes')}
+        />
       );
     }
 
@@ -258,14 +256,24 @@ export default function ShoppingCartScreen() {
     const filteredItems = getFilteredItems();
 
     if (filteredItems.length === 0) {
+      const message = categoryFilter === 'all'
+        ? 'Add ingredients to start shopping'
+        : `No ${categoryFilter} in your list`;
+
       return (
-        <View style={styles.emptyState}>
-          <Ionicons name="basket-outline" size={64} color={colors.muted} />
-          <Text style={styles.emptyStateTitle}>No items found</Text>
-          <Text style={styles.emptyStateText}>
-            {categoryFilter === 'all' ? 'Add ingredients to start shopping' : `No ${categoryFilter} in your list`}
-          </Text>
-        </View>
+        <EmptyState
+          icon="basket-outline"
+          title="No items found"
+          message={message}
+          actionLabel={categoryFilter === 'all' ? "Explore Recipes" : "Clear Filter"}
+          onAction={() => {
+            if (categoryFilter === 'all') {
+              nav.navigate('Recipes');
+            } else {
+              setCategoryFilter('all');
+            }
+          }}
+        />
       );
     }
 
@@ -406,6 +414,14 @@ export default function ShoppingCartScreen() {
       >
         {viewMode === 'cocktail' ? renderCocktailGroupView() : renderIngredientGroupView()}
       </ScrollView>
+
+      {/* Toast Notification */}
+      <Toast
+        message={toast.message}
+        type={toast.type}
+        visible={toast.visible}
+        onHide={hideToast}
+      />
     </View>
   );
 }
@@ -496,24 +512,6 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     paddingBottom: spacing(8),
-  },
-  emptyState: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: spacing(10),
-    paddingHorizontal: spacing(4),
-  },
-  emptyStateTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: colors.text,
-    marginTop: spacing(2),
-    marginBottom: spacing(1),
-  },
-  emptyStateText: {
-    fontSize: 14,
-    color: colors.muted,
-    textAlign: 'center',
   },
 
   // Cocktail Group View

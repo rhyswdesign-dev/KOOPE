@@ -302,17 +302,12 @@ export default function AddRecipeScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Create New Recipe</Text>
-          <Text style={styles.subtitle}>Build your own custom cocktail recipe</Text>
-        </View>
-
         {/* Recipe Title */}
         <View style={styles.section}>
-          <Text style={styles.label}>Recipe Name *</Text>
+          <Text style={styles.label}>Recipe Name</Text>
           <TextInput
             style={styles.input}
-            placeholder="e.g., My Perfect Manhattan"
+            placeholder="Classic Negroni"
             placeholderTextColor={colors.subtext}
             value={recipe.title}
             onChangeText={(text) => setRecipe({...recipe, title: text})}
@@ -324,7 +319,7 @@ export default function AddRecipeScreen() {
           <Text style={styles.label}>Description</Text>
           <TextInput
             style={[styles.input, styles.textArea]}
-            placeholder="What makes this recipe special?"
+            placeholder="A brief, inviting description of your cocktail."
             placeholderTextColor={colors.subtext}
             value={recipe.description}
             onChangeText={(text) => setRecipe({...recipe, description: text})}
@@ -333,188 +328,48 @@ export default function AddRecipeScreen() {
           />
         </View>
 
-        {/* Ingredients */}
+        {/* Details */}
         <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Ingredients *</Text>
-            <View style={styles.sectionHeaderRight}>
-              <Text style={styles.ingredientCount}>{recipe.ingredients.length} items</Text>
-              <TouchableOpacity onPress={addIngredient} style={styles.addButton}>
-                <Ionicons name="add" size={16} color={colors.accent} />
-              </TouchableOpacity>
-            </View>
-          </View>
-          <View style={styles.ingredientsContainer}>
-            {recipe.ingredients.map((ingredient, index) => (
-              <View key={index} style={styles.ingredientCard}>
-                <View style={styles.ingredientHeader}>
-                  <View style={styles.ingredientNumber}>
-                    <Text style={styles.ingredientNumberText}>{index + 1}</Text>
-                  </View>
-                  {recipe.ingredients.length > 1 && (
-                    <TouchableOpacity
-                      onPress={() => removeIngredient(index)}
-                      style={styles.removeButton}
-                    >
-                      <Ionicons name="close" size={16} color={colors.error} />
-                    </TouchableOpacity>
-                  )}
-                </View>
-
-                <View style={styles.ingredientInputs}>
-                  <TouchableOpacity
-                    style={[styles.input, styles.ingredientAmount, styles.dropdownButton]}
-                    onPress={() => openMeasurementModal(index)}
-                  >
-                    <Text style={[styles.dropdownText, !ingredient.amount && styles.placeholderText]}>
-                      {ingredient.amount || '2 oz'}
-                    </Text>
-                    <Ionicons name="chevron-down" size={16} color={colors.subtext} />
-                  </TouchableOpacity>
-                  <TextInput
-                    style={[styles.input, styles.ingredientName]}
-                    value={ingredient.name}
-                    onChangeText={(text) => updateIngredient(index, 'name', text)}
-                    placeholder="Bourbon whiskey"
-                    placeholderTextColor={colors.subtext}
-                  />
-                </View>
-
-              </View>
-            ))}
-          </View>
-        </View>
-
-        {/* Quick Add Ingredients */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Quick Add Ingredients</Text>
-          <View style={styles.quickAddContainer}>
-            <TouchableOpacity
-              style={styles.quickAddButton}
-              onPress={() => {
-                // Find first empty ingredient or use last one
-                const emptyIndex = recipe.ingredients.findIndex(ing => !ing.name);
-                const targetIndex = emptyIndex >= 0 ? emptyIndex : recipe.ingredients.length - 1;
-                openIngredientModal(targetIndex, 'spirits');
-              }}
-            >
-              <Ionicons name="wine" size={16} color={colors.accent} />
-              <Text style={styles.quickAddText}>Spirits</Text>
-              <Ionicons name="add" size={14} color={colors.accent} />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.quickAddButton}
-              onPress={() => {
-                const emptyIndex = recipe.ingredients.findIndex(ing => !ing.name);
-                const targetIndex = emptyIndex >= 0 ? emptyIndex : recipe.ingredients.length - 1;
-                openIngredientModal(targetIndex, 'juices');
-              }}
-            >
-              <Ionicons name="water" size={16} color={colors.accent} />
-              <Text style={styles.quickAddText}>Juices</Text>
-              <Ionicons name="add" size={14} color={colors.accent} />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.quickAddButton}
-              onPress={() => {
-                const emptyIndex = recipe.ingredients.findIndex(ing => !ing.name);
-                const targetIndex = emptyIndex >= 0 ? emptyIndex : recipe.ingredients.length - 1;
-                openIngredientModal(targetIndex, 'syrups');
-              }}
-            >
-              <Ionicons name="leaf" size={16} color={colors.accent} />
-              <Text style={styles.quickAddText}>Syrups</Text>
-              <Ionicons name="add" size={14} color={colors.accent} />
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Instructions */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Instructions *</Text>
-            <View style={styles.sectionHeaderRight}>
-              <Text style={styles.stepCount}>{recipe.instructions.length} steps</Text>
-              <TouchableOpacity onPress={addInstruction} style={styles.addButton}>
-                <Ionicons name="add" size={16} color={colors.accent} />
-              </TouchableOpacity>
-            </View>
-          </View>
-          <View style={styles.instructionsContainer}>
-            {recipe.instructions.map((instruction, index) => (
-              <View key={index} style={styles.instructionCard}>
-                <View style={styles.stepHeader}>
-                  <View style={styles.stepBadge}>
-                    <Text style={styles.stepBadgeText}>Step {index + 1}</Text>
-                  </View>
-                  {recipe.instructions.length > 1 && (
-                    <TouchableOpacity
-                      onPress={() => removeInstruction(index)}
-                      style={styles.removeButton}
-                    >
-                      <Ionicons name="close" size={16} color={colors.error} />
-                    </TouchableOpacity>
-                  )}
-                </View>
-                <TextInput
-                  style={[styles.input, styles.instructionInput]}
-                  value={instruction}
-                  onChangeText={(text) => updateInstruction(index, text)}
-                  placeholder={`Describe step ${index + 1}...`}
-                  placeholderTextColor={colors.subtext}
-                  multiline
-                />
-              </View>
-            ))}
-          </View>
-        </View>
-
-        {/* Recipe Details */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Recipe Details</Text>
-          <View style={styles.detailsGrid}>
-            <View style={styles.detailCard}>
+          <Text style={styles.label}>Details</Text>
+          <View style={styles.detailsRow}>
+            <View style={styles.detailHalf}>
               <Text style={styles.detailLabel}>Garnish</Text>
               <TextInput
-                style={[styles.input, styles.detailInput]}
+                style={styles.input}
                 value={recipe.garnish}
                 onChangeText={(text) => setRecipe({...recipe, garnish: text})}
-                placeholder="Orange peel, cherry..."
+                placeholder="Orange Twist"
                 placeholderTextColor={colors.subtext}
               />
             </View>
-
-            <View style={styles.detailCard}>
+            <View style={styles.detailHalf}>
               <Text style={styles.detailLabel}>Glassware</Text>
               <TouchableOpacity
-                style={[styles.input, styles.detailInput, styles.dropdownButton]}
+                style={[styles.input, styles.dropdownButton]}
                 onPress={() => setShowGlasswareModal(true)}
               >
                 <Text style={[styles.dropdownText, !recipe.glassware && styles.placeholderText]}>
-                  {recipe.glassware || 'Rocks glass, coupe...'}
+                  {recipe.glassware || 'Rocks'}
                 </Text>
                 <Ionicons name="chevron-down" size={16} color={colors.subtext} />
               </TouchableOpacity>
             </View>
-
-            <View style={styles.detailCard}>
-              <Text style={styles.detailLabel}>Prep Time (minutes)</Text>
+          </View>
+          <View style={styles.detailsRow}>
+            <View style={styles.detailHalf}>
+              <Text style={styles.detailLabel}>Prep Time</Text>
               <TextInput
-                style={[styles.input, styles.detailInput]}
+                style={styles.input}
                 value={recipe.time}
                 onChangeText={(text) => setRecipe({...recipe, time: text})}
-                placeholder="5"
+                placeholder="2 mins"
                 placeholderTextColor={colors.subtext}
-                keyboardType="number-pad"
               />
             </View>
-
-            <View style={styles.detailCard}>
+            <View style={styles.detailHalf}>
               <Text style={styles.detailLabel}>Servings</Text>
               <TextInput
-                style={[styles.input, styles.detailInput]}
+                style={styles.input}
                 value={recipe.servings.toString()}
                 onChangeText={(text) => setRecipe({...recipe, servings: parseInt(text) || 1})}
                 placeholder="1"
@@ -527,15 +382,79 @@ export default function AddRecipeScreen() {
 
         {/* Difficulty */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Recipe Difficulty</Text>
+          <Text style={styles.label}>Difficulty</Text>
           <TouchableOpacity
             style={[styles.input, styles.dropdownButton]}
             onPress={() => setShowDifficultyModal(true)}
           >
             <Text style={[styles.dropdownText, !recipe.tags.length && styles.placeholderText]}>
-              {recipe.tags.length ? recipe.tags[0] : 'Select difficulty level'}
+              {recipe.tags.length ? recipe.tags[0] : 'Easy'}
             </Text>
             <Ionicons name="chevron-down" size={16} color={colors.subtext} />
+          </TouchableOpacity>
+        </View>
+
+        {/* Ingredients */}
+        <View style={styles.section}>
+          <Text style={styles.label}>Ingredients</Text>
+          {recipe.ingredients.map((ingredient, index) => (
+            <View key={index} style={styles.ingredientRow}>
+              <TextInput
+                style={[styles.input, styles.ingredientInput]}
+                value={`${ingredient.amount} ${ingredient.name}`}
+                onChangeText={(text) => {
+                  const parts = text.split(' ');
+                  const amount = parts[0];
+                  const name = parts.slice(1).join(' ');
+                  updateIngredient(index, 'amount', amount);
+                  updateIngredient(index, 'name', name);
+                }}
+                placeholder="1 oz Gin"
+                placeholderTextColor={colors.subtext}
+              />
+              {recipe.ingredients.length > 1 && (
+                <TouchableOpacity
+                  onPress={() => removeIngredient(index)}
+                  style={styles.removeIconButton}
+                >
+                  <Ionicons name="remove-circle-outline" size={22} color={colors.subtext} />
+                </TouchableOpacity>
+              )}
+            </View>
+          ))}
+          <TouchableOpacity onPress={addIngredient} style={styles.addItemButton}>
+            <Ionicons name="add" size={16} color={colors.subtext} />
+            <Text style={styles.addItemText}>Add Ingredient</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Instructions */}
+        <View style={styles.section}>
+          <Text style={styles.label}>Instructions</Text>
+          {recipe.instructions.map((instruction, index) => (
+            <View key={index} style={styles.instructionRow}>
+              <Text style={styles.stepNumber}>{index + 1}.</Text>
+              <TextInput
+                style={[styles.input, styles.instructionInput]}
+                value={instruction}
+                onChangeText={(text) => updateInstruction(index, text)}
+                placeholder="Combine all ingredients in a mixing glass..."
+                placeholderTextColor={colors.subtext}
+                multiline
+              />
+              {recipe.instructions.length > 1 && (
+                <TouchableOpacity
+                  onPress={() => removeInstruction(index)}
+                  style={styles.removeIconButton}
+                >
+                  <Ionicons name="remove-circle-outline" size={22} color={colors.subtext} />
+                </TouchableOpacity>
+              )}
+            </View>
+          ))}
+          <TouchableOpacity onPress={addInstruction} style={styles.addItemButton}>
+            <Ionicons name="add" size={16} color={colors.subtext} />
+            <Text style={styles.addItemText}>Add Step</Text>
           </TouchableOpacity>
         </View>
 
@@ -548,10 +467,6 @@ export default function AddRecipeScreen() {
           <Text style={styles.saveButtonText}>
             {loading ? 'Saving...' : 'Save Recipe'}
           </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.cancelButton} onPress={resetForm}>
-          <Text style={styles.cancelButtonText}>Clear Form</Text>
         </TouchableOpacity>
       </ScrollView>
 
@@ -703,220 +618,94 @@ export default function AddRecipeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.bg,
+    backgroundColor: '#F5F5F7',
   },
   content: {
     flex: 1,
-    padding: spacing(2),
-  },
-  header: {
-    marginBottom: spacing(4),
-  },
-  title: {
-    fontSize: fonts.h1,
-    fontWeight: '900',
-    color: colors.text,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: colors.subtext,
-    marginTop: spacing(0.5),
+    paddingHorizontal: spacing(3),
+    paddingTop: spacing(3),
   },
   section: {
-    marginBottom: spacing(3),
+    marginBottom: spacing(4),
   },
   label: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: spacing(1),
+    fontSize: 13,
+    fontWeight: '400',
+    color: colors.subtext,
+    marginBottom: spacing(1.5),
   },
   input: {
-    backgroundColor: colors.card,
+    backgroundColor: colors.white,
     borderRadius: radii.md,
-    padding: spacing(2),
+    paddingHorizontal: spacing(2.5),
+    paddingVertical: spacing(2),
     fontSize: 16,
     borderWidth: 1,
-    borderColor: colors.line,
-    minHeight: 50,
+    borderColor: '#E5E5EA',
     color: colors.text,
   },
   textArea: {
     minHeight: 80,
     textAlignVertical: 'top',
+    paddingTop: spacing(2),
   },
-  sectionHeader: {
+  detailsRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing(2),
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  sectionHeaderRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing(1.5),
-  },
-  ingredientCount: {
-    fontSize: 14,
-    color: colors.subtext,
-    fontWeight: '600',
-  },
-  stepCount: {
-    fontSize: 14,
-    color: colors.subtext,
-    fontWeight: '600',
-  },
-  addButton: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  removeButton: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.error,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  ingredientsContainer: {
     gap: spacing(2),
+    marginTop: spacing(1),
   },
-  ingredientCard: {
-    backgroundColor: colors.bg,
-    borderRadius: radii.md,
-    padding: spacing(2),
-    borderWidth: 1,
-    borderColor: colors.line,
-    gap: spacing(2),
-  },
-  ingredientHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  ingredientNumber: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: colors.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  ingredientNumberText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.white,
-  },
-  ingredientInputs: {
+  detailHalf: {
     flex: 1,
-    flexDirection: 'row',
-    gap: spacing(1.5),
-  },
-  ingredientAmount: {
-    width: 80,
-  },
-  ingredientName: {
-    flex: 1,
-  },
-  ingredientNotes: {
-    minHeight: 40,
-    fontSize: 14,
-    fontStyle: 'italic',
-  },
-  instructionsContainer: {
-    gap: spacing(3),
-  },
-  instructionCard: {
-    backgroundColor: colors.bg,
-    borderRadius: radii.md,
-    padding: spacing(2.5),
-    borderWidth: 1,
-    borderColor: colors.line,
-  },
-  stepHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing(1.5),
-  },
-  stepBadge: {
-    backgroundColor: colors.accent,
-    borderRadius: radii.sm,
-    paddingHorizontal: spacing(2),
-    paddingVertical: spacing(0.5),
-  },
-  stepBadgeText: {
-    color: colors.white,
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  instructionInput: {
-    minHeight: 50,
-    textAlignVertical: 'top',
-  },
-  detailsGrid: {
-    gap: spacing(2),
-    marginTop: spacing(2),
-  },
-  detailCard: {
-    backgroundColor: colors.bg,
-    borderRadius: radii.md,
-    padding: spacing(2),
-    borderWidth: 1,
-    borderColor: colors.line,
   },
   detailLabel: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 13,
+    fontWeight: '400',
+    color: colors.subtext,
+    marginBottom: spacing(1.5),
+  },
+  ingredientRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(1.5),
+    marginBottom: spacing(2),
+  },
+  ingredientInput: {
+    flex: 1,
+  },
+  instructionRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing(1.5),
+    marginBottom: spacing(2),
+  },
+  stepNumber: {
+    fontSize: 16,
+    fontWeight: '400',
     color: colors.text,
-    marginBottom: spacing(1),
-  },
-  detailInput: {
-    fontSize: 14,
-  },
-  saveButton: {
-    backgroundColor: colors.accent,
-    borderRadius: radii.md,
-    padding: spacing(2.5),
-    alignItems: 'center',
     marginTop: spacing(2),
+    width: 24,
   },
-  saveButtonDisabled: {
-    backgroundColor: colors.subtext,
-    opacity: 0.6,
+  instructionInput: {
+    flex: 1,
+    minHeight: 60,
   },
-  saveButtonText: {
-    color: colors.white,
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  cancelButton: {
-    backgroundColor: 'transparent',
-    borderRadius: radii.md,
-    padding: spacing(2.5),
-    alignItems: 'center',
+  removeIconButton: {
+    padding: spacing(0.5),
     marginTop: spacing(1.5),
   },
-  cancelButtonText: {
-    color: colors.subtext,
-    fontSize: 16,
-    fontWeight: '600',
+  addItemButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing(1),
+    paddingVertical: spacing(2),
+    marginTop: spacing(1),
   },
-
-  // Dropdown styles
+  addItemText: {
+    fontSize: 15,
+    fontWeight: '400',
+    color: colors.subtext,
+  },
   dropdownButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -927,19 +716,35 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   placeholderText: {
-    color: colors.subtext,
+    color: '#C7C7CC',
+  },
+  saveButton: {
+    backgroundColor: '#2C2C2E',
+    borderRadius: radii.md,
+    paddingVertical: spacing(2.5),
+    alignItems: 'center',
+    marginTop: spacing(3),
+    marginBottom: spacing(6),
+  },
+  saveButtonDisabled: {
+    opacity: 0.5,
+  },
+  saveButtonText: {
+    color: colors.white,
+    fontSize: 17,
+    fontWeight: '600',
   },
 
   // Modal styles
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: colors.card,
-    borderTopLeftRadius: radii.xl,
-    borderTopRightRadius: radii.xl,
+    backgroundColor: colors.white,
+    borderTopLeftRadius: radii.lg,
+    borderTopRightRadius: radii.lg,
     maxHeight: '50%',
     paddingBottom: spacing(4),
   },
@@ -947,51 +752,29 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: spacing(2),
+    paddingHorizontal: spacing(3),
+    paddingVertical: spacing(2.5),
     borderBottomWidth: 1,
-    borderBottomColor: colors.line,
+    borderBottomColor: '#E5E5EA',
   },
   modalTitle: {
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: 17,
+    fontWeight: '600',
     color: colors.text,
   },
   modalCloseButton: {
-    padding: spacing(0.5),
+    padding: spacing(1),
   },
   measurementOption: {
-    padding: spacing(2),
+    paddingVertical: spacing(2.5),
+    paddingHorizontal: spacing(3),
     borderBottomWidth: 1,
-    borderBottomColor: colors.line,
+    borderBottomColor: '#E5E5EA',
   },
   measurementText: {
-    fontSize: 16,
+    fontSize: 17,
+    fontWeight: '400',
     color: colors.text,
     textAlign: 'center',
-  },
-
-  // Quick Add styles
-  quickAddContainer: {
-    flexDirection: 'row',
-    gap: spacing(1.5),
-    marginTop: spacing(1),
-  },
-  quickAddButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.accent,
-    borderRadius: radii.md,
-    paddingVertical: spacing(1.5),
-    paddingHorizontal: spacing(2),
-    gap: spacing(0.5),
-  },
-  quickAddText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.accent,
   },
 });

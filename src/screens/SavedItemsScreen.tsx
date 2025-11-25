@@ -10,6 +10,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { colors, spacing, radii } from '../theme/tokens';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { useSavedItems, SavedItem } from '../hooks/useSavedItems';
+import EmptyState from '../components/EmptyState';
 
 type SavedItemsRouteProp = RouteProp<RootStackParamList, 'SavedItems'>;
 
@@ -98,13 +99,13 @@ export default function SavedItemsScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['left', 'right', 'bottom']}>
       {items.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <MaterialCommunityIcons name={icon} size={64} color={colors.subtext} />
-          <Text style={styles.emptyTitle}>No {title.toLowerCase()} yet</Text>
-          <Text style={styles.emptySubtitle}>
-            Start saving items by tapping the bookmark icon when you find something you like!
-          </Text>
-        </View>
+        <EmptyState
+          icon={icon}
+          title={`No ${title.toLowerCase()} yet`}
+          message="Start saving items by tapping the bookmark icon when you find something you like!"
+          actionLabel="Explore Cocktails"
+          onAction={() => nav.navigate('Recipes')}
+        />
       ) : (
         <FlatList
           data={items}
@@ -198,24 +199,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: colors.line,
-  },
-  emptyContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: spacing(4),
-  },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.text,
-    marginTop: spacing(3),
-    marginBottom: spacing(2),
-  },
-  emptySubtitle: {
-    fontSize: 14,
-    color: colors.subtext,
-    textAlign: 'center',
-    lineHeight: 20,
   },
 });

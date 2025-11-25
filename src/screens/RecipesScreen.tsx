@@ -14,6 +14,8 @@ import {
   Dimensions,
   ListRenderItem,
   Modal,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import Animated, { FadeInDown, FadeIn, FadeInLeft, FadeInRight } from 'react-native-reanimated';
 import { colors, spacing, radii, fonts } from '../theme/tokens';
@@ -42,6 +44,9 @@ import { usePersonalization } from '../store/usePersonalization';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useUserRecipes } from '../store/useUserRecipes';
 import RecipePreferencesModal from '../components/RecipePreferencesModal';
+import EmptyState from '../components/EmptyState';
+import Toast from '../components/Toast';
+import { useToast } from '../hooks/useToast';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 const { width } = Dimensions.get('window');
@@ -626,13 +631,15 @@ export default function RecipesScreen() {
   const { credits, isPremium, getActionCost } = useAICredits();
   const { getPersonalizedMoodOrder, getFeaturedCocktails, scoreMoodCategory, recordInteraction, profile } = usePersonalization();
   const { recipes: userRecipes, loadRecipes } = useUserRecipes();
+  const { toast, showToast, hideToast } = useToast();
 
   // Supabase recipes state
   const [allRecipes, setAllRecipes] = useState<any[]>([]);
   const [recipesLoading, setRecipesLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   // View mode toggle - Browse All vs For You
-  const [viewMode, setViewMode] = useState<'browse' | 'personalized'>('personalized');
+  const [viewMode, setViewMode] = useState<'browse' | 'personalized'>('browse');
   const [personalizedRecommendations, setPersonalizedRecommendations] = useState<any[]>([]);
 
   // Search and filter states
@@ -673,14 +680,31 @@ export default function RecipesScreen() {
       } catch (error) {
         console.error('Error loading recipes:', error);
         setRecipesLoading(false);
+        showToast('Failed to load recipes. Please check your connection.', 'error');
       }
     }
     loadRecipes();
   }, []);
 
+  // Pull-to-refresh handler
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await RecipesRepository.clearAllCaches();
+      const recipes = await RecipesRepository.getInitialRecipes(150);
+      setAllRecipes(recipes);
+      showToast('Recipes refreshed!', 'success');
+    } catch (error) {
+      console.error('Error refreshing recipes:', error);
+      showToast('Failed to refresh recipes', 'error');
+    } finally {
+      setRefreshing(false);
+    }
+  }, [showToast]);
+
   // Separate syrups and cocktails
   const ESSENTIAL_SYRUPS = allRecipes.filter(r => r.category?.toLowerCase() === 'syrups');
-  const ALL_COCKTAILS = allRecipes;
+  const ALL_COCKTAILS = allRecipes.filter(r => r.category?.toLowerCase() !== 'syrups');
 
   // AI recipe handler
   const handleAiRecipeFound = useCallback((recipe: FormattedRecipe) => {
@@ -709,6 +733,7 @@ export default function RecipesScreen() {
       loadRecipes();
     } catch (error) {
       console.error('Error saving AI recipe:', error);
+      showToast('Failed to save AI recipe', 'error');
     }
   }, [loadRecipes]);
 
@@ -750,7 +775,8 @@ export default function RecipesScreen() {
                 cocktail.name.toLowerCase() === item.title.toLowerCase()
               ) || item.data;
             })
-            .filter(Boolean);
+            .filter(Boolean)
+            .filter(recipe => recipe.category?.toLowerCase() !== 'syrups');
 
           // AI Enhancement: Get personalized recommendations to boost relevant results
           try {
@@ -992,6 +1018,7 @@ export default function RecipesScreen() {
       isCocktailSaved,
       setSelectedRecipe,
       setGroceryListVisible,
+      showToast,
       showSaveButton: false,
       showCartButton: false,
       showDeleteButton: false,
@@ -1007,12 +1034,54 @@ export default function RecipesScreen() {
     );
   };
 
+  // Render empty state
+  const renderEmptyState = () => {
+    const currentRecipes = getCurrentRecipes() || [];
+    const hasFilters = (currentFilters.ingredients && currentFilters.ingredients.length > 0) ||
+                      (currentFilters.difficulty && currentFilters.difficulty.length > 0) ||
+                      (currentFilters.category && currentFilters.category.length > 0);
+
+    if (searchQuery.trim()) {
+      return (
+        <EmptyState
+          icon="magnify"
+          title="No Results Found"
+          message={`No cocktails found for "${searchQuery}". Try a different search term.`}
+          actionLabel="Clear Search"
+          onAction={() => setSearchQuery('')}
+        />
+      );
+    }
+
+    if (hasFilters && currentRecipes.length === 0) {
+      return (
+        <EmptyState
+          icon="filter-off"
+          title="No Matching Cocktails"
+          message="No cocktails match your current filters. Try adjusting your filter settings."
+          actionLabel="Clear Filters"
+          onAction={() => {
+            setCurrentFilters({
+              ingredients: [],
+              difficulty: [],
+              category: [],
+              sortOrder: 'alphabetical-asc',
+            });
+          }}
+        />
+      );
+    }
+
+    return null;
+  };
+
   // Show loading state while recipes load
   if (recipesLoading) {
     return (
       <View style={{ flex: 1, backgroundColor: colors.bg, justifyContent: 'center', alignItems: 'center' }}>
         <StatusBar style="light" />
-        <Text style={{ color: colors.text, fontSize: 16, marginBottom: 10 }}>Loading recipes...</Text>
+        <ActivityIndicator size="large" color={colors.accent} />
+        <Text style={{ color: colors.muted, fontSize: 16, marginTop: spacing(2) }}>Loading recipes...</Text>
       </View>
     );
   }
@@ -1027,6 +1096,14 @@ export default function RecipesScreen() {
         numColumns={2}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: spacing(8), flexGrow: 1 }}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.accent}
+            colors={[colors.accent]}
+          />
+        }
         ListHeaderComponent={
           <View>
 
@@ -1123,6 +1200,7 @@ export default function RecipesScreen() {
                   isCocktailSaved,
                   setSelectedRecipe,
                   setGroceryListVisible,
+                  showToast,
                   showSaveButton: false,
                   showCartButton: false,
                   showDeleteButton: false,
@@ -1155,6 +1233,7 @@ export default function RecipesScreen() {
                   isCocktailSaved,
                   setSelectedRecipe,
                   setGroceryListVisible,
+                  showToast,
                   showSaveButton: false,
                   showCartButton: false,
                   showDeleteButton: false,
@@ -1170,15 +1249,6 @@ export default function RecipesScreen() {
             {/* Essential Syrups */}
             <SectionHeader
               title="Essential Syrups"
-              onPress={() => {
-                // Ensure we only pass string IDs
-                const syrupIds = ESSENTIAL_SYRUPS.map(syrup => syrup.id).filter(id => typeof id === 'string');
-                navigation.navigate('CocktailList', {
-                  title: 'Essential Syrups',
-                  cocktailIds: syrupIds,
-                  category: 'syrups'
-                });
-              }}
             />
             <ScrollView horizontal nestedScrollEnabled showsHorizontalScrollIndicator={false} style={{ paddingLeft: spacing(2), marginBottom: spacing(2) }}>
               {ESSENTIAL_SYRUPS.map((syrup, index) => {
@@ -1187,13 +1257,18 @@ export default function RecipesScreen() {
                   isCocktailSaved,
                   setSelectedRecipe,
                   setGroceryListVisible,
-                  showSaveButton: false,
+                  showToast,
+                  showSaveButton: true,
                   showCartButton: false,
                   showDeleteButton: false,
                 });
                 return (
-                  <Animated.View key={syrup.id} entering={FadeInRight.delay(index * 100).duration(500).springify()}>
-                    <RecipeCard {...cardProps} style={{ width: 240, marginRight: 16 }} />
+                  <Animated.View
+                    key={syrup.id}
+                    entering={FadeInRight.delay(index * 100).duration(500).springify()}
+                    style={{ width: (width - spacing(2) * 2 - GUTTER) / 2, marginRight: 16 }}
+                  >
+                    <RecipeCard {...cardProps} />
                   </Animated.View>
                 );
               })}
@@ -1222,6 +1297,7 @@ export default function RecipesScreen() {
                     isCocktailSaved,
                     setSelectedRecipe,
                     setGroceryListVisible,
+                    showToast,
                     showSaveButton: false,
                     showCartButton: false,
                     showDeleteButton: false,
@@ -1949,6 +2025,7 @@ export default function RecipesScreen() {
             </Modal>
           </View>
         }
+        ListEmptyComponent={renderEmptyState}
         columnWrapperStyle={{ paddingHorizontal: spacing(2), columnGap: GUTTER }}
       />
 
@@ -2216,6 +2293,7 @@ export default function RecipesScreen() {
               autoCapitalize="none"
               autoCorrect={false}
               autoFocus
+              keyboardAppearance="dark"
             />
             {searchQuery ? (
               <Pressable onPress={() => {
@@ -2246,6 +2324,14 @@ export default function RecipesScreen() {
           )}
         </View>
       )}
+
+      {/* Toast Notification */}
+      <Toast
+        message={toast.message}
+        type={toast.type}
+        visible={toast.visible}
+        onHide={hideToast}
+      />
 
     </View>
   );

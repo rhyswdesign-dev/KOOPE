@@ -67,7 +67,8 @@ export const handleCreateShoppingList = (
 export const handleSaveRecipe = (
   recipe: Recipe,
   toggleSavedCocktail: (cocktail: any) => void,
-  isCocktailSaved: (id: string) => boolean
+  isCocktailSaved: (id: string) => boolean,
+  showToast?: (message: string, type: 'success' | 'error' | 'info' | 'warning') => void
 ) => {
   const cocktailData = {
     id: recipe.id,
@@ -76,10 +77,20 @@ export const handleSaveRecipe = (
     image: recipe.image
   };
 
+  const wasSaved = isCocktailSaved(recipe.id);
   toggleSavedCocktail(cocktailData);
 
+  // Show toast notification
+  if (showToast) {
+    if (wasSaved) {
+      showToast(`${cocktailData.name} removed from saved`, 'info');
+    } else {
+      showToast(`${cocktailData.name} saved!`, 'success');
+    }
+  }
+
   // Record user behavior for AI learning (only when saving, not unsaving)
-  if (!isCocktailSaved(recipe.id)) {
+  if (!wasSaved) {
     recommendationEngine.recordBehavior({
       type: 'favorited',
       itemId: recipe.id,
@@ -136,6 +147,7 @@ export const createRecipeCardProps = (
     setGroceryListVisible?: (visible: boolean) => void;
     deleteRecipe?: (id: string) => Promise<void>;
     refreshCallback?: () => Promise<void>;
+    showToast?: (message: string, type: 'success' | 'error' | 'info' | 'warning') => void;
     showSaveButton?: boolean;
     showCartButton?: boolean;
     showDeleteButton?: boolean;
@@ -148,6 +160,7 @@ export const createRecipeCardProps = (
     setGroceryListVisible,
     deleteRecipe,
     refreshCallback,
+    showToast,
     showSaveButton = true,
     showCartButton = true,
     showDeleteButton = false,
@@ -157,7 +170,7 @@ export const createRecipeCardProps = (
     recipe,
     onPress: (recipe: Recipe) => handleRecipeView(recipe, navigation),
     onSave: toggleSavedCocktail && isCocktailSaved
-      ? (recipe: Recipe) => handleSaveRecipe(recipe, toggleSavedCocktail, isCocktailSaved)
+      ? (recipe: Recipe) => handleSaveRecipe(recipe, toggleSavedCocktail, isCocktailSaved, showToast)
       : undefined,
     onAddToCart: setSelectedRecipe && setGroceryListVisible
       ? (recipe: Recipe) => handleCreateShoppingList(recipe, setSelectedRecipe, setGroceryListVisible)
