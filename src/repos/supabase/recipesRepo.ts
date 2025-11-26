@@ -1,12 +1,13 @@
 /**
  * Recipes Repository - Supabase
- * Fetches recipes from Supabase with persistent caching
+ * Fetches recipes from Supabase with persistent caching and offline support
  */
 
 import { supabase } from '../../lib/supabase';
 import { Recipe, RecipeFilters } from '../../types/recipe';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getCocktailImage } from '../../../assets/images/cocktails';
+import { offlineService } from '../../services/offlineService';
 
 // Cache keys
 const CACHE_KEY = '@recipes_cache';
@@ -183,7 +184,7 @@ export class RecipesRepository {
   }
 
   /**
-   * Get initial recipes (optimized with persistent cache)
+   * Get initial recipes (optimized with persistent cache and offline support)
    * Returns cached data immediately if available, fetches in background
    */
   static async getInitialRecipes(limit: number = 30): Promise<Recipe[]> {
@@ -194,37 +195,59 @@ export class RecipesRepository {
     if (this.persistentCache && this.persistentCache.length > 0) {
       console.log('⚡ Returning recipes from persistent cache');
 
-      // Fetch fresh data in background (don't await)
-      this.refreshCacheInBackground();
+      // Fetch fresh data in background if online (don't await)
+      if (offlineService.isOnline()) {
+        this.refreshCacheInBackground();
+      }
 
       return this.persistentCache.slice(0, limit);
+    }
+
+    // Check if offline and use offline service cache
+    if (offlineService.isOffline()) {
+      console.log('📱 Device offline, checking offline cache...');
+      const cachedRecipes = await offlineService.getCachedRecipes();
+      if (cachedRecipes.length > 0) {
+        console.log(`📦 Loaded ${cachedRecipes.length} recipes from offline cache`);
+        return cachedRecipes.slice(0, limit);
+      }
     }
 
     // No cache available, fetch from network
     console.log('🌐 Fetching recipes from network...');
     const cacheKey = `initial-recipes-${limit}`;
 
-    const { data, error } = await supabase
-      .from('recipes')
-      .select('id, title, image_url, difficulty, preparation_time, category, base_spirit, tags, description')
-      .eq('is_public', true)
-      .order('title')
-      .limit(limit);
+    try {
+      const { data, error } = await supabase
+        .from('recipes')
+        .select('id, title, image_url, difficulty, preparation_time, category, base_spirit, tags, description')
+        .eq('is_public', true)
+        .order('title')
+        .limit(limit);
 
-    if (error) {
-      console.error('Error fetching initial recipes:', error);
-      return [];
+      if (error) {
+        console.error('Error fetching initial recipes:', error);
+        return [];
+      }
+
+      const recipes = (data || []).map(item => this.mapFromDatabaseLite(item));
+
+      // Cache the result
+      this.setCache(cacheKey, recipes);
+
+      // Cache for offline use
+      await offlineService.cacheRecipes(recipes);
+
+      // Fetch full data in background
+      this.fetchAndCacheAllRecipes();
+
+      return recipes;
+    } catch (error) {
+      console.error('Network error fetching recipes:', error);
+      // Try offline cache as fallback
+      const cachedRecipes = await offlineService.getCachedRecipes();
+      return cachedRecipes.slice(0, limit);
     }
-
-    const recipes = (data || []).map(item => this.mapFromDatabaseLite(item));
-
-    // Cache the result
-    this.setCache(cacheKey, recipes);
-
-    // Fetch full data in background
-    this.fetchAndCacheAllRecipes();
-
-    return recipes;
   }
 
   /**
