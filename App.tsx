@@ -17,6 +17,9 @@ import { AnalyticsProvider } from './src/context/AnalyticsContext';
 import { MonetizationProvider } from './src/context/MonetizationContext';
 import { isNetworkError } from './src/config/firebase';
 import { initializeUserRecipes } from './src/store/useUserRecipes';
+import { streakService } from './src/services/streakService';
+import { useAchievementNotifications } from './src/hooks/useAchievementNotifications';
+import AchievementUnlockModal from './src/components/AchievementUnlockModal';
 
 // Override console.error to filter out Firebase offline errors
 const originalConsoleError = console.error;
@@ -46,10 +49,21 @@ console.error = (...args: any[]) => {
 
 export default function App() {
   const { appState, handleSplashFinish, completeBartendingWelcome, completeWelcome, completeOnboarding, completeSurvey, skipToXPReminder, completeXPReminder, goBackToOnboarding } = useOnboarding();
+  const { unlockedAchievement, clearUnlockedAchievement } = useAchievementNotifications();
 
-  // Initialize user recipes store on app startup
+  // Initialize user recipes store and record daily streak on app startup
   React.useEffect(() => {
     initializeUserRecipes();
+
+    // Record daily activity for streak tracking
+    streakService.recordActivity('app_open').then((result) => {
+      if (result.streakIncreased) {
+        console.log(`🔥 Streak increased to ${result.currentStreak} days!`);
+        if (result.isNewRecord) {
+          console.log(`🎉 New record streak!`);
+        }
+      }
+    });
   }, []);
 
   console.log('App state:', appState);
@@ -96,6 +110,13 @@ export default function App() {
                   <NavigationContainer>
                     <RootNavigator />
                   </NavigationContainer>
+
+                  {/* Global Achievement Unlock Modal */}
+                  <AchievementUnlockModal
+                    visible={!!unlockedAchievement}
+                    achievement={unlockedAchievement}
+                    onClose={clearUnlockedAchievement}
+                  />
                 </PostsProvider>
               </VaultProvider>
             </UserProvider>

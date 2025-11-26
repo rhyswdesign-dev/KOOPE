@@ -19,6 +19,8 @@ import { useSavedItems } from '../hooks/useSavedItems';
 import { useUserRecipes } from '../store/useUserRecipes';
 import { usePersonalization } from '../store/usePersonalization';
 import RecipePreferencesModal from '../components/RecipePreferencesModal';
+import { achievementService } from '../services/achievementService';
+import { streakService } from '../services/streakService';
 
 export default function ProfileScreen() {
   const { user, isAuthenticated, isLoading } = useAuth();
@@ -28,6 +30,17 @@ export default function ProfileScreen() {
   const { savedItems } = useSavedItems();
   const { recipes } = useUserRecipes();
   const { profile } = usePersonalization();
+  const [userStats, setUserStats] = useState(achievementService.getUserStats());
+  const [currentStreak, setCurrentStreak] = useState(streakService.getCurrentStreak());
+
+  useEffect(() => {
+    // Load latest stats when screen focuses
+    const loadStats = () => {
+      setUserStats(achievementService.getUserStats());
+      setCurrentStreak(streakService.getCurrentStreak());
+    };
+    loadStats();
+  }, []);
 
   const handleSignIn = async () => {
     setLoading(true);
@@ -82,6 +95,42 @@ export default function ProfileScreen() {
               <Text style={styles.userName}>Bartender</Text>
               <Text style={styles.userSubtext}>ID: {user?.uid.substring(0, 8)}...</Text>
             </View>
+          </View>
+
+          {/* Level & XP Display */}
+          <View style={styles.statsContainer}>
+            <View style={styles.statCard}>
+              <Ionicons name="trophy" size={20} color={colors.accent} />
+              <Text style={styles.statNumber}>Level {userStats.level}</Text>
+              <Text style={styles.statLabel}>Current Level</Text>
+            </View>
+            <View style={styles.statCard}>
+              <Ionicons name="star" size={20} color={colors.accent} />
+              <Text style={styles.statNumber}>{userStats.totalXP}</Text>
+              <Text style={styles.statLabel}>Total XP</Text>
+            </View>
+            <View style={styles.statCard}>
+              <Ionicons name="flame" size={20} color={colors.accent} />
+              <Text style={styles.statNumber}>{currentStreak}</Text>
+              <Text style={styles.statLabel}>Day Streak</Text>
+            </View>
+          </View>
+
+          {/* Progress Section */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Progress & Achievements</Text>
+
+            <TouchableOpacity
+              style={styles.settingButton}
+              onPress={() => nav.navigate('Achievements')}
+            >
+              <Ionicons name="trophy-outline" size={20} color={colors.text} />
+              <View style={styles.settingButtonContent}>
+                <Text style={styles.settingButtonText}>Achievements & Progress</Text>
+                <Text style={styles.settingButtonSubtext}>Level {userStats.level} • {userStats.totalXP} XP</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={colors.subtext} />
+            </TouchableOpacity>
           </View>
 
           {/* Personalization Section */}
@@ -425,6 +474,14 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 16,
     fontWeight: '500',
+  },
+  settingButtonContent: {
+    flex: 1,
+  },
+  settingButtonSubtext: {
+    fontSize: 13,
+    color: colors.subtext,
+    marginTop: spacing(0.5),
   },
   signOutButton: {
     marginTop: spacing(3),

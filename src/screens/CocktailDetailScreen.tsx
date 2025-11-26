@@ -19,6 +19,7 @@ import { getCocktailImage } from '../../assets/images/cocktails';
 import Toast from '../components/Toast';
 import { useToast } from '../hooks/useToast';
 import CocktailDetailSkeleton from '../components/CocktailDetailSkeleton';
+import { achievementService } from '../services/achievementService';
 
 type CocktailDetailScreenRouteProp = {
   params: {
@@ -847,6 +848,9 @@ export default function CocktailDetailScreen() {
       try {
         const recipe = await RecipesRepository.getRecipeById(route.params.cocktailId);
         setFirebaseRecipe(recipe);
+
+        // Track recipe view for achievements
+        await achievementService.trackAction('recipesViewed', 1);
       } catch (error) {
         console.error('Error loading recipe:', error);
         showToast('Failed to load recipe details', 'error');
@@ -977,7 +981,7 @@ export default function CocktailDetailScreen() {
     }
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!cocktail) return;
 
     const wasSaved = isCocktailSaved(route.params.cocktailId);
@@ -988,6 +992,11 @@ export default function CocktailDetailScreen() {
       subtitle: cocktail.subtitle,
       image: cocktail.img
     });
+
+    // Track achievement for favorites
+    if (!wasSaved) {
+      await achievementService.trackAction('favoriteCount', 1);
+    }
 
     // Show toast notification
     if (wasSaved) {

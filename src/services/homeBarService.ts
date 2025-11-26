@@ -53,6 +53,10 @@ export class HomeBarService {
 
       const AsyncStorage = await import('@react-native-async-storage/async-storage');
       await AsyncStorage.default.setItem(this.STORAGE_KEY, JSON.stringify(updatedIngredients));
+
+      // Track achievement for adding to home bar
+      const { achievementService } = await import('./achievementService');
+      await achievementService.trackAction('homeBarIngredients', 1);
     } catch (error) {
       console.error('Error adding ingredient to home bar:', error);
       throw new Error('Failed to add ingredient to home bar');

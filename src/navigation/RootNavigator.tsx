@@ -86,6 +86,7 @@ import HomeBarScreen from '../screens/HomeBarScreen';
 import SpiritRecognitionScreen from '../screens/SpiritRecognitionScreen';
 import ShoppingCartScreen from '../screens/ShoppingCartScreen';
 import PersonalizedHomeScreen from '../screens/PersonalizedHomeScreen';
+import AchievementsScreen from '../screens/AchievementsScreen';
 
 export type RootStackParamList = {
   Main: undefined;
@@ -172,6 +173,7 @@ export type RootStackParamList = {
   HomeBar: undefined;
   SpiritRecognition: undefined;
   ShoppingCart: undefined;
+  Achievements: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -412,6 +414,7 @@ export default function RootNavigator({ initialRouteName = 'Main', onHiddenFlask
     <Stack.Screen name="HomeBar" component={HomeBarScreen} options={{ headerShown: false }} />
     <Stack.Screen name="SpiritRecognition" component={SpiritRecognitionScreen} options={{ headerShown: true, title: '📱 Scan Spirit' }} />
     <Stack.Screen name="ShoppingCart" component={ShoppingCartScreen} options={{ headerShown: true, title: '🛒 Shopping Cart' }} />
-</Stack.Navigator>
+      <Stack.Screen name="Achievements" component={AchievementsScreen} options={{ headerShown: true, title: '🏆 Achievements' }} />
+    </Stack.Navigator>
   );
 }
