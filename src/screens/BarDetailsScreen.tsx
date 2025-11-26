@@ -242,6 +242,7 @@ export default function BarDetailsScreen() {
               placeholder="(555) 123-4567"
               placeholderTextColor={colors.muted}
               keyboardType="phone-pad"
+              keyboardAppearance="dark"
               style={{ backgroundColor: colors.card, borderColor: colors.line, borderWidth:1, borderRadius: radii.lg, color: colors.text, paddingHorizontal: 12, paddingVertical: Platform.OS === 'ios' ? 12 : 8 }}
             />
             <Pressable onPress={() => { setReserveOpen(false); setPhone(''); Alert.alert('Requested','We’ll text you shortly.'); }}

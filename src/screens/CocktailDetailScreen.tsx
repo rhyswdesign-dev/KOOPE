@@ -18,6 +18,7 @@ import GroceryListModal from '../components/GroceryListModal';
 import { getCocktailImage } from '../../assets/images/cocktails';
 import Toast from '../components/Toast';
 import { useToast } from '../hooks/useToast';
+import CocktailDetailSkeleton from '../components/CocktailDetailSkeleton';
 
 type CocktailDetailScreenRouteProp = {
   params: {
@@ -1026,13 +1027,7 @@ export default function CocktailDetailScreen() {
   }, [nav, cocktail?.title]);
 
   if (loading) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>Loading recipe...</Text>
-        </View>
-      </SafeAreaView>
-    );
+    return <CocktailDetailSkeleton />;
   }
 
   if (!cocktail) {

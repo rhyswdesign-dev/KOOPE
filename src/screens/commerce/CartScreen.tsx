@@ -213,6 +213,7 @@ export default function CartScreen() {
                 placeholderTextColor={colors.subtext}
                 autoCapitalize="characters"
                 autoCorrect={false}
+                keyboardAppearance="dark"
               />
               <TouchableOpacity
                 style={[styles.applyButton, isApplyingPromo && styles.applyButtonDisabled]}

@@ -504,6 +504,7 @@ export default function AIRecipeFormatScreen() {
                 }
               }}
               placeholder="Recipe title..."
+              keyboardAppearance="dark"
             />
           </View>
 
@@ -523,6 +524,7 @@ export default function AIRecipeFormatScreen() {
               placeholder="What makes this recipe special?"
               multiline
               numberOfLines={3}
+              keyboardAppearance="dark"
             />
           </View>
 
@@ -557,6 +559,7 @@ export default function AIRecipeFormatScreen() {
                         }
                       }}
                       placeholder="2 oz"
+                      keyboardAppearance="dark"
                     />
                     <TextInput
                       style={[styles.input, styles.ingredientName]}
@@ -569,6 +572,7 @@ export default function AIRecipeFormatScreen() {
                         }
                       }}
                       placeholder="Ingredient name"
+                      keyboardAppearance="dark"
                     />
                   </View>
                   {activeTab === 'manual' && currentRecipe.ingredients.length > 1 && (
@@ -619,6 +623,7 @@ export default function AIRecipeFormatScreen() {
                     onChangeText={(text) => updateInstruction(index, text)}
                     placeholder={`Describe step ${index + 1}...`}
                     multiline
+                    keyboardAppearance="dark"
                   />
                 </View>
               ))}
@@ -643,6 +648,7 @@ export default function AIRecipeFormatScreen() {
                     }
                   }}
                   placeholder="Cherry, lemon twist..."
+                  keyboardAppearance="dark"
                 />
               </View>
 
@@ -659,6 +665,7 @@ export default function AIRecipeFormatScreen() {
                     }
                   }}
                   placeholder="Rocks glass, coupe..."
+                  keyboardAppearance="dark"
                 />
               </View>
 
@@ -675,6 +682,7 @@ export default function AIRecipeFormatScreen() {
                     }
                   }}
                   placeholder="5 minutes"
+                  keyboardAppearance="dark"
                 />
               </View>
             </View>

@@ -116,6 +116,7 @@ export default function AIRecipeSearch({
             editable={!isLoading}
             returnKeyType="search"
             onSubmitEditing={handleAISearch}
+            keyboardAppearance="dark"
           />
           {query.length > 0 && !isLoading && (
             <TouchableOpacity

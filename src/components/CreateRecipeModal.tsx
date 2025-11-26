@@ -212,6 +212,7 @@ export default function CreateRecipeModal({
                 onChangeText={(value) => updateField('title', value)}
                 placeholder="Enter recipe title"
                 placeholderTextColor={colors.subtext}
+                keyboardAppearance="dark"
               />
             </View>
 
@@ -225,6 +226,7 @@ export default function CreateRecipeModal({
                 placeholderTextColor={colors.subtext}
                 multiline
                 numberOfLines={3}
+                keyboardAppearance="dark"
               />
             </View>
 
@@ -236,6 +238,7 @@ export default function CreateRecipeModal({
                 onChangeText={(value) => updateField('author', { ...recipe.author, name: value })}
                 placeholder="Your name"
                 placeholderTextColor={colors.subtext}
+                keyboardAppearance="dark"
               />
             </View>
 
@@ -249,6 +252,7 @@ export default function CreateRecipeModal({
                   placeholder="15"
                   keyboardType="numeric"
                   placeholderTextColor={colors.subtext}
+                  keyboardAppearance="dark"
                 />
               </View>
 
@@ -261,6 +265,7 @@ export default function CreateRecipeModal({
                   placeholder="1"
                   keyboardType="numeric"
                   placeholderTextColor={colors.subtext}
+                  keyboardAppearance="dark"
                 />
               </View>
             </View>
@@ -314,6 +319,7 @@ export default function CreateRecipeModal({
                   onChangeText={(value) => updateIngredient(index, 'amount', value)}
                   placeholder="1 oz"
                   placeholderTextColor={colors.subtext}
+                  keyboardAppearance="dark"
                 />
                 <TextInput
                   style={[styles.textInput, { flex: 2 }]}
@@ -321,6 +327,7 @@ export default function CreateRecipeModal({
                   onChangeText={(value) => updateIngredient(index, 'name', value)}
                   placeholder="Ingredient name"
                   placeholderTextColor={colors.subtext}
+                  keyboardAppearance="dark"
                 />
                 {(recipe.ingredients || []).length > 1 && (
                   <Pressable onPress={() => removeIngredient(index)}>
@@ -350,6 +357,7 @@ export default function CreateRecipeModal({
                   placeholder={`Step ${index + 1} instructions`}
                   placeholderTextColor={colors.subtext}
                   multiline
+                  keyboardAppearance="dark"
                 />
                 {(recipe.instructions || []).length > 1 && (
                   <Pressable onPress={() => removeInstruction(index)}>
@@ -411,6 +419,7 @@ export default function CreateRecipeModal({
                 placeholder="Add a tag"
                 placeholderTextColor={colors.subtext}
                 onSubmitEditing={addTag}
+                keyboardAppearance="dark"
               />
               <Pressable style={styles.addButton} onPress={addTag}>
                 <Ionicons name="add" size={20} color={colors.accent} />

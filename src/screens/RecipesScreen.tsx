@@ -47,6 +47,9 @@ import RecipePreferencesModal from '../components/RecipePreferencesModal';
 import EmptyState from '../components/EmptyState';
 import Toast from '../components/Toast';
 import { useToast } from '../hooks/useToast';
+import RecipeCardSkeleton from '../components/RecipeCardSkeleton';
+import SearchBar from '../components/SearchBar';
+import FilterModal from '../components/FilterModal';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 const { width } = Dimensions.get('window');
@@ -1077,11 +1080,21 @@ export default function RecipesScreen() {
 
   // Show loading state while recipes load
   if (recipesLoading) {
+    const skeletonCardWidth = (width - spacing(2) * 2 - GUTTER) / 2;
     return (
-      <View style={{ flex: 1, backgroundColor: colors.bg, justifyContent: 'center', alignItems: 'center' }}>
+      <View style={{ flex: 1, backgroundColor: colors.bg }}>
         <StatusBar style="light" />
-        <ActivityIndicator size="large" color={colors.accent} />
-        <Text style={{ color: colors.muted, fontSize: 16, marginTop: spacing(2) }}>Loading recipes...</Text>
+        <View style={{
+          flexDirection: 'row',
+          flexWrap: 'wrap',
+          paddingHorizontal: spacing(2),
+          paddingTop: spacing(2),
+          gap: GUTTER
+        }}>
+          {[...Array(8)].map((_, i) => (
+            <RecipeCardSkeleton key={i} style={{ width: skeletonCardWidth }} />
+          ))}
+        </View>
       </View>
     );
   }
@@ -1157,18 +1170,58 @@ export default function RecipesScreen() {
               </Animated.View>
             )}
 
+            {/* Search Bar with Filter */}
+            <View style={{ marginHorizontal: spacing(2), marginBottom: spacing(2), flexDirection: 'row', gap: spacing(1.5) }}>
+              <View style={{ flex: 1 }}>
+                <SearchBar
+                  value={searchQuery}
+                  onChangeText={handleSearch}
+                  placeholder="Search recipes, ingredients..."
+                  debounceMs={0}
+                />
+              </View>
+              <TouchableOpacity
+                style={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: radii.lg,
+                  backgroundColor: Object.keys(currentFilters).length > 0 ? colors.accent : colors.card,
+                  borderWidth: 2,
+                  borderColor: Object.keys(currentFilters).length > 0 ? colors.accent : colors.line,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+                onPress={() => setShowFilterModal(true)}
+              >
+                <Ionicons
+                  name="filter"
+                  size={22}
+                  color={Object.keys(currentFilters).length > 0 ? colors.bg : colors.text}
+                />
+                {Object.keys(currentFilters).length > 0 && (
+                  <View style={{
+                    position: 'absolute',
+                    top: 4,
+                    right: 4,
+                    backgroundColor: colors.bg,
+                    borderRadius: 8,
+                    minWidth: 16,
+                    height: 16,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    paddingHorizontal: 4,
+                  }}>
+                    <Text style={{ fontSize: 10, fontWeight: '700', color: colors.accent }}>
+                      {Object.keys(currentFilters).length}
+                    </Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            </View>
+
             {/* Browse All Content */}
             {viewMode === 'browse' && (
               <>
-                {/* AI-Powered Recipe Search */}
-                {!searchQuery.trim() && (
-                  <AIRecipeSearch
-                    onRecipeFound={handleAiRecipeFound}
-                    onCreditsNeeded={handleCreditsNeeded}
-                    style={{ marginHorizontal: spacing(2), marginBottom: spacing(2) }}
-                  />
-                )}
-
                 {/* Only show featured content when not searching */}
                 {!searchQuery.trim() && (
                   <>
@@ -1355,6 +1408,12 @@ export default function RecipesScreen() {
             {/* Personalized Feed - For You View */}
             {viewMode === 'personalized' && (
               <>
+                {/* AI-Powered Recipe Search - Describe What You Want */}
+                <AIRecipeSearch
+                  onRecipeFound={handleAiRecipeFound}
+                  onCreditsNeeded={handleCreditsNeeded}
+                  style={{ marginHorizontal: spacing(2), marginBottom: spacing(2) }}
+                />
 
                 {/* Your Preferences Card */}
                 <TouchableOpacity
@@ -2058,6 +2117,20 @@ export default function RecipesScreen() {
       <AICreditsPurchaseModal
         visible={creditsPurchaseVisible}
         onClose={() => setCreditsPurchaseVisible(false)}
+      />
+
+      {/* Filter Modal */}
+      <FilterModal
+        visible={showFilterModal}
+        onClose={() => setShowFilterModal(false)}
+        filters={currentFilters}
+        onApplyFilters={(filters) => {
+          setCurrentFilters(filters);
+          // Re-trigger search with new filters if there's a query
+          if (searchQuery.trim()) {
+            handleSearch(searchQuery);
+          }
+        }}
       />
 
       {/* AI Credits Info Modal */}

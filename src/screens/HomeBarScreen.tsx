@@ -369,6 +369,7 @@ export default function HomeBarScreen() {
             placeholderTextColor={colors.muted}
             value={searchQuery}
             onChangeText={setSearchQuery}
+            keyboardAppearance="dark"
           />
         </View>
 

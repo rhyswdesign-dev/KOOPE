@@ -311,6 +311,7 @@ export default function AddRecipeScreen() {
             placeholderTextColor={colors.subtext}
             value={recipe.title}
             onChangeText={(text) => setRecipe({...recipe, title: text})}
+            keyboardAppearance="dark"
           />
         </View>
 
@@ -325,6 +326,7 @@ export default function AddRecipeScreen() {
             onChangeText={(text) => setRecipe({...recipe, description: text})}
             multiline
             numberOfLines={3}
+            keyboardAppearance="dark"
           />
         </View>
 
@@ -340,6 +342,7 @@ export default function AddRecipeScreen() {
                 onChangeText={(text) => setRecipe({...recipe, garnish: text})}
                 placeholder="Orange Twist"
                 placeholderTextColor={colors.subtext}
+                keyboardAppearance="dark"
               />
             </View>
             <View style={styles.detailHalf}>
@@ -364,6 +367,7 @@ export default function AddRecipeScreen() {
                 onChangeText={(text) => setRecipe({...recipe, time: text})}
                 placeholder="2 mins"
                 placeholderTextColor={colors.subtext}
+                keyboardAppearance="dark"
               />
             </View>
             <View style={styles.detailHalf}>
@@ -375,6 +379,7 @@ export default function AddRecipeScreen() {
                 placeholder="1"
                 placeholderTextColor={colors.subtext}
                 keyboardType="number-pad"
+                keyboardAppearance="dark"
               />
             </View>
           </View>
@@ -411,6 +416,7 @@ export default function AddRecipeScreen() {
                 }}
                 placeholder="1 oz Gin"
                 placeholderTextColor={colors.subtext}
+                keyboardAppearance="dark"
               />
               {recipe.ingredients.length > 1 && (
                 <TouchableOpacity
@@ -441,6 +447,7 @@ export default function AddRecipeScreen() {
                 placeholder="Combine all ingredients in a mixing glass..."
                 placeholderTextColor={colors.subtext}
                 multiline
+                keyboardAppearance="dark"
               />
               {recipe.instructions.length > 1 && (
                 <TouchableOpacity

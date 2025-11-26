@@ -173,6 +173,7 @@ export default function EditProfileScreen() {
               onChangeText={setName}
               placeholder="Enter your name"
               placeholderTextColor={colors.subtext}
+              keyboardAppearance="dark"
             />
           </View>
           
@@ -186,6 +187,7 @@ export default function EditProfileScreen() {
               placeholderTextColor={colors.subtext}
               multiline
               numberOfLines={3}
+              keyboardAppearance="dark"
             />
           </View>
         </View>

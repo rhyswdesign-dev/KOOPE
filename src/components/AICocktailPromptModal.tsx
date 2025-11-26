@@ -121,6 +121,7 @@ export default function AICocktailPromptModal({
               multiline
               numberOfLines={3}
               autoFocus
+              keyboardAppearance="dark"
             />
 
             {/* Quick Prompts */}

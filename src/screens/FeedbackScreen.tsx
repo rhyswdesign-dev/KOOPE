@@ -257,6 +257,7 @@ export default function FeedbackScreen({ onBack }: FeedbackScreenProps) {
               value={title}
               onChangeText={setTitle}
               maxLength={100}
+              keyboardAppearance="dark"
             />
             <Text style={styles.characterCount}>{title.length}/100</Text>
           </View>
@@ -297,8 +298,8 @@ export default function FeedbackScreen({ onBack }: FeedbackScreenProps) {
             <Text style={styles.sectionTitle}>Description *</Text>
             <TextInput
               style={[styles.textInput, styles.descriptionInput]}
-              placeholder={selectedType === 'bug' 
-                ? 'Steps to reproduce:\n1. Go to...\n2. Tap on...\n3. Expected vs actual result...' 
+              placeholder={selectedType === 'bug'
+                ? 'Steps to reproduce:\n1. Go to...\n2. Tap on...\n3. Expected vs actual result...'
                 : 'Tell us more about your feedback, suggestions, or ideas...'
               }
               placeholderTextColor={colors.subtle}
@@ -307,6 +308,7 @@ export default function FeedbackScreen({ onBack }: FeedbackScreenProps) {
               multiline
               textAlignVertical="top"
               maxLength={500}
+              keyboardAppearance="dark"
             />
             <Text style={styles.characterCount}>{description.length}/500</Text>
           </View>
@@ -322,6 +324,7 @@ export default function FeedbackScreen({ onBack }: FeedbackScreenProps) {
               onChangeText={setEmail}
               keyboardType="email-address"
               autoCapitalize="none"
+              keyboardAppearance="dark"
             />
             <Text style={styles.fieldHint}>
               Leave your email if you'd like us to follow up on your feedback

@@ -171,6 +171,7 @@ export default function ForgotPasswordScreen({ onBack, onComplete }: ForgotPassw
                   autoCorrect={false}
                   autoComplete="email"
                   editable={!loading}
+                  keyboardAppearance="dark"
                 />
               </View>
             </View>

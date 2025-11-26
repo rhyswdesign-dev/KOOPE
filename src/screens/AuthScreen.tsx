@@ -168,6 +168,7 @@ export default function AuthScreen({ onComplete, onSkip }: AuthScreenProps = {})
                   keyboardType="email-address"
                   autoCapitalize="none"
                   autoCorrect={false}
+                  keyboardAppearance="dark"
                 />
               </View>
 
@@ -183,6 +184,7 @@ export default function AuthScreen({ onComplete, onSkip }: AuthScreenProps = {})
                   secureTextEntry
                   autoCapitalize="none"
                   autoCorrect={false}
+                  keyboardAppearance="dark"
                 />
               </View>
 

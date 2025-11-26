@@ -175,6 +175,7 @@ export default function SignUpScreen({ onComplete, onSignIn, onTermsPress, onPri
                   autoCapitalize="words"
                   autoCorrect={false}
                   autoComplete="name"
+                  keyboardAppearance="dark"
                 />
               </View>
             </View>
@@ -194,6 +195,7 @@ export default function SignUpScreen({ onComplete, onSignIn, onTermsPress, onPri
                   autoCapitalize="none"
                   autoCorrect={false}
                   autoComplete="email"
+                  keyboardAppearance="dark"
                 />
               </View>
             </View>
@@ -213,6 +215,7 @@ export default function SignUpScreen({ onComplete, onSignIn, onTermsPress, onPri
                   autoCapitalize="none"
                   autoCorrect={false}
                   autoComplete="password-new"
+                  keyboardAppearance="dark"
                 />
                 <Pressable 
                   onPress={() => setShowPassword(!showPassword)}
@@ -246,6 +249,7 @@ export default function SignUpScreen({ onComplete, onSignIn, onTermsPress, onPri
                   autoCapitalize="none"
                   autoCorrect={false}
                   autoComplete="password-new"
+                  keyboardAppearance="dark"
                 />
                 <Pressable 
                   onPress={() => setShowConfirmPassword(!showConfirmPassword)}

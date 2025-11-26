@@ -144,6 +144,7 @@ export default function SignInScreen({ onComplete, onSignUp, onForgotPassword, o
                   autoCapitalize="none"
                   autoCorrect={false}
                   autoComplete="email"
+                  keyboardAppearance="dark"
                 />
               </View>
             </View>
@@ -163,6 +164,7 @@ export default function SignInScreen({ onComplete, onSignUp, onForgotPassword, o
                   autoCapitalize="none"
                   autoCorrect={false}
                   autoComplete="password"
+                  keyboardAppearance="dark"
                 />
                 <Pressable 
                   onPress={() => setShowPassword(!showPassword)}
