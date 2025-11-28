@@ -189,6 +189,7 @@ export const vaultItems: VaultItem[] = [
     rarity: 'rare',
     xpCost: 15000,
     keysCost: 4,
+    requiresPro: true, // KOOPE PRO required
     discountOption: {
       reducedXP: 7500,
       cashPrice: 49.99, // High cash option for experiences
@@ -214,6 +215,7 @@ export const vaultItems: VaultItem[] = [
     rarity: 'prestige',
     xpCost: 25000,
     keysCost: 4,
+    requiresPrestige: true, // Prestige subscription required
     totalStock: 3,
     currentStock: 1, // Almost gone
     cycleId: 'cycle_2025_03',

@@ -90,6 +90,7 @@ import AchievementsScreen from '../screens/AchievementsScreen';
 import SubscriptionDebugScreen from '../screens/SubscriptionDebugScreen';
 import PaywallScreen from '../screens/PaywallScreen';
 import CustomerCenterScreen from '../screens/CustomerCenterScreen';
+import RequirePro from '../components/RequirePro';
 
 export type RootStackParamList = {
   Main: undefined;
@@ -412,7 +413,13 @@ export default function RootNavigator({ initialRouteName = 'Main', onHiddenFlask
     <Stack.Screen name="AddRecipe" component={AddRecipeScreen} options={{ headerShown: true, title: 'Add Recipe' }} />
     <Stack.Screen name="MyRecipes" component={MyRecipesScreen} options={{ headerShown: true, title: 'My Recipes' }} />
     <Stack.Screen name="RecipeDetail" component={RecipeDetailScreen} options={{ headerShown: true, title: 'Recipe' }} />
-    <Stack.Screen name="AIRecipeFormat" component={AIRecipeFormatScreen} options={{ headerShown: true, title: '✨ AI Recipe Formatting' }} />
+    <Stack.Screen name="AIRecipeFormat" options={{ headerShown: true, title: '✨ AI Recipe Formatting' }}>
+      {(props) => (
+        <RequirePro>
+          <AIRecipeFormatScreen {...props} />
+        </RequirePro>
+      )}
+    </Stack.Screen>
     <Stack.Screen name="OCRCapture" component={OCRCaptureScreen} options={{ headerShown: true, title: '📸 Scan Recipe' }} />
     <Stack.Screen name="URLRecipeInput" component={URLRecipeInputScreen} options={{ headerShown: true, title: '🔗 Add from URL' }} />
     <Stack.Screen name="VoiceRecipe" component={VoiceRecipeScreen} options={{ headerShown: true, title: '🎤 Voice Recipe Input' }} />

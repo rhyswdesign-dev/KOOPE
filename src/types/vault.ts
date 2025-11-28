@@ -17,22 +17,26 @@ export interface VaultItem {
   category: VaultItemCategory;
   type: VaultItemType;
   rarity: VaultItemRarity;
-  
+
   // XP + Keys Cost Structure
   xpCost: number;                    // Base XP requirement
   keysCost: number;                  // Keys required (1-4 typically)
-  
+
   // XP-as-Discount Option (optional)
   discountOption?: {
     reducedXP: number;               // Lower XP cost if paying money
     cashPrice: number;               // Dollar amount to make up difference
   };
-  
+
   // Scarcity Mechanics
   totalStock: number;                // Total available this cycle
   currentStock: number;              // Remaining in current cycle
   cycleId: string;                   // Links to 30-day cycle
-  
+
+  // Subscription Gating
+  requiresPro?: boolean;             // Requires KOOPE PRO subscription
+  requiresPrestige?: boolean;        // Requires Prestige subscription
+
   // Metadata
   contents?: string[];               // What's included (for mystery/kits)
   estimatedValue?: string;           // "$200+ Value" display
@@ -40,11 +44,11 @@ export interface VaultItem {
   isActive: boolean;                 // Can be unlocked
   releaseDate: string;
   expiryDate?: string;               // Auto-remove date
-  
+
   // Mystery Drop Specifics
   mysteryPool?: string[];            // Possible items for mystery drops
   mysteryTags?: string[];            // Tags for mystery categorization
-  
+
   createdAt: string;
   updatedAt: string;
 }

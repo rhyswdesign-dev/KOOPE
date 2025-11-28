@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useSubscription } from '../contexts/SubscriptionContext';
 
 export interface SavedItem {
   id: string;
@@ -22,7 +23,10 @@ export interface SavedItemsState {
 
 const STORAGE_KEY = 'savedItems';
 
+const FREE_RECIPE_LIMIT = 5;
+
 export function useSavedItems() {
+  const { isSubscriber } = useSubscription();
   const [savedItems, setSavedItems] = useState<SavedItemsState>({
     savedBars: [],
     savedSpirits: [],
@@ -125,19 +129,39 @@ export function useSavedItems() {
     });
   };
 
-  const toggleSavedCocktail = (item: SavedItem | { id: string; name: string; subtitle?: string; image?: string }) => {
+  const toggleSavedCocktail = (item: SavedItem | { id: string; name: string; subtitle?: string; image?: string }): 'success' | 'limit_reached' | 'removed' => {
     const cocktailItem: SavedItem = { ...item, type: 'cocktail' };
+    const exists = savedItems.savedCocktails.find(c => c.id === cocktailItem.id);
+
+    // If removing, allow it
+    if (exists) {
+      setSavedItems(prev => {
+        const newItems = {
+          ...prev,
+          savedCocktails: prev.savedCocktails.filter(c => c.id !== cocktailItem.id)
+        };
+        saveToStorage(newItems);
+        return newItems;
+      });
+      return 'removed';
+    }
+
+    // If adding, check free user limit
+    if (!isSubscriber && savedItems.savedCocktails.length >= FREE_RECIPE_LIMIT) {
+      console.log('[useSavedItems] Free user recipe limit reached - cannot save more');
+      return 'limit_reached';
+    }
+
+    // Save the cocktail
     setSavedItems(prev => {
-      const exists = prev.savedCocktails.find(c => c.id === cocktailItem.id);
       const newItems = {
         ...prev,
-        savedCocktails: exists
-          ? prev.savedCocktails.filter(c => c.id !== cocktailItem.id)
-          : [...prev.savedCocktails, cocktailItem]
+        savedCocktails: [...prev.savedCocktails, cocktailItem]
       };
       saveToStorage(newItems);
       return newItems;
     });
+    return 'success';
   };
 
   const toggleSavedEvent = (item: SavedItem | { id: string; name: string; subtitle?: string; image?: string }) => {

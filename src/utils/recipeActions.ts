@@ -62,12 +62,13 @@ export const handleCreateShoppingList = (
 };
 
 /**
- * Handle recipe save/bookmark with AI tracking
+ * Handle recipe save/bookmark with AI tracking and subscription gating
  */
 export const handleSaveRecipe = (
   recipe: Recipe,
-  toggleSavedCocktail: (cocktail: any) => void,
+  toggleSavedCocktail: (cocktail: any) => 'success' | 'limit_reached' | 'removed',
   isCocktailSaved: (id: string) => boolean,
+  navigation?: any,
   showToast?: (message: string, type: 'success' | 'error' | 'info' | 'warning') => void
 ) => {
   const cocktailData = {
@@ -78,11 +79,23 @@ export const handleSaveRecipe = (
   };
 
   const wasSaved = isCocktailSaved(recipe.id);
-  toggleSavedCocktail(cocktailData);
+  const result = toggleSavedCocktail(cocktailData);
+
+  // Handle limit reached - redirect to paywall
+  if (result === 'limit_reached') {
+    console.log('[handleSaveRecipe] Free recipe limit reached - redirecting to paywall');
+    if (showToast) {
+      showToast('Upgrade to save more recipes', 'warning');
+    }
+    if (navigation) {
+      navigation.navigate('Paywall');
+    }
+    return;
+  }
 
   // Show toast notification
   if (showToast) {
-    if (wasSaved) {
+    if (result === 'removed') {
       showToast(`${cocktailData.name} removed from saved`, 'info');
     } else {
       showToast(`${cocktailData.name} saved!`, 'success');
@@ -90,7 +103,7 @@ export const handleSaveRecipe = (
   }
 
   // Record user behavior for AI learning (only when saving, not unsaving)
-  if (!wasSaved) {
+  if (!wasSaved && result === 'success') {
     recommendationEngine.recordBehavior({
       type: 'favorited',
       itemId: recipe.id,
@@ -170,7 +183,7 @@ export const createRecipeCardProps = (
     recipe,
     onPress: (recipe: Recipe) => handleRecipeView(recipe, navigation),
     onSave: toggleSavedCocktail && isCocktailSaved
-      ? (recipe: Recipe) => handleSaveRecipe(recipe, toggleSavedCocktail, isCocktailSaved, showToast)
+      ? (recipe: Recipe) => handleSaveRecipe(recipe, toggleSavedCocktail, isCocktailSaved, navigation, showToast)
       : undefined,
     onAddToCart: setSelectedRecipe && setGroceryListVisible
       ? (recipe: Recipe) => handleCreateShoppingList(recipe, setSelectedRecipe, setGroceryListVisible)

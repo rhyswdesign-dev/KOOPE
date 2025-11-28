@@ -19,6 +19,7 @@ import { Ionicons } from '@expo/vector-icons';
 import Purchases, { PurchasesPackage } from 'react-native-purchases';
 import { colors, spacing } from '../theme/tokens';
 import { useSubscription } from '../contexts/SubscriptionContext';
+import { trackEvent, ANALYTICS_EVENTS, ANALYTICS_PROPS } from '../lib/analytics';
 
 const { width } = Dimensions.get('window');
 
@@ -27,6 +28,7 @@ interface PaywallScreenProps {
     params?: {
       offering?: string | null;
       displayCloseButton?: boolean;
+      source?: string; // Where the user came from (e.g., 'home_bar', 'cocktail_detail', 'vault')
     };
   };
 }
@@ -46,6 +48,10 @@ interface TierData {
   tagline: string;
   price: string;
   priceDetail: string;
+  monthlyPrice: string;
+  monthlyPriceDetail: string;
+  yearlyPrice: string;
+  yearlyPriceDetail: string;
   color: string;
   buttonColor: string;
   borderColor: string;
@@ -58,6 +64,10 @@ const TIERS: TierData[] = [
     tagline: 'Start the journey. Learn the basics.',
     price: '$0',
     priceDetail: '',
+    monthlyPrice: 'Free',
+    monthlyPriceDetail: '',
+    yearlyPrice: 'Free',
+    yearlyPriceDetail: '',
     color: '#8B8B8B',
     buttonColor: '#2D3139',
     borderColor: '#3A3F45',
@@ -68,7 +78,11 @@ const TIERS: TierData[] = [
     badge: 'Most Popular',
     tagline: 'Your personal upgrade.',
     price: '$8.99',
-    priceDetail: '/mo USD or $59.99/yr',
+    priceDetail: '/mo USD or $71.99/yr',
+    monthlyPrice: '$8.99',
+    monthlyPriceDetail: '/month',
+    yearlyPrice: '$71.99',
+    yearlyPriceDetail: '/year (save 33%)',
     color: '#D4AF37',
     buttonColor: '#D4AF37',
     borderColor: '#D4AF37',
@@ -78,8 +92,12 @@ const TIERS: TierData[] = [
     name: 'KOOPE PRO',
     badge: 'Elite',
     tagline: 'The premium hosting lifestyle.',
-    price: '$19.99',
-    priceDetail: '/mo USD or $119.99/yr',
+    price: '$17.99',
+    priceDetail: '/mo USD or $179.99/yr',
+    monthlyPrice: '$17.99',
+    monthlyPriceDetail: '/month',
+    yearlyPrice: '$179.99',
+    yearlyPriceDetail: '/year (save 17%)',
     color: '#CD7F32',
     buttonColor: '#CD7F32',
     borderColor: '#CD7F32',
@@ -105,15 +123,26 @@ const FEATURES: Feature[] = [
   { label: 'Community Identity', free: 'General', plus: 'Standard', pro: 'Elite Flair (Badge, Crown)' },
 ];
 
+type BillingMode = 'monthly' | 'yearly';
+
 export default function PaywallScreen({ route }: PaywallScreenProps) {
   const navigation = useNavigation();
-  const { offerings, refreshSubscriptionStatus, isKoopePro, isPro } = useSubscription();
+  const { offerings, refreshSubscriptionStatus, restorePurchases, purchaseTier, isKoopePro, isPro, isSubscriber } = useSubscription();
   const [packages, setPackages] = useState<PurchasesPackage[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isPurchasing, setIsPurchasing] = useState(false);
   const [expandedTier, setExpandedTier] = useState<string | null>(null);
+  const [billingMode, setBillingMode] = useState<BillingMode>('yearly'); // Default to yearly (better value)
 
   const displayCloseButton = route?.params?.displayCloseButton !== false;
+  const source = route?.params?.source || 'unknown';
+
+  // Track paywall view on mount
+  useEffect(() => {
+    trackEvent(ANALYTICS_EVENTS.PAYWALL_VIEWED, {
+      [ANALYTICS_PROPS.SOURCE]: source,
+    });
+  }, [source]);
 
   useEffect(() => {
     const loadPackages = async () => {
@@ -132,35 +161,72 @@ export default function PaywallScreen({ route }: PaywallScreenProps) {
     loadPackages();
   }, [offerings]);
 
-  const handlePurchase = async (tier: 'koope_plus' | 'koope_pro') => {
-    const pkg = packages.find(p => {
-      const id = p.identifier.toLowerCase();
-      if (tier === 'koope_plus') {
-        return id.includes('koope') && id.includes('month') && !id.includes('pro');
-      } else {
-        return id.includes('pro') && id.includes('month');
-      }
-    });
-
-    if (!pkg) {
-      Alert.alert('Coming Soon', 'Subscription packages will be available once App Store setup is complete.');
-      return;
-    }
-
+  /**
+   * Handle subscription purchase
+   * Finds the appropriate package based on tier and billing mode
+   */
+  const handleSubscribe = async (tier: 'koope_plus' | 'koope_pro', mode: BillingMode) => {
     try {
       setIsPurchasing(true);
-      const { customerInfo } = await Purchases.purchasePackage(pkg);
-      await refreshSubscriptionStatus();
 
-      Alert.alert(
-        'Success!',
-        `Welcome to ${tier === 'koope_plus' ? 'KOOPE+' : 'KOOPE PRO'}!`,
-        [{ text: 'Continue', onPress: () => navigation.goBack() }]
-      );
-    } catch (error: any) {
-      if (!error.userCancelled) {
-        Alert.alert('Purchase Error', error.message || 'Something went wrong');
+      // Track CTA click
+      trackEvent(ANALYTICS_EVENTS.PAYWALL_CTA_CLICKED, {
+        [ANALYTICS_PROPS.TIER]: tier,
+        [ANALYTICS_PROPS.BILLING_MODE]: mode,
+        [ANALYTICS_PROPS.SOURCE]: source,
+      });
+
+      // Track purchase started
+      trackEvent(ANALYTICS_EVENTS.PURCHASE_STARTED, {
+        [ANALYTICS_PROPS.TIER]: tier,
+        [ANALYTICS_PROPS.BILLING_MODE]: mode,
+      });
+
+      // Map koope_plus/koope_pro to 'pro'/'prestige'
+      const tierName = tier === 'koope_pro' ? 'pro' : 'pro'; // Both map to 'pro' for now
+
+      const result = await purchaseTier(tierName, mode);
+
+      if (result.success) {
+        // Track successful purchase
+        trackEvent(ANALYTICS_EVENTS.PURCHASE_COMPLETED, {
+          [ANALYTICS_PROPS.TIER]: tier,
+          [ANALYTICS_PROPS.BILLING_MODE]: mode,
+          [ANALYTICS_PROPS.SOURCE]: source,
+        });
+
+        Alert.alert(
+          'Success!',
+          `Welcome to ${tier === 'koope_plus' ? 'KOOPE+' : 'KOOPE PRO'}! Enjoy your ${mode} subscription.`,
+          [{ text: 'Continue', onPress: () => navigation.goBack() }]
+        );
+      } else if (result.userCancelled) {
+        // Track user cancellation
+        trackEvent(ANALYTICS_EVENTS.PURCHASE_CANCELLED, {
+          [ANALYTICS_PROPS.TIER]: tier,
+          [ANALYTICS_PROPS.BILLING_MODE]: mode,
+        });
+      } else {
+        // Track purchase failure
+        trackEvent(ANALYTICS_EVENTS.PURCHASE_FAILED, {
+          [ANALYTICS_PROPS.TIER]: tier,
+          [ANALYTICS_PROPS.BILLING_MODE]: mode,
+          error: result.error || 'Unknown error',
+        });
+
+        Alert.alert('Purchase Error', result.error || 'Something went wrong');
       }
+    } catch (error: any) {
+      console.error('[PaywallScreen] Purchase error:', error);
+
+      // Track error
+      trackEvent(ANALYTICS_EVENTS.PURCHASE_FAILED, {
+        [ANALYTICS_PROPS.TIER]: tier,
+        [ANALYTICS_PROPS.BILLING_MODE]: mode,
+        error: error.message || 'Unknown error',
+      });
+
+      Alert.alert('Purchase Error', error.message || 'Something went wrong');
     } finally {
       setIsPurchasing(false);
     }
@@ -169,16 +235,39 @@ export default function PaywallScreen({ route }: PaywallScreenProps) {
   const handleRestore = async () => {
     try {
       setIsPurchasing(true);
-      const customerInfo = await Purchases.restorePurchases();
-      await refreshSubscriptionStatus();
 
-      const hasActive = Object.keys(customerInfo.entitlements.active).length > 0;
-      Alert.alert(
-        hasActive ? 'Success!' : 'No Purchases Found',
-        hasActive ? 'Your purchases have been restored.' : 'No previous purchases found.',
-        [{ text: 'OK' }]
-      );
+      // Track restore attempt
+      trackEvent(ANALYTICS_EVENTS.RESTORE_PURCHASES_TAPPED);
+
+      const result = await restorePurchases();
+
+      if (result.success) {
+        const hasActive = Object.keys(result.customerInfo?.entitlements.active || {}).length > 0;
+
+        // Track restore success
+        trackEvent(ANALYTICS_EVENTS.RESTORE_PURCHASES_SUCCESS, {
+          had_active_entitlements: hasActive,
+        });
+
+        Alert.alert(
+          hasActive ? 'Success!' : 'No Purchases Found',
+          hasActive ? 'Your purchases have been restored.' : 'No previous purchases found.',
+          [{ text: 'OK' }]
+        );
+      } else {
+        // Track restore failure
+        trackEvent(ANALYTICS_EVENTS.RESTORE_PURCHASES_FAILED, {
+          error: result.error || 'Unknown error',
+        });
+
+        Alert.alert('Restore Error', result.error || 'Failed to restore purchases');
+      }
     } catch (error: any) {
+      // Track error
+      trackEvent(ANALYTICS_EVENTS.RESTORE_PURCHASES_FAILED, {
+        error: error.message || 'Unknown error',
+      });
+
       Alert.alert('Restore Error', error.message);
     } finally {
       setIsPurchasing(false);
@@ -212,22 +301,32 @@ export default function PaywallScreen({ route }: PaywallScreenProps) {
     const isExpanded = expandedTier === tier.id;
     const keyHighlights = getKeyHighlights(tier);
 
+    // Get dynamic price based on billing mode
+    const displayPrice = billingMode === 'monthly' ? tier.monthlyPrice : tier.yearlyPrice;
+    const displayPriceDetail = billingMode === 'monthly' ? tier.monthlyPriceDetail : tier.yearlyPriceDetail;
+
+    // Determine badge to show: Current Plan takes priority
+    const badgeText = isCurrent ? 'Current Plan' : tier.badge;
+    const badgeColor = isCurrent ? '#3A3F45' : tier.color;
+
     return (
       <View
         key={tier.id}
         style={[
           styles.tierCard,
           {
-            borderColor: tier.id === 'koope_plus' ? '#D4AF37' :
+            borderColor: isCurrent ? tier.color :
+                        tier.id === 'koope_plus' ? '#D4AF37' :
                         tier.id === 'koope_pro' ? '#CD7F32' :
                         '#374151',
+            borderWidth: isCurrent ? 3 : 2,
           }
         ]}
       >
         {/* Badge */}
-        {tier.badge && (
-          <View style={[styles.badge, { backgroundColor: tier.color }]}>
-            <Text style={styles.badgeText}>{tier.badge}</Text>
+        {badgeText && (
+          <View style={[styles.badge, { backgroundColor: badgeColor }]}>
+            <Text style={styles.badgeText}>{badgeText}</Text>
           </View>
         )}
 
@@ -238,9 +337,9 @@ export default function PaywallScreen({ route }: PaywallScreenProps) {
             <Text style={styles.tierTagline}>{tier.tagline}</Text>
           </View>
           <View style={styles.tierHeaderRight}>
-            <Text style={[styles.tierPrice, { color: tier.color }]}>{tier.price}</Text>
-            {tier.priceDetail ? (
-              <Text style={styles.tierPriceDetail}>{tier.priceDetail}</Text>
+            <Text style={[styles.tierPrice, { color: tier.color }]}>{displayPrice}</Text>
+            {displayPriceDetail ? (
+              <Text style={styles.tierPriceDetail}>{displayPriceDetail}</Text>
             ) : null}
           </View>
         </View>
@@ -313,18 +412,31 @@ export default function PaywallScreen({ route }: PaywallScreenProps) {
               opacity: isPurchasing ? 0.6 : 1,
             }
           ]}
+          disabled={isPurchasing}
           onPress={() => {
             if (tier.id === 'free') {
               navigation.goBack();
-            } else if (!isCurrent) {
-              handlePurchase(tier.id);
+            } else if (!isCurrent && !isPurchasing) {
+              handleSubscribe(tier.id, billingMode);
             }
           }}
-          disabled={isPurchasing || (isCurrent && tier.id !== 'free')}
         >
-          <Text style={[styles.selectButtonText, { color: isCurrent ? '#8B8B8B' : '#000000' }]}>
-            {tier.id === 'free' ? 'Continue Free' : isCurrent ? 'Current Plan' : 'Select Plan'}
-          </Text>
+          {isPurchasing ? (
+            <ActivityIndicator size="small" color="#FFFFFF" />
+          ) : (
+            <Text
+              style={[
+                styles.selectButtonText,
+                { color: isCurrent ? '#8B8B8B' : '#000000' }
+              ]}
+            >
+              {isCurrent
+                ? 'Current Plan'
+                : tier.id === 'free'
+                ? 'Continue with Free'
+                : 'Subscribe Now'}
+            </Text>
+          )}
         </TouchableOpacity>
       </View>
     );
@@ -357,9 +469,60 @@ export default function PaywallScreen({ route }: PaywallScreenProps) {
       >
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.title}>KOOPE—Pricing at a Glance</Text>
+          <Text style={styles.title}>Unlock KOOPE PRO</Text>
           <Text style={styles.subtitle}>Choose your path. Elevate how you drink, host, and learn.</Text>
         </View>
+
+        {/* Billing Mode Toggle */}
+        <View style={styles.billingToggleContainer}>
+          <TouchableOpacity
+            style={[
+              styles.billingToggleButton,
+              billingMode === 'monthly' && styles.billingToggleButtonActive,
+            ]}
+            onPress={() => setBillingMode('monthly')}
+          >
+            <Text
+              style={[
+                styles.billingToggleText,
+                billingMode === 'monthly' && styles.billingToggleTextActive,
+              ]}
+            >
+              Monthly
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.billingToggleButton,
+              billingMode === 'yearly' && styles.billingToggleButtonActive,
+            ]}
+            onPress={() => setBillingMode('yearly')}
+          >
+            <Text
+              style={[
+                styles.billingToggleText,
+                billingMode === 'yearly' && styles.billingToggleTextActive,
+              ]}
+            >
+              Yearly
+            </Text>
+            {billingMode === 'yearly' && (
+              <View style={styles.savingsBadge}>
+                <Text style={styles.savingsBadgeText}>Best Value</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        </View>
+
+        {/* Subscriber Status Banner */}
+        {isSubscriber && (
+          <View style={styles.subscriberBanner}>
+            <Ionicons name="checkmark-circle" size={20} color="#D4AF37" />
+            <Text style={styles.subscriberText}>
+              You are currently on {isPro ? 'KOOPE PRO' : 'KOOPE+'} plan
+            </Text>
+          </View>
+        )}
 
         {/* Tier Cards - Vertical Stacked */}
         <View style={styles.tiersContainer}>
@@ -429,6 +592,70 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
     textAlign: 'center',
     lineHeight: 22,
+  },
+  billingToggleContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#1A1D23',
+    borderRadius: 12,
+    padding: 4,
+    marginHorizontal: spacing(3),
+    marginBottom: spacing(3),
+    gap: 4,
+  },
+  billingToggleButton: {
+    flex: 1,
+    paddingVertical: spacing(1.5),
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  billingToggleButtonActive: {
+    backgroundColor: '#D4AF37',
+  },
+  billingToggleText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6B7280',
+  },
+  billingToggleTextActive: {
+    color: '#000000',
+    fontWeight: '700',
+  },
+  savingsBadge: {
+    position: 'absolute',
+    top: -8,
+    right: 8,
+    backgroundColor: '#059669',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  savingsBadgeText: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
+  },
+  subscriberBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing(1),
+    backgroundColor: 'rgba(212, 175, 55, 0.1)',
+    paddingVertical: spacing(2),
+    paddingHorizontal: spacing(3),
+    marginHorizontal: spacing(3),
+    marginBottom: spacing(3),
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(212, 175, 55, 0.2)',
+  },
+  subscriberText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#D4AF37',
   },
   tiersContainer: {
     paddingHorizontal: spacing(3),

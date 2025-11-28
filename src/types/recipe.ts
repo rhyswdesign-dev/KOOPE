@@ -55,6 +55,9 @@ export interface Recipe {
   likes?: number;
   saves?: number;
 
+  // Subscription Gating
+  requiresPro?: boolean; // Requires KOOPE PRO subscription to view
+
   // Nutrition (optional)
   nutrition?: NutritionInfo;
 

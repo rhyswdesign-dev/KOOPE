@@ -20,6 +20,7 @@ import Toast from '../components/Toast';
 import { useToast } from '../hooks/useToast';
 import CocktailDetailSkeleton from '../components/CocktailDetailSkeleton';
 import { achievementService } from '../services/achievementService';
+import { useSubscription } from '../contexts/SubscriptionContext';
 
 type CocktailDetailScreenRouteProp = {
   params: {
@@ -836,6 +837,7 @@ export default function CocktailDetailScreen() {
   const route = useRoute<CocktailDetailScreenRouteProp>();
   const { toggleSavedCocktail, isCocktailSaved } = useSavedItems();
   const { toast, showToast, hideToast } = useToast();
+  const { isPro, isPrestige } = useSubscription();
 
   const [firebaseRecipe, setFirebaseRecipe] = useState<Recipe | null>(null);
   const [loading, setLoading] = useState(true);
@@ -963,6 +965,19 @@ export default function CocktailDetailScreen() {
 
   // Priority order: non-alcoholic > firebase > hardcoded > transformed centralized
   const cocktail = nonAlcoholicRecipe || firebaseCocktail || hardcodedCocktail || transformedCocktail;
+
+  // Check subscription requirement and redirect if needed
+  useEffect(() => {
+    if (!loading && cocktail) {
+      // Check if cocktail requires Pro subscription
+      const requiresProAccess = (cocktail as any).requiresPro && !isPro && !isPrestige;
+
+      if (requiresProAccess) {
+        console.log('[CocktailDetailScreen] Pro subscription required - redirecting to Paywall');
+        nav.navigate('Paywall');
+      }
+    }
+  }, [loading, cocktail, isPro, isPrestige, nav]);
 
   // GLOBAL IMAGE RESOLVER: Use local images if available
   const resolvedImage = cocktail ? getCocktailImage(cocktail.id, cocktail.img) : null;

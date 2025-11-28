@@ -18,6 +18,7 @@
 
 import { useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { trackEvent, ANALYTICS_EVENTS, ANALYTICS_PROPS } from '../lib/analytics';
 
 type AppState = 'loading' | 'splash' | 'bartending_welcome' | 'welcome' | 'onboarding' | 'survey' | 'xp_reminder' | 'main';
 
@@ -70,6 +71,7 @@ export function useSimpleOnboarding() {
       } else {
         // New user - start onboarding flow
         console.log('New user detected, starting onboarding');
+        trackEvent(ANALYTICS_EVENTS.ONBOARDING_STARTED);
         setAppState('bartending_welcome');
       }
     } catch (error) {
@@ -81,16 +83,28 @@ export function useSimpleOnboarding() {
 
   const completeBartendingWelcome = () => {
     // After bartending welcome, show welcome carousel
+    trackEvent(ANALYTICS_EVENTS.ONBOARDING_STEP_COMPLETED, {
+      [ANALYTICS_PROPS.STEP_NUMBER]: 1,
+      [ANALYTICS_PROPS.STEP_NAME]: 'bartending_welcome',
+    });
     setAppState('welcome');
   };
 
   const completeWelcome = () => {
     // After welcome carousel, show account setup
+    trackEvent(ANALYTICS_EVENTS.ONBOARDING_STEP_COMPLETED, {
+      [ANALYTICS_PROPS.STEP_NUMBER]: 2,
+      [ANALYTICS_PROPS.STEP_NAME]: 'welcome_carousel',
+    });
     setAppState('onboarding');
   };
 
   const completeOnboarding = () => {
     // After account setup, show survey
+    trackEvent(ANALYTICS_EVENTS.ONBOARDING_STEP_COMPLETED, {
+      [ANALYTICS_PROPS.STEP_NUMBER]: 3,
+      [ANALYTICS_PROPS.STEP_NAME]: 'account_setup',
+    });
     setAppState('survey');
   };
 
@@ -99,6 +113,9 @@ export function useSimpleOnboarding() {
       // Mark onboarding as completed in AsyncStorage
       await AsyncStorage.setItem(ONBOARDING_COMPLETED_KEY, 'true');
       console.log('Onboarding completed and saved');
+
+      // Track onboarding completion
+      trackEvent(ANALYTICS_EVENTS.ONBOARDING_COMPLETED);
     } catch (error) {
       console.log('Error saving onboarding completion status:', error);
     }

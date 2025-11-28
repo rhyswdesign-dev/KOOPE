@@ -9,6 +9,7 @@ import { RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '../../navigation/RootNavigator';
 import { LessonEngine } from '../../components/engine/LessonEngine';
 import { useUser } from '../../store/useUser';
+import RequirePro from '../../components/RequirePro';
 
 type LessonEngineScreenProps = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'LessonEngine'>;
@@ -16,8 +17,12 @@ type LessonEngineScreenProps = {
 };
 
 export default function LessonEngineScreen({ navigation, route }: LessonEngineScreenProps) {
-  const { lessonId, isFirstLesson, moduleId } = route.params;
+  const { lessonId, isFirstLesson, moduleId, level } = route.params as any;
   const { lives } = useUser();
+
+  // Determine if this lesson requires Pro subscription
+  // Level 1 is free, Level 2+ requires Pro
+  const requiresProSubscription = level && level >= 2;
 
   useLayoutEffect(() => {
     // Disable swipe back gesture for lessons to prevent bypassing hearts system
@@ -50,7 +55,7 @@ export default function LessonEngineScreen({ navigation, route }: LessonEngineSc
     });
   };
 
-  return (
+  const renderContent = () => (
     <View style={styles.container}>
       <LessonEngine
         lessonId={lessonId}
@@ -59,6 +64,17 @@ export default function LessonEngineScreen({ navigation, route }: LessonEngineSc
       />
     </View>
   );
+
+  // Wrap with RequirePro if lesson requires Pro subscription
+  if (requiresProSubscription) {
+    return (
+      <RequirePro>
+        {renderContent()}
+      </RequirePro>
+    );
+  }
+
+  return renderContent();
 }
 
 const styles = StyleSheet.create({

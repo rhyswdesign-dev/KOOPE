@@ -12,9 +12,11 @@ import {
   Image,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 import { colors, spacing, radii } from '../../../theme/tokens';
 import { VaultItem, UserVaultProfile } from '../../../types/vault';
 import { canUserUnlockItem } from '../../../data/vaultData';
+import { useSubscription } from '../../../contexts/SubscriptionContext';
 
 interface VaultItemCardProps {
   item: VaultItem;
@@ -24,8 +26,24 @@ interface VaultItemCardProps {
 }
 
 export default function VaultItemCard({ item, userProfile, onPress, onAddToCart }: VaultItemCardProps) {
+  const navigation = useNavigation();
+  const { isPro, isPrestige } = useSubscription();
   const { canUnlock, reason } = canUserUnlockItem(item, userProfile);
-  
+
+  // Check subscription requirements
+  const requiresProAccess = item.requiresPro && !isPro && !isPrestige;
+  const requiresPrestigeAccess = item.requiresPrestige && !isPrestige;
+  const isSubscriptionLocked = requiresProAccess || requiresPrestigeAccess;
+
+  const handleCardPress = () => {
+    if (isSubscriptionLocked) {
+      console.log('[VaultItemCard] Subscription required - redirecting to Paywall');
+      navigation.navigate('Paywall' as never);
+      return;
+    }
+    onPress();
+  };
+
   const getRarityColor = (rarity: VaultItem['rarity']): string => {
     switch (rarity) {
       case 'common': return colors.subtext;
@@ -67,9 +85,10 @@ export default function VaultItemCard({ item, userProfile, onPress, onAddToCart 
       style={[
         styles.card,
         !canUnlock && styles.lockedCard,
-        isSoldOut && styles.soldOutCard
+        isSoldOut && styles.soldOutCard,
+        isSubscriptionLocked && styles.subscriptionLockedCard
       ]}
-      onPress={onPress}
+      onPress={handleCardPress}
       activeOpacity={0.8}
       disabled={isSoldOut}
     >
@@ -88,12 +107,22 @@ export default function VaultItemCard({ item, userProfile, onPress, onAddToCart 
         </View>
         
         {/* Partner Chip */}
-        {(item as any).partner && (
+        {(item as any).partner && !isSubscriptionLocked && (
           <View style={styles.partnerChip}>
             <Text style={styles.partnerText}>{(item as any).partner}</Text>
           </View>
         )}
-        
+
+        {/* Subscription Required Badge */}
+        {isSubscriptionLocked && (
+          <View style={styles.subscriptionBadge}>
+            <Ionicons name="star" size={12} color="#FFFFFF" />
+            <Text style={styles.subscriptionBadgeText}>
+              {requiresPrestigeAccess ? 'PRESTIGE ONLY' : 'PRO ONLY'}
+            </Text>
+          </View>
+        )}
+
         {/* Stock Counter Bar */}
         <View style={styles.stockContainer}>
           <View style={styles.stockBar}>
@@ -199,6 +228,17 @@ export default function VaultItemCard({ item, userProfile, onPress, onAddToCart 
             <View style={styles.actionButton}>
               <Text style={styles.actionButtonText}>Sold Out</Text>
             </View>
+          ) : isSubscriptionLocked ? (
+            <TouchableOpacity
+              style={[styles.actionButton, styles.upgradeButton]}
+              onPress={handleCardPress}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="star" size={16} color={colors.white} />
+              <Text style={[styles.actionButtonText, { color: colors.white }]}>
+                {requiresPrestigeAccess ? 'Upgrade to Prestige' : 'Upgrade to Pro'}
+              </Text>
+            </TouchableOpacity>
           ) : canUnlock ? (
             <TouchableOpacity 
               style={[styles.actionButton, styles.unlockButton]}
@@ -273,6 +313,10 @@ const styles = StyleSheet.create({
   soldOutCard: {
     opacity: 0.5,
   },
+  subscriptionLockedCard: {
+    borderColor: '#D4AF37',
+    borderWidth: 2,
+  },
   
   // Image Section
   imageContainer: {
@@ -315,6 +359,24 @@ const styles = StyleSheet.create({
     color: colors.white,
     fontSize: 10,
     fontWeight: '700',
+  },
+  subscriptionBadge: {
+    position: 'absolute',
+    top: spacing(1),
+    right: spacing(1),
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#D4AF37',
+    paddingHorizontal: spacing(1.5),
+    paddingVertical: spacing(0.5),
+    borderRadius: radii.sm,
+    gap: spacing(0.5),
+    zIndex: 5,
+  },
+  subscriptionBadgeText: {
+    color: '#000000',
+    fontSize: 10,
+    fontWeight: '800',
   },
   stockContainer: {
     position: 'absolute',
@@ -495,6 +557,9 @@ const styles = StyleSheet.create({
   },
   discountButton: {
     backgroundColor: '#9C27B0',
+  },
+  upgradeButton: {
+    backgroundColor: '#D4AF37',
   },
   actionButtonText: {
     fontSize: 14,

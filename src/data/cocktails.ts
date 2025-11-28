@@ -154,7 +154,9 @@ const SPIRIT_FORWARD_COCKTAILS = [
     image: 'https://images.unsplash.com/photo-1580424805313-04ac2b1fef66?q=80&w=1200&auto=format&fit=crop',
     era: 'pre-prohibition',
     base: 'whiskey',
-    glassware: 'Rocks Glass'
+    glassware: 'Rocks Glass',
+    requiresPro: true,
+
   },
   {
     id: 'negroni',
@@ -199,7 +201,9 @@ const SPIRIT_FORWARD_COCKTAILS = [
     image: 'https://images.unsplash.com/photo-1580424805313-04ac2b1fef66?q=80&w=1200&auto=format&fit=crop',
     era: 'pre-prohibition',
     base: 'whiskey',
-    glassware: 'Rocks Glass'
+    glassware: 'Rocks Glass',
+    requiresPro: true,
+
   },
   {
     id: 'vieux-carre',
@@ -214,7 +218,9 @@ const SPIRIT_FORWARD_COCKTAILS = [
     image: 'https://images.unsplash.com/photo-1574671928146-5c89a22b2e85?q=80&w=1200&auto=format&fit=crop',
     era: 'pre-prohibition',
     base: 'whiskey',
-    glassware: 'Rocks Glass'
+    glassware: 'Rocks Glass',
+    requiresPro: true,
+
   },
   {
     id: 'brooklyn',
@@ -229,7 +235,9 @@ const SPIRIT_FORWARD_COCKTAILS = [
     image: 'https://images.unsplash.com/photo-1546171753-97d2d2da3f2e?q=80&w=1200&auto=format&fit=crop',
     era: 'pre-prohibition',
     base: 'whiskey',
-    glassware: 'Coupe Glass'
+    glassware: 'Coupe Glass',
+    requiresPro: true,
+
   },
   {
     id: 'hanky-panky',
@@ -244,7 +252,9 @@ const SPIRIT_FORWARD_COCKTAILS = [
     image: 'https://images.unsplash.com/photo-1551538827-9c037cb4f32a?q=80&w=1200&auto=format&fit=crop',
     era: 'pre-prohibition',
     base: 'gin',
-    glassware: 'Coupe Glass'
+    glassware: 'Coupe Glass',
+    requiresPro: true,
+
   },
   {
     id: 'old-fashioned-classic',
@@ -289,7 +299,9 @@ const SPIRIT_FORWARD_COCKTAILS = [
     image: 'https://images.unsplash.com/photo-1551538827-9c037cb4f32a?q=80&w=1200&auto=format&fit=crop',
     era: 'pre-prohibition',
     base: 'gin',
-    glassware: 'Coupe Glass'
+    glassware: 'Coupe Glass',
+    requiresPro: true,
+
   },
   {
     id: 'corpse-reviver-2',
@@ -304,7 +316,9 @@ const SPIRIT_FORWARD_COCKTAILS = [
     image: 'https://images.unsplash.com/photo-1551538827-9c037cb4f32a?q=80&w=1200&auto=format&fit=crop',
     era: 'pre-prohibition',
     base: 'gin',
-    glassware: 'Coupe Glass'
+    glassware: 'Coupe Glass',
+    requiresPro: true,
+
   },
   {
     id: 'aviation',
@@ -319,7 +333,9 @@ const SPIRIT_FORWARD_COCKTAILS = [
     image: 'https://images.unsplash.com/photo-1551538827-9c037cb4f32a?q=80&w=1200&auto=format&fit=crop',
     era: 'pre-prohibition',
     base: 'gin',
-    glassware: 'Coupe Glass'
+    glassware: 'Coupe Glass',
+    requiresPro: true,
+
   },
   {
     id: 'last-word',
@@ -334,7 +350,9 @@ const SPIRIT_FORWARD_COCKTAILS = [
     image: 'https://images.unsplash.com/photo-1551538827-9c037cb4f32a?q=80&w=1200&auto=format&fit=crop',
     era: 'pre-prohibition',
     base: 'gin',
-    glassware: 'Coupe Glass'
+    glassware: 'Coupe Glass',
+    requiresPro: true,
+
   },
   {
     id: 'mint-julep',
@@ -349,7 +367,9 @@ const SPIRIT_FORWARD_COCKTAILS = [
     image: 'https://images.unsplash.com/photo-1580424805313-04ac2b1fef66?q=80&w=1200&auto=format&fit=crop',
     era: 'pre-prohibition',
     base: 'whiskey',
-    glassware: 'Rocks Glass'
+    glassware: 'Rocks Glass',
+    requiresPro: true,
+
   },
   {
     id: 'whiskey-smash',
@@ -364,7 +384,9 @@ const SPIRIT_FORWARD_COCKTAILS = [
     image: 'https://images.unsplash.com/photo-1580424805313-04ac2b1fef66?q=80&w=1200&auto=format&fit=crop',
     era: 'pre-prohibition',
     base: 'whiskey',
-    glassware: 'Rocks Glass'
+    glassware: 'Rocks Glass',
+    requiresPro: true,
+
   },
   {
     id: 'bramble',
@@ -379,7 +401,9 @@ const SPIRIT_FORWARD_COCKTAILS = [
     image: 'https://images.unsplash.com/photo-1551538827-9c037cb4f32a?q=80&w=1200&auto=format&fit=crop',
     era: 'modern',
     base: 'gin',
-    glassware: 'Rocks Glass'
+    glassware: 'Rocks Glass',
+    requiresPro: true,
+
   },
   {
     id: 'bee-knees',
@@ -394,7 +418,9 @@ const SPIRIT_FORWARD_COCKTAILS = [
     image: 'https://images.unsplash.com/photo-1551538827-9c037cb4f32a?q=80&w=1200&auto=format&fit=crop',
     era: 'prohibition',
     base: 'gin',
-    glassware: 'Coupe Glass'
+    glassware: 'Coupe Glass',
+    requiresPro: true,
+
   },
   {
     id: 'southside',
@@ -409,7 +435,9 @@ const SPIRIT_FORWARD_COCKTAILS = [
     image: 'https://images.unsplash.com/photo-1551538827-9c037cb4f32a?q=80&w=1200&auto=format&fit=crop',
     era: 'prohibition',
     base: 'gin',
-    glassware: 'Coupe Glass'
+    glassware: 'Coupe Glass',
+    requiresPro: true,
+
   },
   {
     id: 'french-75',
@@ -439,7 +467,9 @@ const SPIRIT_FORWARD_COCKTAILS = [
     image: 'https://images.unsplash.com/photo-1551538827-9c037cb4f32a?q=80&w=1200&auto=format&fit=crop',
     era: 'classic',
     base: 'gin',
-    glassware: 'Highball Glass'
+    glassware: 'Highball Glass',
+    requiresPro: true,
+
   },
   {
     id: 'vesper',
@@ -454,7 +484,9 @@ const SPIRIT_FORWARD_COCKTAILS = [
     image: 'https://images.unsplash.com/photo-1551538827-9c037cb4f32a?q=80&w=1200&auto=format&fit=crop',
     era: 'literary',
     base: 'gin',
-    glassware: 'Martini Glass'
+    glassware: 'Martini Glass',
+    requiresPro: true,
+
   },
   {
     id: 'dry-martini',
@@ -484,7 +516,9 @@ const SPIRIT_FORWARD_COCKTAILS = [
     image: 'https://images.unsplash.com/photo-1551538827-9c037cb4f32a?q=80&w=1200&auto=format&fit=crop',
     era: 'classic',
     base: 'gin',
-    glassware: 'Highball Glass'
+    glassware: 'Highball Glass',
+    requiresPro: true,
+
   },
   {
     id: 'tom-collins',
@@ -514,7 +548,9 @@ const SPIRIT_FORWARD_COCKTAILS = [
     image: 'https://images.unsplash.com/photo-1580424805313-04ac2b1fef66?q=80&w=1200&auto=format&fit=crop',
     era: 'classic',
     base: 'whiskey',
-    glassware: 'Collins Glass'
+    glassware: 'Collins Glass',
+    requiresPro: true,
+
   },
   {
     id: 'paper-plane',
@@ -529,7 +565,9 @@ const SPIRIT_FORWARD_COCKTAILS = [
     image: 'https://images.unsplash.com/photo-1580424805313-04ac2b1fef66?q=80&w=1200&auto=format&fit=crop',
     era: 'modern',
     base: 'whiskey',
-    glassware: 'Coupe Glass'
+    glassware: 'Coupe Glass',
+    requiresPro: true,
+
   },
   {
     id: 'penicillin',
@@ -544,7 +582,9 @@ const SPIRIT_FORWARD_COCKTAILS = [
     image: 'https://images.unsplash.com/photo-1580424805313-04ac2b1fef66?q=80&w=1200&auto=format&fit=crop',
     era: 'modern',
     base: 'whiskey',
-    glassware: 'Rocks Glass'
+    glassware: 'Rocks Glass',
+    requiresPro: true,
+
   }
 ];
 
@@ -653,7 +693,9 @@ const SOUR_CITRUS_COCKTAILS = [
     image: 'https://images.unsplash.com/photo-1574671928146-5c89a22b2e85?q=80&w=1200&auto=format&fit=crop',
     era: 'modern',
     base: 'liqueur',
-    glassware: 'Rocks Glass'
+    glassware: 'Rocks Glass',
+    requiresPro: true,
+
   },
   {
     id: 'pisco-sour',
@@ -668,7 +710,9 @@ const SOUR_CITRUS_COCKTAILS = [
     image: 'https://images.unsplash.com/photo-1574671928146-5c89a22b2e85?q=80&w=1200&auto=format&fit=crop',
     era: 'traditional',
     base: 'pisco',
-    glassware: 'Coupe Glass'
+    glassware: 'Coupe Glass',
+    requiresPro: true,
+
   },
   {
     id: 'caipirinha',
@@ -683,7 +727,9 @@ const SOUR_CITRUS_COCKTAILS = [
     image: 'https://images.unsplash.com/photo-1582745689430-86cd52ad5bf1?q=80&w=1200&auto=format&fit=crop',
     era: 'traditional',
     base: 'cachaça',
-    glassware: 'Rocks Glass'
+    glassware: 'Rocks Glass',
+    requiresPro: true,
+
   },
   {
     id: 'tommy-margarita',
@@ -698,7 +744,9 @@ const SOUR_CITRUS_COCKTAILS = [
     image: 'https://images.unsplash.com/photo-1582745689430-86cd52ad5bf1?q=80&w=1200&auto=format&fit=crop',
     era: 'modern',
     base: 'tequila',
-    glassware: 'Rocks Glass'
+    glassware: 'Rocks Glass',
+    requiresPro: true,
+
   },
   {
     id: 'paloma',
@@ -728,7 +776,9 @@ const SOUR_CITRUS_COCKTAILS = [
     image: 'https://images.unsplash.com/photo-1551538827-9c037cb4f32a?q=80&w=1200&auto=format&fit=crop',
     era: 'pre-prohibition',
     base: 'gin',
-    glassware: 'Coupe Glass'
+    glassware: 'Coupe Glass',
+    requiresPro: true,
+
   },
   {
     id: 'moscow-mule',
@@ -773,7 +823,9 @@ const SOUR_CITRUS_COCKTAILS = [
     image: 'https://images.unsplash.com/photo-1580424805313-04ac2b1fef66?q=80&w=1200&auto=format&fit=crop',
     era: 'modern',
     base: 'whiskey',
-    glassware: 'Copper Mug'
+    glassware: 'Copper Mug',
+    requiresPro: true,
+
   },
   {
     id: 'bee-sting',
@@ -788,7 +840,9 @@ const SOUR_CITRUS_COCKTAILS = [
     image: 'https://images.unsplash.com/photo-1582745689430-86cd52ad5bf1?q=80&w=1200&auto=format&fit=crop',
     era: 'modern',
     base: 'mezcal',
-    glassware: 'Rocks Glass'
+    glassware: 'Rocks Glass',
+    requiresPro: true,
+
   },
   {
     id: 'corpse-reviver-1',
@@ -803,7 +857,9 @@ const SOUR_CITRUS_COCKTAILS = [
     image: 'https://images.unsplash.com/photo-1574671928146-5c89a22b2e85?q=80&w=1200&auto=format&fit=crop',
     era: 'pre-prohibition',
     base: 'cognac',
-    glassware: 'Coupe Glass'
+    glassware: 'Coupe Glass',
+    requiresPro: true,
+
   },
   {
     id: 'hemingway-daiquiri',
@@ -818,7 +874,9 @@ const SOUR_CITRUS_COCKTAILS = [
     image: 'https://images.unsplash.com/photo-1581795669633-91ef2c6cebaf?q=80&w=1200&auto=format&fit=crop',
     era: 'literary',
     base: 'rum',
-    glassware: 'Coupe Glass'
+    glassware: 'Coupe Glass',
+    requiresPro: true,
+
   },
   {
     id: 'south-side-fizz',
@@ -833,7 +891,9 @@ const SOUR_CITRUS_COCKTAILS = [
     image: 'https://images.unsplash.com/photo-1551538827-9c037cb4f32a?q=80&w=1200&auto=format&fit=crop',
     era: 'classic',
     base: 'gin',
-    glassware: 'Highball Glass'
+    glassware: 'Highball Glass',
+    requiresPro: true,
+
   },
   {
     id: 'ward-8',
@@ -848,7 +908,9 @@ const SOUR_CITRUS_COCKTAILS = [
     image: 'https://images.unsplash.com/photo-1580424805313-04ac2b1fef66?q=80&w=1200&auto=format&fit=crop',
     era: 'american',
     base: 'whiskey',
-    glassware: 'Coupe Glass'
+    glassware: 'Coupe Glass',
+    requiresPro: true,
+
   }
 ];
 
@@ -882,7 +944,9 @@ const TIKI_EXOTIC_COCKTAILS = [
     image: 'https://images.unsplash.com/photo-1581795669633-91ef2c6cebaf?q=80&w=1200&auto=format&fit=crop',
     era: 'tiki',
     base: 'rum',
-    glassware: 'Hurricane Glass'
+    glassware: 'Hurricane Glass',
+    requiresPro: true,
+
   },
   {
     id: 'scorpion-bowl',
@@ -897,7 +961,9 @@ const TIKI_EXOTIC_COCKTAILS = [
     image: 'https://images.unsplash.com/photo-1581795669633-91ef2c6cebaf?q=80&w=1200&auto=format&fit=crop',
     era: 'tiki',
     base: 'rum',
-    glassware: 'Punch Bowl'
+    glassware: 'Punch Bowl',
+    requiresPro: true,
+
   },
   {
     id: 'hurricane',
@@ -912,7 +978,9 @@ const TIKI_EXOTIC_COCKTAILS = [
     image: 'https://images.unsplash.com/photo-1581795669633-91ef2c6cebaf?q=80&w=1200&auto=format&fit=crop',
     era: 'new-orleans',
     base: 'rum',
-    glassware: 'Hurricane Glass'
+    glassware: 'Hurricane Glass',
+    requiresPro: true,
+
   },
   {
     id: 'blue-hawaiian',
@@ -927,7 +995,9 @@ const TIKI_EXOTIC_COCKTAILS = [
     image: 'https://images.unsplash.com/photo-1581795669633-91ef2c6cebaf?q=80&w=1200&auto=format&fit=crop',
     era: 'tiki',
     base: 'rum',
-    glassware: 'Hurricane Glass'
+    glassware: 'Hurricane Glass',
+    requiresPro: true,
+
   },
   {
     id: 'painkiller',
@@ -942,7 +1012,9 @@ const TIKI_EXOTIC_COCKTAILS = [
     image: 'https://images.unsplash.com/photo-1581795669633-91ef2c6cebaf?q=80&w=1200&auto=format&fit=crop',
     era: 'caribbean',
     base: 'rum',
-    glassware: 'Hurricane Glass'
+    glassware: 'Hurricane Glass',
+    requiresPro: true,
+
   },
   {
     id: 'jungle-bird',
@@ -957,7 +1029,9 @@ const TIKI_EXOTIC_COCKTAILS = [
     image: 'https://images.unsplash.com/photo-1581795669633-91ef2c6cebaf?q=80&w=1200&auto=format&fit=crop',
     era: 'tiki',
     base: 'rum',
-    glassware: 'Rocks Glass'
+    glassware: 'Rocks Glass',
+    requiresPro: true,
+
   },
   {
     id: 'fog-cutter',
@@ -972,7 +1046,9 @@ const TIKI_EXOTIC_COCKTAILS = [
     image: 'https://images.unsplash.com/photo-1581795669633-91ef2c6cebaf?q=80&w=1200&auto=format&fit=crop',
     era: 'tiki',
     base: 'rum',
-    glassware: 'Hurricane Glass'
+    glassware: 'Hurricane Glass',
+    requiresPro: true,
+
   },
   {
     id: 'navy-grog',
@@ -987,7 +1063,9 @@ const TIKI_EXOTIC_COCKTAILS = [
     image: 'https://images.unsplash.com/photo-1581795669633-91ef2c6cebaf?q=80&w=1200&auto=format&fit=crop',
     era: 'tiki',
     base: 'rum',
-    glassware: 'Hurricane Glass'
+    glassware: 'Hurricane Glass',
+    requiresPro: true,
+
   },
   {
     id: 'test-pilot',
@@ -1002,7 +1080,9 @@ const TIKI_EXOTIC_COCKTAILS = [
     image: 'https://images.unsplash.com/photo-1581795669633-91ef2c6cebaf?q=80&w=1200&auto=format&fit=crop',
     era: 'tiki',
     base: 'rum',
-    glassware: 'Hurricane Glass'
+    glassware: 'Hurricane Glass',
+    requiresPro: true,
+
   },
   {
     id: 'saturn',
@@ -1017,7 +1097,9 @@ const TIKI_EXOTIC_COCKTAILS = [
     image: 'https://images.unsplash.com/photo-1551538827-9c037cb4f32a?q=80&w=1200&auto=format&fit=crop',
     era: 'tiki',
     base: 'gin',
-    glassware: 'Rocks Glass'
+    glassware: 'Rocks Glass',
+    requiresPro: true,
+
   },
   {
     id: 'trader-vics-grog',
@@ -1032,7 +1114,9 @@ const TIKI_EXOTIC_COCKTAILS = [
     image: 'https://images.unsplash.com/photo-1581795669633-91ef2c6cebaf?q=80&w=1200&auto=format&fit=crop',
     era: 'tiki',
     base: 'rum',
-    glassware: 'Rocks Glass'
+    glassware: 'Rocks Glass',
+    requiresPro: true,
+
   },
   {
     id: 'pearl-diver',
@@ -1047,7 +1131,9 @@ const TIKI_EXOTIC_COCKTAILS = [
     image: 'https://images.unsplash.com/photo-1581795669633-91ef2c6cebaf?q=80&w=1200&auto=format&fit=crop',
     era: 'tiki',
     base: 'rum',
-    glassware: 'Hurricane Glass'
+    glassware: 'Hurricane Glass',
+    requiresPro: true,
+
   },
   {
     id: 'missionary-downfall',
@@ -1062,7 +1148,9 @@ const TIKI_EXOTIC_COCKTAILS = [
     image: 'https://images.unsplash.com/photo-1581795669633-91ef2c6cebaf?q=80&w=1200&auto=format&fit=crop',
     era: 'tiki',
     base: 'rum',
-    glassware: 'Hurricane Glass'
+    glassware: 'Hurricane Glass',
+    requiresPro: true,
+
   },
   {
     id: 'three-dots-dash',
@@ -1077,7 +1165,9 @@ const TIKI_EXOTIC_COCKTAILS = [
     image: 'https://images.unsplash.com/photo-1581795669633-91ef2c6cebaf?q=80&w=1200&auto=format&fit=crop',
     era: 'tiki',
     base: 'rum',
-    glassware: 'Hurricane Glass'
+    glassware: 'Hurricane Glass',
+    requiresPro: true,
+
   }
 ];
 
@@ -1126,7 +1216,9 @@ const REFRESHING_HIGHBALL_COCKTAILS = [
     image: 'https://images.unsplash.com/photo-1574671928146-5c89a22b2e85?q=80&w=1200&auto=format&fit=crop',
     era: 'austrian',
     base: 'elderflower',
-    glassware: 'Wine Glass'
+    glassware: 'Wine Glass',
+    requiresPro: true,
+
   },
   {
     id: 'gin-tonic',
@@ -1141,7 +1233,9 @@ const REFRESHING_HIGHBALL_COCKTAILS = [
     image: 'https://images.unsplash.com/photo-1551538827-9c037cb4f32a?q=80&w=1200&auto=format&fit=crop',
     era: 'classic',
     base: 'gin',
-    glassware: 'Highball Glass'
+    glassware: 'Highball Glass',
+    requiresPro: true,
+
   },
   {
     id: 'vodka-soda',
@@ -1156,7 +1250,9 @@ const REFRESHING_HIGHBALL_COCKTAILS = [
     image: 'https://images.unsplash.com/photo-1569529465841-dfecdab7503b?q=80&w=1200&auto=format&fit=crop',
     era: 'modern',
     base: 'vodka',
-    glassware: 'Highball Glass'
+    glassware: 'Highball Glass',
+    requiresPro: true,
+
   },
   {
     id: 'ranch-water',
@@ -1171,7 +1267,9 @@ const REFRESHING_HIGHBALL_COCKTAILS = [
     image: 'https://images.unsplash.com/photo-1582745689430-86cd52ad5bf1?q=80&w=1200&auto=format&fit=crop',
     era: 'texas',
     base: 'tequila',
-    glassware: 'Highball Glass'
+    glassware: 'Highball Glass',
+    requiresPro: true,
+
   },
   {
     id: 'highball',
@@ -1186,7 +1284,9 @@ const REFRESHING_HIGHBALL_COCKTAILS = [
     image: 'https://images.unsplash.com/photo-1580424805313-04ac2b1fef66?q=80&w=1200&auto=format&fit=crop',
     era: 'japanese',
     base: 'whiskey',
-    glassware: 'Highball Glass'
+    glassware: 'Highball Glass',
+    requiresPro: true,
+
   },
   {
     id: 'americano',
@@ -1201,7 +1301,9 @@ const REFRESHING_HIGHBALL_COCKTAILS = [
     image: 'https://images.unsplash.com/photo-1574671928146-5c89a22b2e85?q=80&w=1200&auto=format&fit=crop',
     era: 'italian',
     base: 'campari',
-    glassware: 'Collins Glass'
+    glassware: 'Collins Glass',
+    requiresPro: true,
+
   },
   {
     id: 'negroni-sbagliato',
@@ -1216,7 +1318,9 @@ const REFRESHING_HIGHBALL_COCKTAILS = [
     image: 'https://images.unsplash.com/photo-1574671928146-5c89a22b2e85?q=80&w=1200&auto=format&fit=crop',
     era: 'italian',
     base: 'campari',
-    glassware: 'Wine Glass'
+    glassware: 'Wine Glass',
+    requiresPro: true,
+
   },
   {
     id: 'spritz-veneziano',
@@ -1231,7 +1335,9 @@ const REFRESHING_HIGHBALL_COCKTAILS = [
     image: 'https://images.unsplash.com/photo-1574671928146-5c89a22b2e85?q=80&w=1200&auto=format&fit=crop',
     era: 'venetian',
     base: 'aperol',
-    glassware: 'Wine Glass'
+    glassware: 'Wine Glass',
+    requiresPro: true,
+
   }
 ];
 
@@ -1265,7 +1371,9 @@ const AFTER_DINNER_COCKTAILS = [
     image: 'https://images.unsplash.com/photo-1569529465841-dfecdab7503b?q=80&w=1200&auto=format&fit=crop',
     era: 'modern',
     base: 'vodka',
-    glassware: 'Rocks Glass'
+    glassware: 'Rocks Glass',
+    requiresPro: true,
+
   },
   {
     id: 'black-russian',
@@ -1280,7 +1388,9 @@ const AFTER_DINNER_COCKTAILS = [
     image: 'https://images.unsplash.com/photo-1569529465841-dfecdab7503b?q=80&w=1200&auto=format&fit=crop',
     era: 'modern',
     base: 'vodka',
-    glassware: 'Rocks Glass'
+    glassware: 'Rocks Glass',
+    requiresPro: true,
+
   },
   {
     id: 'brandy-alexander',
@@ -1295,7 +1405,9 @@ const AFTER_DINNER_COCKTAILS = [
     image: 'https://images.unsplash.com/photo-1574671928146-5c89a22b2e85?q=80&w=1200&auto=format&fit=crop',
     era: 'classic',
     base: 'cognac',
-    glassware: 'Coupe Glass'
+    glassware: 'Coupe Glass',
+    requiresPro: true,
+
   },
   {
     id: 'grasshopper',
@@ -1310,7 +1422,9 @@ const AFTER_DINNER_COCKTAILS = [
     image: 'https://images.unsplash.com/photo-1574671928146-5c89a22b2e85?q=80&w=1200&auto=format&fit=crop',
     era: 'classic',
     base: 'liqueur',
-    glassware: 'Coupe Glass'
+    glassware: 'Coupe Glass',
+    requiresPro: true,
+
   },
   {
     id: 'mudslide',
@@ -1325,7 +1439,9 @@ const AFTER_DINNER_COCKTAILS = [
     image: 'https://images.unsplash.com/photo-1569529465841-dfecdab7503b?q=80&w=1200&auto=format&fit=crop',
     era: 'modern',
     base: 'vodka',
-    glassware: 'Rocks Glass'
+    glassware: 'Rocks Glass',
+    requiresPro: true,
+
   },
   {
     id: 'golden-cadillac',
@@ -1340,7 +1456,9 @@ const AFTER_DINNER_COCKTAILS = [
     image: 'https://images.unsplash.com/photo-1574671928146-5c89a22b2e85?q=80&w=1200&auto=format&fit=crop',
     era: 'classic',
     base: 'liqueur',
-    glassware: 'Coupe Glass'
+    glassware: 'Coupe Glass',
+    requiresPro: true,
+
   },
   {
     id: 'pink-squirrel',
@@ -1355,7 +1473,9 @@ const AFTER_DINNER_COCKTAILS = [
     image: 'https://images.unsplash.com/photo-1574671928146-5c89a22b2e85?q=80&w=1200&auto=format&fit=crop',
     era: 'classic',
     base: 'liqueur',
-    glassware: 'Coupe Glass'
+    glassware: 'Coupe Glass',
+    requiresPro: true,
+
   },
   {
     id: 'revolver',
@@ -1370,7 +1490,9 @@ const AFTER_DINNER_COCKTAILS = [
     image: 'https://images.unsplash.com/photo-1580424805313-04ac2b1fef66?q=80&w=1200&auto=format&fit=crop',
     era: 'modern',
     base: 'whiskey',
-    glassware: 'Coupe Glass'
+    glassware: 'Coupe Glass',
+    requiresPro: true,
+
   },
   {
     id: 'porto-flip',
@@ -1385,7 +1507,9 @@ const AFTER_DINNER_COCKTAILS = [
     image: 'https://images.unsplash.com/photo-1574671928146-5c89a22b2e85?q=80&w=1200&auto=format&fit=crop',
     era: 'classic',
     base: 'port',
-    glassware: 'Coupe Glass'
+    glassware: 'Coupe Glass',
+    requiresPro: true,
+
   },
   {
     id: 'brandy-milk-punch',
@@ -1400,7 +1524,9 @@ const AFTER_DINNER_COCKTAILS = [
     image: 'https://images.unsplash.com/photo-1574671928146-5c89a22b2e85?q=80&w=1200&auto=format&fit=crop',
     era: 'new-orleans',
     base: 'cognac',
-    glassware: 'Highball Glass'
+    glassware: 'Highball Glass',
+    requiresPro: true,
+
   },
   {
     id: 'stinger',
@@ -1415,7 +1541,9 @@ const AFTER_DINNER_COCKTAILS = [
     image: 'https://images.unsplash.com/photo-1574671928146-5c89a22b2e85?q=80&w=1200&auto=format&fit=crop',
     era: 'classic',
     base: 'cognac',
-    glassware: 'Coupe Glass'
+    glassware: 'Coupe Glass',
+    requiresPro: true,
+
   },
   {
     id: 'brandy-crusta',
@@ -1430,7 +1558,9 @@ const AFTER_DINNER_COCKTAILS = [
     image: 'https://images.unsplash.com/photo-1574671928146-5c89a22b2e85?q=80&w=1200&auto=format&fit=crop',
     era: 'classic',
     base: 'cognac',
-    glassware: 'Wine Glass'
+    glassware: 'Wine Glass',
+    requiresPro: true,
+
   },
   {
     id: 'alexander',
@@ -1445,7 +1575,9 @@ const AFTER_DINNER_COCKTAILS = [
     image: 'https://images.unsplash.com/photo-1551538827-9c037cb4f32a?q=80&w=1200&auto=format&fit=crop',
     era: 'classic',
     base: 'gin',
-    glassware: 'Coupe Glass'
+    glassware: 'Coupe Glass',
+    requiresPro: true,
+
   }
 ];
 
