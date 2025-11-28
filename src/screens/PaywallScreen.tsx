@@ -111,6 +111,7 @@ export default function PaywallScreen({ route }: PaywallScreenProps) {
   const [packages, setPackages] = useState<PurchasesPackage[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isPurchasing, setIsPurchasing] = useState(false);
+  const [expandedTier, setExpandedTier] = useState<string | null>(null);
 
   const displayCloseButton = route?.params?.displayCloseButton !== false;
 
@@ -193,9 +194,23 @@ export default function PaywallScreen({ route }: PaywallScreenProps) {
     return value;
   };
 
+  const getKeyHighlights = (tier: TierData) => {
+    switch (tier.id) {
+      case 'free':
+        return ['Basics Only', 'Limited AI (1/day)', '10 Inventory Items'];
+      case 'koope_plus':
+        return ['Unlimited Lessons', 'Unlimited AI Coach', 'Vault Access', 'Offline Mode'];
+      case 'koope_pro':
+        return ['Everything in KOOPE+', 'Priority AI w/ Memory', 'Creator Tools', 'VIP Challenges'];
+      default:
+        return [];
+    }
+  };
+
   const renderTierCard = (tier: TierData) => {
     const isCurrent = tier.id === 'free' ? false : (tier.id === 'koope_plus' ? isKoopePro && !isPro : isPro);
-    const cardWidth = (width - spacing(8)) / 3;
+    const isExpanded = expandedTier === tier.id;
+    const keyHighlights = getKeyHighlights(tier);
 
     return (
       <View
@@ -203,11 +218,9 @@ export default function PaywallScreen({ route }: PaywallScreenProps) {
         style={[
           styles.tierCard,
           {
-            width: cardWidth,
-            borderColor: tier.borderColor,
-            backgroundColor: tier.id === 'koope_plus' ? 'rgba(212, 175, 55, 0.05)' :
-                           tier.id === 'koope_pro' ? 'rgba(205, 127, 50, 0.05)' :
-                           '#1E2128',
+            borderColor: tier.id === 'koope_plus' ? '#D4AF37' :
+                        tier.id === 'koope_pro' ? '#CD7F32' :
+                        '#374151',
           }
         ]}
       >
@@ -219,19 +232,84 @@ export default function PaywallScreen({ route }: PaywallScreenProps) {
         )}
 
         {/* Header */}
-        <Text style={[styles.tierTitle, { color: tier.color }]}>{tier.name}</Text>
-        <Text style={styles.tierPrice}>{tier.price}</Text>
-        {tier.priceDetail ? (
-          <Text style={styles.tierPriceDetail}>{tier.priceDetail}</Text>
-        ) : null}
-        <Text style={styles.tierTagline}>{tier.tagline}</Text>
+        <View style={styles.tierHeader}>
+          <View style={styles.tierHeaderLeft}>
+            <Text style={[styles.tierTitle, { color: tier.color }]}>{tier.name}</Text>
+            <Text style={styles.tierTagline}>{tier.tagline}</Text>
+          </View>
+          <View style={styles.tierHeaderRight}>
+            <Text style={[styles.tierPrice, { color: tier.color }]}>{tier.price}</Text>
+            {tier.priceDetail ? (
+              <Text style={styles.tierPriceDetail}>{tier.priceDetail}</Text>
+            ) : null}
+          </View>
+        </View>
+
+        {/* Key Highlights */}
+        <View style={styles.highlightsContainer}>
+          {keyHighlights.map((highlight, idx) => (
+            <View key={idx} style={styles.highlightRow}>
+              <Ionicons name="checkmark-circle" size={18} color={tier.color} />
+              <Text style={styles.highlightText}>{highlight}</Text>
+            </View>
+          ))}
+        </View>
+
+        {/* See More Button */}
+        <TouchableOpacity
+          style={styles.seeMoreButton}
+          onPress={() => setExpandedTier(isExpanded ? null : tier.id)}
+        >
+          <Text style={styles.seeMoreText}>
+            {isExpanded ? 'See Less' : 'See All Features'}
+          </Text>
+          <Ionicons
+            name={isExpanded ? 'chevron-up' : 'chevron-down'}
+            size={16}
+            color="#8B8B8B"
+          />
+        </TouchableOpacity>
+
+        {/* Expanded Features */}
+        {isExpanded && (
+          <View style={styles.expandedFeatures}>
+            {FEATURES.map((feature, idx) => {
+              const value = renderFeatureValue(feature, tier.id);
+              const isLocked = feature.locked && tier.id === 'free' && !value;
+
+              return (
+                <View key={idx} style={styles.featureRow}>
+                  <View style={styles.featureIconContainer}>
+                    {isLocked ? (
+                      <Ionicons name="lock-closed" size={14} color="#5A5F6B" />
+                    ) : value === '✓' ? (
+                      <Ionicons name="checkmark" size={16} color={tier.color} />
+                    ) : value === '✗' ? (
+                      <Ionicons name="close" size={16} color="#5A5F6B" />
+                    ) : null}
+                  </View>
+                  <View style={styles.featureContent}>
+                    <Text style={[styles.featureLabel, { color: isLocked ? '#5A5F6B' : '#FFFFFF' }]}>
+                      {feature.label}
+                    </Text>
+                    {typeof value === 'string' && value !== '✓' && value !== '✗' && (
+                      <Text style={[styles.featureValue, { color: isLocked ? '#5A5F6B' : '#B8B8B8' }]}>
+                        {value}
+                      </Text>
+                    )}
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+        )}
 
         {/* CTA Button */}
         <TouchableOpacity
           style={[
             styles.selectButton,
             {
-              backgroundColor: isCurrent ? '#3A3F45' : tier.buttonColor,
+              backgroundColor: isCurrent ? '#3A3F45' : tier.color,
               opacity: isPurchasing ? 0.6 : 1,
             }
           ]}
@@ -244,35 +322,10 @@ export default function PaywallScreen({ route }: PaywallScreenProps) {
           }}
           disabled={isPurchasing || (isCurrent && tier.id !== 'free')}
         >
-          <Text style={[styles.selectButtonText, { color: tier.id === 'free' || isCurrent ? '#B8B8B8' : '#1A1D21' }]}>
-            {tier.id === 'free' ? 'Get Started' : isCurrent ? 'Current Plan' : 'Select Plan'}
+          <Text style={[styles.selectButtonText, { color: isCurrent ? '#8B8B8B' : '#000000' }]}>
+            {tier.id === 'free' ? 'Continue Free' : isCurrent ? 'Current Plan' : 'Select Plan'}
           </Text>
         </TouchableOpacity>
-
-        {/* Features */}
-        <View style={styles.featuresContainer}>
-          {FEATURES.map((feature, idx) => {
-            const value = renderFeatureValue(feature, tier.id);
-            const isLocked = feature.locked && tier.id === 'free' && !value;
-
-            return (
-              <View key={idx} style={styles.featureRow}>
-                <View style={styles.featureIconContainer}>
-                  {isLocked ? (
-                    <Ionicons name="lock-closed" size={12} color="#5A5F6B" />
-                  ) : value === '✓' ? (
-                    <Ionicons name="checkmark" size={14} color={tier.color} />
-                  ) : value === '✗' ? (
-                    <Ionicons name="close" size={14} color="#5A5F6B" />
-                  ) : null}
-                </View>
-                <Text style={[styles.featureText, { color: isLocked ? '#5A5F6B' : '#B8B8B8' }]} numberOfLines={2}>
-                  {typeof value === 'string' && value !== '✓' && value !== '✗' ? value : feature.label}
-                </Text>
-              </View>
-            );
-          })}
-        </View>
       </View>
     );
   };
@@ -298,22 +351,20 @@ export default function PaywallScreen({ route }: PaywallScreenProps) {
         </TouchableOpacity>
       )}
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.title}>KOOPE—Pricing at a Glance</Text>
           <Text style={styles.subtitle}>Choose your path. Elevate how you drink, host, and learn.</Text>
         </View>
 
-        {/* Tier Cards */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.tiersContainer}
-          style={styles.tiersScroll}
-        >
+        {/* Tier Cards - Vertical Stacked */}
+        <View style={styles.tiersContainer}>
           {TIERS.map(renderTierCard)}
-        </ScrollView>
+        </View>
 
         {/* Restore Button */}
         <TouchableOpacity
@@ -331,16 +382,16 @@ export default function PaywallScreen({ route }: PaywallScreenProps) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#2D3139',
+    backgroundColor: '#0F1115',
   },
   loadingContainer: {
     flex: 1,
-    backgroundColor: '#2D3139',
+    backgroundColor: '#0F1115',
     alignItems: 'center',
     justifyContent: 'center',
   },
   loadingText: {
-    color: '#8B8B8B',
+    color: '#9CA3AF',
     marginTop: spacing(2),
     fontSize: 16,
   },
@@ -352,7 +403,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -368,29 +419,27 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 32,
     fontWeight: '900',
-    color: '#FFFFFF',
+    color: '#F9FAFB',
     textAlign: 'center',
     letterSpacing: -0.5,
     marginBottom: spacing(1),
   },
   subtitle: {
     fontSize: 15,
-    color: '#B8B8B8',
+    color: '#9CA3AF',
     textAlign: 'center',
     lineHeight: 22,
   },
-  tiersScroll: {
-    marginBottom: spacing(3),
-  },
   tiersContainer: {
     paddingHorizontal: spacing(3),
-    gap: spacing(3),
+    gap: spacing(4),
   },
   tierCard: {
-    borderRadius: 16,
+    borderRadius: 20,
     borderWidth: 2,
-    padding: spacing(3),
-    minHeight: 600,
+    padding: spacing(4),
+    width: '100%',
+    backgroundColor: '#1A1D23',
   },
   badge: {
     alignSelf: 'flex-start',
@@ -406,41 +455,77 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
+  tierHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: spacing(3),
+  },
+  tierHeaderLeft: {
+    flex: 1,
+  },
+  tierHeaderRight: {
+    alignItems: 'flex-end',
+    marginLeft: spacing(2),
+  },
   tierTitle: {
     fontSize: 24,
     fontWeight: '900',
     letterSpacing: -0.5,
-    marginBottom: spacing(1),
+    marginBottom: spacing(0.5),
+  },
+  tierTagline: {
+    fontSize: 13,
+    color: '#9CA3AF',
+    lineHeight: 18,
   },
   tierPrice: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: '900',
     color: '#FFFFFF',
     letterSpacing: -1,
   },
   tierPriceDetail: {
-    fontSize: 13,
-    color: '#8B8B8B',
-    marginBottom: spacing(1),
+    fontSize: 11,
+    color: '#6B7280',
+    textAlign: 'right',
+    marginTop: 2,
   },
-  tierTagline: {
-    fontSize: 14,
-    color: '#B8B8B8',
-    marginBottom: spacing(2),
-    lineHeight: 20,
-  },
-  selectButton: {
-    paddingVertical: spacing(2),
-    borderRadius: 8,
-    alignItems: 'center',
-    marginBottom: spacing(3),
-  },
-  selectButtonText: {
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  featuresContainer: {
+  highlightsContainer: {
     gap: spacing(1.5),
+    marginBottom: spacing(2),
+  },
+  highlightRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(1.5),
+  },
+  highlightText: {
+    fontSize: 14,
+    color: '#F9FAFB',
+    fontWeight: '500',
+  },
+  seeMoreButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing(1),
+    paddingVertical: spacing(1.5),
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.06)',
+    marginTop: spacing(2),
+  },
+  seeMoreText: {
+    fontSize: 13,
+    color: '#9CA3AF',
+    fontWeight: '600',
+  },
+  expandedFeatures: {
+    marginTop: spacing(2),
+    paddingTop: spacing(2),
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.06)',
+    gap: spacing(2),
   },
   featureRow: {
     flexDirection: 'row',
@@ -448,14 +533,34 @@ const styles = StyleSheet.create({
     gap: spacing(1.5),
   },
   featureIconContainer: {
-    width: 16,
+    width: 20,
     alignItems: 'center',
     paddingTop: 2,
   },
-  featureText: {
-    fontSize: 13,
+  featureContent: {
     flex: 1,
+  },
+  featureLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 2,
+    color: '#F9FAFB',
+  },
+  featureValue: {
+    fontSize: 13,
     lineHeight: 18,
+    color: '#9CA3AF',
+  },
+  selectButton: {
+    paddingVertical: spacing(2.5),
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: spacing(3),
+  },
+  selectButtonText: {
+    fontSize: 16,
+    fontWeight: '800',
+    letterSpacing: 0.5,
   },
   restoreButton: {
     alignSelf: 'center',
@@ -466,7 +571,7 @@ const styles = StyleSheet.create({
   restoreText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#8B8B8B',
+    color: '#6B7280',
     textAlign: 'center',
   },
 });
