@@ -242,11 +242,40 @@ export default function SettingsScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* Subscription Section (Dev/Test) */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Subscription</Text>
+
+          <TouchableOpacity
+            style={styles.settingItem}
+            onPress={() => nav.navigate('Paywall', { displayCloseButton: true })}
+            activeOpacity={0.7}
+          >
+            <View style={styles.settingItemLeft}>
+              <Ionicons name="diamond-outline" size={24} color="#D4AF37" />
+              <Text style={styles.settingItemText}>Upgrade to Premium</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={colors.subtext} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.settingItem}
+            onPress={() => nav.navigate('SubscriptionDebug')}
+            activeOpacity={0.7}
+          >
+            <View style={styles.settingItemLeft}>
+              <Ionicons name="bug-outline" size={24} color={colors.text} />
+              <Text style={styles.settingItemText}>Subscription Debug</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={colors.subtext} />
+          </TouchableOpacity>
+        </View>
+
         {/* Support Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Support</Text>
-          
-          <TouchableOpacity 
+
+          <TouchableOpacity
             style={styles.settingItem}
             onPress={handleHelpSupport}
             activeOpacity={0.7}

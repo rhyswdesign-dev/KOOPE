@@ -54,7 +54,12 @@ export async function getRemainingPrompts(userId: string, isPremium: boolean): P
 
     const usage = usageSnap.data() as AIPromptUsage;
     return Math.max(0, FREE_DAILY_LIMIT - usage.promptsUsed);
-  } catch (error) {
+  } catch (error: any) {
+    // Handle offline gracefully
+    if (error?.message?.includes('offline') || error?.code === 'unavailable') {
+      console.log('[AIPrompt] Offline - allowing free daily limit');
+      return FREE_DAILY_LIMIT;
+    }
     console.error('Error getting remaining prompts:', error);
     return FREE_DAILY_LIMIT;
   }
@@ -94,7 +99,12 @@ async function usePrompt(userId: string, isPremium: boolean): Promise<boolean> {
     }
 
     return true;
-  } catch (error) {
+  } catch (error: any) {
+    // Handle offline gracefully - allow usage but warn
+    if (error?.message?.includes('offline') || error?.code === 'unavailable') {
+      console.log('[AIPrompt] Offline - allowing prompt usage without tracking');
+      return true; // Allow usage when offline
+    }
     console.error('Error using prompt:', error);
     return false;
   }
@@ -212,7 +222,12 @@ async function awardXPForPrompt(userId: string, xpAmount: number): Promise<void>
       xp: increment(xpAmount),
     });
     console.log(`✅ Awarded ${xpAmount} XP for AI prompt`);
-  } catch (error) {
+  } catch (error: any) {
+    // Handle offline gracefully
+    if (error?.message?.includes('offline') || error?.code === 'unavailable') {
+      console.log('[AIPrompt] Offline - XP award will sync when online');
+      return;
+    }
     console.error('Error awarding XP:', error);
   }
 }
@@ -290,7 +305,12 @@ async function learnFromPrompt(
 
     await saveUserProfile(profile);
     console.log('✅ Learned from AI prompt:', { prompt, suggestions: suggestions.length });
-  } catch (error) {
+  } catch (error: any) {
+    // Handle offline gracefully
+    if (error?.message?.includes('offline') || error?.code === 'unavailable') {
+      console.log('[AIPrompt] Offline - learning will sync when online');
+      return;
+    }
     console.error('Error learning from prompt:', error);
   }
 }
@@ -305,7 +325,12 @@ export async function awardLifeForSavingAISuggestion(userId: string): Promise<vo
       lives: increment(1),
     });
     console.log('✅ Awarded +1 Life for saving AI suggestion');
-  } catch (error) {
+  } catch (error: any) {
+    // Handle offline gracefully
+    if (error?.message?.includes('offline') || error?.code === 'unavailable') {
+      console.log('[AIPrompt] Offline - life award will sync when online');
+      return;
+    }
     console.error('Error awarding life:', error);
   }
 }

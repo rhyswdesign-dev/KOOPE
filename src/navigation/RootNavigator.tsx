@@ -87,6 +87,9 @@ import SpiritRecognitionScreen from '../screens/SpiritRecognitionScreen';
 import ShoppingCartScreen from '../screens/ShoppingCartScreen';
 import PersonalizedHomeScreen from '../screens/PersonalizedHomeScreen';
 import AchievementsScreen from '../screens/AchievementsScreen';
+import SubscriptionDebugScreen from '../screens/SubscriptionDebugScreen';
+import PaywallScreen from '../screens/PaywallScreen';
+import CustomerCenterScreen from '../screens/CustomerCenterScreen';
 
 export type RootStackParamList = {
   Main: undefined;
@@ -174,6 +177,9 @@ export type RootStackParamList = {
   SpiritRecognition: undefined;
   ShoppingCart: undefined;
   Achievements: undefined;
+  SubscriptionDebug: undefined;
+  Paywall: { offering?: string | null; displayCloseButton?: boolean };
+  CustomerCenter: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -415,6 +421,9 @@ export default function RootNavigator({ initialRouteName = 'Main', onHiddenFlask
     <Stack.Screen name="SpiritRecognition" component={SpiritRecognitionScreen} options={{ headerShown: true, title: '📱 Scan Spirit' }} />
     <Stack.Screen name="ShoppingCart" component={ShoppingCartScreen} options={{ headerShown: true, title: '🛒 Shopping Cart' }} />
       <Stack.Screen name="Achievements" component={AchievementsScreen} options={{ headerShown: true, title: '🏆 Achievements' }} />
+      <Stack.Screen name="SubscriptionDebug" component={SubscriptionDebugScreen} options={{ headerShown: true, title: '🔍 Subscription Debug' }} />
+      <Stack.Screen name="Paywall" component={PaywallScreen} options={{ headerShown: false, presentation: 'modal' }} />
+      <Stack.Screen name="CustomerCenter" component={CustomerCenterScreen} options={{ headerShown: false, presentation: 'modal' }} />
     </Stack.Navigator>
   );
 }

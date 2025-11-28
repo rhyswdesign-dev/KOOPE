@@ -73,6 +73,8 @@
     "react-native-markdown-display": "^7.0.2",
     "react-native-nitro-modules": "^0.30.0",
     "react-native-pager-view": "^6.9.1",
+    "react-native-purchases": "^9.6.8",
+    "react-native-purchases-ui": "^9.6.8",
     "react-native-qrcode-svg": "^6.3.15",
     "react-native-reanimated": "~4.1.1",
     "react-native-safe-area-context": "~5.6.0",

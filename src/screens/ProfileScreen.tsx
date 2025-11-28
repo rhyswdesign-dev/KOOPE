@@ -147,6 +147,31 @@ export default function ProfileScreen() {
             </TouchableOpacity>
           </View>
 
+          {/* Subscription Section */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Premium</Text>
+
+            <TouchableOpacity
+              style={[styles.settingButton, { backgroundColor: 'rgba(212, 175, 55, 0.1)' }]}
+              onPress={() => nav.navigate('Paywall', { displayCloseButton: true })}
+            >
+              <Ionicons name="diamond-outline" size={20} color="#D4AF37" />
+              <Text style={[styles.settingButtonText, { color: '#D4AF37', fontWeight: '600' }]}>
+                Upgrade to KOOPE+
+              </Text>
+              <Ionicons name="chevron-forward" size={20} color="#D4AF37" />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.settingButton}
+              onPress={() => nav.navigate('SubscriptionDebug')}
+            >
+              <Ionicons name="bug-outline" size={20} color={colors.text} />
+              <Text style={styles.settingButtonText}>Subscription Status</Text>
+              <Ionicons name="chevron-forward" size={20} color={colors.subtext} />
+            </TouchableOpacity>
+          </View>
+
           {/* Settings Section */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Settings & Support</Text>
@@ -233,6 +258,31 @@ export default function ProfileScreen() {
             <Text style={styles.signInButtonText}>
               {loading ? 'Signing in...' : 'Sign In'}
             </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Premium Section (Not Signed In) */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Premium</Text>
+
+          <TouchableOpacity
+            style={[styles.settingButton, { backgroundColor: 'rgba(212, 175, 55, 0.1)' }]}
+            onPress={() => nav.navigate('Paywall', { displayCloseButton: true })}
+          >
+            <Ionicons name="diamond-outline" size={20} color="#D4AF37" />
+            <Text style={[styles.settingButtonText, { color: '#D4AF37', fontWeight: '600' }]}>
+              Upgrade to KOOPE+
+            </Text>
+            <Ionicons name="chevron-forward" size={20} color="#D4AF37" />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.settingButton}
+            onPress={() => nav.navigate('SubscriptionDebug')}
+          >
+            <Ionicons name="bug-outline" size={20} color={colors.text} />
+            <Text style={styles.settingButtonText}>Subscription Status</Text>
+            <Ionicons name="chevron-forward" size={20} color={colors.subtext} />
           </TouchableOpacity>
         </View>
 

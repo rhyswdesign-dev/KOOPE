@@ -15,17 +15,18 @@ import { AuthProvider } from './src/contexts/AuthContext';
 import { FirebaseProvider } from './src/context/FirebaseContext';
 import { AnalyticsProvider } from './src/context/AnalyticsContext';
 import { MonetizationProvider } from './src/context/MonetizationContext';
+import { SubscriptionProvider } from './src/contexts/SubscriptionContext';
 import { isNetworkError } from './src/config/firebase';
 import { initializeUserRecipes } from './src/store/useUserRecipes';
 import { streakService } from './src/services/streakService';
 import { useAchievementNotifications } from './src/hooks/useAchievementNotifications';
 import AchievementUnlockModal from './src/components/AchievementUnlockModal';
 
-// Override console.error to filter out Firebase offline errors
+// Override console.error to filter out Firebase offline errors and RevenueCat analytics bugs
 const originalConsoleError = console.error;
 console.error = (...args: any[]) => {
   const message = args[0];
-  
+
   // Filter out Firebase offline/network related errors
   if (
     typeof message === 'string' && (
@@ -37,12 +38,23 @@ console.error = (...args: any[]) => {
     // Silently ignore offline errors
     return;
   }
-  
+
+  // Filter out RevenueCat analytics bug (known issue with event tracking)
+  if (
+    typeof message === 'string' && (
+      message.includes('[RevenueCat] [Purchases] Error while tracking event') ||
+      message.includes("Cannot read property 'search' of undefined")
+    )
+  ) {
+    // Silently ignore RevenueCat analytics errors
+    return;
+  }
+
   // Check if it's a Firebase error object
   if (args.length > 0 && isNetworkError(args[0])) {
     return;
   }
-  
+
   // Log all other errors normally
   originalConsoleError.apply(console, args);
 };
@@ -103,24 +115,26 @@ export default function App() {
     <AnalyticsProvider>
       <AuthProvider>
         <FirebaseProvider>
-          <MonetizationProvider>
-            <UserProvider>
-              <VaultProvider>
-                <PostsProvider>
-                  <NavigationContainer>
-                    <RootNavigator />
-                  </NavigationContainer>
+          <SubscriptionProvider>
+            <MonetizationProvider>
+              <UserProvider>
+                <VaultProvider>
+                  <PostsProvider>
+                    <NavigationContainer>
+                      <RootNavigator />
+                    </NavigationContainer>
 
-                  {/* Global Achievement Unlock Modal */}
-                  <AchievementUnlockModal
-                    visible={!!unlockedAchievement}
-                    achievement={unlockedAchievement}
-                    onClose={clearUnlockedAchievement}
-                  />
-                </PostsProvider>
-              </VaultProvider>
-            </UserProvider>
-          </MonetizationProvider>
+                    {/* Global Achievement Unlock Modal */}
+                    <AchievementUnlockModal
+                      visible={!!unlockedAchievement}
+                      achievement={unlockedAchievement}
+                      onClose={clearUnlockedAchievement}
+                    />
+                  </PostsProvider>
+                </VaultProvider>
+              </UserProvider>
+            </MonetizationProvider>
+          </SubscriptionProvider>
         </FirebaseProvider>
       </AuthProvider>
     </AnalyticsProvider>
