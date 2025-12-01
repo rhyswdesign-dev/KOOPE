@@ -21,6 +21,7 @@ import { initializeUserRecipes } from './src/store/useUserRecipes';
 import { streakService } from './src/services/streakService';
 import { useAchievementNotifications } from './src/hooks/useAchievementNotifications';
 import AchievementUnlockModal from './src/components/AchievementUnlockModal';
+import { initAnalytics } from './src/lib/analytics';
 
 // Override console.error to filter out Firebase offline errors and RevenueCat analytics bugs
 const originalConsoleError = console.error;
@@ -65,6 +66,9 @@ export default function App() {
 
   // Initialize user recipes store and record daily streak on app startup
   React.useEffect(() => {
+    // Initialize Mixpanel analytics
+    initAnalytics('df3cfbf07c1d857a1ff9c78fc44c274a');
+
     initializeUserRecipes();
 
     // Record daily activity for streak tracking
