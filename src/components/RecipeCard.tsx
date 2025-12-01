@@ -26,6 +26,13 @@ interface RecipeCardProps {
     rating?: number;
     ingredients?: any[];
     tags?: string[];
+    history?: {
+      story?: string;
+      era?: string;
+      year?: number;
+      origin?: string;
+      creator?: string;
+    };
   };
   onPress: (recipe: any) => void;
   onSave?: (recipe: any) => void;
@@ -56,10 +63,16 @@ export default function RecipeCard({
     transform: [{ scale: scale.value }],
   }));
 
-  // Get a random fact/insight from tags, or use subtitle/description as fallback
-  // useMemo ensures the same fact is shown consistently for this recipe
+  // Get historical fact or insight to display on card
+  // Priority: history.story > tags > subtitle > description
+  // useMemo ensures the same text is shown consistently for this recipe
   const displayText = useMemo(() => {
-    // If recipe has tags (pro tips/facts), show a random one
+    // Priority 1: If recipe has historical story, show that
+    if (recipe.history?.story) {
+      return recipe.history.story;
+    }
+
+    // Priority 2: If recipe has tags (pro tips/facts), show a random one
     if (recipe.tags && Array.isArray(recipe.tags) && recipe.tags.length > 0) {
       const randomIndex = Math.floor(Math.random() * recipe.tags.length);
       return recipe.tags[randomIndex];
@@ -67,7 +80,7 @@ export default function RecipeCard({
 
     // Fallback to subtitle or description
     return recipe.subtitle || recipe.description || '';
-  }, [recipe.id, recipe.tags, recipe.subtitle, recipe.description]);
+  }, [recipe.id, recipe.history, recipe.tags, recipe.subtitle, recipe.description]);
 
   // GLOBAL IMAGE RESOLVER: Always use local images if available
   const resolvedImage = useMemo(() => {
