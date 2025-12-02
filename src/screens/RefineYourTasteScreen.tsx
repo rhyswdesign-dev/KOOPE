@@ -490,10 +490,11 @@ const styles = StyleSheet.create({
     fontSize: 28,
   },
   optionImage: {
-    width: 48,
-    height: 48,
-    borderRadius: radii.md,
+    width: 80,
+    height: 80,
+    borderRadius: radii.lg,
     backgroundColor: colors.line,
+    resizeMode: 'cover',
   },
   optionText: {
     flex: 1,
