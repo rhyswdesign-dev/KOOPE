@@ -64,6 +64,7 @@ import WelcomeScreen from '../screens/onboarding/WelcomeScreen';
 import ConsentScreen from '../screens/onboarding/ConsentScreen';
 import SurveyScreen from '../screens/onboarding/SurveyScreen';
 import SurveyResultsScreen from '../screens/onboarding/SurveyResultsScreen';
+import RefineYourTasteScreen from '../screens/RefineYourTasteScreen';
 // Lesson screens
 import LessonEngineScreen from '../screens/lessons/LessonEngineScreen';
 import LessonSummaryScreen from '../screens/lessons/LessonSummaryScreen';
@@ -156,6 +157,7 @@ export type RootStackParamList = {
   Consent: undefined;
   Survey: undefined;
   SurveyResults: { answers: any };
+  RefineYourTaste: undefined;
   // Commerce screens
   Pricing: undefined;
   Cart: undefined;
@@ -403,6 +405,7 @@ export default function RootNavigator({ initialRouteName = 'Main', onHiddenFlask
     <Stack.Screen name="Consent" component={ConsentScreen} options={{ headerShown: false }} />
     <Stack.Screen name="Survey" component={SurveyScreen} options={{ headerShown: false }} />
     <Stack.Screen name="SurveyResults" component={SurveyResultsScreen} options={{ headerShown: false }} />
+    <Stack.Screen name="RefineYourTaste" component={RefineYourTasteScreen} options={{ headerShown: false }} />
     {/* Lesson screens */}
     {/* Commerce screens */}
     <Stack.Screen name="Pricing" component={PricingScreen} options={{ headerShown: true, title: 'Premium' }} />

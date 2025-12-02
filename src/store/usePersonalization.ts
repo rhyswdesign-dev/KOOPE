@@ -2,6 +2,7 @@
  * PERSONALIZATION STORE
  * Manages user personalization profile and provides personalized content
  * Integrates survey responses with recommendation systems
+ * Syncs with Firebase Firestore for persistence
  */
 
 import { create } from 'zustand';
@@ -12,6 +13,8 @@ import {
   personalizedExperience
 } from '../services/personalizedExperience';
 import { SurveyAnswers } from '../services/placement';
+import { auth, db } from '../config/firebase';
+import { doc, setDoc, getDoc, updateDoc } from 'firebase/firestore';
 
 interface PersonalizationState {
   // Core state
@@ -46,6 +49,7 @@ export const usePersonalization = create<PersonalizationState>((set, get) => ({
 
   /**
    * Initialize personalization from survey responses
+   * Saves to both AsyncStorage and Firebase
    */
   initializeFromSurvey: async (answers: SurveyAnswers) => {
     try {
@@ -68,11 +72,24 @@ export const usePersonalization = create<PersonalizationState>((set, get) => ({
         isInitialized: true
       });
 
+      // Save to AsyncStorage (local cache)
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify({
         profile,
         recommendations,
         updatedAt: Date.now()
       }));
+
+      // Save to Firebase (if user is authenticated)
+      const user = auth.currentUser;
+      if (user) {
+        const userDocRef = doc(db, 'users', user.uid);
+        await setDoc(userDocRef, {
+          personalizationProfile: profile,
+          personalizationUpdatedAt: Date.now(),
+        }, { merge: true });
+
+        console.log('✅ Personalization profile saved to Firebase');
+      }
 
       console.log('✅ Personalization profile saved successfully');
 
@@ -83,6 +100,7 @@ export const usePersonalization = create<PersonalizationState>((set, get) => ({
 
   /**
    * Update profile with new preferences or learned behavior
+   * Saves to both AsyncStorage (cache) and Firebase (persistence)
    */
   updateProfile: async (updates: Partial<UserPersonalizationProfile>) => {
     const { profile } = get();
@@ -98,11 +116,24 @@ export const usePersonalization = create<PersonalizationState>((set, get) => ({
         isInitialized: true
       });
 
+      // Save to AsyncStorage (local cache)
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify({
         profile: updatedProfile,
         recommendations,
         updatedAt: Date.now()
       }));
+
+      // Save to Firebase (if user is authenticated)
+      const user = auth.currentUser;
+      if (user) {
+        const userDocRef = doc(db, 'users', user.uid);
+        await setDoc(userDocRef, {
+          personalizationProfile: updatedProfile,
+          personalizationUpdatedAt: Date.now(),
+        }, { merge: true });
+
+        console.log('✅ Profile saved to Firebase');
+      }
 
       console.log('✅ Profile updated:', updates);
 

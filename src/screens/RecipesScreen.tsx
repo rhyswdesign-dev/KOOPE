@@ -1,4 +1,4 @@
-import React, { useState, useLayoutEffect, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useLayoutEffect, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   ScrollView,
   View,
@@ -50,6 +50,7 @@ import { useToast } from '../hooks/useToast';
 import RecipeCardSkeleton from '../components/RecipeCardSkeleton';
 import SearchBar from '../components/SearchBar';
 import FilterModal from '../components/FilterModal';
+import ForYouFeed from '../components/ForYouFeed';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 const { width } = Dimensions.get('window');
@@ -745,6 +746,29 @@ export default function RecipesScreen() {
     setCreditsPurchaseVisible(true);
   }, []);
 
+  // Handlers for ForYouFeed component
+  const handleCocktailPress = useCallback((cocktail: any) => {
+    navigation.navigate('CocktailDetail', { cocktailId: cocktail.id });
+  }, [navigation]);
+
+  const handleSaveRecipe = useCallback((cocktail: any) => {
+    toggleSavedCocktail(cocktail.id);
+    showToast(
+      isCocktailSaved(cocktail.id) ? 'Removed from saved' : 'Saved!',
+      'success'
+    );
+  }, [toggleSavedCocktail, isCocktailSaved, showToast]);
+
+  const handleAddToGroceryList = useCallback((cocktail: any) => {
+    setSelectedRecipe(cocktail);
+    setGroceryListVisible(true);
+  }, []);
+
+  // Get saved recipe IDs for ForYouFeed (as a Set for efficient lookup)
+  const savedRecipeIds = useMemo(() => {
+    if (!Array.isArray(savedItems)) return new Set<string>();
+    return new Set(savedItems.map(item => item.id));
+  }, [savedItems]);
 
   // Search functionality with debouncing and fallback
   const handleSearch = useCallback((query: string) => {
@@ -1407,320 +1431,13 @@ export default function RecipesScreen() {
 
             {/* Personalized Feed - For You View */}
             {viewMode === 'personalized' && (
-              <>
-                {/* AI-Powered Recipe Search - Describe What You Want */}
-                <AIRecipeSearch
-                  onRecipeFound={handleAiRecipeFound}
-                  onCreditsNeeded={handleCreditsNeeded}
-                  style={{ marginHorizontal: spacing(2), marginBottom: spacing(2) }}
-                />
-
-                {/* Your Preferences Card */}
-                <TouchableOpacity
-                  onPress={() => setPreferencesModalVisible(true)}
-                  style={{
-                    marginHorizontal: spacing(2),
-                    marginBottom: spacing(2),
-                    padding: spacing(2.5),
-                    backgroundColor: colors.card,
-                    borderRadius: radii.lg,
-                    borderWidth: 1,
-                    borderColor: colors.line,
-                  }}
-                >
-                  <Text style={{
-                    color: colors.text,
-                    fontSize: 18,
-                    fontWeight: '700',
-                    marginBottom: spacing(2),
-                  }}>
-                    🧠 Your Preferences
-                  </Text>
-                  <View style={{
-                    flexDirection: 'row',
-                    justifyContent: 'space-between',
-                    marginBottom: spacing(2),
-                  }}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={{
-                        color: colors.muted,
-                        fontSize: 12,
-                        marginBottom: spacing(0.5),
-                      }}>
-                        Favorite Spirit
-                      </Text>
-                      <Text style={{
-                        color: colors.text,
-                        fontSize: 14,
-                        fontWeight: '600',
-                        textTransform: 'capitalize',
-                      }}>
-                        {profile?.favoriteSpirits?.[0] || 'Not set'}
-                      </Text>
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={{
-                        color: colors.muted,
-                        fontSize: 12,
-                        marginBottom: spacing(0.5),
-                      }}>
-                        Skill Level
-                      </Text>
-                      <Text style={{
-                        color: colors.text,
-                        fontSize: 14,
-                        fontWeight: '600',
-                        textTransform: 'capitalize',
-                      }}>
-                        {profile?.skillLevel || 'Not set'}
-                      </Text>
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={{
-                        color: colors.muted,
-                        fontSize: 12,
-                        marginBottom: spacing(0.5),
-                      }}>
-                        Flavor Match
-                      </Text>
-                      <Text style={{
-                        color: colors.text,
-                        fontSize: 14,
-                        fontWeight: '600',
-                        textTransform: 'capitalize',
-                      }}>
-                        {profile?.flavorPreferences && profile.flavorPreferences.length > 0
-                          ? profile.flavorPreferences.slice(0, 2).join(', ')
-                          : 'Not set'}
-                      </Text>
-                    </View>
-                  </View>
-                  <Text style={{
-                    color: colors.muted,
-                    fontSize: 12,
-                    fontStyle: 'italic',
-                  }}>
-                    💡 These update as you interact with recipes
-                  </Text>
-                </TouchableOpacity>
-
-                {/* What should I make tonight - AI Prompt */}
-                <TouchableOpacity
-                  onPress={() => {
-                    console.log('Open AI prompt');
-                  }}
-                  style={{
-                    marginHorizontal: spacing(2),
-                    marginBottom: spacing(3),
-                    padding: spacing(2.5),
-                    backgroundColor: colors.gold,
-                    borderRadius: radii.lg,
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                  }}
-                >
-                  <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-                    <Text style={{ fontSize: 32, marginRight: spacing(2) }}>✨</Text>
-                    <View style={{ flex: 1 }}>
-                      <Text style={{
-                        color: colors.bg,
-                        fontSize: 18,
-                        fontWeight: '700',
-                        marginBottom: spacing(0.5),
-                      }}>
-                        What should I make tonight?
-                      </Text>
-                      <Text style={{
-                        color: colors.bg,
-                        fontSize: 13,
-                      }}>
-                        AI-powered suggestions • 1 prompt left
-                      </Text>
-                    </View>
-                  </View>
-                  <View style={{
-                    paddingVertical: spacing(0.75),
-                    paddingHorizontal: spacing(1.5),
-                    backgroundColor: colors.bg,
-                    borderRadius: radii.md,
-                  }}>
-                    <Text style={{
-                      color: colors.gold,
-                      fontSize: 13,
-                      fontWeight: '700',
-                    }}>
-                      +50 XP
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-
-                {/* Your Moods Section */}
-                <View style={{
-                  marginBottom: spacing(3),
-                }}>
-                  <View style={{
-                    paddingHorizontal: spacing(2),
-                    marginBottom: spacing(2),
-                  }}>
-                    <Text style={{
-                      color: colors.text,
-                      fontSize: 22,
-                      fontWeight: '900',
-                      marginBottom: spacing(0.5),
-                    }}>
-                      Your Moods
-                    </Text>
-                    <Text style={{
-                      color: colors.muted,
-                      fontSize: 14,
-                    }}>
-                      Ordered based on your tequila preference
-                    </Text>
-                  </View>
-                  <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    style={{ paddingLeft: spacing(2) }}
-                    contentContainerStyle={{ paddingRight: spacing(2) }}
-                  >
-                    {getPersonalizedMoodOrder().slice(0, 5).map((moodTitle, index) => {
-                      const mood = COCKTAIL_MOODS.find(m => m.title === moodTitle);
-                      if (!mood) return null;
-
-                      const isTop2 = index < 2;
-
-                      return (
-                        <Animated.View key={mood.title} entering={FadeInRight.delay(index * 100).duration(500).springify()}>
-                          <TouchableOpacity
-                            onPress={() => {
-                              recordInteraction('mood_selected', mood.category, {
-                                moodTitle: mood.title,
-                                userScore: scoreMoodCategory(mood.title)
-                              });
-
-                              const cocktailIds = Array.isArray(mood.cocktails)
-                                ? mood.cocktails.map(item => typeof item === 'string' ? item : item.id)
-                                : [];
-
-                              navigation.navigate('CocktailList', {
-                                title: mood.title,
-                                cocktailIds: cocktailIds,
-                                category: mood.category
-                              });
-                            }}
-                            style={{
-                              width: 280,
-                              marginRight: spacing(2),
-                              padding: spacing(2),
-                              backgroundColor: colors.card,
-                              borderRadius: radii.lg,
-                              borderWidth: 2,
-                              borderColor: isTop2 ? colors.accent : colors.line,
-                            }}
-                          >
-                            {isTop2 && (
-                              <View style={{
-                                position: 'absolute',
-                                top: spacing(1),
-                                right: spacing(1),
-                                paddingVertical: spacing(0.5),
-                                paddingHorizontal: spacing(1),
-                                backgroundColor: colors.accent,
-                                borderRadius: radii.sm,
-                              }}>
-                                <Text style={{
-                                  color: colors.bg,
-                                  fontSize: 11,
-                                  fontWeight: '700',
-                                }}>
-                                  TOP {index + 1}
-                                </Text>
-                              </View>
-                            )}
-                            <Text style={{ fontSize: 32, marginBottom: spacing(1) }}>
-                              {mood.title === 'Tropical Escape' ? '🌴' :
-                               mood.title === 'Playful & Fun' ? '🎉' :
-                               mood.title === 'Bold & Serious' ? '🥃' :
-                               mood.title === 'Romantic & Elegant' ? '🥂' :
-                               mood.title === 'Cozy & Comforting' ? '🔥' : '🍹'}
-                            </Text>
-                            <Text style={{
-                              color: colors.text,
-                              fontSize: 18,
-                              fontWeight: '700',
-                              marginBottom: spacing(0.5),
-                            }}>
-                              {mood.title}
-                            </Text>
-                            <Text style={{
-                              color: colors.muted,
-                              fontSize: 13,
-                              marginBottom: spacing(1.5),
-                            }}>
-                              {mood.subtitle}
-                            </Text>
-                            {isTop2 && (
-                              <View style={{
-                                flexDirection: 'row',
-                                alignItems: 'center',
-                              }}>
-                                <Ionicons name="star" size={14} color={colors.accent} style={{ marginRight: spacing(0.5) }} />
-                                <Text style={{
-                                  color: colors.accent,
-                                  fontSize: 12,
-                                  fontWeight: '600',
-                                }}>
-                                  Perfect for tequila lovers
-                                </Text>
-                              </View>
-                            )}
-                          </TouchableOpacity>
-                        </Animated.View>
-                      );
-                    })}
-                  </ScrollView>
-                </View>
-
-                {/* For You Section */}
-                <View style={{
-                  paddingHorizontal: spacing(2),
-                  marginBottom: spacing(2),
-                }}>
-                  <Text style={{
-                    color: colors.text,
-                    fontSize: 22,
-                    fontWeight: '900',
-                    marginBottom: spacing(0.5),
-                  }}>
-                    For You
-                  </Text>
-                  <Text style={{
-                    color: colors.muted,
-                    fontSize: 14,
-                  }}>
-                    Based on your tequila preference
-                  </Text>
-                </View>
-
-                {/* Empty state for now - will be filled with cocktails later */}
-                <View style={{
-                  marginHorizontal: spacing(2),
-                  padding: spacing(3),
-                  backgroundColor: colors.card,
-                  borderRadius: radii.lg,
-                  alignItems: 'center',
-                  marginBottom: spacing(4),
-                }}>
-                  <Text style={{
-                    color: colors.muted,
-                    fontSize: 14,
-                    textAlign: 'center',
-                  }}>
-                    Personalized cocktail recommendations will appear here
-                  </Text>
-                </View>
-              </>
+              <ForYouFeed
+                onCocktailPress={handleCocktailPress}
+                onSaveCocktail={handleSaveRecipe}
+                onAddToCart={handleAddToGroceryList}
+                savedRecipeIds={savedRecipeIds}
+                onRefineProfile={() => navigation.navigate('RefineYourTaste')}
+              />
             )}
 
             {/* All Cocktails Header with Search and Filter Buttons - Only show in Browse mode or when searching */}
