@@ -23,6 +23,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { usePersonalization } from '../store/usePersonalization';
 import { SurveyAnswers } from '../services/placement';
 import { trackEvent } from '../lib/analytics';
+import { spiritImages } from '../../assets/images/spirits';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'RefineYourTaste'>;
 
@@ -34,15 +35,14 @@ const TASTE_QUESTIONS = [
     type: 'multi-select',
     question: 'Which spirits interest you most?',
     subtitle: 'Select all that apply',
-    backgroundImage: 'https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?w=1200&auto=format&fit=crop', // Optional hero image
     options: [
-      { value: 'tequila', label: 'Tequila', emoji: '🌵', image: 'https://images.unsplash.com/photo-1596838132731-3301c3fd4317?w=200&h=200&fit=crop' },
-      { value: 'whiskey', label: 'Whiskey', emoji: '🥃', image: 'https://images.unsplash.com/photo-1527281400747-5847b6fb67bf?w=200&h=200&fit=crop' },
-      { value: 'rum', label: 'Rum', emoji: '🏝️', image: 'https://images.unsplash.com/photo-1626897505254-e0f811aa9bf7?w=200&h=200&fit=crop' },
-      { value: 'gin', label: 'Gin', emoji: '🌿', image: 'https://images.unsplash.com/photo-1602453098774-c0cba26d9cf2?w=200&h=200&fit=crop' },
-      { value: 'vodka', label: 'Vodka', emoji: '❄️', image: 'https://images.unsplash.com/photo-1618885472289-e20e150a0c7f?w=200&h=200&fit=crop' },
-      { value: 'brandy', label: 'Brandy', emoji: '🍇', image: 'https://images.unsplash.com/photo-1574096079513-d8259312b785?w=200&h=200&fit=crop' },
-      { value: 'liqueurs', label: 'Liqueurs', emoji: '🍯', image: 'https://images.unsplash.com/photo-1551024601-bec78aea704b?w=200&h=200&fit=crop' },
+      { value: 'tequila', label: 'Tequila', emoji: '🌵', image: spiritImages.tequila },
+      { value: 'whiskey', label: 'Whiskey', emoji: '🥃', image: spiritImages.whiskey },
+      { value: 'rum', label: 'Rum', emoji: '🏝️', image: spiritImages.rum },
+      { value: 'gin', label: 'Gin', emoji: '🌿', image: spiritImages.gin },
+      { value: 'vodka', label: 'Vodka', emoji: '❄️', image: spiritImages.vodka },
+      { value: 'brandy', label: 'Brandy', emoji: '🍇', image: spiritImages.brandy },
+      { value: 'liqueurs', label: 'Liqueurs', emoji: '🍯' }, // No image for liqueurs, will use emoji
     ],
   },
   {
@@ -263,7 +263,7 @@ export default function RefineYourTasteScreen({ navigation }: Props) {
                 {/* Show image if available, otherwise show emoji */}
                 {option.image ? (
                   <Image
-                    source={{ uri: option.image }}
+                    source={typeof option.image === 'string' ? { uri: option.image } : option.image}
                     style={styles.optionImage}
                   />
                 ) : (
@@ -298,7 +298,7 @@ export default function RefineYourTasteScreen({ navigation }: Props) {
                     {/* Show image if available, otherwise show emoji */}
                     {option.image ? (
                       <Image
-                        source={{ uri: option.image }}
+                        source={typeof option.image === 'string' ? { uri: option.image } : option.image}
                         style={styles.optionImage}
                       />
                     ) : (
