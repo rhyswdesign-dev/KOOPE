@@ -74,19 +74,6 @@ const TASTE_QUESTIONS = [
       { value: 'zero-proof', label: 'Zero-proof (mocktails)', emoji: '🥤' },
     ],
   },
-  {
-    id: 'q12',
-    section: 'Learning Goals',
-    type: 'multi-select',
-    question: 'What are your goals for learning?',
-    subtitle: 'Select all that apply',
-    options: [
-      { value: 'host', label: 'Host better parties', emoji: '🎉' },
-      { value: 'classics', label: 'Learn classic cocktails', emoji: '📚' },
-      { value: 'originals', label: 'Create original recipes', emoji: '🎨' },
-      { value: 'professional', label: 'Train for professional bartending', emoji: '👔' },
-    ],
-  },
 ];
 
 export default function RefineYourTasteScreen({ navigation }: Props) {
@@ -188,7 +175,6 @@ export default function RefineYourTasteScreen({ navigation }: Props) {
       const spiritPrefs = (finalAnswers['q8'] as string[]) || [];
       const flavorPrefs = (finalAnswers['q11'] as string[]) || [];
       const abvPref = (finalAnswers['q9'] as string) || 'alcoholic';
-      const goals = (finalAnswers['q12'] as string[]) || [];
 
       // Build flavor scores (equal weight for now, Phase 2 will enhance this)
       const flavorScores: Record<string, number> = {};
@@ -211,7 +197,6 @@ export default function RefineYourTasteScreen({ navigation }: Props) {
         spiritScores,
         preferredABV: abvPref as any,
         preferredDifficulty: ['Easy', 'Medium'], // Default difficulty preferences
-        learningGoals: goals,
         lastSurveyUpdate: Date.now(),
       });
 
@@ -220,7 +205,6 @@ export default function RefineYourTasteScreen({ navigation }: Props) {
         spirits_count: spiritPrefs.length,
         flavors_count: flavorPrefs.length,
         abv_preference: abvPref,
-        goals_count: goals.length,
       });
 
       // Show success message

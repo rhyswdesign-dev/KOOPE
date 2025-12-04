@@ -66,14 +66,14 @@ export default function ForYouFeed({
     return { style, spirits, flavors };
   }, [profile]);
 
-  // Get recommended cocktails by category
+  // Get recommended cocktails by category - ALL TABS USE PERSONALIZED RECOMMENDATIONS
   const recommendedCocktails = useMemo(() => {
     const featured = getFeaturedCocktails() || ALL_COCKTAILS.slice(0, 10);
 
     return {
-      matched: featured.slice(0, 8),
-      beginner: ALL_COCKTAILS.filter(c => c.difficulty === 'Easy').slice(0, 8),
-      challenge: ALL_COCKTAILS.filter(c => c.difficulty === 'Hard' || c.difficulty === 'Medium').slice(0, 8),
+      matched: featured.slice(0, 8), // Top personalized matches
+      beginner: featured.filter(c => c.difficulty === 'Easy').slice(0, 8), // Personalized + Easy difficulty
+      challenge: featured.filter(c => c.difficulty === 'Hard' || c.difficulty === 'Medium').slice(0, 8), // Personalized + Challenging difficulty
     };
   }, [getFeaturedCocktails]);
 
