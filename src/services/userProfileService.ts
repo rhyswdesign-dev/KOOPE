@@ -227,6 +227,11 @@ export async function saveRecipeToProfile(userId: string, recipeId: string): Pro
       throw new Error('User profile not found');
     }
 
+    // Ensure savedRecipes array exists
+    if (!profile.savedRecipes) {
+      profile.savedRecipes = [];
+    }
+
     if (!profile.savedRecipes.includes(recipeId)) {
       profile.savedRecipes.push(recipeId);
 
@@ -347,6 +352,11 @@ export async function updateTasteProfile(
     }
 
     profile.interactionHistory.lastUpdated = new Date();
+
+    // Ensure dislikedRecipes array exists
+    if (!profile.dislikedRecipes) {
+      profile.dislikedRecipes = [];
+    }
 
     // Add to disliked recipes if feedback is negative
     if (feedback === 'disliked' && !profile.dislikedRecipes.includes(recipeId)) {

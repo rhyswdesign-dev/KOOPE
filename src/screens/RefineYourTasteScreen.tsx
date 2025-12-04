@@ -138,7 +138,7 @@ export default function RefineYourTasteScreen({ navigation }: Props) {
   };
 
   const handleMultiSelectToggle = (value: string) => {
-    const currentAnswers = (answers[currentQuestion.id] as string[]) || [];
+    const currentAnswers = Array.isArray(answers[currentQuestion.id]) ? answers[currentQuestion.id] as string[] : [];
     let newAnswers: string[];
 
     if (currentAnswers.includes(value)) {
@@ -210,6 +210,7 @@ export default function RefineYourTasteScreen({ navigation }: Props) {
         flavorScores,
         spiritScores,
         preferredABV: abvPref as any,
+        preferredDifficulty: ['Easy', 'Medium'], // Default difficulty preferences
         learningGoals: goals,
         lastSurveyUpdate: Date.now(),
       });
@@ -248,6 +249,11 @@ export default function RefineYourTasteScreen({ navigation }: Props) {
   const renderQuestion = () => {
     const currentAnswer = answers[currentQuestion.id];
 
+    // Safety check - ensure options exist
+    if (!currentQuestion.options || !Array.isArray(currentQuestion.options)) {
+      return null;
+    }
+
     switch (currentQuestion.type) {
       case 'mcq':
         return (
@@ -284,7 +290,7 @@ export default function RefineYourTasteScreen({ navigation }: Props) {
         );
 
       case 'multi-select':
-        const multiAnswers = (currentAnswer as string[]) || [];
+        const multiAnswers = Array.isArray(currentAnswer) ? currentAnswer : [];
         return (
           <>
             <View style={styles.optionsContainer}>

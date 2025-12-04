@@ -17,15 +17,16 @@ import {
   Pressable,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { colors, spacing, radii, fonts, textStyles } from '../theme/tokens';
+import { Ionicons } from '@expo/vector-icons';
+import { colors, spacing, radii, fonts } from '../theme/tokens';
 import { usePersonalization } from '../store/usePersonalization';
 import RecipeCard from './RecipeCard';
+import AIRecommendations from './AIRecommendations';
 import { ALL_COCKTAILS } from '../data/cocktails';
 import { getCocktailImage } from '../../assets/images/cocktails';
 
 const { width } = Dimensions.get('window');
-const CARD_WIDTH = width * 0.7;
+const CARD_WIDTH = 240; // Standard recipe card width for horizontal scrolling (matches RecipesScreen)
 const BOTTLE_WIDTH = 100;
 
 interface ForYouFeedProps {
@@ -43,7 +44,7 @@ export default function ForYouFeed({
   savedRecipeIds = new Set(),
   onRefineProfile,
 }: ForYouFeedProps) {
-  const { profile, recommendations, getFeaturedCocktails } = usePersonalization();
+  const { profile, getFeaturedCocktails } = usePersonalization();
   const [selectedTab, setSelectedTab] = useState<'matched' | 'beginner' | 'challenge'>('matched');
 
   // Get personalized data or fallback to defaults
@@ -235,46 +236,6 @@ export default function ForYouFeed({
     );
   };
 
-  const renderSuggestedLesson = () => {
-    const lesson = {
-      title: profile?.favoriteSpirits?.[0]
-        ? `Master ${profile.favoriteSpirits[0].charAt(0).toUpperCase() + profile.favoriteSpirits[0].slice(1)}`
-        : 'Master Whiskey',
-      description: profile?.skillLevel === 'beginner'
-        ? 'Learn the fundamentals of spirit tasting and cocktail creation'
-        : 'Advance your skills with professional techniques',
-      icon: 'school',
-    };
-
-    return (
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Suggested Lessons</Text>
-
-        <Pressable style={styles.lessonCard}>
-          <LinearGradient
-            colors={[colors.accent, colors.accentDark]}
-            style={styles.lessonGradient}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          >
-            <View style={styles.lessonIconContainer}>
-              <Ionicons name={lesson.icon as any} size={32} color={colors.white} />
-            </View>
-
-            <View style={styles.lessonContent}>
-              <Text style={styles.lessonTitle}>{lesson.title}</Text>
-              <Text style={styles.lessonDescription}>{lesson.description}</Text>
-
-              <TouchableOpacity style={styles.lessonCTA}>
-                <Text style={styles.lessonCTAText}>Start Lesson</Text>
-                <Ionicons name="arrow-forward" size={16} color={colors.white} />
-              </TouchableOpacity>
-            </View>
-          </LinearGradient>
-        </Pressable>
-      </View>
-    );
-  };
 
   const renderSpiritShelf = () => (
     <View style={styles.section}>
@@ -312,7 +273,7 @@ export default function ForYouFeed({
 
         {/* Flavor Breakdown */}
         <View style={styles.flavorBreakdown}>
-          {flavorBreakdown.map((flavor, index) => (
+          {flavorBreakdown.map((flavor) => (
             <View key={flavor.name} style={styles.flavorRow}>
               <View style={styles.flavorInfo}>
                 <View style={[styles.flavorDot, { backgroundColor: flavor.color }]} />
@@ -371,8 +332,11 @@ export default function ForYouFeed({
       )}
 
       {renderBarMatchCard()}
+
+      {/* AI-Powered Recommendations with Feedback */}
+      <AIRecommendations navigation={null} />
+
       {renderRecommendedCocktails()}
-      {renderSuggestedLesson()}
       {renderSpiritShelf()}
       {renderFlavorInsights()}
 
@@ -395,7 +359,7 @@ const styles = StyleSheet.create({
   refineBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.accentBg,
+    backgroundColor: colors.card,
     borderRadius: radii.lg,
     padding: spacing(2),
     marginTop: spacing(2),
@@ -540,57 +504,6 @@ const styles = StyleSheet.create({
   },
   cocktailCardWrapper: {
     width: CARD_WIDTH,
-  },
-
-  // Lesson Card
-  lessonCard: {
-    borderRadius: radii.lg,
-    overflow: 'hidden',
-    elevation: 4,
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-  },
-  lessonGradient: {
-    flexDirection: 'row',
-    padding: spacing(3),
-    alignItems: 'center',
-    gap: spacing(2),
-  },
-  lessonIconContainer: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  lessonContent: {
-    flex: 1,
-  },
-  lessonTitle: {
-    fontSize: fonts.h3,
-    fontWeight: '800',
-    color: colors.white,
-    marginBottom: spacing(0.5),
-  },
-  lessonDescription: {
-    fontSize: fonts.small,
-    color: 'rgba(255,255,255,0.85)',
-    lineHeight: 18,
-    marginBottom: spacing(1.5),
-  },
-  lessonCTA: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing(0.5),
-    alignSelf: 'flex-start',
-  },
-  lessonCTAText: {
-    fontSize: fonts.small,
-    fontWeight: '700',
-    color: colors.white,
   },
 
   // Spirit Shelf

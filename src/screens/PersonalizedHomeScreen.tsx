@@ -30,6 +30,7 @@ import {
   BehavioralLearning
 } from '../services/behavioralLearning';
 import AICocktailPromptModal from '../components/AICocktailPromptModal';
+import AIRecommendations from '../components/AIRecommendations';
 import {
   getRemainingPrompts,
   generateCocktailSuggestions,
@@ -435,15 +436,11 @@ export default function PersonalizedHomeScreen() {
           </ScrollView>
         </View>
 
-        {/* Recommended Recipes */}
+        {/* AI Recommendations - For You */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>For You</Text>
-          <Text style={styles.sectionSubtitle}>
-            Based on your {userProfile.favoriteSpirit} preference
-          </Text>
-          {MOCK_RECIPES.filter(
-            (r) => r.baseSpirit === userProfile.favoriteSpirit
-          ).map(renderRecipeCard)}
+          <AIRecommendations
+            navigation={null}
+          />
         </View>
 
         {/* All Recipes */}

@@ -9,11 +9,15 @@ import {
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, radii, fonts } from '../theme/tokens';
+import { colors, spacing, fonts } from '../theme/tokens';
 import RecipeCard from './RecipeCard';
 import { createRecipeCardProps } from '../utils/recipeActions';
-import { FormattedRecipe } from '../services/aiRecipeFormatter';
 import { useAICredits } from '../store/useAICredits';
+import { AIRecommendationEngine, UserTasteProfile, SmartRecommendation } from '../services/aiRecommendationEngine';
+import { HomeBar, HomeBarService } from '../services/homeBarService';
+import { loadUserProfile } from '../services/userProfileService';
+import { trackRecommendationView, trackRecommendationSaved } from '../services/recommendationTrackingService';
+import RecommendationFeedbackModal from './RecommendationFeedbackModal';
 
 interface AIRecommendationsProps {
   navigation: any;
@@ -34,13 +38,131 @@ export default function AIRecommendations({
   onCreditsNeeded,
   style
 }: AIRecommendationsProps) {
-  const [recommendations, setRecommendations] = useState<FormattedRecipe[]>([]);
+  const [recommendations, setRecommendations] = useState<SmartRecommendation[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
   const { canUseAI, consumeCredits, getActionCost, credits } = useAICredits();
+  const [homeBar, setHomeBar] = useState<HomeBar | null>(null);
+  const [userTasteProfile, setUserTasteProfile] = useState<UserTasteProfile | null>(null);
+  const [feedbackModalVisible, setFeedbackModalVisible] = useState(false);
+  const [selectedRecommendation, setSelectedRecommendation] = useState<SmartRecommendation | null>(null);
+  const [currentContext, setCurrentContext] = useState<{ timeOfDay: string; season: string } | null>(null);
+
+  // Cache settings: recommendations valid for 30 minutes
+  const CACHE_DURATION_MS = 30 * 60 * 1000;
+
+  // Load user data on mount
+  useEffect(() => {
+    const loadUserData = async () => {
+      try {
+        // Load user profile
+        const profile = await loadUserProfile('current-user'); // TODO: Get actual user ID
+
+        if (profile) {
+          // Convert profile to UserTasteProfile format
+          const validFlavors = ['sweet', 'sour', 'bitter', 'herbal', 'fruity', 'spicy', 'smoky', 'citrusy'] as const;
+          const tasteProfile: UserTasteProfile = {
+            preferredSpirits: profile.spiritPreferences || [],
+            flavorProfile: (profile.flavorProfiles || [])
+              .filter((f): f is typeof validFlavors[number] => validFlavors.includes(f as any)),
+            drinkStrength: profile.preferredABVRange?.max > 30 ? 'strong' :
+                          profile.preferredABVRange?.max > 15 ? 'medium' : 'light',
+            experience: profile.skillLevel === 'beginner' ? 'beginner' :
+                       profile.skillLevel === 'intermediate' ? 'intermediate' : 'expert',
+            preferredGlass: [],
+            occasion: [],
+            timeOfDay: [],
+            seasonPreference: [],
+            dietaryRestrictions: [],
+          };
+          setUserTasteProfile(tasteProfile);
+        } else {
+          // If no profile loaded, create default
+          console.log('[AIRecommendations] No profile loaded, using defaults');
+          const defaultTasteProfile: UserTasteProfile = {
+            preferredSpirits: ['whiskey', 'gin'],
+            flavorProfile: ['citrusy', 'sweet'],
+            drinkStrength: 'medium',
+            experience: 'beginner',
+            preferredGlass: [],
+            occasion: [],
+            timeOfDay: [],
+            seasonPreference: [],
+            dietaryRestrictions: [],
+          };
+          setUserTasteProfile(defaultTasteProfile);
+        }
+
+        // Load home bar ingredients
+        const storedIngredients = await HomeBarService.getStoredIngredients();
+
+        // Create home bar with stored ingredients
+        const defaultBar: HomeBar = {
+          id: 'default',
+          userId: 'current-user', // TODO: Get actual user ID
+          name: 'My Bar',
+          ingredients: storedIngredients,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          isDefault: true,
+        };
+        setHomeBar(defaultBar);
+      } catch (error: any) {
+        // Handle offline Firebase errors gracefully
+        if (error?.message?.includes('offline') || error?.message?.includes('Failed to get document') || error?.code === 'unavailable') {
+          console.log('[AIRecommendations] Offline - using default profile');
+
+          // Set default taste profile
+          const defaultTasteProfile: UserTasteProfile = {
+            preferredSpirits: ['whiskey', 'gin'],
+            flavorProfile: ['citrusy', 'sweet'],
+            drinkStrength: 'medium',
+            experience: 'beginner',
+            preferredGlass: [],
+            occasion: [],
+            timeOfDay: [],
+            seasonPreference: [],
+            dietaryRestrictions: [],
+          };
+          setUserTasteProfile(defaultTasteProfile);
+
+          // Set default home bar
+          const defaultBar: HomeBar = {
+            id: 'default',
+            userId: 'current-user',
+            name: 'My Bar',
+            ingredients: [],
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            isDefault: true,
+          };
+          setHomeBar(defaultBar);
+        } else {
+          console.error('Error loading user data:', error);
+        }
+      }
+    };
+
+    loadUserData();
+  }, []);
 
   // Generate AI-powered recommendations based on user context
-  const generateRecommendations = useCallback(async () => {
+  const generateRecommendations = useCallback(async (forceRefresh: boolean = false) => {
+    // Check if user data is loaded
+    if (!homeBar || !userTasteProfile) {
+      console.log('User data not loaded yet');
+      return;
+    }
+
+    // Check cache validity (skip if force refresh)
+    if (!forceRefresh && lastRefresh && recommendations.length > 0) {
+      const cacheAge = Date.now() - lastRefresh.getTime();
+      if (cacheAge < CACHE_DURATION_MS) {
+        console.log(`Using cached recommendations (${Math.round(cacheAge / 1000 / 60)} min old)`);
+        return;
+      }
+    }
+
     // Check if user has enough credits
     if (!canUseAI('recommendation')) {
       const cost = getActionCost('recommendation');
@@ -79,97 +201,32 @@ export default function AIRecommendations({
       const day = now.getDay();
       const month = now.getMonth();
 
-      // Determine context-based prompts
-      let contextPrompt = '';
+      // Determine context
+      const context = {
+        timeOfDay: hour >= 5 && hour < 12 ? 'morning' :
+                  hour >= 12 && hour < 17 ? 'afternoon' :
+                  hour >= 17 && hour < 22 ? 'evening' : 'night',
+        weather: 'mild' as const,
+        season: ['winter', 'spring', 'summer', 'fall'][Math.floor(month / 3)] as 'winter' | 'spring' | 'summer' | 'fall',
+        mood: 'relaxed' as const,
+      };
 
-      if (hour >= 5 && hour < 12) {
-        contextPrompt = 'morning or brunch cocktails with coffee, citrus, or light spirits';
-      } else if (hour >= 12 && hour < 17) {
-        contextPrompt = 'afternoon refreshers, aperitifs, or light cocktails';
-      } else if (hour >= 17 && hour < 22) {
-        contextPrompt = 'evening cocktails, classics, or sophisticated drinks for unwinding';
-      } else {
-        contextPrompt = 'nightcap cocktails, digestifs, or bold drinks for late night';
-      }
+      // Store context for tracking
+      setCurrentContext({
+        timeOfDay: context.timeOfDay,
+        season: context.season,
+      });
 
-      // Weekend vs weekday context
-      if (day === 0 || day === 6) {
-        contextPrompt += ', perfect for weekend relaxation';
-      } else {
-        contextPrompt += ', ideal for weekday unwinding';
-      }
+      // Generate recommendations using AI engine
+      const aiRecommendations = await AIRecommendationEngine.generateRecommendations(
+        homeBar,
+        userTasteProfile,
+        context
+      );
 
-      // Seasonal context
-      const seasons = ['winter warming drinks', 'spring fresh cocktails', 'summer refreshers', 'fall cozy drinks'];
-      contextPrompt += `, featuring ${seasons[Math.floor(month / 3)]}`;
-
-      // Create mock recommendations for now (in production, this would use AIRecommendationEngine)
-      const mockRecommendations: FormattedRecipe[] = [
-        {
-          title: 'AI-Crafted Classic',
-          description: `Perfect ${contextPrompt.split(',')[0]} for this moment`,
-          ingredients: [
-            { name: 'Premium Spirit', amount: '2 oz', notes: 'Base of choice' },
-            { name: 'Balancing Element', amount: '0.75 oz', notes: 'For harmony' },
-            { name: 'Accent', amount: '2 dashes', notes: 'Complexity' }
-          ],
-          instructions: [
-            'Combine ingredients with precision',
-            'Use proper technique for style',
-            'Serve with appropriate garnish'
-          ],
-          garnish: 'Contextually appropriate',
-          glassware: 'Proper vessel',
-          difficulty: 'Medium' as const,
-          time: '3 min',
-          servings: 1,
-          tags: ['ai-recommended', 'contextual', 'personalized']
-        },
-        {
-          title: 'Mood-Matched Mixer',
-          description: `Tailored for your current vibe and ${contextPrompt.split(',')[1]?.trim() || 'perfect timing'}`,
-          ingredients: [
-            { name: 'Seasonal Base', amount: '1.5 oz', notes: 'Time-appropriate' },
-            { name: 'Fresh Component', amount: '1 oz', notes: 'Bright accent' },
-            { name: 'Mixer', amount: '3 oz', notes: 'To top' }
-          ],
-          instructions: [
-            'Build in appropriate glass',
-            'Add fresh elements first',
-            'Top and garnish thoughtfully'
-          ],
-          garnish: 'Fresh and seasonal',
-          glassware: 'Highball Glass',
-          difficulty: 'Easy' as const,
-          time: '2 min',
-          servings: 1,
-          tags: ['ai-recommended', 'seasonal', 'easy']
-        },
-        {
-          title: 'Discovery Special',
-          description: `Introducing flavors based on trending combinations and ${contextPrompt.split(',')[2]?.trim() || 'current preferences'}`,
-          ingredients: [
-            { name: 'Unique Spirit', amount: '2 oz', notes: 'Explore new flavors' },
-            { name: 'Artisanal Modifier', amount: '0.5 oz', notes: 'Craft element' },
-            { name: 'Signature Touch', amount: '1 dash', notes: 'Personal flair' }
-          ],
-          instructions: [
-            'Experiment with technique',
-            'Focus on flavor development',
-            'Present with creativity'
-          ],
-          garnish: 'Innovative presentation',
-          glassware: 'Coupe Glass',
-          difficulty: 'Hard' as const,
-          time: '5 min',
-          servings: 1,
-          tags: ['ai-recommended', 'experimental', 'craft']
-        }
-      ];
-
-      setRecommendations(mockRecommendations);
+      setRecommendations(aiRecommendations);
       setLastRefresh(new Date());
-      console.log('✅ AI recommendations generated');
+      console.log(`✅ Generated ${aiRecommendations.length} AI recommendations`);
 
     } catch (error: any) {
       console.error('AI recommendations error:', error);
@@ -181,32 +238,91 @@ export default function AIRecommendations({
     } finally {
       setIsLoading(false);
     }
-  }, [canUseAI, consumeCredits, getActionCost, credits, onCreditsNeeded]);
+  }, [canUseAI, consumeCredits, getActionCost, credits, onCreditsNeeded, homeBar, userTasteProfile, lastRefresh, recommendations.length, CACHE_DURATION_MS]);
 
   // Generate recommendations on component mount
   useEffect(() => {
     generateRecommendations();
   }, [generateRecommendations]);
 
-  // Convert FormattedRecipe to the format expected by RecipeCard
-  const convertToRecipeCardFormat = (recipe: FormattedRecipe, index: number) => ({
-    id: `ai-rec-${index}-${Date.now()}`,
-    name: recipe.title,
-    title: recipe.title,
-    subtitle: recipe.description,
-    description: recipe.description,
-    image: 'https://images.unsplash.com/photo-1574671928146-5c89a22b2e85?q=80&w=400&auto=format&fit=crop', // Default cocktail image
-    difficulty: recipe.difficulty || 'Medium',
-    time: recipe.time || '3 min',
-    ingredients: recipe.ingredients,
-    instructions: recipe.instructions,
-    garnish: recipe.garnish,
-    glassware: recipe.glassware,
-  });
+  // Convert SmartRecommendation to the format expected by RecipeCard
+  const convertToRecipeCardFormat = (recommendation: SmartRecommendation, index: number) => {
+    const recipe = recommendation.cocktail;
+    return {
+      id: `ai-rec-${index}-${Date.now()}`,
+      name: recipe.name,
+      title: recipe.name,
+      subtitle: recipe.description,
+      description: recipe.description,
+      image: recipe.imageUrl || 'https://images.unsplash.com/photo-1574671928146-5c89a22b2e85?q=80&w=400&auto=format&fit=crop',
+      difficulty: recipe.difficulty === 'beginner' ? 'Easy' :
+                 recipe.difficulty === 'intermediate' ? 'Medium' : 'Hard',
+      time: `${recipe.prepTime} min`,
+      ingredients: recipe.ingredients.map(ing => ({
+        name: ing,
+        amount: '',
+        notes: ''
+      })),
+      instructions: recipe.instructions,
+      garnish: recipe.garnish,
+      glassware: recipe.glass,
+      matchScore: recommendation.matchScore,
+      canMakeNow: recommendation.canMakeNow,
+      missingIngredients: recommendation.missingIngredients,
+      aiReasoning: recommendation.reasoning,
+    };
+  };
 
   const handleRefresh = useCallback(() => {
-    generateRecommendations();
+    generateRecommendations(true); // Force refresh, bypass cache
   }, [generateRecommendations]);
+
+  // Track when a recipe card is pressed (viewed)
+  const handleRecipePress = useCallback((recommendation: SmartRecommendation, recipe: any) => {
+    // Track the view
+    if (currentContext) {
+      trackRecommendationView(
+        'current-user', // TODO: Get actual user ID
+        {
+          id: recipe.id,
+          cocktailName: recommendation.cocktail.name,
+          matchScore: recommendation.matchScore,
+          canMakeNow: recommendation.canMakeNow,
+          missingIngredients: recommendation.missingIngredients,
+        },
+        currentContext
+      );
+    }
+  }, [currentContext]);
+
+  // Track when a recipe is saved
+  const handleRecipeSave = useCallback((recommendation: SmartRecommendation, recipe: any) => {
+    // Track the save
+    if (currentContext) {
+      trackRecommendationSaved(
+        'current-user', // TODO: Get actual user ID
+        {
+          id: recipe.id,
+          cocktailName: recommendation.cocktail.name,
+          matchScore: recommendation.matchScore,
+          canMakeNow: recommendation.canMakeNow,
+          missingIngredients: recommendation.missingIngredients,
+        },
+        currentContext
+      );
+    }
+
+    // Call original save handler
+    if (toggleSavedCocktail) {
+      toggleSavedCocktail(recipe);
+    }
+  }, [currentContext, toggleSavedCocktail]);
+
+  // Open feedback modal
+  const handleOpenFeedback = useCallback((recommendation: SmartRecommendation) => {
+    setSelectedRecommendation(recommendation);
+    setFeedbackModalVisible(true);
+  }, []);
 
   if (isLoading && recommendations.length === 0) {
     return (
@@ -251,32 +367,80 @@ export default function AIRecommendations({
         </Text>
       )}
 
-      <ScrollView
-        horizontal
-        nestedScrollEnabled
-        showsHorizontalScrollIndicator={false}
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-      >
-        {recommendations.map((recipe, index) => {
-          const recipeCardData = convertToRecipeCardFormat(recipe, index);
-          return (
-            <RecipeCard
-              key={recipeCardData.id}
-              style={styles.recipeCard}
-              {...createRecipeCardProps(recipeCardData, navigation, {
-                toggleSavedCocktail,
-                isCocktailSaved,
-                setSelectedRecipe,
-                setGroceryListVisible,
-                showSaveButton: true,
-                showCartButton: true,
-                showDeleteButton: false,
-              })}
-            />
-          );
-        })}
-      </ScrollView>
+      {recommendations.length === 0 ? (
+        // Empty State - Show button to generate recommendations
+        <View style={styles.emptyState}>
+          <Ionicons name="sparkles-outline" size={48} color={colors.muted} />
+          <Text style={styles.emptyStateTitle}>No Recommendations Yet</Text>
+          <Text style={styles.emptyStateText}>
+            Get AI-powered cocktail suggestions based on your taste profile
+          </Text>
+          <TouchableOpacity
+            style={styles.generateButton}
+            onPress={() => generateRecommendations(true)}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="sparkles" size={20} color={colors.white} />
+            <Text style={styles.generateButtonText}>Get Recommendations</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <ScrollView
+          horizontal
+          nestedScrollEnabled
+          showsHorizontalScrollIndicator={false}
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+        >
+          {recommendations.map((recommendation, index) => {
+            const recipeCardData = convertToRecipeCardFormat(recommendation, index);
+            return (
+              <View key={recipeCardData.id} style={styles.recommendationWrapper}>
+                <RecipeCard
+                  style={styles.recipeCard}
+                  {...createRecipeCardProps(recipeCardData, navigation, {
+                    toggleSavedCocktail: (recipe) => handleRecipeSave(recommendation, recipe),
+                    isCocktailSaved,
+                    setSelectedRecipe,
+                    setGroceryListVisible,
+                    showSaveButton: true,
+                    showCartButton: true,
+                    showDeleteButton: false,
+                  })}
+                  onPress={() => handleRecipePress(recommendation, recipeCardData)}
+                />
+
+                {/* Rate Button */}
+                <TouchableOpacity
+                  style={styles.rateButton}
+                  onPress={() => handleOpenFeedback(recommendation)}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="star-outline" size={16} color={colors.gold} />
+                  <Text style={styles.rateButtonText}>Rate</Text>
+                </TouchableOpacity>
+              </View>
+            );
+          })}
+        </ScrollView>
+      )}
+
+      {/* Feedback Modal */}
+      {selectedRecommendation && currentContext && (
+        <RecommendationFeedbackModal
+          visible={feedbackModalVisible}
+          onClose={() => setFeedbackModalVisible(false)}
+          recommendation={{
+            id: `ai-rec-${selectedRecommendation.cocktail.name}`,
+            cocktailName: selectedRecommendation.cocktail.name,
+            matchScore: selectedRecommendation.matchScore,
+            canMakeNow: selectedRecommendation.canMakeNow,
+            missingIngredients: selectedRecommendation.missingIngredients,
+          }}
+          userId="current-user" // TODO: Get actual user ID
+          context={currentContext}
+        />
+      )}
     </View>
   );
 }
@@ -327,8 +491,63 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingRight: spacing(3),
   },
+  recommendationWrapper: {
+    marginRight: spacing(2),
+  },
   recipeCard: {
     width: 280,
-    marginRight: spacing(2),
+  },
+  rateButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing(0.5),
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.gold,
+    borderRadius: spacing(2),
+    paddingVertical: spacing(1),
+    paddingHorizontal: spacing(2),
+    marginTop: spacing(1),
+  },
+  rateButtonText: {
+    fontSize: fonts.small,
+    fontWeight: '600',
+    color: colors.gold,
+  },
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing(4),
+    paddingHorizontal: spacing(3),
+  },
+  emptyStateTitle: {
+    fontSize: fonts.h3,
+    fontWeight: '700',
+    color: colors.text,
+    marginTop: spacing(2),
+    marginBottom: spacing(1),
+  },
+  emptyStateText: {
+    fontSize: fonts.body,
+    color: colors.muted,
+    textAlign: 'center',
+    marginBottom: spacing(3),
+    lineHeight: 22,
+  },
+  generateButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing(1),
+    backgroundColor: colors.accent,
+    borderRadius: spacing(3),
+    paddingVertical: spacing(2),
+    paddingHorizontal: spacing(3),
+  },
+  generateButtonText: {
+    fontSize: fonts.body,
+    fontWeight: '700',
+    color: colors.white,
   },
 });

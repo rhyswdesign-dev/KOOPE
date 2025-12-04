@@ -174,7 +174,7 @@ export const usePersonalization = create<PersonalizationState>((set, get) => ({
     // This could be enhanced to update profile based on behavior patterns
 
     // Example: If user consistently chooses tequila cocktails, boost tequila score
-    if (type === 'cocktail_viewed' && context?.spirit) {
+    if (type === 'cocktail_viewed' && context?.spirit && profile.spiritScores) {
       const currentScore = profile.spiritScores[context.spirit] || 50;
       const boostedScore = Math.min(100, currentScore + 2);
 
@@ -241,12 +241,12 @@ export const usePersonalization = create<PersonalizationState>((set, get) => ({
 
     // Spirit preference (40% weight)
     const cocktailSpirit = cocktail.base?.toLowerCase();
-    if (cocktailSpirit && profile.spiritScores[cocktailSpirit]) {
+    if (cocktailSpirit && profile.spiritScores && profile.spiritScores[cocktailSpirit]) {
       score += (profile.spiritScores[cocktailSpirit] / 100) * 40;
     }
 
     // Difficulty appropriateness (30% weight)
-    const difficultyMatch = profile.preferredDifficulty.includes(cocktail.difficulty || 'Easy');
+    const difficultyMatch = profile.preferredDifficulty && Array.isArray(profile.preferredDifficulty) && profile.preferredDifficulty.includes(cocktail.difficulty || 'Easy');
     if (difficultyMatch) {
       score += 30;
     }
@@ -264,12 +264,14 @@ export const usePersonalization = create<PersonalizationState>((set, get) => ({
     }
 
     // Flavor matching (10% weight)
-    profile.flavorPreferences.forEach(flavor => {
-      const flavorInDescription = cocktail.description?.toLowerCase().includes(flavor);
-      if (flavorInDescription) {
-        score += (profile.flavorScores[flavor] / 100) * 2;
-      }
-    });
+    if (profile.flavorPreferences && Array.isArray(profile.flavorPreferences)) {
+      profile.flavorPreferences.forEach(flavor => {
+        const flavorInDescription = cocktail.description?.toLowerCase().includes(flavor);
+        if (flavorInDescription && profile.flavorScores && profile.flavorScores[flavor]) {
+          score += (profile.flavorScores[flavor] / 100) * 2;
+        }
+      });
+    }
 
     return Math.min(100, score);
   },
