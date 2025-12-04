@@ -358,6 +358,17 @@ export default function RefineYourTasteScreen({ navigation }: Props) {
     }
   };
 
+  // Guard against undefined currentQuestion
+  if (!currentQuestion) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingOverlay}>
+          <ActivityIndicator size="large" color={colors.accent} />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
