@@ -18,6 +18,7 @@ import { HomeBar, HomeBarService } from '../services/homeBarService';
 import { loadUserProfile } from '../services/userProfileService';
 import { trackRecommendationView, trackRecommendationSaved } from '../services/recommendationTrackingService';
 import RecommendationFeedbackModal from './RecommendationFeedbackModal';
+import InsufficientCreditsModal from './InsufficientCreditsModal';
 
 interface AIRecommendationsProps {
   navigation: any;
@@ -47,6 +48,7 @@ export default function AIRecommendations({
   const [feedbackModalVisible, setFeedbackModalVisible] = useState(false);
   const [selectedRecommendation, setSelectedRecommendation] = useState<SmartRecommendation | null>(null);
   const [currentContext, setCurrentContext] = useState<{ timeOfDay: string; season: string } | null>(null);
+  const [insufficientCreditsModalVisible, setInsufficientCreditsModalVisible] = useState(false);
 
   // Cache settings: recommendations valid for 30 minutes
   const CACHE_DURATION_MS = 30 * 60 * 1000;
@@ -168,18 +170,7 @@ export default function AIRecommendations({
 
     // Check if user has enough credits
     if (!canUseAI('recommendation')) {
-      const cost = getActionCost('recommendation');
-      Alert.alert(
-        'Insufficient Credits',
-        `You need ${cost} credits to generate AI recommendations. You currently have ${credits} credits.`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Get Credits',
-            onPress: () => onCreditsNeeded?.()
-          }
-        ]
-      );
+      setInsufficientCreditsModalVisible(true);
       return;
     }
 
@@ -444,6 +435,15 @@ export default function AIRecommendations({
           context={currentContext}
         />
       )}
+
+      {/* Insufficient Credits Modal */}
+      <InsufficientCreditsModal
+        visible={insufficientCreditsModalVisible}
+        onClose={() => setInsufficientCreditsModalVisible(false)}
+        onGetCredits={() => onCreditsNeeded?.()}
+        creditsNeeded={getActionCost('recommendation')}
+        creditsAvailable={credits}
+      />
     </View>
   );
 }
