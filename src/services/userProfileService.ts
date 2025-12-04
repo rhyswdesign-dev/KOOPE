@@ -159,7 +159,15 @@ export async function loadUserProfile(userId: string): Promise<EnhancedUserProfi
     }
 
     return profile;
-  } catch (error) {
+  } catch (error: any) {
+    // Handle offline Firebase errors gracefully - return null instead of throwing
+    if (error?.message?.includes('offline') ||
+        error?.message?.includes('Failed to get document') ||
+        error?.code === 'unavailable') {
+      console.log('[UserProfile] Offline - unable to load profile from Firebase');
+      return null;
+    }
+
     console.error('Error loading user profile:', error);
     throw new Error('Failed to load user profile');
   }
