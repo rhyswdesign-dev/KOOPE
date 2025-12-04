@@ -28,6 +28,7 @@ import { spiritImages } from '../../assets/images/spirits';
 type Props = NativeStackScreenProps<RootStackParamList, 'RefineYourTaste'>;
 
 // Focused survey questions for taste refinement
+// NOTE: Store spiritKey instead of resolved image to defer loading
 const TASTE_QUESTIONS = [
   {
     id: 'q8',
@@ -36,12 +37,12 @@ const TASTE_QUESTIONS = [
     question: 'Which spirits interest you most?',
     subtitle: 'Select all that apply',
     options: [
-      { value: 'tequila', label: 'Tequila', emoji: '🌵', image: spiritImages.tequila },
-      { value: 'whiskey', label: 'Whiskey', emoji: '🥃', image: spiritImages.whiskey },
-      { value: 'rum', label: 'Rum', emoji: '🏝️', image: spiritImages.rum },
-      { value: 'gin', label: 'Gin', emoji: '🌿', image: spiritImages.gin },
-      { value: 'vodka', label: 'Vodka', emoji: '❄️', image: spiritImages.vodka },
-      { value: 'brandy', label: 'Brandy', emoji: '🍇', image: spiritImages.brandy },
+      { value: 'tequila', label: 'Tequila', emoji: '🌵', spiritKey: 'tequila' as const },
+      { value: 'whiskey', label: 'Whiskey', emoji: '🥃', spiritKey: 'whiskey' as const },
+      { value: 'rum', label: 'Rum', emoji: '🏝️', spiritKey: 'rum' as const },
+      { value: 'gin', label: 'Gin', emoji: '🌿', spiritKey: 'gin' as const },
+      { value: 'vodka', label: 'Vodka', emoji: '❄️', spiritKey: 'vodka' as const },
+      { value: 'brandy', label: 'Brandy', emoji: '🍇', spiritKey: 'brandy' as const },
       { value: 'liqueurs', label: 'Liqueurs', emoji: '🍯' }, // No image for liqueurs, will use emoji
     ],
   },
@@ -261,9 +262,9 @@ export default function RefineYourTasteScreen({ navigation }: Props) {
                 onPress={() => handleAnswer(option.value)}
               >
                 {/* Show image if available, otherwise show emoji */}
-                {option.image ? (
+                {option.spiritKey && spiritImages?.[option.spiritKey] ? (
                   <Image
-                    source={typeof option.image === 'string' ? { uri: option.image } : option.image}
+                    source={spiritImages[option.spiritKey]}
                     style={styles.optionImage}
                   />
                 ) : (
@@ -296,9 +297,9 @@ export default function RefineYourTasteScreen({ navigation }: Props) {
                     onPress={() => handleMultiSelectToggle(option.value)}
                   >
                     {/* Show image if available, otherwise show emoji */}
-                    {option.image ? (
+                    {option.spiritKey && spiritImages?.[option.spiritKey] ? (
                       <Image
-                        source={typeof option.image === 'string' ? { uri: option.image } : option.image}
+                        source={spiritImages[option.spiritKey]}
                         style={styles.optionImage}
                       />
                     ) : (

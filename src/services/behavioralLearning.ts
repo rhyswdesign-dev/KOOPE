@@ -191,27 +191,29 @@ export class BehavioralLearning {
     recipe: Recipe,
     profile: any
   ): number {
-    if (!profile.tasteProfile) return 0;
+    if (!profile?.tasteProfile) return 0;
 
     let boost = 0;
 
     // Spirit boost (learned preference)
-    if (recipe.baseSpirit && profile.tasteProfile.spiritWeights[recipe.baseSpirit]) {
+    if (recipe.baseSpirit && profile.tasteProfile.spiritWeights?.[recipe.baseSpirit]) {
       boost += profile.tasteProfile.spiritWeights[recipe.baseSpirit] * 20; // Up to +20
     }
 
     // Flavor boost (learned preference)
-    recipe.flavorProfiles.forEach((flavor) => {
-      if (profile.tasteProfile.flavorWeights[flavor]) {
+    recipe.flavorProfiles?.forEach((flavor) => {
+      if (profile.tasteProfile.flavorWeights?.[flavor]) {
         boost += profile.tasteProfile.flavorWeights[flavor] * 10; // Up to +10 per flavor
       }
     });
 
     // Complexity match boost
-    const complexityDiff = Math.abs(
-      recipe.complexity - profile.tasteProfile.preferredComplexity
-    );
-    boost += (1 - complexityDiff) * 10; // Up to +10 for perfect complexity match
+    if (profile.tasteProfile.preferredComplexity !== undefined) {
+      const complexityDiff = Math.abs(
+        recipe.complexity - profile.tasteProfile.preferredComplexity
+      );
+      boost += (1 - complexityDiff) * 10; // Up to +10 for perfect complexity match
+    }
 
     return boost;
   }

@@ -93,6 +93,71 @@ export async function loadUserProfile(userId: string): Promise<EnhancedUserProfi
       } : undefined,
     } as EnhancedUserProfile;
 
+    // CRITICAL: Ensure tasteProfile is always initialized to prevent runtime errors
+    if (!profile.tasteProfile) {
+      console.log('[UserProfile] Initializing missing tasteProfile with defaults');
+      profile.tasteProfile = {
+        flavorWeights: {
+          citrus: 0,
+          herbal: 0,
+          bitter: 0,
+          sweet: 0,
+          smoky: 0,
+          floral: 0,
+          spiced: 0,
+        },
+        spiritWeights: {
+          tequila: 0,
+          whiskey: 0,
+          rum: 0,
+          gin: 0,
+          vodka: 0,
+          brandy: 0,
+          liqueurs: 0,
+          'gin-alternative': 0,
+          'rum-alternative': 0,
+          none: 0,
+        },
+        preferredABV: profile.preferredABVRange || { min: 0, max: 40 },
+        preferredComplexity: 0.5,
+      };
+    }
+
+    // Ensure nested objects exist within tasteProfile
+    if (profile.tasteProfile) {
+      if (!profile.tasteProfile.spiritWeights) {
+        profile.tasteProfile.spiritWeights = {
+          tequila: 0,
+          whiskey: 0,
+          rum: 0,
+          gin: 0,
+          vodka: 0,
+          brandy: 0,
+          liqueurs: 0,
+          'gin-alternative': 0,
+          'rum-alternative': 0,
+          none: 0,
+        };
+      }
+      if (!profile.tasteProfile.flavorWeights) {
+        profile.tasteProfile.flavorWeights = {
+          citrus: 0,
+          herbal: 0,
+          bitter: 0,
+          sweet: 0,
+          smoky: 0,
+          floral: 0,
+          spiced: 0,
+        };
+      }
+      if (!profile.tasteProfile.preferredABV) {
+        profile.tasteProfile.preferredABV = profile.preferredABVRange || { min: 0, max: 40 };
+      }
+      if (profile.tasteProfile.preferredComplexity === undefined) {
+        profile.tasteProfile.preferredComplexity = 0.5;
+      }
+    }
+
     return profile;
   } catch (error) {
     console.error('Error loading user profile:', error);

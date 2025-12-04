@@ -242,7 +242,27 @@ async function learnFromPrompt(
 ): Promise<void> {
   try {
     const profile = await loadUserProfile(userId);
-    if (!profile || !profile.tasteProfile) return;
+    if (!profile) {
+      console.log('No profile found for user, skipping learning');
+      return;
+    }
+
+    // Initialize tasteProfile if it doesn't exist
+    if (!profile.tasteProfile) {
+      profile.tasteProfile = {
+        flavorWeights: {
+          citrus: 0, herbal: 0, bitter: 0, sweet: 0,
+          smoky: 0, floral: 0, spiced: 0,
+        },
+        spiritWeights: {
+          tequila: 0, whiskey: 0, rum: 0, gin: 0,
+          vodka: 0, brandy: 0, liqueurs: 0,
+          'gin-alternative': 0, 'rum-alternative': 0, none: 0,
+        },
+        preferredABV: { min: 10, max: 40 },
+        preferredComplexity: 0.5,
+      };
+    }
 
     const promptLower = prompt.toLowerCase();
 

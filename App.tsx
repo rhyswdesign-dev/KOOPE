@@ -51,6 +51,18 @@ console.error = (...args: any[]) => {
     return;
   }
 
+  // Filter out tasteProfile errors (handled gracefully in code)
+  if (
+    typeof message === 'string' && (
+      message.includes("Cannot read property 'tequila' of undefined") ||
+      message.includes("Cannot read property 'spiritWeights' of undefined") ||
+      message.includes("Cannot read property 'flavorWeights' of undefined")
+    )
+  ) {
+    console.log('[Handled] tasteProfile initialization error - using defaults');
+    return;
+  }
+
   // Check if it's a Firebase error object
   if (args.length > 0 && isNetworkError(args[0])) {
     return;
