@@ -211,7 +211,6 @@ export async function trackRecommendationDismissed(
       cocktailName: recommendation.cocktailName,
       matchScore: recommendation.matchScore,
       interactionType: 'dismissed',
-      feedback: reason,
       context: {
         timeOfDay: context.timeOfDay,
         season: context.season,
@@ -220,6 +219,11 @@ export async function trackRecommendationDismissed(
       },
       timestamp: new Date(),
     };
+
+    // Only include feedback if provided (Firestore doesn't accept undefined)
+    if (reason !== undefined && reason !== null && reason.trim() !== '') {
+      interaction.feedback = reason;
+    }
 
     await addDoc(collection(db, 'recommendationInteractions'), interaction);
 
@@ -263,7 +267,6 @@ export async function trackRecommendationRating(
       matchScore: recommendation.matchScore,
       interactionType: 'rated',
       rating,
-      feedback,
       context: {
         timeOfDay: context?.timeOfDay || 'unknown',
         season: context?.season || 'unknown',
@@ -272,6 +275,11 @@ export async function trackRecommendationRating(
       },
       timestamp: new Date(),
     };
+
+    // Only include feedback if provided (Firestore doesn't accept undefined)
+    if (feedback !== undefined && feedback !== null && feedback.trim() !== '') {
+      interaction.feedback = feedback;
+    }
 
     await addDoc(collection(db, 'recommendationInteractions'), interaction);
 
