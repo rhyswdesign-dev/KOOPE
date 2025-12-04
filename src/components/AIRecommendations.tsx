@@ -108,9 +108,12 @@ export default function AIRecommendations({
         };
         setHomeBar(defaultBar);
       } catch (error: any) {
-        // Handle offline Firebase errors gracefully
-        if (error?.message?.includes('offline') || error?.message?.includes('Failed to get document') || error?.code === 'unavailable') {
-          console.log('[AIRecommendations] Offline - using default profile');
+        // Handle offline Firebase errors and profile loading errors gracefully
+        if (error?.message?.includes('offline') ||
+            error?.message?.includes('Failed to get document') ||
+            error?.message?.includes('Failed to load user profile') ||
+            error?.code === 'unavailable') {
+          console.log('[AIRecommendations] Error loading data - using default profile');
 
           // Set default taste profile
           const defaultTasteProfile: UserTasteProfile = {
