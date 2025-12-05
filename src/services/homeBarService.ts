@@ -1,7 +1,7 @@
 export interface BarIngredient {
   id: string;
   name: string;
-  category: 'spirit' | 'liqueur' | 'mixer' | 'bitters' | 'syrup' | 'garnish' | 'other';
+  category: 'spirit' | 'liqueur' | 'mixer' | 'bitters' | 'syrup' | 'garnish' | 'ingredient' | 'other';
   subcategory?: string; // e.g., 'whiskey', 'gin', 'citrus', etc.
   brand?: string;
   abv?: number; // Alcohol by volume percentage

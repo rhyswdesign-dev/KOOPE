@@ -13,6 +13,7 @@ import {
   Image,
   TextInput,
   Alert,
+  Modal,
 } from 'react-native';
 import { colors, spacing, radii, fonts } from '../theme/tokens';
 import { Ionicons } from '@expo/vector-icons';
@@ -28,7 +29,7 @@ import EmptyState from '../components/EmptyState';
 import * as Images from '../../assets/images';
 
 // Category definitions
-type InventoryCategory = 'spirits' | 'mixers' | 'garnishes' | 'liqueur' | 'bitters' | 'syrup' | 'other';
+type InventoryCategory = 'spirits' | 'mixers' | 'garnishes' | 'ingredients' | 'liqueur' | 'bitters' | 'syrup' | 'other';
 
 interface InventoryItem extends BarIngredient {
   percentFull?: number;
@@ -53,7 +54,7 @@ const mockHomeBar: HomeBar = {
       addedAt: new Date(),
       isFavorite: true,
       tags: ['premium', 'neutral'],
-      image: 'https://cdn.shopify.com/s/files/1/0012/4021/1900/products/titos-handmade-vodka-750ml_1024x1024.jpg?v=1574708617',
+      imageUrl: 'https://cdn.shopify.com/s/files/1/0012/4021/1900/products/titos-handmade-vodka-750ml_1024x1024.jpg?v=1574708617',
     },
     {
       id: '2',
@@ -66,7 +67,7 @@ const mockHomeBar: HomeBar = {
       addedAt: new Date(),
       isFavorite: true,
       tags: ['premium', 'juniper'],
-      image: 'https://cdn.shopify.com/s/files/1/0012/4021/1900/products/hendricks-gin-750ml_1024x1024.jpg?v=1574708617',
+      imageUrl: 'https://cdn.shopify.com/s/files/1/0012/4021/1900/products/hendricks-gin-750ml_1024x1024.jpg?v=1574708617',
     },
     {
       id: '3',
@@ -79,7 +80,7 @@ const mockHomeBar: HomeBar = {
       addedAt: new Date(),
       isFavorite: false,
       tags: ['bourbon', 'american'],
-      image: 'https://cdn.shopify.com/s/files/1/0012/4021/1900/products/buffalo-trace-bourbon-750ml_1024x1024.jpg?v=1574708617',
+      imageUrl: 'https://cdn.shopify.com/s/files/1/0012/4021/1900/products/buffalo-trace-bourbon-750ml_1024x1024.jpg?v=1574708617',
     },
     {
       id: '4',
@@ -158,6 +159,11 @@ export default function HomeBarScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState<InventoryCategory | 'all'>('all');
   const [homeBar, setHomeBar] = useState<HomeBar>(mockHomeBar);
+  const [showManualEntryModal, setShowManualEntryModal] = useState(false);
+  const [manualEntryName, setManualEntryName] = useState('');
+  const [manualEntryCategory, setManualEntryCategory] = useState<BarIngredient['category']>('spirit');
+  const [manualEntryBrand, setManualEntryBrand] = useState('');
+  const [manualEntryVolume, setManualEntryVolume] = useState('');
 
   useLayoutEffect(() => {
     nav.setOptions({
@@ -195,6 +201,7 @@ export default function HomeBarScreen() {
     { key: 'spirits', label: 'Spirits', icon: 'wine' },
     { key: 'mixers', label: 'Mixers', icon: 'water' },
     { key: 'garnishes', label: 'Garnishes', icon: 'leaf' },
+    { key: 'ingredients', label: 'Ingredients', icon: 'nutrition' },
   ];
 
   const getFilteredInventory = () => {
@@ -208,6 +215,8 @@ export default function HomeBarScreen() {
         filtered = filtered.filter(item => item.category === 'mixer');
       } else if (activeCategory === 'garnishes') {
         filtered = filtered.filter(item => item.category === 'garnish');
+      } else if (activeCategory === 'ingredients') {
+        filtered = filtered.filter(item => item.category === 'ingredient');
       } else {
         filtered = filtered.filter(item => item.category === activeCategory);
       }
@@ -261,13 +270,58 @@ export default function HomeBarScreen() {
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Scan with Camera', onPress: () => nav.navigate('SpiritRecognition') },
-        { text: 'Manual Entry', onPress: () => Alert.alert('Coming Soon', 'Manual entry feature coming soon!') },
+        { text: 'Manual Entry', onPress: () => setShowManualEntryModal(true) },
       ]
     );
   };
 
+  const handleSaveManualEntry = async () => {
+    if (!manualEntryName.trim()) {
+      Alert.alert('Missing Information', 'Please enter an ingredient name');
+      return;
+    }
+
+    const newIngredient: BarIngredient = {
+      id: `manual-${Date.now()}`,
+      name: manualEntryName.trim(),
+      category: manualEntryCategory,
+      brand: manualEntryBrand.trim() || undefined,
+      volume: manualEntryVolume ? parseInt(manualEntryVolume) : undefined,
+      addedAt: new Date(),
+      isFavorite: false,
+      tags: ['manual-entry'],
+    };
+
+    try {
+      await HomeBarService.addIngredient(newIngredient);
+      setHomeBar(prev => ({
+        ...prev,
+        ingredients: [...prev.ingredients, newIngredient]
+      }));
+
+      // Reset form
+      setManualEntryName('');
+      setManualEntryCategory('spirit');
+      setManualEntryBrand('');
+      setManualEntryVolume('');
+      setShowManualEntryModal(false);
+
+      Alert.alert('Success', `${newIngredient.name} added to your bar!`);
+    } catch (error) {
+      Alert.alert('Error', 'Failed to add ingredient. Please try again.');
+    }
+  };
+
+  const handleCancelManualEntry = () => {
+    setManualEntryName('');
+    setManualEntryCategory('spirit');
+    setManualEntryBrand('');
+    setManualEntryVolume('');
+    setShowManualEntryModal(false);
+  };
+
   const getIngredientImage = (item: BarIngredient) => {
-    if (item.image) return { uri: item.image };
+    if (item.imageUrl) return { uri: item.imageUrl };
 
     // Try to get image from assets based on subcategory
     const subcategory = item.subcategory?.toLowerCase();
@@ -301,7 +355,11 @@ export default function HomeBarScreen() {
                   item.category === 'spirit' ? 'wine' :
                   item.category === 'mixer' ? 'water' :
                   item.category === 'liqueur' ? 'wine-outline' :
-                  'leaf'
+                  item.category === 'ingredient' ? 'nutrition' :
+                  item.category === 'garnish' ? 'leaf' :
+                  item.category === 'bitters' ? 'flask' :
+                  item.category === 'syrup' ? 'water-outline' :
+                  'cube'
                 }
                 size={40}
                 color={colors.gold}
@@ -461,6 +519,117 @@ export default function HomeBarScreen() {
           <Text style={styles.recipesButtonText}>See What You Can Make →</Text>
         </TouchableOpacity>
       </View>
+
+      {/* Manual Entry Modal */}
+      <Modal
+        visible={showManualEntryModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={handleCancelManualEntry}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Add Ingredient</Text>
+              <TouchableOpacity onPress={handleCancelManualEntry}>
+                <Ionicons name="close" size={24} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.modalForm} showsVerticalScrollIndicator={false}>
+              {/* Name Input */}
+              <View style={styles.formGroup}>
+                <Text style={styles.formLabel}>Name *</Text>
+                <TextInput
+                  style={styles.formInput}
+                  placeholder="e.g., Tito's Vodka"
+                  placeholderTextColor={colors.muted}
+                  value={manualEntryName}
+                  onChangeText={setManualEntryName}
+                  keyboardAppearance="dark"
+                />
+              </View>
+
+              {/* Category Picker */}
+              <View style={styles.formGroup}>
+                <Text style={styles.formLabel}>Category *</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryPicker}>
+                  {[
+                    { value: 'spirit', label: 'Spirit' },
+                    { value: 'liqueur', label: 'Liqueur' },
+                    { value: 'mixer', label: 'Mixer' },
+                    { value: 'bitters', label: 'Bitters' },
+                    { value: 'syrup', label: 'Syrup' },
+                    { value: 'garnish', label: 'Garnish' },
+                    { value: 'ingredient', label: 'Ingredient' },
+                    { value: 'other', label: 'Other' },
+                  ].map((cat) => (
+                    <TouchableOpacity
+                      key={cat.value}
+                      style={[
+                        styles.categoryPickerButton,
+                        manualEntryCategory === cat.value && styles.categoryPickerButtonActive
+                      ]}
+                      onPress={() => setManualEntryCategory(cat.value as BarIngredient['category'])}
+                    >
+                      <Text
+                        style={[
+                          styles.categoryPickerButtonText,
+                          manualEntryCategory === cat.value && styles.categoryPickerButtonTextActive
+                        ]}
+                      >
+                        {cat.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+
+              {/* Brand Input */}
+              <View style={styles.formGroup}>
+                <Text style={styles.formLabel}>Brand (Optional)</Text>
+                <TextInput
+                  style={styles.formInput}
+                  placeholder="e.g., Tito's"
+                  placeholderTextColor={colors.muted}
+                  value={manualEntryBrand}
+                  onChangeText={setManualEntryBrand}
+                  keyboardAppearance="dark"
+                />
+              </View>
+
+              {/* Volume Input */}
+              <View style={styles.formGroup}>
+                <Text style={styles.formLabel}>Volume (ml, Optional)</Text>
+                <TextInput
+                  style={styles.formInput}
+                  placeholder="e.g., 750"
+                  placeholderTextColor={colors.muted}
+                  value={manualEntryVolume}
+                  onChangeText={setManualEntryVolume}
+                  keyboardType="number-pad"
+                  keyboardAppearance="dark"
+                />
+              </View>
+            </ScrollView>
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalButtonSecondary]}
+                onPress={handleCancelManualEntry}
+              >
+                <Text style={styles.modalButtonTextSecondary}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalButtonPrimary]}
+                onPress={handleSaveManualEntry}
+              >
+                <Text style={styles.modalButtonTextPrimary}>Add to Bar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -550,7 +719,7 @@ const styles = StyleSheet.create({
     gap: spacing(1),
     paddingHorizontal: spacing(3),
     paddingVertical: spacing(1.5),
-    borderRadius: radii.full,
+    borderRadius: 999,
     backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: colors.line,
@@ -702,5 +871,105 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: colors.gold,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: colors.card,
+    borderTopLeftRadius: radii.xl,
+    borderTopRightRadius: radii.xl,
+    paddingTop: spacing(3),
+    paddingHorizontal: spacing(3),
+    paddingBottom: spacing(4),
+    maxHeight: '80%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing(3),
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  modalForm: {
+    marginBottom: spacing(3),
+  },
+  formGroup: {
+    marginBottom: spacing(3),
+  },
+  formLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: spacing(1),
+  },
+  formInput: {
+    backgroundColor: colors.bg,
+    borderRadius: radii.lg,
+    paddingHorizontal: spacing(3),
+    paddingVertical: spacing(2),
+    fontSize: 16,
+    color: colors.text,
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
+  categoryPicker: {
+    flexDirection: 'row',
+  },
+  categoryPickerButton: {
+    paddingHorizontal: spacing(3),
+    paddingVertical: spacing(1.5),
+    borderRadius: 999,
+    backgroundColor: colors.bg,
+    borderWidth: 1,
+    borderColor: colors.line,
+    marginRight: spacing(2),
+  },
+  categoryPickerButtonActive: {
+    backgroundColor: colors.gold,
+    borderColor: colors.gold,
+  },
+  categoryPickerButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  categoryPickerButtonTextActive: {
+    color: colors.bg,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: spacing(2),
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: spacing(2.5),
+    borderRadius: radii.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalButtonPrimary: {
+    backgroundColor: colors.gold,
+  },
+  modalButtonSecondary: {
+    backgroundColor: colors.bg,
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
+  modalButtonTextPrimary: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.bg,
+  },
+  modalButtonTextSecondary: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
   },
 });
