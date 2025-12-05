@@ -73,7 +73,7 @@ class MockVisionService {
 export default function SpiritRecognitionScreen() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
-  const [type, setType] = useState(CameraType.back);
+  const [type, setType] = useState('back' as any); // Use string literal for camera facing
   const [analyzing, setAnalyzing] = useState(false);
   const [recognizedSpirit, setRecognizedSpirit] = useState<Partial<BarIngredient> | null>(null);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
@@ -421,7 +421,7 @@ export default function SpiritRecognitionScreen() {
           <View style={styles.cameraControls}>
             <TouchableOpacity
               style={styles.flipButton}
-              onPress={() => setType(type === CameraType.back ? CameraType.front : CameraType.back)}
+              onPress={() => setType(type === 'back' ? 'front' : 'back')}
             >
               <Ionicons name="camera-reverse" size={24} color={colors.bg} />
             </TouchableOpacity>
