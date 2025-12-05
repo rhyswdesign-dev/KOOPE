@@ -33,6 +33,7 @@ export interface CartItem {
   price: number;
   name: string;
   image?: string;
+  recipeId?: string; // Link to cocktail recipe if this is an ingredient
 }
 
 export interface PromoCode {

@@ -144,15 +144,27 @@ export default function CartScreen() {
               {item.image && (
                 <Image source={{ uri: item.image }} style={styles.itemImage} />
               )}
-              
+
               <View style={styles.itemInfo}>
                 <Text style={styles.itemName}>{item.name}</Text>
                 <Text style={styles.itemType}>
                   {item.type === 'plan' ? 'Subscription Plan' : 'Product'}
                 </Text>
                 <Text style={styles.itemPrice}>${item.price.toFixed(2)}</Text>
+
+                {/* View Recipe Button */}
+                {item.recipeId && (
+                  <TouchableOpacity
+                    style={styles.viewRecipeButton}
+                    onPress={() => nav.navigate('RecipeDetail', { recipeId: item.recipeId })}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="book-outline" size={14} color={colors.accent} />
+                    <Text style={styles.viewRecipeText}>View Recipe</Text>
+                  </TouchableOpacity>
+                )}
               </View>
-              
+
               <View style={styles.quantityContainer}>
                 <TouchableOpacity
                   style={styles.quantityButton}
@@ -161,9 +173,9 @@ export default function CartScreen() {
                 >
                   <Ionicons name="remove" size={16} color={colors.text} />
                 </TouchableOpacity>
-                
+
                 <Text style={styles.quantityText}>{item.quantity}</Text>
-                
+
                 <TouchableOpacity
                   style={styles.quantityButton}
                   onPress={() => handleQuantityChange(item.id, 1)}
@@ -172,7 +184,7 @@ export default function CartScreen() {
                   <Ionicons name="add" size={16} color={colors.text} />
                 </TouchableOpacity>
               </View>
-              
+
               <TouchableOpacity
                 style={styles.removeButton}
                 onPress={() => removeFromCart(item.id)}
@@ -375,6 +387,24 @@ const styles = StyleSheet.create({
   },
   itemPrice: {
     fontSize: 14,
+    fontWeight: '600',
+    color: colors.accent,
+  },
+  viewRecipeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(0.5),
+    marginTop: spacing(1),
+    paddingVertical: spacing(0.5),
+    paddingHorizontal: spacing(1),
+    backgroundColor: colors.bg,
+    borderRadius: radii.sm,
+    borderWidth: 1,
+    borderColor: colors.accent,
+    alignSelf: 'flex-start',
+  },
+  viewRecipeText: {
+    fontSize: 12,
     fontWeight: '600',
     color: colors.accent,
   },
