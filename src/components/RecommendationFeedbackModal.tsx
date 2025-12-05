@@ -17,6 +17,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, radii, fonts } from '../theme/tokens';
 import { trackRecommendationRating } from '../services/recommendationTrackingService';
+import { updateProfileFromFeedback } from '../services/feedbackLearningService';
+import { usePersonalization } from '../store/usePersonalization';
 
 interface RecommendationFeedbackModalProps {
   visible: boolean;
@@ -66,6 +68,8 @@ export default function RecommendationFeedbackModal({
   const [selectedReasons, setSelectedReasons] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const { profile, updateProfile } = usePersonalization();
+
   const handleThumbsUp = () => {
     setLiked(true);
     setSelectedReasons([]); // Clear any previous selections
@@ -112,6 +116,20 @@ export default function RecommendationFeedbackModal({
           }).join(', ')
         : undefined;
 
+      // Update taste profile weights based on feedback (Phase 2 Enhancement #3)
+      if (profile && liked !== null) {
+        console.log('📊 Updating taste profile from feedback...');
+        const profileUpdates = updateProfileFromFeedback(
+          profile,
+          recommendation,
+          liked,
+          selectedReasons
+        );
+        await updateProfile(profileUpdates);
+        console.log('✅ Taste profile updated successfully');
+      }
+
+      // Track the feedback in Firebase
       await trackRecommendationRating(
         userId,
         recommendation,
