@@ -24,6 +24,7 @@ import RecipeCard from './RecipeCard';
 import AIRecommendations from './AIRecommendations';
 import { ALL_COCKTAILS } from '../data/cocktails';
 import { getCocktailImage } from '../../assets/images/cocktails';
+import { getTrendingCocktails, getCurrentSeason, getSeasonDisplayName, getSeasonEmoji } from '../services/seasonalTrendingService';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = 240; // Standard recipe card width for horizontal scrolling (matches RecipesScreen)
@@ -45,7 +46,7 @@ export default function ForYouFeed({
   onRefineProfile,
 }: ForYouFeedProps) {
   const { profile, getFeaturedCocktails } = usePersonalization();
-  const [selectedTab, setSelectedTab] = useState<'matched' | 'beginner' | 'challenge'>('matched');
+  const [selectedTab, setSelectedTab] = useState<'matched' | 'beginner' | 'challenge' | 'trending'>('matched');
 
   // Get personalized data or fallback to defaults
   const tasteProfile = useMemo(() => {
@@ -69,13 +70,20 @@ export default function ForYouFeed({
   // Get recommended cocktails by category - ALL TABS USE PERSONALIZED RECOMMENDATIONS
   const recommendedCocktails = useMemo(() => {
     const featured = getFeaturedCocktails() || ALL_COCKTAILS.slice(0, 10);
+    const trending = getTrendingCocktails(ALL_COCKTAILS, 8);
 
     return {
       matched: featured.slice(0, 8), // Top personalized matches
       beginner: featured.filter(c => c.difficulty === 'Easy').slice(0, 8), // Personalized + Easy difficulty
       challenge: featured.filter(c => c.difficulty === 'Hard' || c.difficulty === 'Medium').slice(0, 8), // Personalized + Challenging difficulty
+      trending, // Seasonal trending cocktails
     };
   }, [getFeaturedCocktails]);
+
+  // Get current season info for trending tab
+  const currentSeason = getCurrentSeason();
+  const seasonName = getSeasonDisplayName(currentSeason);
+  const seasonEmoji = getSeasonEmoji(currentSeason);
 
   // Calculate flavor breakdown
   const flavorBreakdown = useMemo(() => {
@@ -173,6 +181,7 @@ export default function ForYouFeed({
       { id: 'matched' as const, label: '⭐ Matched for You', icon: 'star' },
       { id: 'beginner' as const, label: '🌱 Beginner Friendly', icon: 'leaf' },
       { id: 'challenge' as const, label: '🌶️ Flavor Challenges', icon: 'flame' },
+      { id: 'trending' as const, label: `${seasonEmoji} Trending ${seasonName}`, icon: 'trending-up' },
     ];
 
     return (
