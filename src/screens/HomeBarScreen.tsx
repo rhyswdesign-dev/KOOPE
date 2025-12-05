@@ -36,6 +36,73 @@ interface InventoryItem extends BarIngredient {
   usedInCocktails?: number;
 }
 
+// Predefined options for each category
+const CATEGORY_OPTIONS: Record<string, string[]> = {
+  mixer: [
+    'Tonic Water',
+    'Soda Water',
+    'Ginger Beer',
+    'Ginger Ale',
+    'Cola',
+    'Lemon-Lime Soda',
+    'Cranberry Juice',
+    'Orange Juice',
+    'Pineapple Juice',
+    'Tomato Juice',
+    'Coconut Cream',
+    'Cream',
+    'Milk',
+  ],
+  garnish: [
+    'Lemon',
+    'Lime',
+    'Orange',
+    'Cherry',
+    'Olives',
+    'Mint',
+    'Basil',
+    'Rosemary',
+    'Thyme',
+    'Cucumber',
+    'Celery',
+    'Cocktail Onions',
+  ],
+  syrup: [
+    'Simple Syrup',
+    'Grenadine',
+    'Honey Syrup',
+    'Agave Syrup',
+    'Orgeat',
+    'Ginger Syrup',
+    'Vanilla Syrup',
+    'Cinnamon Syrup',
+    'Maple Syrup',
+  ],
+  ingredient: [
+    'Sugar',
+    'Salt',
+    'Black Pepper',
+    'Cinnamon',
+    'Nutmeg',
+    'Vanilla Extract',
+    'Coconut Flakes',
+    'Coffee',
+    'Espresso',
+    'Egg Whites',
+    'Honey',
+    'Hot Sauce',
+    'Worcestershire Sauce',
+    'Tabasco',
+  ],
+  bitters: [
+    'Angostura Bitters',
+    'Orange Bitters',
+    'Peychaud\'s Bitters',
+    'Chocolate Bitters',
+    'Aromatic Bitters',
+  ],
+}
+
 // Mock data for demonstration
 const mockHomeBar: HomeBar = {
   id: 'default',
@@ -537,20 +604,7 @@ export default function HomeBarScreen() {
             </View>
 
             <ScrollView style={styles.modalForm} showsVerticalScrollIndicator={false}>
-              {/* Name Input */}
-              <View style={styles.formGroup}>
-                <Text style={styles.formLabel}>Name *</Text>
-                <TextInput
-                  style={styles.formInput}
-                  placeholder="e.g., Tito's Vodka"
-                  placeholderTextColor={colors.muted}
-                  value={manualEntryName}
-                  onChangeText={setManualEntryName}
-                  keyboardAppearance="dark"
-                />
-              </View>
-
-              {/* Category Picker */}
+              {/* Category Picker - Moved to top */}
               <View style={styles.formGroup}>
                 <Text style={styles.formLabel}>Category *</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryPicker}>
@@ -570,7 +624,11 @@ export default function HomeBarScreen() {
                         styles.categoryPickerButton,
                         manualEntryCategory === cat.value && styles.categoryPickerButtonActive
                       ]}
-                      onPress={() => setManualEntryCategory(cat.value as BarIngredient['category'])}
+                      onPress={() => {
+                        setManualEntryCategory(cat.value as BarIngredient['category']);
+                        // Clear name when switching categories to avoid confusion
+                        setManualEntryName('');
+                      }}
                     >
                       <Text
                         style={[
@@ -584,6 +642,70 @@ export default function HomeBarScreen() {
                   ))}
                 </ScrollView>
               </View>
+
+              {/* Name Input or Dropdown */}
+              <View style={styles.formGroup}>
+                <Text style={styles.formLabel}>Name *</Text>
+                {CATEGORY_OPTIONS[manualEntryCategory] ? (
+                  // Show dropdown for categories with predefined options
+                  <ScrollView style={styles.dropdownContainer} nestedScrollEnabled>
+                    {CATEGORY_OPTIONS[manualEntryCategory].map((option) => (
+                      <TouchableOpacity
+                        key={option}
+                        style={[
+                          styles.dropdownOption,
+                          manualEntryName === option && styles.dropdownOptionSelected
+                        ]}
+                        onPress={() => setManualEntryName(option)}
+                      >
+                        <Text style={[
+                          styles.dropdownOptionText,
+                          manualEntryName === option && styles.dropdownOptionTextSelected
+                        ]}>
+                          {option}
+                        </Text>
+                        {manualEntryName === option && (
+                          <Ionicons name="checkmark" size={20} color={colors.accent} />
+                        )}
+                      </TouchableOpacity>
+                    ))}
+                    {/* Custom option at the end */}
+                    <TouchableOpacity
+                      style={styles.dropdownCustomOption}
+                      onPress={() => setManualEntryName('')}
+                    >
+                      <Ionicons name="add-circle-outline" size={20} color={colors.accent} />
+                      <Text style={styles.dropdownCustomOptionText}>Custom / Other</Text>
+                    </TouchableOpacity>
+                  </ScrollView>
+                ) : (
+                  // Show text input for other categories
+                  <TextInput
+                    style={styles.formInput}
+                    placeholder="e.g., Tito's Vodka"
+                    placeholderTextColor={colors.muted}
+                    value={manualEntryName}
+                    onChangeText={setManualEntryName}
+                    keyboardAppearance="dark"
+                  />
+                )}
+              </View>
+
+              {/* Custom Name Input (shown when user wants custom option) */}
+              {CATEGORY_OPTIONS[manualEntryCategory] && manualEntryName === '' && (
+                <View style={styles.formGroup}>
+                  <Text style={styles.formLabel}>Custom Name *</Text>
+                  <TextInput
+                    style={styles.formInput}
+                    placeholder="Enter custom name"
+                    placeholderTextColor={colors.muted}
+                    value={manualEntryName}
+                    onChangeText={setManualEntryName}
+                    keyboardAppearance="dark"
+                    autoFocus
+                  />
+                </View>
+              )}
 
               {/* Brand Input */}
               <View style={styles.formGroup}>
@@ -918,6 +1040,45 @@ const styles = StyleSheet.create({
     color: colors.text,
     borderWidth: 1,
     borderColor: colors.line,
+  },
+  dropdownContainer: {
+    backgroundColor: colors.bg,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.line,
+    maxHeight: 300,
+  },
+  dropdownOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing(3),
+    paddingVertical: spacing(2),
+    borderBottomWidth: 1,
+    borderBottomColor: colors.line,
+  },
+  dropdownOptionSelected: {
+    backgroundColor: colors.card,
+  },
+  dropdownOptionText: {
+    fontSize: 16,
+    color: colors.text,
+  },
+  dropdownOptionTextSelected: {
+    fontWeight: '600',
+    color: colors.accent,
+  },
+  dropdownCustomOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(1),
+    paddingHorizontal: spacing(3),
+    paddingVertical: spacing(2),
+  },
+  dropdownCustomOptionText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.accent,
   },
   categoryPicker: {
     flexDirection: 'row',
