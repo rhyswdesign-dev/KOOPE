@@ -1,6 +1,7 @@
 /**
  * Recommendation Feedback Modal
- * Allows users to rate AI recommendations and provide feedback
+ * Allows users to provide thumbs up/down feedback on AI recommendations
+ * Phase 2: Simplified feedback with conditional detailed options
  */
 
 import React, { useState } from 'react';
@@ -10,7 +11,7 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  TextInput,
+  ScrollView,
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -34,6 +35,26 @@ interface RecommendationFeedbackModalProps {
   };
 }
 
+type FeedbackOption = {
+  id: string;
+  label: string;
+  icon: string;
+};
+
+const POSITIVE_FEEDBACK_OPTIONS: FeedbackOption[] = [
+  { id: 'perfect_taste', label: 'Perfect for my taste', icon: 'heart' },
+  { id: 'had_ingredients', label: 'Had all ingredients', icon: 'checkmark-circle' },
+  { id: 'love_spirit', label: 'Love this spirit', icon: 'wine' },
+  { id: 'good_match', label: 'Great match!', icon: 'star' },
+];
+
+const NEGATIVE_FEEDBACK_OPTIONS: FeedbackOption[] = [
+  { id: 'too_complex', label: 'Too complex', icon: 'alert-circle' },
+  { id: 'missing_ingredients', label: "Don't have ingredients", icon: 'close-circle' },
+  { id: 'not_my_taste', label: 'Not my taste', icon: 'thumbs-down' },
+  { id: 'wrong_spirit', label: "Don't like this spirit", icon: 'remove-circle' },
+];
+
 export default function RecommendationFeedbackModal({
   visible,
   onClose,
@@ -41,30 +62,71 @@ export default function RecommendationFeedbackModal({
   userId,
   context,
 }: RecommendationFeedbackModalProps) {
-  const [rating, setRating] = useState<number>(0);
-  const [feedback, setFeedback] = useState<string>('');
+  const [liked, setLiked] = useState<boolean | null>(null);
+  const [selectedReasons, setSelectedReasons] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const handleThumbsUp = () => {
+    setLiked(true);
+    setSelectedReasons([]); // Clear any previous selections
+  };
+
+  const handleThumbsDown = () => {
+    setLiked(false);
+    setSelectedReasons([]); // Clear any previous selections
+  };
+
+  const toggleReason = (reasonId: string) => {
+    if (selectedReasons.includes(reasonId)) {
+      setSelectedReasons(selectedReasons.filter(r => r !== reasonId));
+    } else {
+      setSelectedReasons([...selectedReasons, reasonId]);
+    }
+  };
+
   const handleSubmit = async () => {
-    if (rating === 0) {
-      Alert.alert('Rating Required', 'Please select a star rating before submitting.');
+    // Require at least one reason for thumbs down
+    if (liked === false && selectedReasons.length === 0) {
+      Alert.alert(
+        'Feedback Required',
+        'Please select at least one reason to help us improve.',
+        [{ text: 'OK' }]
+      );
       return;
     }
 
     setIsSubmitting(true);
 
     try {
+      // Convert thumbs up/down to a rating equivalent for backward compatibility
+      // Thumbs up = 5 stars, Thumbs down = 1 star
+      const rating = liked ? 5 : 1;
+
+      // Build feedback string from selected reasons
+      const feedbackText = selectedReasons.length > 0
+        ? selectedReasons.map(id => {
+            const option = liked
+              ? POSITIVE_FEEDBACK_OPTIONS.find(o => o.id === id)
+              : NEGATIVE_FEEDBACK_OPTIONS.find(o => o.id === id);
+            return option?.label || id;
+          }).join(', ')
+        : undefined;
+
       await trackRecommendationRating(
         userId,
         recommendation,
         rating,
-        feedback || undefined,
+        feedbackText,
         context
       );
 
+      const message = liked
+        ? "Thanks! We'll show you more cocktails like this."
+        : "Thanks for the feedback! We'll improve your recommendations.";
+
       Alert.alert(
-        'Thank You!',
-        'Your feedback helps us improve recommendations for everyone.',
+        'Feedback Received',
+        message,
         [{ text: 'OK', onPress: handleClose }]
       );
     } catch (error) {
@@ -76,10 +138,19 @@ export default function RecommendationFeedbackModal({
   };
 
   const handleClose = () => {
-    setRating(0);
-    setFeedback('');
+    setLiked(null);
+    setSelectedReasons([]);
     onClose();
   };
+
+  const feedbackOptions = liked === true
+    ? POSITIVE_FEEDBACK_OPTIONS
+    : liked === false
+    ? NEGATIVE_FEEDBACK_OPTIONS
+    : [];
+
+  const showFeedbackOptions = liked !== null;
+  const canSubmit = liked !== null && (liked === true || selectedReasons.length > 0);
 
   return (
     <Modal
@@ -92,7 +163,9 @@ export default function RecommendationFeedbackModal({
         <View style={styles.modal}>
           {/* Header */}
           <View style={styles.header}>
-            <Text style={styles.title}>Rate this Recommendation</Text>
+            <Text style={styles.title}>
+              {liked === null ? 'Rate this Recommendation' : liked ? 'What did you like?' : 'Help us improve'}
+            </Text>
             <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
               <Ionicons name="close" size={24} color={colors.text} />
             </TouchableOpacity>
@@ -101,70 +174,127 @@ export default function RecommendationFeedbackModal({
           {/* Cocktail Name */}
           <Text style={styles.cocktailName}>{recommendation.cocktailName}</Text>
 
-          {/* Star Rating */}
-          <View style={styles.ratingSection}>
-            <Text style={styles.ratingLabel}>How would you rate this suggestion?</Text>
-            <View style={styles.stars}>
-              {[1, 2, 3, 4, 5].map((star) => (
-                <TouchableOpacity
-                  key={star}
-                  onPress={() => setRating(star)}
-                  style={styles.starButton}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons
-                    name={star <= rating ? 'star' : 'star-outline'}
-                    size={40}
-                    color={star <= rating ? colors.gold : colors.subtext}
-                  />
-                </TouchableOpacity>
-              ))}
+          {/* Thumbs Up/Down */}
+          <View style={styles.thumbsSection}>
+            <Text style={styles.thumbsLabel}>
+              {liked === null ? 'Did you like this recommendation?' : 'Your rating'}
+            </Text>
+            <View style={styles.thumbsButtons}>
+              <TouchableOpacity
+                style={[
+                  styles.thumbButton,
+                  liked === true && styles.thumbButtonSelected,
+                  liked === true && styles.thumbButtonLiked,
+                ]}
+                onPress={handleThumbsUp}
+                activeOpacity={0.7}
+                disabled={isSubmitting}
+              >
+                <Ionicons
+                  name="thumbs-up"
+                  size={48}
+                  color={liked === true ? colors.white : colors.subtext}
+                />
+                <Text style={[
+                  styles.thumbButtonText,
+                  liked === true && styles.thumbButtonTextSelected
+                ]}>
+                  Yes
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.thumbButton,
+                  liked === false && styles.thumbButtonSelected,
+                  liked === false && styles.thumbButtonDisliked,
+                ]}
+                onPress={handleThumbsDown}
+                activeOpacity={0.7}
+                disabled={isSubmitting}
+              >
+                <Ionicons
+                  name="thumbs-down"
+                  size={48}
+                  color={liked === false ? colors.white : colors.subtext}
+                />
+                <Text style={[
+                  styles.thumbButtonText,
+                  liked === false && styles.thumbButtonTextSelected
+                ]}>
+                  No
+                </Text>
+              </TouchableOpacity>
             </View>
-            {rating > 0 && (
-              <Text style={styles.ratingText}>
-                {rating === 1 && 'Not helpful'}
-                {rating === 2 && 'Could be better'}
-                {rating === 3 && 'Okay'}
-                {rating === 4 && 'Good recommendation'}
-                {rating === 5 && 'Perfect match!'}
-              </Text>
-            )}
           </View>
 
-          {/* Feedback Text */}
-          <View style={styles.feedbackSection}>
-            <Text style={styles.feedbackLabel}>
-              Additional feedback (optional)
-            </Text>
-            <TextInput
-              style={styles.feedbackInput}
-              placeholder="Tell us more about your experience..."
-              placeholderTextColor={colors.subtext}
-              multiline
-              numberOfLines={4}
-              value={feedback}
-              onChangeText={setFeedback}
-              maxLength={500}
-            />
-          </View>
+          {/* Feedback Options (conditional) */}
+          {showFeedbackOptions && (
+            <ScrollView style={styles.feedbackOptionsSection} showsVerticalScrollIndicator={false}>
+              <Text style={styles.feedbackOptionsLabel}>
+                {liked ? 'Why did you like it? (optional)' : 'Why not? (select at least one)'}
+              </Text>
+              <View style={styles.feedbackOptions}>
+                {feedbackOptions.map((option) => {
+                  const isSelected = selectedReasons.includes(option.id);
+                  return (
+                    <TouchableOpacity
+                      key={option.id}
+                      style={[
+                        styles.feedbackOption,
+                        isSelected && styles.feedbackOptionSelected,
+                        liked === true && isSelected && styles.feedbackOptionLiked,
+                        liked === false && isSelected && styles.feedbackOptionDisliked,
+                      ]}
+                      onPress={() => toggleReason(option.id)}
+                      activeOpacity={0.7}
+                      disabled={isSubmitting}
+                    >
+                      <Ionicons
+                        name={option.icon as any}
+                        size={20}
+                        color={isSelected ? colors.white : colors.text}
+                      />
+                      <Text style={[
+                        styles.feedbackOptionText,
+                        isSelected && styles.feedbackOptionTextSelected
+                      ]}>
+                        {option.label}
+                      </Text>
+                      {isSelected && (
+                        <Ionicons
+                          name="checkmark-circle"
+                          size={20}
+                          color={colors.white}
+                        />
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </ScrollView>
+          )}
 
           {/* Submit Button */}
-          <TouchableOpacity
-            style={[styles.submitButton, rating === 0 && styles.submitButtonDisabled]}
-            onPress={handleSubmit}
-            disabled={isSubmitting || rating === 0}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.submitButtonText}>
-              {isSubmitting ? 'Submitting...' : 'Submit Feedback'}
-            </Text>
-          </TouchableOpacity>
+          {showFeedbackOptions && (
+            <TouchableOpacity
+              style={[styles.submitButton, !canSubmit && styles.submitButtonDisabled]}
+              onPress={handleSubmit}
+              disabled={isSubmitting || !canSubmit}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.submitButtonText}>
+                {isSubmitting ? 'Submitting...' : 'Submit Feedback'}
+              </Text>
+            </TouchableOpacity>
+          )}
 
           {/* Skip Button */}
           <TouchableOpacity
             style={styles.skipButton}
             onPress={handleClose}
             activeOpacity={0.7}
+            disabled={isSubmitting}
           >
             <Text style={styles.skipButtonText}>Skip for now</Text>
           </TouchableOpacity>
@@ -188,6 +318,7 @@ const styles = StyleSheet.create({
     padding: spacing(3),
     width: '100%',
     maxWidth: 400,
+    maxHeight: '80%',
     borderWidth: 1,
     borderColor: colors.line,
   },
@@ -198,63 +329,105 @@ const styles = StyleSheet.create({
     marginBottom: spacing(2),
   },
   title: {
-    fontSize: fonts.h2,
+    fontSize: fonts.h3,
     fontWeight: '700',
     color: colors.text,
+    flex: 1,
   },
   closeButton: {
     padding: spacing(0.5),
   },
   cocktailName: {
-    fontSize: fonts.h3,
-    fontWeight: '600',
+    fontSize: fonts.h2,
+    fontWeight: '700',
     color: colors.accent,
     marginBottom: spacing(3),
     textAlign: 'center',
   },
-  ratingSection: {
+  thumbsSection: {
     marginBottom: spacing(3),
   },
-  ratingLabel: {
+  thumbsLabel: {
     fontSize: fonts.body,
     color: colors.text,
     marginBottom: spacing(2),
     textAlign: 'center',
+    fontWeight: '600',
   },
-  stars: {
+  thumbsButtons: {
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: spacing(1),
-    marginBottom: spacing(1),
+    gap: spacing(3),
   },
-  starButton: {
-    padding: spacing(0.5),
-  },
-  ratingText: {
-    fontSize: fonts.small,
-    color: colors.gold,
-    textAlign: 'center',
-    fontWeight: '600',
-    marginTop: spacing(1),
-  },
-  feedbackSection: {
-    marginBottom: spacing(3),
-  },
-  feedbackLabel: {
-    fontSize: fonts.small,
-    color: colors.subtext,
-    marginBottom: spacing(1),
-  },
-  feedbackInput: {
-    backgroundColor: colors.bg,
-    borderRadius: radii.md,
+  thumbButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
     padding: spacing(2),
-    color: colors.text,
+    borderRadius: radii.lg,
+    backgroundColor: colors.bg,
+    borderWidth: 2,
+    borderColor: colors.line,
+    minWidth: 120,
+    gap: spacing(1),
+  },
+  thumbButtonSelected: {
+    borderColor: 'transparent',
+  },
+  thumbButtonLiked: {
+    backgroundColor: '#22c55e', // Green
+  },
+  thumbButtonDisliked: {
+    backgroundColor: '#ef4444', // Red
+  },
+  thumbButtonText: {
     fontSize: fonts.body,
+    fontWeight: '600',
+    color: colors.subtext,
+  },
+  thumbButtonTextSelected: {
+    color: colors.white,
+  },
+  feedbackOptionsSection: {
+    maxHeight: 280,
+    marginBottom: spacing(2),
+  },
+  feedbackOptionsLabel: {
+    fontSize: fonts.small,
+    color: colors.text,
+    marginBottom: spacing(1.5),
+    fontWeight: '600',
+  },
+  feedbackOptions: {
+    gap: spacing(1),
+  },
+  feedbackOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(1.5),
+    padding: spacing(2),
+    borderRadius: radii.md,
+    backgroundColor: colors.bg,
     borderWidth: 1,
     borderColor: colors.line,
-    minHeight: 100,
-    textAlignVertical: 'top',
+  },
+  feedbackOptionSelected: {
+    borderColor: 'transparent',
+  },
+  feedbackOptionLiked: {
+    backgroundColor: '#22c55e',
+  },
+  feedbackOptionDisliked: {
+    backgroundColor: '#ef4444',
+  },
+  feedbackOptionText: {
+    flex: 1,
+    fontSize: fonts.body,
+    color: colors.text,
+    fontWeight: '500',
+  },
+  feedbackOptionTextSelected: {
+    color: colors.white,
+    fontWeight: '600',
   },
   submitButton: {
     backgroundColor: colors.accent,
