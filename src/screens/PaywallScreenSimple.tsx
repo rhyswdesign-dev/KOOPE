@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { spacing } from '../theme/tokens';
+import { colors, spacing } from '../theme/tokens';
 import { useSubscription } from '../contexts/SubscriptionContext';
 import { TIERS } from '../constants/tierBenefits';
 import TierComparisonCard from '../components/TierComparisonCard';

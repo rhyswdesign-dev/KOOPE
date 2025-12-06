@@ -8,6 +8,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/RootNavigator';
 import { Survey } from '../../components/onboarding/Survey';
 import { SurveyAnswers } from '../../services/placement';
+import { colors } from '../../theme/tokens';
 
 type SurveyScreenProps = {
   navigation?: NativeStackNavigationProp<RootStackParamList, 'Survey'>;

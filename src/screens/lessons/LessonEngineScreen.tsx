@@ -10,6 +10,7 @@ import { RootStackParamList } from '../../navigation/RootNavigator';
 import { LessonEngine } from '../../components/engine/LessonEngine';
 import { useUser } from '../../store/useUser';
 import RequirePro from '../../components/RequirePro';
+import { colors } from '../../theme/tokens';
 
 type LessonEngineScreenProps = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'LessonEngine'>;

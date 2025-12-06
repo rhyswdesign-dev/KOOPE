@@ -9,6 +9,7 @@ import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { useAuth } from '../../contexts/AuthContext';
 import { RootStackParamList } from '../../navigation/RootNavigator';
+import { colors } from '../../theme/tokens';
 
 type ConsentScreenProps = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Consent'>;
