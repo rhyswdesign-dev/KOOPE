@@ -22,7 +22,7 @@ import { initializeUserRecipes } from './src/store/useUserRecipes';
 import { streakService } from './src/services/streakService';
 import { useAchievementNotifications } from './src/hooks/useAchievementNotifications';
 import AchievementUnlockModal from './src/components/AchievementUnlockModal';
-import { initAnalytics } from './src/lib/analytics';
+import { initAnalytics } from './src/services/analytics';
 
 // Override console.error to filter out Firebase offline errors and RevenueCat analytics bugs
 const originalConsoleError = console.error;
