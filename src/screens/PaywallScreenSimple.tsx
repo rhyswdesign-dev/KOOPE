@@ -178,7 +178,7 @@ export default function PaywallScreenSimple({ route }: PaywallScreenSimpleProps)
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0F1115',
+    backgroundColor: colors.bg,
   },
   closeButton: {
     position: 'absolute',
@@ -217,7 +217,7 @@ const styles = StyleSheet.create({
   },
   toggleContainer: {
     flexDirection: 'row',
-    backgroundColor: '#1A1D23',
+    backgroundColor: colors.card,
     borderRadius: 12,
     padding: 4,
     marginHorizontal: spacing(3),
@@ -230,7 +230,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   toggleButtonActive: {
-    backgroundColor: '#D4AF37',
+    backgroundColor: colors.accent,
   },
   toggleText: {
     fontSize: 14,
@@ -254,7 +254,7 @@ const styles = StyleSheet.create({
   subscriberText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#D4AF37',
+    color: colors.accent,
   },
   tiersContainer: {
     paddingHorizontal: spacing(3),

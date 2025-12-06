@@ -242,10 +242,10 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#1A1512'
+    backgroundColor: colors.bg
   },
   errorText: {
-    color: '#F4ECE4',
+    color: colors.text,
     fontSize: 18,
     fontWeight: '600'
   },
@@ -268,19 +268,19 @@ const styles = StyleSheet.create({
     paddingBottom: 40
   },
   heroTitle: {
-    color: '#F4ECE4',
+    color: colors.text,
     fontSize: 32,
     fontWeight: '900',
     marginBottom: 12
   },
   heroSubtitle: {
-    color: '#C9BEB3',
+    color: colors.subtext,
     fontSize: 18,
     fontWeight: '500',
     marginBottom: 20
   },
   xpBadge: {
-    backgroundColor: '#E58B2B',
+    backgroundColor: colors.accent,
     borderRadius: 24,
     paddingHorizontal: 16,
     paddingVertical: 8,
@@ -292,7 +292,7 @@ const styles = StyleSheet.create({
     fontWeight: '700'
   },
   content: {
-    backgroundColor: '#1A1512'
+    backgroundColor: colors.bg
   },
   section: {
     marginBottom: 24

@@ -148,7 +148,7 @@ export default function SurveyResultsScreen({ navigation, route }: SurveyResults
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: colors.white,
   },
   content: {
     padding: 24,
@@ -172,7 +172,7 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
   levelCard: {
-    backgroundColor: '#f8f9fa',
+    backgroundColor: colors.card,
     borderRadius: 16,
     padding: 20,
     alignItems: 'center',
@@ -195,7 +195,7 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   trackCard: {
-    backgroundColor: '#f8f9fa',
+    backgroundColor: colors.card,
     borderRadius: 16,
     padding: 20,
     alignItems: 'center',
@@ -222,7 +222,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   spiritsCard: {
-    backgroundColor: '#f8f9fa',
+    backgroundColor: colors.card,
     borderRadius: 16,
     padding: 20,
   },
@@ -238,7 +238,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   spiritTag: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.white,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
@@ -251,7 +251,7 @@ const styles = StyleSheet.create({
     textTransform: 'capitalize',
   },
   sessionCard: {
-    backgroundColor: '#f8f9fa',
+    backgroundColor: colors.card,
     borderRadius: 16,
     padding: 20,
     alignItems: 'center',
@@ -274,7 +274,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   interlude: {
-    backgroundColor: '#e3f2fd',
+    backgroundColor: colors.card,
     borderRadius: 16,
     padding: 20,
     marginBottom: 32,

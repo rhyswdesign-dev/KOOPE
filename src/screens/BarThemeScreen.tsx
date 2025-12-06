@@ -8,7 +8,7 @@ export default function BarThemeScreen() {
   return (
     <View style={{ flex:1, backgroundColor:colors.bg, alignItems:'center', justifyContent:'center', padding:24 }}>
       <Text style={{ color: 'white', fontSize: 28, fontWeight: '900' }}>{params.theme}</Text>
-      <Text style={{ color: '#B9B2AB', marginTop: 8 }}>Curated bars for this vibe coming soon.</Text>
+      <Text style={{ color: colors.subtext, marginTop: 8 }}>Curated bars for this vibe coming soon.</Text>
     </View>
   );
 }

@@ -880,7 +880,7 @@ const styles = StyleSheet.create({
   cardImageContainer: {
     width: '100%',
     height: 140,
-    backgroundColor: '#2a2a2a',
+    backgroundColor: colors.card,
     alignItems: 'center',
     justifyContent: 'center',
     padding: spacing(2),

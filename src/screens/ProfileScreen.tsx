@@ -156,7 +156,7 @@ export default function ProfileScreen() {
               onPress={() => nav.navigate('Paywall', { displayCloseButton: true })}
             >
               <Ionicons name="diamond-outline" size={20} color="#D4AF37" />
-              <Text style={[styles.settingButtonText, { color: '#D4AF37', fontWeight: '600' }]}>
+              <Text style={[styles.settingButtonText, { color: colors.accent, fontWeight: '600' }]}>
                 Upgrade to KOOPE+
               </Text>
               <Ionicons name="chevron-forward" size={20} color="#D4AF37" />
@@ -270,7 +270,7 @@ export default function ProfileScreen() {
             onPress={() => nav.navigate('Paywall', { displayCloseButton: true })}
           >
             <Ionicons name="diamond-outline" size={20} color="#D4AF37" />
-            <Text style={[styles.settingButtonText, { color: '#D4AF37', fontWeight: '600' }]}>
+            <Text style={[styles.settingButtonText, { color: colors.accent, fontWeight: '600' }]}>
               Upgrade to KOOPE+
             </Text>
             <Ionicons name="chevron-forward" size={20} color="#D4AF37" />

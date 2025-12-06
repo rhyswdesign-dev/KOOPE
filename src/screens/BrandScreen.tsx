@@ -8,7 +8,7 @@ export default function BrandScreen() {
   return (
     <View style={{ flex:1, backgroundColor:colors.bg, alignItems:'center', justifyContent:'center', padding:24 }}>
       <Text style={{ color: 'white', fontSize: 28, fontWeight: '900' }}>{params.brand}</Text>
-      <Text style={{ color: '#B9B2AB', marginTop: 8 }}>Brand landing coming soon.</Text>
+      <Text style={{ color: colors.subtext, marginTop: 8 }}>Brand landing coming soon.</Text>
     </View>
   );
 }

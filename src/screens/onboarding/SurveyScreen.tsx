@@ -35,6 +35,6 @@ export default function SurveyScreen({ navigation, onComplete }: SurveyScreenPro
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: colors.white,
   },
 });

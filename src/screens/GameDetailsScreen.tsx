@@ -8,7 +8,7 @@ export default function GameDetailsScreen() {
   const nav = useNavigation();
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#1f140d', alignItems: 'center', justifyContent: 'center' }}>
+    <View style={{ flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' }}>
       <Text style={{ color: '#f5ece3' }}>Game Details (coming soon)</Text>
     </View>
   );

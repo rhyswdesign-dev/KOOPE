@@ -314,7 +314,7 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   subscriptionLockedCard: {
-    borderColor: '#D4AF37',
+    bordercolor: colors.accent,
     borderWidth: 2,
   },
   
@@ -366,7 +366,7 @@ const styles = StyleSheet.create({
     right: spacing(1),
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#D4AF37',
+    backgroundColor: colors.accent,
     paddingHorizontal: spacing(1.5),
     paddingVertical: spacing(0.5),
     borderRadius: radii.sm,
@@ -559,7 +559,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#9C27B0',
   },
   upgradeButton: {
-    backgroundColor: '#D4AF37',
+    backgroundColor: colors.accent,
   },
   actionButtonText: {
     fontSize: 14,

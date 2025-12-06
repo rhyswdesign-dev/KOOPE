@@ -309,7 +309,7 @@ export default function FeaturedBarsScreen() {
             style={{
               flexDirection: 'row',
               alignItems: 'center',
-              backgroundColor: '#2b2420',
+              backgroundColor: colors.card,
               borderColor: '#3b312a',
               borderWidth: 1,
               paddingHorizontal: 12,

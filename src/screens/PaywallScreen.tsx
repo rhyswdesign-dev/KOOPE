@@ -83,9 +83,9 @@ const TIERS: TierData[] = [
     monthlyPriceDetail: '/month',
     yearlyPrice: '$71.99',
     yearlyPriceDetail: '/year (save 33%)',
-    color: '#D4AF37',
-    buttonColor: '#D4AF37',
-    borderColor: '#D4AF37',
+    color: colors.accent,
+    buttoncolor: colors.accent,
+    bordercolor: colors.accent,
   },
   {
     id: 'koope_pro',
@@ -545,11 +545,11 @@ export default function PaywallScreen({ route }: PaywallScreenProps) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0F1115',
+    backgroundColor: colors.bg,
   },
   loadingContainer: {
     flex: 1,
-    backgroundColor: '#0F1115',
+    backgroundColor: colors.bg,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -595,7 +595,7 @@ const styles = StyleSheet.create({
   },
   billingToggleContainer: {
     flexDirection: 'row',
-    backgroundColor: '#1A1D23',
+    backgroundColor: colors.card,
     borderRadius: 12,
     padding: 4,
     marginHorizontal: spacing(3),
@@ -611,7 +611,7 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   billingToggleButtonActive: {
-    backgroundColor: '#D4AF37',
+    backgroundColor: colors.accent,
   },
   billingToggleText: {
     fontSize: 14,
@@ -655,7 +655,7 @@ const styles = StyleSheet.create({
   subscriberText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#D4AF37',
+    color: colors.accent,
   },
   tiersContainer: {
     paddingHorizontal: spacing(3),
@@ -666,7 +666,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     padding: spacing(4),
     width: '100%',
-    backgroundColor: '#1A1D23',
+    backgroundColor: colors.card,
   },
   badge: {
     alignSelf: 'flex-start',

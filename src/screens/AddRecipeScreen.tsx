@@ -625,7 +625,7 @@ export default function AddRecipeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F7',
+    backgroundColor: colors.card,
   },
   content: {
     flex: 1,
@@ -723,10 +723,10 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   placeholderText: {
-    color: '#C7C7CC',
+    color: colors.subtext,
   },
   saveButton: {
-    backgroundColor: '#2C2C2E',
+    backgroundColor: colors.card,
     borderRadius: radii.md,
     paddingVertical: spacing(2.5),
     alignItems: 'center',

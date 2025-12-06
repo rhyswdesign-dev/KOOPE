@@ -200,7 +200,7 @@ const styles = StyleSheet.create({
   },
   heroSubtitle: {
     fontSize: 16,
-    color: '#CFC8C0',
+    color: colors.subtext,
     fontWeight: '500',
   },
   section: {
