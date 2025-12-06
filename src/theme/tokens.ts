@@ -4,13 +4,14 @@
  */
 export const colors = {
   // App Structure
-  bg:            '#20150F', // app background
-  card:          '#2B1B12', // section / card background
-  modalOverlay:  'rgba(0,0,0,0.53)', // modal backgrounds
-  
+  bg:            '#1A120D', // espresso brown - primary background
+  card:          '#2B1F17', // darker brown - section / card background
+  modalOverlay:  'rgba(0,0,0,0.8)', // modal backgrounds
+  modalBg:       '#3B291F', // modal content background
+
   // Navigation
-  headerBg:      '#2A211C', // navigation header
-  headerText:    '#F4E6D0', // header title/back button
+  headerBg:      '#1A120D', // same as primary background
+  headerText:    '#F2E5D5', // soft cream - header title/back button
   
   // Chips & Pills
   chipBg:        '#3A2A1F',
@@ -18,20 +19,20 @@ export const colors = {
   chipBorder:    'rgba(255,255,255,0.08)',
   
   // Text Hierarchy
-  text:          '#F5ECDF', // primary text
-  textLight:     '#F4ECE4', // light variant
-  textMuted:     '#EDE6DE', // secondary text  
-  subtext:       '#D6C2A8', // tertiary text
-  subtle:        '#C9BEB3', // very subtle text
-  muted:         'rgba(245,236,223,0.6)', // semi-transparent
-  
-  // Accents & Highlights
-  gold:          '#D7A15E', // primary accent
-  goldText:      '#0D0906', // text on gold
-  accent:        '#E4933E', // secondary accent
-  accentDark:    '#B7742A', // darker accent for gradients
-  accentText:    '#E4933E', // accent text color
-  accentLight:   '#F2D59A', // light accent for icons
+  text:          '#F2E5D5', // soft cream - primary text
+  textLight:     '#F2E5D5', // soft cream
+  textMuted:     '#C7B8A5', // muted cream - secondary text
+  subtext:       '#C7B8A5', // muted cream - tertiary text
+  subtle:        '#C7B8A5', // muted cream
+  muted:         'rgba(242,229,213,0.35)', // disabled text
+
+  // Accents & Highlights (Amber/Gold)
+  gold:          '#D68A38', // amber gold - primary accent
+  goldText:      '#1A120D', // dark text on gold
+  accent:        '#D68A38', // amber gold - unified accent
+  accentDark:    '#E89C40', // glowing gold for gradients
+  accentText:    '#D68A38', // accent text color
+  accentLight:   '#E89C40', // highlighted icons
   
   // System Colors
   white:         '#FFFFFF',
@@ -69,10 +70,11 @@ export const colors = {
 export const spacing = (n: number) => 8 * n;
 
 export const radii = {
-  sm: 10,
-  md: 14,
-  lg: 18,
-  xl: 22,
+  sm: 10,    // small elements
+  md: 14,    // medium cards/inputs
+  lg: 18,    // large cards
+  xl: 22,    // pill buttons (22-24px)
+  pill: 9999, // full pill shape
 };
 
 export const fonts = {
@@ -150,56 +152,56 @@ export const standardText = {
 // Global Button Styles
 export const buttons = {
   primary: {
-    backgroundColor: colors.accent,
-    color: colors.pillTextOnLight,
+    backgroundColor: colors.accent, // amber/gold fill
+    color: colors.white,
     fontSize: 16,
-    fontWeight: '600' as const,
-    paddingHorizontal: spacing(2),
-    paddingVertical: spacing(1.5),
-    borderRadius: radii.xl,
-    height: 44,
+    fontWeight: '700' as const,
+    paddingHorizontal: spacing(3),
+    paddingVertical: spacing(1.75),
+    borderRadius: radii.pill, // full pill shape
+    height: 48,
     justifyContent: 'center' as const,
     alignItems: 'center' as const,
     flexDirection: 'row' as const,
   },
   secondary: {
     backgroundColor: 'transparent',
-    color: colors.accent,
+    color: colors.accent, // amber text
     fontSize: 16,
     fontWeight: '600' as const,
-    paddingHorizontal: spacing(2),
-    paddingVertical: spacing(1.5),
-    borderRadius: radii.xl,
-    borderWidth: 1,
-    borderColor: colors.accent,
-    height: 44,
+    paddingHorizontal: spacing(3),
+    paddingVertical: spacing(1.75),
+    borderRadius: radii.pill, // full pill shape
+    borderWidth: 1.5,
+    borderColor: colors.accent, // amber border
+    height: 48,
     justifyContent: 'center' as const,
     alignItems: 'center' as const,
     flexDirection: 'row' as const,
   },
-  ghost: {
+  tertiary: {
     backgroundColor: 'transparent',
-    color: colors.accent,
+    color: colors.text, // cream text
     fontSize: 16,
     fontWeight: '600' as const,
     paddingHorizontal: spacing(2),
     paddingVertical: spacing(1.5),
-    borderRadius: radii.xl,
+    borderRadius: radii.pill,
     height: 44,
     justifyContent: 'center' as const,
     alignItems: 'center' as const,
     flexDirection: 'row' as const,
   },
   pill: {
-    backgroundColor: colors.pillButtonColor,
-    color: colors.pillTextOnLight,
+    backgroundColor: colors.accent,
+    color: colors.white,
     fontSize: 16,
-    fontWeight: '600' as const,
-    paddingHorizontal: spacing(2),
-    paddingVertical: spacing(1.5),
-    borderRadius: 9999,
-    height: 44,
-    minWidth: 44,
+    fontWeight: '700' as const,
+    paddingHorizontal: spacing(3),
+    paddingVertical: spacing(1.75),
+    borderRadius: radii.pill,
+    height: 48,
+    minWidth: 48,
     justifyContent: 'center' as const,
     alignItems: 'center' as const,
     flexDirection: 'row' as const,
@@ -207,8 +209,9 @@ export const buttons = {
   // Standardized CTA button for cards
   cta: {
     backgroundColor: colors.accent,
-    borderRadius: 24,
-    paddingVertical: spacing(1.5),
+    borderRadius: radii.pill,
+    paddingVertical: spacing(1.75),
+    paddingHorizontal: spacing(3),
     marginTop: spacing(2),
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
@@ -216,7 +219,7 @@ export const buttons = {
   },
   ctaText: {
     fontSize: 16,
-    fontWeight: '600' as const,
+    fontWeight: '700' as const,
     color: colors.white,
   },
 };
