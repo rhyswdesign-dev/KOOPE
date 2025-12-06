@@ -94,8 +94,8 @@ export default function App() {
 
   // Initialize user recipes store and record daily streak on app startup
   React.useEffect(() => {
-    // Initialize Mixpanel analytics
-    initAnalytics('df3cfbf07c1d857a1ff9c78fc44c274a');
+    // Initialize analytics with memory sink for development
+    initAnalytics({ provider: 'memory' });
 
     initializeUserRecipes();
 
