@@ -1,6 +1,7 @@
 import * as React from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import RootNavigator from './src/navigation/RootNavigator';
+import { colors } from './src/theme/tokens';
 import SplashScreen from './src/screens/SplashScreen';
 import BartendingWelcomeScreen from './src/screens/BartendingWelcomeScreen';
 import AuthScreen from './src/screens/AuthScreen';
@@ -72,6 +73,21 @@ console.error = (...args: any[]) => {
   originalConsoleError.apply(console, args);
 };
 
+// KOOPE Dark Theme for React Navigation
+const KOOPETheme = {
+  ...DefaultTheme,
+  dark: true,
+  colors: {
+    ...DefaultTheme.colors,
+    primary: colors.accent,        // Amber gold for interactive elements
+    background: colors.bg,          // Espresso brown background
+    card: colors.card,              // Darker brown for cards/headers
+    text: colors.text,              // Soft cream text
+    border: colors.line,            // Subtle borders
+    notification: colors.accent,    // Amber for notifications
+  },
+};
+
 export default function App() {
   const { appState, handleSplashFinish, completeBartendingWelcome, completeWelcome, completeOnboarding, completeSurvey, skipToXPReminder, completeXPReminder, goBackToOnboarding } = useOnboarding();
   const { unlockedAchievement, clearUnlockedAchievement } = useAchievementNotifications();
@@ -136,7 +152,7 @@ export default function App() {
               <UserProvider>
                 <VaultProvider>
                   <PostsProvider>
-                    <NavigationContainer>
+                    <NavigationContainer theme={KOOPETheme}>
                       <RootNavigator />
                     </NavigationContainer>
 
