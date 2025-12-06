@@ -24,6 +24,7 @@ import { usePersonalization } from '../store/usePersonalization';
 import { SurveyAnswers } from '../services/placement';
 import { trackEvent } from '../lib/analytics';
 import { spiritImages } from '../../assets/images/spirits';
+import { flavorImages } from '../../assets/images/flavors';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'RefineYourTaste'>;
 
@@ -53,13 +54,13 @@ const TASTE_QUESTIONS = [
     question: 'What flavor profiles do you prefer?',
     subtitle: 'Pick your top 3-4 favorites',
     options: [
-      { value: 'citrus', label: 'Citrus & Fresh', emoji: '🍋' },
-      { value: 'herbal', label: 'Herbal & Green', emoji: '🌿' },
-      { value: 'bitter', label: 'Bitter & Complex', emoji: '☕' },
-      { value: 'sweet', label: 'Sweet & Fruity', emoji: '🍓' },
-      { value: 'smoky', label: 'Smoky & Bold', emoji: '🔥' },
-      { value: 'floral', label: 'Floral & Light', emoji: '🌸' },
-      { value: 'spiced', label: 'Spiced & Warm', emoji: '🌶️' },
+      { value: 'citrus', label: 'Citrus & Fresh', emoji: '🍋', flavorKey: 'fruity' as const },
+      { value: 'herbal', label: 'Herbal & Green', emoji: '🌿', flavorKey: 'herbal' as const },
+      { value: 'bitter', label: 'Bitter & Complex', emoji: '☕', flavorKey: 'bitter' as const },
+      { value: 'sweet', label: 'Sweet & Fruity', emoji: '🍓', flavorKey: 'sweet' as const },
+      { value: 'smoky', label: 'Smoky & Bold', emoji: '🔥', flavorKey: 'boozy' as const },
+      { value: 'floral', label: 'Floral & Light', emoji: '🌸', flavorKey: 'floral' as const },
+      { value: 'spiced', label: 'Spiced & Warm', emoji: '🌶️', flavorKey: 'spicy' as const },
     ],
   },
   {
@@ -257,6 +258,11 @@ export default function RefineYourTasteScreen({ navigation }: Props) {
                     source={spiritImages[option.spiritKey]}
                     style={styles.optionImage}
                   />
+                ) : option.flavorKey && flavorImages?.[option.flavorKey] ? (
+                  <Image
+                    source={flavorImages[option.flavorKey]}
+                    style={styles.optionImage}
+                  />
                 ) : (
                   <Text style={styles.optionEmoji}>{option.emoji}</Text>
                 )}
@@ -290,6 +296,11 @@ export default function RefineYourTasteScreen({ navigation }: Props) {
                     {option.spiritKey && spiritImages?.[option.spiritKey] ? (
                       <Image
                         source={spiritImages[option.spiritKey]}
+                        style={styles.optionImage}
+                      />
+                    ) : option.flavorKey && flavorImages?.[option.flavorKey] ? (
+                      <Image
+                        source={flavorImages[option.flavorKey]}
                         style={styles.optionImage}
                       />
                     ) : (
