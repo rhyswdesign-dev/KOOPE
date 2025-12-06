@@ -231,6 +231,7 @@ export default function HomeBarScreen() {
   const [manualEntryCategory, setManualEntryCategory] = useState<BarIngredient['category']>('spirit');
   const [manualEntryBrand, setManualEntryBrand] = useState('');
   const [manualEntryVolume, setManualEntryVolume] = useState('');
+  const [showCustomInput, setShowCustomInput] = useState(false);
 
   useLayoutEffect(() => {
     nav.setOptions({
@@ -316,16 +317,6 @@ export default function HomeBarScreen() {
   const mixerCount = homeBar.ingredients.filter(i => i.category === 'mixer').length;
   const totalRecipes = Math.max(12, homeBar.ingredients.length * 2); // Mock calculation
 
-  const handleSmartSummary = () => {
-    Alert.alert(
-      'Smart Summary',
-      `Your bar can make ${totalRecipes}+ cocktails!\n\n` +
-      `You have ${spiritCount} spirits and ${mixerCount} mixers.\n\n` +
-      `${lowStock.length} items are running low and should be restocked soon.`,
-      [{ text: 'Got it', style: 'default' }]
-    );
-  };
-
   const handleSeeRecipes = () => {
     nav.navigate('Recipes');
   };
@@ -371,9 +362,8 @@ export default function HomeBarScreen() {
       setManualEntryCategory('spirit');
       setManualEntryBrand('');
       setManualEntryVolume('');
+      setShowCustomInput(false);
       setShowManualEntryModal(false);
-
-      Alert.alert('Success', `${newIngredient.name} added to your bar!`);
     } catch (error) {
       Alert.alert('Error', 'Failed to add ingredient. Please try again.');
     }
@@ -384,6 +374,7 @@ export default function HomeBarScreen() {
     setManualEntryCategory('spirit');
     setManualEntryBrand('');
     setManualEntryVolume('');
+    setShowCustomInput(false);
     setShowManualEntryModal(false);
   };
 
@@ -577,11 +568,6 @@ export default function HomeBarScreen() {
 
       {/* Bottom Action Buttons */}
       <View style={styles.bottomActions}>
-        <TouchableOpacity style={styles.smartSummaryButton} onPress={handleSmartSummary}>
-          <Ionicons name="bulb" size={20} color={colors.bg} />
-          <Text style={styles.smartSummaryText}>Smart Summary</Text>
-        </TouchableOpacity>
-
         <TouchableOpacity style={styles.recipesButton} onPress={handleSeeRecipes}>
           <Text style={styles.recipesButtonText}>See What You Can Make →</Text>
         </TouchableOpacity>
@@ -628,6 +614,7 @@ export default function HomeBarScreen() {
                         setManualEntryCategory(cat.value as BarIngredient['category']);
                         // Clear name when switching categories to avoid confusion
                         setManualEntryName('');
+                        setShowCustomInput(false);
                       }}
                     >
                       <Text
@@ -646,7 +633,7 @@ export default function HomeBarScreen() {
               {/* Name Input or Dropdown */}
               <View style={styles.formGroup}>
                 <Text style={styles.formLabel}>Name *</Text>
-                {CATEGORY_OPTIONS[manualEntryCategory] ? (
+                {CATEGORY_OPTIONS[manualEntryCategory] && !showCustomInput ? (
                   // Show dropdown for categories with predefined options
                   <ScrollView style={styles.dropdownContainer} nestedScrollEnabled>
                     {CATEGORY_OPTIONS[manualEntryCategory].map((option) => (
@@ -656,7 +643,10 @@ export default function HomeBarScreen() {
                           styles.dropdownOption,
                           manualEntryName === option && styles.dropdownOptionSelected
                         ]}
-                        onPress={() => setManualEntryName(option)}
+                        onPress={() => {
+                          setManualEntryName(option);
+                          setShowCustomInput(false);
+                        }}
                       >
                         <Text style={[
                           styles.dropdownOptionText,
@@ -672,14 +662,17 @@ export default function HomeBarScreen() {
                     {/* Custom option at the end */}
                     <TouchableOpacity
                       style={styles.dropdownCustomOption}
-                      onPress={() => setManualEntryName('')}
+                      onPress={() => {
+                        setManualEntryName('');
+                        setShowCustomInput(true);
+                      }}
                     >
                       <Ionicons name="add-circle-outline" size={20} color={colors.accent} />
                       <Text style={styles.dropdownCustomOptionText}>Custom / Other</Text>
                     </TouchableOpacity>
                   </ScrollView>
                 ) : (
-                  // Show text input for other categories
+                  // Show text input for categories without predefined options OR when custom is selected
                   <TextInput
                     style={styles.formInput}
                     placeholder="e.g., Tito's Vodka"
@@ -687,25 +680,10 @@ export default function HomeBarScreen() {
                     value={manualEntryName}
                     onChangeText={setManualEntryName}
                     keyboardAppearance="dark"
+                    autoFocus={showCustomInput}
                   />
                 )}
               </View>
-
-              {/* Custom Name Input (shown when user wants custom option) */}
-              {CATEGORY_OPTIONS[manualEntryCategory] && manualEntryName === '' && (
-                <View style={styles.formGroup}>
-                  <Text style={styles.formLabel}>Custom Name *</Text>
-                  <TextInput
-                    style={styles.formInput}
-                    placeholder="Enter custom name"
-                    placeholderTextColor={colors.muted}
-                    value={manualEntryName}
-                    onChangeText={setManualEntryName}
-                    keyboardAppearance="dark"
-                    autoFocus
-                  />
-                </View>
-              )}
 
               {/* Brand Input */}
               <View style={styles.formGroup}>
@@ -720,19 +698,21 @@ export default function HomeBarScreen() {
                 />
               </View>
 
-              {/* Volume Input */}
-              <View style={styles.formGroup}>
-                <Text style={styles.formLabel}>Volume (ml, Optional)</Text>
-                <TextInput
-                  style={styles.formInput}
-                  placeholder="e.g., 750"
-                  placeholderTextColor={colors.muted}
-                  value={manualEntryVolume}
-                  onChangeText={setManualEntryVolume}
-                  keyboardType="number-pad"
-                  keyboardAppearance="dark"
-                />
-              </View>
+              {/* Volume Input - Only for spirits and liqueurs */}
+              {(manualEntryCategory === 'spirit' || manualEntryCategory === 'liqueur') && (
+                <View style={styles.formGroup}>
+                  <Text style={styles.formLabel}>Volume (ml, Optional)</Text>
+                  <TextInput
+                    style={styles.formInput}
+                    placeholder="e.g., 750"
+                    placeholderTextColor={colors.muted}
+                    value={manualEntryVolume}
+                    onChangeText={setManualEntryVolume}
+                    keyboardType="number-pad"
+                    keyboardAppearance="dark"
+                  />
+                </View>
+              )}
             </ScrollView>
 
             <View style={styles.modalActions}>
@@ -960,39 +940,19 @@ const styles = StyleSheet.create({
     paddingVertical: spacing(2),
     borderTopWidth: 1,
     borderTopColor: colors.line,
-    flexDirection: 'row',
-    gap: spacing(2),
     paddingBottom: spacing(4),
   },
-  smartSummaryButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing(1),
-    backgroundColor: colors.gold,
-    paddingVertical: spacing(2.5),
-    borderRadius: radii.lg,
-  },
-  smartSummaryText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.bg,
-  },
   recipesButton: {
-    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.card,
+    backgroundColor: colors.accent,
     paddingVertical: spacing(2.5),
     borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: colors.gold,
   },
   recipesButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.gold,
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.white,
   },
   modalOverlay: {
     flex: 1,
