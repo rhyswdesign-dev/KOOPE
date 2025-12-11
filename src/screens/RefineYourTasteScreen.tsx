@@ -23,14 +23,52 @@ import { Ionicons } from '@expo/vector-icons';
 import { usePersonalization } from '../store/usePersonalization';
 import { SurveyAnswers } from '../services/placement';
 import { trackEvent } from '../lib/analytics';
-import { spiritImages } from '../../assets/images/spirits';
-import { flavorImages } from '../../assets/images/flavors';
+
+// Import spirit and flavor images directly
+const spiritImages = {
+  tequila: require('../../assets/images/spirits/KOOPE Tequila.png'),
+  whiskey: require('../../assets/images/spirits/KOOPE Whiskey.png'),
+  rum: require('../../assets/images/spirits/KOOPE Rum.png'),
+  gin: require('../../assets/images/spirits/KOOPE Gin.png'),
+  vodka: require('../../assets/images/spirits/KOOPE Vodka.png'),
+  brandy: require('../../assets/images/spirits/KOOPE Brandy.png'),
+  liqueurs: require('../../assets/images/spirits/KOOPE Liqueurs.png'),
+};
+
+const flavorImages = {
+  sweet: require('../../assets/images/flavors/Sweet.png'),
+  sour: require('../../assets/images/flavors/Sour.png'),
+  bitter: require('../../assets/images/flavors/Bitter.png'),
+  spicy: require('../../assets/images/flavors/Spicy.png'),
+  salty: require('../../assets/images/flavors/Salty.png'),
+  herbal: require('../../assets/images/flavors/Herbal.png'),
+  fruity: require('../../assets/images/flavors/Fruity.png'),
+  boozy: require('../../assets/images/flavors/Boozy.png'),
+  umami: require('../../assets/images/flavors/Umami.png'),
+  floral: require('../../assets/images/flavors/Floral.png'),
+};
 
 type Props = NativeStackScreenProps<RootStackParamList, 'RefineYourTaste'>;
 
+// Option type with optional image keys
+type QuestionOption = {
+  value: string;
+  label: string;
+  emoji: string;
+  spiritKey?: 'tequila' | 'whiskey' | 'rum' | 'gin' | 'vodka' | 'brandy' | 'liqueurs';
+  flavorKey?: 'fruity' | 'herbal' | 'bitter' | 'sweet' | 'boozy' | 'floral' | 'spicy';
+};
+
 // Focused survey questions for taste refinement
 // NOTE: Store spiritKey instead of resolved image to defer loading
-const TASTE_QUESTIONS = [
+const TASTE_QUESTIONS: Array<{
+  id: string;
+  section: string;
+  type: 'mcq' | 'multi-select';
+  question: string;
+  subtitle?: string;
+  options: QuestionOption[];
+}> = [
   {
     id: 'q8',
     section: 'Spirit Preferences',
@@ -44,7 +82,7 @@ const TASTE_QUESTIONS = [
       { value: 'gin', label: 'Gin', emoji: '🌿', spiritKey: 'gin' as const },
       { value: 'vodka', label: 'Vodka', emoji: '❄️', spiritKey: 'vodka' as const },
       { value: 'brandy', label: 'Brandy', emoji: '🍇', spiritKey: 'brandy' as const },
-      { value: 'liqueurs', label: 'Liqueurs', emoji: '🍯' }, // No image for liqueurs, will use emoji
+      { value: 'liqueurs', label: 'Liqueurs', emoji: '🍯', spiritKey: 'liqueurs' as const },
     ],
   },
   {
@@ -163,7 +201,7 @@ export default function RefineYourTasteScreen({ navigation }: Props) {
   const handleBack = () => {
     if (currentQuestionIndex > 0) {
       setCurrentQuestionIndex((prev) => prev - 1);
-    } else {
+    } else if (navigation.canGoBack()) {
       navigation.goBack();
     }
   };
@@ -253,12 +291,12 @@ export default function RefineYourTasteScreen({ navigation }: Props) {
                 onPress={() => handleAnswer(option.value)}
               >
                 {/* Show image if available, otherwise show emoji */}
-                {option.spiritKey && spiritImages?.[option.spiritKey] ? (
+                {option.spiritKey && spiritImages[option.spiritKey] ? (
                   <Image
                     source={spiritImages[option.spiritKey]}
                     style={styles.optionImage}
                   />
-                ) : option.flavorKey && flavorImages?.[option.flavorKey] ? (
+                ) : option.flavorKey && flavorImages[option.flavorKey] ? (
                   <Image
                     source={flavorImages[option.flavorKey]}
                     style={styles.optionImage}
@@ -293,12 +331,12 @@ export default function RefineYourTasteScreen({ navigation }: Props) {
                     onPress={() => handleMultiSelectToggle(option.value)}
                   >
                     {/* Show image if available, otherwise show emoji */}
-                    {option.spiritKey && spiritImages?.[option.spiritKey] ? (
+                    {option.spiritKey && spiritImages[option.spiritKey] ? (
                       <Image
                         source={spiritImages[option.spiritKey]}
                         style={styles.optionImage}
                       />
-                    ) : option.flavorKey && flavorImages?.[option.flavorKey] ? (
+                    ) : option.flavorKey && flavorImages[option.flavorKey] ? (
                       <Image
                         source={flavorImages[option.flavorKey]}
                         style={styles.optionImage}
@@ -483,44 +521,50 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   optionsContainer: {
-    gap: spacing(1.5),
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
   },
   option: {
-    flexDirection: 'row',
+    flexDirection: 'column',
     alignItems: 'center',
     backgroundColor: colors.card,
     borderRadius: radii.lg,
     padding: spacing(2),
     borderWidth: 2,
     borderColor: colors.line,
-    gap: spacing(1.5),
+    width: '48.5%',
+    aspectRatio: 0.85,
+    marginBottom: spacing(1.5),
   },
   selectedOption: {
     backgroundColor: colors.accentBg,
     borderColor: colors.accent,
   },
   optionEmoji: {
-    fontSize: 28,
+    fontSize: 64,
+    marginTop: spacing(2),
   },
   optionImage: {
-    width: 80,
-    height: 80,
-    borderRadius: radii.lg,
-    backgroundColor: colors.line,
+    width: '100%',
+    flex: 1,
     resizeMode: 'cover',
   },
   optionText: {
-    flex: 1,
     fontSize: fonts.body,
     fontWeight: '600',
     color: colors.text,
+    textAlign: 'center',
+    marginTop: spacing(1.5),
   },
   selectedOptionText: {
     color: colors.accent,
     fontWeight: '700',
   },
   checkboxContainer: {
-    marginLeft: 'auto',
+    position: 'absolute',
+    top: spacing(1.5),
+    right: spacing(1.5),
   },
   nextButton: {
     flexDirection: 'row',
