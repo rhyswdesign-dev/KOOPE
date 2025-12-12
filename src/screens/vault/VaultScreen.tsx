@@ -42,11 +42,16 @@ import {
 import AIRecommendations from '../../components/AIRecommendations';
 import { useSavedItems } from '../../hooks/useSavedItems';
 import GroceryListModal from '../../components/GroceryListModal';
+import { useUserTier } from '../../store/useUserTier';
+import { canAccessContent } from '../../utils/tierAccess';
+import TierBadge from '../../components/TierBadge';
+import LockedContentOverlay from '../../components/LockedContentOverlay';
 
 
 export default function VaultScreen() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { state, dispatch } = useVault();
+  const { tier } = useUserTier();
   const analytics = useAnalyticsContext();
   const { xp } = useUser();
   const { credits, isPremium } = useAICredits();
@@ -149,7 +154,10 @@ export default function VaultScreen() {
       {/* Collection Header */}
       <View style={styles.collectionHeader}>
         <View style={styles.collectionInfo}>
-          <Text style={styles.collectionTitle}>{currentVaultCycle.name}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5), marginBottom: spacing(0.5) }}>
+            <Text style={styles.collectionTitle}>{currentVaultCycle.name}</Text>
+            <TierBadge tier={tier} size="small" />
+          </View>
           <Text style={styles.collectionSubtitle}>
             Resets in {countdown.days}D {countdown.hours}H {countdown.minutes}M
           </Text>
@@ -246,21 +254,43 @@ export default function VaultScreen() {
     SPEED_SYSTEM: PLACEHOLDER_IMAGES.speed,
   };
 
-  const renderContentItem = (item: any, imageUrl: string) => (
-    <View key={item.id} style={styles.contentItemCard}>
-      <Image source={{ uri: imageUrl }} style={styles.contentItemThumbnail} resizeMode="cover" />
-      <View style={styles.contentItemInfo}>
-        <Text style={styles.contentItemXP}>{item.xpCost} XP</Text>
-        <Text style={styles.contentItemTitle}>{item.title || item.barName || item.seasonName}</Text>
-        <Text style={styles.contentItemDescription} numberOfLines={2}>
-          {item.shortDescription || item.description || `${item.city} • ${item.signatureCocktailName}`}
-        </Text>
+  const renderContentItem = (item: any, imageUrl: string) => {
+    const isLocked = !canAccessContent(tier, item.requiredTier);
+
+    return (
+      <View key={item.id} style={[styles.contentItemCard, isLocked && styles.lockedCard]}>
+        <Image
+          source={{ uri: imageUrl }}
+          style={[styles.contentItemThumbnail, isLocked && styles.lockedThumbnail]}
+          resizeMode="cover"
+        />
+        <View style={styles.contentItemInfo}>
+          <Text style={styles.contentItemXP}>
+            {isLocked ? `${item.requiredTier} Required` : `${item.xpCost} XP`}
+          </Text>
+          <Text style={styles.contentItemTitle}>{item.title || item.barName || item.seasonName}</Text>
+          <Text style={styles.contentItemDescription} numberOfLines={2}>
+            {item.shortDescription || item.description || `${item.city} • ${item.signatureCocktailName}`}
+          </Text>
+        </View>
+
+        {isLocked ? (
+          <LockedContentOverlay
+            requiredTier={item.requiredTier}
+            onUpgradePress={() => {
+              // TODO: Navigate to subscription upgrade screen
+              console.log('Upgrade to', item.requiredTier);
+            }}
+            variant="compact"
+          />
+        ) : (
+          <TouchableOpacity style={styles.contentItemUnlockButton} activeOpacity={0.8}>
+            <Text style={styles.contentItemUnlockText}>Unlock</Text>
+          </TouchableOpacity>
+        )}
       </View>
-      <TouchableOpacity style={styles.contentItemUnlockButton} activeOpacity={0.8}>
-        <Text style={styles.contentItemUnlockText}>Unlock</Text>
-      </TouchableOpacity>
-    </View>
-  );
+    );
+  };
 
   const renderInlineContent = () => {
     if (selectedTab === 'playbooks') {
@@ -706,5 +736,14 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: colors.white,
+  },
+
+  // Locked content styles
+  lockedCard: {
+    opacity: 0.7,
+  },
+
+  lockedThumbnail: {
+    opacity: 0.5,
   },
 });
