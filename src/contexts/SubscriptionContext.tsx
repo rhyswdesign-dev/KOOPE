@@ -18,6 +18,8 @@ import Purchases, {
 } from 'react-native-purchases';
 import { SUBSCRIPTION_ENTITLEMENTS, REVENUECAT_CONFIG, SUBSCRIPTION_PRODUCTS } from '../constants/subscriptions';
 import { setUserId, setUserProperties } from '../lib/analytics';
+import { useUserTier } from '../store/useUserTier';
+import type { UserTier } from '../store/useUserTier';
 
 /**
  * MANUAL TESTING GUIDE
@@ -219,6 +221,18 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
     if (info.originalAppUserId) {
       setUserId(info.originalAppUserId);
     }
+
+    // Update UserTier store to sync with subscription status
+    const newTier: UserTier = hasProEntitlement ? 'PRO' : koopePlus ? 'PLUS' : 'FREE';
+    const tierStore = useUserTier.getState();
+    tierStore.setTier(newTier);
+
+    // Update subscription status in tier store
+    if (koopePlus || hasProEntitlement || prestigeActive) {
+      tierStore.setSubscriptionStatus('active');
+    }
+
+    console.log(`[SubscriptionContext] Tier synced: ${newTier} (${subscriptionStatus})`);
   };
 
   /**
