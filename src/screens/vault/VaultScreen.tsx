@@ -300,7 +300,7 @@ export default function VaultScreen() {
       return (
         <View style={styles.inlineContent}>
           {playbookTypes.map((type) => {
-            const playbooks = getTechniquePlaybooksByType(type);
+            const playbooks = getTechniquePlaybooksByType(type, tier);
             if (playbooks.length === 0) return null;
             return (
               <View key={type} style={styles.contentSection}>
@@ -314,7 +314,7 @@ export default function VaultScreen() {
     }
 
     if (selectedTab === 'variations') {
-      const variations = getVariationsForDisplay();
+      const variations = getVariationsForDisplay(tier);
       const groupedByDifficulty: Record<string, typeof variations> = {
         simple: [],
         technique_forward: [],
@@ -346,7 +346,7 @@ export default function VaultScreen() {
     }
 
     if (selectedTab === 'bars') {
-      const bars = getBarFeaturesForDisplay();
+      const bars = getBarFeaturesForDisplay(tier);
       return (
         <View style={styles.barSpotlightContainer}>
           {bars.map((bar) => (
@@ -373,7 +373,7 @@ export default function VaultScreen() {
     }
 
     if (selectedTab === 'seasonal') {
-      const drops = getAvailableSeasonalDropsForTier('PLUS');
+      const drops = getAvailableSeasonalDropsForTier(tier);
       return (
         <View style={styles.inlineContent}>
           <View style={styles.contentSection}>

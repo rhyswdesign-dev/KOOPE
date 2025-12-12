@@ -101,7 +101,7 @@ export interface CocktailVariationContent {
 }
 
 export const cocktailVariations: CocktailVariationContent[] = [
-  // Simple variations (500-700 XP)
+  // Simple variations (500-700 XP) - FREE tier to attract users
   {
     id: "var_smoked_old_fashioned",
     title: "Smoked Old Fashioned",
@@ -112,6 +112,7 @@ export const cocktailVariations: CocktailVariationContent[] = [
     xpCost: 600,
     moneyPriceCents: 299,
     unlockMethod: "XP_OR_MONEY",
+    // FREE - accessible to all users as entry point
   },
   {
     id: "var_spicy_margarita",
@@ -123,6 +124,7 @@ export const cocktailVariations: CocktailVariationContent[] = [
     xpCost: 550,
     moneyPriceCents: 299,
     unlockMethod: "XP_OR_MONEY",
+    // FREE - accessible to all users
   },
   {
     id: "var_brown_butter_old_fashioned",
@@ -134,9 +136,10 @@ export const cocktailVariations: CocktailVariationContent[] = [
     xpCost: 700,
     moneyPriceCents: 299,
     unlockMethod: "XP_OR_MONEY",
+    requiredTier: "PLUS", // PLUS - premium simple variation
   },
 
-  // Technique-forward variations (900-1200 XP)
+  // Technique-forward variations (900-1200 XP) - Mix of PLUS and PRO
   {
     id: "var_clarified_whiskey_sour",
     title: "Clarified Whiskey Sour",
@@ -147,6 +150,7 @@ export const cocktailVariations: CocktailVariationContent[] = [
     xpCost: 1100,
     moneyPriceCents: 499,
     unlockMethod: "XP_OR_MONEY",
+    requiredTier: "PLUS", // PLUS - advanced technique
   },
   {
     id: "var_nitro_espresso_martini",
@@ -158,6 +162,7 @@ export const cocktailVariations: CocktailVariationContent[] = [
     xpCost: 950,
     moneyPriceCents: 499,
     unlockMethod: "XP_OR_MONEY",
+    requiredTier: "PRO", // PRO - requires special equipment
   },
   {
     id: "var_oleo_saccharum_daiquiri",
@@ -169,9 +174,10 @@ export const cocktailVariations: CocktailVariationContent[] = [
     xpCost: 900,
     moneyPriceCents: 399,
     unlockMethod: "XP_OR_MONEY",
+    requiredTier: "PLUS", // PLUS - intermediate technique
   },
 
-  // Pro-level variations (1800-2200 XP)
+  // Pro-level variations (1800-2200 XP) - All PRO tier
   {
     id: "var_split_base_negroni",
     title: "Split-Base Negroni",
@@ -182,6 +188,7 @@ export const cocktailVariations: CocktailVariationContent[] = [
     xpCost: 1800,
     moneyPriceCents: 699,
     unlockMethod: "XP_OR_MONEY",
+    requiredTier: "PRO", // PRO - advanced split-base technique
   },
   {
     id: "var_aged_manhattan",
@@ -193,6 +200,7 @@ export const cocktailVariations: CocktailVariationContent[] = [
     xpCost: 2000,
     moneyPriceCents: 699,
     unlockMethod: "XP_OR_MONEY",
+    requiredTier: "PRO", // PRO - requires barrel aging equipment and time
   },
   {
     id: "var_fermented_pineapple_margarita",
@@ -204,9 +212,10 @@ export const cocktailVariations: CocktailVariationContent[] = [
     xpCost: 2200,
     moneyPriceCents: 799,
     unlockMethod: "XP_OR_MONEY",
+    requiredTier: "PRO", // PRO - advanced fermentation technique
   },
 
-  // Seasonal variations
+  // Seasonal variations - PLUS tier for standard seasonal content
   {
     id: "var_winter_spiced_negroni",
     title: "Winter Spiced Negroni",
@@ -217,6 +226,7 @@ export const cocktailVariations: CocktailVariationContent[] = [
     xpCost: 1000,
     moneyPriceCents: 499,
     unlockMethod: "KEY_OR_XP",
+    requiredTier: "PLUS", // PLUS - seasonal content
   },
   {
     id: "var_summer_berry_daiquiri",
@@ -228,6 +238,7 @@ export const cocktailVariations: CocktailVariationContent[] = [
     xpCost: 650,
     moneyPriceCents: 299,
     unlockMethod: "KEY_OR_XP",
+    requiredTier: "PLUS", // PLUS - seasonal content
   },
 ];
 
@@ -259,6 +270,7 @@ export const techniquePlaybooks: TechniquePlaybookContent[] = [
       "When crushed ice helps vs hurts dilution and temperature",
     ],
     xpCost: 400,
+    // FREE - intro playbook for Ice Strategy
   },
   {
     id: "playbook_ice_party_planning",
@@ -272,6 +284,7 @@ export const techniquePlaybooks: TechniquePlaybookContent[] = [
       "Last-minute ice emergency protocols",
     ],
     xpCost: 650,
+    requiredTier: "PLUS", // PLUS - advanced ice planning
   },
 
   // Acid Control Playbooks
@@ -287,6 +300,7 @@ export const techniquePlaybooks: TechniquePlaybookContent[] = [
       "Storage-safe acid adjustments for batching",
     ],
     xpCost: 500,
+    // FREE - intro playbook for Acid Control
   },
   {
     id: "playbook_acid_rebalancing",
@@ -300,6 +314,7 @@ export const techniquePlaybooks: TechniquePlaybookContent[] = [
       "Acid ratio adjustments for dilution levels",
     ],
     xpCost: 800,
+    requiredTier: "PRO", // PRO - advanced acid correction
   },
 
   // Batch Math Playbooks
@@ -315,6 +330,7 @@ export const techniquePlaybooks: TechniquePlaybookContent[] = [
       "Container size planning and yield prediction",
     ],
     xpCost: 550,
+    // FREE - intro playbook for Batch Math
   },
   {
     id: "playbook_batch_math_advanced",
@@ -328,6 +344,7 @@ export const techniquePlaybooks: TechniquePlaybookContent[] = [
       "Temperature and dilution drift compensation",
     ],
     xpCost: 900,
+    requiredTier: "PLUS", // PLUS - advanced batching
   },
 
   // Speed Systems Playbooks
@@ -343,6 +360,7 @@ export const techniquePlaybooks: TechniquePlaybookContent[] = [
       "Setup and breakdown speed workflows",
     ],
     xpCost: 450,
+    // FREE - intro playbook for Speed Systems
   },
   {
     id: "playbook_speed_build_order",
@@ -356,6 +374,7 @@ export const techniquePlaybooks: TechniquePlaybookContent[] = [
       "Multi-drink build logic for parties",
     ],
     xpCost: 700,
+    requiredTier: "PLUS", // PLUS - advanced speed systems
   },
 ];
 
@@ -391,6 +410,7 @@ export const barFeatures: BarFeatureContent[] = [
     moneyPriceCents: 499,
     unlockMethod: "XP_OR_MONEY",
     proEarlyAccess: true,
+    requiredTier: "PLUS", // PLUS - premium bar content
   },
   {
     id: "bar_employees_only",
@@ -404,6 +424,7 @@ export const barFeatures: BarFeatureContent[] = [
     moneyPriceCents: 499,
     unlockMethod: "XP_OR_MONEY",
     proEarlyAccess: false,
+    requiredTier: "PLUS", // PLUS - premium bar content
   },
   {
     id: "bar_attaboy",
@@ -417,6 +438,7 @@ export const barFeatures: BarFeatureContent[] = [
     moneyPriceCents: 599,
     unlockMethod: "XP_OR_MONEY",
     proEarlyAccess: true,
+    requiredTier: "PLUS", // PLUS - premium bar content
   },
   {
     id: "bar_trick_dog",
@@ -430,6 +452,7 @@ export const barFeatures: BarFeatureContent[] = [
     moneyPriceCents: 499,
     unlockMethod: "XP_OR_MONEY",
     proEarlyAccess: false,
+    requiredTier: "PLUS", // PLUS - premium bar content
   },
 ];
 
@@ -473,6 +496,8 @@ export const seasonalDrops: SeasonalDropContent[] = [
     freePreview: true,
     plusAccess: true,
     proBonusItemId: "playbook_batch_math_advanced",
+    requiredTier: "PLUS", // PLUS - seasonal content
+    earlyAccessDays: 14, // PRO users get 14 days early access
   },
   {
     id: "drop_summer_2025",
@@ -494,6 +519,8 @@ export const seasonalDrops: SeasonalDropContent[] = [
     freePreview: true,
     plusAccess: true,
     proBonusItemId: "var_nitro_espresso_martini",
+    requiredTier: "PLUS", // PLUS - seasonal content
+    earlyAccessDays: 14, // PRO users get 14 days early access
   },
   {
     id: "drop_spring_2025",
@@ -514,6 +541,8 @@ export const seasonalDrops: SeasonalDropContent[] = [
     freePreview: true,
     plusAccess: true,
     proBonusItemId: "playbook_ice_strategy_basics",
+    requiredTier: "PLUS", // PLUS - seasonal content
+    earlyAccessDays: 14, // PRO users get 14 days early access
   },
 ];
 
