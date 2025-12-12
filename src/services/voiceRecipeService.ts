@@ -1,6 +1,7 @@
 import { Audio } from 'expo-av';
 import * as FileSystem from 'expo-file-system';
 import { Platform } from 'react-native';
+import { log } from '../lib/logger';
 
 export interface VoiceRecipeInput {
   title?: string;
@@ -17,11 +18,15 @@ export class VoiceRecipeService {
    * Request microphone permissions
    */
   static async requestPermissions(): Promise<boolean> {
+    log.fn('VoiceRecipeService', 'requestPermissions');
+
     try {
       const { status } = await Audio.requestPermissionsAsync();
-      return status === 'granted';
+      const granted = status === 'granted';
+      log.info('VoiceRecipeService', 'Audio permission request', { granted, status });
+      return granted;
     } catch (error: any) {
-      console.error('Error requesting audio permissions:', error);
+      log.error('VoiceRecipeService', 'Error requesting audio permissions', error);
       return false;
     }
   }
@@ -30,14 +35,16 @@ export class VoiceRecipeService {
    * Start voice recording
    */
   async startRecording(): Promise<void> {
+    log.fn('VoiceRecipeService', 'startRecording');
+
     try {
-      console.log('Voice: Requesting permissions...');
+      log.debug('VoiceRecipeService', 'Requesting audio permissions');
       const hasPermission = await VoiceRecipeService.requestPermissions();
       if (!hasPermission) {
         throw new Error('Microphone permission denied');
       }
 
-      console.log('Voice: Setting up audio mode...');
+      log.debug('VoiceRecipeService', 'Setting up audio mode');
       await Audio.setAudioModeAsync({
         allowsRecordingIOS: true,
         playsInSilentModeIOS: true,
@@ -45,17 +52,17 @@ export class VoiceRecipeService {
         staysActiveInBackground: true,
       });
 
-      console.log('Voice: Starting recording...');
+      log.debug('VoiceRecipeService', 'Creating audio recording');
       const { recording } = await Audio.Recording.createAsync(
         Audio.RecordingOptionsPresets.HIGH_QUALITY
       );
 
       this.recording = recording;
       this.isRecording = true;
-      console.log('Voice: Recording started successfully');
+      log.info('VoiceRecipeService', 'Recording started successfully');
 
     } catch (error: any) {
-      console.error('Voice recording error:', error);
+      log.error('VoiceRecipeService', 'Failed to start recording', error);
       throw new Error(`Failed to start recording: ${error.message}`);
     }
   }
@@ -64,16 +71,18 @@ export class VoiceRecipeService {
    * Stop voice recording and return audio file URI
    */
   async stopRecording(): Promise<string | null> {
+    log.fn('VoiceRecipeService', 'stopRecording');
+
     try {
       if (!this.recording || !this.isRecording) {
         throw new Error('No active recording');
       }
 
-      console.log('Voice: Stopping recording...');
+      log.debug('VoiceRecipeService', 'Stopping and unloading recording');
       await this.recording.stopAndUnloadAsync();
 
       const uri = this.recording.getURI();
-      console.log('Voice: Recording saved to:', uri);
+      log.info('VoiceRecipeService', 'Recording saved', { uri });
 
       this.isRecording = false;
       this.recording = null;
@@ -81,7 +90,7 @@ export class VoiceRecipeService {
       return uri;
 
     } catch (error: any) {
-      console.error('Voice stop recording error:', error);
+      log.error('VoiceRecipeService', 'Failed to stop recording', error);
       this.isRecording = false;
       this.recording = null;
       throw new Error(`Failed to stop recording: ${error.message}`);
@@ -92,14 +101,17 @@ export class VoiceRecipeService {
    * Cancel ongoing recording
    */
   async cancelRecording(): Promise<void> {
+    log.fn('VoiceRecipeService', 'cancelRecording');
+
     try {
       if (this.recording && this.isRecording) {
         await this.recording.stopAndUnloadAsync();
+        log.info('VoiceRecipeService', 'Recording cancelled');
       }
       this.isRecording = false;
       this.recording = null;
     } catch (error: any) {
-      console.error('Voice cancel recording error:', error);
+      log.error('VoiceRecipeService', 'Error cancelling recording', error);
     }
   }
 
@@ -108,6 +120,8 @@ export class VoiceRecipeService {
    * In development mode, returns mock transcription
    */
   async transcribeAudio(audioUri: string): Promise<string> {
+    log.fn('VoiceRecipeService', 'transcribeAudio', { audioUri });
+
     try {
       // Check if in development mode (no real speech-to-text service)
       const apiKey = process.env.EXPO_PUBLIC_OPENAI_API_KEY;
@@ -117,24 +131,70 @@ export class VoiceRecipeService {
                                !apiKey.startsWith('sk-');
 
       if (isDevelopmentMode) {
-        console.log('🔧 Development mode: Using mock transcription');
-        console.log('💡 To use real transcription, set EXPO_PUBLIC_OPENAI_API_KEY in .env file');
+        log.warn('VoiceRecipeService', 'Development mode: Using mock transcription', {
+          hint: 'Set EXPO_PUBLIC_OPENAI_API_KEY in .env to use real Whisper API'
+        });
         await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate processing delay
 
         return this.getMockTranscription();
       }
 
-      console.log('🎤 Using real OpenAI Whisper API for transcription');
+      log.info('VoiceRecipeService', 'Using OpenAI Whisper API for transcription');
 
-      // TODO: Implement real Whisper API integration
-      // This requires uploading the audio file to OpenAI Whisper API
-      // For now, return mock with message about production setup needed
-      console.log('🔧 Real Whisper API integration coming soon - using mock for now');
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      return this.getMockTranscription();
+      // Read audio file
+      const audioFileInfo = await FileSystem.getInfoAsync(audioUri);
+      if (!audioFileInfo.exists) {
+        throw new Error('Audio file not found');
+      }
+
+      // Prepare FormData for Whisper API
+      const formData = new FormData();
+
+      // Read file as base64 and create blob
+      const base64Audio = await FileSystem.readAsStringAsync(audioUri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+
+      // Convert base64 to blob
+      const blob = await (await fetch(`data:audio/m4a;base64,${base64Audio}`)).blob();
+      formData.append('file', blob, 'recording.m4a');
+      formData.append('model', 'whisper-1');
+      formData.append('language', 'en');
+      formData.append('response_format', 'text');
+
+      log.api('POST', 'https://api.openai.com/v1/audio/transcriptions', {
+        model: 'whisper-1',
+        fileSize: audioFileInfo.size
+      });
+
+      // Call Whisper API
+      const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+        },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        log.error('VoiceRecipeService', 'Whisper API error', undefined, {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorText
+        });
+        throw new Error(`Whisper API error: ${response.status} ${response.statusText}`);
+      }
+
+      const transcription = await response.text();
+      log.info('VoiceRecipeService', 'Transcription successful', {
+        length: transcription.length
+      });
+
+      return transcription;
 
     } catch (error: any) {
-      console.error('Voice transcription error:', error);
+      log.error('VoiceRecipeService', 'Transcription failed', error);
       throw new Error(`Failed to transcribe audio: ${error.message}`);
     }
   }
@@ -143,6 +203,8 @@ export class VoiceRecipeService {
    * Parse transcribed text into recipe components using AI
    */
   async parseVoiceRecipe(transcription: string): Promise<VoiceRecipeInput> {
+    log.fn('VoiceRecipeService', 'parseVoiceRecipe', { transcriptionLength: transcription.length });
+
     try {
       // Use basic text parsing to extract recipe components
       const result: VoiceRecipeInput = {};
@@ -171,10 +233,16 @@ export class VoiceRecipeService {
       // Use remaining text as notes
       result.notes = transcription;
 
+      log.info('VoiceRecipeService', 'Recipe parsed', {
+        hasTitle: !!result.title,
+        hasIngredients: !!result.ingredients,
+        hasInstructions: !!result.instructions
+      });
+
       return result;
 
     } catch (error) {
-      console.error('Voice parsing error:', error);
+      log.error('VoiceRecipeService', 'Recipe parsing error', error);
       return { notes: transcription };
     }
   }
@@ -210,7 +278,7 @@ export class VoiceRecipeService {
         await this.cancelRecording();
       }
     } catch (error) {
-      console.error('Voice cleanup error:', error);
+      log.error('VoiceRecipeService', 'Cleanup error', error);
     }
   }
 }
