@@ -51,7 +51,7 @@ import LockedContentOverlay from '../../components/LockedContentOverlay';
 export default function VaultScreen() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { state, dispatch } = useVault();
-  const { tier } = useUserTier();
+  const { tier, setTier } = useUserTier();
   const analytics = useAnalyticsContext();
   const { xp } = useUser();
   const { credits, isPremium } = useAICredits();
@@ -84,6 +84,29 @@ export default function VaultScreen() {
       headerLeft: () => null,
       headerRight: () => (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+          {/* Developer Tier Switcher - for testing only */}
+          <Pressable
+            hitSlop={12}
+            onPress={() => {
+              const tiers: ('FREE' | 'PLUS' | 'PRO')[] = ['FREE', 'PLUS', 'PRO'];
+              const currentIndex = tiers.indexOf(tier);
+              const nextTier = tiers[(currentIndex + 1) % tiers.length];
+              setTier(nextTier);
+              console.log(`🔄 Tier switched to: ${nextTier}`);
+            }}
+            style={{
+              paddingHorizontal: 8,
+              paddingVertical: 4,
+              borderRadius: 8,
+              borderWidth: 1,
+              borderColor: colors.accent,
+            }}
+          >
+            <Text style={{ fontSize: 10, fontWeight: '700', color: colors.accent }}>
+              {tier}
+            </Text>
+          </Pressable>
+
           <Pressable
             hitSlop={12}
             onPress={() => {
@@ -102,7 +125,7 @@ export default function VaultScreen() {
         </View>
       ),
     });
-  }, [nav]);
+  }, [nav, tier, setTier]);
 
   const getFilteredItems = (): VaultItem[] => {
     const items = state.vaultItems.filter(item => item.isActive);
