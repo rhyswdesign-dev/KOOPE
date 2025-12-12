@@ -20,6 +20,7 @@ import { SUBSCRIPTION_ENTITLEMENTS, REVENUECAT_CONFIG, SUBSCRIPTION_PRODUCTS } f
 import { setUserId, setUserProperties } from '../lib/analytics';
 import { useUserTier } from '../store/useUserTier';
 import type { UserTier } from '../store/useUserTier';
+import { log } from '../lib/logger';
 
 /**
  * MANUAL TESTING GUIDE
@@ -232,21 +233,31 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
       tierStore.setSubscriptionStatus('active');
     }
 
-    console.log(`[SubscriptionContext] Tier synced: ${newTier} (${subscriptionStatus})`);
+    log.state('SubscriptionContext', 'updateSubscriptionState', {
+      tier: newTier,
+      status: subscriptionStatus,
+      koopePlus,
+      koopePro: hasProEntitlement,
+      prestige: prestigeActive
+    });
   };
 
   /**
    * Get available offerings from RevenueCat
    */
   const getOfferings = async (): Promise<PurchasesOfferings | null> => {
+    log.fn('SubscriptionContext', 'getOfferings');
+
     try {
       const fetchedOfferings = await Purchases.getOfferings();
       setOfferings(fetchedOfferings);
-      console.log('[SubscriptionContext] Offerings fetched successfully');
+      log.info('SubscriptionContext', 'Offerings fetched successfully', {
+        offeringsCount: fetchedOfferings.current?.availablePackages.length || 0
+      });
       return fetchedOfferings;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to fetch offerings';
-      console.error('[SubscriptionContext] Error fetching offerings:', errorMessage);
+      log.error('SubscriptionContext', 'Error fetching offerings', err);
       setError(errorMessage);
       return null;
     }
@@ -263,7 +274,7 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
       }
 
       if (!currentOfferings?.current) {
-        console.error('[SubscriptionContext] No current offering available');
+        log.error('SubscriptionContext', 'No current offering available');
         return null;
       }
 
@@ -274,12 +285,12 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
       });
 
       if (!pkg) {
-        console.warn('[SubscriptionContext] Package not found for product:', productId);
+        log.warn('SubscriptionContext', 'Package not found', { productId });
       }
 
       return pkg || null;
     } catch (err) {
-      console.error('[SubscriptionContext] Error finding package:', err);
+      log.error('SubscriptionContext', 'Error finding package', err, { productId });
       return null;
     }
   };
@@ -299,29 +310,29 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
         productId = billingMode === 'monthly' ? SUBSCRIPTION_PRODUCTS.PRESTIGE_MONTHLY : SUBSCRIPTION_PRODUCTS.PRESTIGE_YEARLY;
       }
 
-      console.log('[SubscriptionContext] Attempting purchase:', { tier, billingMode, productId });
+      log.fn('SubscriptionContext', 'purchaseTier', { tier, billingMode, productId });
 
       const pkg = await findPackageByIdentifier(productId);
       if (!pkg) {
         const errorMsg = `Package not found for ${tier} ${billingMode}`;
-        console.error('[SubscriptionContext]', errorMsg);
+        log.error('SubscriptionContext', errorMsg, undefined, { tier, billingMode, productId });
         setError(errorMsg);
         return { success: false, error: errorMsg };
       }
 
       const { customerInfo: updatedInfo } = await Purchases.purchasePackage(pkg);
       updateSubscriptionState(updatedInfo);
-      console.log('[SubscriptionContext] Purchase successful:', { tier, billingMode });
+      log.info('SubscriptionContext', 'Purchase successful', { tier, billingMode });
 
       return { success: true, customerInfo: updatedInfo };
     } catch (err: any) {
       if (err.code === PURCHASES_ERROR_CODE.PURCHASE_CANCELLED_ERROR || err.userCancelled) {
-        console.log('[SubscriptionContext] Purchase cancelled by user');
+        log.info('SubscriptionContext', 'Purchase cancelled by user', { tier, billingMode });
         return { success: false, userCancelled: true };
       }
 
       const errorMessage = err.message || 'Purchase failed';
-      console.error('[SubscriptionContext] Purchase error:', errorMessage, err);
+      log.error('SubscriptionContext', 'Purchase error', err, { tier, billingMode });
       setError(errorMessage);
       return { success: false, error: errorMessage };
     } finally {
@@ -338,16 +349,18 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
    * Restore previous purchases
    */
   const restorePurchases = async (): Promise<PurchaseResult> => {
+    log.fn('SubscriptionContext', 'restorePurchases');
+
     try {
       setIsPurchasing(true);
       setError(null); // Clear any previous errors
       const info = await Purchases.restorePurchases();
       updateSubscriptionState(info);
-      console.log('[SubscriptionContext] Purchases restored successfully');
+      log.info('SubscriptionContext', 'Purchases restored successfully');
       return { success: true, customerInfo: info };
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to restore purchases';
-      console.error('[SubscriptionContext] Error restoring purchases:', errorMessage);
+      log.error('SubscriptionContext', 'Error restoring purchases', err);
       setError(errorMessage);
       return { success: false, error: errorMessage };
     } finally {
@@ -359,14 +372,17 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
    * Refresh subscription status from RevenueCat
    */
   const refreshSubscriptionStatus = async () => {
+    log.fn('SubscriptionContext', 'refreshSubscriptionStatus');
+
     try {
       setIsLoading(true);
       const info = await Purchases.getCustomerInfo();
       updateSubscriptionState(info);
       setError(null);
+      log.info('SubscriptionContext', 'Subscription status refreshed successfully');
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to refresh subscription status';
-      console.error('[SubscriptionContext] Error refreshing subscription:', errorMessage);
+      log.error('SubscriptionContext', 'Error refreshing subscription', err);
       setError(errorMessage);
       // Don't block the app - just mark as non-subscriber
       setIsKoopePro(false);
@@ -402,14 +418,14 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
           appUserID: undefined, // Anonymous user for now
         });
 
-        console.log('[SubscriptionContext] RevenueCat initialized successfully');
+        log.info('SubscriptionContext', 'RevenueCat initialized successfully', { platform: Platform.OS });
 
         // Fetch initial offerings
         await getOfferings();
 
         // Set up customer info update listener
         Purchases.addCustomerInfoUpdateListener((info) => {
-          console.log('[SubscriptionContext] Customer info updated');
+          log.info('SubscriptionContext', 'Customer info updated via listener');
           updateSubscriptionState(info);
         });
 
@@ -418,19 +434,19 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
         updateSubscriptionState(info);
         setError(null);
 
-        console.log('[SubscriptionContext] Initial subscription state loaded', {
+        log.info('SubscriptionContext', 'Initial subscription state loaded', {
           isPro: isEntitlementActive(info.entitlements.active[SUBSCRIPTION_ENTITLEMENTS.KOOPE_PRO]),
           isPrestige: isEntitlementActive(info.entitlements.active[SUBSCRIPTION_ENTITLEMENTS.PRESTIGE]),
         });
 
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Failed to initialize RevenueCat';
-        console.error('[SubscriptionContext] Initialization error:', errorMessage);
+        log.error('SubscriptionContext', 'Initialization error', err);
         setError(errorMessage);
 
         // Don't immediately block - give user benefit of doubt during network issues
         // Free users will still get gated by individual checks
-        console.warn('[SubscriptionContext] Operating in degraded mode - some features may be limited');
+        log.warn('SubscriptionContext', 'Operating in degraded mode - some features may be limited');
       } finally {
         setIsLoading(false);
       }

@@ -103,40 +103,51 @@ export class StubIAPService implements IAPService {
   }
 
   async purchaseProduct(productId: string): Promise<IAPPurchase> {
-    console.log('Purchasing product:', productId);
-    
-    // Simulate purchase flow
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    // Simulate 95% success rate
-    if (Math.random() < 0.95) {
-      const purchase: IAPPurchase = {
-        transactionId: `txn_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        productId,
-        purchaseTime: Date.now(),
-        purchaseState: 'purchased',
-        receipt: `receipt_${productId}_${Date.now()}`
-      };
-      
-      console.log('Purchase successful:', purchase);
-      return purchase;
-    } else {
-      throw new Error('Purchase cancelled or failed');
+    log.fn('IAPService', 'purchaseProduct', { productId });
+
+    try {
+      // Simulate purchase flow
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      // Simulate 95% success rate
+      if (Math.random() < 0.95) {
+        const purchase: IAPPurchase = {
+          transactionId: `txn_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          productId,
+          purchaseTime: Date.now(),
+          purchaseState: 'purchased',
+          receipt: `receipt_${productId}_${Date.now()}`
+        };
+
+        log.info('IAPService', 'Purchase successful', purchase);
+        return purchase;
+      } else {
+        throw new Error('Purchase cancelled or failed');
+      }
+    } catch (error) {
+      log.error('IAPService', 'Purchase failed', error);
+      throw error;
     }
   }
 
   async restorePurchases(): Promise<IAPPurchase[]> {
-    console.log('Restoring purchases');
-    
-    // Simulate restore delay
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    // Return empty array for stub - in production would restore actual purchases
-    return [];
+    log.fn('IAPService', 'restorePurchases');
+
+    try {
+      // Simulate restore delay
+      await new Promise(resolve => setTimeout(resolve, 1500));
+
+      // Return empty array for stub - in production would restore actual purchases
+      log.info('IAPService', 'No purchases to restore (stub mode)');
+      return [];
+    } catch (error) {
+      log.error('IAPService', 'Restore purchases failed', error);
+      throw error;
+    }
   }
 
   async finishTransaction(transactionId: string): Promise<void> {
-    console.log('Finishing transaction:', transactionId);
+    log.fn('IAPService', 'finishTransaction', { transactionId });
     // In production, this would acknowledge the purchase
   }
 
@@ -153,14 +164,16 @@ export class PlatformIAPService implements IAPService {
   private isInitialized = false;
 
   async initialize(): Promise<void> {
+    log.fn('PlatformIAPService', 'initialize');
+
     try {
       const { initConnection } = require('react-native-iap');
       const result = await initConnection();
-      
+
       this.isInitialized = result;
-      console.log('Platform IAP Service initialized:', result);
+      log.info('PlatformIAPService', 'Initialized successfully', { result });
     } catch (error) {
-      console.error('IAP initialization failed:', error);
+      log.error('PlatformIAPService', 'Initialization failed', error);
       this.isInitialized = false;
       throw error;
     }
@@ -168,20 +181,24 @@ export class PlatformIAPService implements IAPService {
 
   async getProducts(productIds: string[]): Promise<IAPProduct[]> {
     if (!this.isInitialized) {
-      throw new Error('IAP not initialized');
+      const error = new Error('IAP not initialized');
+      log.error('PlatformIAPService', 'Cannot get products - not initialized', error);
+      throw error;
     }
+
+    log.fn('PlatformIAPService', 'getProducts', { productIds });
 
     try {
       const { getProducts, getSubscriptions } = require('react-native-iap');
-      
+
       const [products, subscriptions] = await Promise.all([
         getProducts({ skus: productIds }),
         getSubscriptions({ skus: productIds })
       ]);
-      
+
       const allProducts = [...products, ...subscriptions];
-      
-      return allProducts.map(product => ({
+
+      const formattedProducts = allProducts.map(product => ({
         id: product.productId,
         title: product.title,
         description: product.description,
@@ -190,81 +207,104 @@ export class PlatformIAPService implements IAPService {
         currency: product.currency,
         type: product.type === 'iap' ? 'consumable' : 'subscription'
       }));
+
+      log.info('PlatformIAPService', `Retrieved ${formattedProducts.length} products`, { count: formattedProducts.length });
+      return formattedProducts;
     } catch (error) {
-      console.error('Get products failed:', error);
+      log.error('PlatformIAPService', 'Get products failed', error);
       throw error;
     }
   }
 
   async purchaseProduct(productId: string): Promise<IAPPurchase> {
     if (!this.isInitialized) {
-      throw new Error('IAP not initialized');
+      const error = new Error('IAP not initialized');
+      log.error('PlatformIAPService', 'Cannot purchase - not initialized', error);
+      throw error;
     }
+
+    log.fn('PlatformIAPService', 'purchaseProduct', { productId });
 
     try {
       const { requestPurchase, requestSubscription } = require('react-native-iap');
-      
+
       // Try consumable purchase first
       let purchase;
       try {
+        log.debug('PlatformIAPService', 'Attempting consumable purchase', { productId });
         purchase = await requestPurchase({ sku: productId, andDangerouslyFinishTransactionAutomaticallyIOS: false });
-      } catch {
+      } catch (consumableError) {
         // If consumable fails, try subscription
+        log.debug('PlatformIAPService', 'Consumable failed, trying subscription', { productId });
         purchase = await requestSubscription({ sku: productId });
       }
-      
-      return {
+
+      const result: IAPPurchase = {
         transactionId: purchase.transactionId,
         productId: purchase.productId,
         purchaseTime: purchase.purchaseTime || Date.now(),
         purchaseState: 'purchased',
         receipt: purchase.transactionReceipt
       };
+
+      log.info('PlatformIAPService', 'Purchase successful', { productId, transactionId: result.transactionId });
+      return result;
     } catch (error) {
-      console.error('Purchase failed:', error);
+      log.error('PlatformIAPService', 'Purchase failed', error, { productId });
       throw error;
     }
   }
 
   async restorePurchases(): Promise<IAPPurchase[]> {
     if (!this.isInitialized) {
-      throw new Error('IAP not initialized');
+      const error = new Error('IAP not initialized');
+      log.error('PlatformIAPService', 'Cannot restore - not initialized', error);
+      throw error;
     }
+
+    log.fn('PlatformIAPService', 'restorePurchases');
 
     try {
       const { getAvailablePurchases } = require('react-native-iap');
       const purchases = await getAvailablePurchases();
-      
-      return purchases.map(purchase => ({
+
+      const formattedPurchases = purchases.map(purchase => ({
         transactionId: purchase.transactionId,
         productId: purchase.productId,
         purchaseTime: purchase.purchaseTime || Date.now(),
-        purchaseState: 'purchased',
+        purchaseState: 'purchased' as const,
         receipt: purchase.transactionReceipt
       }));
+
+      log.info('PlatformIAPService', `Restored ${formattedPurchases.length} purchases`, { count: formattedPurchases.length });
+      return formattedPurchases;
     } catch (error) {
-      console.error('Restore purchases failed:', error);
+      log.error('PlatformIAPService', 'Restore purchases failed', error);
       throw error;
     }
   }
 
   async finishTransaction(transactionId: string): Promise<void> {
     if (!this.isInitialized) {
-      throw new Error('IAP not initialized');
+      const error = new Error('IAP not initialized');
+      log.error('PlatformIAPService', 'Cannot finish transaction - not initialized', error);
+      throw error;
     }
+
+    log.fn('PlatformIAPService', 'finishTransaction', { transactionId });
 
     try {
       const { finishTransaction, isIosStorekit2 } = require('react-native-iap');
-      
+
       if (isIosStorekit2()) {
         await finishTransaction({ purchase: { transactionId }, isConsumable: true });
       } else {
         await finishTransaction({ purchase: { transactionId } });
       }
-      
-      console.log('Transaction finished:', transactionId);
+
+      log.info('PlatformIAPService', 'Transaction finished successfully', { transactionId });
     } catch (error) {
-      console.error('Finish transaction failed:', error);
+      log.error('PlatformIAPService', 'Finish transaction failed', error, { transactionId });
       throw error;
     }
   }
@@ -274,9 +314,10 @@ export class PlatformIAPService implements IAPService {
       if (!this.isInitialized) {
         await this.initialize();
       }
+      log.info('PlatformIAPService', 'IAP availability check', { available: this.isInitialized });
       return this.isInitialized;
     } catch (error) {
-      console.error('IAP availability check failed:', error);
+      log.error('PlatformIAPService', 'IAP availability check failed', error);
       return false;
     }
   }

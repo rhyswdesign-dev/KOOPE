@@ -6,6 +6,8 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { log } from '../lib/logger';
+import { getIAPService, getXPForProduct } from '../services/iap';
 
 export interface AIAction {
   id: string;
@@ -147,6 +149,12 @@ export const useAICredits = create<AICreditsState>()(
         const cost = state.getActionCost(action.type);
 
         if (!state.canUseAI(action.type)) {
+          log.warn('AICredits', 'Insufficient credits or daily limit reached', {
+            actionType: action.type,
+            cost,
+            availableCredits: state.credits,
+            dailyUsage: state.dailyUsage
+          });
           return false;
         }
 
@@ -169,6 +177,13 @@ export const useAICredits = create<AICreditsState>()(
           };
         });
 
+        log.state('AICredits', 'consumeCredits', {
+          actionType: action.type,
+          cost,
+          remainingCredits: get().credits,
+          dailyUsage: get().dailyUsage
+        });
+
         return true;
       },
 
@@ -178,18 +193,32 @@ export const useAICredits = create<AICreditsState>()(
           credits: state.credits + amount,
           totalEarned: state.totalEarned + amount,
         }));
+
+        log.state('AICredits', 'addCredits', {
+          amount,
+          source,
+          newTotal: get().credits
+        });
       },
 
       // Reset daily usage (called automatically)
       resetDailyUsage: () => {
         const today = new Date().toDateString();
-        set((state) => ({
+        const state = get();
+
+        set({
           dailyUsage: 0,
           lastResetDate: today,
           // Give daily free credits
           credits: state.credits + state.freeCreditsPerDay,
           totalEarned: state.totalEarned + state.freeCreditsPerDay,
-        }));
+        });
+
+        log.info('AICredits', 'Daily usage reset', {
+          date: today,
+          freeCreditsAdded: state.freeCreditsPerDay,
+          newTotal: get().credits
+        });
       },
 
       // Get usage statistics
@@ -215,17 +244,25 @@ export const useAICredits = create<AICreditsState>()(
         return ACTION_COSTS[actionType] || 1;
       },
 
-      // Purchase credits (would integrate with payment system)
+      // Purchase credits via IAP
       purchaseCredits: async (packageId) => {
         const package_ = CREDIT_PACKAGES.find(p => p.id === packageId);
-        if (!package_) return false;
+        if (!package_) {
+          log.warn('AICredits', 'Invalid package ID', { packageId });
+          return false;
+        }
+
+        log.fn('AICredits', 'purchaseCredits', { packageId, package: package_.name });
 
         try {
-          // TODO: Integrate with actual payment system (Stripe, Apple Pay, etc.)
-          console.log(`🛒 Purchasing ${package_.name} for $${package_.price}`);
+          const iapService = getIAPService();
 
-          // Simulate payment processing
-          await new Promise(resolve => setTimeout(resolve, 2000));
+          // Map credit package ID to IAP product ID
+          const productId = `ai_credits_${packageId}`;
+          log.info('AICredits', `Initiating purchase: ${package_.name}`, { productId, price: package_.price });
+
+          // Purchase via IAP service
+          const purchase = await iapService.purchaseProduct(productId);
 
           // Add credits + bonus
           const totalCredits = package_.credits + (package_.bonus || 0);
@@ -240,16 +277,29 @@ export const useAICredits = create<AICreditsState>()(
               premiumExpiry: expiryDate.getTime(),
               credits: Math.max(state.credits, 999), // Ensure high credit count
             }));
+
+            log.info('AICredits', 'Unlimited monthly subscription activated', { expiryDate: expiryDate.toISOString() });
           } else {
             set((state) => ({
               credits: state.credits + totalCredits,
               totalEarned: state.totalEarned + totalCredits,
             }));
+
+            log.info('AICredits', 'Credits added successfully', {
+              package: package_.name,
+              baseCredits: package_.credits,
+              bonus: package_.bonus || 0,
+              total: totalCredits
+            });
           }
 
+          // Finish the transaction
+          await iapService.finishTransaction(purchase.transactionId);
+
+          log.state('AICredits', 'purchaseCredits', { success: true, packageId, transactionId: purchase.transactionId });
           return true;
         } catch (error) {
-          console.error('Credit purchase failed:', error);
+          log.error('AICredits', 'Credit purchase failed', error, { packageId });
           return false;
         }
       },
