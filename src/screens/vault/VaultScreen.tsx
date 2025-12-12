@@ -28,6 +28,8 @@ import VaultUnlockModal from './components/VaultUnlockModal';
 import VaultItemCard from './components/VaultItemCard';
 import AICreditsPurchaseModal from '../../components/AICreditsPurchaseModal';
 import { useScreenTracking, useAnalyticsContext } from '../../context/AnalyticsContext';
+import { VaultCategory } from '../../config/vaultTypes';
+import { vaultCategories, VaultCategoryConfig } from '../../config/vaultContent';
 import AIRecommendations from '../../components/AIRecommendations';
 import { useSavedItems } from '../../hooks/useSavedItems';
 import GroceryListModal from '../../components/GroceryListModal';
@@ -40,7 +42,7 @@ export default function VaultScreen() {
   const { xp } = useUser();
   const { credits, isPremium } = useAICredits();
   const { savedItems, toggleSavedCocktail, isCocktailSaved } = useSavedItems();
-  const [selectedTab, setSelectedTab] = useState<string>('ai_recommendations');
+  const [selectedTab, setSelectedTab] = useState<string>('variations');
   const [countdown, setCountdown] = useState(getVaultCountdown());
   const [creditsPurchaseVisible, setCreditsPurchaseVisible] = useState(false);
   const [groceryListVisible, setGroceryListVisible] = useState(false);
@@ -67,12 +69,23 @@ export default function VaultScreen() {
       headerShadowVisible: false,
       headerLeft: () => null,
       headerRight: () => (
-        <Pressable 
-          hitSlop={12} 
-          onPress={() => nav.navigate('VaultOrderHistory')}
-        >
-          <Ionicons name="receipt-outline" size={24} color={colors.text} />
-        </Pressable>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+          <Pressable
+            hitSlop={12}
+            onPress={() => {
+              console.log('🔧 VaultScreen: Shop icon pressed, navigating to VaultStore');
+              nav.navigate('VaultStore');
+            }}
+          >
+            <MaterialCommunityIcons name="storefront" size={24} color={colors.accent} />
+          </Pressable>
+          <Pressable
+            hitSlop={12}
+            onPress={() => nav.navigate('VaultOrderHistory')}
+          >
+            <Ionicons name="receipt-outline" size={24} color={colors.text} />
+          </Pressable>
+        </View>
       ),
     });
   }, [nav]);
@@ -81,27 +94,32 @@ export default function VaultScreen() {
     const items = state.vaultItems.filter(item => item.isActive);
 
     switch (selectedTab) {
-      case 'ai_recommendations':
-        return []; // AI recommendations are handled separately
+      case 'variations':
+      case 'playbooks':
+      case 'bars':
+      case 'seasonal':
+      case 'keys':
+        return []; // New vault content categories (handled by category display)
       case 'common':
         return items.filter(item => item.rarity === 'common');
       case 'limited':
         return items.filter(item => item.rarity === 'limited');
       case 'rare':
         return items.filter(item => item.rarity === 'rare' || item.rarity === 'prestige');
-      case 'mystery':
-        return items.filter(item => item.type === 'mystery');
       default:
         return items;
     }
   };
 
   const tabs = [
-    { key: 'ai_recommendations', label: 'AI Picks' },
+    { key: 'variations', label: 'Variations' },
+    { key: 'playbooks', label: 'Playbooks' },
+    { key: 'bars', label: 'Bar Features' },
+    { key: 'seasonal', label: 'Seasonal' },
+    { key: 'keys', label: 'Keys' },
     { key: 'common', label: 'Common' },
     { key: 'limited', label: 'Limited' },
     { key: 'rare', label: 'Rare' },
-    { key: 'mystery', label: 'Mystery' },
   ];
 
   const renderVaultItem = ({ item }: { item: VaultItem }) => (
@@ -160,31 +178,6 @@ export default function VaultScreen() {
         </View>
       </View>
 
-      {/* Action Buttons */}
-      <View style={styles.actionsContainer}>
-        <View style={styles.actionsWrapper}>
-          <TouchableOpacity
-            style={styles.primaryAction}
-            onPress={() => nav.navigate('VaultEarnXP')}
-          >
-            <MaterialCommunityIcons name="star-plus" size={18} color={colors.white} />
-            <Text style={styles.primaryActionText}>Earn XP</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.secondaryAction}
-            onPress={() => {
-              console.log('🔧 VaultScreen: Items button pressed, navigating to VaultStore');
-              nav.navigate('VaultStore');
-            }}
-          >
-            <MaterialCommunityIcons name="storefront" size={18} color={colors.accent} />
-            <Text style={styles.secondaryActionText}>Items</Text>
-          </TouchableOpacity>
-
-        </View>
-      </View>
-
       {/* Filter Tabs */}
       <ScrollView 
         horizontal 
@@ -220,25 +213,70 @@ export default function VaultScreen() {
 
   const filteredItems = getFilteredItems();
 
+  const renderCategoryCard = (category: VaultCategoryConfig) => (
+    <TouchableOpacity
+      key={category.id}
+      style={styles.categoryCard}
+      onPress={() => {
+        // Navigate based on category
+        if (category.id === 'VAULT_KEYS') {
+          nav.navigate('VaultStore');
+        } else {
+          // Map category to the format expected by VaultCategory screen
+          const categoryMap: Record<string, VaultCategory> = {
+            'COCKTAIL_VARIATIONS': 'COCKTAIL_VARIATION',
+            'TECHNIQUE_PLAYBOOKS': 'TECHNIQUE_PLAYBOOK',
+            'BAR_FEATURES': 'BAR_FEATURE',
+            'SEASONAL_DROPS': 'SEASONAL_DROP',
+          };
+          nav.navigate('VaultCategory', { category: categoryMap[category.id] as VaultCategory });
+        }
+      }}
+    >
+      <View style={styles.categoryContent}>
+        <Text style={styles.categoryTitle}>{category.title}</Text>
+        <Text style={styles.categorySubtitle}>{category.subtitle}</Text>
+        <Text style={styles.categoryDescription}>{category.description}</Text>
+      </View>
+      <MaterialCommunityIcons name="chevron-right" size={24} color={colors.subtext} />
+    </TouchableOpacity>
+  );
+
+  const renderNewCategoryContent = () => {
+    let categoriesToShow: VaultCategoryConfig[] = [];
+
+    if (selectedTab === 'variations') {
+      categoriesToShow = [vaultCategories.find(c => c.id === 'COCKTAIL_VARIATIONS')!];
+    } else if (selectedTab === 'playbooks') {
+      categoriesToShow = [vaultCategories.find(c => c.id === 'TECHNIQUE_PLAYBOOKS')!];
+    } else if (selectedTab === 'bars') {
+      categoriesToShow = [vaultCategories.find(c => c.id === 'BAR_FEATURES')!];
+    } else if (selectedTab === 'seasonal') {
+      categoriesToShow = [vaultCategories.find(c => c.id === 'SEASONAL_DROPS')!];
+    } else if (selectedTab === 'keys') {
+      categoriesToShow = [vaultCategories.find(c => c.id === 'VAULT_KEYS')!];
+    }
+
+    return (
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={styles.listContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {renderHeader()}
+        <View style={styles.categoriesContainer}>
+          {categoriesToShow.map(renderCategoryCard)}
+        </View>
+      </ScrollView>
+    );
+  };
+
+  const isNewCategory = ['variations', 'playbooks', 'bars', 'seasonal', 'keys'].includes(selectedTab);
+
   return (
     <View style={styles.container}>
-      {selectedTab === 'ai_recommendations' ? (
-        <ScrollView
-          style={{ flex: 1 }}
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
-        >
-          {renderHeader()}
-          <AIRecommendations
-            navigation={nav}
-            toggleSavedCocktail={toggleSavedCocktail}
-            isCocktailSaved={isCocktailSaved}
-            setSelectedRecipe={setSelectedRecipe}
-            setGroceryListVisible={setGroceryListVisible}
-            onCreditsNeeded={() => setCreditsPurchaseVisible(true)}
-            style={{ paddingHorizontal: 0 }}
-          />
-        </ScrollView>
+      {isNewCategory ? (
+        renderNewCategoryContent()
       ) : (
         <FlatList
           data={filteredItems}
@@ -442,5 +480,45 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.subtext,
     textAlign: 'center',
+  },
+
+  // Category Cards
+  categoriesContainer: {
+    padding: spacing(2),
+    gap: spacing(2),
+  },
+
+  categoryCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.card,
+    borderRadius: radii.lg,
+    padding: spacing(2),
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
+
+  categoryContent: {
+    flex: 1,
+    gap: spacing(0.5),
+  },
+
+  categoryTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: colors.text,
+  },
+
+  categorySubtitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.accent,
+  },
+
+  categoryDescription: {
+    fontSize: 13,
+    color: colors.subtext,
+    lineHeight: 18,
+    marginTop: spacing(0.5),
   },
 });

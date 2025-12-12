@@ -1,5 +1,5 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import VaultStoreScreen from '../screens/vault/VaultStoreScreen';
+import VaultScreen from '../screens/vault/VaultScreen';
 
 export type VaultStackParamList = {
   VaultMain: undefined;
@@ -19,7 +19,7 @@ export default function VaultStack() {
         animationDuration: 200,
       }}
     >
-      <Stack.Screen name="VaultMain" component={VaultStoreScreen} options={{ title: 'Vault' }} />
+      <Stack.Screen name="VaultMain" component={VaultScreen} options={{ title: 'Vault' }} />
     </Stack.Navigator>
   );
 }

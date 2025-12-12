@@ -48,6 +48,7 @@ import VaultOrderDetailsScreen from '../screens/vault/VaultOrderDetailsScreen';
 import VaultOrderHistoryScreen from '../screens/vault/VaultOrderHistoryScreen';
 import VaultBillingScreen from '../screens/vault/VaultBillingScreen';
 import VaultEarnXPScreen from '../screens/vault/VaultEarnXPScreen';
+import VaultCategoryScreen from '../screens/vault/VaultCategoryScreen';
 import CategoriesListScreen from '../screens/CategoriesListScreen';
 import CategoryDetailScreen from '../screens/CategoryDetailScreen';
 import FeaturedBarsScreen from '../screens/FeaturedBarsScreen';
@@ -92,6 +93,7 @@ import SubscriptionDebugScreen from '../screens/SubscriptionDebugScreen';
 import PaywallScreen from '../screens/PaywallScreen';
 import CustomerCenterScreen from '../screens/CustomerCenterScreen';
 import RequirePro from '../components/RequirePro';
+import { VaultCategory } from '../config/vaultTypes';
 
 export type RootStackParamList = {
   Main: undefined;
@@ -148,6 +150,7 @@ export type RootStackParamList = {
   VaultOrderHistory: undefined;
   VaultBilling: undefined;
   VaultEarnXP: undefined;
+  VaultCategory: { category: VaultCategory };
   CategoriesList: undefined;
   CategoryDetail: { categoryId: string; categoryName: string };
   FeaturedBar: { barId: string };
@@ -396,6 +399,7 @@ export default function RootNavigator({ initialRouteName = 'Main', onHiddenFlask
     <Stack.Screen name="VaultOrderHistory" component={VaultOrderHistoryScreen} options={{ headerShown: true, title: 'Order History' }} />
     <Stack.Screen name="VaultBilling" component={VaultBillingScreen} options={{ headerShown: true, title: 'Billing' }} />
     <Stack.Screen name="VaultEarnXP" component={VaultEarnXPScreen} options={{ headerShown: true, title: 'Earn XP' }} />
+    <Stack.Screen name="VaultCategory" component={VaultCategoryScreen} options={{ headerShown: false }} />
     <Stack.Screen name="CategoriesList" component={CategoriesListScreen} options={{ headerShown: true, title: 'Categories' }} />
     <Stack.Screen name="CategoryDetail" component={CategoryDetailScreen} options={{ headerShown: true, title: 'Category' }} />
     <Stack.Screen name="FeaturedBar" component={FeaturedBarsScreen} options={{ headerShown: true, title: 'Featured Bar' }} />
