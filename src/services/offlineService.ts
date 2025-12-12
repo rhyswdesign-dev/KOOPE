@@ -7,6 +7,7 @@
 import NetInfo, { NetInfoState } from '@react-native-community/netinfo';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Recipe } from '../types/recipe';
+import { log } from '../lib/logger';
 
 // Storage keys
 const STORAGE_KEYS = {
@@ -79,7 +80,9 @@ class OfflineService {
 
       // If connection restored, sync offline queue
       if (wasOffline && isNowOnline) {
-        console.log('📡 Connection restored, syncing offline queue...');
+        log.info('OfflineService', 'Connection restored, syncing offline queue', {
+          queueSize: this.offlineQueue.length
+        });
         this.syncOfflineQueue();
       }
     });
@@ -139,7 +142,10 @@ class OfflineService {
     this.offlineQueue.push(queueAction);
     await this.saveOfflineQueue();
 
-    console.log(`📥 Added action to offline queue: ${action.type}`);
+    log.info('OfflineService', 'Added action to offline queue', {
+      type: action.type,
+      queueSize: this.offlineQueue.length
+    });
   }
 
   /**
@@ -173,21 +179,28 @@ class OfflineService {
     }
 
     if (!this.isOnline()) {
-      console.log('⚠️ Cannot sync: device is offline');
+      log.warn('OfflineService', 'Cannot sync: device is offline');
       return;
     }
 
     this.isSyncing = true;
-    console.log(`🔄 Syncing ${this.offlineQueue.length} offline actions...`);
+    log.info('OfflineService', 'Starting sync', { actionCount: this.offlineQueue.length });
 
     const failedActions: OfflineAction[] = [];
 
     for (const action of this.offlineQueue) {
       try {
         await this.executeAction(action);
-        console.log(`✅ Synced action: ${action.type}`);
+        log.info('OfflineService', 'Synced action successfully', {
+          type: action.type,
+          actionId: action.id
+        });
       } catch (error) {
-        console.error(`❌ Failed to sync action: ${action.type}`, error);
+        log.error('OfflineService', 'Failed to sync action', error, {
+          type: action.type,
+          actionId: action.id,
+          retryCount: action.retryCount
+        });
 
         // Retry up to 3 times
         if (action.retryCount < 3) {
@@ -196,7 +209,10 @@ class OfflineService {
             retryCount: action.retryCount + 1,
           });
         } else {
-          console.error(`🚫 Action failed after 3 retries, discarding: ${action.type}`);
+          log.warn('OfflineService', 'Action failed after 3 retries, discarding', {
+            type: action.type,
+            actionId: action.id
+          });
         }
       }
     }
@@ -209,43 +225,141 @@ class OfflineService {
     await AsyncStorage.setItem(STORAGE_KEYS.LAST_SYNC, Date.now().toString());
 
     this.isSyncing = false;
-    console.log(`✅ Sync complete. ${failedActions.length} actions remaining in queue`);
+    log.info('OfflineService', 'Sync complete', {
+      failedCount: failedActions.length,
+      successCount: this.offlineQueue.length - failedActions.length
+    });
   }
 
   /**
    * Execute a queued action
    */
   private async executeAction(action: OfflineAction): Promise<void> {
-    // This will be implemented based on your specific API calls
-    // For now, just a placeholder that simulates the action
+    log.fn('OfflineService', 'executeAction', { type: action.type, actionId: action.id });
+
     switch (action.type) {
       case 'favorite':
-        console.log(`Executing favorite: ${action.data.recipeId}`);
-        // TODO: Call actual API to favorite recipe
+        await this.executeFavoriteAction(action.data.recipeId, true);
         break;
       case 'unfavorite':
-        console.log(`Executing unfavorite: ${action.data.recipeId}`);
-        // TODO: Call actual API to unfavorite recipe
+        await this.executeFavoriteAction(action.data.recipeId, false);
         break;
       case 'add_to_bar':
-        console.log(`Executing add to bar: ${action.data.ingredientId}`);
-        // TODO: Call actual API to add to home bar
+        await this.executeHomeBarAction(action.data.ingredientId, 'add');
         break;
       case 'remove_from_bar':
-        console.log(`Executing remove from bar: ${action.data.ingredientId}`);
-        // TODO: Call actual API to remove from home bar
+        await this.executeHomeBarAction(action.data.ingredientId, 'remove');
         break;
       case 'create_recipe':
-        console.log(`Executing create recipe: ${action.data.recipe.title}`);
-        // TODO: Call actual API to create recipe
+        await this.executeCreateRecipe(action.data.recipe);
         break;
       case 'update_recipe':
-        console.log(`Executing update recipe: ${action.data.recipeId}`);
-        // TODO: Call actual API to update recipe
+        await this.executeUpdateRecipe(action.data.recipeId, action.data.updates);
         break;
       default:
-        console.warn(`Unknown action type: ${(action as any).type}`);
+        log.warn('OfflineService', 'Unknown action type', { type: (action as any).type });
+        throw new Error(`Unknown action type: ${(action as any).type}`);
     }
+  }
+
+  /**
+   * Execute favorite/unfavorite API call
+   * TODO: Replace with actual backend API endpoint
+   */
+  private async executeFavoriteAction(recipeId: string, isFavorite: boolean): Promise<void> {
+    log.api('POST', `/api/users/favorites/${recipeId}`, { isFavorite });
+
+    // Simulate API call delay
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    // TODO: Implement actual API call
+    // Example:
+    // const response = await fetch(`${API_BASE_URL}/users/favorites/${recipeId}`, {
+    //   method: 'POST',
+    //   headers: {
+    //     'Content-Type': 'application/json',
+    //     'Authorization': `Bearer ${authToken}`
+    //   },
+    //   body: JSON.stringify({ isFavorite })
+    // });
+    //
+    // if (!response.ok) {
+    //   throw new Error(`Failed to ${isFavorite ? 'favorite' : 'unfavorite'} recipe`);
+    // }
+  }
+
+  /**
+   * Execute home bar add/remove API call
+   * TODO: Replace with actual backend API endpoint
+   */
+  private async executeHomeBarAction(ingredientId: string, action: 'add' | 'remove'): Promise<void> {
+    log.api('POST', `/api/users/home-bar/${ingredientId}`, { action });
+
+    // Simulate API call delay
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    // TODO: Implement actual API call
+    // const response = await fetch(`${API_BASE_URL}/users/home-bar/${ingredientId}`, {
+    //   method: action === 'add' ? 'POST' : 'DELETE',
+    //   headers: {
+    //     'Content-Type': 'application/json',
+    //     'Authorization': `Bearer ${authToken}`
+    //   }
+    // });
+    //
+    // if (!response.ok) {
+    //   throw new Error(`Failed to ${action} ingredient ${action === 'add' ? 'to' : 'from'} home bar`);
+    // }
+  }
+
+  /**
+   * Execute create recipe API call
+   * TODO: Replace with actual backend API endpoint
+   */
+  private async executeCreateRecipe(recipe: any): Promise<void> {
+    log.api('POST', '/api/recipes', { title: recipe.title });
+
+    // Simulate API call delay
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    // TODO: Implement actual API call
+    // const response = await fetch(`${API_BASE_URL}/recipes`, {
+    //   method: 'POST',
+    //   headers: {
+    //     'Content-Type': 'application/json',
+    //     'Authorization': `Bearer ${authToken}`
+    //   },
+    //   body: JSON.stringify(recipe)
+    // });
+    //
+    // if (!response.ok) {
+    //   throw new Error('Failed to create recipe');
+    // }
+  }
+
+  /**
+   * Execute update recipe API call
+   * TODO: Replace with actual backend API endpoint
+   */
+  private async executeUpdateRecipe(recipeId: string, updates: any): Promise<void> {
+    log.api('PATCH', `/api/recipes/${recipeId}`, updates);
+
+    // Simulate API call delay
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    // TODO: Implement actual API call
+    // const response = await fetch(`${API_BASE_URL}/recipes/${recipeId}`, {
+    //   method: 'PATCH',
+    //   headers: {
+    //     'Content-Type': 'application/json',
+    //     'Authorization': `Bearer ${authToken}`
+    //   },
+    //   body: JSON.stringify(updates)
+    // });
+    //
+    // if (!response.ok) {
+    //   throw new Error('Failed to update recipe');
+    // }
   }
 
   /**
@@ -256,10 +370,12 @@ class OfflineService {
       const queueData = await AsyncStorage.getItem(STORAGE_KEYS.OFFLINE_QUEUE);
       if (queueData) {
         this.offlineQueue = JSON.parse(queueData);
-        console.log(`📦 Loaded ${this.offlineQueue.length} offline actions from storage`);
+        log.info('OfflineService', 'Loaded offline queue from storage', {
+          actionCount: this.offlineQueue.length
+        });
       }
     } catch (error) {
-      console.error('Error loading offline queue:', error);
+      log.error('OfflineService', 'Error loading offline queue', error);
     }
   }
 
@@ -270,7 +386,7 @@ class OfflineService {
     try {
       await AsyncStorage.setItem(STORAGE_KEYS.OFFLINE_QUEUE, JSON.stringify(this.offlineQueue));
     } catch (error) {
-      console.error('Error saving offline queue:', error);
+      log.error('OfflineService', 'Error saving offline queue', error);
     }
   }
 
@@ -282,7 +398,7 @@ class OfflineService {
       const lastSync = await AsyncStorage.getItem(STORAGE_KEYS.LAST_SYNC);
       return lastSync ? parseInt(lastSync, 10) : null;
     } catch (error) {
-      console.error('Error getting last sync time:', error);
+      log.error('OfflineService', 'Error getting last sync time', error);
       return null;
     }
   }
@@ -293,9 +409,11 @@ class OfflineService {
   public async cacheRecipes(recipes: Recipe[]): Promise<void> {
     try {
       await AsyncStorage.setItem(STORAGE_KEYS.OFFLINE_RECIPES, JSON.stringify(recipes));
-      console.log(`💾 Cached ${recipes.length} recipes for offline access`);
+      log.info('OfflineService', 'Cached recipes for offline access', {
+        recipeCount: recipes.length
+      });
     } catch (error) {
-      console.error('Error caching recipes:', error);
+      log.error('OfflineService', 'Error caching recipes', error);
     }
   }
 
@@ -307,11 +425,11 @@ class OfflineService {
       const recipesData = await AsyncStorage.getItem(STORAGE_KEYS.OFFLINE_RECIPES);
       if (recipesData) {
         const recipes = JSON.parse(recipesData);
-        console.log(`📦 Loaded ${recipes.length} cached recipes`);
+        log.info('OfflineService', 'Loaded cached recipes', { recipeCount: recipes.length });
         return recipes;
       }
     } catch (error) {
-      console.error('Error loading cached recipes:', error);
+      log.error('OfflineService', 'Error loading cached recipes', error);
     }
     return [];
   }
@@ -322,8 +440,9 @@ class OfflineService {
   public async cacheFavorites(favorites: string[]): Promise<void> {
     try {
       await AsyncStorage.setItem(STORAGE_KEYS.OFFLINE_FAVORITES, JSON.stringify(favorites));
+      log.debug('OfflineService', 'Cached favorites', { count: favorites.length });
     } catch (error) {
-      console.error('Error caching favorites:', error);
+      log.error('OfflineService', 'Error caching favorites', error);
     }
   }
 
@@ -334,10 +453,12 @@ class OfflineService {
     try {
       const favoritesData = await AsyncStorage.getItem(STORAGE_KEYS.OFFLINE_FAVORITES);
       if (favoritesData) {
-        return JSON.parse(favoritesData);
+        const favorites = JSON.parse(favoritesData);
+        log.debug('OfflineService', 'Loaded cached favorites', { count: favorites.length });
+        return favorites;
       }
     } catch (error) {
-      console.error('Error loading cached favorites:', error);
+      log.error('OfflineService', 'Error loading cached favorites', error);
     }
     return [];
   }
@@ -348,8 +469,9 @@ class OfflineService {
   public async cacheHomeBar(homeBar: any[]): Promise<void> {
     try {
       await AsyncStorage.setItem(STORAGE_KEYS.OFFLINE_HOME_BAR, JSON.stringify(homeBar));
+      log.debug('OfflineService', 'Cached home bar', { itemCount: homeBar.length });
     } catch (error) {
-      console.error('Error caching home bar:', error);
+      log.error('OfflineService', 'Error caching home bar', error);
     }
   }
 
@@ -360,10 +482,12 @@ class OfflineService {
     try {
       const homeBarData = await AsyncStorage.getItem(STORAGE_KEYS.OFFLINE_HOME_BAR);
       if (homeBarData) {
-        return JSON.parse(homeBarData);
+        const homeBar = JSON.parse(homeBarData);
+        log.debug('OfflineService', 'Loaded cached home bar', { itemCount: homeBar.length });
+        return homeBar;
       }
     } catch (error) {
-      console.error('Error loading cached home bar:', error);
+      log.error('OfflineService', 'Error loading cached home bar', error);
     }
     return [];
   }
