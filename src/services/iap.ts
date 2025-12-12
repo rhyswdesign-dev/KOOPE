@@ -3,6 +3,8 @@
  * Platform-safe IAP integration with stubs
  */
 
+import { log } from '../lib/logger';
+
 export interface IAPProduct {
   id: string;
   title: string;
@@ -83,14 +85,14 @@ export class StubIAPService implements IAPService {
   };
 
   async initialize(): Promise<void> {
-    console.log('Stub IAP Service initialized');
+    log.info('IAPService', 'Initializing IAP service (stub mode)');
     // TODO: Initialize platform-specific IAP
     // iOS: StoreKit
     // Android: Google Play Billing
   }
 
   async getProducts(productIds: string[]): Promise<IAPProduct[]> {
-    console.log('Getting products:', productIds);
+    log.fn('IAPService', 'getProducts', { productIds });
     
     // Simulate network delay
     await new Promise(resolve => setTimeout(resolve, 1000));
