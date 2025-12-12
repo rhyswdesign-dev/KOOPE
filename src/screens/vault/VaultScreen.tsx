@@ -11,7 +11,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   Pressable,
-  FlatList,
+  Image,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -29,7 +29,16 @@ import VaultItemCard from './components/VaultItemCard';
 import AICreditsPurchaseModal from '../../components/AICreditsPurchaseModal';
 import { useScreenTracking, useAnalyticsContext } from '../../context/AnalyticsContext';
 import { VaultCategory } from '../../config/vaultTypes';
-import { vaultCategories, VaultCategoryConfig } from '../../config/vaultContent';
+import {
+  vaultCategories,
+  VaultCategoryConfig,
+  getVariationsForDisplay,
+  getTechniquePlaybooksByType,
+  getBarFeaturesForDisplay,
+  getAvailableSeasonalDropsForTier,
+  getAllPlaybookTypes,
+  TechniquePlaybookType,
+} from '../../config/vaultContent';
 import AIRecommendations from '../../components/AIRecommendations';
 import { useSavedItems } from '../../hooks/useSavedItems';
 import GroceryListModal from '../../components/GroceryListModal';
@@ -98,8 +107,7 @@ export default function VaultScreen() {
       case 'playbooks':
       case 'bars':
       case 'seasonal':
-      case 'keys':
-        return []; // New vault content categories (handled by category display)
+        return []; // New vault content categories (handled inline)
       case 'common':
         return items.filter(item => item.rarity === 'common');
       case 'limited':
@@ -112,14 +120,14 @@ export default function VaultScreen() {
   };
 
   const tabs = [
-    { key: 'variations', label: 'Variations' },
+    { key: 'variations', label: 'Cocktails' },
+    { key: 'seasonal', label: 'Seasonal' },
     { key: 'playbooks', label: 'Playbooks' },
     { key: 'bars', label: 'Bar Features' },
-    { key: 'seasonal', label: 'Seasonal' },
-    { key: 'keys', label: 'Keys' },
-    { key: 'common', label: 'Common' },
-    { key: 'limited', label: 'Limited' },
-    { key: 'rare', label: 'Rare' },
+    // Archived for future product expansion
+    // { key: 'common', label: 'Common' },
+    // { key: 'limited', label: 'Limited' },
+    // { key: 'rare', label: 'Rare' },
   ];
 
   const renderVaultItem = ({ item }: { item: VaultItem }) => (
@@ -213,83 +221,166 @@ export default function VaultScreen() {
 
   const filteredItems = getFilteredItems();
 
-  const renderCategoryCard = (category: VaultCategoryConfig) => (
-    <TouchableOpacity
-      key={category.id}
-      style={styles.categoryCard}
-      onPress={() => {
-        // Navigate based on category
-        if (category.id === 'VAULT_KEYS') {
-          nav.navigate('VaultStore');
-        } else {
-          // Map category to the format expected by VaultCategory screen
-          const categoryMap: Record<string, VaultCategory> = {
-            'COCKTAIL_VARIATIONS': 'COCKTAIL_VARIATION',
-            'TECHNIQUE_PLAYBOOKS': 'TECHNIQUE_PLAYBOOK',
-            'BAR_FEATURES': 'BAR_FEATURE',
-            'SEASONAL_DROPS': 'SEASONAL_DROP',
-          };
-          nav.navigate('VaultCategory', { category: categoryMap[category.id] as VaultCategory });
-        }
-      }}
-    >
-      <View style={styles.categoryContent}>
-        <Text style={styles.categoryTitle}>{category.title}</Text>
-        <Text style={styles.categorySubtitle}>{category.subtitle}</Text>
-        <Text style={styles.categoryDescription}>{category.description}</Text>
+  // Placeholder images
+  const PLACEHOLDER_IMAGES = {
+    ice: 'https://images.unsplash.com/photo-1564808225-3e440c8c7b5e?w=400',
+    acid: 'https://images.unsplash.com/photo-1536935338788-846bb9981813?w=400',
+    batch: 'https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?w=400',
+    speed: 'https://images.unsplash.com/photo-1572116469696-31de0f17cc34?w=400',
+    cocktail: 'https://images.unsplash.com/photo-1578474846511-04ba529f0b88?w=400',
+    bar: 'https://images.unsplash.com/photo-1566417713940-fe7c737a9ef2?w=400',
+    seasonal: 'https://images.unsplash.com/photo-1514361892635-6b07e31e75f9?w=400',
+  };
+
+  const PLAYBOOK_TYPE_LABELS: Record<TechniquePlaybookType, string> = {
+    ICE_STRATEGY: 'Ice Strategy Playbooks',
+    ACID_CONTROL: 'Acid Control Playbooks',
+    BATCH_MATH: 'Batch Math Playbooks',
+    SPEED_SYSTEM: 'Speed Systems',
+  };
+
+  const PLAYBOOK_TYPE_IMAGES: Record<TechniquePlaybookType, string> = {
+    ICE_STRATEGY: PLACEHOLDER_IMAGES.ice,
+    ACID_CONTROL: PLACEHOLDER_IMAGES.acid,
+    BATCH_MATH: PLACEHOLDER_IMAGES.batch,
+    SPEED_SYSTEM: PLACEHOLDER_IMAGES.speed,
+  };
+
+  const renderContentItem = (item: any, imageUrl: string) => (
+    <View key={item.id} style={styles.contentItemCard}>
+      <Image source={{ uri: imageUrl }} style={styles.contentItemThumbnail} resizeMode="cover" />
+      <View style={styles.contentItemInfo}>
+        <Text style={styles.contentItemXP}>{item.xpCost} XP</Text>
+        <Text style={styles.contentItemTitle}>{item.title || item.barName || item.seasonName}</Text>
+        <Text style={styles.contentItemDescription} numberOfLines={2}>
+          {item.shortDescription || item.description || `${item.city} • ${item.signatureCocktailName}`}
+        </Text>
       </View>
-      <MaterialCommunityIcons name="chevron-right" size={24} color={colors.subtext} />
-    </TouchableOpacity>
+      <TouchableOpacity style={styles.contentItemUnlockButton} activeOpacity={0.8}>
+        <Text style={styles.contentItemUnlockText}>Unlock</Text>
+      </TouchableOpacity>
+    </View>
   );
 
-  const renderNewCategoryContent = () => {
-    let categoriesToShow: VaultCategoryConfig[] = [];
-
-    if (selectedTab === 'variations') {
-      categoriesToShow = [vaultCategories.find(c => c.id === 'COCKTAIL_VARIATIONS')!];
-    } else if (selectedTab === 'playbooks') {
-      categoriesToShow = [vaultCategories.find(c => c.id === 'TECHNIQUE_PLAYBOOKS')!];
-    } else if (selectedTab === 'bars') {
-      categoriesToShow = [vaultCategories.find(c => c.id === 'BAR_FEATURES')!];
-    } else if (selectedTab === 'seasonal') {
-      categoriesToShow = [vaultCategories.find(c => c.id === 'SEASONAL_DROPS')!];
-    } else if (selectedTab === 'keys') {
-      categoriesToShow = [vaultCategories.find(c => c.id === 'VAULT_KEYS')!];
+  const renderInlineContent = () => {
+    if (selectedTab === 'playbooks') {
+      const playbookTypes = getAllPlaybookTypes();
+      return (
+        <View style={styles.inlineContent}>
+          {playbookTypes.map((type) => {
+            const playbooks = getTechniquePlaybooksByType(type);
+            if (playbooks.length === 0) return null;
+            return (
+              <View key={type} style={styles.contentSection}>
+                <Text style={styles.contentSectionTitle}>{PLAYBOOK_TYPE_LABELS[type]}</Text>
+                {playbooks.map((playbook) => renderContentItem(playbook, PLAYBOOK_TYPE_IMAGES[type]))}
+              </View>
+            );
+          })}
+        </View>
+      );
     }
 
-    return (
+    if (selectedTab === 'variations') {
+      const variations = getVariationsForDisplay();
+      const groupedByDifficulty: Record<string, typeof variations> = {
+        simple: [],
+        technique_forward: [],
+        pro: [],
+      };
+      variations.forEach((v) => {
+        groupedByDifficulty[v.difficulty].push(v);
+      });
+      const difficultyLabels = {
+        simple: 'Simple Variations',
+        technique_forward: 'Technique-Forward Variations',
+        pro: 'Pro-Level Variations',
+      };
+      return (
+        <View style={styles.inlineContent}>
+          {Object.entries(groupedByDifficulty).map(([difficulty, items]) => {
+            if (items.length === 0) return null;
+            return (
+              <View key={difficulty} style={styles.contentSection}>
+                <Text style={styles.contentSectionTitle}>
+                  {difficultyLabels[difficulty as keyof typeof difficultyLabels]}
+                </Text>
+                {items.map((variation) => renderContentItem(variation, PLACEHOLDER_IMAGES.cocktail))}
+              </View>
+            );
+          })}
+        </View>
+      );
+    }
+
+    if (selectedTab === 'bars') {
+      const bars = getBarFeaturesForDisplay();
+      return (
+        <View style={styles.barSpotlightContainer}>
+          {bars.map((bar) => (
+            <View key={bar.id} style={styles.barSpotlightCard}>
+              <Image
+                source={{ uri: PLACEHOLDER_IMAGES.bar }}
+                style={styles.barSpotlightImage}
+                resizeMode="cover"
+              />
+              <View style={styles.barSpotlightOverlay}>
+                <Text style={styles.barSpotlightTitle}>{bar.barName}, {bar.city}</Text>
+                <Text style={styles.barSpotlightDescription}>{bar.vibeDescription}</Text>
+                <View style={styles.barSpotlightFooter}>
+                  <Text style={styles.barSpotlightXP}>Unlock with {bar.xpCost} XP</Text>
+                  <TouchableOpacity style={styles.barUnlockButton} activeOpacity={0.8}>
+                    <Text style={styles.barUnlockButtonText}>Unlock</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          ))}
+        </View>
+      );
+    }
+
+    if (selectedTab === 'seasonal') {
+      const drops = getAvailableSeasonalDropsForTier('PLUS');
+      return (
+        <View style={styles.inlineContent}>
+          <View style={styles.contentSection}>
+            <Text style={styles.contentSectionTitle}>Available Drops</Text>
+            {drops.map((drop) => renderContentItem({ ...drop, xpCost: 'Limited Time' }, PLACEHOLDER_IMAGES.seasonal))}
+          </View>
+        </View>
+      );
+    }
+
+    return null;
+  };
+
+  const isNewCategory = ['variations', 'playbooks', 'bars', 'seasonal'].includes(selectedTab);
+
+  return (
+    <View style={styles.container}>
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
       >
         {renderHeader()}
-        <View style={styles.categoriesContainer}>
-          {categoriesToShow.map(renderCategoryCard)}
-        </View>
+        {isNewCategory ? (
+          renderInlineContent()
+        ) : (
+          <>
+            {filteredItems.length === 0 ? (
+              renderEmptyState()
+            ) : (
+              filteredItems.map((item) => (
+                <View key={item.id}>
+                  {renderVaultItem({ item })}
+                </View>
+              ))
+            )}
+          </>
+        )}
       </ScrollView>
-    );
-  };
-
-  const isNewCategory = ['variations', 'playbooks', 'bars', 'seasonal', 'keys'].includes(selectedTab);
-
-  return (
-    <View style={styles.container}>
-      {isNewCategory ? (
-        renderNewCategoryContent()
-      ) : (
-        <FlatList
-          data={filteredItems}
-          renderItem={renderVaultItem}
-          keyExtractor={(item) => item.id}
-          ListHeaderComponent={renderHeader}
-          ListEmptyComponent={renderEmptyState}
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
-          numColumns={1}
-          ItemSeparatorComponent={() => <View style={styles.itemSeparator} />}
-        />
-      )}
 
       {/* Unlock Modal */}
       <VaultUnlockModal
@@ -362,26 +453,27 @@ const styles = StyleSheet.create({
   
   statCard: {
     flex: 1,
-    flexDirection: 'row',
+    flexDirection: 'column',
     alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: colors.bg,
     borderRadius: radii.lg,
-    padding: spacing(1),
-    gap: spacing(1),
+    padding: spacing(1.5),
+    gap: spacing(0.5),
   },
-  
+
   statValue: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '800',
     color: colors.text,
-    flex: 1,
   },
-  
+
   statLabel: {
     fontSize: 11,
     color: colors.subtext,
     fontWeight: '600',
     textTransform: 'uppercase',
+    textAlign: 'center',
   },
 
   clickableStatCard: {
@@ -482,43 +574,137 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 
-  // Category Cards
-  categoriesContainer: {
-    padding: spacing(2),
-    gap: spacing(2),
+  // Inline Content
+  inlineContent: {
+    paddingHorizontal: spacing(2),
+    paddingBottom: spacing(4),
   },
 
-  categoryCard: {
+  contentSection: {
+    marginBottom: spacing(4),
+  },
+
+  contentSectionTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: spacing(2),
+  },
+
+  contentItemCard: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.card,
     borderRadius: radii.lg,
     padding: spacing(2),
-    borderWidth: 1,
-    borderColor: colors.line,
+    marginBottom: spacing(2),
+    gap: spacing(1.5),
   },
 
-  categoryContent: {
+  contentItemThumbnail: {
+    width: 100,
+    height: 100,
+    borderRadius: radii.md,
+    backgroundColor: colors.line,
+  },
+
+  contentItemInfo: {
     flex: 1,
-    gap: spacing(0.5),
   },
 
-  categoryTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: colors.text,
-  },
-
-  categorySubtitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.accent,
-  },
-
-  categoryDescription: {
+  contentItemXP: {
     fontSize: 13,
+    fontWeight: '600',
     color: colors.subtext,
+    marginBottom: spacing(0.5),
+  },
+
+  contentItemTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: spacing(0.5),
+  },
+
+  contentItemDescription: {
+    fontSize: 13,
     lineHeight: 18,
-    marginTop: spacing(0.5),
+    color: colors.subtext,
+  },
+
+  contentItemUnlockButton: {
+    backgroundColor: colors.accent,
+    paddingHorizontal: spacing(2),
+    paddingVertical: spacing(1),
+    borderRadius: radii.md,
+  },
+
+  contentItemUnlockText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.white,
+  },
+
+  // Bar Spotlight Cards
+  barSpotlightContainer: {
+    paddingHorizontal: spacing(2),
+    paddingBottom: spacing(4),
+    gap: spacing(3),
+  },
+
+  barSpotlightCard: {
+    borderRadius: radii.lg,
+    overflow: 'hidden',
+    backgroundColor: colors.card,
+    marginBottom: spacing(3),
+  },
+
+  barSpotlightImage: {
+    width: '100%',
+    height: 200,
+    backgroundColor: colors.line,
+  },
+
+  barSpotlightOverlay: {
+    padding: spacing(2),
+  },
+
+  barSpotlightTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: spacing(1),
+  },
+
+  barSpotlightDescription: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: colors.subtext,
+    marginBottom: spacing(2),
+  },
+
+  barSpotlightFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+
+  barSpotlightXP: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.subtext,
+  },
+
+  barUnlockButton: {
+    backgroundColor: colors.accent,
+    paddingHorizontal: spacing(3),
+    paddingVertical: spacing(1),
+    borderRadius: radii.md,
+  },
+
+  barUnlockButtonText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.white,
   },
 });

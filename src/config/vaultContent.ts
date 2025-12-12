@@ -97,6 +97,7 @@ export interface CocktailVariationContent {
   xpCost: number;
   moneyPriceCents?: number;
   unlockMethod: UnlockMethod;
+  requiredTier?: UserTier; // Minimum tier required to access this content
 }
 
 export const cocktailVariations: CocktailVariationContent[] = [
@@ -241,6 +242,7 @@ export interface TechniquePlaybookContent {
   shortDescription: string;
   keyOutcomes: string[];
   xpCost: number;
+  requiredTier?: UserTier; // Minimum tier required to access this content
 }
 
 export const techniquePlaybooks: TechniquePlaybookContent[] = [
@@ -373,6 +375,7 @@ export interface BarFeatureContent {
   moneyPriceCents: number;
   unlockMethod: UnlockMethod;
   proEarlyAccess: boolean;
+  requiredTier?: UserTier; // Minimum tier required to access this content
 }
 
 export const barFeatures: BarFeatureContent[] = [
@@ -446,6 +449,8 @@ export interface SeasonalDropContent {
   freePreview: boolean;
   plusAccess: boolean;
   proBonusItemId?: string;
+  requiredTier?: UserTier; // Minimum tier required to access this content
+  earlyAccessDays?: number; // Days of early access for PRO users
 }
 
 export const seasonalDrops: SeasonalDropContent[] = [
@@ -579,25 +584,68 @@ export function getVaultCategoryById(
 
 /**
  * Get all cocktail variations for display (sorted by XP cost)
+ * Can optionally filter by user tier to only show accessible content
  */
-export function getVariationsForDisplay(): CocktailVariationContent[] {
-  return [...cocktailVariations].sort((a, b) => a.xpCost - b.xpCost);
+export function getVariationsForDisplay(userTier?: UserTier): CocktailVariationContent[] {
+  let variations = [...cocktailVariations];
+
+  // Filter by tier if provided
+  if (userTier) {
+    variations = variations.filter(v => {
+      if (!v.requiredTier) return true; // No tier requirement = accessible to all
+      return getTierLevel(userTier) >= getTierLevel(v.requiredTier);
+    });
+  }
+
+  return variations.sort((a, b) => a.xpCost - b.xpCost);
 }
 
 /**
  * Get technique playbooks filtered by type
+ * Can optionally filter by user tier to only show accessible content
  */
 export function getTechniquePlaybooksByType(
-  type: TechniquePlaybookType
+  type: TechniquePlaybookType,
+  userTier?: UserTier
 ): TechniquePlaybookContent[] {
-  return techniquePlaybooks.filter((pb) => pb.playbookType === type);
+  let playbooks = techniquePlaybooks.filter((pb) => pb.playbookType === type);
+
+  // Filter by tier if provided
+  if (userTier) {
+    playbooks = playbooks.filter(pb => {
+      if (!pb.requiredTier) return true; // No tier requirement = accessible to all
+      return getTierLevel(userTier) >= getTierLevel(pb.requiredTier);
+    });
+  }
+
+  return playbooks;
+}
+
+// Helper function to convert tier to numeric level for comparison
+function getTierLevel(tier: UserTier): number {
+  switch (tier) {
+    case 'FREE': return 0;
+    case 'PLUS': return 1;
+    case 'PRO': return 2;
+  }
 }
 
 /**
  * Get all bar features for display (sorted by XP cost)
+ * Can optionally filter by user tier to only show accessible content
  */
-export function getBarFeaturesForDisplay(): BarFeatureContent[] {
-  return [...barFeatures].sort((a, b) => a.xpCost - b.xpCost);
+export function getBarFeaturesForDisplay(userTier?: UserTier): BarFeatureContent[] {
+  let features = [...barFeatures];
+
+  // Filter by tier if provided
+  if (userTier) {
+    features = features.filter(bf => {
+      if (!bf.requiredTier) return true; // No tier requirement = accessible to all
+      return getTierLevel(userTier) >= getTierLevel(bf.requiredTier);
+    });
+  }
+
+  return features.sort((a, b) => a.xpCost - b.xpCost);
 }
 
 /**
@@ -643,9 +691,11 @@ export function getItemsForSeasonalDrop(dropId: string): {
  *
  * Rules:
  * - Filter by date range (availableFrom / availableUntil)
+ * - PRO users get early access based on earlyAccessDays
+ * - Filter by requiredTier if specified
  * - FREE tier: only drops with freePreview = true
  * - PLUS tier: only drops with plusAccess = true
- * - PRO tier: all valid drops
+ * - PRO tier: all valid drops + early access
  */
 export function getAvailableSeasonalDropsForTier(
   tier: UserTier,
@@ -654,15 +704,27 @@ export function getAvailableSeasonalDropsForTier(
   const nowTime = now.getTime();
 
   return seasonalDrops.filter((drop) => {
-    // Check date range
-    const availableFrom = new Date(drop.availableFrom).getTime();
-    const availableUntil = new Date(drop.availableUntil).getTime();
-
-    if (nowTime < availableFrom || nowTime > availableUntil) {
+    // Check tier requirement
+    if (drop.requiredTier && getTierLevel(tier) < getTierLevel(drop.requiredTier)) {
       return false;
     }
 
-    // Check tier access
+    // Calculate effective start date (with early access for PRO users)
+    let effectiveStartTime = new Date(drop.availableFrom).getTime();
+    if (tier === 'PRO' && drop.earlyAccessDays) {
+      const earlyAccessDate = new Date(drop.availableFrom);
+      earlyAccessDate.setDate(earlyAccessDate.getDate() - drop.earlyAccessDays);
+      effectiveStartTime = earlyAccessDate.getTime();
+    }
+
+    // Check date range
+    const availableUntil = new Date(drop.availableUntil).getTime();
+
+    if (nowTime < effectiveStartTime || nowTime > availableUntil) {
+      return false;
+    }
+
+    // Check tier access (legacy fields for backwards compatibility)
     if (tier === "FREE") {
       return drop.freePreview;
     }

@@ -1,184 +1,274 @@
 /**
  * VAULT CATEGORY SCREEN
  *
- * Generic screen for displaying items in a specific Vault category.
- * Shows filterable list of items with unlock capabilities.
+ * Displays items in a specific Vault category with thumbnails and grouped by subcategory.
+ * Matches the design of the Technique Playbooks screen.
  */
 
-import React, { useState } from 'react';
+import React from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  FlatList,
-  Pressable,
-  SafeAreaView,
-  Alert,
+  ScrollView,
+  TouchableOpacity,
+  Image,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, radii, fonts } from '../../theme/tokens';
-import { useVaultState } from '../../state/vaultState';
-import { VaultItemCard } from '../../components/vault/VaultItemCard';
-import { VaultCategory, VaultItem } from '../../config/vaultTypes';
-import { vaultCategoryMetadata } from '../../config/vaultData';
+import { colors, spacing, radii } from '../../theme/tokens';
+import {
+  getVariationsForDisplay,
+  getTechniquePlaybooksByType,
+  getBarFeaturesForDisplay,
+  getAvailableSeasonalDropsForTier,
+  getPurchasableVaultKeys,
+  getAllPlaybookTypes,
+  TechniquePlaybookType,
+} from '../../config/vaultContent';
 import { RootStackParamList } from '../../navigation/RootNavigator';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'VaultCategory'>;
 
+// Placeholder images for thumbnails (same as common tab items)
+const PLACEHOLDER_IMAGES = {
+  ice: 'https://images.unsplash.com/photo-1564808225-3e440c8c7b5e?w=400',
+  acid: 'https://images.unsplash.com/photo-1536935338788-846bb9981813?w=400',
+  batch: 'https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?w=400',
+  speed: 'https://images.unsplash.com/photo-1572116469696-31de0f17cc34?w=400',
+  cocktail: 'https://images.unsplash.com/photo-1578474846511-04ba529f0b88?w=400',
+  bar: 'https://images.unsplash.com/photo-1566417713940-fe7c737a9ef2?w=400',
+  seasonal: 'https://images.unsplash.com/photo-1514361892635-6b07e31e75f9?w=400',
+  keys: 'https://images.unsplash.com/photo-1582139329536-e7284fece509?w=400',
+};
+
+const PLAYBOOK_TYPE_LABELS: Record<TechniquePlaybookType, string> = {
+  ICE_STRATEGY: 'Ice Strategy Playbooks',
+  ACID_CONTROL: 'Acid Control Playbooks',
+  BATCH_MATH: 'Batch Math Playbooks',
+  SPEED_SYSTEM: 'Speed Systems',
+};
+
+const PLAYBOOK_TYPE_IMAGES: Record<TechniquePlaybookType, string> = {
+  ICE_STRATEGY: PLACEHOLDER_IMAGES.ice,
+  ACID_CONTROL: PLACEHOLDER_IMAGES.acid,
+  BATCH_MATH: PLACEHOLDER_IMAGES.batch,
+  SPEED_SYSTEM: PLACEHOLDER_IMAGES.speed,
+};
+
 export default function VaultCategoryScreen({ navigation, route }: Props) {
   const { category } = route.params;
-  const {
-    userState,
-    getItemsByCategory,
-    isOwned,
-    canUnlockWithXP,
-    canUnlockWithKey,
-    unlockWithXP,
-    unlockWithKey,
-  } = useVaultState();
 
-  const [showOwned, setShowOwned] = useState(true);
-  const [showLocked, setShowLocked] = useState(true);
+  // Get category title and description
+  let categoryTitle = '';
+  let categoryDescription = '';
 
-  // Get category metadata
-  const categoryMeta = vaultCategoryMetadata.find((c) => c.category === category);
+  switch (category) {
+    case 'COCKTAIL_VARIATION':
+      categoryTitle = 'Cocktail Variations';
+      categoryDescription =
+        'Master advanced cocktail variations. Each variation builds on classic foundations with new techniques and flavor profiles.';
+      break;
+    case 'TECHNIQUE_PLAYBOOK':
+      categoryTitle = 'Technique Playbooks';
+      categoryDescription =
+        'Master the fundamentals of bartending with these technique playbooks. Each playbook contains a series of lessons and exercises to help you master a specific technique.';
+      break;
+    case 'BAR_FEATURE':
+      categoryTitle = 'Bar Features';
+      categoryDescription =
+        'Learn from the best bars around the world. Discover signature cocktails and adapt their techniques for your home bar.';
+      break;
+    case 'SEASONAL_DROP':
+      categoryTitle = 'Seasonal Drops';
+      categoryDescription =
+        'Exclusive seasonal content that rotates throughout the year. Get early access to curated collections.';
+      break;
+    default:
+      categoryTitle = 'Vault';
+      categoryDescription = 'Explore vault content';
+  }
 
-  // Get items for this category
-  const categoryItems = getItemsByCategory(category);
+  const renderPlaybookSection = () => {
+    const playbookTypes = getAllPlaybookTypes();
 
-  // Filter items based on user preferences
-  const filteredItems = categoryItems.filter((item) => {
-    const owned = isOwned(item.id);
-    if (owned && !showOwned) return false;
-    if (!owned && !showLocked) return false;
-    return true;
-  });
+    return (
+      <View style={styles.content}>
+        {playbookTypes.map((type) => {
+          const playbooks = getTechniquePlaybooksByType(type);
+          if (playbooks.length === 0) return null;
 
-  // Handle unlock with XP
-  const handleUnlockWithXP = (item: VaultItem) => {
-    Alert.alert(
-      'Unlock with XP?',
-      `Unlock "${item.title}" for ${item.xpCost} XP?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Unlock',
-          onPress: () => {
-            const result = unlockWithXP(item.id);
-            if (result.success) {
-              Alert.alert('Unlocked!', `You unlocked "${item.title}"`);
-            } else {
-              Alert.alert('Error', 'Failed to unlock item. Please try again.');
-            }
-          },
-        },
-      ]
+          return (
+            <View key={type} style={styles.section}>
+              <Text style={styles.sectionTitle}>{PLAYBOOK_TYPE_LABELS[type]}</Text>
+
+              {playbooks.map((playbook) => (
+                <TouchableOpacity key={playbook.id} style={styles.itemCard} activeOpacity={0.7}>
+                  <View style={styles.itemInfo}>
+                    <Text style={styles.itemXP}>{playbook.xpCost} XP</Text>
+                    <Text style={styles.itemTitle}>{playbook.title}</Text>
+                    <Text style={styles.itemDescription}>{playbook.shortDescription}</Text>
+                  </View>
+                  <Image
+                    source={{ uri: PLAYBOOK_TYPE_IMAGES[type] }}
+                    style={styles.itemThumbnail}
+                    resizeMode="cover"
+                  />
+                </TouchableOpacity>
+              ))}
+            </View>
+          );
+        })}
+      </View>
     );
   };
 
-  // Handle unlock with Key
-  const handleUnlockWithKey = (item: VaultItem) => {
-    Alert.alert(
-      'Use Vault Key?',
-      `Use 1 Vault Key to unlock "${item.title}"?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Use Key',
-          onPress: () => {
-            const result = unlockWithKey(item.id);
-            if (result.success) {
-              Alert.alert('Unlocked!', `You unlocked "${item.title}" with a Vault Key`);
-            } else {
-              Alert.alert('Error', 'Failed to unlock item. Please try again.');
-            }
-          },
-        },
-      ]
+  const renderCocktailSection = () => {
+    const variations = getVariationsForDisplay();
+    const groupedByDifficulty: Record<string, typeof variations> = {
+      simple: [],
+      technique_forward: [],
+      pro: [],
+    };
+
+    variations.forEach((v) => {
+      groupedByDifficulty[v.difficulty].push(v);
+    });
+
+    const difficultyLabels = {
+      simple: 'Simple Variations',
+      technique_forward: 'Technique-Forward Variations',
+      pro: 'Pro-Level Variations',
+    };
+
+    return (
+      <View style={styles.content}>
+        {Object.entries(groupedByDifficulty).map(([difficulty, items]) => {
+          if (items.length === 0) return null;
+
+          return (
+            <View key={difficulty} style={styles.section}>
+              <Text style={styles.sectionTitle}>
+                {difficultyLabels[difficulty as keyof typeof difficultyLabels]}
+              </Text>
+
+              {items.map((variation) => (
+                <TouchableOpacity key={variation.id} style={styles.itemCard} activeOpacity={0.7}>
+                  <View style={styles.itemInfo}>
+                    <Text style={styles.itemXP}>{variation.xpCost} XP</Text>
+                    <Text style={styles.itemTitle}>{variation.title}</Text>
+                    <Text style={styles.itemDescription}>{variation.shortDescription}</Text>
+                  </View>
+                  <Image
+                    source={{ uri: PLACEHOLDER_IMAGES.cocktail }}
+                    style={styles.itemThumbnail}
+                    resizeMode="cover"
+                  />
+                </TouchableOpacity>
+              ))}
+            </View>
+          );
+        })}
+      </View>
     );
   };
 
-  // Render empty state
-  const renderEmpty = () => (
-    <View style={styles.emptyState}>
-      <Ionicons name="cube-outline" size={64} color={colors.subtext} />
-      <Text style={styles.emptyText}>No items found</Text>
-      <Text style={styles.emptySubtext}>
-        {!showOwned && !showLocked
-          ? 'Adjust your filters to see items'
-          : 'Check back later for new content'}
-      </Text>
-    </View>
-  );
+  const renderBarSection = () => {
+    const bars = getBarFeaturesForDisplay();
+
+    return (
+      <View style={styles.content}>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Featured Bars</Text>
+
+          {bars.map((bar) => (
+            <TouchableOpacity key={bar.id} style={styles.itemCard} activeOpacity={0.7}>
+              <View style={styles.itemInfo}>
+                <Text style={styles.itemXP}>{bar.xpCost} XP</Text>
+                <Text style={styles.itemTitle}>{bar.barName}</Text>
+                <Text style={styles.itemDescription}>
+                  {bar.city} • {bar.signatureCocktailName}
+                </Text>
+              </View>
+              <Image
+                source={{ uri: PLACEHOLDER_IMAGES.bar }}
+                style={styles.itemThumbnail}
+                resizeMode="cover"
+              />
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+    );
+  };
+
+  const renderSeasonalSection = () => {
+    const drops = getAvailableSeasonalDropsForTier('PLUS'); // Default to PLUS tier
+
+    return (
+      <View style={styles.content}>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Available Drops</Text>
+
+          {drops.map((drop) => (
+            <TouchableOpacity key={drop.id} style={styles.itemCard} activeOpacity={0.7}>
+              <View style={styles.itemInfo}>
+                <Text style={styles.itemXP}>Limited Time</Text>
+                <Text style={styles.itemTitle}>{drop.seasonName}</Text>
+                <Text style={styles.itemDescription}>{drop.description}</Text>
+              </View>
+              <Image
+                source={{ uri: PLACEHOLDER_IMAGES.seasonal }}
+                style={styles.itemThumbnail}
+                resizeMode="cover"
+              />
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+    );
+  };
+
+  const renderContent = () => {
+    switch (category) {
+      case 'TECHNIQUE_PLAYBOOK':
+        return renderPlaybookSection();
+      case 'COCKTAIL_VARIATION':
+        return renderCocktailSection();
+      case 'BAR_FEATURE':
+        return renderBarSection();
+      case 'SEASONAL_DROP':
+        return renderSeasonalSection();
+      default:
+        return null;
+    }
+  };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Pressable onPress={() => navigation.goBack()} style={styles.backButton}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color={colors.text} />
-        </Pressable>
-        <View style={styles.headerTitleContainer}>
-          <Text style={styles.headerIcon}>{categoryMeta?.icon}</Text>
-          <Text style={styles.headerTitle}>{categoryMeta?.displayName}</Text>
-        </View>
-        <View style={styles.headerSpacer} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>{categoryTitle}</Text>
       </View>
 
-      {/* Balance Bar */}
-      <View style={styles.balanceBar}>
-        <View style={styles.balanceItem}>
-          <Ionicons name="flash" size={16} color={colors.accent} />
-          <Text style={styles.balanceText}>{userState.xp} XP</Text>
-        </View>
-        <View style={styles.balanceItem}>
-          <Ionicons name="key" size={16} color={colors.accent} />
-          <Text style={styles.balanceText}>{userState.vaultKeys} Keys</Text>
-        </View>
-      </View>
-
-      {/* Filter Bar */}
-      <View style={styles.filterBar}>
-        <Text style={styles.filterLabel}>Show:</Text>
-        <Pressable
-          style={[styles.filterChip, showOwned && styles.filterChipActive]}
-          onPress={() => setShowOwned(!showOwned)}
-        >
-          <Text style={[styles.filterText, showOwned && styles.filterTextActive]}>
-            Unlocked
-          </Text>
-        </Pressable>
-        <Pressable
-          style={[styles.filterChip, showLocked && styles.filterChipActive]}
-          onPress={() => setShowLocked(!showLocked)}
-        >
-          <Text style={[styles.filterText, showLocked && styles.filterTextActive]}>
-            Locked
-          </Text>
-        </Pressable>
-      </View>
-
-      {/* Items List */}
-      <FlatList
-        data={filteredItems}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <VaultItemCard
-            item={item}
-            userState={userState}
-            isOwned={isOwned(item.id)}
-            canUnlockWithXP={canUnlockWithXP(item)}
-            canUnlockWithKey={canUnlockWithKey(item)}
-            onUnlockWithXP={() => handleUnlockWithXP(item)}
-            onUnlockWithKey={() => handleUnlockWithKey(item)}
-          />
-        )}
-        contentContainerStyle={styles.listContainer}
-        ListEmptyComponent={renderEmpty()}
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
-      />
-    </SafeAreaView>
+      >
+        {/* Category Header */}
+        <View style={styles.categoryHeader}>
+          <Text style={styles.categoryTitle}>{categoryTitle}</Text>
+          <Text style={styles.categoryDescription}>{categoryDescription}</Text>
+        </View>
+
+        {/* Content */}
+        {renderContent()}
+      </ScrollView>
+    </View>
   );
 }
 
@@ -190,103 +280,87 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     paddingHorizontal: spacing(2),
-    paddingVertical: spacing(1.5),
-    borderBottomWidth: 1,
-    borderBottomColor: colors.line,
+    paddingTop: spacing(6),
+    paddingBottom: spacing(2),
+    backgroundColor: colors.bg,
   },
   backButton: {
     padding: spacing(1),
-  },
-  headerTitleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing(1),
-  },
-  headerIcon: {
-    fontSize: 24,
+    marginRight: spacing(2),
   },
   headerTitle: {
-    fontSize: fonts.h3,
+    fontSize: 20,
     fontWeight: '700',
     color: colors.text,
   },
-  headerSpacer: {
-    width: 40,
+  scrollView: {
+    flex: 1,
   },
-  balanceBar: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: spacing(3),
-    paddingVertical: spacing(1.5),
-    backgroundColor: colors.card,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.line,
+  scrollContent: {
+    paddingBottom: spacing(4),
   },
-  balanceItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing(0.5),
+  categoryHeader: {
+    paddingHorizontal: spacing(3),
+    paddingVertical: spacing(3),
   },
-  balanceText: {
-    fontSize: fonts.small,
-    fontWeight: '600',
+  categoryTitle: {
+    fontSize: 28,
+    fontWeight: '700',
     color: colors.text,
+    marginBottom: spacing(1.5),
   },
-  filterBar: {
+  categoryDescription: {
+    fontSize: 15,
+    lineHeight: 22,
+    color: colors.subtext,
+  },
+  content: {
+    paddingHorizontal: spacing(3),
+  },
+  section: {
+    marginBottom: spacing(4),
+  },
+  sectionTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: spacing(2),
+  },
+  itemCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing(2),
-    paddingVertical: spacing(1.5),
-    gap: spacing(1),
+    justifyContent: 'space-between',
     backgroundColor: colors.card,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.line,
-  },
-  filterLabel: {
-    fontSize: fonts.small,
-    color: colors.subtext,
-    marginRight: spacing(0.5),
-  },
-  filterChip: {
-    paddingHorizontal: spacing(1.5),
-    paddingVertical: spacing(0.75),
-    borderRadius: radii.pill,
-    backgroundColor: colors.bg,
-    borderWidth: 1,
-    borderColor: colors.line,
-  },
-  filterChipActive: {
-    backgroundColor: colors.accentBg,
-    borderColor: colors.accent,
-  },
-  filterText: {
-    fontSize: fonts.small,
-    fontWeight: '600',
-    color: colors.subtext,
-  },
-  filterTextActive: {
-    color: colors.accent,
-  },
-  listContainer: {
+    borderRadius: radii.lg,
     padding: spacing(2),
+    marginBottom: spacing(2),
   },
-  emptyState: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: spacing(8),
+  itemInfo: {
+    flex: 1,
+    marginRight: spacing(2),
   },
-  emptyText: {
-    fontSize: fonts.h3,
+  itemXP: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.subtext,
+    marginBottom: spacing(0.5),
+  },
+  itemTitle: {
+    fontSize: 18,
     fontWeight: '700',
     color: colors.text,
-    marginTop: spacing(2),
+    marginBottom: spacing(0.5),
   },
-  emptySubtext: {
-    fontSize: fonts.body,
+  itemDescription: {
+    fontSize: 14,
+    lineHeight: 20,
     color: colors.subtext,
-    marginTop: spacing(1),
-    textAlign: 'center',
+  },
+  itemThumbnail: {
+    width: 120,
+    height: 80,
+    borderRadius: radii.md,
+    backgroundColor: colors.line,
   },
 });
