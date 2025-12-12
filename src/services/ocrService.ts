@@ -1,5 +1,6 @@
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
+import { log } from '../lib/logger';
 
 export interface OCRResult {
   text: string;
@@ -48,7 +49,7 @@ export class OCRService {
       };
 
     } catch (error: any) {
-      console.error('Error picking image and extracting text:', error);
+      log.error('OCRService', 'Error picking image and extracting text', error);
 
       // Return a helpful response instead of throwing
       return {
@@ -93,7 +94,7 @@ export class OCRService {
       };
 
     } catch (error: any) {
-      console.error('Error taking photo and extracting text:', error);
+      log.error('OCRService', 'Error taking photo and extracting text', error);
 
       // Return a helpful response instead of throwing
       return {
@@ -117,14 +118,15 @@ export class OCRService {
 
       if (isDevelopmentMode) {
         // Development mode - return mock OCR result
-        console.log('🔧 Development mode: Using mock OCR response');
-        console.log('💡 To use real OCR, set EXPO_PUBLIC_GOOGLE_CLOUD_API_KEY in .env file');
+        log.warn('OCRService', 'Development mode: Using mock OCR response', {
+          hint: 'Set EXPO_PUBLIC_GOOGLE_CLOUD_API_KEY in .env file'
+        });
         await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate API delay
 
         return this.getMockOCRText();
       }
 
-      console.log('📝 Using real Google Cloud Vision API for OCR');
+      log.info('OCRService', 'Using real Google Cloud Vision API for OCR');
 
       // Convert image to base64 for API
       const base64Image = await this.imageToBase64(optimizedImage.uri);
@@ -162,7 +164,7 @@ export class OCRService {
 
         // Check for errors in the response
         if (response.error) {
-          console.error('Google Vision API error:', response.error);
+          log.error('OCRService', 'Google Vision API error', response.error);
           throw new Error(`Vision API error: ${response.error.message}`);
         }
 
@@ -175,17 +177,17 @@ export class OCRService {
           return this.cleanExtractedText(extractedText);
         } else {
           // No text detected - return a helpful message instead of throwing error
-          console.log('No text detected in image');
+          log.warn('OCRService', 'No text detected in image');
           return 'No readable text found in the image. Please try with a clearer image or different angle.';
         }
       } else {
         // No valid response - return fallback message instead of throwing
-        console.log('Invalid or empty response from OCR service');
+        log.warn('OCRService', 'Invalid or empty response from OCR service');
         return 'Unable to process the image. The OCR service may be temporarily unavailable. Please try again or enter the recipe manually.';
       }
 
     } catch (error: any) {
-      console.error('OCR processing error:', error);
+      log.error('OCRService', 'OCR processing error', error);
 
       // If it's a "no text detected" scenario, return helpful guidance instead of throwing
       if (error.message && error.message.includes('No text detected')) {
@@ -193,7 +195,7 @@ export class OCRService {
       }
 
       // For other errors, provide fallback
-      console.log('OCR failed, returning fallback message');
+      log.info('OCRService', 'OCR failed, returning fallback message');
       return 'Unable to process image at the moment. You can manually enter the recipe details instead.';
     }
   }
@@ -215,7 +217,7 @@ export class OCRService {
         }
       );
     } catch (error) {
-      console.error('Image optimization error:', error);
+      log.error('OCRService', 'Image optimization error', error);
       // Return original if optimization fails
       return { uri: imageUri };
     }
@@ -239,7 +241,7 @@ export class OCRService {
         reader.readAsDataURL(blob);
       });
     } catch (error) {
-      console.error('Base64 conversion error:', error);
+      log.error('OCRService', 'Base64 conversion error', error);
       throw new Error('Failed to convert image to base64');
     }
   }
@@ -317,7 +319,7 @@ Garnish with lime wheel`
    */
   static async testOCR(): Promise<string> {
     // In development, return mock text
-    console.log('🔧 Testing OCR with mock data');
+    log.info('OCRService', 'Testing OCR with mock data');
     await new Promise(resolve => setTimeout(resolve, 1000));
     return this.getMockOCRText();
   }

@@ -2,6 +2,7 @@ import { Platform, Alert } from 'react-native';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system';
+import { log } from '../lib/logger';
 
 export interface Recipe {
   id: string;
@@ -310,7 +311,7 @@ class PDFService {
 
       return newUri;
     } catch (error) {
-      console.error('Error creating PDF:', error);
+      log.error('PDFService', 'Error creating PDF', error);
       throw new Error('Failed to create PDF');
     }
   }
@@ -339,7 +340,7 @@ class PDFService {
 
       return pdfUri;
     } catch (error) {
-      console.error('Error generating recipe PDF:', error);
+      log.error('PDFService', 'Error generating recipe PDF', error, { title: recipe.title });
       Alert.alert(
         'Error',
         'Failed to generate PDF. Please try again.',
@@ -359,8 +360,9 @@ class PDFService {
       } else {
         await Sharing.shareAsync(pdfUri);
       }
+      log.info('PDFService', 'PDF shared successfully', { title });
     } catch (error) {
-      console.error('Error sharing PDF:', error);
+      log.error('PDFService', 'Error sharing PDF', error, { title });
       Alert.alert('Error', 'Failed to share PDF');
     }
   }
@@ -438,7 +440,7 @@ class PDFService {
 
       return recipes.sort((a, b) => b.date.getTime() - a.date.getTime());
     } catch (error) {
-      console.error('Error listing saved recipes:', error);
+      log.error('PDFService', 'Error listing saved recipes', error);
       return [];
     }
   }
@@ -446,8 +448,9 @@ class PDFService {
   async deleteRecipePDF(uri: string): Promise<void> {
     try {
       await FileSystem.deleteAsync(uri);
+      log.info('PDFService', 'Recipe PDF deleted', { uri });
     } catch (error) {
-      console.error('Error deleting recipe PDF:', error);
+      log.error('PDFService', 'Error deleting recipe PDF', error, { uri });
       throw new Error('Failed to delete PDF');
     }
   }

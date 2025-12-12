@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { GroceryList, GroceryItem } from './groceryListService';
+import { log } from '../lib/logger';
 
 interface SavedShoppingList extends GroceryList {
   recipeName: string;
@@ -64,7 +65,7 @@ export class ShoppingListStore {
 
       return savedList;
     } catch (error) {
-      console.error('Error saving shopping list:', error);
+      log.error('ShoppingListStore', 'Error saving shopping list', error);
       throw new Error('Failed to save shopping list');
     }
   }
@@ -86,7 +87,7 @@ export class ShoppingListStore {
         updatedAt: new Date(list.updatedAt),
       }));
     } catch (error) {
-      console.error('Error loading shopping lists:', error);
+      log.error('ShoppingListStore', 'Error loading shopping lists', error);
       return [];
     }
   }
@@ -121,7 +122,7 @@ export class ShoppingListStore {
 
       await AsyncStorage.setItem(this.STORAGE_KEY, JSON.stringify(lists));
     } catch (error) {
-      console.error('Error updating shopping list:', error);
+      log.error('ShoppingListStore', 'Error updating shopping list', error);
       throw new Error('Failed to update shopping list');
     }
   }
@@ -136,7 +137,7 @@ export class ShoppingListStore {
 
       await AsyncStorage.setItem(this.STORAGE_KEY, JSON.stringify(filteredLists));
     } catch (error) {
-      console.error('Error deleting shopping list:', error);
+      log.error('ShoppingListStore', 'Error deleting shopping list', error);
       throw new Error('Failed to delete shopping list');
     }
   }
@@ -146,22 +147,22 @@ export class ShoppingListStore {
    */
   static async deleteShoppingItem(itemId: string): Promise<void> {
     try {
-      console.log('🗑️ Attempting to delete item with ID:', itemId);
+      log.fn('ShoppingListStore', 'deleteShoppingItem', { itemId });
       const lists = await this.getAllShoppingLists();
-      console.log('📋 Found shopping lists:', lists.length);
+      log.debug('ShoppingListStore', `Found ${lists.length} shopping lists`);
 
       let itemFound = false;
       let deletedItemName = null;
       let deletedFromList = null;
 
       const updatedLists = lists.map(list => {
-        console.log(`📝 Checking list "${list.recipeName}" with ${list.items.length} items`);
+        log.debug('ShoppingListStore', `Checking list "${list.recipeName}" with ${list.items.length} items`);
 
         const originalItemCount = list.items.length;
         const filteredItems = list.items.filter(item => {
           const shouldKeep = item.id !== itemId;
           if (!shouldKeep) {
-            console.log(`✅ Found and removing item: ${item.name} (${item.id}) from "${list.recipeName}"`);
+            log.info('ShoppingListStore', `Found and removing item: ${item.name} from "${list.recipeName}"`, { itemId, itemName: item.name });
             deletedItemName = item.name;
             deletedFromList = list.recipeName;
             itemFound = true;
@@ -170,7 +171,7 @@ export class ShoppingListStore {
         });
 
         if (filteredItems.length !== originalItemCount) {
-          console.log(`📝 Updated list "${list.recipeName}" from ${originalItemCount} to ${filteredItems.length} items`);
+          log.debug('ShoppingListStore', `Updated list "${list.recipeName}" from ${originalItemCount} to ${filteredItems.length} items`);
           return {
             ...list,
             items: filteredItems,
@@ -181,14 +182,14 @@ export class ShoppingListStore {
       }).filter(list => list.items.length > 0); // Remove empty lists to clean up UI
 
       if (!itemFound) {
-        console.log('❌ Item not found with ID:', itemId);
+        log.warn('ShoppingListStore', 'Item not found', { itemId });
         throw new Error('Item not found');
       }
 
-      console.log(`✅ Successfully deleted "${deletedItemName}" from "${deletedFromList}"`);
+      log.info('ShoppingListStore', `Successfully deleted "${deletedItemName}" from "${deletedFromList}"`);
       await AsyncStorage.setItem(this.STORAGE_KEY, JSON.stringify(updatedLists));
     } catch (error) {
-      console.error('Error deleting shopping item:', error);
+      log.error('ShoppingListStore', 'Error deleting shopping item', error);
       throw new Error('Failed to delete shopping item');
     }
   }
@@ -212,7 +213,7 @@ export class ShoppingListStore {
 
       await AsyncStorage.setItem(this.STORAGE_KEY, JSON.stringify(updatedLists));
     } catch (error) {
-      console.error('Error updating item brand:', error);
+      log.error('ShoppingListStore', 'Error updating item brand', error);
       throw new Error('Failed to update item brand');
     }
   }
@@ -241,7 +242,7 @@ export class ShoppingListStore {
         }),
       }));
     } catch (error) {
-      console.error('Error processing shopping lists:', error);
+      log.error('ShoppingListStore', 'Error processing shopping lists', error);
       return [];
     }
   }
@@ -320,7 +321,7 @@ export class ShoppingListStore {
         allItems: Array.from(consolidatedItems.values())
       };
     } catch (error) {
-      console.error('Error getting consolidated shopping items:', error);
+      log.error('ShoppingListStore', 'Error getting consolidated shopping items', error);
       return { itemsByRecipe: {}, allItems: [] };
     }
   }
@@ -347,7 +348,7 @@ export class ShoppingListStore {
 
       await this.saveShoppingList(groceryList, source);
     } catch (error) {
-      console.error('Error adding item to shopping list:', error);
+      log.error('ShoppingListStore', 'Error adding item to shopping list', error);
       throw new Error('Failed to add item to shopping list');
     }
   }
@@ -385,7 +386,7 @@ export class ShoppingListStore {
         await AsyncStorage.setItem(this.STORAGE_KEY, JSON.stringify(updatedLists));
       }
     } catch (error) {
-      console.error('Error updating synchronized item:', error);
+      log.error('ShoppingListStore', 'Error updating synchronized item', error);
       throw new Error('Failed to update item');
     }
   }
@@ -397,7 +398,7 @@ export class ShoppingListStore {
     try {
       await AsyncStorage.removeItem(this.STORAGE_KEY);
     } catch (error) {
-      console.error('Error clearing shopping lists:', error);
+      log.error('ShoppingListStore', 'Error clearing shopping lists', error);
     }
   }
 
@@ -417,7 +418,7 @@ export class ShoppingListStore {
 
       await AsyncStorage.setItem(this.STORAGE_KEY, JSON.stringify(migratedLists));
     } catch (error) {
-      console.error('Error migrating shopping lists:', error);
+      log.error('ShoppingListStore', 'Error migrating shopping lists', error);
     }
   }
 

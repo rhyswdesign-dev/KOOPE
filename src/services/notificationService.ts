@@ -4,6 +4,7 @@
  * Handles scheduling, delivery, and user preferences
  */
 
+import { log } from '../lib/logger';
 import React from 'react';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
@@ -96,7 +97,7 @@ class NotificationService {
    */
   public async initialize(): Promise<boolean> {
     try {
-      console.log('🔔 Initializing notification service...');
+      log.info('NotificationService', 'Initializing notification service');
 
       // Configure notification behavior
       Notifications.setNotificationHandler({
@@ -125,11 +126,11 @@ class NotificationService {
       this.setupNotificationListeners();
 
       this.initialized = true;
-      console.log('✅ Notification service initialized');
+      log.info('NotificationService', 'Notification service initialized successfully');
       return true;
 
     } catch (error) {
-      console.error('❌ Failed to initialize notification service:', error);
+      log.error('NotificationService', 'Failed to initialize notification service', error);
       return false;
     }
   }
@@ -140,7 +141,7 @@ class NotificationService {
   private async registerForPushNotifications(): Promise<string | null> {
     try {
       if (!Device.isDevice) {
-        console.log('📱 Push notifications require a physical device');
+        log.warn('NotificationService', 'Push notifications require a physical device');
         return null;
       }
 
@@ -155,7 +156,7 @@ class NotificationService {
       }
 
       if (finalStatus !== 'granted') {
-        console.log('❌ Permission not granted for push notifications');
+        log.warn('NotificationService', 'Permission not granted for push notifications');
         return null;
       }
 
@@ -167,11 +168,11 @@ class NotificationService {
       this.pushToken = token.data;
       await AsyncStorage.setItem(STORAGE_KEYS.PUSH_TOKEN, token.data);
 
-      console.log('🎯 Push token obtained:', token.data);
+      log.info('NotificationService', 'Push token obtained', { token: token.data });
       return token.data;
 
     } catch (error) {
-      console.error('❌ Failed to register for push notifications:', error);
+      log.error('NotificationService', 'Failed to register for push notifications', error);
       return null;
     }
   }
@@ -182,13 +183,13 @@ class NotificationService {
   private setupNotificationListeners() {
     // Handle notification received while app is in foreground
     Notifications.addNotificationReceivedListener((notification) => {
-      console.log('📨 Notification received:', notification);
+      log.info('NotificationService', 'Notification received', { id: notification.request.identifier });
       this.handleIncomingNotification(notification);
     });
 
     // Handle notification response (user tapped notification)
     Notifications.addNotificationResponseReceivedListener((response) => {
-      console.log('👆 Notification tapped:', response);
+      log.info('NotificationService', 'Notification tapped', { id: response.notification.request.identifier });
       this.handleNotificationResponse(response);
     });
   }
@@ -224,7 +225,7 @@ class NotificationService {
 
     if (data?.actionUrl) {
       // Handle deep link navigation
-      console.log('🔗 Navigating to:', data.actionUrl);
+      log.nav('NotificationService', data.actionUrl, { data });
       // You would integrate with your navigation service here
     }
 
@@ -260,7 +261,7 @@ class NotificationService {
       },
     });
 
-    console.log(`⏰ Lesson reminder scheduled for ${delayMinutes} minutes`);
+    log.info('NotificationService', 'Lesson reminder scheduled', { lessonId, delayMinutes });
   }
 
   /**
@@ -289,7 +290,7 @@ class NotificationService {
       },
     });
 
-    console.log('💖 Hearts refilled notification scheduled');
+    log.info('NotificationService', 'Hearts refilled notification scheduled');
   }
 
   /**
@@ -320,7 +321,7 @@ class NotificationService {
       },
     });
 
-    console.log(`🎊 XP milestone notification scheduled for level ${level}`);
+    log.info('NotificationService', 'XP milestone notification scheduled', { xp, level });
   }
 
   /**
@@ -357,7 +358,7 @@ class NotificationService {
       },
     });
 
-    console.log('🔥 Streak reminder scheduled for tomorrow');
+    log.info('NotificationService', 'Streak reminder scheduled for tomorrow');
   }
 
   /**
@@ -383,7 +384,7 @@ class NotificationService {
     await this.saveInAppNotifications();
     await this.updateBadgeCount();
 
-    console.log('📱 In-app notification sent:', title);
+    log.info('NotificationService', 'In-app notification sent', { type, title });
   }
 
   /**
@@ -488,7 +489,7 @@ class NotificationService {
       }
     }
 
-    console.log('🔧 Notification preferences updated');
+    log.info('NotificationService', 'Notification preferences updated', { enabled: newPreferences.enabled });
   }
 
   /**
@@ -508,7 +509,7 @@ class NotificationService {
         this.preferences = { ...DEFAULT_PREFERENCES, ...JSON.parse(stored) };
       }
     } catch (error) {
-      console.error('Failed to load notification preferences:', error);
+      log.error('NotificationService', 'Failed to load notification preferences', error);
     }
   }
 
@@ -522,7 +523,7 @@ class NotificationService {
         this.inAppNotifications = JSON.parse(stored);
       }
     } catch (error) {
-      console.error('Failed to load in-app notifications:', error);
+      log.error('NotificationService', 'Failed to load in-app notifications', error);
     }
   }
 
@@ -536,7 +537,7 @@ class NotificationService {
         JSON.stringify(this.inAppNotifications)
       );
     } catch (error) {
-      console.error('Failed to save in-app notifications:', error);
+      log.error('NotificationService', 'Failed to save in-app notifications', error);
     }
   }
 
