@@ -278,8 +278,10 @@ export default function VaultScreen() {
           <LockedContentOverlay
             requiredTier={item.requiredTier}
             onUpgradePress={() => {
-              // TODO: Navigate to subscription upgrade screen
-              console.log('Upgrade to', item.requiredTier);
+              nav.navigate('Paywall', {
+                source: 'vault_locked_content',
+                offering: item.requiredTier === 'PRO' ? 'pro' : null,
+              });
             }}
             variant="compact"
           />
