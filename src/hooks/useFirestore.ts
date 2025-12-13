@@ -7,6 +7,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { FirestoreContentRepository, FirestoreProgressRepository, FirestoreUserRepository, healthCheck } from '../repos/firestore/firestoreRepositories';
 import { validateFirebaseConfig, checkFirebaseConnection, getUserFriendlyErrorMessage, getErrorType, isNetworkError } from '../config/firebase';
 import NetInfo from '@react-native-community/netinfo';
+import { log } from '../lib/logger';
 
 interface FirestoreState {
   isConnected: boolean;
@@ -47,7 +48,7 @@ export const useFirestore = () => {
       
       // If we came back online and were previously disconnected, try to reconnect
       if (isOnline && !state.isConnected) {
-        console.log('📶 Network restored, attempting to reconnect to Firebase...');
+        log.info('useFirestore', 'Network restored, attempting to reconnect to Firebase');
         setTimeout(() => initializeFirestore(), 1000); // Small delay to ensure network is stable
       }
     });
@@ -90,7 +91,7 @@ export const useFirestore = () => {
         
         // Only log non-network errors
         if (errorType !== 'network') {
-          console.warn('Firebase connection failed:', connectionResult.error);
+          log.warn('useFirestore', 'Firebase connection failed', { error: connectionResult.error });
         }
         
         setState(prev => ({
@@ -132,7 +133,7 @@ export const useFirestore = () => {
       
       // Only log non-network errors as errors
       if (errorType !== 'network') {
-        console.error('Firestore initialization failed:', error);
+        log.error('useFirestore', 'Firestore initialization failed', error);
       }
       
       setState(prev => ({
@@ -152,8 +153,11 @@ export const useFirestore = () => {
 
   const scheduleRetry = useCallback(() => {
     const delay = Math.min(5000 * Math.pow(2, state.retryCount), 30000); // Max 30s delay
-    console.log(`🔄 Scheduling Firebase reconnection in ${delay}ms (attempt ${state.retryCount + 1})`);
-    
+    log.info('useFirestore', 'Scheduling Firebase reconnection', {
+      delayMs: delay,
+      attempt: state.retryCount + 1
+    });
+
     setTimeout(() => {
       initializeFirestore();
     }, delay);

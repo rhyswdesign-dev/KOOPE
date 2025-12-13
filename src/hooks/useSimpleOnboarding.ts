@@ -19,6 +19,7 @@
 import { useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { trackEvent, ANALYTICS_EVENTS, ANALYTICS_PROPS } from '../lib/analytics';
+import { log } from '../lib/logger';
 
 type AppState = 'loading' | 'splash' | 'bartending_welcome' | 'welcome' | 'onboarding' | 'survey' | 'xp_reminder' | 'main';
 
@@ -40,12 +41,12 @@ export function useSimpleOnboarding() {
       // DEV MODE: Clear onboarding completion to always show full flow
       // TODO: Remove this line in production
       await AsyncStorage.removeItem(ONBOARDING_COMPLETED_KEY);
-      console.log('DEV MODE: Cleared onboarding status for fresh flow');
+      log.info('useSimpleOnboarding', 'DEV MODE: Cleared onboarding status for fresh flow');
 
       // Show splash screen
       setAppState('splash');
     } catch (error) {
-      console.log('Error initializing app:', error);
+      log.warn('useSimpleOnboarding', 'Error initializing app', { error });
       setAppState('splash');
     }
   };
@@ -53,9 +54,9 @@ export function useSimpleOnboarding() {
   const clearSavedItems = async () => {
     try {
       await AsyncStorage.removeItem('savedItems');
-      console.log('Cleared saved items for new session');
+      log.info('useSimpleOnboarding', 'Cleared saved items for new session');
     } catch (error) {
-      console.log('Error clearing saved items:', error);
+      log.warn('useSimpleOnboarding', 'Error clearing saved items', { error });
     }
   };
 
@@ -66,16 +67,16 @@ export function useSimpleOnboarding() {
 
       if (onboardingCompleted === 'true') {
         // Returning user - go directly to main app
-        console.log('Returning user detected, skipping onboarding');
+        log.info('useSimpleOnboarding', 'Returning user detected, skipping onboarding');
         setAppState('main');
       } else {
         // New user - start onboarding flow
-        console.log('New user detected, starting onboarding');
+        log.info('useSimpleOnboarding', 'New user detected, starting onboarding');
         trackEvent(ANALYTICS_EVENTS.ONBOARDING_STARTED);
         setAppState('bartending_welcome');
       }
     } catch (error) {
-      console.log('Error checking onboarding status:', error);
+      log.warn('useSimpleOnboarding', 'Error checking onboarding status', { error });
       // On error, assume new user and show onboarding
       setAppState('bartending_welcome');
     }
@@ -112,12 +113,12 @@ export function useSimpleOnboarding() {
     try {
       // Mark onboarding as completed in AsyncStorage
       await AsyncStorage.setItem(ONBOARDING_COMPLETED_KEY, 'true');
-      console.log('Onboarding completed and saved');
+      log.info('useSimpleOnboarding', 'Onboarding completed and saved');
 
       // Track onboarding completion
       trackEvent(ANALYTICS_EVENTS.ONBOARDING_COMPLETED);
     } catch (error) {
-      console.log('Error saving onboarding completion status:', error);
+      log.warn('useSimpleOnboarding', 'Error saving onboarding completion status', { error });
     }
 
     // After survey, go to main app
@@ -126,7 +127,7 @@ export function useSimpleOnboarding() {
 
   const skipToXPReminder = () => {
     // When user skips account setup, show XP reminder
-    console.log('skipToXPReminder called');
+    log.info('useSimpleOnboarding', 'User skipped to XP reminder');
     setAppState('xp_reminder');
   };
 
@@ -144,9 +145,9 @@ export function useSimpleOnboarding() {
     try {
       // Clear onboarding completion status
       await AsyncStorage.removeItem(ONBOARDING_COMPLETED_KEY);
-      console.log('Onboarding status reset');
+      log.info('useSimpleOnboarding', 'Onboarding status reset');
     } catch (error) {
-      console.log('Error resetting onboarding status:', error);
+      log.warn('useSimpleOnboarding', 'Error resetting onboarding status', { error });
     }
 
     // Restart onboarding flow

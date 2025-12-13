@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { log } from '../lib/logger';
 
 export interface User {
   id: string;
@@ -271,7 +272,7 @@ export function useSocialData() {
         }));
       }
     } catch (error) {
-      console.log('Error loading social data:', error);
+      log.warn('useSocialData', 'Error loading social data', { error });
     }
   };
 
@@ -284,7 +285,7 @@ export function useSocialData() {
       };
       await AsyncStorage.setItem(SOCIAL_STORAGE_KEY, JSON.stringify(dataToStore));
     } catch (error) {
-      console.log('Error saving social data:', error);
+      log.warn('useSocialData', 'Error saving social data', { error });
     }
   };
 

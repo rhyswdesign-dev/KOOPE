@@ -6,6 +6,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { initAnalytics, track, flush, AnalyticsEvent } from '../services/analytics';
 import { AppState } from 'react-native';
+import { log } from '../lib/logger';
 
 interface AnalyticsState {
   isInitialized: boolean;
@@ -86,21 +87,21 @@ export const useAnalytics = (): AnalyticsHook => {
         error: undefined
       });
 
-      console.log(`Analytics initialized with ${provider} provider`);
+      log.info('useAnalytics', 'Analytics initialized', { provider });
     } catch (error) {
-      console.error('Analytics initialization failed:', error);
+      log.error('useAnalytics', 'Analytics initialization failed', error);
       setState({
         isInitialized: false,
         provider: 'memory',
         error: error instanceof Error ? error.message : 'Unknown error'
       });
-      
+
       // Fallback to memory provider
       try {
         await initAnalytics({ provider: 'memory' });
         setState(prev => ({ ...prev, isInitialized: true, provider: 'memory' }));
       } catch (fallbackError) {
-        console.error('Fallback to memory provider failed:', fallbackError);
+        log.error('useAnalytics', 'Fallback to memory provider failed', fallbackError);
       }
     } finally {
       isInitializingRef.current = false;
@@ -109,14 +110,14 @@ export const useAnalytics = (): AnalyticsHook => {
 
   const trackEvent = useCallback(async (event: AnalyticsEvent) => {
     if (!state.isInitialized) {
-      console.warn('Analytics not initialized, queueing event:', event.type);
+      log.warn('useAnalytics', 'Analytics not initialized, queueing event', { eventType: event.type });
       return;
     }
 
     try {
       await track(event);
     } catch (error) {
-      console.error('Analytics tracking error:', error);
+      log.error('useAnalytics', 'Analytics tracking error', error);
     }
   }, [state.isInitialized]);
 
@@ -124,7 +125,7 @@ export const useAnalytics = (): AnalyticsHook => {
     try {
       await flush();
     } catch (error) {
-      console.error('Analytics flush error:', error);
+      log.error('useAnalytics', 'Analytics flush error', error);
     }
   }, []);
 
@@ -189,7 +190,7 @@ export const useAnalytics = (): AnalyticsHook => {
         await providerRef.current.identify(userId, traits);
       }
     } catch (error) {
-      console.error('Provider identify error:', error);
+      log.error('useAnalytics', 'Provider identify error', error);
     }
   }, [trackEvent, state.provider]);
 

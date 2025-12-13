@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSubscription } from '../contexts/SubscriptionContext';
+import { log } from '../lib/logger';
 
 export interface SavedItem {
   id: string;
@@ -48,8 +49,8 @@ export function useSavedItems() {
       const stored = await AsyncStorage.getItem(STORAGE_KEY);
       if (stored) {
         const parsedItems = JSON.parse(stored);
-        console.log('Loaded saved items:', parsedItems);
-        
+        log.debug('useSavedItems', 'Loaded saved items', { itemsCount: Object.keys(parsedItems).length });
+
         // Ensure all required properties exist with default empty arrays
         const mergedItems: SavedItemsState = {
           savedBars: parsedItems.savedBars || [],
@@ -65,16 +66,16 @@ export function useSavedItems() {
         setSavedItems(mergedItems);
       }
     } catch (error) {
-      console.log('Error loading saved items:', error);
+      log.warn('useSavedItems', 'Error loading saved items', { error });
     }
   };
 
   const saveToStorage = async (newItems: SavedItemsState) => {
     try {
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(newItems));
-      console.log('Saved to storage:', newItems);
+      log.debug('useSavedItems', 'Saved to storage', { itemsCount: Object.keys(newItems).length });
     } catch (error) {
-      console.log('Error saving items:', error);
+      log.warn('useSavedItems', 'Error saving items', { error });
     }
   };
 
@@ -91,15 +92,15 @@ export function useSavedItems() {
         savedGames: [],
         savedDrinks: [],
       });
-      console.log('Storage cleared');
+      log.info('useSavedItems', 'Storage cleared');
     } catch (error) {
-      console.log('Error clearing storage:', error);
+      log.warn('useSavedItems', 'Error clearing storage', { error });
     }
   };
 
   const toggleSavedBar = (item: SavedItem | { id: string; name: string; subtitle?: string; image?: string }) => {
     const barItem: SavedItem = { ...item, type: 'bar' };
-    console.log('Toggling bar:', barItem);
+    log.debug('useSavedItems', 'Toggling bar', { barId: barItem.id, name: barItem.name });
     setSavedItems(prev => {
       const exists = prev.savedBars.find(b => b.id === barItem.id);
       const newItems = {
@@ -108,7 +109,7 @@ export function useSavedItems() {
           ? prev.savedBars.filter(b => b.id !== barItem.id)
           : [...prev.savedBars, barItem]
       };
-      console.log('New saved bars:', newItems.savedBars);
+      log.debug('useSavedItems', 'Updated saved bars', { count: newItems.savedBars.length });
       saveToStorage(newItems);
       return newItems;
     });
@@ -148,7 +149,10 @@ export function useSavedItems() {
 
     // If adding, check free user limit
     if (!isSubscriber && savedItems.savedCocktails.length >= FREE_RECIPE_LIMIT) {
-      console.log('[useSavedItems] Free user recipe limit reached - cannot save more');
+      log.info('useSavedItems', 'Free user recipe limit reached - cannot save more', {
+        limit: FREE_RECIPE_LIMIT,
+        currentCount: savedItems.savedCocktails.length
+      });
       return 'limit_reached';
     }
 
@@ -246,7 +250,11 @@ export function useSavedItems() {
   const isBarSaved = (barId: string) => {
     if (!savedItems.savedBars || !Array.isArray(savedItems.savedBars)) return false;
     const isSaved = savedItems.savedBars.some(b => b.id === barId);
-    console.log(`Checking if bar ${barId} is saved:`, isSaved, 'Saved bars:', savedItems.savedBars.map(b => b.id));
+    log.debug('useSavedItems', 'Checking if bar is saved', {
+      barId,
+      isSaved,
+      savedBarIds: savedItems.savedBars.map(b => b.id)
+    });
     return isSaved;
   };
   const isSpiritSaved = (spiritId: string) => savedItems.savedSpirits?.some(s => s.id === spiritId) || false;

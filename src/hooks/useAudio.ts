@@ -5,6 +5,7 @@
 
 import { useEffect, useCallback, useState } from 'react';
 import { audioManager, SoundType } from '../services/audioManager';
+import { log } from '../lib/logger';
 
 interface AudioSettings {
   enabled: boolean;
@@ -36,7 +37,7 @@ export const useAudio = () => {
         
         setIsInitialized(true);
       } catch (error) {
-        console.warn('Audio initialization failed, continuing without audio:', error);
+        log.warn('useAudio', 'Audio initialization failed, continuing without audio', { error });
         // Continue without audio - don't block the app
         setIsInitialized(false);
         setSettings(prev => ({ ...prev, enabled: false }));
@@ -50,7 +51,7 @@ export const useAudio = () => {
       try {
         audioManager.cleanup();
       } catch (error) {
-        console.warn('Audio cleanup failed:', error);
+        log.warn('useAudio', 'Audio cleanup failed', { error });
       }
     };
   }, []);
@@ -68,7 +69,7 @@ export const useAudio = () => {
     try {
       await audioManager.playSound(soundType, options);
     } catch (error) {
-      console.warn(`Failed to play sound ${soundType}:`, error);
+      log.warn('useAudio', 'Failed to play sound', { soundType, error });
     }
   }, [isInitialized, settings.enabled]);
 
@@ -78,7 +79,7 @@ export const useAudio = () => {
     try {
       await audioManager.stopSound(soundType);
     } catch (error) {
-      console.warn(`Failed to stop sound ${soundType}:`, error);
+      log.warn('useAudio', 'Failed to stop sound', { soundType, error });
     }
   }, [isInitialized]);
 
@@ -89,7 +90,7 @@ export const useAudio = () => {
       }
       setSettings(prev => ({ ...prev, enabled }));
     } catch (error) {
-      console.warn('Failed to set audio enabled:', error);
+      log.warn('useAudio', 'Failed to set audio enabled', { error });
     }
   }, [isInitialized]);
 
@@ -101,7 +102,7 @@ export const useAudio = () => {
       }
       setSettings(prev => ({ ...prev, volume: clampedVolume }));
     } catch (error) {
-      console.warn('Failed to set volume:', error);
+      log.warn('useAudio', 'Failed to set volume', { error });
     }
   }, [isInitialized]);
 
@@ -117,7 +118,7 @@ export const useAudio = () => {
         volume: isInitialized ? audioManager.getMasterVolume() : prev.volume
       }));
     } catch (error) {
-      console.warn('Failed to set audio mode:', error);
+      log.warn('useAudio', 'Failed to set audio mode', { error });
     }
   }, [isInitialized]);
 
@@ -143,7 +144,7 @@ export const useAudio = () => {
     try {
       await audioManager.startAmbientBar();
     } catch (error) {
-      console.error('Failed to start ambient bar sounds:', error);
+      log.error('useAudio', 'Failed to start ambient bar sounds', error);
     }
   }, []);
 
@@ -151,7 +152,7 @@ export const useAudio = () => {
     try {
       await audioManager.stopAmbientBar();
     } catch (error) {
-      console.error('Failed to stop ambient bar sounds:', error);
+      log.error('useAudio', 'Failed to stop ambient bar sounds', error);
     }
   }, []);
 

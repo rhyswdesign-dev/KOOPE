@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { log } from '../lib/logger';
 
 type AppState = 'loading' | 'splash' | 'onboarding' | 'main';
 
@@ -9,7 +10,7 @@ let AsyncStorage: any;
 try {
   AsyncStorage = require('@react-native-async-storage/async-storage').default;
 } catch (e) {
-  console.warn('AsyncStorage not available, using memory fallback');
+  log.warn('useOnboarding', 'AsyncStorage not available, using memory fallback');
   // Memory fallback for development
   const memoryStorage: { [key: string]: string } = {};
   AsyncStorage = {
@@ -35,7 +36,7 @@ export function useOnboarding() {
         setAppState('splash'); // Show splash then go to onboarding
       }
     } catch (error) {
-      console.log('Error checking onboarding status:', error);
+      log.warn('useOnboarding', 'Error checking onboarding status', { error });
       setAppState('splash'); // Default to showing splash
     }
   };
@@ -49,7 +50,7 @@ export function useOnboarding() {
         setAppState('onboarding');
       }
     } catch (error) {
-      console.log('Error handling splash finish:', error);
+      log.warn('useOnboarding', 'Error handling splash finish', { error });
       setAppState('onboarding'); // Default to onboarding if error
     }
   };
@@ -59,7 +60,7 @@ export function useOnboarding() {
       await AsyncStorage.setItem(ONBOARDING_KEY, 'true');
       setAppState('main');
     } catch (error) {
-      console.log('Error completing onboarding:', error);
+      log.warn('useOnboarding', 'Error completing onboarding', { error });
       setAppState('main'); // Still proceed to main app
     }
   };
@@ -69,7 +70,7 @@ export function useOnboarding() {
       await AsyncStorage.removeItem(ONBOARDING_KEY);
       setAppState('onboarding');
     } catch (error) {
-      console.log('Error resetting onboarding:', error);
+      log.warn('useOnboarding', 'Error resetting onboarding', { error });
     }
   };
 

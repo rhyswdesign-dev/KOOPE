@@ -16,6 +16,7 @@ import {
   markTermsAccepted,
 } from '../lib/consentStore';
 import { DEFAULT_CONSENT } from '../../config/privacy';
+import { log } from '../lib/logger';
 
 interface UseConsentReturn {
   // Current consent state
@@ -84,7 +85,7 @@ export function useConsent(): UseConsentReturn {
       setHasAcceptedCurrentTerms(acceptedTerms);
 
     } catch (err) {
-      console.error('Failed to load consent data:', err);
+      log.error('useConsent', 'Failed to load consent data', err);
       setError('Failed to load privacy preferences');
     } finally {
       setLoading(false);
@@ -101,7 +102,7 @@ export function useConsent(): UseConsentReturn {
    */
   const updateConsent = useCallback(async (category: ConsentCategory, enabled: boolean) => {
     if (category === 'essential') {
-      console.warn('Cannot modify essential consent - always required');
+      log.warn('useConsent', 'Cannot modify essential consent - always required', { category });
       return;
     }
 
@@ -110,7 +111,7 @@ export function useConsent(): UseConsentReturn {
       await saveConsentChoices(newChoices);
       setChoices(newChoices);
     } catch (err) {
-      console.error('Failed to update consent:', err);
+      log.error('useConsent', 'Failed to update consent', err, { category, enabled });
       setError('Failed to save privacy preferences');
       throw err;
     }
@@ -129,7 +130,7 @@ export function useConsent(): UseConsentReturn {
       setNeedsPrompt(promptCheck.needsPrompt);
       setPromptReasons(promptCheck.reasons);
     } catch (err) {
-      console.error('Failed to save all consent:', err);
+      log.error('useConsent', 'Failed to save all consent', err);
       setError('Failed to save privacy preferences');
       throw err;
     }
@@ -188,7 +189,7 @@ export function useConsent(): UseConsentReturn {
       setNeedsPrompt(promptCheck.needsPrompt);
       setPromptReasons(promptCheck.reasons);
     } catch (err) {
-      console.error('Failed to mark privacy seen:', err);
+      log.error('useConsent', 'Failed to mark privacy seen', err);
     }
   }, []);
 
@@ -205,7 +206,7 @@ export function useConsent(): UseConsentReturn {
       setNeedsPrompt(promptCheck.needsPrompt);
       setPromptReasons(promptCheck.reasons);
     } catch (err) {
-      console.error('Failed to mark terms accepted:', err);
+      log.error('useConsent', 'Failed to mark terms accepted', err);
     }
   }, []);
 

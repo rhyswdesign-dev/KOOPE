@@ -7,6 +7,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { getIAPService, IAPProduct, IAPPurchase } from '../services/iap';
 import { getAdService, AdReward, AD_UNITS } from '../services/ads';
 import { useAnalyticsContext } from '../context/AnalyticsContext';
+import { log } from '../lib/logger';
 
 interface MonetizationState {
   iapAvailable: boolean;
@@ -70,7 +71,7 @@ export const useMonetization = (): MonetizationHook => {
         try {
           products = await iapService.getProducts([...XP_PRODUCT_IDS, ...SUBSCRIPTION_PRODUCT_IDS]);
         } catch (error) {
-          console.warn('Failed to get IAP products:', error);
+          log.warn('useMonetization', 'Failed to get IAP products', { error });
         }
       }
 
@@ -79,7 +80,7 @@ export const useMonetization = (): MonetizationHook => {
         try {
           await adService.preloadAds();
         } catch (error) {
-          console.warn('Failed to preload ads:', error);
+          log.warn('useMonetization', 'Failed to preload ads', { error });
         }
       }
 
@@ -90,9 +91,13 @@ export const useMonetization = (): MonetizationHook => {
         loading: false
       });
 
-      console.log('Monetization initialized:', { iapAvailable, adsAvailable, productsCount: products.length });
+      log.info('useMonetization', 'Monetization initialized', {
+        iapAvailable,
+        adsAvailable,
+        productsCount: products.length
+      });
     } catch (error) {
-      console.error('Monetization initialization failed:', error);
+      log.error('useMonetization', 'Monetization initialization failed', error);
       setState(prev => ({
         ...prev,
         loading: false,
@@ -120,11 +125,14 @@ export const useMonetization = (): MonetizationHook => {
 
       // Finish transaction
       await iapService.finishTransaction(purchase.transactionId);
-      
-      console.log('Purchase completed:', purchase);
+
+      log.info('useMonetization', 'Purchase completed', {
+        productId,
+        transactionId: purchase.transactionId
+      });
       return purchase;
     } catch (error) {
-      console.error('Purchase failed:', error);
+      log.error('useMonetization', 'Purchase failed', error, { productId });
       throw error;
     }
   }, [state.iapAvailable, analytics]);
@@ -137,11 +145,11 @@ export const useMonetization = (): MonetizationHook => {
     try {
       const iapService = getIAPService();
       const purchases = await iapService.restorePurchases();
-      
-      console.log('Purchases restored:', purchases);
+
+      log.info('useMonetization', 'Purchases restored', { count: purchases.length });
       return purchases;
     } catch (error) {
-      console.error('Restore purchases failed:', error);
+      log.error('useMonetization', 'Restore purchases failed', error);
       throw error;
     }
   }, [state.iapAvailable]);
@@ -168,11 +176,14 @@ export const useMonetization = (): MonetizationHook => {
           amount: 0 // Lives are not XP but we track the ad completion
         });
       }
-      
-      console.log('Rewarded ad completed:', reward);
+
+      log.info('useMonetization', 'Rewarded ad completed', {
+        adUnitId,
+        reward: reward ? 'granted' : 'none'
+      });
       return reward;
     } catch (error) {
-      console.error('Rewarded ad failed:', error);
+      log.error('useMonetization', 'Rewarded ad failed', error, { adUnitId });
       throw error;
     }
   }, [state.adsAvailable, analytics]);
@@ -185,9 +196,9 @@ export const useMonetization = (): MonetizationHook => {
     try {
       const adService = getAdService();
       await adService.loadRewardedAd(adUnitId);
-      console.log('Rewarded ad loaded:', adUnitId);
+      log.info('useMonetization', 'Rewarded ad loaded', { adUnitId });
     } catch (error) {
-      console.error('Load rewarded ad failed:', error);
+      log.error('useMonetization', 'Load rewarded ad failed', error, { adUnitId });
       throw error;
     }
   }, [state.adsAvailable]);
