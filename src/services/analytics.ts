@@ -3,6 +3,8 @@
  * Event tracking with multiple sink support (Memory, PostHog, Segment)
  */
 
+import { log } from '../lib/logger';
+
 export type AnalyticsEvent =
   | { type: 'onboarding.completed'; level: string; track: string; spirits: string[]; sessionMinutes: number }
   | { type: 'lesson.start'; lessonId: string }
@@ -33,7 +35,7 @@ export class MemorySink implements AnalyticsSink {
   private events: Array<AnalyticsEvent & { timestamp: number }> = [];
 
   async init(cfg: any): Promise<void> {
-    console.log('MemorySink initialized');
+    log.info('MemorySink', 'Initialized');
   }
 
   async track(ev: AnalyticsEvent): Promise<void> {
@@ -41,13 +43,13 @@ export class MemorySink implements AnalyticsSink {
       ...ev,
       timestamp: Date.now()
     };
-    
+
     this.events.push(eventWithTimestamp);
-    console.log('[Analytics]', ev.type, ev);
+    log.debug('MemorySink', 'Event tracked', { eventType: ev.type, event: ev });
   }
 
   async flush(): Promise<void> {
-    console.log('MemorySink flush - events:', this.events.length);
+    log.debug('MemorySink', 'Flush', { eventCount: this.events.length });
   }
 
   // Helper methods for testing
@@ -80,7 +82,7 @@ export class PostHogSink implements AnalyticsSink {
       this.adapter = new PostHogAdapter();
       await this.adapter.init(cfg);
     } catch (error) {
-      console.warn('PostHog initialization failed:', error);
+      log.warn('PostHogSink', 'Initialization failed', { error });
     }
   }
 
@@ -109,7 +111,7 @@ export class SegmentSink implements AnalyticsSink {
       this.adapter = new SegmentAdapter();
       await this.adapter.init(cfg);
     } catch (error) {
-      console.warn('Segment initialization failed:', error);
+      log.warn('SegmentSink', 'Initialization failed', { error });
     }
   }
 
@@ -143,7 +145,7 @@ export async function track(ev: AnalyticsEvent): Promise<void> {
   try {
     await sink.track(ev);
   } catch (error) {
-    console.error('Analytics tracking error:', error);
+    log.error('Analytics', 'Tracking error', { error, event: ev });
   }
 }
 
@@ -155,7 +157,7 @@ export async function flush(): Promise<void> {
     try {
       await sink.flush();
     } catch (error) {
-      console.error('Analytics flush error:', error);
+      log.error('Analytics', 'Flush error', { error });
     }
   }
 }

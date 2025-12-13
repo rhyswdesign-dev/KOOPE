@@ -3,6 +3,7 @@
  * Safe wrapper with fallbacks
  */
 
+import { log } from '../lib/logger';
 import { AnalyticsSink, AnalyticsEvent } from './analytics';
 
 export class SegmentAdapter implements AnalyticsSink {
@@ -23,10 +24,10 @@ export class SegmentAdapter implements AnalyticsSink {
         flushInterval: 30000, // Flush every 30 seconds
       });
 
-      console.log('Segment initialized successfully');
-      
+      log.info('SegmentAdapter', 'Initialized successfully');
+
     } catch (error) {
-      console.warn('Segment initialization failed - falling back to console logging:', error);
+      log.warn('SegmentAdapter', 'Initialization failed - falling back to console logging', { error });
       this.client = null;
     }
   }
@@ -34,7 +35,7 @@ export class SegmentAdapter implements AnalyticsSink {
   async track(ev: AnalyticsEvent): Promise<void> {
     if (!this.client) {
       // Fallback to console logging
-      console.log('[Segment Fallback]', ev.type, ev);
+      log.debug('SegmentAdapter', 'Fallback track', { eventType: ev.type, event: ev });
       return;
     }
 
@@ -44,10 +45,10 @@ export class SegmentAdapter implements AnalyticsSink {
       delete (properties as any).type;
 
       this.client.track(ev.type, properties);
-      console.log('[Segment]', ev.type, properties);
-      
+      log.debug('SegmentAdapter', 'Event tracked', { eventType: ev.type, properties });
+
     } catch (error) {
-      console.error('Segment track error:', error);
+      log.error('SegmentAdapter', 'Track error', { error, event: ev });
     }
   }
 
@@ -55,9 +56,9 @@ export class SegmentAdapter implements AnalyticsSink {
     if (this.client?.flush) {
       try {
         await this.client.flush();
-        console.log('Segment flush completed');
+        log.debug('SegmentAdapter', 'Flush completed');
       } catch (error) {
-        console.error('Segment flush error:', error);
+        log.error('SegmentAdapter', 'Flush error', { error });
       }
     }
   }
@@ -68,9 +69,9 @@ export class SegmentAdapter implements AnalyticsSink {
 
     try {
       this.client.identify(userId, traits);
-      console.log('[Segment] Identify:', userId, traits);
+      log.info('SegmentAdapter', 'User identified', { userId, traits });
     } catch (error) {
-      console.error('Segment identify error:', error);
+      log.error('SegmentAdapter', 'Identify error', { error, userId });
     }
   }
 
@@ -80,9 +81,9 @@ export class SegmentAdapter implements AnalyticsSink {
 
     try {
       this.client.screen(name, properties);
-      console.log('[Segment] Screen:', name, properties);
+      log.debug('SegmentAdapter', 'Screen tracked', { name, properties });
     } catch (error) {
-      console.error('Segment screen error:', error);
+      log.error('SegmentAdapter', 'Screen error', { error, name });
     }
   }
 
@@ -92,9 +93,9 @@ export class SegmentAdapter implements AnalyticsSink {
 
     try {
       this.client.group(groupId, traits);
-      console.log('[Segment] Group:', groupId, traits);
+      log.debug('SegmentAdapter', 'Group set', { groupId, traits });
     } catch (error) {
-      console.error('Segment group error:', error);
+      log.error('SegmentAdapter', 'Group error', { error, groupId });
     }
   }
 }
@@ -133,16 +134,16 @@ export class SegmentDestinations {
       //
       // this.client.track(event, properties, { integrations });
       
-      console.log('[Segment] Track to destinations:', event, properties, destinations);
+      log.debug('SegmentDestinations', 'Track to destinations', { event, properties, destinations });
     } catch (error) {
-      console.error('Segment destination tracking error:', error);
+      log.error('SegmentDestinations', 'Destination tracking error', { error, event });
     }
   }
 
   // Disable specific destinations for an event
   async trackExcludingDestinations(
-    event: string, 
-    properties: Record<string, any>, 
+    event: string,
+    properties: Record<string, any>,
     excludeDestinations: string[]
   ): Promise<void> {
     if (!this.client) return;
@@ -155,10 +156,10 @@ export class SegmentDestinations {
       // }, {} as Record<string, boolean>);
       //
       // this.client.track(event, properties, { integrations });
-      
-      console.log('[Segment] Track excluding destinations:', event, properties, excludeDestinations);
+
+      log.debug('SegmentDestinations', 'Track excluding destinations', { event, properties, excludeDestinations });
     } catch (error) {
-      console.error('Segment exclude destinations error:', error);
+      log.error('SegmentDestinations', 'Exclude destinations error', { error, event });
     }
   }
 }

@@ -4,6 +4,7 @@
  */
 
 import { getFirestore, doc, getDoc, setDoc, updateDoc, increment } from '@firebase/firestore';
+import { log } from '../lib/logger';
 import { loadUserProfile, saveUserProfile } from './userProfileService';
 import OpenAI from 'openai';
 
@@ -57,10 +58,10 @@ export async function getRemainingPrompts(userId: string, isPremium: boolean): P
   } catch (error: any) {
     // Handle offline gracefully
     if (error?.message?.includes('offline') || error?.code === 'unavailable') {
-      console.log('[AIPrompt] Offline - allowing free daily limit');
+      log.info('AIPromptService', 'Offline - allowing free daily limit');
       return FREE_DAILY_LIMIT;
     }
-    console.error('Error getting remaining prompts:', error);
+    log.error('AIPromptService', 'Failed to get remaining prompts', error);
     return FREE_DAILY_LIMIT;
   }
 }
@@ -102,10 +103,10 @@ async function usePrompt(userId: string, isPremium: boolean): Promise<boolean> {
   } catch (error: any) {
     // Handle offline gracefully - allow usage but warn
     if (error?.message?.includes('offline') || error?.code === 'unavailable') {
-      console.log('[AIPrompt] Offline - allowing prompt usage without tracking');
+      log.info('AIPromptService', 'Offline - allowing prompt usage without tracking');
       return true; // Allow usage when offline
     }
-    console.error('Error using prompt:', error);
+    log.error('AIPromptService', 'Failed to use prompt', error);
     return false;
   }
 }
@@ -195,7 +196,7 @@ Generate 3 cocktail suggestions that match this request.`;
       xpEarned,
     };
   } catch (error: any) {
-    console.error('Error generating cocktail suggestions:', error);
+    log.error('AIPromptService', 'Failed to generate cocktail suggestions', error);
 
     // Handle specific errors
     if (error.message?.includes('quota') || error.message?.includes('429')) {
@@ -221,14 +222,14 @@ async function awardXPForPrompt(userId: string, xpAmount: number): Promise<void>
     await updateDoc(userRef, {
       xp: increment(xpAmount),
     });
-    console.log(`✅ Awarded ${xpAmount} XP for AI prompt`);
+    log.info('AIPromptService', 'Awarded XP for AI prompt', { xpAmount });
   } catch (error: any) {
     // Handle offline gracefully
     if (error?.message?.includes('offline') || error?.code === 'unavailable') {
-      console.log('[AIPrompt] Offline - XP award will sync when online');
+      log.info('AIPromptService', 'Offline - XP award will sync when online');
       return;
     }
-    console.error('Error awarding XP:', error);
+    log.error('AIPromptService', 'Failed to award XP', error);
   }
 }
 
@@ -243,7 +244,7 @@ async function learnFromPrompt(
   try {
     const profile = await loadUserProfile(userId);
     if (!profile) {
-      console.log('No profile found for user, skipping learning');
+      log.warn('AIPromptService', 'No profile found for user, skipping learning', { userId });
       return;
     }
 
@@ -324,14 +325,14 @@ async function learnFromPrompt(
     });
 
     await saveUserProfile(profile);
-    console.log('✅ Learned from AI prompt:', { prompt, suggestions: suggestions.length });
+    log.info('AIPromptService', 'Learned from AI prompt', { prompt, suggestionsCount: suggestions.length });
   } catch (error: any) {
     // Handle offline gracefully
     if (error?.message?.includes('offline') || error?.code === 'unavailable') {
-      console.log('[AIPrompt] Offline - learning will sync when online');
+      log.info('AIPromptService', 'Offline - learning will sync when online');
       return;
     }
-    console.error('Error learning from prompt:', error);
+    log.error('AIPromptService', 'Failed to learn from prompt', error);
   }
 }
 
@@ -344,14 +345,14 @@ export async function awardLifeForSavingAISuggestion(userId: string): Promise<vo
     await updateDoc(userRef, {
       lives: increment(1),
     });
-    console.log('✅ Awarded +1 Life for saving AI suggestion');
+    log.info('AIPromptService', 'Awarded +1 Life for saving AI suggestion');
   } catch (error: any) {
     // Handle offline gracefully
     if (error?.message?.includes('offline') || error?.code === 'unavailable') {
-      console.log('[AIPrompt] Offline - life award will sync when online');
+      log.info('AIPromptService', 'Offline - life award will sync when online');
       return;
     }
-    console.error('Error awarding life:', error);
+    log.error('AIPromptService', 'Failed to award life', error);
   }
 }
 

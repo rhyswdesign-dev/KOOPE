@@ -1,4 +1,5 @@
 import { FormattedRecipe } from './aiRecipeFormatter';
+import { log } from '../lib/logger';
 
 export interface RecipeDifficulty {
   score: number; // 1-5 scale
@@ -85,7 +86,9 @@ export class RecipeIntelligenceService {
         recommendations
       };
     } catch (error) {
-      console.error('Recipe intelligence analysis failed:', error);
+      log.error('RecipeIntelligenceService', 'Recipe intelligence analysis failed', error, {
+        recipeTitle: recipe.title
+      });
       return this.getFallbackIntelligence(recipe);
     }
   }
@@ -145,7 +148,9 @@ Consider: technique complexity, ingredient rarity, equipment needs, timing preci
         skillsRequired: analysis.skillsRequired
       };
     } catch (error) {
-      console.error('Difficulty analysis failed:', error);
+      log.error('RecipeIntelligenceService', 'Difficulty analysis failed', error, {
+        recipeTitle: recipe.title
+      });
       return this.getFallbackDifficulty(recipe);
     }
   }
@@ -204,7 +209,9 @@ Consider: alcohol content, mixers, syrups, fruits, garnishes.`;
 
       return analysis;
     } catch (error) {
-      console.error('Nutrition analysis failed:', error);
+      log.error('RecipeIntelligenceService', 'Nutrition analysis failed', error, {
+        recipeTitle: recipe.title
+      });
       return this.getFallbackNutrition(recipe);
     }
   }
@@ -255,7 +262,9 @@ Focus on: allergies, availability, budget, dietary restrictions, flavor variatio
 
       return substitutions;
     } catch (error) {
-      console.error('Substitution generation failed:', error);
+      log.error('RecipeIntelligenceService', 'Substitution generation failed', error, {
+        recipeTitle: recipe.title
+      });
       return this.getFallbackSubstitutions(recipe);
     }
   }
@@ -309,7 +318,9 @@ Use average US retail prices. Consider: spirit quality, mixer brands, garnish co
 
       return costAnalysis;
     } catch (error) {
-      console.error('Cost estimation failed:', error);
+      log.error('RecipeIntelligenceService', 'Cost estimation failed', error, {
+        recipeTitle: recipe.title
+      });
       return this.getFallbackCost(recipe);
     }
   }

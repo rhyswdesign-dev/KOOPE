@@ -3,6 +3,7 @@
  * XP to Lives conversion, IAP stubs, and ad integration
  */
 
+import { log } from '../lib/logger';
 import { useLives } from '../store/useLives';
 import { MemoryUserRepository } from '../repos/memory/userRepository';
 
@@ -30,9 +31,9 @@ export async function buyLifeWithXP(
   try {
     // Get user profile to check XP
     const profile = await userRepo.getUserProfile(userId);
-    
+
     if (!profile || profile.xp < costXP) {
-      console.log('Insufficient XP for life purchase');
+      log.info('Monetization', 'Insufficient XP for life purchase', { userId, costXP, currentXP: profile?.xp });
       return false;
     }
 
@@ -44,10 +45,10 @@ export async function buyLifeWithXP(
     const livesStore = useLives.getState();
     livesStore.addLife(1);
 
-    console.log(`Purchased life for ${costXP} XP. Remaining XP: ${newXP}`);
+    log.info('Monetization', 'Purchased life with XP', { userId, costXP, remainingXP: newXP });
     return true;
   } catch (error) {
-    console.error('Error buying life with XP:', error);
+    log.error('Monetization', 'Error buying life with XP', { error, userId });
     return false;
   }
 }
@@ -59,24 +60,24 @@ export async function buyLifeWithXP(
 export async function showRewardedAd(): Promise<boolean> {
   return new Promise((resolve) => {
     // Simulate ad loading and display
-    console.log('Showing rewarded ad...');
-    
+    log.info('Monetization', 'Showing rewarded ad');
+
     // Simulate ad experience (3 seconds in dev)
     setTimeout(() => {
       // In development, always return true
       // In production, this would integrate with AdMob/AppLovin
       const adWatched = true; // Math.random() > 0.1; // 90% success rate
-      
+
       if (adWatched) {
-        console.log('Rewarded ad completed successfully');
-        
+        log.info('Monetization', 'Rewarded ad completed successfully');
+
         // Grant life reward
         const livesStore = useLives.getState();
         livesStore.addLife(1);
       } else {
-        console.log('Rewarded ad failed or was skipped');
+        log.warn('Monetization', 'Rewarded ad failed or was skipped');
       }
-      
+
       resolve(adWatched);
     }, 3000);
   });
@@ -91,8 +92,8 @@ export async function purchaseXPBundle(sku: string): Promise<{
   xpGranted?: number;
 }> {
   return new Promise((resolve) => {
-    console.log(`Attempting to purchase XP bundle: ${sku}`);
-    
+    log.info('Monetization', 'Attempting to purchase XP bundle', { sku });
+
     // Simulate IAP flow
     setTimeout(() => {
       // Map SKUs to XP amounts
@@ -102,24 +103,24 @@ export async function purchaseXPBundle(sku: string): Promise<{
         'xp_large': 500,
         'xp_mega': 1200
       };
-      
+
       const xpAmount = xpBundles[sku];
-      
+
       if (!xpAmount) {
-        console.log('Unknown XP bundle SKU');
+        log.warn('Monetization', 'Unknown XP bundle SKU', { sku });
         resolve({ success: false });
         return;
       }
-      
+
       // In development, simulate 95% success rate
       const purchaseSuccess = Math.random() > 0.05;
-      
+
       if (purchaseSuccess) {
-        console.log(`XP bundle purchased successfully: +${xpAmount} XP`);
+        log.info('Monetization', 'XP bundle purchased successfully', { sku, xpAmount });
         // TODO: Grant XP to user profile
         resolve({ success: true, xpGranted: xpAmount });
       } else {
-        console.log('XP bundle purchase failed');
+        log.warn('Monetization', 'XP bundle purchase failed', { sku });
         resolve({ success: false });
       }
     }, 2000);
@@ -132,7 +133,7 @@ export async function purchaseXPBundle(sku: string): Promise<{
 export function scheduleRefill(hours: number = REFILL_HOURS): void {
   const livesStore = useLives.getState();
   livesStore.setRefillTimer(hours);
-  console.log(`Life refill scheduled for ${hours} hours from now`);
+  log.info('Monetization', 'Life refill scheduled', { hours });
 }
 
 /**
@@ -154,7 +155,7 @@ export async function canAffordLife(userId: string, livesNeeded: number = 1): Pr
     const cost = getLifeCostXP(livesNeeded);
     return profile.xp >= cost;
   } catch (error) {
-    console.error('Error checking life affordability:', error);
+    log.error('Monetization', 'Error checking life affordability', { error, userId });
     return false;
   }
 }
@@ -211,8 +212,8 @@ export function trackMonetizationEvent(event: {
   value?: number;
   currency?: string;
 }) {
-  console.log('[Monetization Analytics]', event);
-  
+  log.info('Monetization', 'Analytics event', { event });
+
   // TODO: Integrate with analytics service
   // track({
   //   type: 'monetization.event',

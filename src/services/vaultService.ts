@@ -20,6 +20,7 @@ import {
 // Firebase Firestore imports
 import { doc, updateDoc, increment, arrayUnion, getDoc, setDoc, addDoc, collection } from 'firebase/firestore';
 import { db, safeFirestoreOperation, logFirebaseError } from '../config/firebase';
+import { log } from '../lib/logger';
 
 // Mock Stripe imports (replace with actual Stripe imports)
 // import { StripeProvider, useStripe } from '@stripe/stripe-react-native';
@@ -107,7 +108,7 @@ class VaultService {
       };
 
     } catch (error) {
-      console.error('Vault unlock failed:', error);
+      log.error('VaultService', 'Vault unlock failed', error, { userId: request.userId, itemId: request.itemId });
       return {
         success: false,
         error: 'item_not_found' // Generic error for security
@@ -310,7 +311,10 @@ class VaultService {
       };
 
     } catch (error) {
-      console.error('Purchase failed:', error);
+      log.error('VaultService', 'Purchase failed', error, {
+        userId: request.userId,
+        itemId: request.monetizationItemId
+      });
       return {
         success: false,
         error: 'Purchase failed'
@@ -416,7 +420,7 @@ class VaultService {
       
       return true;
     } catch (error) {
-      console.error('Add to cart failed:', error);
+      log.error('VaultService', 'Add to cart failed', error, { userId, itemId });
       return false;
     }
   }
@@ -485,7 +489,7 @@ class VaultService {
       };
 
     } catch (error) {
-      console.error('Stripe payment failed:', error);
+      log.error('VaultService', 'Stripe payment failed', error, { amountInCents, userId });
       return {
         success: false,
         error: 'Payment processing failed'
@@ -580,7 +584,7 @@ class VaultService {
         updatedAt: new Date().toISOString()
       });
     } catch (error) {
-      console.error('Failed to decrement item stock:', error);
+      log.error('VaultService', 'Failed to decrement item stock', error, { itemId });
     }
   }
 
@@ -631,7 +635,7 @@ class VaultService {
 
       return true;
     } catch (error) {
-      console.error('Failed to award XP:', error);
+      log.error('VaultService', 'Failed to award XP', error, { userId, amount, source });
       return false;
     }
   }

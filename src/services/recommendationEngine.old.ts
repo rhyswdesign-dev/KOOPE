@@ -7,6 +7,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { searchService, SearchableItem } from './searchService';
 import { searchHistoryService } from './searchHistoryService';
+import { log } from '../lib/logger';
 
 export interface UserPreferences {
   favoriteSpirits: string[];
@@ -691,7 +692,7 @@ class RecommendationEngine {
         this.userBehavior = { ...DEFAULT_BEHAVIOR, ...JSON.parse(behaviorData) };
       }
     } catch (error) {
-      console.error('Failed to load user data:', error);
+      log.error('RecommendationEngine', 'Failed to load user data', error);
     }
   }
 
@@ -702,7 +703,7 @@ class RecommendationEngine {
         AsyncStorage.setItem(STORAGE_KEYS.USER_BEHAVIOR, JSON.stringify(this.userBehavior)),
       ]);
     } catch (error) {
-      console.error('Failed to save user data:', error);
+      log.error('RecommendationEngine', 'Failed to save user data', error);
     }
   }
 
@@ -715,7 +716,7 @@ class RecommendationEngine {
         );
       }
     } catch (error) {
-      console.error('Failed to save recommendation cache:', error);
+      log.error('RecommendationEngine', 'Failed to save recommendation cache', error);
     }
   }
 }

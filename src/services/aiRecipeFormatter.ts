@@ -1,4 +1,5 @@
 import OpenAI from 'openai';
+import { log } from '../lib/logger';
 
 // Initialize OpenAI client
 const openai = new OpenAI({
@@ -133,18 +134,18 @@ export class AIRecipeFormatter {
       const detectedType = input.recipeType || this.detectRecipeType(input);
       const enhancedInput = { ...input, recipeType: detectedType };
 
-      console.log(`🔍 Auto-detected recipe type: ${detectedType}`);
+      log.info('AIRecipeFormatter', 'Auto-detected recipe type', { detectedType });
 
       // Check if we're in development mode
       if (isDevelopmentMode()) {
-        console.log('🔧 Development mode: Using mock AI response');
-        console.log(getSetupInstructions());
+        log.debug('AIRecipeFormatter', 'Development mode: Using mock AI response');
+        log.debug('AIRecipeFormatter', 'Setup instructions', { instructions: getSetupInstructions() });
         await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate API delay
 
         return this.getMockFormattedRecipe(enhancedInput);
       }
 
-      console.log('🤖 Using real OpenAI API for recipe formatting');
+      log.info('AIRecipeFormatter', 'Using real OpenAI API for recipe formatting');
 
       const prompt = this.buildPrompt(enhancedInput);
       const systemPrompt = this.getSystemPrompt(detectedType);
@@ -177,7 +178,7 @@ export class AIRecipeFormatter {
       return this.validateAndCleanRecipe(formattedRecipe);
 
     } catch (error: any) {
-      console.error('AI Recipe Formatting Error:', error);
+      log.error('AIRecipeFormatter', 'Recipe formatting error', { error });
 
       // Provide more specific error messages
       if (error.message?.includes('API key')) {
@@ -201,18 +202,18 @@ export class AIRecipeFormatter {
    */
   static async analyzeRecipeImage(imageUrl: string, recipeType?: RecipeType): Promise<FormattedRecipe> {
     try {
-      console.log('Vision: Starting recipe image analysis');
+      log.info('AIRecipeFormatter', 'Starting recipe image analysis', { imageUrl });
 
       // Check if we're in development mode
       if (isDevelopmentMode()) {
-        console.log('🔧 Development mode: Using mock vision analysis');
-        console.log(getSetupInstructions());
+        log.debug('AIRecipeFormatter', 'Development mode: Using mock vision analysis');
+        log.debug('AIRecipeFormatter', 'Setup instructions', { instructions: getSetupInstructions() });
         await new Promise(resolve => setTimeout(resolve, 3000)); // Simulate processing delay
 
         return this.getMockVisionAnalysis(recipeType || 'cocktail');
       }
 
-      console.log('👁️ Using real OpenAI Vision API for image analysis');
+      log.info('AIRecipeFormatter', 'Using real OpenAI Vision API for image analysis');
 
       const systemPrompt = `You are an expert mixologist and recipe analyzer. You can see cocktail recipes, ingredients lists, bar menus, and recipe cards in images. Extract and structure the recipe information into a clean, professional format. Always respond with valid JSON only.
 
@@ -276,7 +277,7 @@ Please extract all visible recipe information from the image. If you can see mul
         throw new Error('No response from vision AI service');
       }
 
-      console.log('Vision: Analysis complete');
+      log.info('AIRecipeFormatter', 'Vision analysis complete');
 
       // Parse the JSON response
       const analysisResult = JSON.parse(responseText) as FormattedRecipe;
@@ -285,7 +286,7 @@ Please extract all visible recipe information from the image. If you can see mul
       return this.validateAndCleanRecipe(analysisResult);
 
     } catch (error: any) {
-      console.error('AI Vision Analysis Error:', error);
+      log.error('AIRecipeFormatter', 'Vision analysis error', { error });
 
       // Provide more specific error messages for vision analysis
       if (error.message?.includes('API key')) {
@@ -314,7 +315,7 @@ Please extract all visible recipe information from the image. If you can see mul
 
       // For development mode, return mock response
       if (isDevelopmentMode()) {
-        console.log('🔧 Development mode: Using mock OCR response');
+        log.debug('AIRecipeFormatter', 'Development mode: Using mock OCR response');
         await new Promise(resolve => setTimeout(resolve, 1500));
         return "2 oz gin, 1 oz fresh lime juice, 3/4 oz simple syrup, mint leaves. Muddle mint, add other ingredients, shake with ice, strain over crushed ice.";
       }
@@ -324,7 +325,7 @@ Please extract all visible recipe information from the image. If you can see mul
       return "OCR text extraction from images - please use the camera feature in the app for better results.";
 
     } catch (error: any) {
-      console.error('Image text extraction error:', error);
+      log.error('AIRecipeFormatter', 'Image text extraction error', { error });
       return "Could not extract text from image. Please try using the camera feature.";
     }
   }
@@ -349,7 +350,7 @@ Please extract all visible recipe information from the image. If you can see mul
    */
   private static async extractFromInstagram(url: string): Promise<string> {
     try {
-      console.log('📸 Processing Instagram URL');
+      log.info('AIRecipeFormatter', 'Processing Instagram URL', { url });
 
       // Instagram URLs are heavily protected, so provide helpful fallback
       const fallbackText = `Instagram Recipe from: ${url}
@@ -382,18 +383,18 @@ Tip: Instagram posts often contain recipe details in the caption or comments.`;
           // Look for meta description or og:description
           const descMatch = html.match(/<meta[^>]*(?:name="description"|property="og:description")[^>]*content="([^"]*)"[^>]*>/i);
           if (descMatch && descMatch[1] && descMatch[1].length > 20) {
-            console.log('✅ Found Instagram description');
+            log.info('AIRecipeFormatter', 'Found Instagram description');
             return `Instagram Recipe Description: ${descMatch[1]}\n\nSource: ${url}`;
           }
         }
       } catch (fetchError) {
-        console.log('Instagram fetch failed (expected):', fetchError.message);
+        log.debug('AIRecipeFormatter', 'Instagram fetch failed (expected)', { error: fetchError.message });
       }
 
       return fallbackText;
 
     } catch (error: any) {
-      console.error('Instagram extraction error:', error);
+      log.error('AIRecipeFormatter', 'Instagram extraction error', { error, url });
       return `Instagram URL detected: ${url}\n\nPlease copy the recipe text manually or use the camera feature to capture the recipe.`;
     }
   }
@@ -403,7 +404,7 @@ Tip: Instagram posts often contain recipe details in the caption or comments.`;
    */
   private static async extractFromSocialMedia(url: string): Promise<string> {
     try {
-      console.log('📱 Processing social media URL');
+      log.info('AIRecipeFormatter', 'Processing social media URL', { url });
 
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 8000);
@@ -436,7 +437,7 @@ Tip: Instagram posts often contain recipe details in the caption or comments.`;
       return `Social media URL: ${url}\n\nUnable to extract content automatically. Please copy the recipe text manually or use the camera feature.`;
 
     } catch (error: any) {
-      console.error('Social media extraction error:', error);
+      log.error('AIRecipeFormatter', 'Social media extraction error', { error, url });
       return `Social media URL: ${url}\n\nPlease copy the recipe text manually or use the camera feature to capture the recipe.`;
     }
   }
@@ -446,7 +447,7 @@ Tip: Instagram posts often contain recipe details in the caption or comments.`;
    */
   static async extractTextFromUrl(url: string): Promise<string> {
     try {
-      console.log(`🔍 Extracting text from URL: ${url}`);
+      log.info('AIRecipeFormatter', 'Extracting text from URL', { url });
 
       // Handle Instagram URLs specially
       if (this.isInstagramUrl(url)) {
@@ -483,7 +484,7 @@ Tip: Instagram posts often contain recipe details in the caption or comments.`;
       const html = await response.text();
 
       // Enhanced text extraction with improved recipe focus
-      console.log('🔍 Processing HTML content...');
+      log.debug('AIRecipeFormatter', 'Processing HTML content');
 
       // First, try to extract structured data (JSON-LD)
       const jsonLdMatch = html.match(/<script[^>]*type=['"]application\/ld\+json['"][^>]*>([\s\S]*?)<\/script>/gi);
@@ -494,7 +495,7 @@ Tip: Instagram posts often contain recipe details in the caption or comments.`;
             const data = JSON.parse(jsonContent);
 
             if (data['@type'] === 'Recipe' || (Array.isArray(data) && data.some(item => item['@type'] === 'Recipe'))) {
-              console.log('✅ Found structured recipe data');
+              log.info('AIRecipeFormatter', 'Found structured recipe data');
               const recipe = Array.isArray(data) ? data.find(item => item['@type'] === 'Recipe') : data;
 
               const structuredText = [
@@ -592,12 +593,15 @@ Tip: Instagram posts often contain recipe details in the caption or comments.`;
       }
 
       const result = extractedText || "No meaningful recipe content extracted from URL";
-      console.log(`✅ Extracted ${result.length} characters from ${url}`);
+      log.info('AIRecipeFormatter', 'Extracted text from URL', {
+        url,
+        characterCount: result.length
+      });
 
       return `${result}\n\nSource: ${url}`;
 
     } catch (error: any) {
-      console.error('URL extraction error:', error);
+      log.error('AIRecipeFormatter', 'URL extraction error', { error, url });
       if (error.name === 'AbortError') {
         return "URL request timed out - please try again";
       }

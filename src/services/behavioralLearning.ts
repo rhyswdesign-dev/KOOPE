@@ -4,6 +4,7 @@
  */
 
 import { getFirestore, doc, updateDoc, increment } from '@firebase/firestore';
+import { log } from '../lib/logger';
 import { Recipe } from '../types/recipe';
 import { loadUserProfile, saveUserProfile } from './userProfileService';
 
@@ -139,9 +140,9 @@ export class BehavioralLearning {
       // Save updated profile
       await saveUserProfile(profile);
 
-      console.log(`✅ Learned from ${interactionType} on ${recipe.title}`);
+      log.debug('BehavioralLearning', `Learned from ${interactionType}`, { recipeTitle: recipe.title });
     } catch (error) {
-      console.error('Error tracking interaction:', error);
+      log.error('BehavioralLearning', 'Failed to track interaction', error);
     }
   }
 
@@ -233,9 +234,9 @@ export class BehavioralLearning {
         [`tasteProfile.moodPreferences.${mood}`]: increment(1),
       });
 
-      console.log(`✅ Tracked mood selection: ${mood}`);
+      log.debug('BehavioralLearning', 'Tracked mood selection', { mood });
     } catch (error) {
-      console.error('Error tracking mood:', error);
+      log.error('BehavioralLearning', 'Failed to track mood', error);
     }
   }
 
@@ -268,7 +269,7 @@ export class BehavioralLearning {
 
       await saveUserProfile(profile);
     } catch (error) {
-      console.error('Error tracking search:', error);
+      log.error('BehavioralLearning', 'Failed to track search', error);
     }
   }
 

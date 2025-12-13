@@ -1,5 +1,6 @@
 import OpenAI from 'openai';
 import { AIRecipeFormatter, FormattedRecipe, RecipeInput } from './aiRecipeFormatter';
+import { log } from '../lib/logger';
 
 // Initialize OpenAI client
 const openai = new OpenAI({
@@ -40,10 +41,10 @@ export class VideoRecipeAnalyzer {
    */
   static async analyzeVideoForRecipe(input: VideoRecipeInput): Promise<FormattedRecipe> {
     try {
-      console.log('🎥 Starting video recipe analysis...');
+      log.info('VideoRecipeAnalyzer', 'Starting video recipe analysis', { title: input.title });
 
       if (isDevelopmentMode()) {
-        console.log('🔧 Development mode: Using mock video analysis');
+        log.debug('VideoRecipeAnalyzer', 'Development mode: Using mock video analysis', { input });
         await new Promise(resolve => setTimeout(resolve, 3000)); // Simulate processing
         return this.getMockVideoRecipeAnalysis(input);
       }
@@ -71,7 +72,7 @@ export class VideoRecipeAnalyzer {
       return await AIRecipeFormatter.formatRecipe(recipeInput);
 
     } catch (error: any) {
-      console.error('Video recipe analysis error:', error);
+      log.error('VideoRecipeAnalyzer', 'Video recipe analysis failed', error, { input });
       throw new Error(`Video analysis failed: ${error.message}`);
     }
   }
@@ -81,7 +82,7 @@ export class VideoRecipeAnalyzer {
    */
   private static async extractKeyFrames(input: VideoRecipeInput): Promise<string[]> {
     try {
-      console.log('📸 Extracting key frames from video...');
+      log.debug('VideoRecipeAnalyzer', 'Extracting key frames from video', { duration: input.duration });
 
       if (isDevelopmentMode()) {
         // Return mock base64 image data
@@ -96,7 +97,7 @@ export class VideoRecipeAnalyzer {
       return [];
 
     } catch (error) {
-      console.warn('Frame extraction failed, continuing with audio-only analysis:', error);
+      log.warn('VideoRecipeAnalyzer', 'Frame extraction failed, continuing with audio-only analysis', { error });
       return [];
     }
   }
@@ -106,7 +107,7 @@ export class VideoRecipeAnalyzer {
    */
   private static async extractAudioTranscript(input: VideoRecipeInput): Promise<string> {
     try {
-      console.log('🎧 Extracting audio transcript...');
+      log.debug('VideoRecipeAnalyzer', 'Extracting audio transcript', { hasVideoFile: !!input.videoFile });
 
       if (isDevelopmentMode()) {
         // Return mock transcript based on video type
@@ -132,7 +133,7 @@ export class VideoRecipeAnalyzer {
       throw new Error('No video file provided for transcription');
 
     } catch (error) {
-      console.warn('Audio transcription failed, continuing without transcript:', error);
+      log.warn('VideoRecipeAnalyzer', 'Audio transcription failed, continuing without transcript', { error });
       return '';
     }
   }
@@ -146,7 +147,7 @@ export class VideoRecipeAnalyzer {
         return { ingredients: [], steps: [], confidence: 0 };
       }
 
-      console.log('👁️ Analyzing video frames for recipe content...');
+      log.debug('VideoRecipeAnalyzer', 'Analyzing video frames for recipe content', { frameCount: frames.length });
 
       if (isDevelopmentMode()) {
         return {
@@ -175,7 +176,7 @@ export class VideoRecipeAnalyzer {
       };
 
     } catch (error) {
-      console.warn('Visual frame analysis failed:', error);
+      log.warn('VideoRecipeAnalyzer', 'Visual frame analysis failed', { error });
       return { ingredients: [], steps: [], confidence: 0 };
     }
   }
@@ -221,7 +222,7 @@ export class VideoRecipeAnalyzer {
       return { ingredients: [], steps: [], confidence: 0 };
 
     } catch (error) {
-      console.warn('Individual frame analysis failed:', error);
+      log.warn('VideoRecipeAnalyzer', 'Individual frame analysis failed', { error });
       return { ingredients: [], steps: [], confidence: 0 };
     }
   }
@@ -234,7 +235,10 @@ export class VideoRecipeAnalyzer {
     visualAnalysis: any
   ): Promise<{ title: string; extractedContent: string }> {
     try {
-      console.log('🔄 Combining audio and visual analysis...');
+      log.debug('VideoRecipeAnalyzer', 'Combining audio and visual analysis', {
+        transcriptLength: transcript.length,
+        visualConfidence: visualAnalysis.confidence
+      });
 
       if (isDevelopmentMode()) {
         const mockTitle = transcript.includes('margarita') ? 'Mango Passion Margarita' : 'Classic Cocktail Recipe';
@@ -294,7 +298,7 @@ ADDITIONAL: [other relevant details]`;
       };
 
     } catch (error) {
-      console.warn('Audio-visual combination failed:', error);
+      log.warn('VideoRecipeAnalyzer', 'Audio-visual combination failed', { error });
       return {
         title: 'Video Recipe',
         extractedContent: transcript || 'Recipe extracted from video'
@@ -386,7 +390,7 @@ ADDITIONAL: [other relevant details]`;
    */
   static async analyzeVideoFromURL(videoUrl: string): Promise<FormattedRecipe> {
     try {
-      console.log('🔗 Analyzing video from URL:', videoUrl);
+      log.info('VideoRecipeAnalyzer', 'Analyzing video from URL', { videoUrl });
 
       // Check if it's a supported social media platform
       const isTikTok = videoUrl.includes('tiktok.com');
@@ -394,7 +398,11 @@ ADDITIONAL: [other relevant details]`;
       const isYouTube = videoUrl.includes('youtube.com') || videoUrl.includes('youtu.be');
 
       if (isDevelopmentMode()) {
-        console.log('🔧 Development mode: Using mock URL video analysis');
+        log.debug('VideoRecipeAnalyzer', 'Development mode: Using mock URL video analysis', {
+          isTikTok,
+          isInstagramReel,
+          isYouTube
+        });
         await new Promise(resolve => setTimeout(resolve, 4000));
 
         return {
@@ -431,7 +439,7 @@ ADDITIONAL: [other relevant details]`;
       });
 
     } catch (error: any) {
-      console.error('URL video analysis error:', error);
+      log.error('VideoRecipeAnalyzer', 'URL video analysis error', error, { videoUrl });
 
       // Fallback: try to extract any text content from the URL
       try {

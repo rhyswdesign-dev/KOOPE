@@ -3,6 +3,8 @@
  * Platform-safe ad integration with rewarded ads
  */
 
+import { log } from '../lib/logger';
+
 export interface AdReward {
   type: string;
   amount: number;
@@ -26,48 +28,48 @@ export class StubAdService implements AdService {
 
   async initialize(config: any): Promise<void> {
     this.config = config;
-    console.log('Stub Ad Service initialized with config:', config);
+    log.info('StubAdService', 'Initialized with config', { config });
   }
 
   async loadRewardedAd(adUnitId: string): Promise<void> {
-    console.log('Loading rewarded ad:', adUnitId);
-    
+    log.debug('StubAdService', 'Loading rewarded ad', { adUnitId });
+
     // Simulate loading delay
     await new Promise(resolve => setTimeout(resolve, 1500));
-    
+
     // Simulate 90% load success rate
     if (Math.random() < 0.9) {
       this.loadedAds.add(adUnitId);
-      console.log('Rewarded ad loaded successfully:', adUnitId);
+      log.info('StubAdService', 'Rewarded ad loaded successfully', { adUnitId });
     } else {
-      console.log('Rewarded ad failed to load:', adUnitId);
+      log.warn('StubAdService', 'Rewarded ad failed to load', { adUnitId });
       throw new Error('Ad failed to load');
     }
   }
 
   async showRewardedAd(adUnitId: string): Promise<AdReward | null> {
-    console.log('Showing rewarded ad:', adUnitId);
-    
+    log.debug('StubAdService', 'Showing rewarded ad', { adUnitId });
+
     if (!this.loadedAds.has(adUnitId)) {
       throw new Error('Ad not loaded');
     }
-    
+
     // Simulate ad display time
     await new Promise(resolve => setTimeout(resolve, 3000));
-    
+
     // Remove from loaded ads (single use)
     this.loadedAds.delete(adUnitId);
-    
+
     // Simulate 95% completion rate
     if (Math.random() < 0.95) {
       const reward: AdReward = {
         type: 'life',
         amount: 1
       };
-      console.log('Rewarded ad completed, granting reward:', reward);
+      log.info('StubAdService', 'Rewarded ad completed, granting reward', { reward });
       return reward;
     } else {
-      console.log('Rewarded ad was skipped or failed');
+      log.warn('StubAdService', 'Rewarded ad was skipped or failed', { adUnitId });
       return null;
     }
   }
@@ -77,16 +79,16 @@ export class StubAdService implements AdService {
   }
 
   async preloadAds(): Promise<void> {
-    console.log('Preloading ads...');
-    
+    log.info('StubAdService', 'Preloading ads');
+
     // Preload common ad units
     const adUnits = ['life_reward', 'xp_bonus', 'hint_unlock'];
-    
+
     for (const adUnit of adUnits) {
       try {
         await this.loadRewardedAd(adUnit);
       } catch (error) {
-        console.warn(`Failed to preload ad: ${adUnit}`, error);
+        log.warn('StubAdService', 'Failed to preload ad', { adUnit, error });
       }
     }
   }
@@ -115,10 +117,10 @@ export class AdMobService implements AdService {
         });
       }
       
-      console.log('AdMob initialized successfully');
+      log.info('AdMobService', 'Initialized successfully');
       this.initialized = true;
     } catch (error) {
-      console.error('AdMob initialization failed:', error);
+      log.error('AdMobService', 'Initialization failed', { error });
       this.initialized = false;
       throw error;
     }
@@ -152,7 +154,7 @@ export class AdMobService implements AdService {
       
       throw new Error('AdMob not implemented');
     } catch (error) {
-      console.error('AdMob load failed:', error);
+      log.error('AdMobService', 'Ad load failed', { error, adUnitId });
       throw error;
     }
   }
@@ -177,7 +179,7 @@ export class AdMobService implements AdService {
       
       throw new Error('AdMob not implemented');
     } catch (error) {
-      console.error('AdMob show failed:', error);
+      log.error('AdMobService', 'Ad show failed', { error, adUnitId });
       throw error;
     }
   }
@@ -188,21 +190,21 @@ export class AdMobService implements AdService {
 
   async preloadAds(): Promise<void> {
     if (!this.initialized) {
-      console.warn('AdMob not initialized, skipping preload');
+      log.warn('AdMobService', 'Not initialized, skipping preload');
       return;
     }
 
     const adUnits = Object.values(AD_UNITS);
-    
+
     for (const adUnit of adUnits) {
       try {
         await this.loadRewardedAd(adUnit);
       } catch (error) {
-        console.warn(`Failed to preload ad: ${adUnit}`, error);
+        log.warn('AdMobService', 'Failed to preload ad', { adUnit, error });
       }
     }
-    
-    console.log('AdMob ads preloaded');
+
+    log.info('AdMobService', 'Ads preloaded');
   }
 
   async isAvailable(): Promise<boolean> {
@@ -224,10 +226,10 @@ export class AppLovinService implements AdService {
       // 
       // await AppLovinMAX.initialize(config.sdkKey);
       
-      console.log('AppLovin would initialize with SDK key:', config.sdkKey);
+      log.info('AppLovinService', 'Would initialize with SDK key', { sdkKey: config.sdkKey });
       this.initialized = true;
     } catch (error) {
-      console.error('AppLovin initialization failed:', error);
+      log.error('AppLovinService', 'Initialization failed', { error });
       throw error;
     }
   }
@@ -246,7 +248,7 @@ export class AppLovinService implements AdService {
       
       throw new Error('AppLovin not implemented');
     } catch (error) {
-      console.error('AppLovin load failed:', error);
+      log.error('AppLovinService', 'Ad load failed', { error, adUnitId });
       throw error;
     }
   }
@@ -262,7 +264,7 @@ export class AppLovinService implements AdService {
       
       throw new Error('AppLovin not implemented');
     } catch (error) {
-      console.error('AppLovin show failed:', error);
+      log.error('AppLovinService', 'Ad show failed', { error, adUnitId });
       throw error;
     }
   }
@@ -274,7 +276,7 @@ export class AppLovinService implements AdService {
 
   async preloadAds(): Promise<void> {
     // TODO: Preload common ad units
-    console.log('AppLovin preload not implemented');
+    log.debug('AppLovinService', 'Preload not implemented');
   }
 
   async isAvailable(): Promise<boolean> {

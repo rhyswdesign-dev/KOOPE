@@ -3,6 +3,7 @@
  * Safe wrapper with fallbacks
  */
 
+import { log } from '../lib/logger';
 import { AnalyticsSink, AnalyticsEvent } from './analytics';
 
 export class PostHogAdapter implements AnalyticsSink {
@@ -23,10 +24,10 @@ export class PostHogAdapter implements AnalyticsSink {
         flushInterval: 30000, // Flush every 30 seconds
       });
 
-      console.log('PostHog initialized successfully');
-      
+      log.info('PostHogAdapter', 'Initialized successfully');
+
     } catch (error) {
-      console.warn('PostHog initialization failed - falling back to console logging:', error);
+      log.warn('PostHogAdapter', 'Initialization failed - falling back to console logging', { error });
       this.client = null;
     }
   }
@@ -34,7 +35,7 @@ export class PostHogAdapter implements AnalyticsSink {
   async track(ev: AnalyticsEvent): Promise<void> {
     if (!this.client) {
       // Fallback to console logging
-      console.log('[PostHog Fallback]', ev.type, ev);
+      log.debug('PostHogAdapter', 'Fallback track', { eventType: ev.type, event: ev });
       return;
     }
 
@@ -44,10 +45,10 @@ export class PostHogAdapter implements AnalyticsSink {
       delete (properties as any).type;
 
       this.client.capture(ev.type, properties);
-      console.log('[PostHog]', ev.type, properties);
-      
+      log.debug('PostHogAdapter', 'Event tracked', { eventType: ev.type, properties });
+
     } catch (error) {
-      console.error('PostHog track error:', error);
+      log.error('PostHogAdapter', 'Track error', { error, event: ev });
     }
   }
 
@@ -55,9 +56,9 @@ export class PostHogAdapter implements AnalyticsSink {
     if (this.client?.flush) {
       try {
         await this.client.flush();
-        console.log('PostHog flush completed');
+        log.debug('PostHogAdapter', 'Flush completed');
       } catch (error) {
-        console.error('PostHog flush error:', error);
+        log.error('PostHogAdapter', 'Flush error', { error });
       }
     }
   }
@@ -68,9 +69,9 @@ export class PostHogAdapter implements AnalyticsSink {
 
     try {
       this.client.identify(userId, traits);
-      console.log('[PostHog] Identify:', userId, traits);
+      log.info('PostHogAdapter', 'User identified', { userId, traits });
     } catch (error) {
-      console.error('PostHog identify error:', error);
+      log.error('PostHogAdapter', 'Identify error', { error, userId });
     }
   }
 
@@ -80,9 +81,9 @@ export class PostHogAdapter implements AnalyticsSink {
 
     try {
       this.client.setPersonProperties(properties);
-      console.log('[PostHog] Set person properties:', properties);
+      log.debug('PostHogAdapter', 'Person properties set', { properties });
     } catch (error) {
-      console.error('PostHog set person properties error:', error);
+      log.error('PostHogAdapter', 'Set person properties error', { error });
     }
   }
 }
@@ -110,10 +111,10 @@ export class PostHogFeatureFlags {
     try {
       // TODO: Implement when PostHog is available
       // return await this.client.isFeatureEnabled(flag, userId);
-      console.log('[PostHog] Check feature flag:', flag, userId);
+      log.debug('PostHogFeatureFlags', 'Check feature flag', { flag, userId });
       return false;
     } catch (error) {
-      console.error('PostHog feature flag error:', error);
+      log.error('PostHogFeatureFlags', 'Feature flag error', { error, flag, userId });
       return false;
     }
   }
@@ -124,10 +125,10 @@ export class PostHogFeatureFlags {
     try {
       // TODO: Implement when PostHog is available
       // return await this.client.getFeatureFlag(flag, userId);
-      console.log('[PostHog] Get feature flag:', flag, userId);
+      log.debug('PostHogFeatureFlags', 'Get feature flag', { flag, userId });
       return false;
     } catch (error) {
-      console.error('PostHog get feature flag error:', error);
+      log.error('PostHogFeatureFlags', 'Get feature flag error', { error, flag, userId });
       return false;
     }
   }

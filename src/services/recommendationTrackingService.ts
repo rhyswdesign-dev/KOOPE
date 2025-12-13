@@ -4,6 +4,7 @@
  */
 
 import { getFirestore, collection, addDoc, query, where, getDocs, Timestamp } from '@firebase/firestore';
+import { log } from '../lib/logger';
 import { trackEvent } from './analytics';
 
 const db = getFirestore();
@@ -82,14 +83,14 @@ export async function trackRecommendationView(
       can_make: recommendation.canMakeNow,
     });
 
-    console.log(`✅ Tracked view: ${recommendation.cocktailName}`);
+    log.debug('RecommendationTrackingService', 'Tracked view', { cocktailName: recommendation.cocktailName });
   } catch (error: any) {
     // Handle offline gracefully
     if (error?.message?.includes('offline') || error?.code === 'unavailable') {
-      console.log('[RecommendationTracking] Offline - tracking will sync when online');
+      log.info('RecommendationTrackingService', 'Offline - tracking will sync when online');
       return;
     }
-    console.error('Error tracking recommendation view:', error);
+    log.error('RecommendationTrackingService', 'Failed to track recommendation view', error);
   }
 }
 
@@ -131,13 +132,13 @@ export async function trackRecommendationSaved(
       can_make: recommendation.canMakeNow,
     });
 
-    console.log(`✅ Tracked save: ${recommendation.cocktailName}`);
+    log.debug('RecommendationTrackingService', 'Tracked save', { cocktailName: recommendation.cocktailName });
   } catch (error: any) {
     if (error?.message?.includes('offline') || error?.code === 'unavailable') {
-      console.log('[RecommendationTracking] Offline - tracking will sync when online');
+      log.info('RecommendationTrackingService', 'Offline - tracking will sync when online');
       return;
     }
-    console.error('Error tracking recommendation save:', error);
+    log.error('RecommendationTrackingService', 'Failed to track recommendation save', error);
   }
 }
 
@@ -179,13 +180,13 @@ export async function trackRecommendationMade(
       can_make: recommendation.canMakeNow,
     });
 
-    console.log(`🎉 User made: ${recommendation.cocktailName}!`);
+    log.info('RecommendationTrackingService', 'User made cocktail!', { cocktailName: recommendation.cocktailName });
   } catch (error: any) {
     if (error?.message?.includes('offline') || error?.code === 'unavailable') {
-      console.log('[RecommendationTracking] Offline - tracking will sync when online');
+      log.info('RecommendationTrackingService', 'Offline - tracking will sync when online');
       return;
     }
-    console.error('Error tracking recommendation made:', error);
+    log.error('RecommendationTrackingService', 'Failed to track recommendation made', error);
   }
 }
 
@@ -233,13 +234,16 @@ export async function trackRecommendationDismissed(
       reason: reason || 'not_specified',
     });
 
-    console.log(`❌ User dismissed: ${recommendation.cocktailName}`);
+    log.debug('RecommendationTrackingService', 'User dismissed cocktail', {
+      cocktailName: recommendation.cocktailName,
+      reason
+    });
   } catch (error: any) {
     if (error?.message?.includes('offline') || error?.code === 'unavailable') {
-      console.log('[RecommendationTracking] Offline - tracking will sync when online');
+      log.info('RecommendationTrackingService', 'Offline - tracking will sync when online');
       return;
     }
-    console.error('Error tracking recommendation dismissal:', error);
+    log.error('RecommendationTrackingService', 'Failed to track recommendation dismissal', error);
   }
 }
 
@@ -289,13 +293,16 @@ export async function trackRecommendationRating(
       match_score: recommendation.matchScore,
     });
 
-    console.log(`⭐ User rated ${recommendation.cocktailName}: ${rating}/5`);
+    log.info('RecommendationTrackingService', 'User rated cocktail', {
+      cocktailName: recommendation.cocktailName,
+      rating
+    });
   } catch (error: any) {
     if (error?.message?.includes('offline') || error?.code === 'unavailable') {
-      console.log('[RecommendationTracking] Offline - tracking will sync when online');
+      log.info('RecommendationTrackingService', 'Offline - tracking will sync when online');
       return;
     }
-    console.error('Error tracking recommendation rating:', error);
+    log.error('RecommendationTrackingService', 'Failed to track recommendation rating', error);
   }
 }
 
@@ -371,10 +378,10 @@ export async function getRecommendationAnalytics(userId: string): Promise<Recomm
     };
   } catch (error: any) {
     if (error?.message?.includes('offline') || error?.code === 'unavailable') {
-      console.log('[RecommendationTracking] Offline - analytics unavailable');
+      log.info('RecommendationTrackingService', 'Offline - analytics unavailable');
       return null;
     }
-    console.error('Error getting recommendation analytics:', error);
+    log.error('RecommendationTrackingService', 'Failed to get recommendation analytics', error);
     return null;
   }
 }

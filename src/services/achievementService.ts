@@ -5,6 +5,7 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { log } from '../lib/logger';
 
 export interface Achievement {
   id: string;
@@ -325,7 +326,10 @@ class AchievementService {
           // Notify listeners
           this.listeners.forEach(listener => listener(achievement));
 
-          console.log(`🏆 Achievement unlocked: ${achievement.title}`);
+          log.info('AchievementService', 'Achievement unlocked', {
+            title: achievement.title,
+            xpReward: achievement.xpReward
+          });
         }
       }
     }
@@ -395,7 +399,7 @@ class AchievementService {
     const newLevel = Math.floor(this.userStats.totalXP / 100) + 1;
     if (newLevel > this.userStats.level) {
       this.userStats.level = newLevel;
-      console.log(`🎉 Level up! Now level ${newLevel}`);
+      log.info('AchievementService', 'Level up!', { newLevel });
     }
   }
 
@@ -473,7 +477,7 @@ class AchievementService {
         await this.saveAchievements();
       }
     } catch (error) {
-      console.error('Error loading achievements:', error);
+      log.error('AchievementService', 'Failed to load achievements', error);
       // Fallback to defaults
       this.achievements = ACHIEVEMENT_DEFINITIONS.map(def => ({
         ...def,
@@ -490,7 +494,7 @@ class AchievementService {
     try {
       await AsyncStorage.setItem(STORAGE_KEYS.ACHIEVEMENTS, JSON.stringify(this.achievements));
     } catch (error) {
-      console.error('Error saving achievements:', error);
+      log.error('AchievementService', 'Failed to save achievements', error);
     }
   }
 
@@ -504,7 +508,7 @@ class AchievementService {
         this.userStats = JSON.parse(statsData);
       }
     } catch (error) {
-      console.error('Error loading user stats:', error);
+      log.error('AchievementService', 'Failed to load user stats', error);
     }
   }
 
@@ -515,7 +519,7 @@ class AchievementService {
     try {
       await AsyncStorage.setItem(STORAGE_KEYS.USER_STATS, JSON.stringify(this.userStats));
     } catch (error) {
-      console.error('Error saving user stats:', error);
+      log.error('AchievementService', 'Failed to save user stats', error);
     }
   }
 

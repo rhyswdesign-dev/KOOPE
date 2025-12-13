@@ -4,6 +4,7 @@
  */
 
 import { SurveyResponse, FeedCard, UserProfile } from '../types/domain';
+import { log } from '../lib/logger';
 
 export type PersonalizationProfile = {
   topSpirits: string[];
@@ -407,8 +408,12 @@ export function trackPersonalizationEvent(event: {
   userId: string;
   data?: any;
 }) {
-  console.log('[Personalization Analytics]', event);
-  
+  log.debug('PersonalizationService', 'Tracking personalization event', {
+    eventType: event.type,
+    userId: event.userId,
+    data: event.data
+  });
+
   // TODO: Integrate with analytics service
   // analytics.track({
   //   type: 'personalization.event',

@@ -2,6 +2,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
 import { Alert } from 'react-native';
+import { log } from '../lib/logger';
 
 export interface UploadedFile {
   uri: string;
@@ -74,7 +75,7 @@ class UploadService {
 
       return true;
     } catch (error) {
-      console.error('Error requesting permissions:', error);
+      log.error('UploadService', 'Error requesting permissions', error);
       return false;
     }
   }
@@ -121,7 +122,7 @@ class UploadService {
 
       return files;
     } catch (error) {
-      console.error('Error picking image:', error);
+      log.error('UploadService', 'Error picking image', error);
       Alert.alert('Error', 'Failed to pick image');
       return [];
     }
@@ -156,7 +157,7 @@ class UploadService {
         mimeType: asset.mimeType,
       };
     } catch (error) {
-      console.error('Error taking photo:', error);
+      log.error('UploadService', 'Error taking photo', error);
       Alert.alert('Error', 'Failed to take photo');
       return null;
     }
@@ -194,7 +195,7 @@ class UploadService {
         mimeType: asset.mimeType,
       };
     } catch (error) {
-      console.error('Error picking video:', error);
+      log.error('UploadService', 'Error picking video', error);
       Alert.alert('Error', 'Failed to pick video');
       return null;
     }
@@ -230,7 +231,7 @@ class UploadService {
         mimeType: asset.mimeType,
       };
     } catch (error) {
-      console.error('Error recording video:', error);
+      log.error('UploadService', 'Error recording video', error);
       Alert.alert('Error', 'Failed to record video');
       return null;
     }
@@ -255,7 +256,7 @@ class UploadService {
         mimeType: asset.mimeType,
       };
     } catch (error) {
-      console.error('Error picking document:', error);
+      log.error('UploadService', 'Error picking document', error);
       Alert.alert('Error', 'Failed to pick document');
       return null;
     }
@@ -346,7 +347,7 @@ class UploadService {
         id: recipeId,
       };
     } catch (error) {
-      console.error('Error submitting recipe:', error);
+      log.error('UploadService', 'Error submitting recipe', error, { recipeTitle: submission.title });
       return {
         success: false,
         error: 'Failed to submit recipe. Please try again.',
@@ -394,7 +395,10 @@ class UploadService {
         id: entryId,
       };
     } catch (error) {
-      console.error('Error submitting competition entry:', error);
+      log.error('UploadService', 'Error submitting competition entry', error, {
+        entryTitle: entry.title,
+        competitionId: entry.competitionId
+      });
       return {
         success: false,
         error: 'Failed to submit entry. Please try again.',
@@ -407,9 +411,9 @@ class UploadService {
     await new Promise(resolve => setTimeout(resolve, 2000));
 
     // In a real app, you would upload files to your server here
-    console.log('Uploading files:', {
-      images: images.length,
-      videos: videos.length,
+    log.debug('UploadService', 'Simulating file upload', {
+      imageCount: images.length,
+      videoCount: videos.length
     });
   }
 
@@ -433,7 +437,7 @@ class UploadService {
         JSON.stringify(recipeData, null, 2)
       );
     } catch (error) {
-      console.error('Error saving recipe locally:', error);
+      log.error('UploadService', 'Error saving recipe locally', error, { recipeId: id });
     }
   }
 
@@ -457,7 +461,7 @@ class UploadService {
         JSON.stringify(entryData, null, 2)
       );
     } catch (error) {
-      console.error('Error saving competition entry locally:', error);
+      log.error('UploadService', 'Error saving competition entry locally', error, { entryId: id });
     }
   }
 
@@ -483,7 +487,7 @@ class UploadService {
         new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
       );
     } catch (error) {
-      console.error('Error getting local recipes:', error);
+      log.error('UploadService', 'Error getting local recipes', error);
       return [];
     }
   }
@@ -510,7 +514,7 @@ class UploadService {
         new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
       );
     } catch (error) {
-      console.error('Error getting local competition entries:', error);
+      log.error('UploadService', 'Error getting local competition entries', error);
       return [];
     }
   }

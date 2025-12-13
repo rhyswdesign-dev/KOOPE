@@ -4,6 +4,7 @@
  */
 
 import { getFirestore, doc, setDoc, getDoc, updateDoc, Timestamp } from '@firebase/firestore';
+import { log } from '../lib/logger';
 import { EnhancedUserProfile, createDefaultUserProfile, surveyAnswersToProfile } from '../types/userProfile';
 
 const db = getFirestore();
@@ -45,9 +46,9 @@ export async function saveUserProfile(profile: EnhancedUserProfile): Promise<voi
     };
 
     await setDoc(userRef, firestoreProfile, { merge: true });
-    console.log('User profile saved successfully');
+    log.info('UserProfileService', 'User profile saved successfully', { userId: profile.id });
   } catch (error) {
-    console.error('Error saving user profile:', error);
+    log.error('UserProfileService', 'Failed to save user profile', error);
     throw new Error('Failed to save user profile');
   }
 }
@@ -95,7 +96,7 @@ export async function loadUserProfile(userId: string): Promise<EnhancedUserProfi
 
     // CRITICAL: Ensure tasteProfile is always initialized to prevent runtime errors
     if (!profile.tasteProfile) {
-      console.log('[UserProfile] Initializing missing tasteProfile with defaults');
+      log.info('UserProfileService', 'Initializing missing tasteProfile with defaults', { userId });
       profile.tasteProfile = {
         flavorWeights: {
           citrus: 0,
@@ -164,11 +165,11 @@ export async function loadUserProfile(userId: string): Promise<EnhancedUserProfi
     if (error?.message?.includes('offline') ||
         error?.message?.includes('Failed to get document') ||
         error?.code === 'unavailable') {
-      console.log('[UserProfile] Offline - unable to load profile from Firebase');
+      log.info('UserProfileService', 'Offline - unable to load profile from Firebase', { userId });
       return null;
     }
 
-    console.error('Error loading user profile:', error);
+    log.error('UserProfileService', 'Failed to load user profile', error, { userId });
     throw new Error('Failed to load user profile');
   }
 }
@@ -190,9 +191,9 @@ export async function updateUserProfileFields(
     }
 
     await updateDoc(userRef, firestoreUpdates);
-    console.log('User profile updated successfully');
+    log.info('UserProfileService', 'User profile updated successfully', { userId });
   } catch (error) {
-    console.error('Error updating user profile:', error);
+    log.error('UserProfileService', 'Failed to update user profile', error, { userId });
     throw new Error('Failed to update user profile');
   }
 }
@@ -220,7 +221,7 @@ export async function initializeUserProfileFromSurvey(
 
     return profile;
   } catch (error) {
-    console.error('Error initializing user profile from survey:', error);
+    log.error('UserProfileService', 'Failed to initialize user profile from survey', error, { userId });
     throw new Error('Failed to initialize user profile');
   }
 }
@@ -264,7 +265,7 @@ export async function saveRecipeToProfile(userId: string, recipeId: string): Pro
       await saveUserProfile(profile);
     }
   } catch (error) {
-    console.error('Error saving recipe to profile:', error);
+    log.error('UserProfileService', 'Failed to save recipe to profile', error, { userId, recipeId });
     throw new Error('Failed to save recipe');
   }
 }
@@ -282,7 +283,7 @@ export async function unsaveRecipeFromProfile(userId: string, recipeId: string):
     profile.savedRecipes = profile.savedRecipes.filter(id => id !== recipeId);
     await saveUserProfile(profile);
   } catch (error) {
-    console.error('Error removing recipe from profile:', error);
+    log.error('UserProfileService', 'Failed to remove recipe from profile', error, { userId, recipeId });
     throw new Error('Failed to remove recipe');
   }
 }
@@ -312,7 +313,7 @@ export async function addToBarInventory(
     profile.barInventory.push(newItem);
     await saveUserProfile(profile);
   } catch (error) {
-    console.error('Error adding to bar inventory:', error);
+    log.error('UserProfileService', 'Failed to add to bar inventory', error, { userId });
     throw new Error('Failed to add to bar inventory');
   }
 }
@@ -376,7 +377,7 @@ export async function updateTasteProfile(
 
     await saveUserProfile(profile);
   } catch (error) {
-    console.error('Error updating taste profile:', error);
+    log.error('UserProfileService', 'Failed to update taste profile', error, { userId, recipeId, feedback });
     throw new Error('Failed to update taste profile');
   }
 }
@@ -390,7 +391,7 @@ export async function trackUserActivity(userId: string): Promise<void> {
       lastActiveAt: new Date(),
     });
   } catch (error) {
-    console.error('Error tracking user activity:', error);
+    log.warn('UserProfileService', 'Failed to track user activity (non-critical)', error, { userId });
     // Don't throw - this is non-critical
   }
 }

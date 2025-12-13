@@ -3,6 +3,7 @@
  * Handles all sound effects and audio feedback for the app
  */
 
+import { log } from '../lib/logger';
 import { Audio, AVPlaybackStatus } from 'expo-av';
 import { Sound } from 'expo-av/build/Audio';
 
@@ -136,9 +137,9 @@ class AudioManager {
         playThroughEarpieceAndroid: false,
       });
 
-      console.log('AudioManager initialized successfully');
+      log.info('AudioManager', 'Initialized successfully');
     } catch (error) {
-      console.error('Failed to initialize AudioManager:', error);
+      log.error('AudioManager', 'Initialization failed', { error });
     }
   }
 
@@ -168,9 +169,9 @@ class AudioManager {
           isLoaded: true,
         });
 
-        console.log(`Preloaded sound: ${soundType}`);
+        log.debug('AudioManager', 'Sound preloaded', { soundType });
       } catch (error) {
-        console.error(`Failed to preload sound ${soundType}:`, error);
+        log.error('AudioManager', 'Failed to preload sound', { error, soundType });
       }
     });
 
@@ -210,7 +211,7 @@ class AudioManager {
         // Fallback: load and play immediately (for sounds not preloaded)
         const config = this.soundConfigs[soundType];
         if (!config.file) {
-          console.warn(`No audio file configured for sound type: ${soundType}`);
+          log.warn('AudioManager', 'No audio file configured', { soundType });
           return;
         }
 
@@ -234,7 +235,7 @@ class AudioManager {
         }
       }
     } catch (error) {
-      console.error(`Failed to play sound ${soundType}:`, error);
+      log.error('AudioManager', 'Failed to play sound', { error, soundType });
     }
   }
 
@@ -244,7 +245,7 @@ class AudioManager {
       try {
         await cachedSound.sound.stopAsync();
       } catch (error) {
-        console.error(`Failed to stop sound ${soundType}:`, error);
+        log.error('AudioManager', 'Failed to stop sound', { error, soundType });
       }
     }
   }
@@ -255,7 +256,7 @@ class AudioManager {
       try {
         await cachedSound.sound.pauseAsync();
       } catch (error) {
-        console.error(`Failed to pause sound ${soundType}:`, error);
+        log.error('AudioManager', 'Failed to pause sound', { error, soundType });
       }
     }
   }
@@ -281,7 +282,7 @@ class AudioManager {
         await sound.setVolumeAsync(volumeStep * i);
       }
     } catch (error) {
-      console.error(`Failed to fade in sound ${soundType}:`, error);
+      log.error('AudioManager', 'Failed to fade in sound', { error, soundType });
     }
   }
 
@@ -291,20 +292,20 @@ class AudioManager {
 
     const { sound, config } = cachedSound;
     const currentVolume = config.volume * this.masterVolume;
-    
+
     try {
       const steps = 20;
       const stepDuration = duration / steps;
       const volumeStep = currentVolume / steps;
-      
+
       for (let i = steps - 1; i >= 0; i--) {
         await new Promise(resolve => setTimeout(resolve, stepDuration));
         await sound.setVolumeAsync(volumeStep * i);
       }
-      
+
       await sound.stopAsync();
     } catch (error) {
-      console.error(`Failed to fade out sound ${soundType}:`, error);
+      log.error('AudioManager', 'Failed to fade out sound', { error, soundType });
     }
   }
 
@@ -336,7 +337,7 @@ class AudioManager {
           try {
             await cachedSound.sound.stopAsync();
           } catch (error) {
-            console.error(`Failed to stop sound ${soundType} when disabling:`, error);
+            log.error('AudioManager', 'Failed to stop sound when disabling', { error, soundType });
           }
         }
       });
@@ -352,7 +353,7 @@ class AudioManager {
         try {
           await cachedSound.sound.setVolumeAsync(cachedSound.config.volume * this.masterVolume);
         } catch (error) {
-          console.error('Failed to update sound volume:', error);
+          log.error('AudioManager', 'Failed to update sound volume', { error });
         }
       }
     });
@@ -376,14 +377,14 @@ class AudioManager {
         try {
           await cachedSound.sound.unloadAsync();
         } catch (error) {
-          console.error('Failed to unload sound:', error);
+          log.error('AudioManager', 'Failed to unload sound', { error });
         }
       }
     });
 
     await Promise.all(unloadPromises);
     this.sounds.clear();
-    console.log('AudioManager cleaned up');
+    log.info('AudioManager', 'Cleaned up');
   }
 
   // Convenience methods for common sound effects

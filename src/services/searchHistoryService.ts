@@ -5,6 +5,7 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { log } from '../lib/logger';
 
 export interface SearchHistoryItem {
   id: string;
@@ -388,7 +389,7 @@ class SearchHistoryService {
         this.trendingSearches = JSON.parse(trendingData);
       }
     } catch (error) {
-      console.error('Failed to load search history from storage:', error);
+      log.error('SearchHistoryService', 'Failed to load search history from storage', error);
     }
   }
 
@@ -402,7 +403,7 @@ class SearchHistoryService {
         AsyncStorage.setItem(STORAGE_KEYS.TRENDING_SEARCHES, JSON.stringify(this.trendingSearches)),
       ]);
     } catch (error) {
-      console.error('Failed to save search history to storage:', error);
+      log.error('SearchHistoryService', 'Failed to save search history to storage', error);
     }
   }
 }

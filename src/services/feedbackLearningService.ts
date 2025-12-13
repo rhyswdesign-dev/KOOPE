@@ -4,6 +4,7 @@
  * Phase 2 Enhancement: Makes recommendations smarter with every interaction
  */
 
+import { log } from '../lib/logger';
 import { UserPersonalizationProfile } from './personalizedExperience';
 
 /**
@@ -52,7 +53,7 @@ function updateSpiritScores(
 
     updatedScores[spirit] = clampScore((updatedScores[spirit] || 50) + adjustment);
 
-    console.log(`📈 Boosted ${spirit} by +${adjustment} (now ${updatedScores[spirit]})`);
+    log.debug('FeedbackLearningService', `Boosted ${spirit} by +${adjustment}`, { newScore: updatedScores[spirit] });
   } else {
     // Negative feedback - reduce this spirit
     const adjustment = hatesSpiritFeedback
@@ -61,7 +62,7 @@ function updateSpiritScores(
 
     updatedScores[spirit] = clampScore((updatedScores[spirit] || 50) + adjustment);
 
-    console.log(`📉 Reduced ${spirit} by ${adjustment} (now ${updatedScores[spirit]})`);
+    log.debug('FeedbackLearningService', `Reduced ${spirit} by ${adjustment}`, { newScore: updatedScores[spirit] });
   }
 
   return updatedScores;
@@ -88,7 +89,10 @@ function updateFlavorScores(
     const flavorKey = flavor.toLowerCase();
     updatedScores[flavorKey] = clampScore((updatedScores[flavorKey] || 50) + adjustment);
 
-    console.log(`${liked ? '📈' : '📉'} Adjusted ${flavorKey} by ${adjustment} (now ${updatedScores[flavorKey]})`);
+    log.debug('FeedbackLearningService', `Adjusted ${flavorKey} by ${adjustment}`, {
+      liked,
+      newScore: updatedScores[flavorKey]
+    });
   });
 
   return updatedScores;
@@ -207,7 +211,7 @@ export function updateProfileFromFeedback(
   liked: boolean,
   feedbackReasons: string[]
 ): Partial<UserPersonalizationProfile> {
-  console.log('🧠 Learning from feedback:', {
+  log.info('FeedbackLearningService', 'Learning from user feedback', {
     cocktail: recommendation.cocktailName,
     liked,
     reasons: feedbackReasons,
@@ -254,14 +258,14 @@ export function updateProfileFromFeedback(
     // Add this spirit to favorites if they loved it
     if (feedbackReasons.includes('love_spirit')) {
       updatedFavoriteSpirits.unshift(metadata.spirit);
-      console.log(`⭐ Added ${metadata.spirit} to favorite spirits`);
+      log.info('FeedbackLearningService', `Added ${metadata.spirit} to favorite spirits`);
     }
   } else if (metadata.spirit && !liked && feedbackReasons.includes('wrong_spirit')) {
     // Remove from favorites if they explicitly hate it
     const index = updatedFavoriteSpirits.indexOf(metadata.spirit);
     if (index > -1) {
       updatedFavoriteSpirits.splice(index, 1);
-      console.log(`🗑️ Removed ${metadata.spirit} from favorite spirits`);
+      log.info('FeedbackLearningService', `Removed ${metadata.spirit} from favorite spirits`);
     }
   }
 

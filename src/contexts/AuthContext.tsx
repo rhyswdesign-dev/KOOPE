@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User } from 'firebase/auth';
 import { auth } from '../config/firebase';
+import { log } from '../lib/logger';
 
 interface AuthContextType {
   user: User | null;
@@ -23,16 +24,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    console.log('AuthProvider: Setting up auth state listener');
+    log.info('AuthContext', 'Setting up auth state listener');
 
     const unsubscribe = auth.onAuthStateChanged((user) => {
-      console.log('AuthProvider: Auth state changed', user ? `User: ${user.uid}` : 'No user');
+      log.info('AuthContext', 'Auth state changed', { userId: user?.uid || 'No user' });
       setUser(user);
       setIsLoading(false);
     });
 
     return () => {
-      console.log('AuthProvider: Cleaning up auth state listener');
+      log.info('AuthContext', 'Cleaning up auth state listener');
       unsubscribe();
     };
   }, []);

@@ -3,6 +3,7 @@
  * Randomly selects a featured cocktail that changes weekly
  */
 
+import { log } from '../lib/logger';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const COTW_KEY = '@cocktail_of_the_week';
@@ -106,11 +107,15 @@ export async function getCocktailOfTheMonth(): Promise<string> {
       AsyncStorage.setItem(COTW_DATE_KEY, JSON.stringify({ week, year, recipeId: selectedCocktail })),
     ]);
 
-    console.log(`🍸 Cocktail of the Week (Week ${week}, ${year}): ${selectedCocktail}`);
+    log.info('CocktailOfTheMonth', 'Selected cocktail of the week', {
+      week,
+      year,
+      cocktail: selectedCocktail
+    });
 
     return selectedCocktail;
   } catch (error) {
-    console.error('Error getting cocktail of the week:', error);
+    log.error('CocktailOfTheMonth', 'Error getting cocktail of the week', { error });
     // Fallback to first cocktail if error
     return FEATURED_COCKTAILS[0];
   }
@@ -127,7 +132,7 @@ export async function refreshCocktailOfTheMonth(): Promise<string> {
     ]);
     return await getCocktailOfTheMonth();
   } catch (error) {
-    console.error('Error refreshing cocktail of the week:', error);
+    log.error('CocktailOfTheMonth', 'Error refreshing cocktail of the week', { error });
     return FEATURED_COCKTAILS[0];
   }
 }

@@ -1,3 +1,5 @@
+import { log } from '../lib/logger';
+
 export interface BarIngredient {
   id: string;
   name: string;
@@ -58,7 +60,7 @@ export class HomeBarService {
       const { achievementService } = await import('./achievementService');
       await achievementService.trackAction('homeBarIngredients', 1);
     } catch (error) {
-      console.error('Error adding ingredient to home bar:', error);
+      log.error('HomeBarService', 'Failed to add ingredient to home bar', error);
       throw new Error('Failed to add ingredient to home bar');
     }
   }
@@ -80,7 +82,7 @@ export class HomeBarService {
         expiryDate: item.expiryDate ? new Date(item.expiryDate) : undefined,
       }));
     } catch (error) {
-      console.error('Error loading stored ingredients:', error);
+      log.error('HomeBarService', 'Failed to load stored ingredients', error);
       return [];
     }
   }
@@ -93,7 +95,7 @@ export class HomeBarService {
       const AsyncStorage = await import('@react-native-async-storage/async-storage');
       await AsyncStorage.default.removeItem(this.STORAGE_KEY);
     } catch (error) {
-      console.error('Error clearing stored ingredients:', error);
+      log.error('HomeBarService', 'Failed to clear stored ingredients', error);
     }
   }
 

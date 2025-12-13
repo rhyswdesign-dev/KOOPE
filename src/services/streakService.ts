@@ -5,6 +5,7 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { log } from '../lib/logger';
 import { achievementService } from './achievementService';
 
 export interface StreakData {
@@ -161,7 +162,7 @@ class StreakService {
     if (lastActivityDate !== today && lastActivityDate !== yesterday && lastActivityDate !== '') {
       const daysSinceLastActivity = this.getDaysBetween(lastActivityDate, today);
       if (daysSinceLastActivity > 1) {
-        console.log('⚠️ Streak broken! Resetting to 0');
+        log.info('StreakService', 'Streak broken! Resetting to 0', { daysSinceLastActivity });
         this.streakData.currentStreak = 0;
         this.saveStreakData();
       }
@@ -319,10 +320,10 @@ class StreakService {
       const data = await AsyncStorage.getItem(STORAGE_KEY);
       if (data) {
         this.streakData = JSON.parse(data);
-        console.log(`📊 Loaded streak data: ${this.streakData.currentStreak} days`);
+        log.debug('StreakService', 'Loaded streak data', { currentStreak: this.streakData.currentStreak });
       }
     } catch (error) {
-      console.error('Error loading streak data:', error);
+      log.error('StreakService', 'Failed to load streak data', error);
     }
   }
 
@@ -333,7 +334,7 @@ class StreakService {
     try {
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(this.streakData));
     } catch (error) {
-      console.error('Error saving streak data:', error);
+      log.error('StreakService', 'Failed to save streak data', error);
     }
   }
 
