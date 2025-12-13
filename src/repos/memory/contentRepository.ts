@@ -6,6 +6,7 @@
 import { ContentRepository } from '../interfaces';
 import { Module, Lesson, Item, ExerciseType } from '../../types/domain';
 import curriculumData from '../../../curriculum-data.json';
+import { log } from '../../lib/logger';
 
 export class MemoryContentRepository implements ContentRepository {
   private modules: Map<string, Module> = new Map();
@@ -18,7 +19,9 @@ export class MemoryContentRepository implements ContentRepository {
 
   private initializeData(): void {
     // Load data from curriculum JSON
-    console.log('Initializing content repository with curriculum data:', curriculumData);
+    log.info('MemoryContentRepository', 'Initializing content repository with curriculum data', {
+      modules: curriculumData.modules.length
+    });
     curriculumData.modules.forEach(module => {
       const moduleData: Module = {
         id: module.id,
@@ -73,7 +76,10 @@ export class MemoryContentRepository implements ContentRepository {
   }
 
   async getLesson(id: string): Promise<Lesson | null> {
-    console.log('Getting lesson:', id, 'Available lessons:', Array.from(this.lessons.keys()));
+    log.debug('MemoryContentRepository', 'Getting lesson', {
+      id,
+      availableLessons: Array.from(this.lessons.keys())
+    });
     return this.lessons.get(id) || null;
   }
 
@@ -84,22 +90,28 @@ export class MemoryContentRepository implements ContentRepository {
   async getItemsForLesson(lessonId: string): Promise<Item[]> {
     const lesson = await this.getLesson(lessonId);
     if (!lesson) {
-      console.log('No lesson found for:', lessonId);
+      log.warn('MemoryContentRepository', 'No lesson found', { lessonId });
       return [];
     }
 
-    console.log('Lesson found:', lesson, 'Looking for items:', lesson.itemIds);
-    console.log('Available items:', Array.from(this.items.keys()));
-    
+    log.debug('MemoryContentRepository', 'Lesson found, looking for items', {
+      lessonId,
+      itemIds: lesson.itemIds,
+      availableItems: Array.from(this.items.keys())
+    });
+
     const items = lesson.itemIds
       .map(id => {
         const item = this.items.get(id);
-        console.log('Looking for item:', id, 'Found:', !!item);
+        log.debug('MemoryContentRepository', 'Looking for item', { id, found: !!item });
         return item;
       })
       .filter((item): item is Item => item !== undefined);
 
-    console.log('Final items for lesson:', items);
+    log.debug('MemoryContentRepository', 'Final items for lesson', {
+      lessonId,
+      itemCount: items.length
+    });
     return items;
   }
 

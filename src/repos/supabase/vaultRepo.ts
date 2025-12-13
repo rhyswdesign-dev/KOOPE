@@ -5,6 +5,7 @@
 
 import { supabase } from '../../lib/supabase';
 import { VaultItem, VaultCycle, MonetizationItem, UserVaultProfile } from '../../types/vault';
+import { log } from '../../lib/logger';
 
 export class VaultRepository {
   /**
@@ -18,7 +19,7 @@ export class VaultRepository {
       .single();
 
     if (error) {
-      console.error('Error fetching vault cycle:', error);
+      log.error('VaultRepo', 'Error fetching vault cycle', error);
       return null;
     }
 
@@ -36,7 +37,7 @@ export class VaultRepository {
       .order('rarity');
 
     if (error) {
-      console.error('Error fetching vault items:', error);
+      log.error('VaultRepo', 'Error fetching vault items', error);
       return [];
     }
 
@@ -55,7 +56,7 @@ export class VaultRepository {
       .order('name');
 
     if (error) {
-      console.error('Error fetching vault items by rarity:', error);
+      log.error('VaultRepo', 'Error fetching vault items by rarity', error);
       return [];
     }
 
@@ -73,7 +74,7 @@ export class VaultRepository {
       .single();
 
     if (error) {
-      console.error('Error fetching vault item:', error);
+      log.error('VaultRepo', 'Error fetching vault item', error);
       return null;
     }
 
@@ -91,7 +92,7 @@ export class VaultRepository {
       .order('price');
 
     if (error) {
-      console.error('Error fetching monetization items:', error);
+      log.error('VaultRepo', 'Error fetching monetization items', error);
       return [];
     }
 
@@ -113,7 +114,7 @@ export class VaultRepository {
       if (error.code === 'PGRST116') {
         return null;
       }
-      console.error('Error fetching user vault profile:', error);
+      log.error('VaultRepo', 'Error fetching user vault profile', error);
       return null;
     }
 
@@ -141,7 +142,7 @@ export class VaultRepository {
       });
 
     if (error) {
-      console.error('Error upserting user vault profile:', error);
+      log.error('VaultRepo', 'Error upserting user vault profile', error);
       return false;
     }
 

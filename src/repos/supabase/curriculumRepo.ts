@@ -4,6 +4,7 @@
  */
 
 import { supabase } from '../../lib/supabase';
+import { log } from '../../lib/logger';
 
 export interface Module {
   id: string;
@@ -61,7 +62,7 @@ export class CurriculumRepository {
       .order('chapter_index');
 
     if (error) {
-      console.error('Error fetching modules:', error);
+      log.error('CurriculumRepo', 'Error fetching modules', error);
       return [];
     }
 
@@ -79,7 +80,7 @@ export class CurriculumRepository {
       .single();
 
     if (error) {
-      console.error('Error fetching module:', error);
+      log.error('CurriculumRepo', 'Error fetching module', error);
       return null;
     }
 
@@ -97,7 +98,7 @@ export class CurriculumRepository {
       .order('created_at');
 
     if (error) {
-      console.error('Error fetching lessons:', error);
+      log.error('CurriculumRepo', 'Error fetching lessons', error);
       return [];
     }
 
@@ -115,7 +116,7 @@ export class CurriculumRepository {
       .single();
 
     if (error) {
-      console.error('Error fetching lesson:', error);
+      log.error('CurriculumRepo', 'Error fetching lesson', error);
       return null;
     }
 
@@ -132,7 +133,7 @@ export class CurriculumRepository {
       .in('id', itemIds);
 
     if (error) {
-      console.error('Error fetching items:', error);
+      log.error('CurriculumRepo', 'Error fetching items', error);
       return [];
     }
 

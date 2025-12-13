@@ -6,6 +6,7 @@
 import { ContentRepository } from '../interfaces';
 import { Module, Lesson, Item, ExerciseType } from '../../types/domain';
 import { supabase } from '../../lib/supabase';
+import { log } from '../../lib/logger';
 
 interface SupabaseModule {
   id: string;
@@ -54,7 +55,7 @@ export class SupabaseContentRepository implements ContentRepository {
   private lastFetch: number = 0;
 
   constructor() {
-    console.log('✅ SupabaseContentRepository initialized');
+    log.info('SupabaseContentRepository', 'Repository initialized');
   }
 
   private async ensureCacheLoaded(): Promise<void> {
@@ -63,7 +64,7 @@ export class SupabaseContentRepository implements ContentRepository {
       return; // Cache is still valid
     }
 
-    console.log('🔄 Loading curriculum data from Supabase...');
+    log.info('SupabaseContentRepository', 'Loading curriculum data from Supabase');
     await this.loadAllData();
     this.lastFetch = now;
   }
@@ -110,9 +111,13 @@ export class SupabaseContentRepository implements ContentRepository {
         this.itemCache.set(i.id, this.mapSupabaseItem(i));
       });
 
-      console.log(`✅ Loaded ${this.moduleCache.size} modules, ${this.lessonCache.size} lessons, ${this.itemCache.size} items`);
+      log.info('SupabaseContentRepository', 'Curriculum data loaded successfully', {
+        modules: this.moduleCache.size,
+        lessons: this.lessonCache.size,
+        items: this.itemCache.size
+      });
     } catch (error) {
-      console.error('❌ Error loading curriculum data from Supabase:', error);
+      log.error('SupabaseContentRepository', 'Error loading curriculum data from Supabase', error);
       throw error;
     }
   }
@@ -181,7 +186,7 @@ export class SupabaseContentRepository implements ContentRepository {
     await this.ensureCacheLoaded();
     const lesson = this.lessonCache.get(lessonId);
     if (!lesson) {
-      console.log('No lesson found for:', lessonId);
+      log.warn('SupabaseContentRepository', 'No lesson found', { lessonId });
       return [];
     }
 

@@ -8,6 +8,7 @@ import { Recipe, RecipeFilters } from '../../types/recipe';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getCocktailImage } from '../../../assets/images/cocktails';
 import { offlineService } from '../../services/offlineService';
+import { log } from '../../lib/logger';
 
 // Cache keys
 const CACHE_KEY = '@recipes_cache';
@@ -30,7 +31,7 @@ export class RecipesRepository {
    * Use this when you need to completely reset recipe data
    */
   static async clearAllCaches(): Promise<void> {
-    console.log('🗑️ Clearing all recipe caches...');
+    log.info('RecipesRepo', 'Clearing all recipe caches');
 
     // Clear AsyncStorage
     await AsyncStorage.multiRemove([CACHE_KEY, CACHE_TIMESTAMP_KEY]);
@@ -40,7 +41,7 @@ export class RecipesRepository {
     this.memoryCache.clear();
     this.isInitialized = false;
 
-    console.log('✅ All caches cleared');
+    log.info('RecipesRepo', 'All caches cleared');
   }
 
   /**
@@ -68,14 +69,14 @@ export class RecipesRepository {
             // Restore local image reference using getCocktailImage
             image: getCocktailImage(recipe.id, recipe.imageUrl || recipe.image as any),
           }));
-          console.log(`✅ Loaded ${this.persistentCache.length} recipes from cache (images restored)`);
+          log.info('RecipesRepo', 'Loaded recipes from cache with images restored', { count: this.persistentCache.length });
         } else {
-          console.log('🔄 Cache expired, will fetch fresh data');
+          log.info('RecipesRepo', 'Cache expired, will fetch fresh data');
           await this.clearPersistentCache();
         }
       }
     } catch (error) {
-      console.error('Error loading cache:', error);
+      log.error('RecipesRepo', 'Error loading cache', error);
     }
 
     this.isInitialized = true;
@@ -91,9 +92,9 @@ export class RecipesRepository {
         AsyncStorage.setItem(CACHE_TIMESTAMP_KEY, Date.now().toString()),
       ]);
       this.persistentCache = recipes;
-      console.log(`💾 Saved ${recipes.length} recipes to cache`);
+      log.info('RecipesRepo', 'Saved recipes to cache', { count: recipes.length });
     } catch (error) {
-      console.error('Error saving to cache:', error);
+      log.error('RecipesRepo', 'Error saving to cache', error);
     }
   }
 
@@ -109,7 +110,7 @@ export class RecipesRepository {
       this.persistentCache = null;
       this.memoryCache.clear();
     } catch (error) {
-      console.error('Error clearing cache:', error);
+      log.error('RecipesRepo', 'Error clearing cache', error);
     }
   }
 
@@ -171,7 +172,7 @@ export class RecipesRepository {
       .range(from, to);
 
     if (error) {
-      console.error('Error fetching recipes:', error);
+      log.error('RecipesRepo', 'Error fetching recipes', error);
       return [];
     }
 
@@ -193,7 +194,7 @@ export class RecipesRepository {
 
     // Return persistent cache immediately if available
     if (this.persistentCache && this.persistentCache.length > 0) {
-      console.log('⚡ Returning recipes from persistent cache');
+      log.info('RecipesRepo', 'Returning recipes from persistent cache');
 
       // Fetch fresh data in background if online (don't await)
       if (offlineService.isOnline()) {
@@ -205,16 +206,16 @@ export class RecipesRepository {
 
     // Check if offline and use offline service cache
     if (offlineService.isOffline()) {
-      console.log('📱 Device offline, checking offline cache...');
+      log.info('RecipesRepo', 'Device offline, checking offline cache');
       const cachedRecipes = await offlineService.getCachedRecipes();
       if (cachedRecipes.length > 0) {
-        console.log(`📦 Loaded ${cachedRecipes.length} recipes from offline cache`);
+        log.info('RecipesRepo', 'Loaded recipes from offline cache', { count: cachedRecipes.length });
         return cachedRecipes.slice(0, limit);
       }
     }
 
     // No cache available, fetch from network
-    console.log('🌐 Fetching recipes from network...');
+    log.info('RecipesRepo', 'Fetching recipes from network');
     const cacheKey = `initial-recipes-${limit}`;
 
     try {
@@ -226,7 +227,7 @@ export class RecipesRepository {
         .limit(limit);
 
       if (error) {
-        console.error('Error fetching initial recipes:', error);
+        log.error('RecipesRepo', 'Error fetching initial recipes', error);
         return [];
       }
 
@@ -243,7 +244,7 @@ export class RecipesRepository {
 
       return recipes;
     } catch (error) {
-      console.error('Network error fetching recipes:', error);
+      log.error('RecipesRepo', 'Network error fetching recipes', error);
       // Try offline cache as fallback
       const cachedRecipes = await offlineService.getCachedRecipes();
       return cachedRecipes.slice(0, limit);
@@ -261,7 +262,7 @@ export class RecipesRepository {
           await this.saveToPersistentCache(recipes);
         }
       } catch (error) {
-        console.error('Background cache refresh failed:', error);
+        log.error('RecipesRepo', 'Background cache refresh failed', error);
       }
     }, 2000); // Wait 2 seconds before refreshing
   }
@@ -277,7 +278,7 @@ export class RecipesRepository {
       .order('title');
 
     if (error) {
-      console.error('Error fetching all recipes:', error);
+      log.error('RecipesRepo', 'Error fetching all recipes', error);
       return [];
     }
 
@@ -295,7 +296,7 @@ export class RecipesRepository {
           await this.saveToPersistentCache(recipes);
         }
       } catch (error) {
-        console.error('Background fetch failed:', error);
+        log.error('RecipesRepo', 'Background fetch failed', error);
       }
     }, 1000);
   }
@@ -311,7 +312,7 @@ export class RecipesRepository {
       .maybeSingle();
 
     if (error) {
-      console.error('Error fetching recipe:', error);
+      log.error('RecipesRepo', 'Error fetching recipe', error);
       return null;
     }
 
@@ -330,7 +331,7 @@ export class RecipesRepository {
       .order('title');
 
     if (error) {
-      console.error('Error fetching recipes by category:', error);
+      log.error('RecipesRepo', 'Error fetching recipes by category', error);
       return [];
     }
 
@@ -349,7 +350,7 @@ export class RecipesRepository {
       .order('title');
 
     if (error) {
-      console.error('Error fetching recipes by spirit:', error);
+      log.error('RecipesRepo', 'Error fetching recipes by spirit', error);
       return [];
     }
 
@@ -369,7 +370,7 @@ export class RecipesRepository {
       .limit(50);
 
     if (error) {
-      console.error('Error searching recipes:', error);
+      log.error('RecipesRepo', 'Error searching recipes', error);
       return [];
     }
 
@@ -411,7 +412,7 @@ export class RecipesRepository {
     const { data, error } = await query.order('title').limit(100);
 
     if (error) {
-      console.error('Error filtering recipes:', error);
+      log.error('RecipesRepo', 'Error filtering recipes', error);
       return [];
     }
 

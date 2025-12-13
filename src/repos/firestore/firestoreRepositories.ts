@@ -5,6 +5,7 @@
 
 import { ContentRepository, ProgressRepository, UserRepository } from '../interfaces';
 import { Module, Lesson, Item, UserProfile, UserProgress, Attempt, PlacementResult, PersonalizationProfile } from '../../types/domain';
+import { log } from '../../lib/logger';
 
 // Firebase Firestore imports
 import { 
@@ -166,7 +167,7 @@ export class FirestoreContentRepository implements ContentRepository {
       const docSnap = await getDoc(docRef);
       return docSnap.exists() ? moduleConverter.fromFirestore(adaptDocumentSnapshot(docSnap)) : null;
     } catch (error) {
-      console.error('Error fetching module:', error);
+      log.error('FirestoreContentRepository', 'Error fetching module', error, { id });
       throw new Error(`Failed to get module ${id}: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
@@ -177,7 +178,7 @@ export class FirestoreContentRepository implements ContentRepository {
       const docSnap = await getDoc(docRef);
       return docSnap.exists() ? lessonConverter.fromFirestore(adaptDocumentSnapshot(docSnap)) : null;
     } catch (error) {
-      console.error('Error fetching lesson:', error);
+      log.error('FirestoreContentRepository', 'Error fetching lesson', error, { id });
       throw new Error(`Failed to get lesson ${id}: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
@@ -188,7 +189,7 @@ export class FirestoreContentRepository implements ContentRepository {
       const docSnap = await getDoc(docRef);
       return docSnap.exists() ? itemConverter.fromFirestore(adaptDocumentSnapshot(docSnap)) : null;
     } catch (error) {
-      console.error('Error fetching item:', error);
+      log.error('FirestoreContentRepository', 'Error fetching item', error, { id });
       throw new Error(`Failed to get item ${id}: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
@@ -221,7 +222,7 @@ export class FirestoreContentRepository implements ContentRepository {
         return items;
       }
     } catch (error) {
-      console.error('Error fetching items for lesson:', error);
+      log.error('FirestoreContentRepository', 'Error fetching items for lesson', error, { lessonId });
       throw new Error(`Failed to get items for lesson ${lessonId}: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
@@ -235,7 +236,7 @@ export class FirestoreContentRepository implements ContentRepository {
       const querySnapshot = await getDocs(q);
       return querySnapshot.docs.map(doc => moduleConverter.fromFirestore(adaptDocumentSnapshot(doc)));
     } catch (error) {
-      console.error('Error listing modules:', error);
+      log.error('FirestoreContentRepository', 'Error listing modules', error);
       throw new Error(`Failed to list modules: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
@@ -249,7 +250,7 @@ export class FirestoreContentRepository implements ContentRepository {
       const querySnapshot = await getDocs(q);
       return querySnapshot.docs.map(doc => moduleConverter.fromFirestore(adaptDocumentSnapshot(doc)));
     } catch (error) {
-      console.error('Error fetching modules by chapter:', error);
+      log.error('FirestoreContentRepository', 'Error fetching modules by chapter', error, { chapterIndex });
       throw new Error(`Failed to get modules for chapter ${chapterIndex}: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
@@ -262,7 +263,7 @@ export class FirestoreProgressRepository implements ProgressRepository {
       const docSnap = await getDoc(docRef);
       return docSnap.exists() ? userProgressConverter.fromFirestore(adaptDocumentSnapshot(docSnap)) : null;
     } catch (error) {
-      console.error('Error fetching user progress:', error);
+      log.error('FirestoreProgressRepository', 'Error fetching user progress', error, { userId, lessonId });
       throw new Error(`Failed to get user progress for ${userId}/${lessonId}: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
@@ -273,7 +274,7 @@ export class FirestoreProgressRepository implements ProgressRepository {
       const docRef = doc(db, 'user_progress', `${record.userId}_${record.lessonId}_${record.itemId}`);
       await setDoc(docRef, data, { merge: true });
     } catch (error) {
-      console.error('Error upserting user progress:', error);
+      log.error('FirestoreProgressRepository', 'Error upserting user progress', error, { userId });
       throw new Error(`Failed to upsert user progress: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
@@ -287,7 +288,7 @@ export class FirestoreProgressRepository implements ProgressRepository {
       const colRef = collection(db, 'attempts');
       await addDoc(colRef, data);
     } catch (error) {
-      console.error('Error logging attempt:', error);
+      log.error('FirestoreProgressRepository', 'Error logging attempt', error, { userId });
       throw new Error(`Failed to log attempt: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
@@ -315,7 +316,7 @@ export class FirestoreProgressRepository implements ProgressRepository {
 
       return progressRecords;
     } catch (error) {
-      console.error('Error fetching user progress by module:', error);
+      log.error('FirestoreProgressRepository', 'Error fetching user progress by module', error, { userId, moduleId });
       throw new Error(`Failed to get user progress for module ${moduleId}: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
@@ -332,7 +333,7 @@ export class FirestoreProgressRepository implements ProgressRepository {
       
       return querySnapshot.docs.map(doc => userProgressConverter.fromFirestore(adaptDocumentSnapshot(doc)));
     } catch (error) {
-      console.error('Error fetching due items:', error);
+      log.error('FirestoreProgressRepository', 'Error fetching due items', error, { userId });
       throw new Error(`Failed to get due items for user ${userId}: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
@@ -345,7 +346,7 @@ export class FirestoreUserRepository implements UserRepository {
       const docRef = doc(db, 'users', profile.id);
       await setDoc(docRef, data);
     } catch (error) {
-      console.error('Error creating user:', error);
+      log.error('FirestoreUserRepository', 'Error creating user', error, { userId: profile.id });
       throw new Error(`Failed to create user ${profile.id}: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
@@ -356,7 +357,7 @@ export class FirestoreUserRepository implements UserRepository {
       const docSnap = await getDoc(docRef);
       return docSnap.exists() ? userProfileConverter.fromFirestore(adaptDocumentSnapshot(docSnap)) : null;
     } catch (error) {
-      console.error('Error fetching user profile:', error);
+      log.error('FirestoreUserRepository', 'Error fetching user profile', error, { userId });
       throw new Error(`Failed to get user profile ${userId}: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
@@ -370,7 +371,7 @@ export class FirestoreUserRepository implements UserRepository {
       const docRef = doc(db, 'users', userId);
       await updateDoc(docRef, updates);
     } catch (error) {
-      console.error('Error updating user preferences:', error);
+      log.error('FirestoreUserRepository', 'Error updating user preferences', error, { userId });
       throw new Error(`Failed to update preferences for user ${userId}: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
@@ -389,7 +390,7 @@ export class FirestoreUserRepository implements UserRepository {
       const docRef = doc(db, 'users', userId);
       await updateDoc(docRef, updates);
     } catch (error) {
-      console.error('Error saving placement result:', error);
+      log.error('FirestoreUserRepository', 'Error saving placement result', error, { userId: result.userId });
       throw new Error(`Failed to save placement for user ${userId}: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
@@ -404,7 +405,7 @@ export class FirestoreUserRepository implements UserRepository {
       const docRef = doc(db, 'personalization', userId);
       await setDoc(docRef, data, { merge: true });
     } catch (error) {
-      console.error('Error saving personalization profile:', error);
+      log.error('FirestoreUserRepository', 'Error saving personalization profile', error, { userId });
       throw new Error(`Failed to save personalization profile for user ${userId}: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
@@ -423,7 +424,7 @@ export class FirestoreUserRepository implements UserRepository {
         track: data.track || 'alcoholic'
       };
     } catch (error) {
-      console.error('Error fetching personalization profile:', error);
+      log.error('FirestoreUserRepository', 'Error fetching personalization profile', error, { userId });
       throw new Error(`Failed to get personalization profile for user ${userId}: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
@@ -467,7 +468,7 @@ export async function batchWrite(operations: Array<{
       await batch.commit();
     }
   } catch (error) {
-    console.error('Error in batch write:', error);
+    log.error('batchWrite', 'Error in batch write', error);
     throw new Error(`Batch write failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
@@ -481,12 +482,12 @@ export async function migrateFromMemory(
   memoryUserRepo: any
 ): Promise<void> {
   try {
-    console.log('Starting migration from memory to Firestore...');
-    
+    log.info('migrateFromMemory', 'Starting migration from memory to Firestore');
+
     const firestoreContentRepo = new FirestoreContentRepository();
     const firestoreProgressRepo = new FirestoreProgressRepository();
     const firestoreUserRepo = new FirestoreUserRepository();
-    
+
     // Migrate modules (if memory repo has export method)
     if (memoryContentRepo.getAllModules) {
       const modules = await memoryContentRepo.getAllModules();
@@ -499,14 +500,14 @@ export async function migrateFromMemory(
         }];
         await batchWrite(operations);
       }
-      console.log(`Migrated ${modules.length} modules`);
+      log.info('migrateFromMemory', 'Migrated modules', { count: modules.length });
     }
-    
+
     // Similar for lessons, items, user profiles, progress...
-    console.log('Migration completed successfully');
-    
+    log.info('migrateFromMemory', 'Migration completed successfully');
+
   } catch (error) {
-    console.error('Migration failed:', error);
+    log.error('migrateFromMemory', 'Migration failed', error);
     throw new Error(`Migration failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
