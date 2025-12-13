@@ -9,6 +9,7 @@ import { ConsentChoices, ConsentReceipt } from '../types/consent';
 import { DEFAULT_CONSENT, PRIVACY_VERSION, TERMS_VERSION, getApplicableLaws } from '../../config/privacy';
 import { getLocales } from 'expo-localization';
 import Constants from 'expo-constants';
+import { log } from './logger';
 
 // Storage keys for secure store
 const STORAGE_KEYS = {
@@ -30,7 +31,7 @@ export async function getConsentChoices(): Promise<ConsentChoices> {
     }
     return DEFAULT_CONSENT;
   } catch (error) {
-    console.warn('Failed to read consent choices:', error);
+    log.warn('ConsentStore', 'Failed to read consent choices', error);
     return DEFAULT_CONSENT;
   }
 }
@@ -48,9 +49,9 @@ export async function saveConsentChoices(choices: ConsentChoices): Promise<void>
     const receipt = await generateConsentReceipt(choices);
     await saveConsentReceipt(receipt);
 
-    console.log('Consent choices saved successfully');
+    log.info('ConsentStore', 'Consent choices saved successfully');
   } catch (error) {
-    console.error('Failed to save consent choices:', error);
+    log.error('ConsentStore', 'Failed to save consent choices', error);
     throw error;
   }
 }
@@ -93,7 +94,7 @@ async function saveConsentReceipt(receipt: ConsentReceipt): Promise<void> {
       JSON.stringify(trimmedReceipts)
     );
   } catch (error) {
-    console.error('Failed to save consent receipt:', error);
+    log.error('ConsentStore', 'Failed to save consent receipt', error);
   }
 }
 
@@ -105,7 +106,7 @@ export async function getConsentReceipts(): Promise<ConsentReceipt[]> {
     const stored = await SecureStore.getItemAsync(STORAGE_KEYS.CONSENT_RECEIPTS);
     return stored ? JSON.parse(stored) : [];
   } catch (error) {
-    console.warn('Failed to read consent receipts:', error);
+    log.warn('ConsentStore', 'Failed to read consent receipts', error);
     return [];
   }
 }
@@ -118,7 +119,7 @@ export async function hasSeenPrivacyVersion(version: string = PRIVACY_VERSION): 
     const seenVersion = await SecureStore.getItemAsync(STORAGE_KEYS.PRIVACY_VERSION_SEEN);
     return seenVersion === version;
   } catch (error) {
-    console.warn('Failed to check privacy version:', error);
+    log.warn('ConsentStore', 'Failed to check privacy version', error);
     return false;
   }
 }
@@ -130,7 +131,7 @@ export async function markPrivacyVersionSeen(version: string = PRIVACY_VERSION):
   try {
     await SecureStore.setItemAsync(STORAGE_KEYS.PRIVACY_VERSION_SEEN, version);
   } catch (error) {
-    console.error('Failed to mark privacy version seen:', error);
+    log.error('ConsentStore', 'Failed to mark privacy version seen', error);
   }
 }
 
@@ -142,7 +143,7 @@ export async function hasAcceptedTermsVersion(version: string = TERMS_VERSION): 
     const acceptedVersion = await SecureStore.getItemAsync(STORAGE_KEYS.TERMS_ACCEPTED_VERSION);
     return acceptedVersion === version;
   } catch (error) {
-    console.warn('Failed to check terms version:', error);
+    log.warn('ConsentStore', 'Failed to check terms version', error);
     return false;
   }
 }
@@ -158,7 +159,7 @@ export async function markTermsAccepted(version: string = TERMS_VERSION): Promis
     });
     await SecureStore.setItemAsync(STORAGE_KEYS.TERMS_ACCEPTED_VERSION, acceptanceRecord);
   } catch (error) {
-    console.error('Failed to mark terms accepted:', error);
+    log.error('ConsentStore', 'Failed to mark terms accepted', error);
   }
 }
 
@@ -196,7 +197,7 @@ export async function needsConsentPrompt(): Promise<{
       reasons,
     };
   } catch (error) {
-    console.error('Failed to check consent prompt requirements:', error);
+    log.error('ConsentStore', 'Failed to check consent prompt requirements', error);
     return {
       needsPrompt: true,
       reasons: ['error_checking'],
@@ -215,9 +216,9 @@ export async function clearAllConsentData(): Promise<void> {
       SecureStore.deleteItemAsync(STORAGE_KEYS.PRIVACY_VERSION_SEEN),
       SecureStore.deleteItemAsync(STORAGE_KEYS.TERMS_ACCEPTED_VERSION),
     ]);
-    console.log('All consent data cleared');
+    log.info('ConsentStore', 'All consent data cleared');
   } catch (error) {
-    console.error('Failed to clear consent data:', error);
+    log.error('ConsentStore', 'Failed to clear consent data', error);
     throw error;
   }
 }

@@ -7,6 +7,7 @@
 import React from 'react';
 import { useConsent } from '../hooks/useConsent';
 import type { ConsentCategory } from '../types/consent';
+import { log } from './logger';
 
 /**
  * Analytics event interface
@@ -70,7 +71,7 @@ class AnalyticsGuard {
     // Initialize SDKs based on current consent
     this.initializeSDKs();
 
-    console.log('AnalyticsGuard initialized with consent state:', consentHook.choices);
+    log.info('AnalyticsGuard', 'Initialized with consent state', { choices: consentHook.choices });
   }
 
   /**
@@ -124,19 +125,19 @@ class AnalyticsGuard {
       // For demo purposes, we'll use a mock implementation
       this.analytics = {
         track: (event: string, properties?: any) => {
-          console.log('📊 Analytics:', event, properties);
+          log.info('AnalyticsGuard', 'Analytics tracked', { event, properties });
         },
         identify: (userId: string, traits?: any) => {
-          console.log('👤 Identify:', userId, traits);
+          log.info('AnalyticsGuard', 'User identified', { userId, traits });
         },
         screen: (screenName: string, properties?: any) => {
-          console.log('📱 Screen:', screenName, properties);
+          log.info('AnalyticsGuard', 'Screen tracked', { screenName, properties });
         },
       };
 
-      console.log('✅ Analytics SDK initialized');
+      log.info('AnalyticsGuard', 'Analytics SDK initialized');
     } catch (error) {
-      console.error('❌ Failed to initialize analytics SDK:', error);
+      log.error('AnalyticsGuard', 'Failed to initialize analytics SDK', error);
     }
   }
 
@@ -154,19 +155,19 @@ class AnalyticsGuard {
       // For demo purposes, we'll use a mock implementation
       this.crashReporter = {
         captureException: (error: Error, context?: any) => {
-          console.log('🐛 Crash Report:', error.message, context);
+          log.error('AnalyticsGuard', 'Crash report captured', error, { context });
         },
         setUser: (user: any) => {
-          console.log('👤 Crash Reporter User:', user);
+          log.info('AnalyticsGuard', 'Crash reporter user set', { user });
         },
         addBreadcrumb: (breadcrumb: any) => {
-          console.log('🍞 Breadcrumb:', breadcrumb);
+          log.debug('AnalyticsGuard', 'Breadcrumb added', { breadcrumb });
         },
       };
 
-      console.log('✅ Crash reporting SDK initialized');
+      log.info('AnalyticsGuard', 'Crash reporting SDK initialized');
     } catch (error) {
-      console.error('❌ Failed to initialize crash reporting SDK:', error);
+      log.error('AnalyticsGuard', 'Failed to initialize crash reporting SDK', error);
     }
   }
 
@@ -183,16 +184,16 @@ class AnalyticsGuard {
       // For demo purposes, we'll use a mock implementation
       this.marketingSDK = {
         trackCampaign: (campaign: string, properties?: any) => {
-          console.log('📢 Marketing Campaign:', campaign, properties);
+          log.info('AnalyticsGuard', 'Marketing campaign tracked', { campaign, properties });
         },
         trackConversion: (event: string, value?: number) => {
-          console.log('💰 Conversion:', event, value);
+          log.info('AnalyticsGuard', 'Conversion tracked', { event, value });
         },
       };
 
-      console.log('✅ Marketing SDK initialized');
+      log.info('AnalyticsGuard', 'Marketing SDK initialized');
     } catch (error) {
-      console.error('❌ Failed to initialize marketing SDK:', error);
+      log.error('AnalyticsGuard', 'Failed to initialize marketing SDK', error);
     }
   }
 
@@ -201,7 +202,7 @@ class AnalyticsGuard {
    */
   private disableAnalytics() {
     this.analytics = null;
-    console.log('🔌 Analytics SDK disabled');
+    log.info('AnalyticsGuard', 'Analytics SDK disabled');
   }
 
   /**
@@ -209,7 +210,7 @@ class AnalyticsGuard {
    */
   private disableCrashReporting() {
     this.crashReporter = null;
-    console.log('🔌 Crash reporting SDK disabled');
+    log.info('AnalyticsGuard', 'Crash reporting SDK disabled');
   }
 
   /**
@@ -217,7 +218,7 @@ class AnalyticsGuard {
    */
   private disableMarketingSDK() {
     this.marketingSDK = null;
-    console.log('🔌 Marketing SDK disabled');
+    log.info('AnalyticsGuard', 'Marketing SDK disabled');
   }
 
   /**
@@ -225,7 +226,7 @@ class AnalyticsGuard {
    */
   private canTrack(category: ConsentCategory): boolean {
     if (!this.initialized || !this.consentHook) {
-      console.warn('AnalyticsGuard not initialized');
+      log.warn('AnalyticsGuard', 'Not initialized');
       return false;
     }
 
@@ -237,14 +238,14 @@ class AnalyticsGuard {
    */
   public trackEvent(event: AnalyticsEvent) {
     if (!this.canTrack('analytics') || !this.analytics) {
-      console.log('🚫 Analytics tracking blocked by consent');
+      log.info('AnalyticsGuard', 'Analytics tracking blocked by consent');
       return;
     }
 
     try {
       this.analytics.track(event.name, event.properties);
     } catch (error) {
-      console.error('Failed to track analytics event:', error);
+      log.error('AnalyticsGuard', 'Failed to track analytics event', error);
     }
   }
 
@@ -253,14 +254,14 @@ class AnalyticsGuard {
    */
   public trackScreen(screenName: string, properties?: Record<string, any>) {
     if (!this.canTrack('analytics') || !this.analytics) {
-      console.log('🚫 Screen tracking blocked by consent');
+      log.info('AnalyticsGuard', 'Screen tracking blocked by consent');
       return;
     }
 
     try {
       this.analytics.screen(screenName, properties);
     } catch (error) {
-      console.error('Failed to track screen:', error);
+      log.error('AnalyticsGuard', 'Failed to track screen', error);
     }
   }
 
@@ -269,14 +270,14 @@ class AnalyticsGuard {
    */
   public identifyUser(userId: string, traits?: Record<string, any>) {
     if (!this.canTrack('analytics') || !this.analytics) {
-      console.log('🚫 User identification blocked by consent');
+      log.info('AnalyticsGuard', 'User identification blocked by consent');
       return;
     }
 
     try {
       this.analytics.identify(userId, traits);
     } catch (error) {
-      console.error('Failed to identify user:', error);
+      log.error('AnalyticsGuard', 'Failed to identify user', error);
     }
   }
 
@@ -285,14 +286,14 @@ class AnalyticsGuard {
    */
   public reportCrash(report: CrashReport) {
     if (!this.canTrack('crash') || !this.crashReporter) {
-      console.log('🚫 Crash reporting blocked by consent');
+      log.info('AnalyticsGuard', 'Crash reporting blocked by consent');
       return;
     }
 
     try {
       this.crashReporter.captureException(report.error, report.context);
     } catch (error) {
-      console.error('Failed to report crash:', error);
+      log.error('AnalyticsGuard', 'Failed to report crash', error);
     }
   }
 
@@ -301,7 +302,7 @@ class AnalyticsGuard {
    */
   public trackMarketing(event: MarketingEvent) {
     if (!this.canTrack('marketing') || !this.marketingSDK) {
-      console.log('🚫 Marketing tracking blocked by consent');
+      log.info('AnalyticsGuard', 'Marketing tracking blocked by consent');
       return;
     }
 
@@ -310,7 +311,7 @@ class AnalyticsGuard {
         this.marketingSDK.trackCampaign(event.campaign, event.properties);
       }
     } catch (error) {
-      console.error('Failed to track marketing event:', error);
+      log.error('AnalyticsGuard', 'Failed to track marketing event', error);
     }
   }
 
@@ -321,7 +322,7 @@ class AnalyticsGuard {
   public updateConsent(newConsentHook: ReturnType<typeof useConsent>) {
     this.consentHook = newConsentHook;
     this.initializeSDKs();
-    console.log('AnalyticsGuard consent updated:', newConsentHook.choices);
+    log.info('AnalyticsGuard', 'Consent updated', { choices: newConsentHook.choices });
   }
 }
 

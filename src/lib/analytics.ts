@@ -12,6 +12,7 @@
  */
 
 import { Mixpanel } from 'mixpanel-react-native';
+import { log } from './logger';
 
 /**
  * Mixpanel instance
@@ -28,9 +29,9 @@ let mixpanel: Mixpanel | null = null;
 export async function initAnalytics(token: string): Promise<void> {
   try {
     mixpanel = await Mixpanel.init(token);
-    console.log('[Analytics] Mixpanel initialized successfully');
+    log.info('Analytics', 'Mixpanel initialized successfully');
   } catch (error) {
-    console.error('[Analytics] Failed to initialize Mixpanel:', error);
+    log.error('Analytics', 'Failed to initialize Mixpanel', error);
   }
 }
 
@@ -45,14 +46,14 @@ export async function initAnalytics(token: string): Promise<void> {
 export function trackEvent(name: string, props?: Record<string, any>): void {
   try {
     if (!mixpanel) {
-      console.warn('[Analytics] Mixpanel not initialized, event not tracked:', name);
+      log.warn('Analytics', 'Mixpanel not initialized, event not tracked', { name });
       return;
     }
 
     mixpanel.track(name, props);
-    console.log('[Analytics] Event tracked:', name, props);
+    log.info('Analytics', 'Event tracked', { name, props });
   } catch (error) {
-    console.error('[Analytics] Error tracking event:', name, error);
+    log.error('Analytics', 'Error tracking event', error, { name });
   }
 }
 
@@ -68,14 +69,14 @@ export function trackEvent(name: string, props?: Record<string, any>): void {
 export function setUserId(userId: string): void {
   try {
     if (!mixpanel) {
-      console.warn('[Analytics] Mixpanel not initialized, user ID not set');
+      log.warn('Analytics', 'Mixpanel not initialized, user ID not set');
       return;
     }
 
     mixpanel.identify(userId);
-    console.log('[Analytics] User identified:', userId);
+    log.info('Analytics', 'User identified', { userId });
   } catch (error) {
-    console.error('[Analytics] Error setting user ID:', error);
+    log.error('Analytics', 'Error setting user ID', error);
   }
 }
 
@@ -95,14 +96,14 @@ export function setUserId(userId: string): void {
 export function setUserProperties(props: Record<string, any>): void {
   try {
     if (!mixpanel) {
-      console.warn('[Analytics] Mixpanel not initialized, properties not set');
+      log.warn('Analytics', 'Mixpanel not initialized, properties not set');
       return;
     }
 
     mixpanel.getPeople().set(props);
-    console.log('[Analytics] User properties set:', props);
+    log.info('Analytics', 'User properties set', { props });
   } catch (error) {
-    console.error('[Analytics] Error setting user properties:', error);
+    log.error('Analytics', 'Error setting user properties', error);
   }
 }
 
@@ -113,14 +114,14 @@ export function setUserProperties(props: Record<string, any>): void {
 export function resetUser(): void {
   try {
     if (!mixpanel) {
-      console.warn('[Analytics] Mixpanel not initialized, cannot reset user');
+      log.warn('Analytics', 'Mixpanel not initialized, cannot reset user');
       return;
     }
 
     mixpanel.reset();
-    console.log('[Analytics] User reset');
+    log.info('Analytics', 'User reset');
   } catch (error) {
-    console.error('[Analytics] Error resetting user:', error);
+    log.error('Analytics', 'Error resetting user', error);
   }
 }
 

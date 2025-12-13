@@ -6,6 +6,7 @@
 
 import { Linking } from 'react-native';
 import type { PolicyDeepLink } from '../types/consent';
+import { log } from './logger';
 
 /**
  * Deep link URL patterns
@@ -37,7 +38,7 @@ export function parsePolicyDeepLink(url: string): PolicyDeepLink | null {
       lang: params.get('lang') || undefined,
     };
   } catch (error) {
-    console.error('Failed to parse policy deep link:', error);
+    log.error('DeepLinking', 'Failed to parse policy deep link', error);
     return null;
   }
 }
@@ -67,11 +68,11 @@ export function generatePolicyDeepLink(params: PolicyDeepLink): string {
  */
 export function handleDeepLink(url: string, navigation: any): boolean {
   try {
-    console.log('🔗 Handling deep link:', url);
+    log.info('DeepLinking', 'Handling deep link', { url });
 
     const policyLink = parsePolicyDeepLink(url);
     if (policyLink) {
-      console.log('📄 Policy deep link detected:', policyLink);
+      log.info('DeepLinking', 'Policy deep link detected', { policyLink });
 
       // Navigate to appropriate policy screen
       if (policyLink.doc === 'privacy') {
@@ -90,11 +91,11 @@ export function handleDeepLink(url: string, navigation: any): boolean {
     }
 
     // Add other deep link patterns here
-    console.log('🤷 Unhandled deep link pattern:', url);
+    log.info('DeepLinking', 'Unhandled deep link pattern', { url });
     return false;
 
   } catch (error) {
-    console.error('❌ Failed to handle deep link:', error);
+    log.error('DeepLinking', 'Failed to handle deep link', error);
     return false;
   }
 }
@@ -108,17 +109,17 @@ export function setupDeepLinking(navigation: any) {
     try {
       const initialUrl = await Linking.getInitialURL();
       if (initialUrl) {
-        console.log('📱 App opened with deep link:', initialUrl);
+        log.info('DeepLinking', 'App opened with deep link', { initialUrl });
         handleDeepLink(initialUrl, navigation);
       }
     } catch (error) {
-      console.error('Failed to handle initial URL:', error);
+      log.error('DeepLinking', 'Failed to handle initial URL', error);
     }
   };
 
   // Handle deep links while app is running
   const handleUrlChange = (event: { url: string }) => {
-    console.log('🔄 Deep link received while app running:', event.url);
+    log.info('DeepLinking', 'Deep link received while app running', { url: event.url });
     handleDeepLink(event.url, navigation);
   };
 
@@ -143,11 +144,11 @@ export function openExternalURL(url: string, confirmationTitle = 'Open External 
         // For external URLs, you might want to show a confirmation first
         Linking.openURL(url);
       } else {
-        console.warn('Cannot open URL:', url);
+        log.warn('DeepLinking', 'Cannot open URL', { url });
       }
     });
   } catch (error) {
-    console.error('Failed to open external URL:', error);
+    log.error('DeepLinking', 'Failed to open external URL', error, { url });
   }
 }
 
@@ -158,7 +159,7 @@ export function sharePolicyLink(params: PolicyDeepLink): string {
   const deepLink = generatePolicyDeepLink(params);
 
   // You could use React Native Share API here
-  console.log('📤 Sharing policy link:', deepLink);
+  log.info('DeepLinking', 'Sharing policy link', { deepLink });
 
   return deepLink;
 }

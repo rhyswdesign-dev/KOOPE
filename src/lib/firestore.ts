@@ -1,5 +1,6 @@
 import { db, auth } from '../config/firebase';
 import { collection, addDoc, serverTimestamp, query, where, orderBy, onSnapshot, doc, updateDoc, deleteDoc, getDocs, getDoc } from 'firebase/firestore';
+import { log } from './logger';
 
 export interface Recipe {
   id?: string;
@@ -59,7 +60,7 @@ export async function getRecipeById(recipeId: string): Promise<Recipe | null> {
 
     return null;
   } catch (error) {
-    console.error('Error getting recipe by ID:', error);
+    log.error('Firestore', 'Error getting recipe by ID', error, { recipeId });
     return null;
   }
 }

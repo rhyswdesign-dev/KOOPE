@@ -1,6 +1,7 @@
 import { db, auth, storage } from '../config/firebase';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { log } from './logger';
 
 export async function testWrite() {
   const uid = auth.currentUser?.uid;
@@ -14,10 +15,10 @@ export async function testWrite() {
       at: serverTimestamp(),
       message: "Firestore write test successful",
     });
-    console.log("Test document written with ID: ", docRef.id);
+    log.info('TestFirestore', 'Test document written', { docId: docRef.id });
     return docRef.id;
   } catch (error) {
-    console.error("Error writing test document: ", error);
+    log.error('TestFirestore', 'Error writing test document', error);
     throw error;
   }
 }
@@ -35,10 +36,10 @@ export async function testStorage() {
     await uploadBytes(storageRef, blob);
     const url = await getDownloadURL(storageRef);
 
-    console.log("File uploaded successfully. URL:", url);
+    log.info('TestFirestore', 'File uploaded successfully', { url });
     return url;
   } catch (error) {
-    console.error("Error uploading file: ", error);
+    log.error('TestFirestore', 'Error uploading file', error);
     throw error;
   }
 }
