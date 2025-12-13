@@ -14,9 +14,10 @@ import {
   VaultPurchaseRequest
 } from '../types/vault';
 import vaultService from '../services/vaultService';
-import { 
-  vaultItems, 
-  monetizationItems, 
+import { log } from '../lib/logger';
+import {
+  vaultItems,
+  monetizationItems,
   mockUserVaultProfile,
   getActiveVaultItems,
   getFeaturedVaultItems,
@@ -321,7 +322,7 @@ export function VaultProvider({ children }: { children: ReactNode }) {
       
       return false;
     } catch (error) {
-      console.error('Unlock failed:', error);
+      log.error('VaultContext', 'Unlock failed', error);
       return false;
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false });
@@ -358,7 +359,7 @@ export function VaultProvider({ children }: { children: ReactNode }) {
       
       return false;
     } catch (error) {
-      console.error('Purchase failed:', error);
+      log.error('VaultContext', 'Purchase failed', error);
       return false;
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false });
@@ -386,21 +387,21 @@ export function VaultProvider({ children }: { children: ReactNode }) {
       
       return true;
     } catch (error) {
-      console.error('Add to cart failed:', error);
+      log.error('VaultContext', 'Add to cart failed', error);
       return false;
     }
   };
-  
+
   const removeFromCart = (itemId: string) => {
     dispatch({ type: 'REMOVE_FROM_CART', payload: itemId });
   };
-  
+
   // ================== XP EARNING ==================
-  
+
   const awardXP = async (amount: number, source: string): Promise<boolean> => {
     try {
       const success = await vaultService.awardXP(state.userProfile.userId, amount, source);
-      
+
       if (success) {
         // Update local XP balance (accounting for any booster multipliers)
         let finalAmount = amount;
@@ -408,16 +409,16 @@ export function VaultProvider({ children }: { children: ReactNode }) {
           const multiplier = state.userProfile.activeBooster.multiplier || 1;
           finalAmount = Math.floor(amount * multiplier);
         }
-        
+
         dispatch({
           type: 'UPDATE_XP_BALANCE',
           payload: state.userProfile.xpBalance + finalAmount
         });
       }
-      
+
       return success;
     } catch (error) {
-      console.error('Award XP failed:', error);
+      log.error('VaultContext', 'Award XP failed', error, { amount, source });
       return false;
     }
   };
@@ -448,9 +449,10 @@ export function VaultProvider({ children }: { children: ReactNode }) {
       if (userProfile) {
         dispatch({ type: 'SET_USER_PROFILE', payload: userProfile });
       }
-      
+
+
     } catch (error) {
-      console.error('Failed to refresh vault data:', error);
+      log.error('VaultContext', 'Failed to refresh vault data', error);
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false });
     }

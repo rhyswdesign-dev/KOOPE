@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { log } from '../lib/logger';
 
 interface UserState {
   xp: number;
@@ -40,7 +41,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         setUser(userData);
       }
     } catch (error) {
-      console.log('Error loading user data:', error);
+      log.error('UserContext', 'Error loading user data', error);
     }
   };
 
@@ -48,7 +49,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     try {
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(newUserData));
     } catch (error) {
-      console.log('Error saving user data:', error);
+      log.error('UserContext', 'Error saving user data', error);
     }
   };
 
