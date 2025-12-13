@@ -5,6 +5,7 @@
 
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { log } from '../lib/logger';
 
 export interface UserRecipe {
   id: string;
@@ -65,9 +66,9 @@ export const useUserRecipes = create<UserRecipesState>((set, get) => ({
       // Save to storage
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updatedRecipes));
 
-      console.log('✅ Recipe added successfully:', newRecipe.name);
+      log.info('UserRecipesStore', 'Recipe added successfully', { recipeName: newRecipe.name });
     } catch (error) {
-      console.error('❌ Error adding recipe:', error);
+      log.error('UserRecipesStore', 'Error adding recipe', error);
     }
   },
 
@@ -84,9 +85,9 @@ export const useUserRecipes = create<UserRecipesState>((set, get) => ({
       // Save to storage
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updatedRecipes));
 
-      console.log('✅ Recipe updated successfully:', id);
+      log.info('UserRecipesStore', 'Recipe updated successfully', { id });
     } catch (error) {
-      console.error('❌ Error updating recipe:', error);
+      log.error('UserRecipesStore', 'Error updating recipe', error, { id });
     }
   },
 
@@ -99,9 +100,9 @@ export const useUserRecipes = create<UserRecipesState>((set, get) => ({
       // Save to storage
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updatedRecipes));
 
-      console.log('✅ Recipe deleted successfully:', id);
+      log.info('UserRecipesStore', 'Recipe deleted successfully', { id });
     } catch (error) {
-      console.error('❌ Error deleting recipe:', error);
+      log.error('UserRecipesStore', 'Error deleting recipe', error, { id });
     }
   },
 
@@ -127,13 +128,13 @@ export const useUserRecipes = create<UserRecipesState>((set, get) => ({
         }));
 
         set({ recipes, isLoading: false });
-        console.log(`✅ Loaded ${recipes.length} user recipes from storage`);
+        log.info('UserRecipesStore', `Loaded ${recipes.length} user recipes from storage`);
       } else {
         set({ isLoading: false });
-        console.log('📭 No user recipes found in storage');
+        log.info('UserRecipesStore', 'No user recipes found in storage');
       }
     } catch (error) {
-      console.error('❌ Error loading recipes:', error);
+      log.error('UserRecipesStore', 'Error loading recipes', error);
       set({ isLoading: false });
     }
   },
@@ -142,9 +143,9 @@ export const useUserRecipes = create<UserRecipesState>((set, get) => ({
     try {
       set({ recipes: [] });
       await AsyncStorage.removeItem(STORAGE_KEY);
-      console.log('🗑️ All user recipes cleared');
+      log.info('UserRecipesStore', 'All user recipes cleared');
     } catch (error) {
-      console.error('❌ Error clearing recipes:', error);
+      log.error('UserRecipesStore', 'Error clearing recipes', error);
     }
   },
 }));

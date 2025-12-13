@@ -7,6 +7,7 @@
 
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { log } from '../lib/logger';
 import {
   UserPersonalizationProfile,
   PersonalizedRecommendations,
@@ -53,17 +54,17 @@ export const usePersonalization = create<PersonalizationState>((set, get) => ({
    */
   initializeFromSurvey: async (answers: SurveyAnswers) => {
     try {
-      console.log('🎯 Initializing personalization from survey answers:', answers);
+      log.info('PersonalizationStore', 'Initializing personalization from survey answers', { answers });
 
       // Build comprehensive profile from survey
       const profile = personalizedExperience.buildProfile(answers);
 
-      console.log('📊 Generated personalization profile:', profile);
+      log.debug('PersonalizationStore', 'Generated personalization profile', { profile });
 
       // Generate initial recommendations
       const recommendations = personalizedExperience.generateRecommendations(profile);
 
-      console.log('🎯 Generated recommendations:', recommendations);
+      log.debug('PersonalizationStore', 'Generated recommendations', { recommendations });
 
       // Save to state and storage
       set({
@@ -88,13 +89,13 @@ export const usePersonalization = create<PersonalizationState>((set, get) => ({
           personalizationUpdatedAt: Date.now(),
         }, { merge: true });
 
-        console.log('✅ Personalization profile saved to Firebase');
+        log.info('PersonalizationStore', 'Personalization profile saved to Firebase', { userId: user.uid });
       }
 
-      console.log('✅ Personalization profile saved successfully');
+      log.info('PersonalizationStore', 'Personalization profile saved successfully');
 
     } catch (error) {
-      console.error('❌ Error initializing personalization:', error);
+      log.error('PersonalizationStore', 'Error initializing personalization', error, { answers });
     }
   },
 
@@ -132,13 +133,13 @@ export const usePersonalization = create<PersonalizationState>((set, get) => ({
           personalizationUpdatedAt: Date.now(),
         }, { merge: true });
 
-        console.log('✅ Profile saved to Firebase');
+        log.info('PersonalizationStore', 'Profile saved to Firebase', { userId: user.uid });
       }
 
-      console.log('✅ Profile updated:', updates);
+      log.info('PersonalizationStore', 'Profile updated', { updates });
 
     } catch (error) {
-      console.error('❌ Error updating profile:', error);
+      log.error('PersonalizationStore', 'Error updating profile', error, { updates });
     }
   },
 
@@ -154,10 +155,10 @@ export const usePersonalization = create<PersonalizationState>((set, get) => ({
 
       set({ recommendations });
 
-      console.log('🔄 Recommendations regenerated');
+      log.info('PersonalizationStore', 'Recommendations regenerated');
 
     } catch (error) {
-      console.error('❌ Error generating recommendations:', error);
+      log.error('PersonalizationStore', 'Error generating recommendations', error);
     }
   },
 
@@ -168,7 +169,7 @@ export const usePersonalization = create<PersonalizationState>((set, get) => ({
     const { profile } = get();
     if (!profile) return;
 
-    console.log('📝 Recording interaction:', { type, itemId, context });
+    log.debug('PersonalizationStore', 'Recording interaction', { type, itemId, context });
 
     // Track interaction patterns
     // This could be enhanced to update profile based on behavior patterns
@@ -305,12 +306,12 @@ export const loadPersonalizationFromStorage = async () => {
           isInitialized: true
         });
 
-        console.log('✅ Loaded personalization from storage');
+        log.info('PersonalizationStore', 'Loaded personalization from storage');
         return true;
       }
     }
   } catch (error) {
-    console.error('❌ Error loading personalization from storage:', error);
+    log.error('PersonalizationStore', 'Error loading personalization from storage', error);
   }
 
   return false;
@@ -327,8 +328,8 @@ export const clearPersonalizationData = async () => {
       recommendations: null,
       isInitialized: false
     });
-    console.log('🗑️ Personalization data cleared');
+    log.info('PersonalizationStore', 'Personalization data cleared');
   } catch (error) {
-    console.error('❌ Error clearing personalization data:', error);
+    log.error('PersonalizationStore', 'Error clearing personalization data', error);
   }
 };

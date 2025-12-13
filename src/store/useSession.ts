@@ -5,6 +5,7 @@
 
 import { create } from 'zustand';
 import { Item, Attempt, UserProgress } from '../types/domain';
+import { log } from '../lib/logger';
 
 interface SessionState {
   // Current session
@@ -50,8 +51,8 @@ export const useSession = create<SessionState>((set, get) => ({
 
   // Actions
   startSession: (lessonId: string, items: Item[]) => {
-    console.log('🔧 Session: Starting session with', lessonId, 'and', items.length, 'items');
-    console.log('🔧 Session: Items:', items);
+    log.info('SessionStore', 'Starting session', { lessonId, itemCount: items.length });
+    log.debug('SessionStore', 'Session items', { items });
     set({
       lessonId,
       items,
