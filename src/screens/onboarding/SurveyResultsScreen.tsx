@@ -12,6 +12,7 @@ import { PlacementResult } from '../../types/domain';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/tokens';
 import { usePersonalization } from '../../store/usePersonalization';
+import { log } from '../../lib/logger';
 
 type SurveyResultsScreenProps = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'SurveyResults'>;
@@ -31,8 +32,7 @@ export default function SurveyResultsScreen({ navigation, route }: SurveyResults
     // Initialize personalization system with survey responses
     initializeFromSurvey(answers);
 
-    console.log('Placement result:', result);
-    console.log('🎯 Initializing personalized experience with survey answers');
+    log.info('SurveyResultsScreen', 'Placement result and personalization initialized', { result, level: result.level });
   }, [answers, initializeFromSurvey]);
 
   const handleStartLearning = () => {

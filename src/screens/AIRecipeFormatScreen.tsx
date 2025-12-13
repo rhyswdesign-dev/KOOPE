@@ -19,6 +19,7 @@ import VideoRecipeAnalyzer from '../services/videoRecipeAnalyzer';
 import { RecipeIntelligenceService, RecipeIntelligence } from '../services/recipeIntelligenceService';
 import { updateRecipe } from '../lib/firestore';
 import { useAuth } from '../contexts/AuthContext';
+import { log } from '../lib/logger';
 
 export default function AIRecipeFormatScreen() {
   const nav = useNavigation<NativeStackNavigationProp<any>>();
@@ -158,13 +159,13 @@ export default function AIRecipeFormatScreen() {
 
       // Check if this is a video URL and use video analyzer
       if (isVideoUrl(urlToProcess)) {
-        console.log('🎥 Detected video URL, using VideoRecipeAnalyzer');
+        log.info('AIRecipeFormatScreen', 'Detected video URL, using VideoRecipeAnalyzer', { url: urlToProcess });
         try {
           const result = await VideoRecipeAnalyzer.analyzeVideoFromURL(urlToProcess);
           setFormattedRecipe(result);
           return;
         } catch (videoError) {
-          console.warn('Video analysis failed, falling back to standard URL extraction:', videoError);
+          log.warn('AIRecipeFormatScreen', 'Video analysis failed, falling back to standard URL extraction', { url: urlToProcess });
           // Fall through to standard processing
         }
       }
@@ -183,7 +184,7 @@ export default function AIRecipeFormatScreen() {
         const extractedText = await AIRecipeFormatter.extractTextFromUrl(urlToProcess);
         input.extractedText = extractedText;
       } catch (error) {
-        console.log('Could not extract URL text:', error);
+        log.info('AIRecipeFormatScreen', 'Could not extract URL text', { url: urlToProcess });
       }
 
       // Format with AI
@@ -196,13 +197,13 @@ export default function AIRecipeFormatScreen() {
           setRecipeIntelligence(intelligence);
         })
         .catch(error => {
-          console.warn('Recipe intelligence analysis failed:', error);
+          log.warn('AIRecipeFormatScreen', 'Recipe intelligence analysis failed', { recipeTitle: result.title });
           // Don't show error to user, intelligence is optional
         });
 
     } catch (error: any) {
       setError(error.message || 'Failed to format recipe with AI');
-      console.error('AI formatting error:', error);
+      log.error('AIRecipeFormatScreen', 'AI formatting error', error, { recipeUrl: urlToProcess });
     } finally {
       setLoading(false);
     }
@@ -221,11 +222,12 @@ export default function AIRecipeFormatScreen() {
       return;
     }
 
-    console.log('AIRecipeFormatScreen: Starting save process');
-    console.log('AIRecipeFormatScreen: Recipe data:', recipe);
-    console.log('AIRecipeFormatScreen: Formatted recipe:', formattedRecipe);
-    console.log('AIRecipeFormatScreen: User authenticated:', isAuthenticated);
-    console.log('AIRecipeFormatScreen: User ID:', user?.uid);
+    log.info('AIRecipeFormatScreen', 'Starting save process', {
+      hasRecipe: !!recipe,
+      hasFormattedRecipe: !!formattedRecipe,
+      isAuthenticated,
+      userId: user?.uid
+    });
 
     if (!isAuthenticated || !user) {
       Alert.alert('Authentication Error', 'Please sign in to save recipes');
@@ -243,8 +245,7 @@ export default function AIRecipeFormatScreen() {
                          recipe.id.startsWith('temp-') ||
                          startWithManual;
 
-      console.log('AIRecipeFormatScreen: Recipe ID:', recipe?.id);
-      console.log('AIRecipeFormatScreen: Is new recipe:', isNewRecipe);
+      log.info('AIRecipeFormatScreen', 'Recipe save check', { recipeId: recipe?.id, isNewRecipe });
 
       if (isNewRecipe) {
         // Create new recipe for OCR-captured recipes
@@ -265,9 +266,9 @@ export default function AIRecipeFormatScreen() {
           [activeTab === 'ai' ? 'aiFormattedData' : 'manualRecipeData']: recipeToSave,
         };
 
-        console.log('AIRecipeFormatScreen: Creating new recipe with data:', recipeWithData);
+        log.info('AIRecipeFormatScreen', 'Creating new recipe', { title: recipeWithData.title, activeTab });
         await createRecipe(recipeWithData);
-        console.log('AIRecipeFormatScreen: Recipe created successfully');
+        log.info('AIRecipeFormatScreen', 'Recipe created successfully', { title: recipeWithData.title });
 
         Alert.alert(
           'Success!',
@@ -294,10 +295,9 @@ export default function AIRecipeFormatScreen() {
           updatedAt: new Date(),
         };
 
-        console.log('AIRecipeFormatScreen: Updating existing recipe with ID:', recipe?.id);
-        console.log('AIRecipeFormatScreen: Update data:', updateData);
+        log.info('AIRecipeFormatScreen', 'Updating existing recipe', { recipeId: recipe?.id, title: updateData.title, activeTab });
         await updateRecipe(recipe!.id, updateData);
-        console.log('AIRecipeFormatScreen: Recipe updated successfully');
+        log.info('AIRecipeFormatScreen', 'Recipe updated successfully', { recipeId: recipe?.id });
 
         Alert.alert(
           'Success!',
@@ -312,7 +312,7 @@ export default function AIRecipeFormatScreen() {
       }
 
     } catch (error: any) {
-      console.error('Save error:', error);
+      log.error('AIRecipeFormatScreen', 'Save error', error, { recipeTitle: recipeToSave?.title, activeTab });
       Alert.alert('Error', error.message || 'Failed to save formatted recipe');
     } finally {
       setSaving(false);

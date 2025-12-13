@@ -34,6 +34,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAudio } from '../../hooks/useAudio';
 import { useAnalyticsContext } from '../../context/AnalyticsContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { log } from '../../lib/logger';
 
 interface LessonEngineProps {
   lessonId: string;
@@ -101,7 +102,7 @@ export const LessonEngine: React.FC<LessonEngineProps> = ({ lessonId, onComplete
   // Initial entrance animation (ultra-fast)
   useEffect(() => {
     if (!loading && !error && currentItem) {
-      console.log('🎬 Starting entrance animation for item:', currentItem.id);
+      log.debug('LessonEngine', 'Starting entrance animation for item', { itemId: currentItem.id });
       fadeAnim.setValue(0);
       slideAnim.setValue(0);
       Animated.parallel([
@@ -178,7 +179,7 @@ export const LessonEngine: React.FC<LessonEngineProps> = ({ lessonId, onComplete
       });
     } catch (err) {
       setError('Failed to load lesson');
-      console.error('Lesson loading error:', err);
+      log.error('LessonEngine', 'Lesson loading error', err);
     } finally {
       setLoading(false);
     }
@@ -203,15 +204,15 @@ export const LessonEngine: React.FC<LessonEngineProps> = ({ lessonId, onComplete
 
     // Handle life loss for incorrect answers
     if (!result.correct) {
-      console.log(`🔧 LessonEngine: Wrong answer! Losing a life. Current lives: ${lives}`);
+      log.debug('LessonEngine', 'Wrong answer! Losing a life', { currentLives: lives });
       if (loseUserLife) {
         loseUserLife();
-        console.log(`🔧 LessonEngine: Life lost! Lives should now be: ${lives - 1}`);
+        log.debug('LessonEngine', 'Life lost', { remainingLives: lives - 1 });
       } else {
-        console.log('🔧 LessonEngine: loseUserLife function not available');
+        log.warn('LessonEngine', 'loseUserLife function not available');
       }
     } else {
-      console.log('🔧 LessonEngine: Correct answer! No life lost.');
+      log.debug('LessonEngine', 'Correct answer! No life lost');
     }
 
     // Track item attempt
@@ -316,7 +317,7 @@ export const LessonEngine: React.FC<LessonEngineProps> = ({ lessonId, onComplete
       masteryDelta,
     };
 
-    console.log('🎉 Lesson Complete:', {
+    log.info('LessonEngine', 'Lesson complete', {
       accuracy: `${accuracy}%`,
       correctCount,
       totalCount,
@@ -328,7 +329,7 @@ export const LessonEngine: React.FC<LessonEngineProps> = ({ lessonId, onComplete
     if (completeUserLesson) {
       completeUserLesson(lessonId, xpAwarded);
     } else {
-      console.log('🔧 LessonEngine: completeUserLesson function not available');
+      log.warn('LessonEngine', 'completeUserLesson function not available');
     }
 
     // Track lesson completion
@@ -395,11 +396,11 @@ export const LessonEngine: React.FC<LessonEngineProps> = ({ lessonId, onComplete
 
   const renderExercise = () => {
     if (!currentItem) {
-      console.log('❌ renderExercise: No current item');
+      log.error('LessonEngine', 'renderExercise: No current item');
       return <Text style={styles.errorText}>No current item</Text>;
     }
 
-    console.log('🎨 Rendering exercise:', {
+    log.debug('LessonEngine', 'Rendering exercise', {
       id: currentItem.id,
       type: currentItem.type,
       prompt: currentItem.prompt?.substring(0, 50) + '...',

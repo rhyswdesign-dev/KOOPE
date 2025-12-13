@@ -5,6 +5,7 @@
 
 import React, { useRef, useImperativeHandle, forwardRef } from 'react';
 import { useAudio } from '../../hooks/useAudio';
+import { log } from '../../lib/logger';
 
 export interface CocktailSoundEffectsRef {
   shake: (duration?: number) => Promise<void>;
@@ -140,10 +141,10 @@ export const CocktailSoundEffects = forwardRef<CocktailSoundEffectsRef>((props, 
                 await this.garnish();
                 break;
               default:
-                console.warn(`Unknown cocktail action: ${step.action}`);
+                log.warn('CocktailSoundEffects', 'Unknown cocktail action', { action: step.action });
             }
           } catch (error) {
-            console.error(`Error playing cocktail sound ${step.action}:`, error);
+            log.error('CocktailSoundEffects', `Error playing cocktail sound`, error, { action: step.action });
           }
         }, currentDelay);
 

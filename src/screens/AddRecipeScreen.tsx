@@ -17,6 +17,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { useUserRecipes } from '../store/useUserRecipes';
+import { log } from '../lib/logger';
 
 type ManualRecipe = {
   title: string;
@@ -228,7 +229,7 @@ export default function AddRecipeScreen() {
         { text: 'View My Recipes', onPress: () => nav.navigate('MyRecipes') }
       ]);
     } catch (error: any) {
-      console.error('Save error:', error);
+      log.error('AddRecipeScreen', 'Save error', error, { recipeName: recipe.title });
       Alert.alert('Error', `Failed to save recipe: ${error.message}`);
     } finally {
       setLoading(false);

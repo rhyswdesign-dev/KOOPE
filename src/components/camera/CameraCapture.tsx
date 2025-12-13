@@ -21,6 +21,7 @@ import * as MediaLibrary from 'expo-media-library';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, radii } from '../../theme/tokens';
+import { log } from '../../lib/logger';
 
 interface CameraCaptureProps {
   visible: boolean;
@@ -70,7 +71,7 @@ export default function CameraCapture({
       setMediaLibraryPermission(mediaResult.status === 'granted');
 
     } catch (error) {
-      console.error('Failed to request permissions:', error);
+      log.error('CameraCapture', 'Failed to request permissions', error);
       Alert.alert('Error', 'Failed to request camera permissions');
     }
   };
@@ -110,7 +111,7 @@ export default function CameraCapture({
       }
 
     } catch (error) {
-      console.error('Failed to capture photo:', error);
+      log.error('CameraCapture', 'Failed to capture photo', error);
       Alert.alert('Error', 'Failed to capture photo. Please try again.');
     } finally {
       setIsCapturing(false);
@@ -134,7 +135,7 @@ export default function CameraCapture({
         onClose();
       }
     } catch (error) {
-      console.error('Failed to pick from gallery:', error);
+      log.error('CameraCapture', 'Failed to pick from gallery', error);
       Alert.alert('Error', 'Failed to access gallery. Please try again.');
     }
   };

@@ -19,6 +19,7 @@ import { colors, spacing, radii, fonts } from '../theme/tokens';
 import { trackRecommendationRating } from '../services/recommendationTrackingService';
 import { updateProfileFromFeedback } from '../services/feedbackLearningService';
 import { usePersonalization } from '../store/usePersonalization';
+import { log } from '../lib/logger';
 
 interface RecommendationFeedbackModalProps {
   visible: boolean;
@@ -118,7 +119,7 @@ export default function RecommendationFeedbackModal({
 
       // Update taste profile weights based on feedback (Phase 2 Enhancement #3)
       if (profile && liked !== null) {
-        console.log('📊 Updating taste profile from feedback...');
+        log.info('RecommendationFeedbackModal', 'Updating taste profile from feedback');
         const profileUpdates = updateProfileFromFeedback(
           profile,
           recommendation,
@@ -126,7 +127,7 @@ export default function RecommendationFeedbackModal({
           selectedReasons
         );
         await updateProfile(profileUpdates);
-        console.log('✅ Taste profile updated successfully');
+        log.info('RecommendationFeedbackModal', 'Taste profile updated successfully');
       }
 
       // Track the feedback in Firebase
@@ -148,7 +149,7 @@ export default function RecommendationFeedbackModal({
         [{ text: 'OK', onPress: handleClose }]
       );
     } catch (error) {
-      console.error('Error submitting feedback:', error);
+      log.error('RecommendationFeedbackModal', 'Error submitting feedback', error);
       Alert.alert('Error', 'Failed to submit feedback. Please try again.');
     } finally {
       setIsSubmitting(false);

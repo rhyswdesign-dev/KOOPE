@@ -10,6 +10,7 @@ import { useAudio } from '../../hooks/useAudio';
 import { AudioButton } from '../ui/AudioButton';
 import { CocktailSoundEffects, CocktailSoundEffectsRef, CocktailStep } from './CocktailSoundEffects';
 import { AudioSettings } from '../settings/AudioSettings';
+import { log } from '../../lib/logger';
 
 export const AudioDemo: React.FC = () => {
   const audio = useAudio();
@@ -54,7 +55,7 @@ export const AudioDemo: React.FC = () => {
       await cocktailSoundsRef.current?.sequence(margaritaSequence);
       setTimeout(() => setIsPlaying(false), 10000); // Total sequence time
     } catch (error) {
-      console.error('Failed to play cocktail sequence:', error);
+      log.error('AudioDemo', 'Failed to play cocktail sequence', error);
       setIsPlaying(false);
     }
   };
@@ -65,7 +66,7 @@ export const AudioDemo: React.FC = () => {
       await audio.stopAmbientBar();
       setIsPlaying(false);
     } catch (error) {
-      console.error('Failed to stop all sounds:', error);
+      log.error('AudioDemo', 'Failed to stop all sounds', error);
     }
   };
 
@@ -74,7 +75,7 @@ export const AudioDemo: React.FC = () => {
       await audio.startAmbientBar();
       Alert.alert('Ambient Started', 'Bar ambience is now playing in the background');
     } catch (error) {
-      console.error('Failed to start ambient sounds:', error);
+      log.error('AudioDemo', 'Failed to start ambient sounds', error);
     }
   };
 

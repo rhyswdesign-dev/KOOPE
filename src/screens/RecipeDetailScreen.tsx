@@ -15,6 +15,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import GroceryListModal from '../components/GroceryListModal';
+import { log } from '../lib/logger';
 
 export default function RecipeDetailScreen() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -51,7 +52,7 @@ export default function RecipeDetailScreen() {
         title: `${recipe.name || recipe.title} Recipe`,
       });
     } catch (error) {
-      console.error('Error sharing recipe:', error);
+      log.error('RecipeDetailScreen', 'Error sharing recipe', error, { recipeTitle: recipe.title });
     }
   };
 

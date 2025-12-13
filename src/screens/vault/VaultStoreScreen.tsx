@@ -23,6 +23,7 @@ import { colors, spacing, radii } from '../../theme/tokens';
 import { useVault } from '../../contexts/VaultContext';
 import { MonetizationItem } from '../../types/vault';
 import PillButton from '../../components/PillButton';
+import { log } from '../../lib/logger';
 
 export default function VaultStoreScreen() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -32,7 +33,7 @@ export default function VaultStoreScreen() {
   const [selectedCategory, setSelectedCategory] = useState<string>(() => {
     // Check initial route params
     const params = route.params as any;
-    console.log('🔧 VaultStore: Initial route params:', params);
+    log.info('VaultStoreScreen', 'Initial route params', { params });
     return params?.tab || 'hearts';
   });
   const [showAIInfoModal, setShowAIInfoModal] = useState(false);
@@ -40,9 +41,9 @@ export default function VaultStoreScreen() {
   useEffect(() => {
     // Only process initial navigation params once
     const params = route.params as any;
-    console.log('🔧 VaultStore: Route params changed:', params);
+    log.info('VaultStoreScreen', 'Route params changed', { params });
     if (params?.tab && !hasProcessedInitialParams.current) {
-      console.log('🔧 VaultStore: Setting category to:', params.tab);
+      log.info('VaultStoreScreen', 'Setting category', { category: params.tab });
       setSelectedCategory(params.tab);
       hasProcessedInitialParams.current = true;
     }

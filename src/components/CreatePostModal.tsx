@@ -18,6 +18,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { log } from '../lib/logger';
 import { colors, spacing, radii } from '../theme/tokens';
 import * as ImagePicker from 'expo-image-picker';
 
@@ -93,7 +94,7 @@ export default function CreatePostModal({
       };
 
       // TODO: In a real app, this would save to a backend
-      console.log('Creating post:', {
+      log.info('CreatePostModal', 'Creating post', {
         ...postData,
         timestamp: new Date().toISOString(),
       });

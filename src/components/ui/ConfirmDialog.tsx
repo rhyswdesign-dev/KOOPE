@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Pressable, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, radii } from '../../theme/tokens';
 import { BlurView } from 'expo-blur';
+import { log } from '../../lib/logger';
 
 export interface ConfirmDialogConfig {
   id: string;
@@ -85,7 +86,7 @@ const ConfirmDialogItem: React.FC<ConfirmDialogItemProps> = ({ dialog, onDismiss
       await dialog.onConfirm();
       onDismiss(dialog.id);
     } catch (error) {
-      console.error('Confirm dialog error:', error);
+      log.error('ConfirmDialog', 'Confirm dialog error', error);
     } finally {
       setIsLoading(false);
     }

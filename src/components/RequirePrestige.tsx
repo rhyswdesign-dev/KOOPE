@@ -6,6 +6,7 @@
 import React, { useEffect, useRef } from 'react';
 import { useNavigation } from '@react-navigation/native';
 import { useSubscription } from '../contexts/SubscriptionContext';
+import { log } from '../lib/logger';
 
 interface RequirePrestigeProps {
   children: React.ReactNode;
@@ -49,7 +50,7 @@ export default function RequirePrestige({ children }: RequirePrestigeProps) {
     // User doesn't have access - redirect to paywall (if not already there)
     if (!hasNavigatedRef.current && !isOnPaywall) {
       hasNavigatedRef.current = true;
-      console.log('[RequirePrestige] Access denied - redirecting to Paywall');
+      log.info('RequirePrestige', 'Access denied - redirecting to Paywall');
       navigation.navigate('Paywall' as never, { source: 'prestige_gate' } as never);
     }
   }, [isPrestige, isLoading, navigation]);

@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/RootNavigator';
+import { log } from '../lib/logger';
 
 export default function URLRecipeInputScreen() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -36,7 +37,7 @@ export default function URLRecipeInputScreen() {
       // Navigate to AI Recipe Format screen with the URL
       nav.navigate('AIRecipeFormat', { recipeUrl: url.trim() });
     } catch (error: any) {
-      console.error('URL processing error:', error);
+      log.error('URLRecipeInputScreen', 'URL processing error', error, { url: url.trim() });
       Alert.alert('Error', 'Failed to process URL');
     } finally {
       setLoading(false);
@@ -57,7 +58,7 @@ export default function URLRecipeInputScreen() {
       // For now, just focus the input - clipboard access requires additional setup
       Alert.alert('Paste URL', 'Please paste your recipe URL in the text field');
     } catch (error) {
-      console.error('Clipboard error:', error);
+      log.error('URLRecipeInputScreen', 'Clipboard error', error);
     }
   };
 

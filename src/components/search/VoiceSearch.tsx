@@ -20,6 +20,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Speech from 'expo-speech';
 import { Audio } from 'expo-av';
 import { colors, spacing, radii } from '../../theme/tokens';
+import { log } from '../../lib/logger';
 
 interface VoiceSearchProps {
   visible: boolean;
@@ -80,7 +81,7 @@ export default function VoiceSearch({
         );
       }
     } catch (error) {
-      console.error('Permission request failed:', error);
+      log.error('VoiceSearch', 'Permission request failed', error);
       setHasPermission(false);
     }
   };
@@ -134,7 +135,7 @@ export default function VoiceSearch({
       await mockSpeechRecognition();
 
     } catch (error) {
-      console.error('Speech recognition failed:', error);
+      log.error('VoiceSearch', 'Speech recognition failed', error);
       setError('Failed to start voice recognition');
       setState('error');
     }

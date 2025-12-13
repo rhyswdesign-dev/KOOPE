@@ -20,6 +20,7 @@ import Purchases, { PurchasesPackage } from 'react-native-purchases';
 import { colors, spacing } from '../theme/tokens';
 import { useSubscription } from '../contexts/SubscriptionContext';
 import { trackEvent, ANALYTICS_EVENTS, ANALYTICS_PROPS } from '../lib/analytics';
+import { log } from '../lib/logger';
 
 const { width } = Dimensions.get('window');
 
@@ -152,7 +153,7 @@ export default function PaywallScreen({ route }: PaywallScreenProps) {
           setPackages(offerings.current.availablePackages);
         }
       } catch (error) {
-        console.error('[PaywallScreen] Error loading packages:', error);
+        log.error('PaywallScreen', 'Error loading packages', error);
       } finally {
         setIsLoading(false);
       }
@@ -217,7 +218,7 @@ export default function PaywallScreen({ route }: PaywallScreenProps) {
         Alert.alert('Purchase Error', result.error || 'Something went wrong');
       }
     } catch (error: any) {
-      console.error('[PaywallScreen] Purchase error:', error);
+      log.error('PaywallScreen', 'Purchase error', error, { tier, mode });
 
       // Track error
       trackEvent(ANALYTICS_EVENTS.PURCHASE_FAILED, {

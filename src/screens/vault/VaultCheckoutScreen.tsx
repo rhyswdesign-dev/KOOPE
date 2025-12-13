@@ -21,6 +21,7 @@ import type { RootStackParamList } from '../../navigation/RootNavigator';
 import { colors, spacing, radii } from '../../theme/tokens';
 import { useVault } from '../../contexts/VaultContext';
 import { VaultAddress, VaultPurchaseRequest } from '../../types/vault';
+import { log } from '../../lib/logger';
 
 export default function VaultCheckoutScreen() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -106,7 +107,7 @@ export default function VaultCheckoutScreen() {
         Alert.alert('Purchase Failed', 'Unable to process your payment. Please try again.');
       }
     } catch (error) {
-      console.error('Purchase error:', error);
+      log.error('VaultCheckoutScreen', 'Purchase error', error, { total: state.cart.total });
       Alert.alert('Purchase Failed', 'Unable to process your payment. Please try again.');
     } finally {
       setIsProcessing(false);

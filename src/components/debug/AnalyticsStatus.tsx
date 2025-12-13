@@ -8,6 +8,7 @@ import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, radii } from '../../theme/tokens';
 import { useAnalyticsContext } from '../../context/AnalyticsContext';
+import { log } from '../../lib/logger';
 
 interface AnalyticsStatusProps {
   showDetails?: boolean;
@@ -41,9 +42,9 @@ export const AnalyticsStatus: React.FC<AnalyticsStatusProps> = ({ showDetails = 
         screenName: 'AnalyticsStatus',
         properties: { source: 'debug' }
       });
-      console.log('Test analytics event sent');
+      log.info('AnalyticsStatus', 'Test analytics event sent');
     } catch (error) {
-      console.error('Failed to send test event:', error);
+      log.error('AnalyticsStatus', 'Failed to send test event', error);
     }
   };
 

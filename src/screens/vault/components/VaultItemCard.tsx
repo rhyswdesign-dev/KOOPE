@@ -17,6 +17,7 @@ import { colors, spacing, radii } from '../../../theme/tokens';
 import { VaultItem, UserVaultProfile } from '../../../types/vault';
 import { canUserUnlockItem } from '../../../data/vaultData';
 import { useSubscription } from '../../../contexts/SubscriptionContext';
+import { log } from '../../../lib/logger';
 
 interface VaultItemCardProps {
   item: VaultItem;
@@ -37,7 +38,7 @@ export default function VaultItemCard({ item, userProfile, onPress, onAddToCart 
 
   const handleCardPress = () => {
     if (isSubscriptionLocked) {
-      console.log('[VaultItemCard] Subscription required - redirecting to Paywall');
+      log.info('VaultItemCard', 'Subscription required - redirecting to Paywall', { itemId: item.id, requiresPro: requiresProAccess, requiresPrestige: requiresPrestigeAccess });
       navigation.navigate('Paywall' as never);
       return;
     }

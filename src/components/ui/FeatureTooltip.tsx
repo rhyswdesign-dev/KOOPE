@@ -18,6 +18,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors, spacing, radii, fonts } from '../../theme/tokens';
+import { log } from '../../lib/logger';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -312,7 +313,7 @@ export const markFeatureAsSeen = async (featureId: string): Promise<void> => {
     const updatedFeatures = [...seenFeatures, featureId];
     await AsyncStorage.setItem(FEATURE_STORAGE_KEY, JSON.stringify(updatedFeatures));
   } catch (error) {
-    console.warn('Failed to mark feature as seen:', error);
+    log.warn('FeatureTooltip', 'Failed to mark feature as seen', { error, featureId });
   }
 };
 
@@ -321,7 +322,7 @@ export const getSeenFeatures = async (): Promise<string[]> => {
     const seenFeatures = await AsyncStorage.getItem(FEATURE_STORAGE_KEY);
     return seenFeatures ? JSON.parse(seenFeatures) : [];
   } catch (error) {
-    console.warn('Failed to get seen features:', error);
+    log.warn('FeatureTooltip', 'Failed to get seen features', { error });
     return [];
   }
 };
@@ -335,7 +336,7 @@ export const clearSeenFeatures = async (): Promise<void> => {
   try {
     await AsyncStorage.removeItem(FEATURE_STORAGE_KEY);
   } catch (error) {
-    console.warn('Failed to clear seen features:', error);
+    log.warn('FeatureTooltip', 'Failed to clear seen features', { error });
   }
 };
 

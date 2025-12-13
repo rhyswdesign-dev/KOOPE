@@ -10,6 +10,7 @@ import { Item } from '../../types/domain';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, radii } from '../../theme/tokens';
 import { LinearGradient } from 'expo-linear-gradient';
+import { log } from '../../lib/logger';
 
 export type ExerciseCommonProps = {
   item: Item;
@@ -66,25 +67,35 @@ export default function OrderExercise({ item, onResult, disabled = false }: Exer
     const orderedItems = slots.filter((item): item is string => item !== null);
     const targetOrder = item.orderTarget || [];
 
-    console.log('🔍 ORDER VALIDATION DEBUG:');
-    console.log('Slots:', JSON.stringify(slots));
-    console.log('Ordered items:', JSON.stringify(orderedItems));
-    console.log('Target order:', JSON.stringify(targetOrder));
+    log.debug('OrderExercise', 'Order validation', {
+      slots: JSON.stringify(slots),
+      orderedItems: JSON.stringify(orderedItems),
+      targetOrder: JSON.stringify(targetOrder)
+    });
 
     // Check if all slots are filled
     if (orderedItems.length !== targetOrder.length) {
-      console.log('❌ Not all slots filled');
+      log.warn('OrderExercise', 'Not all slots filled', {
+        orderedLength: orderedItems.length,
+        targetLength: targetOrder.length
+      });
       return;
     }
 
     const isCorrect = arraysEqual(orderedItems, targetOrder);
     const timeToAnswer = Date.now() - startTime;
 
-    console.log('Is correct?', isCorrect);
-    console.log('Comparison details:');
-    orderedItems.forEach((itemText, idx) => {
-      const expected = targetOrder[idx];
-      console.log(`  Slot ${idx + 1}: "${itemText}" vs "${expected}" - ${itemText === expected ? '✓' : '✗'}`);
+    const comparisonDetails = orderedItems.map((itemText, idx) => ({
+      slot: idx + 1,
+      actual: itemText,
+      expected: targetOrder[idx],
+      match: itemText === targetOrder[idx]
+    }));
+
+    log.debug('OrderExercise', 'Order comparison', {
+      isCorrect,
+      timeToAnswer,
+      comparisonDetails
     });
 
     setSubmitted(true);

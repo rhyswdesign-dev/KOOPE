@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { EventItem } from '../../types/spirit';
+import { log } from '../../lib/logger';
 
 export default function EventsList({ items }: { items: EventItem[] }) {
   return (
@@ -23,7 +24,7 @@ export default function EventsList({ items }: { items: EventItem[] }) {
                     day: 'numeric'
                   });
                 } catch (error) {
-                  console.warn('Invalid date format in EventsList:', event.dateISO);
+                  log.warn('EventsList', 'Invalid date format', { dateISO: event.dateISO });
                   return 'TBD';
                 }
               })()}

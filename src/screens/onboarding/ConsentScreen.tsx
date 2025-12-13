@@ -10,6 +10,7 @@ import { db } from '../../config/firebase';
 import { useAuth } from '../../contexts/AuthContext';
 import { RootStackParamList } from '../../navigation/RootNavigator';
 import { colors } from '../../theme/tokens';
+import { log } from '../../lib/logger';
 
 type ConsentScreenProps = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Consent'>;
@@ -36,10 +37,10 @@ export default function ConsentScreen({ navigation }: ConsentScreenProps) {
         version: '1.0'
       }, { merge: true });
 
-      console.log('✅ Consent saved:', analyticsConsent);
+      log.info('ConsentScreen', 'Consent saved', { analyticsConsent });
       navigation.navigate('Survey');
     } catch (error: any) {
-      console.error('❌ Error saving consent:', error);
+      log.error('ConsentScreen', 'Error saving consent', error);
       Alert.alert('Error', 'Failed to save preferences. Please try again.');
     } finally {
       setLoading(false);

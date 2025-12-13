@@ -46,6 +46,7 @@ import { useUserTier } from '../../store/useUserTier';
 import { canAccessContent } from '../../utils/tierAccess';
 import TierBadge from '../../components/TierBadge';
 import LockedContentOverlay from '../../components/LockedContentOverlay';
+import { log } from '../../lib/logger';
 
 
 export default function VaultScreen() {
@@ -92,7 +93,7 @@ export default function VaultScreen() {
               const currentIndex = tiers.indexOf(tier);
               const nextTier = tiers[(currentIndex + 1) % tiers.length];
               setTier(nextTier);
-              console.log(`🔄 Tier switched to: ${nextTier}`);
+              log.info('VaultScreen', 'Tier switched', { tier: nextTier });
             }}
             style={{
               paddingHorizontal: 8,
@@ -110,7 +111,7 @@ export default function VaultScreen() {
           <Pressable
             hitSlop={12}
             onPress={() => {
-              console.log('🔧 VaultScreen: Shop icon pressed, navigating to VaultStore');
+              log.info('VaultScreen', 'Shop icon pressed, navigating to VaultStore');
               nav.navigate('VaultStore');
             }}
           >

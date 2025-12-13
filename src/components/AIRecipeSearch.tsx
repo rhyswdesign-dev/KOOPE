@@ -12,6 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, radii, fonts } from '../theme/tokens';
 import { AIRecipeFormatter, FormattedRecipe } from '../services/aiRecipeFormatter';
 import { useAICredits } from '../store/useAICredits';
+import { log } from '../lib/logger';
 
 interface AIRecipeSearchProps {
   onRecipeFound: (recipe: FormattedRecipe) => void;
@@ -56,7 +57,7 @@ export default function AIRecipeSearch({
     setIsLoading(true);
 
     try {
-      console.log('🤖 Starting AI recipe search for:', query);
+      log.info('AIRecipeSearch', 'Starting AI recipe search', { query });
 
       // Consume credits for the action
       const creditConsumed = consumeCredits({
@@ -75,12 +76,12 @@ export default function AIRecipeSearch({
         recipeType: 'cocktail' // Default to cocktail, AI will adjust if needed
       });
 
-      console.log('✅ AI recipe search completed');
+      log.info('AIRecipeSearch', 'AI recipe search completed');
       onRecipeFound(formattedRecipe);
       setQuery(''); // Clear search after successful result
 
     } catch (error: any) {
-      console.error('AI search error:', error);
+      log.error('AIRecipeSearch', 'AI search error', error);
       Alert.alert(
         'AI Search Failed',
         error.message || 'Unable to process your request. Please try again.',

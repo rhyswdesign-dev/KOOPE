@@ -19,6 +19,7 @@ import { loadUserProfile } from '../services/userProfileService';
 import { trackRecommendationView, trackRecommendationSaved } from '../services/recommendationTrackingService';
 import RecommendationFeedbackModal from './RecommendationFeedbackModal';
 import InsufficientCreditsModal from './InsufficientCreditsModal';
+import { log } from '../lib/logger';
 
 interface AIRecommendationsProps {
   navigation: any;
@@ -80,7 +81,7 @@ export default function AIRecommendations({
           setUserTasteProfile(tasteProfile);
         } else {
           // If no profile loaded, create default
-          console.log('[AIRecommendations] No profile loaded, using defaults');
+          log.info('AIRecommendations', 'No profile loaded, using defaults');
           const defaultTasteProfile: UserTasteProfile = {
             preferredSpirits: ['whiskey', 'gin'],
             flavorProfile: ['citrusy', 'sweet'],
@@ -115,7 +116,7 @@ export default function AIRecommendations({
             error?.message?.includes('Failed to get document') ||
             error?.message?.includes('Failed to load user profile') ||
             error?.code === 'unavailable') {
-          console.log('[AIRecommendations] Error loading data - using default profile');
+          log.info('AIRecommendations', 'Error loading data - using default profile', { error: error?.message });
 
           // Set default taste profile
           const defaultTasteProfile: UserTasteProfile = {
@@ -143,7 +144,7 @@ export default function AIRecommendations({
           };
           setHomeBar(defaultBar);
         } else {
-          console.error('Error loading user data:', error);
+          log.error('AIRecommendations', 'Error loading user data', error);
         }
       }
     };
@@ -155,7 +156,7 @@ export default function AIRecommendations({
   const generateRecommendations = useCallback(async (forceRefresh: boolean = false) => {
     // Check if user data is loaded
     if (!homeBar || !userTasteProfile) {
-      console.log('User data not loaded yet');
+      log.debug('AIRecommendations', 'User data not loaded yet');
       return;
     }
 
@@ -163,7 +164,9 @@ export default function AIRecommendations({
     if (!forceRefresh && lastRefresh && recommendations.length > 0) {
       const cacheAge = Date.now() - lastRefresh.getTime();
       if (cacheAge < CACHE_DURATION_MS) {
-        console.log(`Using cached recommendations (${Math.round(cacheAge / 1000 / 60)} min old)`);
+        log.debug('AIRecommendations', 'Using cached recommendations', {
+          cacheAgeMinutes: Math.round(cacheAge / 1000 / 60)
+        });
         return;
       }
     }
@@ -177,7 +180,7 @@ export default function AIRecommendations({
     setIsLoading(true);
 
     try {
-      console.log('🤖 Generating AI recommendations...');
+      log.info('AIRecommendations', 'Generating AI recommendations');
 
       // Consume credits for the action
       const creditConsumed = consumeCredits({
@@ -220,10 +223,12 @@ export default function AIRecommendations({
 
       setRecommendations(aiRecommendations);
       setLastRefresh(new Date());
-      console.log(`✅ Generated ${aiRecommendations.length} AI recommendations`);
+      log.info('AIRecommendations', 'Generated AI recommendations', {
+        count: aiRecommendations.length
+      });
 
     } catch (error: any) {
-      console.error('AI recommendations error:', error);
+      log.error('AIRecommendations', 'AI recommendations error', error);
       Alert.alert(
         'Recommendations Unavailable',
         'Unable to generate personalized recommendations right now. Please try again later.',

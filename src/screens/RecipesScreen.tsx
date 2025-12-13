@@ -38,6 +38,7 @@ import { useAICredits } from '../store/useAICredits';
 import RecipeCard from '../components/RecipeCard';
 import { createRecipeCardProps } from '../utils/recipeActions';
 import { StatusBar } from 'expo-status-bar';
+import { log } from '../lib/logger';
 import { RecipesRepository } from '../repos/supabase';
 import { getCocktailImage } from '../../assets/images/cocktails';
 import { usePersonalization } from '../store/usePersonalization';
@@ -675,14 +676,14 @@ export default function RecipesScreen() {
         // TEMPORARY: Force clear ALL caches to reload with local images
         // Remove this after images are working correctly
         await RecipesRepository.clearAllCaches();
-        console.log('🔄 Cleared ALL recipe caches - will reload with local images');
+        log.info('RecipesScreen', 'Cleared ALL recipe caches - will reload with local images');
 
         // This will fetch fresh data since cache is cleared
         const recipes = await RecipesRepository.getInitialRecipes(150);
         setAllRecipes(recipes);
         setRecipesLoading(false);
       } catch (error) {
-        console.error('Error loading recipes:', error);
+        log.error('RecipesScreen', 'Error loading recipes', error);
         setRecipesLoading(false);
         showToast('Failed to load recipes. Please check your connection.', 'error');
       }
@@ -699,7 +700,7 @@ export default function RecipesScreen() {
       setAllRecipes(recipes);
       showToast('Recipes refreshed!', 'success');
     } catch (error) {
-      console.error('Error refreshing recipes:', error);
+      log.error('RecipesScreen', 'Error refreshing recipes', error);
       showToast('Failed to refresh recipes', 'error');
     } finally {
       setRefreshing(false);
@@ -731,12 +732,12 @@ export default function RecipesScreen() {
         tags: recipe.tags || [],
       });
 
-      console.log('AI recipe saved successfully:', recipe.title);
+      log.info('RecipesScreen', 'AI recipe saved successfully', { title: recipe.title });
 
       // Refresh the recipes list to show the new recipe
       loadRecipes();
     } catch (error) {
-      console.error('Error saving AI recipe:', error);
+      log.error('RecipesScreen', 'Error saving AI recipe', error, { title: recipe.title });
       showToast('Failed to save AI recipe', 'error');
     }
   }, [loadRecipes]);
@@ -827,12 +828,12 @@ export default function RecipesScreen() {
               });
             }
           } catch (aiError) {
-            console.warn('AI enhancement failed, continuing with basic search:', aiError);
+            log.warn('RecipesScreen', 'AI enhancement failed, continuing with basic search', { query });
           }
 
           setSearchResults(recipeResults);
         } catch (searchError) {
-          console.warn('Search service error, using fallback:', searchError);
+          log.warn('RecipesScreen', 'Search service error, using fallback', { query });
           // Fallback: Direct string matching
           const queryLower = query.toLowerCase();
           const directResults = ALL_COCKTAILS.filter(cocktail => {
@@ -842,7 +843,7 @@ export default function RecipesScreen() {
           setSearchResults(directResults);
         }
       } catch (error) {
-        console.error('Search error:', error);
+        log.error('RecipesScreen', 'Search error', error, { query });
         setSearchResults([]);
       } finally {
         setIsSearching(false);
@@ -923,7 +924,7 @@ export default function RecipesScreen() {
 
         setPersonalizedRecommendations(formattedSections);
       } catch (error) {
-        console.error('Error loading personalized recommendations:', error);
+        log.error('RecipesScreen', 'Error loading personalized recommendations', error);
         setPersonalizedRecommendations([]);
       }
     }

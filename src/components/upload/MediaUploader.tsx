@@ -21,6 +21,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { colors, spacing, radii } from '../../theme/tokens';
 import CameraCapture from '../camera/CameraCapture';
+import { log } from '../../lib/logger';
 
 interface MediaUploaderProps {
   onImageSelected: (imageUri: string, metadata?: ImageMetadata) => void;
@@ -88,7 +89,7 @@ export default function MediaUploader({
         await processAndUploadImage(imageInfo.uri);
       }
     } catch (error) {
-      console.error('Failed to process image:', error);
+      log.error('MediaUploader', 'Failed to process image', error);
       Alert.alert('Error', 'Failed to process image. Please try again.');
     } finally {
       setIsProcessing(false);
@@ -140,7 +141,7 @@ export default function MediaUploader({
       onImageSelected(result.uri, metadata);
 
     } catch (error) {
-      console.error('Failed to process and upload image:', error);
+      log.error('MediaUploader', 'Failed to process and upload image', error);
       Alert.alert('Error', 'Failed to process image. Please try again.');
     } finally {
       setIsProcessing(false);
@@ -351,7 +352,7 @@ function SimpleImageEditor({
 
       onConfirm(result.uri);
     } catch (error) {
-      console.error('Failed to apply crop:', error);
+      log.error('SimpleImageEditor', 'Failed to apply crop', error);
       Alert.alert('Error', 'Failed to edit image. Please try again.');
     } finally {
       setIsProcessing(false);

@@ -10,6 +10,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, radii } from '../theme/tokens';
 import { usePersonalization } from '../store/usePersonalization';
+import { log } from '../lib/logger';
 
 interface RecipePreferencesModalProps {
   visible: boolean;
@@ -76,7 +77,7 @@ export default function RecipePreferencesModal({ visible, onClose }: RecipePrefe
       // Regenerate AI recommendations
       await generateRecommendations();
     } catch (error) {
-      console.error('Error updating spirit preference:', error);
+      log.error('RecipePreferencesModal', 'Error updating spirit preference', error);
     }
   };
 
@@ -96,7 +97,7 @@ export default function RecipePreferencesModal({ visible, onClose }: RecipePrefe
 
       await generateRecommendations();
     } catch (error) {
-      console.error('Error updating skill level:', error);
+      log.error('RecipePreferencesModal', 'Error updating skill level', error);
     }
   };
 
@@ -120,7 +121,7 @@ export default function RecipePreferencesModal({ visible, onClose }: RecipePrefe
 
       await generateRecommendations();
     } catch (error) {
-      console.error('Error updating flavor preferences:', error);
+      log.error('RecipePreferencesModal', 'Error updating flavor preferences', error);
     }
   };
 

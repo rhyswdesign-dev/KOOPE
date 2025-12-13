@@ -18,6 +18,7 @@ import { searchService, SearchableItem, FilterOptions } from '../services/search
 import { SearchSuggestion } from '../services/searchHistoryService';
 import AdvancedFilters, { AdvancedFilterState } from './search/AdvancedFilters';
 import VoiceSearch from './search/VoiceSearch';
+import { log } from '../lib/logger';
 
 interface SearchModalProps {
   visible: boolean;
@@ -95,7 +96,7 @@ export default function SearchModal({
       const searchResults = await searchService.search(searchQuery, filters);
       setResults(searchResults);
     } catch (error) {
-      console.error('Search failed:', error);
+      log.error('SearchModal', 'Search failed', error);
       setResults([]);
     } finally {
       setIsSearching(false);

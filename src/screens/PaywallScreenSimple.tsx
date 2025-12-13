@@ -19,6 +19,7 @@ import { colors, spacing } from '../theme/tokens';
 import { useSubscription } from '../contexts/SubscriptionContext';
 import { TIERS } from '../constants/tierBenefits';
 import TierComparisonCard from '../components/TierComparisonCard';
+import { log } from '../lib/logger';
 
 interface PaywallScreenSimpleProps {
   route?: {
@@ -43,7 +44,7 @@ export default function PaywallScreenSimple({ route }: PaywallScreenSimpleProps)
     }
 
     // For now, just log the subscription attempt
-    console.log('Subscribe:', tierId, 'period:', billingPeriod);
+    log.info('PaywallScreenSimple', 'Subscribe attempt', { tierId, billingPeriod });
 
     // Show coming soon alert
     Alert.alert(
@@ -164,7 +165,7 @@ export default function PaywallScreenSimple({ route }: PaywallScreenSimpleProps)
         <TouchableOpacity
           style={styles.restoreButton}
           onPress={() => {
-            console.log('Restore purchases');
+            log.info('PaywallScreenSimple', 'Restore purchases clicked');
             Alert.alert('Restore Purchases', 'This will be implemented with RevenueCat.');
           }}
         >

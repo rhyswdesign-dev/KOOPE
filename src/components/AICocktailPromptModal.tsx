@@ -18,6 +18,7 @@ import {
 } from 'react-native';
 import { colors, spacing, radii, fonts } from '../theme/tokens';
 import { Ionicons } from '@expo/vector-icons';
+import { log } from '../lib/logger';
 
 interface AICocktailPromptModalProps {
   visible: boolean;
@@ -60,8 +61,8 @@ export default function AICocktailPromptModal({
       await onSubmit(prompt.trim());
       setPrompt('');
     } catch (error) {
-      console.error('Error submitting prompt:', error);
-    } finally {
+      log.error('AICocktailPromptModal', 'Error submitting prompt', error);
+    } finally{
       setLoading(false);
     }
   };

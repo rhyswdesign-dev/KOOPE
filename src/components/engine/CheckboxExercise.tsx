@@ -9,6 +9,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, radii, spacing } from '../../theme/tokens';
 import { Item } from '../../types/domain';
+import { log } from '../../lib/logger';
 
 interface CheckboxExerciseProps {
   item: Item;
@@ -85,7 +86,7 @@ export const CheckboxExercise: React.FC<CheckboxExerciseProps> = ({ item, onResu
   const isOptionSelected = (option: string) => selectedOptions.includes(option);
   const canSubmit = selectedOptions.length > 0;
 
-  console.log('✅ CheckboxExercise rendering:', {
+  log.debug('CheckboxExercise', 'Rendering CheckboxExercise', {
     prompt: item.prompt,
     optionsCount: item.options?.length,
     fadeAnimValue: 1

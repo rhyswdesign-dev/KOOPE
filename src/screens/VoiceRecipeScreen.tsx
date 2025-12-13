@@ -16,6 +16,7 @@ import { colors, spacing, radii, fonts } from '../theme/tokens';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { VoiceRecipeService, VoiceRecipeInput } from '../services/voiceRecipeService';
 import { AIRecipeFormatter, RecipeInput, RecipeType } from '../services/aiRecipeFormatter';
+import { log } from '../lib/logger';
 
 type VoiceRecipeScreenNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -86,11 +87,11 @@ export default function VoiceRecipeScreen() {
         throw new Error('No audio recorded');
       }
 
-      console.log('Voice: Processing audio...');
+      log.info('VoiceRecipeScreen', 'Processing audio');
       const transcribedText = await voiceService.transcribeAudio(audioUri);
       setTranscription(transcribedText);
 
-      console.log('Voice: Parsing recipe...');
+      log.info('VoiceRecipeScreen', 'Parsing recipe from transcription');
       const parsedInput = await voiceService.parseVoiceRecipe(transcribedText);
       setParsedVoiceInput(parsedInput);
 

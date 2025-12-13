@@ -20,6 +20,7 @@ import PreferenceToggle from './PreferenceToggle';
 import { colors, spacing, radii } from '../theme/tokens';
 import { CONSENT_CATEGORIES, isStrictPrivacyRegion } from '../../config/privacy';
 import type { ConsentChoices, ConsentCategory } from '../types/consent';
+import { log } from '../lib/logger';
 
 interface ConsentModalProps {
   visible: boolean;
@@ -73,7 +74,7 @@ export default function ConsentModal({
       setIsSaving(true);
       await onAcceptAll();
     } catch (err) {
-      console.error('Failed to accept all:', err);
+      log.error('ConsentModal', 'Failed to accept all', err);
     } finally {
       setIsSaving(false);
     }
@@ -87,7 +88,7 @@ export default function ConsentModal({
       setIsSaving(true);
       await onRejectAll();
     } catch (err) {
-      console.error('Failed to reject all:', err);
+      log.error('ConsentModal', 'Failed to reject all', err);
     } finally {
       setIsSaving(false);
     }
@@ -101,7 +102,7 @@ export default function ConsentModal({
       setIsSaving(true);
       await onSaveChoices(choices);
     } catch (err) {
-      console.error('Failed to save choices:', err);
+      log.error('ConsentModal', 'Failed to save choices', err);
     } finally {
       setIsSaving(false);
     }

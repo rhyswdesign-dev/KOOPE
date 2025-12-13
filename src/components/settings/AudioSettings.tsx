@@ -10,6 +10,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, radii } from '../../theme/tokens';
 import { useAudio } from '../../hooks/useAudio';
 import { AudioButton } from '../ui/AudioButton';
+import { log } from '../../lib/logger';
 
 export const AudioSettings: React.FC = () => {
   const audio = useAudio();
@@ -34,16 +35,16 @@ export const AudioSettings: React.FC = () => {
         setTestSoundPlaying(false);
       }, 1000);
     } catch (error) {
-      console.error('Failed to play test sound:', error);
+      log.error('AudioSettings', 'Failed to play test sound', error);
       setTestSoundPlaying(false);
     }
   };
 
   const handleTestCocktailSounds = async () => {
     if (testSoundPlaying) return;
-    
+
     setTestSoundPlaying(true);
-    
+
     try {
       // Play a sequence of cocktail sounds
       await audio.playShakeCocktail();
@@ -55,7 +56,7 @@ export const AudioSettings: React.FC = () => {
         setTestSoundPlaying(false);
       }, 3000);
     } catch (error) {
-      console.error('Failed to play cocktail test sounds:', error);
+      log.error('AudioSettings', 'Failed to play cocktail test sounds', error);
       setTestSoundPlaying(false);
     }
   };
