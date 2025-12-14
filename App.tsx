@@ -4,7 +4,7 @@ import RootNavigator from './src/navigation/RootNavigator';
 import { colors } from './src/theme/tokens';
 import SplashScreen from './src/screens/SplashScreen';
 import BartendingWelcomeScreen from './src/screens/BartendingWelcomeScreen';
-import AuthScreen from './src/screens/AuthScreen';
+import OAuthSignInScreen from './src/screens/OAuthSignInScreen';
 import XPReminderScreen from './src/screens/XPReminderScreen';
 import WelcomeCarouselScreen from './src/screens/WelcomeCarouselScreen';
 import SurveyScreen from './src/screens/onboarding/SurveyScreen';
@@ -127,9 +127,9 @@ export default function App() {
     return <WelcomeCarouselScreen onComplete={completeWelcome} />;
   }
 
-  // Show sign-up screen after welcome carousel
+  // Show OAuth sign-in screen after welcome carousel
   if (appState === 'onboarding') {
-    return <AuthScreen onComplete={completeOnboarding} onSkip={skipToXPReminder} />;
+    return <OAuthSignInScreen onComplete={completeOnboarding} onSkip={skipToXPReminder} />;
   }
 
   // Show XP reminder after skipping account setup

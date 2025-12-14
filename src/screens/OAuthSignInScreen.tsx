@@ -1,0 +1,358 @@
+/**
+ * OAuth Sign-In Screen
+ * Apple and Google OAuth only - no email/password
+ */
+
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Platform,
+  Dimensions,
+  Alert,
+} from 'react-native';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { colors, spacing, radii } from '../theme/tokens';
+import { log } from '../lib/logger';
+
+interface OAuthSignInScreenProps {
+  onComplete?: () => void;
+  onSkip?: () => void;
+}
+
+const { width } = Dimensions.get('window');
+
+export default function OAuthSignInScreen({ onComplete, onSkip }: OAuthSignInScreenProps) {
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleAppleSignIn = async () => {
+    setIsLoading(true);
+    try {
+      log.info('OAuthSignInScreen', 'Apple Sign-In initiated');
+
+      // TODO: Implement actual Apple Sign-In with Supabase
+      // For now, show placeholder
+      Alert.alert(
+        'Apple Sign-In',
+        'Apple authentication will be available once Supabase Auth is configured.',
+        [
+          {
+            text: 'OK',
+            onPress: () => {
+              // Temporarily complete onboarding for testing
+              if (onComplete) onComplete();
+            }
+          }
+        ]
+      );
+
+      log.info('OAuthSignInScreen', 'Apple Sign-In completed');
+    } catch (error: any) {
+      log.error('OAuthSignInScreen', 'Apple Sign-In failed', error);
+      Alert.alert('Sign In Failed', 'Could not sign in with Apple. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setIsLoading(true);
+    try {
+      log.info('OAuthSignInScreen', 'Google Sign-In initiated');
+
+      // TODO: Implement actual Google Sign-In with Supabase
+      // For now, show placeholder
+      Alert.alert(
+        'Google Sign-In',
+        'Google authentication will be available once Supabase Auth is configured.',
+        [
+          {
+            text: 'OK',
+            onPress: () => {
+              // Temporarily complete onboarding for testing
+              if (onComplete) onComplete();
+            }
+          }
+        ]
+      );
+
+      log.info('OAuthSignInScreen', 'Google Sign-In completed');
+    } catch (error: any) {
+      log.error('OAuthSignInScreen', 'Google Sign-In failed', error);
+      Alert.alert('Sign In Failed', 'Could not sign in with Google. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <View style={styles.container}>
+      {/* Gradient Background */}
+      <LinearGradient
+        colors={[colors.bg, '#1A0F0B', colors.card]}
+        style={StyleSheet.absoluteFillObject}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      />
+
+      {/* Ambient lighting effects */}
+      <View style={[styles.lightOrb, styles.lightOrbTop]} />
+      <View style={[styles.lightOrb, styles.lightOrbBottom]} />
+
+      {/* Skip Button */}
+      {onSkip && (
+        <TouchableOpacity
+          style={styles.skipButton}
+          onPress={onSkip}
+          disabled={isLoading}
+        >
+          <Text style={styles.skipButtonText}>Skip</Text>
+          <Ionicons name="arrow-forward" size={18} color={colors.gold} />
+        </TouchableOpacity>
+      )}
+
+      <View style={styles.content}>
+        {/* Hero Section */}
+        <View style={styles.hero}>
+          <View style={styles.logoContainer}>
+            <View style={styles.logoGlow}>
+              <MaterialCommunityIcons name="glass-cocktail" size={48} color={colors.gold} />
+            </View>
+          </View>
+
+          <Text style={styles.title}>Sign in to KŌOPE</Text>
+
+          <Text style={styles.subtitle}>
+            Save your progress, sync across devices, and unlock your full bartending potential
+          </Text>
+        </View>
+
+        {/* Benefits */}
+        <View style={styles.benefits}>
+          {[
+            { icon: 'sync', text: 'Sync progress across all devices' },
+            { icon: 'trophy', text: 'Track XP, streaks & achievements' },
+            { icon: 'lock-open', text: 'Access unlocked premium content' },
+          ].map((benefit, index) => (
+            <View key={index} style={styles.benefit}>
+              <View style={styles.benefitIconContainer}>
+                <Ionicons name={benefit.icon as any} size={20} color={colors.gold} />
+              </View>
+              <Text style={styles.benefitText}>{benefit.text}</Text>
+            </View>
+          ))}
+        </View>
+
+        {/* OAuth Buttons */}
+        <View style={styles.authButtons}>
+          {/* Apple Sign-In (iOS only) */}
+          {Platform.OS === 'ios' && (
+            <TouchableOpacity
+              style={[styles.appleButton, isLoading && styles.buttonDisabled]}
+              onPress={handleAppleSignIn}
+              disabled={isLoading}
+              activeOpacity={0.8}
+            >
+              <View style={styles.buttonContent}>
+                <MaterialCommunityIcons name="apple" size={24} color="#FFFFFF" />
+                <Text style={styles.appleButtonText}>Continue with Apple</Text>
+              </View>
+            </TouchableOpacity>
+          )}
+
+          {/* Google Sign-In */}
+          <TouchableOpacity
+            style={[styles.googleButton, isLoading && styles.buttonDisabled]}
+            onPress={handleGoogleSignIn}
+            disabled={isLoading}
+            activeOpacity={0.8}
+          >
+            <View style={styles.buttonContent}>
+              <MaterialCommunityIcons name="google" size={24} color="#FFFFFF" />
+              <Text style={styles.googleButtonText}>Continue with Google</Text>
+            </View>
+          </TouchableOpacity>
+        </View>
+
+        {/* Terms */}
+        <View style={styles.footer}>
+          <Text style={styles.termsText}>
+            By continuing, you agree to our{'\n'}
+            <Text style={styles.termsLink}>Terms of Service</Text>
+            {' and '}
+            <Text style={styles.termsLink}>Privacy Policy</Text>
+          </Text>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.bg,
+  },
+  content: {
+    flex: 1,
+    paddingHorizontal: spacing(4),
+    paddingTop: Platform.OS === 'ios' ? spacing(8) : spacing(6),
+    paddingBottom: spacing(6),
+    justifyContent: 'space-between',
+  },
+  lightOrb: {
+    position: 'absolute',
+    width: width * 0.8,
+    height: width * 0.8,
+    borderRadius: width * 0.4,
+    backgroundColor: colors.gold,
+    opacity: 0.03,
+  },
+  lightOrbTop: {
+    top: -width * 0.4,
+    right: -width * 0.3,
+  },
+  lightOrbBottom: {
+    bottom: -width * 0.3,
+    left: -width * 0.4,
+  },
+  skipButton: {
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? spacing(6) : spacing(4),
+    right: spacing(4),
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(0.5),
+    paddingHorizontal: spacing(2),
+    paddingVertical: spacing(1),
+    zIndex: 10,
+  },
+  skipButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.gold,
+  },
+  hero: {
+    alignItems: 'center',
+    marginTop: spacing(4),
+  },
+  logoContainer: {
+    marginBottom: spacing(4),
+  },
+  logoGlow: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: colors.gold,
+    opacity: 0.1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: colors.gold,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 20,
+  },
+  title: {
+    fontSize: 32,
+    fontWeight: '900',
+    color: colors.text,
+    marginBottom: spacing(2),
+    textAlign: 'center',
+  },
+  subtitle: {
+    fontSize: 16,
+    color: colors.subtext,
+    textAlign: 'center',
+    lineHeight: 24,
+    maxWidth: 320,
+  },
+  benefits: {
+    gap: spacing(2),
+    marginVertical: spacing(4),
+  },
+  benefit: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    borderRadius: radii.lg,
+    padding: spacing(2.5),
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  benefitIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.gold,
+    opacity: 0.15,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing(2),
+  },
+  benefitText: {
+    fontSize: 15,
+    color: colors.text,
+    flex: 1,
+    fontWeight: '500',
+  },
+  authButtons: {
+    gap: spacing(2),
+  },
+  appleButton: {
+    backgroundColor: '#000000',
+    borderRadius: radii.lg,
+    paddingVertical: spacing(2.5),
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  googleButton: {
+    backgroundColor: '#4285F4',
+    borderRadius: radii.lg,
+    paddingVertical: spacing(2.5),
+    shadowColor: '#4285F4',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  buttonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing(1.5),
+  },
+  appleButtonText: {
+    color: '#FFFFFF',
+    fontSize: 17,
+    fontWeight: '600',
+  },
+  googleButtonText: {
+    color: '#FFFFFF',
+    fontSize: 17,
+    fontWeight: '600',
+  },
+  buttonDisabled: {
+    opacity: 0.6,
+  },
+  footer: {
+    alignItems: 'center',
+    marginTop: spacing(4),
+  },
+  termsText: {
+    fontSize: 13,
+    color: colors.subtle,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  termsLink: {
+    color: colors.gold,
+    fontWeight: '600',
+  },
+});
