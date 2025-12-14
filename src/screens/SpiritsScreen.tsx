@@ -23,6 +23,7 @@ import { SearchableItem, FilterOptions } from '../services/searchService';
 import SearchModal from '../components/SearchModal';
 import FilterDrawer from '../components/FilterDrawer';
 import CreateRecipeModal from '../components/CreateRecipeModal';
+import { log } from '../lib/logger';
 
 
 const chips: Array<{ key: string; label: string }> = [
@@ -49,25 +50,25 @@ export default function SpiritsScreen() {
 
   const handleSearch = (query: string) => {
     // Handle search - you could filter spirits or navigate to search results
-    console.log('Search query:', query);
+    log.info('SpiritsScreen', 'Search query submitted', { query });
     setSearchModalVisible(false);
   };
 
   const handleFilterApply = (filters: Partial<FilterOptions>) => {
     setCurrentFilters(filters);
     setFilterDrawerVisible(false);
-    console.log('Applied filters:', filters);
+    log.info('SpiritsScreen', 'Filters applied', { filters });
     // Apply filters to spirit results
   };
 
   const handleRecipeCreated = (recipeId: string) => {
-    console.log('Recipe created:', recipeId);
+    log.info('SpiritsScreen', 'Recipe created', { recipeId });
     setCreateRecipeModalVisible(false);
     // Could navigate to the created recipe
   };
 
   const handleCompetitionEntryCreated = (entryId: string) => {
-    console.log('Competition entry created:', entryId);
+    log.info('SpiritsScreen', 'Competition entry created', { entryId });
     // Could navigate to the entry or competitions section
   };
 
@@ -91,7 +92,7 @@ export default function SpiritsScreen() {
         nav.navigate('Vault' as never);
       }
     } catch (error) {
-      console.log('Navigation error:', error);
+      log.error('SpiritsScreen', 'Navigation error', error as Error);
     }
   };
 

@@ -13,14 +13,15 @@ import {
   SafeAreaView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { 
-  LocationMap, 
-  CompactLocationMap, 
+import {
+  LocationMap,
+  CompactLocationMap,
   BasicLocationMap,
   LocationData
 } from '../components/ui';
 import { colors, spacing, radii, fonts } from '../theme/tokens';
 import { BARS } from '../data/bars';
+import { log } from '../lib/logger';
 
 const MapsDemo: React.FC = () => {
   const [selectedBar, setSelectedBar] = useState<string>('the_alchemist');
@@ -111,8 +112,8 @@ const MapsDemo: React.FC = () => {
           <LocationMap
             location={locationData}
             height={300}
-            onMarkerPress={(location) => 
-              console.log('Marker pressed:', location.name)
+            onMarkerPress={(location) =>
+              log.info('MapsDemo', 'Marker pressed', { locationName: location.name })
             }
           />
         )}
@@ -120,8 +121,8 @@ const MapsDemo: React.FC = () => {
         {mapStyle === 'compact' && (
           <CompactLocationMap
             location={locationData}
-            onMarkerPress={(location) => 
-              console.log('Compact marker pressed:', location.name)
+            onMarkerPress={(location) =>
+              log.info('MapsDemo', 'Compact marker pressed', { locationName: location.name })
             }
           />
         )}
@@ -130,8 +131,8 @@ const MapsDemo: React.FC = () => {
           <BasicLocationMap
             location={locationData}
             height={200}
-            onMarkerPress={(location) => 
-              console.log('Basic marker pressed:', location.name)
+            onMarkerPress={(location) =>
+              log.info('MapsDemo', 'Basic marker pressed', { locationName: location.name })
             }
           />
         )}

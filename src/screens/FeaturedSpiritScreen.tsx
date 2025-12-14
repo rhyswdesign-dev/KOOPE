@@ -19,6 +19,7 @@ import PairingsSection from '../components/spirit/PairingsSection';
 import SectionTitle from '../components/ui/SectionTitle';
 import { useSavedItems } from '../hooks/useSavedItems';
 import { colors } from '../theme/tokens';
+import { log } from '../lib/logger';
 
 type RootStackParamList = {
   FeaturedSpirit: { spiritId: string; tier: SpiritTier };
@@ -84,8 +85,8 @@ export default function FeaturedSpiritScreen() {
       ),
     });
   }, [navigation, isSaved, content]);
-  
-  console.log('FeaturedSpiritScreen DEBUG:', {
+
+  log.debug('FeaturedSpiritScreen', 'Screen initialized', {
     spiritId,
     tier,
     contentFound: !!content,
@@ -191,10 +192,10 @@ export default function FeaturedSpiritScreen() {
         {cfg.showBrandVideos && content.brandVideos?.length ? (
           <View style={styles.section}>
             <SectionTitle>Brand Videos</SectionTitle>
-            <BrandVideos 
-              videos={content.brandVideos} 
+            <BrandVideos
+              videos={content.brandVideos}
               onVideoPress={(video) => {
-                console.log('Playing video:', video.title);
+                log.info('FeaturedSpiritScreen', 'Video pressed', { videoTitle: video.title });
                 // Here you could navigate to a video player screen
                 // or open a modal with video content
               }} 

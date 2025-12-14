@@ -24,6 +24,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { HomeBar, BarIngredient, HomeBarService } from '../services/homeBarService';
 import { ShoppingListStore } from '../services/shoppingListStore';
 import EmptyState from '../components/EmptyState';
+import { log } from '../lib/logger';
 
 // Import images from assets
 import * as Images from '../../assets/images';
@@ -260,7 +261,7 @@ export default function HomeBarScreen() {
         await HomeBarService.clearStoredIngredients();
       }
     } catch (error) {
-      console.error('Error loading stored ingredients:', error);
+      log.error('HomeBarScreen', 'Failed to load stored ingredients', error as Error);
     }
   };
 

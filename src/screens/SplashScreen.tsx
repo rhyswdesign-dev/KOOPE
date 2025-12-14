@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Animated, Dimensions, Image } from 'react-native';
 import { Video, ResizeMode } from 'expo-av';
 import theme from '../theme/safeTheme';
+import { log } from '../lib/logger';
 
 const { colors, spacing } = theme;
 const { width, height } = Dimensions.get('window');
@@ -33,7 +34,7 @@ export default function SplashScreen({ onFinish }: SplashScreenProps) {
   const [selectedVideo] = useState(() => {
     const randomIndex = Math.floor(Math.random() * videoSources.length);
     const selectedVideoFile = videoSources[randomIndex];
-    console.log(`🎬 Splash Screen: Playing bartending video ${randomIndex + 1} of ${videoSources.length}`);
+    log.info('SplashScreen', 'Playing bartending video', { videoIndex: randomIndex + 1, totalVideos: videoSources.length });
     return selectedVideoFile;
   });
 
@@ -70,15 +71,15 @@ export default function SplashScreen({ onFinish }: SplashScreenProps) {
         useNativeControls={false}
         posterSource={undefined}
         onLoad={() => {
-          console.log('🎬 Video loaded successfully');
+          log.info('SplashScreen', 'Video loaded successfully');
           setIsVideoLoaded(true);
         }}
         onLoadStart={() => {
-          console.log('🎬 Video started loading...');
+          log.info('SplashScreen', 'Video started loading');
           setIsVideoLoaded(false);
         }}
         onError={(error) => {
-          console.log('Video error:', error);
+          log.error('SplashScreen', 'Video error', error);
           setIsVideoLoaded(false);
         }}
       />

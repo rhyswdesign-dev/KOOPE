@@ -12,6 +12,7 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/RootNavigator';
 import { colors, spacing, radii } from '../../theme/tokens';
+import { log } from '../../lib/logger';
 
 type OrderConfirmationRouteProp = RouteProp<RootStackParamList, 'OrderConfirmation'>;
 
@@ -51,7 +52,7 @@ export default function OrderConfirmationScreen() {
         title: 'Order Confirmation',
       });
     } catch (error) {
-      console.log('Error sharing:', error);
+      log.error('OrderConfirmationScreen', 'Error sharing', error);
     }
   };
 

@@ -11,6 +11,7 @@ import { signOut, deleteUser } from 'firebase/auth';
 import { auth } from '../config/firebase';
 import { colors, spacing, radii } from '../theme/tokens';
 import type { RootStackParamList } from '../navigation/RootNavigator';
+import { log } from '../lib/logger';
 
 export default function SettingsScreen() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -64,10 +65,10 @@ export default function SettingsScreen() {
           onPress: async () => {
             try {
               await signOut(auth);
-              console.log('✅ User signed out successfully');
+              log.info('SettingsScreen', 'User signed out successfully');
               // AuthContext will handle the state change and redirect automatically
             } catch (error: any) {
-              console.error('❌ Sign out error:', error);
+              log.error('SettingsScreen', 'Sign out error', error);
               Alert.alert('Error', 'Failed to sign out. Please try again.');
             }
           }
@@ -96,11 +97,11 @@ export default function SettingsScreen() {
 
               // Delete the user account
               await deleteUser(user);
-              console.log('✅ Account deleted successfully');
+              log.info('SettingsScreen', 'Account deleted successfully');
 
               // User will be automatically signed out and redirected
             } catch (error: any) {
-              console.error('❌ Account deletion error:', error);
+              log.error('SettingsScreen', 'Account deletion error', error);
 
               let errorMessage = 'Failed to delete account. Please try again.';
 
@@ -216,9 +217,9 @@ export default function SettingsScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Privacy & Security</Text>
           
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.settingItem}
-            onPress={() => console.log('Privacy Settings')}
+            onPress={() => log.info('SettingsScreen', 'Privacy Settings pressed')}
             activeOpacity={0.7}
           >
             <View style={styles.settingItemLeft}>
@@ -229,9 +230,9 @@ export default function SettingsScreen() {
           </TouchableOpacity>
 
 
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.settingItem}
-            onPress={() => console.log('Blocked Users')}
+            onPress={() => log.info('SettingsScreen', 'Blocked Users pressed')}
             activeOpacity={0.7}
           >
             <View style={styles.settingItemLeft}>
@@ -311,9 +312,9 @@ export default function SettingsScreen() {
             <Ionicons name="chevron-forward" size={20} color={colors.subtext} />
           </TouchableOpacity>
 
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.settingItem}
-            onPress={() => console.log('Rate App')}
+            onPress={() => log.info('SettingsScreen', 'Rate App pressed')}
             activeOpacity={0.7}
           >
             <View style={styles.settingItemLeft}>

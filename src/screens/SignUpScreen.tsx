@@ -8,6 +8,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { auth } from '../config/firebase';
 import { colors, spacing, radii, textStyles } from '../theme/tokens';
+import { log } from '../lib/logger';
 
 interface SignUpScreenProps {
   onComplete?: () => void;
@@ -87,13 +88,13 @@ export default function SignUpScreen({ onComplete, onSignIn, onTermsPress, onPri
         displayName: name.trim()
       });
 
-      console.log('✅ Sign up successful:', userCredential.user.uid);
+      log.info('SignUpScreen', 'Sign up successful', { userId: userCredential.user.uid });
 
       if (onComplete) {
         onComplete();
       }
     } catch (error: any) {
-      console.error('❌ Sign up error:', error);
+      log.error('SignUpScreen', 'Sign up error', error);
 
       let errorMessage = 'Please try again';
 
@@ -125,7 +126,7 @@ export default function SignUpScreen({ onComplete, onSignIn, onTermsPress, onPri
   const handleAppleSignUp = async () => {
     try {
       // TODO: Implement Apple Sign Up
-      console.log('Apple Sign Up requested');
+      log.info('SignUpScreen', 'Apple Sign Up requested');
       Alert.alert('Coming Soon', 'Apple Sign Up will be available soon');
     } catch (error) {
       Alert.alert('Error', 'Apple Sign Up failed');
@@ -135,7 +136,7 @@ export default function SignUpScreen({ onComplete, onSignIn, onTermsPress, onPri
   const handleGoogleSignUp = async () => {
     try {
       // TODO: Implement Google Sign Up
-      console.log('Google Sign Up requested');
+      log.info('SignUpScreen', 'Google Sign Up requested');
       Alert.alert('Coming Soon', 'Google Sign Up will be available soon');
     } catch (error) {
       Alert.alert('Error', 'Google Sign Up failed');

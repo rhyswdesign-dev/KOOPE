@@ -21,6 +21,7 @@ import { useToast } from '../hooks/useToast';
 import CocktailDetailSkeleton from '../components/CocktailDetailSkeleton';
 import { achievementService } from '../services/achievementService';
 import { useSubscription } from '../contexts/SubscriptionContext';
+import { log } from '../lib/logger';
 
 type CocktailDetailScreenRouteProp = {
   params: {
@@ -854,7 +855,7 @@ export default function CocktailDetailScreen() {
         // Track recipe view for achievements
         await achievementService.trackAction('recipesViewed', 1);
       } catch (error) {
-        console.error('Error loading recipe:', error);
+        log.error('CocktailDetailScreen', 'Error loading recipe', error);
         showToast('Failed to load recipe details', 'error');
       } finally {
         setLoading(false);
@@ -872,7 +873,7 @@ export default function CocktailDetailScreen() {
       setFirebaseRecipe(recipe);
       showToast('Recipe refreshed!', 'success');
     } catch (error) {
-      console.error('Error refreshing recipe:', error);
+      log.error('CocktailDetailScreen', 'Error refreshing recipe', error);
       showToast('Failed to refresh recipe', 'error');
     } finally {
       setRefreshing(false);
@@ -973,7 +974,7 @@ export default function CocktailDetailScreen() {
       const requiresProAccess = (cocktail as any).requiresPro && !isPro && !isPrestige;
 
       if (requiresProAccess) {
-        console.log('[CocktailDetailScreen] Pro subscription required - redirecting to Paywall');
+        log.info('CocktailDetailScreen', 'Pro subscription required - redirecting to Paywall');
         nav.navigate('Paywall');
       }
     }

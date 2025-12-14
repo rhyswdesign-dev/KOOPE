@@ -8,6 +8,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../config/firebase';
 import { colors, spacing, radii, textStyles } from '../theme/tokens';
+import { log } from '../lib/logger';
 
 interface SignInScreenProps {
   onComplete?: () => void;
@@ -41,13 +42,13 @@ export default function SignInScreen({ onComplete, onSignUp, onForgotPassword, o
 
     try {
       await signInWithEmailAndPassword(auth, email.trim(), password);
-      console.log('✅ Sign in successful');
+      log.info('SignInScreen', 'Sign in successful');
 
       if (onComplete) {
         onComplete();
       }
     } catch (error: any) {
-      console.error('❌ Sign in error:', error);
+      log.error('SignInScreen', 'Sign in error', error);
 
       let errorMessage = 'Please check your credentials and try again';
 
@@ -85,7 +86,7 @@ export default function SignInScreen({ onComplete, onSignUp, onForgotPassword, o
   const handleAppleSignIn = async () => {
     try {
       // TODO: Implement Apple Sign In
-      console.log('Apple Sign In requested');
+      log.info('SignInScreen', 'Apple Sign In requested');
       Alert.alert('Coming Soon', 'Apple Sign In will be available soon');
     } catch (error) {
       Alert.alert('Error', 'Apple Sign In failed');
@@ -95,7 +96,7 @@ export default function SignInScreen({ onComplete, onSignUp, onForgotPassword, o
   const handleGoogleSignIn = async () => {
     try {
       // TODO: Implement Google Sign In
-      console.log('Google Sign In requested');
+      log.info('SignInScreen', 'Google Sign In requested');
       Alert.alert('Coming Soon', 'Google Sign In will be available soon');
     } catch (error) {
       Alert.alert('Error', 'Google Sign In failed');

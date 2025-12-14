@@ -26,6 +26,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { BARS as REAL_BARS } from '../data/bars';
 import { BAR_IMAGES, MOOD_IMAGES, EXTENDED_BAR_IMAGES, BAR_PAGE_HEADERS } from '../data/barImages';
+import { log } from '../lib/logger';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 const { width } = Dimensions.get('window');
@@ -381,25 +382,25 @@ export default function BarsScreen() {
 
   const handleSearch = (query: string) => {
     // Handle search - you could filter bars or navigate to search results
-    console.log('Search query:', query);
+    log.info('BarsScreen', 'Search query', { query });
     setSearchModalVisible(false);
   };
 
   const handleFilterApply = (filters: Partial<FilterOptions>) => {
     setCurrentFilters(filters);
     setFilterDrawerVisible(false);
-    console.log('Applied filters:', filters);
+    log.info('BarsScreen', 'Applied filters', { filters });
     // Apply filters to bar results
   };
 
   const handleRecipeCreated = (recipeId: string) => {
-    console.log('Recipe created:', recipeId);
+    log.info('BarsScreen', 'Recipe created', { recipeId });
     setCreateRecipeModalVisible(false);
     // Could navigate to the created recipe
   };
 
   const handleCompetitionEntryCreated = (entryId: string) => {
-    console.log('Competition entry created:', entryId);
+    log.info('BarsScreen', 'Competition entry created', { entryId });
     // Could navigate to the entry or competitions section
   };
 

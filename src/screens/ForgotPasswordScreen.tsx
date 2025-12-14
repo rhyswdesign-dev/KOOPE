@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { sendPasswordResetEmail } from 'firebase/auth';
 import { auth } from '../config/firebase';
 import { colors, spacing, radii } from '../theme/tokens';
+import { log } from '../lib/logger';
 
 interface ForgotPasswordScreenProps {
   onBack?: () => void;
@@ -38,11 +39,11 @@ export default function ForgotPasswordScreen({ onBack, onComplete }: ForgotPassw
 
     try {
       await sendPasswordResetEmail(auth, email.trim());
-      console.log('✅ Password reset email sent to:', email);
+      log.info('ForgotPasswordScreen', 'Password reset email sent', { email });
 
       setEmailSent(true);
     } catch (error: any) {
-      console.error('❌ Password reset error:', error);
+      log.error('ForgotPasswordScreen', 'Password reset error', error);
 
       let errorMessage = 'Failed to send reset email. Please try again.';
 

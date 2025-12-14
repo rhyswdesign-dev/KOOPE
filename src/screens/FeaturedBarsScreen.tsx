@@ -15,6 +15,7 @@ import { colors, spacing, radii, textStyles, layouts } from '../theme/tokens';
 import { CompactLocationMap } from '../components/ui';
 import { BARS } from '../data/bars';
 import { BAR_IMAGES, HEADER_IMAGES, BAR_PAGE_HEADERS } from '../data/barImages';
+import { log } from '../lib/logger';
 
 const { width } = Dimensions.get('window');
 const CARD = width - 32;
@@ -293,7 +294,7 @@ export default function FeaturedBarsScreen() {
             <View key={bar.id} style={{ marginRight: 12, width: 280 }}>
               <CompactLocationMap
                 location={bar.location!}
-                onMarkerPress={(location) => console.log('Featured bar location pressed:', location.name)}
+                onMarkerPress={(location) => log.info('FeaturedBarsScreen', 'Bar location marker pressed', { locationName: location.name })}
               />
             </View>
           ))

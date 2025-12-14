@@ -22,6 +22,7 @@ import { HomeBarService, BarIngredient } from '../services/homeBarService';
 import EmptyState from '../components/EmptyState';
 import Toast from '../components/Toast';
 import { useToast } from '../hooks/useToast';
+import { log } from '../lib/logger';
 
 type ViewMode = 'cocktail' | 'ingredient';
 type CategoryFilter = 'all' | 'spirits' | 'mixers' | 'garnishes' | 'syrups';
@@ -67,7 +68,7 @@ export default function ShoppingCartScreen() {
       });
       setCheckedShoppingItems(checkedItems);
     } catch (error) {
-      console.error('Error loading shopping lists:', error);
+      log.error('ShoppingCartScreen', 'Error loading shopping lists', error);
     }
   };
 
@@ -92,7 +93,7 @@ export default function ShoppingCartScreen() {
 
       showToast(`${item.name} added to your home bar!`, 'success');
     } catch (error) {
-      console.error('Error marking item as purchased:', error);
+      log.error('ShoppingCartScreen', 'Error marking item as purchased', error);
       showToast('Failed to mark item as purchased', 'error');
     }
   };
@@ -132,7 +133,7 @@ export default function ShoppingCartScreen() {
       await loadShoppingLists();
       showToast(itemName ? `${itemName} removed from cart` : 'Item removed from cart', 'info');
     } catch (error) {
-      console.error('Delete error:', error);
+      log.error('ShoppingCartScreen', 'Delete error', error);
       showToast('Failed to delete item', 'error');
     }
   };

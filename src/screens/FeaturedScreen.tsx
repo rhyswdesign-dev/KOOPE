@@ -20,6 +20,7 @@ import { useScreenTracking } from '../context/AnalyticsContext';
 import { FEATURED_SPIRIT_IMAGES } from '../data/barImages';
 import { getCocktailImage } from '../../assets/images/cocktails';
 import { getCocktailsOfTheWeek } from '../utils/weeklyRotation';
+import { log } from '../lib/logger';
 
 const chips: Array<{ key: string; label: string }> = [
   { key: 'Home', label: 'Home' },
@@ -126,25 +127,25 @@ export default function FeaturedScreen() {
 
   const handleSearch = (query: string) => {
     // Handle search - could navigate to search results screen
-    console.log('Search query:', query);
+    log.info('FeaturedScreen', 'Search query', { query });
     setSearchModalVisible(false);
   };
 
   const handleFilterApply = (filters: Partial<FilterOptions>) => {
     setCurrentFilters(filters);
     setFilterDrawerVisible(false);
-    console.log('Applied filters:', filters);
+    log.info('FeaturedScreen', 'Applied filters', { filters });
     // Apply filters to featured content
   };
 
   const handleRecipeCreated = (recipeId: string) => {
-    console.log('Recipe created:', recipeId);
+    log.info('FeaturedScreen', 'Recipe created', { recipeId });
     setCreateRecipeModalVisible(false);
     // Could navigate to the created recipe
   };
 
   const handleCompetitionEntryCreated = (entryId: string) => {
-    console.log('Competition entry created:', entryId);
+    log.info('FeaturedScreen', 'Competition entry created', { entryId });
     // Could navigate to the entry or competitions section
   };
   const mainScrollRef = useRef<ScrollView>(null);

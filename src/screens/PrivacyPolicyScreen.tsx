@@ -21,6 +21,7 @@ import MarkdownView from '../components/MarkdownView';
 import { useConsent } from '../hooks/useConsent';
 import { colors, spacing, radii } from '../theme/tokens';
 import type { PolicyDeepLink } from '../types/consent';
+import { log } from '../lib/logger';
 
 interface RouteParams {
   anchor?: string;
@@ -142,7 +143,7 @@ Email: privacy@homegameadvantage.com`;
       await markPrivacySeen();
 
     } catch (err) {
-      console.error('Failed to load privacy policy:', err);
+      log.error('PrivacyPolicyScreen', 'Failed to load privacy policy', err);
       setError('Failed to load privacy policy. Please try again.');
     } finally {
       setLoading(false);

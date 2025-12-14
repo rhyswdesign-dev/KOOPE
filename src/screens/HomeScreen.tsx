@@ -9,6 +9,7 @@ import { getCocktailOfTheMonth } from '../services/cocktailOfTheMonth';
 import { RecipesRepository } from '../repos/supabase';
 import CocktailOfTheMonthCard from '../components/CocktailOfTheMonthCard';
 import { Recipe } from '../types/recipe';
+import { log } from '../lib/logger';
 
 export default function HomeScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -28,7 +29,7 @@ export default function HomeScreen() {
         setFeaturedRecipe(recipe);
       }
     } catch (error) {
-      console.error('Error loading featured cocktail:', error);
+      log.error('HomeScreen', 'Failed to load featured cocktail', error as Error);
     } finally {
       setLoading(false);
     }

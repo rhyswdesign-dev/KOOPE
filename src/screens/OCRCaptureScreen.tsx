@@ -17,6 +17,7 @@ import { colors, spacing, radii, fonts } from '../theme/tokens';
 import { OCRService } from '../services/ocrService';
 import { AIRecipeFormatter } from '../services/aiRecipeFormatter';
 import type { RootStackParamList } from '../navigation/RootNavigator';
+import { log } from '../lib/logger';
 
 export default function OCRCaptureScreen() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -46,7 +47,7 @@ export default function OCRCaptureScreen() {
       }
     } catch (error: any) {
       // With the updated OCR service, this shouldn't happen as it returns graceful messages
-      console.error('Unexpected error in handleTakePhoto:', error);
+      log.error('OCRCaptureScreen', 'Unexpected error in handleTakePhoto', error);
       Alert.alert('Camera Error', 'An unexpected error occurred. Please try again.');
     } finally {
       setLoading(false);
@@ -64,7 +65,7 @@ export default function OCRCaptureScreen() {
       }
     } catch (error: any) {
       // With the updated OCR service, this shouldn't happen as it returns graceful messages
-      console.error('Unexpected error in handlePickFromGallery:', error);
+      log.error('OCRCaptureScreen', 'Unexpected error in handlePickFromGallery', error);
       Alert.alert('Gallery Error', 'An unexpected error occurred. Please try again.');
     } finally {
       setLoading(false);
@@ -135,7 +136,7 @@ export default function OCRCaptureScreen() {
       nav.navigate('AIRecipeFormat', { recipe: mockRecipe });
 
     } catch (error: any) {
-      console.error('Vision analysis error:', error);
+      log.error('OCRCaptureScreen', 'Vision analysis failed', error);
       Alert.alert(
         'Vision Analysis Failed',
         error.message || 'Could not analyze the recipe image. Please try using text extraction instead.',

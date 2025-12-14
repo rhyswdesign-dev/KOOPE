@@ -21,6 +21,7 @@ import MarkdownView from '../components/MarkdownView';
 import { useConsent } from '../hooks/useConsent';
 import { colors, spacing, radii } from '../theme/tokens';
 import { TERMS_VERSION } from '../../config/privacy';
+import { log } from '../lib/logger';
 
 interface RouteParams {
   anchor?: string;
@@ -195,7 +196,7 @@ If you have questions about these Terms, please contact us:
       setHasAccepted(hasAcceptedCurrent);
 
     } catch (err) {
-      console.error('Failed to load terms:', err);
+      log.error('TermsScreen', 'Failed to load terms', err as Error);
       setError('Failed to load terms & conditions. Please try again.');
     } finally {
       setLoading(false);
@@ -260,7 +261,7 @@ If you have questions about these Terms, please contact us:
         ]
       );
     } catch (err) {
-      console.error('Failed to accept terms:', err);
+      log.error('TermsScreen', 'Failed to accept terms', err as Error);
       Alert.alert('Error', 'Failed to save your acceptance. Please try again.');
     } finally {
       setIsAccepting(false);

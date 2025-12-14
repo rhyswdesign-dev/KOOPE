@@ -17,6 +17,7 @@ import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, radii, textStyles, layouts } from '../../theme/tokens';
 import { useSavedItems } from '../../hooks/useSavedItems';
+import { log } from '../../lib/logger';
 
 import { getBar } from '../../data/bars';
 import { BAR_TIERS } from '../../config/barTiers';
@@ -171,7 +172,7 @@ const SkylineLoungeScreen: React.FC = () => {
             <LocationMap
               location={bar.location}
               height={220}
-              onMarkerPress={(location) => console.log('Bar location pressed:', location.name)}
+              onMarkerPress={(location) => log.info('SkylineLoungeScreen', 'Bar location pressed', { locationName: location.name })}
             />
           </Section>
         )}

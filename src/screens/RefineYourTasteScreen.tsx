@@ -23,6 +23,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { usePersonalization } from '../store/usePersonalization';
 import { SurveyAnswers } from '../services/placement';
 import { trackEvent } from '../lib/analytics';
+import { log } from '../lib/logger';
 
 // Import spirit and flavor images directly
 const spiritImages = {
@@ -258,7 +259,7 @@ export default function RefineYourTasteScreen({ navigation }: Props) {
         ]
       );
     } catch (error) {
-      console.error('Error updating taste profile:', error);
+      log.error('RefineYourTasteScreen', 'Failed to update taste profile', error as Error);
       Alert.alert(
         'Error',
         'Failed to update your taste profile. Please try again.',

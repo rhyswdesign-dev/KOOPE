@@ -21,6 +21,7 @@ import { colors, spacing, radii } from '../../theme/tokens';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import curriculumData from '../../../curriculum-data.json';
+import { log } from '../../lib/logger';
 
 type LessonSummaryScreenProps = {
   navigation: CompositeNavigationProp<
@@ -168,7 +169,7 @@ export default function LessonSummaryScreen({ navigation, route }: LessonSummary
 
     if (nextLessonInModule) {
       // Navigate to next lesson in same module
-      console.log('📚 Navigating to next lesson:', nextLessonInModule.title);
+      log.info('LessonSummaryScreen', 'Navigating to next lesson', { lessonTitle: nextLessonInModule.title });
       navigation.navigate('LessonEngine', {
         lessonId: nextLessonInModule.id,
         moduleId: nextLessonInModule.moduleId,
@@ -183,7 +184,7 @@ export default function LessonSummaryScreen({ navigation, route }: LessonSummary
         const firstLessonInNextModule = lessons.find(l => l.moduleId === nextModule.id);
 
         if (firstLessonInNextModule) {
-          console.log('📚 Module complete! Moving to next module:', nextModule.title);
+          log.info('LessonSummaryScreen', 'Module complete, moving to next module', { moduleTitle: nextModule.title });
           navigation.navigate('LessonEngine', {
             lessonId: firstLessonInNextModule.id,
             moduleId: firstLessonInNextModule.moduleId,
@@ -195,7 +196,7 @@ export default function LessonSummaryScreen({ navigation, route }: LessonSummary
         }
       } else {
         // All lessons complete! Go back to lessons screen
-        console.log('🎉 All lessons complete!');
+        log.info('LessonSummaryScreen', 'All lessons complete!');
         navigation.navigate('LessonsMain');
       }
     }

@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, spacing, radii, textStyles } from '../theme/tokens';
+import { log } from '../lib/logger';
 
 // Data - Unsplash placeholder images
 const BRAND_OF_MONTH = {
@@ -37,7 +38,7 @@ const DATA = [
 
 // Placeholder function
 const onExplore = (categoryKey: string) => {
-  console.log(`Exploring recipes for: ${categoryKey}`);
+  log.info('SpiritsLandingScreen', 'Exploring recipes', { categoryKey });
 };
 
 // Helper Components

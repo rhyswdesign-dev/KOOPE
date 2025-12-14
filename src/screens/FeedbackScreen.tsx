@@ -10,6 +10,7 @@ import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { colors, spacing, radii } from '../theme/tokens';
+import { log } from '../lib/logger';
 
 interface FeedbackScreenProps {
   onBack?: () => void;
@@ -113,7 +114,7 @@ export default function FeedbackScreen({ onBack }: FeedbackScreenProps) {
 
       // Submit to Firestore
       await addDoc(collection(db, 'feedback'), feedbackData);
-      console.log('✅ Feedback submitted successfully');
+      log.info('FeedbackScreen', 'Feedback submitted successfully', { feedbackType: selectedType });
 
       // Show success message
       Alert.alert(
