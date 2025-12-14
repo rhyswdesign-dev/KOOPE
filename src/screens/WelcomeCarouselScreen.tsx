@@ -1,6 +1,6 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
-  View, Text, ScrollView, Pressable, StyleSheet, Dimensions, Image
+  View, Text, ScrollView, Pressable, StyleSheet, Dimensions, Animated
 } from 'react-native';
 import { Feather, MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { colors, spacing, radii, textStyles } from '../theme/tokens';
@@ -74,10 +74,45 @@ export default function WelcomeCarouselScreen({ onComplete }: WelcomeCarouselPro
   const [currentIndex, setCurrentIndex] = useState(0);
   const scrollViewRef = useRef<ScrollView>(null);
 
+  // Animation values
+  const fadeAnim = useRef(new Animated.Value(1)).current;
+  const slideUpAnim = useRef(new Animated.Value(0)).current;
+  const iconScaleAnim = useRef(new Animated.Value(1)).current;
+
+  // Trigger animations when slide changes
+  useEffect(() => {
+    // Reset and animate content
+    fadeAnim.setValue(0);
+    slideUpAnim.setValue(30);
+    iconScaleAnim.setValue(0.8);
+
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+      Animated.spring(slideUpAnim, {
+        toValue: 0,
+        tension: 50,
+        friction: 8,
+        useNativeDriver: true,
+      }),
+      Animated.spring(iconScaleAnim, {
+        toValue: 1,
+        tension: 40,
+        friction: 6,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [currentIndex]);
+
   const handleScroll = (event: any) => {
     const scrollX = event.nativeEvent.contentOffset.x;
     const index = Math.round(scrollX / width);
-    setCurrentIndex(index);
+    if (index !== currentIndex) {
+      setCurrentIndex(index);
+    }
   };
 
   const goToSlide = (index: number) => {
@@ -118,20 +153,54 @@ export default function WelcomeCarouselScreen({ onComplete }: WelcomeCarouselPro
         onScroll={handleScroll}
         scrollEventThrottle={16}
         style={styles.carousel}
+        decelerationRate="fast"
       >
-        {slides.map((slide) => (
+        {slides.map((slide, index) => (
           <View key={slide.id} style={styles.slide}>
-            {/* Icon */}
-            <View style={styles.iconContainer}>
-              {slide.icon}
-            </View>
+            {/* Only animate the current slide */}
+            {index === currentIndex ? (
+              <>
+                {/* Animated Icon */}
+                <Animated.View
+                  style={[
+                    styles.iconContainer,
+                    {
+                      opacity: fadeAnim,
+                      transform: [{ scale: iconScaleAnim }],
+                    },
+                  ]}
+                >
+                  {slide.icon}
+                </Animated.View>
 
-            {/* Content */}
-            <View style={styles.content}>
-              <Text style={styles.title}>{slide.title}</Text>
-              <Text style={styles.subtitle}>{slide.subtitle}</Text>
-              <Text style={styles.description}>{slide.description}</Text>
-            </View>
+                {/* Animated Content */}
+                <Animated.View
+                  style={[
+                    styles.content,
+                    {
+                      opacity: fadeAnim,
+                      transform: [{ translateY: slideUpAnim }],
+                    },
+                  ]}
+                >
+                  <Text style={styles.title}>{slide.title}</Text>
+                  <Text style={styles.subtitle}>{slide.subtitle}</Text>
+                  <Text style={styles.description}>{slide.description}</Text>
+                </Animated.View>
+              </>
+            ) : (
+              <>
+                {/* Static slides (for smooth scrolling) */}
+                <View style={styles.iconContainer}>
+                  {slide.icon}
+                </View>
+                <View style={styles.content}>
+                  <Text style={styles.title}>{slide.title}</Text>
+                  <Text style={styles.subtitle}>{slide.subtitle}</Text>
+                  <Text style={styles.description}>{slide.description}</Text>
+                </View>
+              </>
+            )}
           </View>
         ))}
       </ScrollView>
@@ -140,16 +209,42 @@ export default function WelcomeCarouselScreen({ onComplete }: WelcomeCarouselPro
       <View style={styles.bottom}>
         {/* Progress Dots */}
         <View style={styles.pagination}>
-          {slides.map((_, index) => (
-            <Pressable
-              key={index}
-              onPress={() => goToSlide(index)}
-              style={[
-                styles.dot,
-                index === currentIndex && styles.activeDot
-              ]}
-            />
-          ))}
+          {slides.map((_, index) => {
+            const isActive = index === currentIndex;
+            const dotWidthAnim = useRef(new Animated.Value(isActive ? 24 : 8)).current;
+            const dotOpacityAnim = useRef(new Animated.Value(isActive ? 1 : 0.4)).current;
+
+            useEffect(() => {
+              Animated.parallel([
+                Animated.spring(dotWidthAnim, {
+                  toValue: isActive ? 24 : 8,
+                  tension: 80,
+                  friction: 8,
+                  useNativeDriver: false,
+                }),
+                Animated.timing(dotOpacityAnim, {
+                  toValue: isActive ? 1 : 0.4,
+                  duration: 300,
+                  useNativeDriver: false,
+                }),
+              ]).start();
+            }, [isActive]);
+
+            return (
+              <Pressable key={index} onPress={() => goToSlide(index)}>
+                <Animated.View
+                  style={[
+                    styles.dot,
+                    {
+                      width: dotWidthAnim,
+                      opacity: dotOpacityAnim,
+                      backgroundColor: isActive ? colors.accent : colors.muted,
+                    },
+                  ]}
+                />
+              </Pressable>
+            );
+          })}
         </View>
 
         {/* Navigation */}
@@ -247,14 +342,8 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   dot: {
-    width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: colors.muted,
-  },
-  activeDot: {
-    backgroundColor: colors.accent,
-    width: 24,
   },
   navigation: {
     flexDirection: 'row',
