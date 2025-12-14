@@ -90,10 +90,12 @@ export default function WelcomeCarouselScreen({ onComplete }: WelcomeCarouselPro
     });
   };
 
-  const nextSlide = () => {
-    if (currentIndex < slides.length - 1) {
-      goToSlide(currentIndex + 1);
-    } else {
+  const handleMomentumScrollEnd = (event: any) => {
+    const scrollX = event.nativeEvent.contentOffset.x;
+    const index = Math.round(scrollX / width);
+
+    // If on last slide and user tries to swipe right, complete onboarding
+    if (index === slides.length - 1 && scrollX > (slides.length - 1) * width + 50) {
       onComplete();
     }
   };
@@ -121,6 +123,7 @@ export default function WelcomeCarouselScreen({ onComplete }: WelcomeCarouselPro
         pagingEnabled
         showsHorizontalScrollIndicator={false}
         onScroll={handleScroll}
+        onMomentumScrollEnd={handleMomentumScrollEnd}
         scrollEventThrottle={16}
         style={styles.carousel}
         decelerationRate="fast"
@@ -161,22 +164,19 @@ export default function WelcomeCarouselScreen({ onComplete }: WelcomeCarouselPro
           ))}
         </View>
 
-        {/* Navigation */}
-        <View style={styles.navigation}>
-          {currentIndex > 0 && (
-            <Pressable style={styles.backButton} onPress={() => goToSlide(currentIndex - 1)}>
-              <Feather name="chevron-left" size={20} color={colors.subtext} />
-              <Text style={styles.backText}>Back</Text>
+        {/* Swipe Instruction */}
+        <View style={styles.swipeInstruction}>
+          {isLastSlide ? (
+            <Pressable style={styles.getStartedButton} onPress={skipToEnd}>
+              <Text style={styles.getStartedText}>Get Started</Text>
+              <Feather name="arrow-right" size={20} color={colors.goldText} />
             </Pressable>
+          ) : (
+            <>
+              <Feather name="chevrons-right" size={24} color={colors.accent} style={styles.swipeIcon} />
+              <Text style={styles.swipeText}>Swipe to continue</Text>
+            </>
           )}
-
-          <Pressable style={styles.nextButton} onPress={nextSlide}>
-            <Text style={styles.nextText}>
-              {isLastSlide ? "Get Started" : "Next"}
-            </Text>
-            {!isLastSlide && <Feather name="chevron-right" size={20} color={colors.goldText} />}
-          </Pressable>
-        </View>
       </View>
     </View>
   );
@@ -266,24 +266,22 @@ const styles = StyleSheet.create({
     width: 24,
     backgroundColor: colors.accent,
   },
-  navigation: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  backButton: {
+  swipeInstruction: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    gap: 4,
+    justifyContent: 'center',
+    gap: spacing(1.5),
+    paddingVertical: spacing(2),
   },
-  backText: {
+  swipeIcon: {
+    opacity: 0.6,
+  },
+  swipeText: {
     color: colors.subtext,
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 15,
+    fontWeight: '500',
   },
-  nextButton: {
+  getStartedButton: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.accent,
@@ -291,12 +289,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
     borderRadius: radii.lg,
     gap: 8,
-    minWidth: 120,
     justifyContent: 'center',
+    shadowColor: colors.accent,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
-  nextText: {
+  getStartedText: {
     color: colors.goldText,
-    fontSize: 16,
-    fontWeight: '800',
+    fontSize: 17,
+    fontWeight: '700',
   },
 });
