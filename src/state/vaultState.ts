@@ -17,6 +17,7 @@ import {
   UserTier,
 } from '../config/vaultTypes';
 import { vaultItems } from '../config/vaultData';
+import { log } from '../lib/logger';
 
 // ============================================================================
 // HELPER: Filter items by category
@@ -203,7 +204,7 @@ export function useVaultState() {
         setUserState(newState);
         return { success: true, newState };
       } catch (error) {
-        console.error('Failed to unlock with XP:', error);
+        log.error('vaultState', 'Failed to unlock with XP', error as Error, { itemId });
         return { success: false, error: error as Error };
       }
     },
@@ -223,7 +224,7 @@ export function useVaultState() {
         setUserState(newState);
         return { success: true, newState };
       } catch (error) {
-        console.error('Failed to unlock with Key:', error);
+        log.error('vaultState', 'Failed to unlock with Key', error as Error, { itemId });
         return { success: false, error: error as Error };
       }
     },

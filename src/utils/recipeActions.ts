@@ -1,6 +1,7 @@
 import { Alert } from 'react-native';
 import { getDetailedCocktail } from './cocktailDataTransformer';
 import { usePersonalization } from '../store/usePersonalization';
+import { log } from '../lib/logger';
 
 /**
  * Global Recipe Action Utilities
@@ -31,7 +32,7 @@ export const handleRecipeView = (
     const { recordInteraction } = usePersonalization.getState();
     recordInteraction('cocktail_viewed', recipe.id, { recipe });
   } catch (error) {
-    console.warn('Failed to record recipe view behavior:', error);
+    log.warn('recipeActions', 'Failed to record recipe view behavior', { error, recipeId: recipe.id });
   }
 };
 
@@ -57,7 +58,7 @@ export const handleCreateShoppingList = (
     type: 'searched',
     query: `shopping_list_${recipe.name || recipe.title}`,
   }).catch(error => {
-    console.warn('Failed to record shopping list behavior:', error);
+    log.warn('recipeActions', 'Failed to record shopping list behavior', { error, recipeId: recipe.id });
   });
 };
 
@@ -83,7 +84,7 @@ export const handleSaveRecipe = (
 
   // Handle limit reached - redirect to paywall
   if (result === 'limit_reached') {
-    console.log('[handleSaveRecipe] Free recipe limit reached - redirecting to paywall');
+    log.info('recipeActions', 'Free recipe limit reached - redirecting to paywall', { recipeId: recipe.id });
     if (showToast) {
       showToast('Upgrade to save more recipes', 'warning');
     }
@@ -108,7 +109,7 @@ export const handleSaveRecipe = (
       type: 'favorited',
       itemId: recipe.id,
     }).catch(error => {
-      console.warn('Failed to record recipe save behavior:', error);
+      log.warn('recipeActions', 'Failed to record recipe save behavior', { error, recipeId: recipe.id });
     });
   }
 };

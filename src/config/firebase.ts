@@ -9,6 +9,7 @@ import { getAuth, initializeAuth, getReactNativePersistence, connectAuthEmulator
 import { getFunctions, connectFunctionsEmulator } from 'firebase/functions';
 import { getStorage, connectStorageEmulator } from 'firebase/storage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { log } from '../lib/logger';
 
 // Firebase configuration object
 // These values should come from your Firebase project settings
@@ -49,7 +50,7 @@ export const functions = getFunctions(app);
 export const storage = getStorage(app);
 
 // Log storage bucket configuration for debugging
-console.log('Firebase Storage bucket:', app.options.storageBucket);
+log.info('firebase', 'Firebase Storage bucket configured', { storageBucket: app.options.storageBucket });
 
 // Development emulator setup
 const isEmulator = process.env.NODE_ENV === 'development' && process.env.EXPO_PUBLIC_USE_FIREBASE_EMULATOR === 'true';
@@ -76,9 +77,9 @@ if (isEmulator) {
       connectStorageEmulator(storage, 'localhost', 9199);
     }
 
-    console.log('🔧 Connected to Firebase emulators');
+    log.info('firebase', 'Connected to Firebase emulators');
   } catch (error) {
-    console.warn('⚠️ Failed to connect to emulators:', error);
+    log.warn('firebase', 'Failed to connect to emulators', { error });
   }
 }
 
@@ -96,7 +97,7 @@ export const validateFirebaseConfig = (): boolean => {
   const missing = requiredKeys.filter(key => !process.env[key] || process.env[key] === 'your-api-key');
   
   if (missing.length > 0) {
-    console.error('🔥 Missing Firebase configuration:', missing);
+    log.error('firebase', 'Missing Firebase configuration', new Error('Missing configuration'), { missing });
     return false;
   }
   
@@ -127,9 +128,9 @@ export const checkFirebaseConnection = async (retries = 3): Promise<{
       
       // Don't log offline errors as warnings - they're expected
       if (isNetworkError(lastError)) {
-        console.log(`🔥 Firebase offline (attempt ${attempt}/${retries})`);
+        log.info('firebase', 'Firebase offline', { attempt, retries });
       } else {
-        console.warn(`🔥 Firebase connection attempt ${attempt} failed:`, lastError.message);
+        log.warn('firebase', 'Firebase connection attempt failed', { attempt, retries, error: lastError.message });
       }
       
       // If this isn't the last attempt and it's not a persistent offline error, wait before retrying
@@ -142,9 +143,9 @@ export const checkFirebaseConnection = async (retries = 3): Promise<{
   
   // Don't log offline errors as errors - they're expected behavior
   if (isNetworkError(lastError)) {
-    console.log('🔥 Firebase is offline');
+    log.info('firebase', 'Firebase is offline');
   } else {
-    console.error('🔥 Firebase connection failed after all retries:', lastError);
+    log.error('firebase', 'Firebase connection failed after all retries', lastError as Error);
   }
   
   return { 
@@ -223,7 +224,7 @@ export const safeFirestoreOperation = async <T>(
     }
     
     // Log other errors normally
-    console.error('Firestore operation failed:', error);
+    log.error('firebase', 'Firestore operation failed', error instanceof Error ? error : new Error(String(error)));
     throw error;
   }
 };
@@ -234,6 +235,6 @@ export const logFirebaseError = (operation: string, error: any): void => {
     // Don't spam logs with offline errors
     return;
   }
-  
-  console.error(`Firebase ${operation} failed:`, error);
+
+  log.error('firebase', `Firebase ${operation} failed`, error instanceof Error ? error : new Error(String(error)));
 };
