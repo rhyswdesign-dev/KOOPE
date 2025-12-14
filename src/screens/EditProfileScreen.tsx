@@ -13,6 +13,7 @@ import { db, auth } from '../config/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { colors, spacing, radii } from '../theme/tokens';
 import type { RootStackParamList } from '../navigation/RootNavigator';
+import { log } from '../lib/logger';
 
 interface Badge {
   id: string;
@@ -145,12 +146,12 @@ export default function EditProfileScreen() {
         updatedAt: serverTimestamp()
       }, { merge: true });
 
-      console.log('✅ Profile updated successfully');
+      log.info('EditProfileScreen', 'Profile updated successfully');
       Alert.alert('Success', 'Profile updated successfully', [
         { text: 'OK', onPress: () => nav.goBack() }
       ]);
     } catch (error: any) {
-      console.error('❌ Error saving profile:', error);
+      log.error('EditProfileScreen', 'Error saving profile', error);
       Alert.alert('Error', 'Failed to save profile. Please try again.');
     } finally {
       setSaving(false);
@@ -245,10 +246,10 @@ export default function EditProfileScreen() {
                       />
                     </TouchableOpacity>
                   </View>
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     style={styles.dragGrip}
                     onLongPress={() => {
-                      console.log('Long press to initiate drag for:', item.name);
+                      log.debug('EditProfileScreen', 'Long press to initiate drag', { badgeName: item.name });
                     }}
                     activeOpacity={0.7}
                   >

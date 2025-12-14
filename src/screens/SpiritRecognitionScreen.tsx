@@ -19,6 +19,7 @@ import type { RootStackParamList } from '../navigation/RootNavigator';
 import { HomeBarService, BarIngredient } from '../services/homeBarService';
 import { AIRecommendationEngine } from '../services/aiRecommendationEngine';
 import { ScrollView } from 'react-native';
+import { log } from '../lib/logger';
 
 const { width, height } = Dimensions.get('window');
 
@@ -182,7 +183,7 @@ export default function SpiritRecognitionScreen() {
 
       setCocktailRecommendations(recommendations.slice(0, 3)); // Show top 3
     } catch (error) {
-      console.error('Error loading cocktail recommendations:', error);
+      log.error('SpiritRecognitionScreen', 'Error loading cocktail recommendations', error);
     } finally {
       setLoadingRecommendations(false);
     }
@@ -193,7 +194,7 @@ export default function SpiritRecognitionScreen() {
       const education = await HomeBarService.getSpiritEducation(spirit.category || 'whiskey');
       setSpiritEducation(education);
     } catch (error) {
-      console.error('Error loading spirit education:', error);
+      log.error('SpiritRecognitionScreen', 'Error loading spirit education', error);
     }
   };
 

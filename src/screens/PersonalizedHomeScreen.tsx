@@ -18,6 +18,7 @@ import { colors, spacing, radii, fonts } from '../theme/tokens';
 import { Ionicons } from '@expo/vector-icons';
 import { Recipe } from '../types/recipe';
 import { EnhancedUserProfile } from '../types/userProfile';
+import { log } from '../lib/logger';
 import {
   MOOD_CATEGORIES,
   personalizeModeCategoryOrder,
@@ -271,7 +272,7 @@ export default function PersonalizedHomeScreen() {
   const handleRecipePress = async (recipe: Recipe) => {
     // Track view
     await trackRecipeView(userProfile.id, recipe);
-    console.log(`Tracked view: ${recipe.title}`);
+    log.info('PersonalizedHomeScreen', 'Tracked recipe view', { title: recipe.title });
 
     // In real app, navigate to recipe detail
     alert(`Viewing ${recipe.title}\n\n✅ Interaction tracked!\nYou'll see more ${recipe.baseSpirit} recipes now.`);
@@ -279,7 +280,7 @@ export default function PersonalizedHomeScreen() {
 
   const handleRecipeLike = async (recipe: Recipe) => {
     await trackRecipeLike(userProfile.id, recipe);
-    console.log(`Tracked like: ${recipe.title}`);
+    log.info('PersonalizedHomeScreen', 'Tracked recipe like', { title: recipe.title });
 
     // Update engagement score locally for immediate feedback
     const newScore = BehavioralLearning.calculateEngagementScore(userProfile);

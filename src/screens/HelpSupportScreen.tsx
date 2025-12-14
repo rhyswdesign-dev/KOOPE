@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, radii } from '../theme/tokens';
+import { log } from '../lib/logger';
 
 interface HelpSupportScreenProps {
   onBack?: () => void;
@@ -144,7 +145,7 @@ export default function HelpSupportScreen({ onBack }: HelpSupportScreenProps) {
     
     try {
       // TODO: Implement actual form submission
-      console.log('Contact form submitted:', contactForm);
+      log.info('HelpSupportScreen', 'Contact form submitted', { contactForm });
       await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate API call
       
       Alert.alert(

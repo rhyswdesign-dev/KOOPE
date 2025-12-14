@@ -18,6 +18,7 @@ import { useNavigation } from '@react-navigation/native';
 import RevenueCatUI from 'react-native-purchases-ui';
 import { colors, spacing } from '../theme/tokens';
 import { useSubscription } from '../contexts/SubscriptionContext';
+import { log } from '../lib/logger';
 
 // Customer Center result enum
 enum CUSTOMER_CENTER_RESULT {
@@ -42,7 +43,7 @@ export default function CustomerCenterScreen() {
    * Handle customer center result
    */
   const handleCustomerCenterResult = async (result: CUSTOMER_CENTER_RESULT) => {
-    console.log('[CustomerCenterScreen] Customer Center result:', result);
+    log.info('CustomerCenterScreen', 'Customer Center result', { result });
 
     switch (result) {
       case CUSTOMER_CENTER_RESULT.RESTORED:
@@ -63,7 +64,7 @@ export default function CustomerCenterScreen() {
 
       case CUSTOMER_CENTER_RESULT.CANCELLED:
         // User closed the customer center
-        console.log('[CustomerCenterScreen] User closed customer center');
+        log.info('CustomerCenterScreen', 'User closed customer center');
         navigation.goBack();
         break;
 
@@ -110,7 +111,7 @@ export default function CustomerCenterScreen() {
 
         handleCustomerCenterResult(result);
       } catch (error) {
-        console.error('[CustomerCenterScreen] Error presenting customer center:', error);
+        log.error('CustomerCenterScreen', 'Error presenting customer center', error);
         Alert.alert(
           'Error',
           'Could not load subscription management. Please try again.',

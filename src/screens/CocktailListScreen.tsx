@@ -16,6 +16,7 @@ import GroceryListModal from '../components/GroceryListModal';
 import { createRecipeCardProps } from '../utils/recipeActions';
 import { useSession } from '../store/useSession';
 import { RecipesRepository } from '../repos/supabase';
+import { log } from '../lib/logger';
 
 interface CocktailListScreenProps {
   navigation: NativeStackNavigationProp<any>;
@@ -41,7 +42,7 @@ export default function CocktailListScreen({ navigation, route }: CocktailListSc
         const recipes = await RecipesRepository.getAllRecipes();
         setAllRecipes(recipes);
       } catch (error) {
-        console.error('Error loading recipes:', error);
+        log.error('CocktailListScreen', 'Error loading recipes', error);
       } finally {
         setLoading(false);
       }

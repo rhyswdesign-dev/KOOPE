@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { colors, spacing, radii, textStyles, layouts } from '../theme/tokens';
+import { log } from '../lib/logger';
 
 const shadows = {
   card: { shadowColor: colors.shadow, shadowOpacity: 0.35, shadowRadius: 10, elevation: 6 }
@@ -37,7 +38,7 @@ function AccountSetupContent({ onComplete, onSkip, navigation }: AccountSetupScr
 
   const onSave = () => {
     const payload = { name, email, city, birthday, spirits, level, push, marketing };
-    console.log('AccountSetup save ->', payload);
+    log.info('AccountSetupScreen', 'Saving account setup', payload);
     // Wire to your storage / API as needed…
     if (onComplete) {
       onComplete();
@@ -48,7 +49,7 @@ function AccountSetupContent({ onComplete, onSkip, navigation }: AccountSetupScr
   };
 
   const handleSkip = () => {
-    console.log('handleSkip called, onSkip:', !!onSkip);
+    log.info('AccountSetupScreen', 'Skip button clicked', { hasOnSkip: !!onSkip });
     if (onSkip) {
       onSkip();
     } else if (navigation) {

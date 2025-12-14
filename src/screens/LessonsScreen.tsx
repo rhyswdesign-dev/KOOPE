@@ -12,6 +12,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { TabView, SceneMap, TabBar } from 'react-native-tab-view';
 import curriculumData from '../../curriculum-data.json';
 import { useUser } from '../store/useUser';
+import { log } from '../lib/logger';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -109,19 +110,19 @@ function LessonsView() {
 
   const handleHeartsPress = () => {
     // Navigate to vault store hearts section
-    console.log('🔧 LessonsScreen: Navigating to VaultStore with hearts tab');
+    log.nav('LessonsScreen', 'VaultStore', { tab: 'hearts' });
     navigation.navigate('VaultStore', { tab: 'hearts' });
   };
 
   const handleProfilePress = () => {
     // Navigate to profile tab
-    console.log('🔧 LessonsScreen: Navigating to Profile tab');
+    log.nav('LessonsScreen', 'Profile', {});
     navigation.navigate('Profile');
   };
 
 
   const handleLessonPress = (lesson: any) => {
-    console.log('🔧 LessonsScreen: Navigating to lesson:', lesson.id, lesson.title);
+    log.nav('LessonsScreen', 'LessonEngine', { lessonId: lesson.id, title: lesson.title });
     navigation.navigate('LessonEngine', {
       lessonId: lesson.id,
       isFirstLesson: false
@@ -310,12 +311,12 @@ export default function LessonsScreen() {
   ]);
 
   const handleHeartsPress = () => {
-    console.log('🔧 LessonsScreen: Navigating to VaultStore with hearts tab');
+    log.nav('LessonsScreen', 'VaultStore', { tab: 'hearts' });
     navigation.navigate('VaultStore', { tab: 'hearts' });
   };
 
   const handleProfilePress = () => {
-    console.log('🔧 LessonsScreen: Navigating to Profile tab');
+    log.nav('LessonsScreen', 'Profile', {});
     navigation.navigate('Profile');
   };
 

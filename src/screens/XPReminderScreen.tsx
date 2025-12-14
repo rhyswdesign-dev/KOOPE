@@ -9,6 +9,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, radii } from '../theme/tokens';
+import { log } from '../lib/logger';
 
 interface XPReminderScreenProps {
   onComplete?: () => void;
@@ -26,7 +27,7 @@ export default function XPReminderScreen({ onComplete, onGoBack }: XPReminderScr
       onComplete();
     } else {
       // When used within NavigationContainer, navigation would be available
-      console.warn('Navigation not available in onboarding mode');
+      log.warn('XPReminderScreen', 'Navigation not available in onboarding mode');
     }
   };
 
@@ -35,7 +36,7 @@ export default function XPReminderScreen({ onComplete, onGoBack }: XPReminderScr
       onComplete();
     } else {
       // When used within NavigationContainer, navigation would be available
-      console.warn('Navigation not available in onboarding mode');
+      log.warn('XPReminderScreen', 'Navigation not available in onboarding mode');
     }
   };
 
