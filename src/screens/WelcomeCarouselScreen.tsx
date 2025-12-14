@@ -30,7 +30,7 @@ const slides: SlideData[] = [
   },
   {
     id: 2,
-    title: "Learn Like Duolingo",
+    title: "Interactive Lessons",
     subtitle: "Bite-sized lessons, big results",
     description: "Progress through interactive modules on spirits, techniques, and recipes. Earn XP, maintain streaks, and unlock achievements as you master mixology.",
     icon: <Ionicons name="trophy" size={64} color={colors.accent} />,
