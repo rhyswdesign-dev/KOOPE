@@ -6,6 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, FlatList, StyleSheet, ActivityIndicator } from 'react-native';
 import { supabase } from '../lib/supabase';
+import { log } from '../lib/logger';
 
 interface Module {
   id: string;
@@ -39,7 +40,7 @@ export default function SupabaseExample() {
 
       setModules(data || []);
     } catch (err: any) {
-      console.error('Error loading modules:', err);
+      log.error('SupabaseExample', 'Error loading modules', err);
       setError(err.message);
     } finally {
       setLoading(false);
