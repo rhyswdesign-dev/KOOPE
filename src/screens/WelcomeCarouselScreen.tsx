@@ -177,6 +177,7 @@ export default function WelcomeCarouselScreen({ onComplete }: WelcomeCarouselPro
               <Text style={styles.swipeText}>Swipe to continue</Text>
             </>
           )}
+        </View>
       </View>
     </View>
   );
