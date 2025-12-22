@@ -36,6 +36,7 @@ import { useAnalyticsContext } from '../../context/AnalyticsContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useChallengeProgress } from '../../hooks/useChallengeProgress';
 import { log } from '../../lib/logger';
+import { lessonProgressService } from '../../services/lessonProgressService';
 
 interface LessonEngineProps {
   lessonId: string;
@@ -350,6 +351,30 @@ export const LessonEngine: React.FC<LessonEngineProps> = ({ lessonId, onComplete
         type: 'progress.xpAwarded',
         amount: xpAwarded
       });
+    }
+
+    // Track lesson progress in Supabase
+    if (user?.id) {
+      try {
+        const progressResult = await lessonProgressService.recordLessonAttempt({
+          userId: user.id,
+          lessonId,
+          itemsAttempted: totalCount,
+          itemsCorrect: correctCount,
+          xpEarned: xpAwarded,
+        });
+
+        if (progressResult.success) {
+          log.info('LessonEngine', 'Lesson progress saved', {
+            lessonId,
+            isNewCompletion: progressResult.isNewCompletion,
+            isNewBestScore: progressResult.isNewBestScore,
+            accuracy
+          });
+        }
+      } catch (error) {
+        log.error('LessonEngine', 'Error saving lesson progress', error);
+      }
     }
 
     // Track challenge progress for lesson completion and XP
