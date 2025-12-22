@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import GroceryListModal from '../components/GroceryListModal';
+import { useChallengeProgress } from '../hooks/useChallengeProgress';
 import { log } from '../lib/logger';
 
 export default function RecipeDetailScreen() {
@@ -22,6 +23,16 @@ export default function RecipeDetailScreen() {
   const route = useRoute();
   const recipe = (route.params as any)?.recipe;
   const [groceryListVisible, setGroceryListVisible] = useState(false);
+  const { trackRecipeViewed } = useChallengeProgress();
+
+  // Track recipe view for challenges
+  useEffect(() => {
+    if (recipe?.id) {
+      trackRecipeViewed(recipe.id).catch(error => {
+        log.error('RecipeDetailScreen', 'Error tracking recipe view', error);
+      });
+    }
+  }, [recipe?.id]);
 
   if (!recipe) {
     return (

@@ -34,6 +34,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAudio } from '../../hooks/useAudio';
 import { useAnalyticsContext } from '../../context/AnalyticsContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { useChallengeProgress } from '../../hooks/useChallengeProgress';
 import { log } from '../../lib/logger';
 
 interface LessonEngineProps {
@@ -56,6 +57,7 @@ export const LessonEngine: React.FC<LessonEngineProps> = ({ lessonId, onComplete
   const audio = useAudio();
   const analytics = useAnalyticsContext();
   const { user } = useAuth();
+  const { trackLessonComplete, trackXPEarned, trackQuizPerfect } = useChallengeProgress();
   const userStore = useUser();
   const { lives = 3, loseLife: loseUserLife, completeLesson: completeUserLesson } = userStore || {};
   
@@ -299,7 +301,7 @@ export const LessonEngine: React.FC<LessonEngineProps> = ({ lessonId, onComplete
     });
   };
 
-  const completeLesson = () => {
+  const completeLesson = async () => {
     const sessionResults = endSession();
 
     // Calculate score and XP with proper defaults
@@ -348,6 +350,21 @@ export const LessonEngine: React.FC<LessonEngineProps> = ({ lessonId, onComplete
         type: 'progress.xpAwarded',
         amount: xpAwarded
       });
+    }
+
+    // Track challenge progress for lesson completion and XP
+    try {
+      await trackLessonComplete(lessonId);
+      await trackXPEarned(xpAwarded);
+
+      // Track perfect quiz if 100% accuracy
+      if (accuracy === 100) {
+        await trackQuizPerfect(lessonId, accuracy);
+      }
+
+      log.info('LessonEngine', 'Challenge progress updated', { lessonId, xpAwarded, accuracy });
+    } catch (error) {
+      log.error('LessonEngine', 'Error tracking challenge progress', error);
     }
 
     // Play appropriate completion sound based on accuracy

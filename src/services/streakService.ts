@@ -7,6 +7,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { log } from '../lib/logger';
 import { achievementService } from './achievementService';
+import { challengeProgressService } from './challengeProgressService';
 
 export interface StreakData {
   currentStreak: number;
@@ -78,7 +79,7 @@ class StreakService {
   /**
    * Record activity for today
    */
-  public async recordActivity(activity: string = 'app_open'): Promise<{
+  public async recordActivity(activity: string = 'app_open', userId?: string): Promise<{
     streakIncreased: boolean;
     currentStreak: number;
     isNewRecord: boolean;
@@ -132,6 +133,19 @@ class StreakService {
 
       // Track in achievement service
       await achievementService.trackAction('currentStreak', this.streakData.currentStreak);
+
+      // Track challenge progress if userId provided
+      if (userId && streakIncreased) {
+        try {
+          await challengeProgressService.trackStreakMaintained(userId, this.streakData.currentStreak);
+          log.debug('StreakService', 'Challenge progress updated for streak', {
+            userId,
+            currentStreak: this.streakData.currentStreak
+          });
+        } catch (error) {
+          log.error('StreakService', 'Error tracking challenge progress', error);
+        }
+      }
 
       // Notify listeners
       this.notifyListeners();
