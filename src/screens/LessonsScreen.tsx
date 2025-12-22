@@ -16,7 +16,7 @@ import { log } from '../lib/logger';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
-// Challenges component
+// Challenges component - Original Design
 function ChallengesView() {
   const { lives, xp, level, streak } = useUser();
 
@@ -65,6 +65,130 @@ function ChallengesView() {
             </View>
           </Pressable>
         ))}
+      </View>
+    </ScrollView>
+  );
+}
+
+// Challenges 2 - Alternative Design with frequency grouping
+function Challenges2View() {
+  const { lives, xp, level, streak } = useUser();
+
+  const dailyChallenges = [
+    { id: 1, title: 'Quick Study', description: 'Complete 3 lessons today', progress: 1, target: 3, xp: 50, icon: 'book-outline', color: '#E58B2B' },
+    { id: 2, title: 'Perfect Score', description: 'Get 100% on any quiz', progress: 0, target: 1, xp: 75, icon: 'trophy-outline', color: '#D4AF37' },
+    { id: 3, title: 'Streak Keeper', description: 'Maintain your daily streak', progress: 1, target: 1, xp: 30, icon: 'flame-outline', color: '#FF6B6B' },
+  ];
+
+  const weeklyChallenges = [
+    { id: 4, title: 'Recipe Explorer', description: 'View 10 new cocktail recipes', progress: 3, target: 10, xp: 150, icon: 'search-outline', color: '#9B59B6' },
+    { id: 5, title: 'XP Grinder', description: 'Earn 500 XP this week', progress: 230, target: 500, xp: 200, icon: 'analytics-outline', color: '#3498DB' },
+  ];
+
+  const monthlyChallenges = [
+    { id: 6, title: 'Master Mixologist', description: 'Complete all spirit modules', progress: 2, target: 5, xp: 500, keys: 3, icon: 'star-outline', color: '#E74C3C' },
+  ];
+
+  const renderChallenge = (challenge: any) => {
+    const progressPercent = (challenge.progress / challenge.target) * 100;
+    const isCompleted = challenge.progress >= challenge.target;
+
+    return (
+      <Pressable
+        key={challenge.id}
+        style={[styles.challenge2Card, isCompleted && styles.challenge2CardCompleted]}
+      >
+        {/* Icon badge */}
+        <View style={[styles.challenge2Icon, { backgroundColor: challenge.color }]}>
+          <Ionicons name={challenge.icon as any} size={28} color="#FFF" />
+        </View>
+
+        {/* Content */}
+        <View style={styles.challenge2Content}>
+          <Text style={[styles.challenge2Title, isCompleted && styles.challenge2Completed]}>
+            {challenge.title}
+          </Text>
+          <Text style={[styles.challenge2Description, isCompleted && styles.challenge2Completed]}>
+            {challenge.description}
+          </Text>
+
+          {/* Progress bar */}
+          <View style={styles.progressContainer}>
+            <View style={styles.progressBarBg}>
+              <View style={[styles.progressBarFill, { width: `${Math.min(progressPercent, 100)}%`, backgroundColor: challenge.color }]} />
+            </View>
+            <Text style={styles.progressText}>
+              {challenge.progress}/{challenge.target}
+            </Text>
+          </View>
+
+          {/* Rewards */}
+          <View style={styles.rewardRow}>
+            <View style={styles.rewardBadge}>
+              <MaterialCommunityIcons name="star-four-points" size={16} color={colors.gold} />
+              <Text style={styles.rewardText}>{challenge.xp} XP</Text>
+            </View>
+            {challenge.keys && (
+              <View style={styles.rewardBadge}>
+                <MaterialCommunityIcons name="key" size={16} color={colors.gold} />
+                <Text style={styles.rewardText}>{challenge.keys} Keys</Text>
+              </View>
+            )}
+          </View>
+        </View>
+
+        {/* Status indicator */}
+        {isCompleted && (
+          <View style={styles.challenge2Check}>
+            <MaterialCommunityIcons name="check-circle" size={32} color={colors.accent} />
+          </View>
+        )}
+      </Pressable>
+    );
+  };
+
+  return (
+    <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      {/* Daily section */}
+      <View style={styles.section}>
+        <View style={styles.sectionHeaderRow}>
+          <View>
+            <Text style={styles.sectionTitle}>Daily Challenges</Text>
+            <Text style={styles.sectionSubtitle}>Resets in 8h 23m</Text>
+          </View>
+          <View style={styles.frequencyBadge}>
+            <Ionicons name="today-outline" size={18} color={colors.accent} />
+          </View>
+        </View>
+        {dailyChallenges.map(renderChallenge)}
+      </View>
+
+      {/* Weekly section */}
+      <View style={styles.section}>
+        <View style={styles.sectionHeaderRow}>
+          <View>
+            <Text style={styles.sectionTitle}>Weekly Challenges</Text>
+            <Text style={styles.sectionSubtitle}>Resets in 3d 12h</Text>
+          </View>
+          <View style={styles.frequencyBadge}>
+            <Ionicons name="calendar-outline" size={18} color={colors.accent} />
+          </View>
+        </View>
+        {weeklyChallenges.map(renderChallenge)}
+      </View>
+
+      {/* Monthly section */}
+      <View style={styles.section}>
+        <View style={styles.sectionHeaderRow}>
+          <View>
+            <Text style={styles.sectionTitle}>Monthly Challenge</Text>
+            <Text style={styles.sectionSubtitle}>Resets in 18d 5h</Text>
+          </View>
+          <View style={styles.frequencyBadge}>
+            <MaterialCommunityIcons name="trophy-variant" size={18} color={colors.gold} />
+          </View>
+        </View>
+        {monthlyChallenges.map(renderChallenge)}
       </View>
     </ScrollView>
   );
@@ -308,6 +432,7 @@ export default function LessonsScreen() {
   const [routes] = useState([
     { key: 'lessons', title: 'Lessons' },
     { key: 'challenges', title: 'Challenges' },
+    { key: 'challenges2', title: 'Challenge 2' },
   ]);
 
   const handleHeartsPress = () => {
@@ -323,6 +448,7 @@ export default function LessonsScreen() {
   const renderScene = SceneMap({
     lessons: LessonsView,
     challenges: ChallengesView,
+    challenges2: Challenges2View,
   });
 
   const renderTabBar = (props: any) => (
@@ -713,5 +839,120 @@ const styles = StyleSheet.create({
 
   completedText: {
     opacity: 0.7,
+  },
+
+  // Challenge 2 styles
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: spacing(2.5),
+  },
+
+  frequencyBadge: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(139, 103, 67, 0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  challenge2Card: {
+    backgroundColor: colors.card,
+    borderRadius: radii.xl,
+    marginBottom: spacing(2),
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    flexDirection: 'row',
+    padding: spacing(2.5),
+    position: 'relative',
+    overflow: 'hidden',
+  },
+
+  challenge2CardCompleted: {
+    borderColor: 'rgba(139, 103, 67, 0.3)',
+    backgroundColor: 'rgba(139, 103, 67, 0.05)',
+  },
+
+  challenge2Icon: {
+    width: 60,
+    height: 60,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: spacing(2),
+  },
+
+  challenge2Content: {
+    flex: 1,
+  },
+
+  challenge2Title: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: spacing(0.5),
+  },
+
+  challenge2Description: {
+    fontSize: 14,
+    color: colors.subtext,
+    marginBottom: spacing(1.5),
+    lineHeight: 20,
+  },
+
+  challenge2Completed: {
+    opacity: 0.7,
+  },
+
+  progressContainer: {
+    marginBottom: spacing(1.5),
+  },
+
+  progressBarBg: {
+    height: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 4,
+    overflow: 'hidden',
+    marginBottom: spacing(0.5),
+  },
+
+  progressBarFill: {
+    height: '100%',
+    borderRadius: 4,
+  },
+
+  progressText: {
+    fontSize: 12,
+    color: colors.subtext,
+    fontWeight: '600',
+  },
+
+  rewardRow: {
+    flexDirection: 'row',
+    gap: spacing(1.5),
+  },
+
+  rewardBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(212, 175, 55, 0.15)',
+    paddingHorizontal: spacing(1.5),
+    paddingVertical: spacing(0.75),
+    borderRadius: radii.md,
+    gap: spacing(0.5),
+  },
+
+  rewardText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.gold,
+  },
+
+  challenge2Check: {
+    position: 'absolute',
+    top: spacing(1),
+    right: spacing(1),
   },
 });
