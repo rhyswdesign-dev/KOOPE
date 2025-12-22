@@ -2,7 +2,7 @@
  * PERSONALIZATION STORE
  * Manages user personalization profile and provides personalized content
  * Integrates survey responses with recommendation systems
- * Syncs with Firebase Firestore for persistence
+ * Syncs with Supabase for persistence
  */
 
 import { create } from 'zustand';
@@ -14,8 +14,8 @@ import {
   personalizedExperience
 } from '../services/personalizedExperience';
 import { SurveyAnswers } from '../services/placement';
-import { auth, db } from '../config/firebase';
-import { doc, setDoc, getDoc, updateDoc } from 'firebase/firestore';
+import { supabase } from '../lib/supabase';
+import { userProfileService } from '../lib/supabaseData';
 
 interface PersonalizationState {
   // Core state
@@ -80,16 +80,26 @@ export const usePersonalization = create<PersonalizationState>((set, get) => ({
         updatedAt: Date.now()
       }));
 
-      // Save to Firebase (if user is authenticated)
-      const user = auth.currentUser;
+      // Save to Supabase (if user is authenticated)
+      const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        const userDocRef = doc(db, 'users', user.id);
-        await setDoc(userDocRef, {
-          personalizationProfile: profile,
-          personalizationUpdatedAt: Date.now(),
-        }, { merge: true });
+        // Store personalization data in user preferences
+        const { error } = await supabase
+          .from('user_preferences')
+          .upsert({
+            user_id: user.id,
+            preferences: {
+              personalizationProfile: profile,
+              personalizationUpdatedAt: Date.now(),
+            },
+            updated_at: new Date().toISOString()
+          });
 
-        log.info('PersonalizationStore', 'Personalization profile saved to Firebase', { userId: user.id });
+        if (error) {
+          log.error('PersonalizationStore', 'Error saving to Supabase', error);
+        } else {
+          log.info('PersonalizationStore', 'Personalization profile saved to Supabase', { userId: user.id });
+        }
       }
 
       log.info('PersonalizationStore', 'Personalization profile saved successfully');
@@ -124,16 +134,25 @@ export const usePersonalization = create<PersonalizationState>((set, get) => ({
         updatedAt: Date.now()
       }));
 
-      // Save to Firebase (if user is authenticated)
-      const user = auth.currentUser;
+      // Save to Supabase (if user is authenticated)
+      const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        const userDocRef = doc(db, 'users', user.id);
-        await setDoc(userDocRef, {
-          personalizationProfile: updatedProfile,
-          personalizationUpdatedAt: Date.now(),
-        }, { merge: true });
+        const { error } = await supabase
+          .from('user_preferences')
+          .upsert({
+            user_id: user.id,
+            preferences: {
+              personalizationProfile: updatedProfile,
+              personalizationUpdatedAt: Date.now(),
+            },
+            updated_at: new Date().toISOString()
+          });
 
-        log.info('PersonalizationStore', 'Profile saved to Firebase', { userId: user.id });
+        if (error) {
+          log.error('PersonalizationStore', 'Error saving to Supabase', error);
+        } else {
+          log.info('PersonalizationStore', 'Profile saved to Supabase', { userId: user.id });
+        }
       }
 
       log.info('PersonalizationStore', 'Profile updated', { updates });
