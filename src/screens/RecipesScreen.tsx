@@ -25,8 +25,8 @@ import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/nativ
 import type { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { useSavedItems } from '../hooks/useSavedItems';
-import { getUserRecipes, Recipe, deleteRecipe } from '../lib/firestore';
-import { auth } from '../config/firebase';
+import { recipeService } from '../lib/supabaseData';
+import { useAuth } from '../contexts/AuthContext';
 import GroceryListModal from '../components/GroceryListModal';
 import { getPersonalizedFeed, RecommendationEngine } from '../services/recommendationEngine';
 import { AIRecipeFormatter, FormattedRecipe } from '../services/aiRecipeFormatter';

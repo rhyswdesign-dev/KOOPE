@@ -5,9 +5,8 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, Pressable, Switch, Alert } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from '../../config/firebase';
 import { useAuth } from '../../contexts/AuthContext';
+import { preferencesService } from '../../lib/supabaseData';
 import { RootStackParamList } from '../../navigation/RootNavigator';
 import { colors } from '../../theme/tokens';
 import { log } from '../../lib/logger';
@@ -30,12 +29,18 @@ export default function ConsentScreen({ navigation }: ConsentScreenProps) {
     setLoading(true);
 
     try {
-      // Save consent to Firestore
-      await setDoc(doc(db, 'users', user.id, 'preferences', 'consent'), {
-        analyticsConsent,
-        timestamp: serverTimestamp(),
-        version: '1.0'
-      }, { merge: true });
+      // Save consent to Supabase
+      const success = await preferencesService.upsert({
+        user_id: user.id,
+        analytics_consent: analyticsConsent,
+        marketing_consent: false,
+        notifications_enabled: true,
+        preferences: { consentVersion: '1.0' },
+      });
+
+      if (!success) {
+        throw new Error('Failed to save preferences');
+      }
 
       log.info('ConsentScreen', 'Consent saved', { analyticsConsent });
       navigation.navigate('Survey');

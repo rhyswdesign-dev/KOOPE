@@ -17,7 +17,7 @@ import { colors, spacing, radii, fonts } from '../theme/tokens';
 import { AIRecipeFormatter, FormattedRecipe, RecipeInput } from '../services/aiRecipeFormatter';
 import VideoRecipeAnalyzer from '../services/videoRecipeAnalyzer';
 import { RecipeIntelligenceService, RecipeIntelligence } from '../services/recipeIntelligenceService';
-import { updateRecipe } from '../lib/firestore';
+import { recipeService } from '../lib/supabaseData';
 import { useAuth } from '../contexts/AuthContext';
 import { log } from '../lib/logger';
 
@@ -248,27 +248,30 @@ export default function AIRecipeFormatScreen() {
       log.info('AIRecipeFormatScreen', 'Recipe save check', { recipeId: recipe?.id, isNewRecipe });
 
       if (isNewRecipe) {
-        // Create new recipe for OCR-captured recipes
-        const { createRecipe } = await import('../lib/firestore');
-
-        const newRecipeData = {
-          title: recipeToSave.title,
-          sourceUrl: recipe?.sourceUrl || null,
-          imageUrl: recipe?.imageUrl || null,
-          tags: recipeToSave.tags || [],
+        // Create new recipe in Supabase
+        const recipeData = {
+          user_id: user.id,
+          name: recipeToSave.title,
+          description: recipeToSave.description || '',
+          ingredients: recipeToSave.ingredients?.map(ing => `${ing.amount} ${ing.name}`) || [],
+          instructions: recipeToSave.instructions || [],
+          category: activeTab === 'ai' ? 'AI Generated' : 'Manual Entry',
+          difficulty: 'medium',
+          prep_time: null,
+          cook_time: null,
+          servings: recipeToSave.servings || 1,
+          image_url: recipe?.imageUrl || null,
+          is_favorite: false,
         };
 
-        // Add custom fields for formatted recipes
-        const recipeWithData = {
-          ...newRecipeData,
-          aiFormatted: activeTab === 'ai',
-          manuallyCreated: activeTab === 'manual',
-          [activeTab === 'ai' ? 'aiFormattedData' : 'manualRecipeData']: recipeToSave,
-        };
+        log.info('AIRecipeFormatScreen', 'Creating new recipe', { title: recipeData.name, activeTab });
+        const recipeId = await recipeService.create(recipeData);
 
-        log.info('AIRecipeFormatScreen', 'Creating new recipe', { title: recipeWithData.title, activeTab });
-        await createRecipe(recipeWithData);
-        log.info('AIRecipeFormatScreen', 'Recipe created successfully', { title: recipeWithData.title });
+        if (!recipeId) {
+          throw new Error('Failed to create recipe');
+        }
+
+        log.info('AIRecipeFormatScreen', 'Recipe created successfully', { recipeId, title: recipeData.name });
 
         Alert.alert(
           'Success!',
@@ -286,17 +289,23 @@ export default function AIRecipeFormatScreen() {
         );
 
       } else {
-        // Update existing recipe
+        // Update existing recipe in Supabase
         const updateData = {
-          title: recipeToSave.title,
-          aiFormatted: activeTab === 'ai',
-          manuallyCreated: activeTab === 'manual',
-          [activeTab === 'ai' ? 'aiFormattedData' : 'manualRecipeData']: recipeToSave,
-          updatedAt: new Date(),
+          name: recipeToSave.title,
+          description: recipeToSave.description || '',
+          ingredients: recipeToSave.ingredients?.map(ing => `${ing.amount} ${ing.name}`) || [],
+          instructions: recipeToSave.instructions || [],
+          category: activeTab === 'ai' ? 'AI Generated' : 'Manual Entry',
+          servings: recipeToSave.servings || 1,
         };
 
-        log.info('AIRecipeFormatScreen', 'Updating existing recipe', { recipeId: recipe?.id, title: updateData.title, activeTab });
-        await updateRecipe(recipe!.id, updateData);
+        log.info('AIRecipeFormatScreen', 'Updating existing recipe', { recipeId: recipe?.id, title: updateData.name, activeTab });
+        const success = await recipeService.update(recipe!.id, updateData);
+
+        if (!success) {
+          throw new Error('Failed to update recipe');
+        }
+
         log.info('AIRecipeFormatScreen', 'Recipe updated successfully', { recipeId: recipe?.id });
 
         Alert.alert(

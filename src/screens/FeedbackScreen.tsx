@@ -6,11 +6,10 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from '../config/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { colors, spacing, radii } from '../theme/tokens';
 import { log } from '../lib/logger';
+import { feedbackService } from '../lib/supabaseData';
 
 interface FeedbackScreenProps {
   onBack?: () => void;
@@ -95,25 +94,27 @@ export default function FeedbackScreen({ onBack }: FeedbackScreenProps) {
     setIsSubmitting(true);
 
     try {
-      const feedbackData = {
+      // Submit to Supabase
+      const success = await feedbackService.submit({
+        user_id: user?.id || 'anonymous',
         type: selectedType,
-        rating,
+        category: selectedCategory,
         title: title.trim(),
         description: description.trim(),
-        category: selectedCategory,
+        rating,
         email: email.trim() || user?.email || undefined,
-        userId: user?.id || 'anonymous',
-        deviceInfo: {
+        device_info: {
           platform: Platform.OS,
           version: Platform.Version.toString(),
           model: 'Unknown' // In a real app, you'd get this from a device info library
         },
         status: 'new',
-        timestamp: serverTimestamp(),
-      };
+      });
 
-      // Submit to Firestore
-      await addDoc(collection(db, 'feedback'), feedbackData);
+      if (!success) {
+        throw new Error('Failed to submit feedback');
+      }
+
       log.info('FeedbackScreen', 'Feedback submitted successfully', { feedbackType: selectedType });
 
       // Show success message
@@ -143,6 +144,7 @@ export default function FeedbackScreen({ onBack }: FeedbackScreenProps) {
       );
 
     } catch (error) {
+      log.error('FeedbackScreen', 'Failed to submit feedback', error);
       Alert.alert('Error', 'Failed to submit feedback. Please try again.');
     } finally {
       setIsSubmitting(false);
