@@ -19,7 +19,8 @@ import { useUserRecipes } from '../store/useUserRecipes';
 import { usePersonalization } from '../store/usePersonalization';
 import RecipePreferencesModal from '../components/RecipePreferencesModal';
 import { achievementService } from '../services/achievementService';
-import { streakService } from '../services/streakService';
+import { streakService, StreakData } from '../services/streakService';
+import { StreakDisplay } from '../components/StreakDisplay';
 
 export default function ProfileScreen() {
   const { user, isAuthenticated, isLoading, signOut } = useAuth();
@@ -30,16 +31,30 @@ export default function ProfileScreen() {
   const { recipes } = useUserRecipes();
   const { profile } = usePersonalization();
   const [userStats, setUserStats] = useState(achievementService.getUserStats());
-  const [currentStreak, setCurrentStreak] = useState(streakService.getCurrentStreak());
+  const [streakData, setStreakData] = useState<StreakData>(streakService.getStreakData());
 
   useEffect(() => {
     // Load latest stats when screen focuses
     const loadStats = () => {
       setUserStats(achievementService.getUserStats());
-      setCurrentStreak(streakService.getCurrentStreak());
+      setStreakData(streakService.getStreakData());
     };
     loadStats();
+
+    // Subscribe to streak changes
+    const unsubscribe = streakService.addStreakListener((newStreak) => {
+      setStreakData(streakService.getStreakData());
+    });
+
+    return () => {
+      unsubscribe();
+    };
   }, []);
+
+  const handleSignIn = () => {
+    // Navigate to OAuth sign-in screen
+    nav.navigate('OAuthSignIn');
+  };
 
   const handleSignOut = async () => {
     Alert.alert(
@@ -94,9 +109,15 @@ export default function ProfileScreen() {
             </View>
             <View style={styles.statCard}>
               <Ionicons name="flame" size={20} color={colors.accent} />
-              <Text style={styles.statNumber}>{currentStreak}</Text>
+              <Text style={styles.statNumber}>{streakData.currentStreak}</Text>
               <Text style={styles.statLabel}>Day Streak</Text>
             </View>
+          </View>
+
+          {/* Streak Display Section */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Your Streak</Text>
+            <StreakDisplay streakData={streakData} />
           </View>
 
           {/* Progress Section */}
