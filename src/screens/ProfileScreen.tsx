@@ -11,7 +11,6 @@ import {
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { colors, spacing, radii } from '../theme/tokens';
 import { useAuth } from '../contexts/AuthContext';
-import { signInAnonymous, logOut } from '../lib/auth';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/RootNavigator';
@@ -23,7 +22,7 @@ import { achievementService } from '../services/achievementService';
 import { streakService } from '../services/streakService';
 
 export default function ProfileScreen() {
-  const { user, isAuthenticated, isLoading } = useAuth();
+  const { user, isAuthenticated, isLoading, signOut } = useAuth();
   const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [loading, setLoading] = useState(false);
   const [preferencesModalVisible, setPreferencesModalVisible] = useState(false);
@@ -42,18 +41,6 @@ export default function ProfileScreen() {
     loadStats();
   }, []);
 
-  const handleSignIn = async () => {
-    setLoading(true);
-    try {
-      await signInAnonymous();
-      Alert.alert('Success', 'Signed in successfully!');
-    } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to sign in');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleSignOut = async () => {
     Alert.alert(
       'Sign Out',
@@ -66,12 +53,8 @@ export default function ProfileScreen() {
           onPress: async () => {
             setLoading(true);
             try {
-              await logOut();
-              // Navigate to Auth screen (login page)
-              nav.reset({
-                index: 0,
-                routes: [{ name: 'Auth' }],
-              });
+              await signOut();
+              // AuthContext will handle navigation automatically
             } catch (error: any) {
               Alert.alert('Error', error.message || 'Failed to sign out');
               setLoading(false);
@@ -93,7 +76,7 @@ export default function ProfileScreen() {
             </View>
             <View style={styles.profileInfo}>
               <Text style={styles.userName}>Bartender</Text>
-              <Text style={styles.userSubtext}>ID: {user?.uid.substring(0, 8)}...</Text>
+              <Text style={styles.userSubtext}>ID: {user?.id.substring(0, 8)}...</Text>
             </View>
           </View>
 
