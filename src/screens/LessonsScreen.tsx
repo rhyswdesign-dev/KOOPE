@@ -12,6 +12,10 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { TabView, SceneMap, TabBar } from 'react-native-tab-view';
 import curriculumData from '../../curriculum-data.json';
 import { useUser } from '../store/useUser';
+import { useChallenges } from '../contexts/ChallengeContext';
+import { RewardClaimModal } from '../components/RewardClaimModal';
+import { rewardService } from '../services/rewardService';
+import { Challenge } from '../types/challenge';
 import { log } from '../lib/logger';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -70,34 +74,49 @@ function ChallengesView() {
   );
 }
 
-// Challenges 2 - Alternative Design with frequency grouping
+// Challenges 2 - Real Supabase Data with Reward Claiming
 function Challenges2View() {
-  const { lives, xp, level, streak } = useUser();
+  const { challenges, isLoading, refreshChallenges, claimReward: claimChallengeReward } = useChallenges();
+  const [selectedChallenge, setSelectedChallenge] = useState<Challenge | null>(null);
+  const [claiming, setClaiming] = useState(false);
 
-  const dailyChallenges = [
-    { id: 1, title: 'Quick Study', description: 'Complete 3 lessons today', progress: 1, target: 3, xp: 50, icon: 'book-outline', color: '#E58B2B' },
-    { id: 2, title: 'Perfect Score', description: 'Get 100% on any quiz', progress: 0, target: 1, xp: 75, icon: 'trophy-outline', color: '#D4AF37' },
-    { id: 3, title: 'Streak Keeper', description: 'Maintain your daily streak', progress: 1, target: 1, xp: 30, icon: 'flame-outline', color: '#FF6B6B' },
-  ];
+  // Group challenges by frequency
+  const dailyChallenges = challenges.filter(c => c.frequency === 'daily');
+  const weeklyChallenges = challenges.filter(c => c.frequency === 'weekly');
+  const monthlyChallenges = challenges.filter(c => c.frequency === 'monthly');
 
-  const weeklyChallenges = [
-    { id: 4, title: 'Recipe Explorer', description: 'View 10 new cocktail recipes', progress: 3, target: 10, xp: 150, icon: 'search-outline', color: '#9B59B6' },
-    { id: 5, title: 'XP Grinder', description: 'Earn 500 XP this week', progress: 230, target: 500, xp: 200, icon: 'analytics-outline', color: '#3498DB' },
-  ];
+  const handleClaimReward = async () => {
+    if (!selectedChallenge) return;
 
-  const monthlyChallenges = [
-    { id: 6, title: 'Master Mixologist', description: 'Complete all spirit modules', progress: 2, target: 5, xp: 500, keys: 3, icon: 'star-outline', color: '#E74C3C' },
-  ];
+    setClaiming(true);
+    try {
+      const reward = await claimChallengeReward(selectedChallenge.id);
 
-  const renderChallenge = (challenge: any) => {
-    const progressPercent = (challenge.progress / challenge.target) * 100;
-    const isCompleted = challenge.progress >= challenge.target;
+      if (reward) {
+        log.info('Challenges2View', 'Reward claimed successfully', { challengeId: selectedChallenge.id });
+        Alert.alert(
+          'Reward Claimed!',
+          `You received ${reward.xp} XP${reward.keys ? ` and ${reward.keys} keys` : ''}!`,
+          [{ text: 'Awesome!', onPress: () => setSelectedChallenge(null) }]
+        );
+        await refreshChallenges();
+      } else {
+        Alert.alert('Error', 'Failed to claim reward. Please try again.');
+      }
+    } catch (error) {
+      log.error('Challenges2View', 'Error claiming reward', error);
+      Alert.alert('Error', 'Failed to claim reward. Please try again.');
+    } finally {
+      setClaiming(false);
+    }
+  };
+
+  const renderChallenge = (challenge: Challenge) => {
+    const progressPercent = ((challenge.currentProgress || 0) / challenge.requirementCount) * 100;
+    const isCompleted = challenge.isCompleted || false;
 
     return (
-      <Pressable
-        key={challenge.id}
-        style={[styles.challenge2Card, isCompleted && styles.challenge2CardCompleted]}
-      >
+      <View key={challenge.id} style={[styles.challenge2Card, isCompleted && styles.challenge2CardCompleted]}>
         {/* Icon badge */}
         <View style={[styles.challenge2Icon, { backgroundColor: challenge.color }]}>
           <Ionicons name={challenge.icon as any} size={28} color="#FFF" />
@@ -118,7 +137,7 @@ function Challenges2View() {
               <View style={[styles.progressBarFill, { width: `${Math.min(progressPercent, 100)}%`, backgroundColor: challenge.color }]} />
             </View>
             <Text style={styles.progressText}>
-              {challenge.progress}/{challenge.target}
+              {challenge.currentProgress || 0}/{challenge.requirementCount}
             </Text>
           </View>
 
@@ -126,15 +145,26 @@ function Challenges2View() {
           <View style={styles.rewardRow}>
             <View style={styles.rewardBadge}>
               <MaterialCommunityIcons name="star-four-points" size={16} color={colors.gold} />
-              <Text style={styles.rewardText}>{challenge.xp} XP</Text>
+              <Text style={styles.rewardText}>{challenge.xpReward} XP</Text>
             </View>
-            {challenge.keys && (
+            {challenge.keysReward && challenge.keysReward > 0 && (
               <View style={styles.rewardBadge}>
                 <MaterialCommunityIcons name="key" size={16} color={colors.gold} />
-                <Text style={styles.rewardText}>{challenge.keys} Keys</Text>
+                <Text style={styles.rewardText}>{challenge.keysReward} Keys</Text>
               </View>
             )}
           </View>
+
+          {/* Claim Button */}
+          {isCompleted && (
+            <Pressable
+              style={styles.claimButton}
+              onPress={() => setSelectedChallenge(challenge)}
+            >
+              <MaterialCommunityIcons name="gift" size={20} color="#FFF" />
+              <Text style={styles.claimButtonText}>Claim Reward</Text>
+            </Pressable>
+          )}
         </View>
 
         {/* Status indicator */}
@@ -143,54 +173,92 @@ function Challenges2View() {
             <MaterialCommunityIcons name="check-circle" size={32} color={colors.accent} />
           </View>
         )}
-      </Pressable>
+      </View>
     );
   };
 
+  if (isLoading) {
+    return (
+      <View style={[styles.content, styles.centered]}>
+        <Text style={styles.sectionSubtitle}>Loading challenges...</Text>
+      </View>
+    );
+  }
+
   return (
-    <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-      {/* Daily section */}
-      <View style={styles.section}>
-        <View style={styles.sectionHeaderRow}>
-          <View>
-            <Text style={styles.sectionTitle}>Daily Challenges</Text>
-            <Text style={styles.sectionSubtitle}>Resets in 8h 23m</Text>
+    <>
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        {/* Daily section */}
+        {dailyChallenges.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeaderRow}>
+              <View>
+                <Text style={styles.sectionTitle}>Daily Challenges</Text>
+                <Text style={styles.sectionSubtitle}>Resets daily at midnight</Text>
+              </View>
+              <View style={styles.frequencyBadge}>
+                <Ionicons name="today-outline" size={18} color={colors.accent} />
+              </View>
+            </View>
+            {dailyChallenges.map(renderChallenge)}
           </View>
-          <View style={styles.frequencyBadge}>
-            <Ionicons name="today-outline" size={18} color={colors.accent} />
-          </View>
-        </View>
-        {dailyChallenges.map(renderChallenge)}
-      </View>
+        )}
 
-      {/* Weekly section */}
-      <View style={styles.section}>
-        <View style={styles.sectionHeaderRow}>
-          <View>
-            <Text style={styles.sectionTitle}>Weekly Challenges</Text>
-            <Text style={styles.sectionSubtitle}>Resets in 3d 12h</Text>
+        {/* Weekly section */}
+        {weeklyChallenges.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeaderRow}>
+              <View>
+                <Text style={styles.sectionTitle}>Weekly Challenges</Text>
+                <Text style={styles.sectionSubtitle}>Resets every Monday</Text>
+              </View>
+              <View style={styles.frequencyBadge}>
+                <Ionicons name="calendar-outline" size={18} color={colors.accent} />
+              </View>
+            </View>
+            {weeklyChallenges.map(renderChallenge)}
           </View>
-          <View style={styles.frequencyBadge}>
-            <Ionicons name="calendar-outline" size={18} color={colors.accent} />
-          </View>
-        </View>
-        {weeklyChallenges.map(renderChallenge)}
-      </View>
+        )}
 
-      {/* Monthly section */}
-      <View style={styles.section}>
-        <View style={styles.sectionHeaderRow}>
-          <View>
-            <Text style={styles.sectionTitle}>Monthly Challenge</Text>
-            <Text style={styles.sectionSubtitle}>Resets in 18d 5h</Text>
+        {/* Monthly section */}
+        {monthlyChallenges.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeaderRow}>
+              <View>
+                <Text style={styles.sectionTitle}>Monthly Challenges</Text>
+                <Text style={styles.sectionSubtitle}>Resets on the 1st</Text>
+              </View>
+              <View style={styles.frequencyBadge}>
+                <MaterialCommunityIcons name="trophy-variant" size={18} color={colors.gold} />
+              </View>
+            </View>
+            {monthlyChallenges.map(renderChallenge)}
           </View>
-          <View style={styles.frequencyBadge}>
-            <MaterialCommunityIcons name="trophy-variant" size={18} color={colors.gold} />
+        )}
+
+        {challenges.length === 0 && (
+          <View style={[styles.section, styles.centered]}>
+            <MaterialCommunityIcons name="trophy-outline" size={64} color={colors.text.secondary} />
+            <Text style={styles.sectionTitle}>No Active Challenges</Text>
+            <Text style={styles.sectionSubtitle}>Check back soon for new challenges!</Text>
           </View>
-        </View>
-        {monthlyChallenges.map(renderChallenge)}
-      </View>
-    </ScrollView>
+        )}
+      </ScrollView>
+
+      {/* Reward Claim Modal */}
+      <RewardClaimModal
+        visible={!!selectedChallenge}
+        reward={selectedChallenge ? {
+          xp: selectedChallenge.xpReward,
+          keys: selectedChallenge.keysReward,
+          badge: selectedChallenge.badgeReward
+        } : null}
+        challengeTitle={selectedChallenge?.title || ''}
+        onClaim={handleClaimReward}
+        onClose={() => setSelectedChallenge(null)}
+        claiming={claiming}
+      />
+    </>
   );
 }
 
@@ -954,5 +1022,29 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: spacing(1),
     right: spacing(1),
+  },
+
+  claimButton: {
+    marginTop: spacing(1.5),
+    backgroundColor: colors.accent,
+    borderRadius: radii.md,
+    paddingVertical: spacing(1),
+    paddingHorizontal: spacing(2),
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(0.5),
+    alignSelf: 'flex-start',
+  },
+
+  claimButtonText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+
+  centered: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: spacing(4),
   },
 });

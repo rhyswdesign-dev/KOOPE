@@ -13,6 +13,7 @@ import { UserProvider } from './src/contexts/UserContext';
 import { VaultProvider } from './src/contexts/VaultContext';
 import { PostsProvider } from './src/contexts/PostsContext';
 import { AuthProvider } from './src/contexts/AuthContext';
+import { ChallengeProvider } from './src/contexts/ChallengeContext';
 import { FirebaseProvider } from './src/context/FirebaseContext';
 import { AnalyticsProvider } from './src/context/AnalyticsContext';
 import { MonetizationProvider } from './src/context/MonetizationContext';
@@ -146,28 +147,30 @@ export default function App() {
   return (
     <AnalyticsProvider>
       <AuthProvider>
-        <FirebaseProvider>
-          <SubscriptionProvider>
-            <MonetizationProvider>
-              <UserProvider>
-                <VaultProvider>
-                  <PostsProvider>
-                    <NavigationContainer theme={KOOPETheme}>
-                      <RootNavigator />
-                    </NavigationContainer>
+        <ChallengeProvider>
+          <FirebaseProvider>
+            <SubscriptionProvider>
+              <MonetizationProvider>
+                <UserProvider>
+                  <VaultProvider>
+                    <PostsProvider>
+                      <NavigationContainer theme={KOOPETheme}>
+                        <RootNavigator />
+                      </NavigationContainer>
 
-                    {/* Global Achievement Unlock Modal */}
-                    <AchievementUnlockModal
-                      visible={!!unlockedAchievement}
-                      achievement={unlockedAchievement}
-                      onClose={clearUnlockedAchievement}
-                    />
-                  </PostsProvider>
-                </VaultProvider>
-              </UserProvider>
-            </MonetizationProvider>
-          </SubscriptionProvider>
-        </FirebaseProvider>
+                      {/* Global Achievement Unlock Modal */}
+                      <AchievementUnlockModal
+                        visible={!!unlockedAchievement}
+                        achievement={unlockedAchievement}
+                        onClose={clearUnlockedAchievement}
+                      />
+                    </PostsProvider>
+                  </VaultProvider>
+                </UserProvider>
+              </MonetizationProvider>
+            </SubscriptionProvider>
+          </FirebaseProvider>
+        </ChallengeProvider>
       </AuthProvider>
     </AnalyticsProvider>
   );
