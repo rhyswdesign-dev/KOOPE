@@ -21,6 +21,7 @@ import RecipePreferencesModal from '../components/RecipePreferencesModal';
 import { achievementService } from '../services/achievementService';
 import { streakService, StreakData } from '../services/streakService';
 import { StreakDisplay } from '../components/StreakDisplay';
+import { ProgressStats } from '../components/ProgressStats';
 
 export default function ProfileScreen() {
   const { user, isAuthenticated, isLoading, signOut } = useAuth();
@@ -120,9 +121,55 @@ export default function ProfileScreen() {
             <StreakDisplay streakData={streakData} />
           </View>
 
+          {/* Progress Statistics Section */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Your Progress</Text>
+            <ProgressStats
+              stats={[
+                {
+                  icon: 'book',
+                  label: 'Lessons',
+                  value: userStats.lessonsCompleted,
+                  color: colors.accent,
+                },
+                {
+                  icon: 'restaurant',
+                  label: 'Recipes',
+                  value: userStats.recipesViewed,
+                  color: '#F59E0B',
+                },
+                {
+                  icon: 'heart',
+                  label: 'Favorites',
+                  value: userStats.favoriteCount,
+                  color: '#EF4444',
+                },
+                {
+                  icon: 'home',
+                  label: 'Bar Items',
+                  value: userStats.homeBarIngredients,
+                  color: '#8B5CF6',
+                },
+                {
+                  icon: 'location',
+                  label: 'Bars Visited',
+                  value: userStats.barsVisited,
+                  color: '#10B981',
+                },
+                {
+                  icon: 'game-controller',
+                  label: 'Games',
+                  value: userStats.gamesPlayed,
+                  color: '#3B82F6',
+                },
+              ]}
+              columns={3}
+            />
+          </View>
+
           {/* Progress Section */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Progress & Achievements</Text>
+            <Text style={styles.sectionTitle}>Achievements</Text>
 
             <TouchableOpacity
               style={styles.settingButton}
@@ -130,7 +177,7 @@ export default function ProfileScreen() {
             >
               <Ionicons name="trophy-outline" size={20} color={colors.text} />
               <View style={styles.settingButtonContent}>
-                <Text style={styles.settingButtonText}>Achievements & Progress</Text>
+                <Text style={styles.settingButtonText}>View All Achievements</Text>
                 <Text style={styles.settingButtonSubtext}>Level {userStats.level} • {userStats.totalXP} XP</Text>
               </View>
               <Ionicons name="chevron-forward" size={20} color={colors.subtext} />
