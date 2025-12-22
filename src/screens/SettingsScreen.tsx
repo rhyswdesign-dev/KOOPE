@@ -7,14 +7,15 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import { signOut, deleteUser } from 'firebase/auth';
-import { auth } from '../config/firebase';
 import { colors, spacing, radii } from '../theme/tokens';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { log } from '../lib/logger';
+import { useAuth } from '../contexts/AuthContext';
+import { supabase } from '../lib/supabase';
 
 export default function SettingsScreen() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const { user, signOut: supabaseSignOut } = useAuth();
   const [notifications, setNotifications] = useState({
     events: true,
     social: true,
@@ -64,7 +65,7 @@ export default function SettingsScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              await signOut(auth);
+              await supabaseSignOut();
               log.info('SettingsScreen', 'User signed out successfully');
               // AuthContext will handle the state change and redirect automatically
             } catch (error: any) {
@@ -88,34 +89,23 @@ export default function SettingsScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              const user = auth.currentUser;
-
               if (!user) {
                 Alert.alert('Error', 'No user is currently signed in');
                 return;
               }
 
-              // Delete the user account
-              await deleteUser(user);
+              // Delete the user account via Supabase Admin API
+              const { error } = await supabase.rpc('delete_user');
+
+              if (error) throw error;
+
               log.info('SettingsScreen', 'Account deleted successfully');
 
-              // User will be automatically signed out and redirected
+              // Sign out the user
+              await supabaseSignOut();
             } catch (error: any) {
               log.error('SettingsScreen', 'Account deletion error', error);
-
-              let errorMessage = 'Failed to delete account. Please try again.';
-
-              // Handle specific Firebase error codes
-              switch (error.code) {
-                case 'auth/requires-recent-login':
-                  errorMessage = 'For security reasons, please sign out and sign back in before deleting your account.';
-                  break;
-                case 'auth/network-request-failed':
-                  errorMessage = 'Network error. Please check your connection';
-                  break;
-              }
-
-              Alert.alert('Error', errorMessage);
+              Alert.alert('Error', 'Failed to delete account. Please contact support.');
             }
           }
         },

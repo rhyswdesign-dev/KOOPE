@@ -17,6 +17,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors, spacing, radii } from '../theme/tokens';
 import { log } from '../lib/logger';
+import { useAuth } from '../contexts/AuthContext';
 
 interface OAuthSignInScreenProps {
   onComplete?: () => void;
@@ -27,29 +28,15 @@ const { width } = Dimensions.get('window');
 
 export default function OAuthSignInScreen({ onComplete, onSkip }: OAuthSignInScreenProps) {
   const [isLoading, setIsLoading] = useState(false);
+  const { signInWithApple, signInWithGoogle } = useAuth();
 
   const handleAppleSignIn = async () => {
     setIsLoading(true);
     try {
       log.info('OAuthSignInScreen', 'Apple Sign-In initiated');
-
-      // TODO: Implement actual Apple Sign-In with Supabase
-      // For now, show placeholder
-      Alert.alert(
-        'Apple Sign-In',
-        'Apple authentication will be available once Supabase Auth is configured.',
-        [
-          {
-            text: 'OK',
-            onPress: () => {
-              // Temporarily complete onboarding for testing
-              if (onComplete) onComplete();
-            }
-          }
-        ]
-      );
-
+      await signInWithApple();
       log.info('OAuthSignInScreen', 'Apple Sign-In completed');
+      if (onComplete) onComplete();
     } catch (error: any) {
       log.error('OAuthSignInScreen', 'Apple Sign-In failed', error);
       Alert.alert('Sign In Failed', 'Could not sign in with Apple. Please try again.');
@@ -62,24 +49,9 @@ export default function OAuthSignInScreen({ onComplete, onSkip }: OAuthSignInScr
     setIsLoading(true);
     try {
       log.info('OAuthSignInScreen', 'Google Sign-In initiated');
-
-      // TODO: Implement actual Google Sign-In with Supabase
-      // For now, show placeholder
-      Alert.alert(
-        'Google Sign-In',
-        'Google authentication will be available once Supabase Auth is configured.',
-        [
-          {
-            text: 'OK',
-            onPress: () => {
-              // Temporarily complete onboarding for testing
-              if (onComplete) onComplete();
-            }
-          }
-        ]
-      );
-
+      await signInWithGoogle();
       log.info('OAuthSignInScreen', 'Google Sign-In completed');
+      if (onComplete) onComplete();
     } catch (error: any) {
       log.error('OAuthSignInScreen', 'Google Sign-In failed', error);
       Alert.alert('Sign In Failed', 'Could not sign in with Google. Please try again.');

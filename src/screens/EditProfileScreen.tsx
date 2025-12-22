@@ -7,10 +7,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { updateProfile } from 'firebase/auth';
-import { db, auth } from '../config/firebase';
 import { useAuth } from '../contexts/AuthContext';
+import { supabase } from '../lib/supabase';
 import { colors, spacing, radii } from '../theme/tokens';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { log } from '../lib/logger';
@@ -133,18 +131,18 @@ export default function EditProfileScreen() {
     setSaving(true);
 
     try {
-      // Update Firebase Auth display name
-      await updateProfile(user, {
-        displayName: name.trim()
-      });
+      // Save profile to Supabase
+      const { error } = await supabase
+        .from('profiles')
+        .upsert({
+          id: user.id,
+          display_name: name.trim(),
+          bio: bio.trim(),
+          featured_badges: reorderableBadges.slice(0, 3).map(b => b.id),
+          updated_at: new Date().toISOString()
+        });
 
-      // Save full profile to Firestore
-      await setDoc(doc(db, 'users', user.uid), {
-        displayName: name.trim(),
-        bio: bio.trim(),
-        featuredBadges: reorderableBadges.slice(0, 3).map(b => b.id),
-        updatedAt: serverTimestamp()
-      }, { merge: true });
+      if (error) throw error;
 
       log.info('EditProfileScreen', 'Profile updated successfully');
       Alert.alert('Success', 'Profile updated successfully', [
