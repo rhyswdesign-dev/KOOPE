@@ -88,7 +88,7 @@ export default function SignUpScreen({ onComplete, onSignIn, onTermsPress, onPri
         displayName: name.trim()
       });
 
-      log.info('SignUpScreen', 'Sign up successful', { userId: userCredential.user.uid });
+      log.info('SignUpScreen', 'Sign up successful', { userId: userCredential.user.id });
 
       if (onComplete) {
         onComplete();

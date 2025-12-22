@@ -31,7 +31,7 @@ export default function ConsentScreen({ navigation }: ConsentScreenProps) {
 
     try {
       // Save consent to Firestore
-      await setDoc(doc(db, 'users', user.uid, 'preferences', 'consent'), {
+      await setDoc(doc(db, 'users', user.id, 'preferences', 'consent'), {
         analyticsConsent,
         timestamp: serverTimestamp(),
         version: '1.0'

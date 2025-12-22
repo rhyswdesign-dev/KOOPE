@@ -9,7 +9,7 @@ export async function uploadImage(uri: string, path?: string): Promise<string> {
     throw new Error('User must be authenticated to upload images');
   }
 
-  log.info('Storage', 'Starting image upload', { userId: user.uid, uri });
+  log.info('Storage', 'Starting image upload', { userId: user.id, uri });
 
   try {
     // Compress and resize image before upload
@@ -26,7 +26,7 @@ export async function uploadImage(uri: string, path?: string): Promise<string> {
     );
 
     // Create a unique filename if no path provided
-    const filename = path || `images/${user.uid}/${Date.now()}.jpg`;
+    const filename = path || `images/${user.id}/${Date.now()}.jpg`;
     log.debug('Storage', 'Upload path determined', { filename });
     const storageRef = ref(storage, filename);
 
@@ -95,7 +95,7 @@ export async function uploadFile(uri: string, filename: string, contentType: str
   }
 
   try {
-    const storageRef = ref(storage, `files/${user.uid}/${filename}`);
+    const storageRef = ref(storage, `files/${user.id}/${filename}`);
 
     const response = await fetch(uri);
     const blob = await response.blob();

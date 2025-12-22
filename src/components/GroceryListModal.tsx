@@ -120,7 +120,7 @@ export default function GroceryListModal({
         items: selectedItems
       };
 
-      await ShoppingListStore.saveShoppingList(selectedGroceryList, recipeName, user?.uid || 'anonymous');
+      await ShoppingListStore.saveShoppingList(selectedGroceryList, recipeName, user?.id || 'anonymous');
       Alert.alert(
         'Added to Cart!',
         `${selectedItems.length} item${selectedItems.length !== 1 ? 's' : ''} added to your shopping cart.`,

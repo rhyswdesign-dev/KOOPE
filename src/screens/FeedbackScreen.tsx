@@ -102,7 +102,7 @@ export default function FeedbackScreen({ onBack }: FeedbackScreenProps) {
         description: description.trim(),
         category: selectedCategory,
         email: email.trim() || user?.email || undefined,
-        userId: user?.uid || 'anonymous',
+        userId: user?.id || 'anonymous',
         deviceInfo: {
           platform: Platform.OS,
           version: Platform.Version.toString(),

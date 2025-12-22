@@ -226,7 +226,7 @@ export default function AIRecipeFormatScreen() {
       hasRecipe: !!recipe,
       hasFormattedRecipe: !!formattedRecipe,
       isAuthenticated,
-      userId: user?.uid
+      userId: user?.id
     });
 
     if (!isAuthenticated || !user) {

@@ -37,7 +37,7 @@ export async function createRecipe(recipeData: Omit<Recipe, 'id' | 'createdAt' |
 
   const recipe: Omit<Recipe, 'id'> = {
     ...cleanedData,
-    userId: user.uid,
+    userId: user.id,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   };
@@ -136,7 +136,7 @@ export async function createFolder(folderData: Omit<RecipeFolder, 'id' | 'create
 
   const folder: Omit<RecipeFolder, 'id'> = {
     ...folderData,
-    userId: user.uid,
+    userId: user.id,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   };

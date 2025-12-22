@@ -190,7 +190,7 @@ export const LessonEngine: React.FC<LessonEngineProps> = ({ lessonId, onComplete
 
     const attempt: Attempt = {
       id: `${Date.now()}_${Math.random()}`,
-      userId: user?.uid || 'anonymous',
+      userId: user?.id || 'anonymous',
       itemId: currentItem.id,
       correct: result.correct,
       msToAnswer: result.msToAnswer,

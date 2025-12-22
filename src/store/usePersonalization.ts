@@ -83,13 +83,13 @@ export const usePersonalization = create<PersonalizationState>((set, get) => ({
       // Save to Firebase (if user is authenticated)
       const user = auth.currentUser;
       if (user) {
-        const userDocRef = doc(db, 'users', user.uid);
+        const userDocRef = doc(db, 'users', user.id);
         await setDoc(userDocRef, {
           personalizationProfile: profile,
           personalizationUpdatedAt: Date.now(),
         }, { merge: true });
 
-        log.info('PersonalizationStore', 'Personalization profile saved to Firebase', { userId: user.uid });
+        log.info('PersonalizationStore', 'Personalization profile saved to Firebase', { userId: user.id });
       }
 
       log.info('PersonalizationStore', 'Personalization profile saved successfully');
@@ -127,13 +127,13 @@ export const usePersonalization = create<PersonalizationState>((set, get) => ({
       // Save to Firebase (if user is authenticated)
       const user = auth.currentUser;
       if (user) {
-        const userDocRef = doc(db, 'users', user.uid);
+        const userDocRef = doc(db, 'users', user.id);
         await setDoc(userDocRef, {
           personalizationProfile: updatedProfile,
           personalizationUpdatedAt: Date.now(),
         }, { merge: true });
 
-        log.info('PersonalizationStore', 'Profile saved to Firebase', { userId: user.uid });
+        log.info('PersonalizationStore', 'Profile saved to Firebase', { userId: user.id });
       }
 
       log.info('PersonalizationStore', 'Profile updated', { updates });
