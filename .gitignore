@@ -36,3 +36,7 @@ yarn-error.*
 # typescript
 *.tsbuildinfo
 .env
+
+# Firebase migration scripts - service account keys
+scripts/serviceAccountKey.json
+exports/
