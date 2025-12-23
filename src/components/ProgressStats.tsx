@@ -2,9 +2,10 @@
  * Progress Stats Component
  * Displays user's overall progress metrics
  * Including XP, level, lessons, recipes, etc.
+ * Optimized with React.memo and useCallback
  */
 
-import React from 'react';
+import React, { useCallback } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, radii, fonts } from '../theme/tokens';
@@ -22,11 +23,12 @@ interface ProgressStatsProps {
   columns?: 2 | 3 | 4;
 }
 
-export const ProgressStats: React.FC<ProgressStatsProps> = ({
+export const ProgressStats: React.FC<ProgressStatsProps> = React.memo(({
   stats,
   columns = 3,
 }) => {
-  const renderStat = (stat: ProgressStat, index: number) => {
+  // Memoize renderStat to prevent recreation on every render
+  const renderStat = useCallback((stat: ProgressStat, index: number) => {
     const statColor = stat.color || colors.accent;
 
     return (
@@ -53,14 +55,14 @@ export const ProgressStats: React.FC<ProgressStatsProps> = ({
         )}
       </View>
     );
-  };
+  }, [columns]);
 
   return (
     <View style={styles.container}>
       {stats.map(renderStat)}
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   container: {

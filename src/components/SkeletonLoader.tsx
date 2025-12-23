@@ -2,6 +2,7 @@
  * Skeleton Loader Component
  * Displays placeholder content while data is loading
  * Provides better UX than blank screens
+ * Optimized with React.memo to prevent unnecessary re-renders
  */
 
 import React, { useEffect, useRef } from 'react';
@@ -15,7 +16,7 @@ interface SkeletonLoaderProps {
   style?: any;
 }
 
-export const SkeletonLoader: React.FC<SkeletonLoaderProps> = ({
+export const SkeletonLoader: React.FC<SkeletonLoaderProps> = React.memo(({
   width = '100%',
   height = 20,
   borderRadius = radii.sm,
@@ -54,10 +55,10 @@ export const SkeletonLoader: React.FC<SkeletonLoaderProps> = ({
       ]}
     />
   );
-};
+});
 
-// Pre-built skeleton patterns
-export const SkeletonCard: React.FC = () => {
+// Pre-built skeleton patterns - also optimized with React.memo
+export const SkeletonCard: React.FC = React.memo(() => {
   return (
     <View style={styles.card}>
       <SkeletonLoader height={150} borderRadius={radii.lg} style={{ marginBottom: spacing.md }} />
@@ -69,9 +70,9 @@ export const SkeletonCard: React.FC = () => {
       </View>
     </View>
   );
-};
+});
 
-export const SkeletonList: React.FC<{ count?: number }> = ({ count = 3 }) => {
+export const SkeletonList: React.FC<{ count?: number }> = React.memo(({ count = 3 }) => {
   return (
     <View>
       {Array.from({ length: count }).map((_, index) => (
@@ -79,9 +80,9 @@ export const SkeletonList: React.FC<{ count?: number }> = ({ count = 3 }) => {
       ))}
     </View>
   );
-};
+});
 
-export const SkeletonListItem: React.FC = () => {
+export const SkeletonListItem: React.FC = React.memo(() => {
   return (
     <View style={styles.listItem}>
       <SkeletonLoader height={60} width={60} borderRadius={radii.md} />
@@ -91,11 +92,11 @@ export const SkeletonListItem: React.FC = () => {
       </View>
     </View>
   );
-};
+});
 
-export const SkeletonAvatar: React.FC<{ size?: number }> = ({ size = 40 }) => {
+export const SkeletonAvatar: React.FC<{ size?: number }> = React.memo(({ size = 40 }) => {
   return <SkeletonLoader height={size} width={size} borderRadius={size / 2} />;
-};
+});
 
 const styles = StyleSheet.create({
   skeleton: {

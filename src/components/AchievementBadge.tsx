@@ -2,9 +2,10 @@
  * Achievement Badge Component
  * Displays achievement with icon, progress, and unlock state
  * Used in achievement lists and grids
+ * Optimized with React.memo to prevent unnecessary re-renders
  */
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, radii, fonts } from '../theme/tokens';
@@ -18,17 +19,21 @@ interface AchievementBadgeProps {
   size?: 'small' | 'medium' | 'large';
 }
 
-export const AchievementBadge: React.FC<AchievementBadgeProps> = ({
+export const AchievementBadge: React.FC<AchievementBadgeProps> = React.memo(({
   achievement,
   progress = 0,
   isCompleted = false,
   onPress,
   size = 'medium',
 }) => {
-  const progressPercent = (progress / achievement.requirementValue) * 100;
+  // Memoize expensive calculations
+  const progressPercent = useMemo(
+    () => (progress / achievement.requirementValue) * 100,
+    [progress, achievement.requirementValue]
+  );
 
-  // Get rarity color
-  const getRarityColor = () => {
+  // Memoize rarity color to avoid recalculation
+  const rarityColor = useMemo(() => {
     switch (achievement.rarity) {
       case 'common':
         return colors.text.secondary;
@@ -41,10 +46,10 @@ export const AchievementBadge: React.FC<AchievementBadgeProps> = ({
       default:
         return colors.text.secondary;
     }
-  };
+  }, [achievement.rarity]);
 
-  // Get size styles
-  const getSizeStyles = () => {
+  // Memoize size styles to avoid recalculation
+  const sizeStyles = useMemo(() => {
     switch (size) {
       case 'small':
         return {
@@ -68,10 +73,7 @@ export const AchievementBadge: React.FC<AchievementBadgeProps> = ({
           description: styles.descriptionMedium,
         };
     }
-  };
-
-  const sizeStyles = getSizeStyles();
-  const rarityColor = getRarityColor();
+  }, [size]);
 
   return (
     <Pressable
@@ -158,7 +160,7 @@ export const AchievementBadge: React.FC<AchievementBadgeProps> = ({
       <View style={[styles.rarityIndicator, { backgroundColor: rarityColor }]} />
     </Pressable>
   );
-};
+});
 
 const styles = StyleSheet.create({
   container: {

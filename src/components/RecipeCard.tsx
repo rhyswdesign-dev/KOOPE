@@ -45,7 +45,8 @@ interface RecipeCardProps {
   style?: any;
 }
 
-export default function RecipeCard({
+// Optimized with React.memo to prevent unnecessary re-renders in recipe lists
+const RecipeCard = React.memo(({
   recipe,
   onPress,
   onSave,
@@ -56,7 +57,7 @@ export default function RecipeCard({
   showCartButton = true,
   showDeleteButton = false,
   style,
-}: RecipeCardProps) {
+}: RecipeCardProps) => {
   const scale = useSharedValue(1);
 
   const animatedStyle = useAnimatedStyle(() => ({
@@ -167,7 +168,9 @@ export default function RecipeCard({
       </Pressable>
     </Animated.View>
   );
-}
+});
+
+export default RecipeCard;
 
 const styles = StyleSheet.create({
   // Vertical Cards - Full width matching Old Fashioned styling
