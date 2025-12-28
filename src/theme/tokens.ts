@@ -61,10 +61,17 @@ export const colors = {
   pillButtonColor: '#E4933E',
   pillTextOnLight: '#000000',
   pillTextOnDark: '#FFFFFF',
-  
+
   // Secondary colors for PillButton variants
   secondary: '#3A2A1F',
   secondaryText: '#F5ECDF',
+
+  // Nested background colors for components
+  background: {
+    elevated: '#2B1F17', // same as card background
+    primary: '#1A120D',  // same as bg
+    secondary: '#2B1F17', // same as card
+  },
 };
 
 export const spacing = (n: number) => 8 * n;

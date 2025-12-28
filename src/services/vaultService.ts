@@ -17,9 +17,9 @@ import {
   UnlockedVaultItem
 } from '../types/vault';
 
-// Firebase Firestore imports
-import { doc, updateDoc, increment, arrayUnion, getDoc, setDoc, addDoc, collection } from 'firebase/firestore';
-import { db, safeFirestoreOperation, logFirebaseError } from '../config/firebase';
+// Supabase repository imports
+import { VaultRepository } from '../repos/supabase/vaultRepo';
+import * as vaultTransactionRepo from '../repos/supabase/vaultTransactionRepo';
 import { log } from '../lib/logger';
 
 // Mock Stripe imports (replace with actual Stripe imports)
@@ -54,7 +54,7 @@ class VaultService {
       }
 
       // 3. Check if item is available and user can afford it
-      const validation = this.validateUnlockRequest(item, userProfile, request.useDiscountOption);
+      const validation = await this.validateUnlockRequest(item, userProfile, request.useDiscountOption);
       if (!validation.success) {
         return {
           success: false,
@@ -119,11 +119,11 @@ class VaultService {
   /**
    * Validates if a user can unlock a specific item
    */
-  private validateUnlockRequest(
-    item: VaultItem, 
-    userProfile: UserVaultProfile, 
+  private async validateUnlockRequest(
+    item: VaultItem,
+    userProfile: UserVaultProfile,
     useDiscountOption: boolean
-  ): { success: boolean; error?: VaultUnlockError } {
+  ): Promise<{ success: boolean; error?: VaultUnlockError }> {
     
     // Check if item is active
     if (!item.isActive) {
@@ -136,7 +136,7 @@ class VaultService {
     }
 
     // Check if cycle is still active
-    if (!this.isCycleActive(item.cycleId)) {
+    if (!(await this.isCycleActive(item.cycleId))) {
       return { success: false, error: 'cycle_expired' };
     }
 
@@ -199,17 +199,14 @@ class VaultService {
     stripePaymentIntentId?: string;
     shippingAddress?: any;
   }): Promise<string> {
-    
-    const transactionId = `unlock_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    
-    // 1. Deduct XP and Keys from user profile
-    await updateDoc(doc(db, 'userVaultProfiles', params.userId), {
-      xpBalance: increment(-params.xpCost),
-      keysBalance: increment(-params.keysCost),
-      totalXpSpent: increment(params.xpCost),
-      totalKeysSpent: increment(params.keysCost),
-      updatedAt: new Date().toISOString()
-    });
+
+    // 1. Deduct XP and Keys from user profile using Supabase
+    await vaultTransactionRepo.updateVaultBalances(
+      params.userId,
+      -params.xpCost,   // Negative to deduct
+      -params.keysCost, // Negative to deduct
+      0                 // No cash balance change
+    );
 
     // 2. Add to user's unlocked items
     const unlockedItem: UnlockedVaultItem = {
@@ -224,21 +221,18 @@ class VaultService {
       shippingAddress: params.shippingAddress
     };
 
-    await updateDoc(doc(db, 'userVaultProfiles', params.userId), {
-      unlockedItems: arrayUnion(unlockedItem)
-    });
+    await vaultTransactionRepo.addUnlockedItem(params.userId, unlockedItem);
 
     // 3. Log transaction for analytics and order history
-    await addDoc(collection(db, 'vaultTransactions'), {
-      transactionId,
+    const transactionId = await vaultTransactionRepo.logVaultTransaction({
       userId: params.userId,
-      type: 'unlock',
+      transactionType: 'unlock',
       itemId: params.itemId,
-      xpSpent: params.xpCost,
-      keysSpent: params.keysCost,
-      cashSpent: params.cashCost,
+      xpCost: params.xpCost,
+      keysCost: params.keysCost,
+      cashCost: params.cashCost,
       stripePaymentIntentId: params.stripePaymentIntentId,
-      timestamp: new Date().toISOString()
+      shippingAddress: params.shippingAddress
     });
 
     return transactionId;
@@ -326,36 +320,48 @@ class VaultService {
    * Grants Keys and Boosters to user after successful purchase
    */
   private async grantPurchaseRewards(
-    userId: string, 
-    item: MonetizationItem, 
+    userId: string,
+    item: MonetizationItem,
     quantity: number
   ): Promise<string> {
-    
-    const purchaseId = `purchase_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    
-    const updates: any = {
-      updatedAt: new Date().toISOString()
-    };
 
-    // Grant Keys
+    // Grant Keys using Supabase
     if (item.keysGranted) {
-      updates.keysBalance = increment(item.keysGranted * quantity);
-      updates.totalKeysEarned = increment(item.keysGranted * quantity);
+      await vaultTransactionRepo.updateVaultBalances(
+        userId,
+        0, // No XP change
+        item.keysGranted * quantity, // Add Keys
+        0  // No cash change
+      );
     }
 
     // Apply Booster
     if (item.boosterEffect) {
-      const expiresAt = new Date();
-      expiresAt.setHours(expiresAt.getHours() + item.boosterEffect.duration);
-      
-      updates.activeBooster = {
-        type: item.boosterEffect.type,
-        multiplier: item.boosterEffect.multiplier,
-        expiresAt: expiresAt.toISOString()
-      };
+      const success = await vaultTransactionRepo.activateBooster(
+        userId,
+        item.boosterEffect.type,
+        item.boosterEffect.multiplier || 1,
+        item.boosterEffect.duration
+      );
+
+      if (!success) {
+        log.warn('VaultService', 'Failed to activate booster', {
+          userId,
+          boosterType: item.boosterEffect.type
+        });
+      }
     }
 
-    await updateDoc(doc(db, 'userVaultProfiles', userId), updates);
+    // Log the purchase transaction
+    const purchaseId = await vaultTransactionRepo.logVaultTransaction({
+      userId,
+      transactionType: 'purchase_keys',
+      itemId: item.id,
+      xpCost: 0,
+      keysCost: 0,
+      cashCost: item.price * quantity,
+      stripePaymentIntentId: undefined // Will be set by caller
+    });
 
     return purchaseId;
   }
@@ -372,13 +378,11 @@ class VaultService {
         return false;
       }
 
-      const cartRef = doc(db, 'vaultCarts', userId);
-      const cartDoc = await safeFirestoreOperation(() => getDoc(cartRef));
-      
-      let cart: VaultCart;
-      if (cartDoc && cartDoc.exists()) {
-        cart = cartDoc.data() as VaultCart;
-      } else {
+      // Get active cart from Supabase
+      let cart = await vaultTransactionRepo.getActiveCart(userId);
+
+      if (!cart) {
+        // Create new cart
         cart = {
           userId,
           items: [],
@@ -397,7 +401,7 @@ class VaultService {
       if (existingItemIndex >= 0) {
         // Update quantity
         cart.items[existingItemIndex].quantity += quantity;
-        cart.items[existingItemIndex].totalPrice = 
+        cart.items[existingItemIndex].totalPrice =
           cart.items[existingItemIndex].quantity * item.price;
       } else {
         // Add new item
@@ -416,8 +420,13 @@ class VaultService {
       cart.total = cart.subtotal + cart.tax;
       cart.updatedAt = new Date().toISOString();
 
-      await setDoc(cartRef, cart);
-      
+      // Save cart to Supabase
+      await vaultTransactionRepo.upsertCart(userId, cart.items, {
+        subtotal: cart.subtotal,
+        tax: cart.tax,
+        total: cart.total
+      });
+
       return true;
     } catch (error) {
       log.error('VaultService', 'Add to cart failed', error, { userId, itemId });
@@ -504,30 +513,17 @@ class VaultService {
    */
   async getUserVaultProfile(userId: string): Promise<UserVaultProfile | null> {
     try {
-      const docRef = doc(db, 'userVaultProfiles', userId);
-      const docSnap = await safeFirestoreOperation(() => getDoc(docRef));
-      
-      if (docSnap && docSnap.exists()) {
-        return docSnap.data() as UserVaultProfile;
-      }
-      
+      // Try to get existing profile from Supabase
+      let profile = await vaultTransactionRepo.getUserVaultProfile(userId);
+
       // Create default profile if doesn't exist
-      const defaultProfile: UserVaultProfile = {
-        userId,
-        xpBalance: 0,
-        keysBalance: 0,
-        totalXpEarned: 0,
-        totalKeysEarned: 0,
-        totalXpSpent: 0,
-        totalKeysSpent: 0,
-        unlockedItems: [],
-        updatedAt: new Date().toISOString()
-      };
-      
-      await setDoc(docRef, defaultProfile);
-      return defaultProfile;
+      if (!profile) {
+        profile = await vaultTransactionRepo.createUserVaultProfile(userId);
+      }
+
+      return profile;
     } catch (error) {
-      logFirebaseError('get user vault profile', error);
+      log.error('VaultService', 'Failed to get user vault profile', error, { userId });
       return null;
     }
   }
@@ -537,18 +533,18 @@ class VaultService {
    */
   async getVaultItem(itemId: string): Promise<VaultItem | null> {
     try {
-      const docRef = doc(db, 'vaultItems', itemId);
-      const docSnap = await getDoc(docRef);
-      
-      if (docSnap.exists()) {
-        return docSnap.data() as VaultItem;
+      // Get from Supabase
+      const item = await VaultRepository.getVaultItemById(itemId);
+
+      if (item) {
+        return item;
       }
-      
-      // Fallback to mock data if not in Firestore
+
+      // Fallback to mock data if not in Supabase
       const { vaultItems } = await import('../data/vaultData');
       return vaultItems.find(item => item.id === itemId) || null;
     } catch (error) {
-      logFirebaseError('get vault item', error);
+      log.error('VaultService', 'Failed to get vault item', error, { itemId });
       return null;
     }
   }
@@ -558,18 +554,19 @@ class VaultService {
    */
   async getMonetizationItem(itemId: string): Promise<MonetizationItem | null> {
     try {
-      const docRef = doc(db, 'monetizationItems', itemId);
-      const docSnap = await getDoc(docRef);
-      
-      if (docSnap.exists()) {
-        return docSnap.data() as MonetizationItem;
+      // Get all monetization items from Supabase and find by ID
+      const items = await VaultRepository.getMonetizationItems();
+      const item = items.find(i => i.id === itemId);
+
+      if (item) {
+        return item;
       }
-      
-      // Fallback to mock data if not in Firestore
+
+      // Fallback to mock data if not in Supabase
       const { monetizationItems } = await import('../data/vaultData');
       return monetizationItems.find(item => item.id === itemId) || null;
     } catch (error) {
-      logFirebaseError('get monetization item', error);
+      log.error('VaultService', 'Failed to get monetization item', error, { itemId });
       return null;
     }
   }
@@ -579,10 +576,10 @@ class VaultService {
    */
   private async decrementItemStock(itemId: string): Promise<void> {
     try {
-      await updateDoc(doc(db, 'vaultItems', itemId), {
-        currentStock: increment(-1),
-        updatedAt: new Date().toISOString()
-      });
+      const success = await VaultRepository.decrementItemStock(itemId);
+      if (!success) {
+        log.warn('VaultService', 'Failed to decrement item stock', { itemId });
+      }
     } catch (error) {
       log.error('VaultService', 'Failed to decrement item stock', error, { itemId });
     }
@@ -591,14 +588,26 @@ class VaultService {
   /**
    * Checks if a vault cycle is still active
    */
-  private isCycleActive(cycleId: string): boolean {
-    // In real implementation, would check against Firestore
-    const now = new Date();
-    const { currentVaultCycle } = require('../data/vaultData');
-    
-    return currentVaultCycle.id === cycleId && 
-           new Date(currentVaultCycle.startDate) <= now && 
-           new Date(currentVaultCycle.endDate) >= now;
+  private async isCycleActive(cycleId: string): Promise<boolean> {
+    try {
+      // Get current active cycle from Supabase
+      const currentCycle = await VaultRepository.getCurrentCycle();
+
+      if (!currentCycle) {
+        return false;
+      }
+
+      return currentCycle.id === cycleId && currentCycle.isActive;
+    } catch (error) {
+      log.error('VaultService', 'Failed to check cycle status', error, { cycleId });
+      // Fallback to mock data
+      const now = new Date();
+      const { currentVaultCycle } = require('../data/vaultData');
+
+      return currentVaultCycle.id === cycleId &&
+             new Date(currentVaultCycle.startDate) <= now &&
+             new Date(currentVaultCycle.endDate) >= now;
+    }
   }
 
   // ================== XP EARNING METHODS ==================
@@ -611,27 +620,14 @@ class VaultService {
     try {
       // Get user's active booster to apply multiplier
       const userProfile = await this.getUserVaultProfile(userId);
-      let finalAmount = amount;
-      
+      let multiplier = 1;
+
       if (userProfile?.activeBooster?.type === 'xp_multiplier') {
-        const multiplier = userProfile.activeBooster.multiplier || 1;
-        finalAmount = Math.floor(amount * multiplier);
+        multiplier = userProfile.activeBooster.multiplier || 1;
       }
 
-      await updateDoc(doc(db, 'userVaultProfiles', userId), {
-        xpBalance: increment(finalAmount),
-        totalXpEarned: increment(finalAmount),
-        updatedAt: new Date().toISOString()
-      });
-
-      // Log XP earning for analytics
-      await addDoc(collection(db, 'xpTransactions'), {
-        userId,
-        amount: finalAmount,
-        originalAmount: amount,
-        source, // 'lesson_complete', 'challenge_win', 'video_watch', etc.
-        timestamp: new Date().toISOString()
-      });
+      // Use Supabase transaction repo to award XP (handles multiplier)
+      await vaultTransactionRepo.awardXP(userId, amount, source, undefined, multiplier);
 
       return true;
     } catch (error) {

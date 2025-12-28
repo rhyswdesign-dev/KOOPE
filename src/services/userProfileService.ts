@@ -1,51 +1,19 @@
 /**
  * User Profile Service
- * Handles Firebase operations for user profiles
+ * Handles user profile operations using Supabase
+ * MIGRATED FROM FIREBASE
  */
 
-import { getFirestore, doc, setDoc, getDoc, updateDoc, Timestamp } from '@firebase/firestore';
 import { log } from '../lib/logger';
-import { EnhancedUserProfile, createDefaultUserProfile, surveyAnswersToProfile } from '../types/userProfile';
-
-const db = getFirestore();
-const USERS_COLLECTION = 'users';
+import { EnhancedUserProfile, createDefaultUserProfile, surveyAnswersToProfile, BarInventoryItem } from '../types/userProfile';
+import * as userRepo from '../repos/supabase/userRepo';
 
 /**
- * Create or update user profile in Firebase
+ * Create or update user profile in Supabase
  */
 export async function saveUserProfile(profile: EnhancedUserProfile): Promise<void> {
   try {
-    const userRef = doc(db, USERS_COLLECTION, profile.id);
-
-    // Convert dates to Firestore Timestamps
-    const firestoreProfile = {
-      ...profile,
-      createdAt: Timestamp.fromDate(profile.createdAt),
-      lastActiveAt: Timestamp.fromDate(profile.lastActiveAt),
-      barInventory: profile.barInventory?.map(item => ({
-        ...item,
-        addedAt: Timestamp.fromDate(item.addedAt),
-      })),
-      tasteProfile: profile.tasteProfile,
-      interactionHistory: profile.interactionHistory ? {
-        ...profile.interactionHistory,
-        lastUpdated: Timestamp.fromDate(profile.interactionHistory.lastUpdated),
-        viewedRecipes: profile.interactionHistory.viewedRecipes.map(interaction => ({
-          ...interaction,
-          timestamp: Timestamp.fromDate(interaction.timestamp),
-        })),
-        savedRecipes: profile.interactionHistory.savedRecipes.map(interaction => ({
-          ...interaction,
-          timestamp: Timestamp.fromDate(interaction.timestamp),
-        })),
-        completedRecipes: profile.interactionHistory.completedRecipes.map(interaction => ({
-          ...interaction,
-          timestamp: Timestamp.fromDate(interaction.timestamp),
-        })),
-      } : undefined,
-    };
-
-    await setDoc(userRef, firestoreProfile, { merge: true });
+    await userRepo.saveUserProfile(profile);
     log.info('UserProfileService', 'User profile saved successfully', { userId: profile.id });
   } catch (error) {
     log.error('UserProfileService', 'Failed to save user profile', error);
@@ -54,45 +22,15 @@ export async function saveUserProfile(profile: EnhancedUserProfile): Promise<voi
 }
 
 /**
- * Load user profile from Firebase
+ * Load user profile from Supabase
  */
 export async function loadUserProfile(userId: string): Promise<EnhancedUserProfile | null> {
   try {
-    const userRef = doc(db, USERS_COLLECTION, userId);
-    const userSnap = await getDoc(userRef);
+    const profile = await userRepo.getUserProfile(userId);
 
-    if (!userSnap.exists()) {
+    if (!profile) {
       return null;
     }
-
-    const data = userSnap.data();
-
-    // Convert Firestore Timestamps back to Dates
-    const profile: EnhancedUserProfile = {
-      ...data,
-      createdAt: data.createdAt?.toDate() || new Date(),
-      lastActiveAt: data.lastActiveAt?.toDate() || new Date(),
-      barInventory: data.barInventory?.map((item: any) => ({
-        ...item,
-        addedAt: item.addedAt?.toDate() || new Date(),
-      })),
-      interactionHistory: data.interactionHistory ? {
-        ...data.interactionHistory,
-        lastUpdated: data.interactionHistory.lastUpdated?.toDate() || new Date(),
-        viewedRecipes: data.interactionHistory.viewedRecipes?.map((interaction: any) => ({
-          ...interaction,
-          timestamp: interaction.timestamp?.toDate() || new Date(),
-        })) || [],
-        savedRecipes: data.interactionHistory.savedRecipes?.map((interaction: any) => ({
-          ...interaction,
-          timestamp: interaction.timestamp?.toDate() || new Date(),
-        })) || [],
-        completedRecipes: data.interactionHistory.completedRecipes?.map((interaction: any) => ({
-          ...interaction,
-          timestamp: interaction.timestamp?.toDate() || new Date(),
-        })) || [],
-      } : undefined,
-    } as EnhancedUserProfile;
 
     // CRITICAL: Ensure tasteProfile is always initialized to prevent runtime errors
     if (!profile.tasteProfile) {
@@ -161,14 +99,6 @@ export async function loadUserProfile(userId: string): Promise<EnhancedUserProfi
 
     return profile;
   } catch (error: any) {
-    // Handle offline Firebase errors gracefully - return null instead of throwing
-    if (error?.message?.includes('offline') ||
-        error?.message?.includes('Failed to get document') ||
-        error?.code === 'unavailable') {
-      log.info('UserProfileService', 'Offline - unable to load profile from Firebase', { userId });
-      return null;
-    }
-
     log.error('UserProfileService', 'Failed to load user profile', error, { userId });
     throw new Error('Failed to load user profile');
   }
@@ -182,15 +112,7 @@ export async function updateUserProfileFields(
   updates: Partial<EnhancedUserProfile>
 ): Promise<void> {
   try {
-    const userRef = doc(db, USERS_COLLECTION, userId);
-
-    // Convert any Date fields to Timestamps
-    const firestoreUpdates: any = { ...updates };
-    if (updates.lastActiveAt) {
-      firestoreUpdates.lastActiveAt = Timestamp.fromDate(updates.lastActiveAt);
-    }
-
-    await updateDoc(userRef, firestoreUpdates);
+    await userRepo.updateUserProfileFields(userId, updates);
     log.info('UserProfileService', 'User profile updated successfully', { userId });
   } catch (error) {
     log.error('UserProfileService', 'Failed to update user profile', error, { userId });
@@ -216,7 +138,7 @@ export async function initializeUserProfileFromSurvey(
       ...profileData,
     };
 
-    // Save to Firebase
+    // Save to Supabase
     await saveUserProfile(profile);
 
     return profile;
@@ -242,8 +164,6 @@ export async function saveRecipeToProfile(userId: string, recipeId: string): Pro
     }
 
     if (!profile.savedRecipes.includes(recipeId)) {
-      profile.savedRecipes.push(recipeId);
-
       // Update interaction history
       if (!profile.interactionHistory) {
         profile.interactionHistory = {
@@ -262,7 +182,13 @@ export async function saveRecipeToProfile(userId: string, recipeId: string): Pro
 
       profile.interactionHistory.lastUpdated = new Date();
 
-      await saveUserProfile(profile);
+      // Use the repository method to add saved recipe
+      await userRepo.addSavedRecipe(userId, recipeId);
+
+      // Update interaction history separately
+      await userRepo.updateUserProfileFields(userId, {
+        interactionHistory: profile.interactionHistory,
+      });
     }
   } catch (error) {
     log.error('UserProfileService', 'Failed to save recipe to profile', error, { userId, recipeId });
@@ -275,13 +201,7 @@ export async function saveRecipeToProfile(userId: string, recipeId: string): Pro
  */
 export async function unsaveRecipeFromProfile(userId: string, recipeId: string): Promise<void> {
   try {
-    const profile = await loadUserProfile(userId);
-    if (!profile) {
-      throw new Error('User profile not found');
-    }
-
-    profile.savedRecipes = profile.savedRecipes.filter(id => id !== recipeId);
-    await saveUserProfile(profile);
+    await userRepo.removeSavedRecipe(userId, recipeId);
   } catch (error) {
     log.error('UserProfileService', 'Failed to remove recipe from profile', error, { userId, recipeId });
     throw new Error('Failed to remove recipe');
@@ -293,7 +213,7 @@ export async function unsaveRecipeFromProfile(userId: string, recipeId: string):
  */
 export async function addToBarInventory(
   userId: string,
-  item: Omit<import('../types/userProfile').BarInventoryItem, 'id'>
+  item: Omit<BarInventoryItem, 'id'>
 ): Promise<void> {
   try {
     const profile = await loadUserProfile(userId);
@@ -305,7 +225,7 @@ export async function addToBarInventory(
       profile.barInventory = [];
     }
 
-    const newItem = {
+    const newItem: BarInventoryItem = {
       ...item,
       id: `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
     };
@@ -387,9 +307,7 @@ export async function updateTasteProfile(
  */
 export async function trackUserActivity(userId: string): Promise<void> {
   try {
-    await updateUserProfileFields(userId, {
-      lastActiveAt: new Date(),
-    });
+    await userRepo.updateLastActive(userId);
   } catch (error) {
     log.warn('UserProfileService', 'Failed to track user activity (non-critical)', error, { userId });
     // Don't throw - this is non-critical

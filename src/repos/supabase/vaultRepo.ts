@@ -122,6 +122,27 @@ export class VaultRepository {
   }
 
   /**
+   * Decrement vault item stock atomically
+   */
+  static async decrementItemStock(itemId: string): Promise<boolean> {
+    const { data, error } = await supabase.rpc('decrement_vault_item_stock', {
+      item_id: itemId
+    });
+
+    if (error) {
+      log.error('VaultRepo', 'Error decrementing item stock', error);
+      return false;
+    }
+
+    if (data && !data.success) {
+      log.warn('VaultRepo', 'Stock decrement failed', { itemId, error: data.error });
+      return false;
+    }
+
+    return true;
+  }
+
+  /**
    * Create or update user vault profile
    */
   static async upsertUserVaultProfile(profile: UserVaultProfile): Promise<boolean> {
@@ -254,3 +275,23 @@ export class VaultRepository {
     };
   }
 }
+
+// ============================================
+// RE-EXPORT TRANSACTION FUNCTIONS
+// ============================================
+export {
+  getUserVaultProfile as getVaultProfileWithTransactions,
+  createUserVaultProfile,
+  updateVaultBalances,
+  addUnlockedItem,
+  logVaultTransaction,
+  updateTransactionFulfillment,
+  logXPTransaction,
+  awardXP,
+  getActiveCart,
+  upsertCart,
+  completeCart,
+  activateBooster,
+  checkBoosterExpiry,
+  decrementBoosterUses,
+} from './vaultTransactionRepo';
