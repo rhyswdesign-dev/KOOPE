@@ -23,7 +23,9 @@ import { VaultItem } from '../../types/vault';
 import { useVault } from '../../contexts/VaultContext';
 import { useUser } from '../../store/useUser';
 import { useAICredits } from '../../store/useAICredits';
+import { useXPSystem } from '../../store/useXPSystem';
 import { currentVaultCycle, getVaultCountdown } from '../../data/vaultData';
+import XPBalanceModal from '../../components/XPBalanceModal';
 import PillButton from '../../components/PillButton';
 import VaultUnlockModal from './components/VaultUnlockModal';
 import VaultItemCard from './components/VaultItemCard';
@@ -57,10 +59,12 @@ export default function VaultScreen() {
   const analytics = useAnalyticsContext();
   const { xp } = useUser();
   const { credits, isPremium } = useAICredits();
+  const { balance: xpBalance } = useXPSystem();
   const { savedItems, toggleSavedCocktail, isCocktailSaved } = useSavedItems();
   const [selectedTab, setSelectedTab] = useState<string>('variations');
   const [countdown, setCountdown] = useState(getVaultCountdown());
   const [creditsPurchaseVisible, setCreditsPurchaseVisible] = useState(false);
+  const [xpBalanceModalVisible, setXpBalanceModalVisible] = useState(false);
   const [groceryListVisible, setGroceryListVisible] = useState(false);
   const [selectedRecipe, setSelectedRecipe] = useState<any>(null);
   
@@ -84,21 +88,39 @@ export default function VaultScreen() {
       headerTitleStyle: { color: colors.text, fontWeight: '900' },
       headerShadowVisible: false,
       headerLeft: () => (
-        <Pressable
-          hitSlop={12}
-          onPress={() => {
-            Alert.alert(
-              'How the Vault Works',
-              'XP (Experience Points):\n• Earn XP by completing lessons and challenges\n• Use XP to unlock exclusive recipes, techniques, and bar features\n\nKeys:\n• Premium currency for special items\n• Purchase keys in the store\n• Unlock limited-edition content and boosters\n\nTip: Complete daily lessons to maximize your XP earnings!',
-              [{ text: 'Got it!', style: 'default' }]
-            );
-          }}
-          accessible={true}
-          accessibilityRole="button"
-          accessibilityLabel="Learn how the Vault economy works"
-        >
-          <Ionicons name="help-circle-outline" size={24} color={colors.accent} />
-        </Pressable>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginLeft: 16 }}>
+          {/* XP Balance */}
+          <Pressable
+            hitSlop={12}
+            onPress={() => setXpBalanceModalVisible(true)}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
+            accessible={true}
+            accessibilityRole="button"
+            accessibilityLabel={`XP Balance: ${xpBalance}`}
+          >
+            <Ionicons name="star" size={20} color={colors.gold} />
+            <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>
+              {xpBalance.toLocaleString()}
+            </Text>
+          </Pressable>
+
+          {/* Help Icon */}
+          <Pressable
+            hitSlop={12}
+            onPress={() => {
+              Alert.alert(
+                'How the Vault Works',
+                'XP (Experience Points):\n• Earn XP by completing lessons and challenges\n• Use XP to unlock exclusive recipes, techniques, and bar features\n\nKeys:\n• Premium currency for special items\n• Purchase keys in the store\n• Unlock limited-edition content and boosters\n\nTip: Complete daily lessons to maximize your XP earnings!',
+                [{ text: 'Got it!', style: 'default' }]
+              );
+            }}
+            accessible={true}
+            accessibilityRole="button"
+            accessibilityLabel="Learn how the Vault economy works"
+          >
+            <Ionicons name="help-circle-outline" size={24} color={colors.accent} />
+          </Pressable>
+        </View>
       ),
       headerRight: () => (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
@@ -136,12 +158,6 @@ export default function VaultScreen() {
           </Pressable>
           <Pressable
             hitSlop={12}
-            onPress={() => nav.navigate('ShoppingCart')}
-          >
-            <Ionicons name="cart-outline" size={24} color={colors.accent} />
-          </Pressable>
-          <Pressable
-            hitSlop={12}
             onPress={() => nav.navigate('VaultOrderHistory')}
           >
             <Ionicons name="receipt-outline" size={24} color={colors.text} />
@@ -149,7 +165,7 @@ export default function VaultScreen() {
         </View>
       ),
     });
-  }, [nav, tier, setTier]);
+  }, [nav, tier, setTier, xpBalance]);
 
   const getFilteredItems = (): VaultItem[] => {
     const items = state.vaultItems.filter(item => item.isActive);
@@ -476,6 +492,12 @@ export default function VaultScreen() {
       <AICreditsPurchaseModal
         visible={creditsPurchaseVisible}
         onClose={() => setCreditsPurchaseVisible(false)}
+      />
+
+      {/* XP Balance Modal */}
+      <XPBalanceModal
+        visible={xpBalanceModalVisible}
+        onClose={() => setXpBalanceModalVisible(false)}
       />
 
       {/* Grocery List Modal */}

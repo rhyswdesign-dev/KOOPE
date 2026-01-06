@@ -12,11 +12,13 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { TabView, SceneMap, TabBar } from 'react-native-tab-view';
 import curriculumData from '../../curriculum-data.json';
 import { useUser } from '../store/useUser';
+import { useXPSystem } from '../store/useXPSystem';
 import { useChallenges } from '../contexts/ChallengeContext';
 import { RewardClaimModal } from '../components/RewardClaimModal';
 import { rewardService } from '../services/rewardService';
 import { Challenge } from '../types/challenge';
 import { log } from '../lib/logger';
+import XPBalanceModal from '../components/XPBalanceModal';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -266,9 +268,11 @@ function Challenges2View() {
 function LessonsView() {
   const navigation = useNavigation<NavigationProp>();
   const { lives, xp, level, streak, completedLessons, checkLifeRefresh } = useUser();
+  const { balance: xpBalance } = useXPSystem();
   const [modules, setModules] = useState<any[]>([]);
   const [selectedModule, setSelectedModule] = useState<any | null>(null);
   const [moduleLessons, setModuleLessons] = useState<any[]>([]);
+  const [xpBalanceModalVisible, setXpBalanceModalVisible] = useState(false);
 
   useEffect(() => {
     // Check for life refresh on screen load
@@ -438,10 +442,18 @@ function LessonsView() {
       <View style={styles.header}>
         <View style={styles.headerContent}>
           <View style={styles.statsRow}>
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>{xp}</Text>
+            {/* XP Balance - Interactive */}
+            <Pressable
+              style={styles.statItem}
+              onPress={() => setXpBalanceModalVisible(true)}
+              accessible={true}
+              accessibilityRole="button"
+              accessibilityLabel={`XP Balance: ${xpBalance}`}
+            >
+              <Ionicons name="star" size={18} color={colors.gold} />
+              <Text style={styles.statValue}>{xpBalance}</Text>
               <Text style={styles.statLabel}>XP</Text>
-            </View>
+            </Pressable>
 
             <View style={styles.statItem}>
               <Text style={styles.statValue}>{streak}</Text>
@@ -487,6 +499,12 @@ function LessonsView() {
           </View>
         )}
       </ScrollView>
+
+      {/* XP Balance Modal */}
+      <XPBalanceModal
+        visible={xpBalanceModalVisible}
+        onClose={() => setXpBalanceModalVisible(false)}
+      />
     </SafeAreaView>
   );
 }

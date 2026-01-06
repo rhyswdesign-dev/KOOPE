@@ -7,9 +7,25 @@ import { VaultItem, VaultCycle, MonetizationItem, UserVaultProfile } from '../ty
 
 // ================== CURRENT VAULT CYCLE ==================
 
+// Generate current month/year collection name dynamically
+const getCurrentCollectionName = (): string => {
+  const now = new Date();
+  const monthName = now.toLocaleDateString('en-US', { month: 'long' });
+  const year = now.getFullYear();
+  return `${monthName} ${year} Collection`;
+};
+
+// Generate cycle ID from current date
+const getCurrentCycleId = (): string => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  return `cycle_${year}_${month}`;
+};
+
 export const currentVaultCycle: VaultCycle = {
-  id: 'cycle_2025_09',
-  name: 'September 2025 Collection',
+  id: getCurrentCycleId(),
+  name: getCurrentCollectionName(),
   startDate: '2025-09-01T00:00:00Z',
   endDate: '2025-09-30T23:59:59Z',
   isActive: true,
