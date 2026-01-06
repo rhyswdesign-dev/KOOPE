@@ -2,6 +2,7 @@
  * Locked Recipe Card
  * Shows a beautiful thumbnail preview of a locked cocktail
  * Displays lock icon and upgrade prompt - NO NAME SHOWN
+ * Supports XP unlock option
  */
 
 import React from 'react';
@@ -14,9 +15,11 @@ interface LockedRecipeCardProps {
   image: any; // Cocktail thumbnail image
   onPress?: () => void; // Tap to show upgrade prompt
   style?: ViewStyle; // Allow custom styling for different layouts
+  xpCost?: number; // XP cost to unlock (if undefined, XP unlock not available)
+  canAfford?: boolean; // Whether user has enough XP
 }
 
-export default function LockedRecipeCard({ image, onPress, style }: LockedRecipeCardProps) {
+export default function LockedRecipeCard({ image, onPress, style, xpCost, canAfford }: LockedRecipeCardProps) {
   return (
     <TouchableOpacity
       style={[styles.card, style]}
@@ -51,6 +54,16 @@ export default function LockedRecipeCard({ image, onPress, style }: LockedRecipe
           <Ionicons name="diamond-outline" size={14} color={colors.gold} />
           <Text style={styles.premiumText}>KOOPE+</Text>
         </View>
+
+        {/* XP Cost badge - shown at bottom if XP unlock available */}
+        {xpCost !== undefined && (
+          <View style={[styles.xpBadge, !canAfford && styles.xpBadgeUnaffordable]}>
+            <Ionicons name="star" size={14} color={canAfford ? colors.gold : colors.textMuted} />
+            <Text style={[styles.xpCostText, !canAfford && styles.xpCostTextUnaffordable]}>
+              {xpCost} XP
+            </Text>
+          </View>
+        )}
       </ImageBackground>
     </TouchableOpacity>
   );
@@ -120,5 +133,32 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.gold,
     letterSpacing: 0.5,
+  },
+  xpBadge: {
+    position: 'absolute',
+    bottom: spacing(1.5),
+    left: spacing(1.5),
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.bg + 'E6',
+    paddingHorizontal: spacing(1.5),
+    paddingVertical: spacing(0.75),
+    borderRadius: radii.full,
+    borderWidth: 1.5,
+    borderColor: colors.gold + '80',
+  },
+  xpBadgeUnaffordable: {
+    borderColor: colors.textMuted + '40',
+    backgroundColor: colors.bg + '99',
+  },
+  xpCostText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.gold,
+    letterSpacing: 0.3,
+  },
+  xpCostTextUnaffordable: {
+    color: colors.textMuted,
   },
 });

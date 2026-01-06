@@ -55,6 +55,9 @@ import ForYouFeed from '../components/ForYouFeed';
 import { useUserTier } from '../store/useUserTier';
 import { isCocktailAccessible, FREE_TIER_COCKTAILS, getUpgradeMessage } from '../config/tierAccess';
 import LockedRecipeCard from '../components/LockedRecipeCard';
+import { useXPSystem } from '../store/useXPSystem';
+import CocktailUnlockSheet from '../components/CocktailUnlockSheet';
+import XPBalanceModal from '../components/XPBalanceModal';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 const { width } = Dimensions.get('window');
@@ -627,6 +630,28 @@ export default function RecipesScreen() {
   // Tier-based access control
   const tier = useUserTier((state) => state.tier);
 
+  // XP System
+  const {
+    balance: xpBalance,
+    getCocktailCost,
+    canAffordCocktail,
+    unlockCocktail,
+    isCocktailUnlockedWithXP,
+    checkDailyLogin,
+  } = useXPSystem();
+
+  // Check daily login on mount
+  useEffect(() => {
+    checkDailyLogin();
+  }, []);
+
+  // Unlock sheet state
+  const [unlockSheetVisible, setUnlockSheetVisible] = useState(false);
+  const [selectedCocktailForUnlock, setSelectedCocktailForUnlock] = useState<any>(null);
+
+  // XP Balance modal state
+  const [xpBalanceModalVisible, setXpBalanceModalVisible] = useState(false);
+
   // Supabase recipes state
   const [allRecipes, setAllRecipes] = useState<any[]>([]);
   const [recipesLoading, setRecipesLoading] = useState(true);
@@ -989,7 +1014,8 @@ export default function RecipesScreen() {
       headerTitleStyle: { color: colors.text, fontWeight: '900' },
       headerShadowVisible: false,
       headerLeft: () => (
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 16, gap: 8 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 16, gap: 12 }}>
+          {/* AI Credits */}
           <Pressable
             hitSlop={12}
             onPress={() => setCreditsPurchaseVisible(true)}
@@ -1006,6 +1032,26 @@ export default function RecipesScreen() {
               fontSize: 16
             }}>
               {isPremium ? '∞' : credits.toLocaleString()}
+            </Text>
+          </Pressable>
+
+          {/* XP Balance */}
+          <Pressable
+            hitSlop={12}
+            onPress={() => setXpBalanceModalVisible(true)}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}
+          >
+            <Ionicons
+              name="star"
+              size={20}
+              color={colors.gold}
+            />
+            <Text style={{
+              color: colors.text,
+              fontWeight: '600',
+              fontSize: 16
+            }}>
+              {xpBalance.toLocaleString()}
             </Text>
           </Pressable>
         </View>
@@ -1027,17 +1073,23 @@ export default function RecipesScreen() {
         </View>
       ),
     });
-  }, [navigation, credits, isPremium, setCreditsPurchaseVisible, setCreditsInfoVisible, setViewMode]);
+  }, [navigation, credits, isPremium, xpBalance, setCreditsPurchaseVisible, setCreditsInfoVisible, setViewMode]);
 
   const renderRecipeItem: ListRenderItem<any> = ({ item, index }) => {
-    // Check if this cocktail is accessible for current tier
-    const isAccessible = isCocktailAccessible(item.id, tier);
+    // Check if this cocktail is accessible for current tier or unlocked with XP
+    const isTierAccessible = isCocktailAccessible(item.id, tier);
+    const isXPUnlocked = isCocktailUnlockedWithXP(item.id);
+    const isAccessible = isTierAccessible || isXPUnlocked;
 
-    // If locked, show LockedRecipeCard with thumbnail only (no name)
+    // If locked, show LockedRecipeCard with thumbnail only (no name) and XP unlock option
     if (!isAccessible) {
+      const xpCost = getCocktailCost(item.id);
+      const canAfford = canAffordCocktail(item.id);
+
       const handleUpgradePress = () => {
-        // Navigate to Paywall screen for subscription plans
-        navigation.navigate('Paywall', { offering: null, displayCloseButton: true });
+        // Show unlock sheet with XP and subscription options
+        setSelectedCocktailForUnlock(item);
+        setUnlockSheetVisible(true);
       };
 
       return (
@@ -1046,6 +1098,8 @@ export default function RecipesScreen() {
             image={typeof item.image === 'string' ? { uri: item.image } : item.image}
             onPress={handleUpgradePress}
             style={{ width: (width - spacing(2) * 2 - GUTTER) / 2, marginBottom: spacing(2) }}
+            xpCost={tier === 'FREE' ? xpCost : undefined} // Only show XP for FREE tier
+            canAfford={canAfford}
           />
         </Animated.View>
       );
@@ -2126,6 +2180,43 @@ export default function RecipesScreen() {
           )}
         </View>
       )}
+
+      {/* Cocktail Unlock Sheet */}
+      <CocktailUnlockSheet
+        visible={unlockSheetVisible}
+        onClose={() => {
+          setUnlockSheetVisible(false);
+          setSelectedCocktailForUnlock(null);
+        }}
+        cocktailName={selectedCocktailForUnlock?.name || 'This Cocktail'}
+        xpCost={selectedCocktailForUnlock ? getCocktailCost(selectedCocktailForUnlock.id) : 0}
+        currentXP={xpBalance}
+        canAfford={selectedCocktailForUnlock ? canAffordCocktail(selectedCocktailForUnlock.id) : false}
+        onUnlockWithXP={() => {
+          if (selectedCocktailForUnlock) {
+            const cost = getCocktailCost(selectedCocktailForUnlock.id);
+            const success = unlockCocktail(selectedCocktailForUnlock.id, cost);
+            if (success) {
+              showToast(`Unlocked ${selectedCocktailForUnlock.name}!`, 'success');
+              setUnlockSheetVisible(false);
+              setSelectedCocktailForUnlock(null);
+            } else {
+              showToast('Not enough XP to unlock', 'error');
+            }
+          }
+        }}
+        onUpgradeSubscription={() => {
+          setUnlockSheetVisible(false);
+          setSelectedCocktailForUnlock(null);
+          navigation.navigate('Paywall', { offering: null, displayCloseButton: true });
+        }}
+      />
+
+      {/* XP Balance Modal */}
+      <XPBalanceModal
+        visible={xpBalanceModalVisible}
+        onClose={() => setXpBalanceModalVisible(false)}
+      />
 
       {/* Toast Notification */}
       <Toast

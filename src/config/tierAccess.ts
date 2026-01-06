@@ -144,13 +144,15 @@ export const TIER_FEATURES = {
 
 /**
  * Check if a cocktail is accessible for a given tier
+ * Note: This only checks tier access, not XP unlocks
+ * For complete access check, also check isCocktailUnlockedWithXP from useXPSystem
  */
 export function isCocktailAccessible(cocktailId: string, tier: UserTier): boolean {
   if (tier === 'PLUS' || tier === 'PRO') {
     return true; // All cocktails accessible
   }
 
-  // FREE tier: only 9 classics
+  // FREE tier: only 9 classics (plus any XP-unlocked, checked separately)
   return FREE_TIER_COCKTAILS.includes(cocktailId as any);
 }
 
