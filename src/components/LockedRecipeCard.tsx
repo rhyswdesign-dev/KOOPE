@@ -35,16 +35,16 @@ export default function LockedRecipeCard({ image, onPress, style, xpCost, canAff
         style={styles.imageBackground}
         imageStyle={styles.image}
       >
-        {/* Light overlay - allows cocktail to be visible for attraction */}
+        {/* Subtle overlay - cocktail image clearly visible */}
         <LinearGradient
-          colors={['rgba(0,0,0,0.1)', 'rgba(0,0,0,0.35)']}
+          colors={['rgba(0,0,0,0.05)', 'rgba(0,0,0,0.15)']}
           style={StyleSheet.absoluteFillObject}
         />
 
-        {/* Lock icon overlay - positioned at top for better cocktail visibility */}
+        {/* Lock icon watermark - centered, grey tone, semi-transparent */}
         <View style={styles.lockOverlay}>
           <View style={styles.lockIconContainer}>
-            <Ionicons name="lock-closed" size={28} color={colors.gold} />
+            <Ionicons name="lock-closed" size={32} color="#808080" />
           </View>
           <Text style={styles.upgradeText}>Tap to Unlock</Text>
         </View>
@@ -88,31 +88,35 @@ const styles = StyleSheet.create({
     borderRadius: radii.lg,
   },
   lockOverlay: {
-    position: 'absolute',
-    top: spacing(2),
-    left: 0,
-    right: 0,
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
     alignItems: 'center',
   },
   lockIconContainer: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: colors.bg + 'D9',
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: 'rgba(255, 255, 255, 0.5)', // Semi-transparent white watermark
     borderWidth: 2,
-    borderColor: colors.gold,
+    borderColor: 'rgba(128, 128, 128, 0.4)', // Semi-transparent grey border
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing(1),
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   upgradeText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
-    color: colors.gold,
+    color: '#808080', // Grey watermark text
     textAlign: 'center',
-    textShadowColor: 'rgba(0,0,0,0.8)',
+    textShadowColor: 'rgba(255,255,255,0.8)', // Light shadow for contrast
     textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
+    textShadowRadius: 2,
+    opacity: 0.9,
   },
   premiumBadge: {
     position: 'absolute',

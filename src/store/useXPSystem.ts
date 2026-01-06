@@ -6,6 +6,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getCocktailXPCost as getDefaultCocktailXPCost } from '../config/cocktailXPCosts';
 
 export type XPSource =
   | 'daily-login'
@@ -215,8 +216,8 @@ export const useXPSystem = create<XPSystemState>()(
       // Get cocktail unlock cost
       getCocktailCost: (cocktailId: string) => {
         const state = get();
-        // Return custom cost if set, otherwise default to 'common' tier cost
-        return state.cocktailCosts[cocktailId] || DEFAULT_COCKTAIL_COSTS.common;
+        // Return custom cost if set, otherwise use cocktail-specific cost from config
+        return state.cocktailCosts[cocktailId] || getDefaultCocktailXPCost(cocktailId);
       },
 
       // Set custom cocktail cost

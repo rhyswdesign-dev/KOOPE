@@ -669,6 +669,7 @@ export default function RecipesScreen() {
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [showSearchInput, setShowSearchInput] = useState(false);
+  const [showOnlyUnlocked, setShowOnlyUnlocked] = useState(false);
 
   // Modal states
   const [groceryListVisible, setGroceryListVisible] = useState(false);
@@ -988,6 +989,15 @@ export default function RecipesScreen() {
       });
     }
 
+    // Filter by unlocked status (only applies for FREE tier)
+    if (showOnlyUnlocked && tier === 'FREE') {
+      recipes = recipes.filter(recipe => {
+        const isTierAccessible = isCocktailAccessible(recipe.id, tier);
+        const isXPUnlocked = isCocktailUnlockedWithXP(recipe.id);
+        return isTierAccessible || isXPUnlocked;
+      });
+    }
+
     // Sort recipes
     if (currentFilters.sortOrder === 'alphabetical-asc') {
       recipes = recipes.sort((a, b) => a.name.localeCompare(b.name));
@@ -1260,7 +1270,7 @@ export default function RecipesScreen() {
               </Animated.View>
             )}
 
-            {/* Search Bar with Filter */}
+            {/* Search Bar with Filters */}
             <View style={{ marginHorizontal: spacing(2), marginBottom: spacing(2), flexDirection: 'row', gap: spacing(1.5) }}>
               <View style={{ flex: 1 }}>
                 <SearchBar
@@ -1270,6 +1280,39 @@ export default function RecipesScreen() {
                   debounceMs={0}
                 />
               </View>
+
+              {/* My Unlocked Filter (only show for FREE tier) */}
+              {tier === 'FREE' && unlockedCocktails.length > 0 && (
+                <TouchableOpacity
+                  style={{
+                    height: 48,
+                    paddingHorizontal: spacing(2),
+                    borderRadius: radii.lg,
+                    backgroundColor: showOnlyUnlocked ? colors.gold : colors.card,
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    flexDirection: 'row',
+                    gap: spacing(1),
+                    borderWidth: 1.5,
+                    borderColor: showOnlyUnlocked ? colors.gold : colors.line,
+                  }}
+                  onPress={() => setShowOnlyUnlocked(!showOnlyUnlocked)}
+                >
+                  <Ionicons
+                    name={showOnlyUnlocked ? "star" : "star-outline"}
+                    size={18}
+                    color={showOnlyUnlocked ? colors.bg : colors.text}
+                  />
+                  <Text style={{
+                    fontSize: 14,
+                    fontWeight: '600',
+                    color: showOnlyUnlocked ? colors.bg : colors.text,
+                  }}>
+                    Unlocked
+                  </Text>
+                </TouchableOpacity>
+              )}
+
               <TouchableOpacity
                 style={{
                   width: 48,
