@@ -13,23 +13,20 @@ import { colors, spacing } from '../theme/tokens';
 import { useUserTier } from '../store/useUserTier';
 import EmptyState from '../components/states/EmptyState';
 import type { EventItem } from '../types/spirit';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { RootStackParamList } from '../navigation/RootNavigator';
+
+type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 export default function EventsScreen() {
+  const navigation = useNavigation<Nav>();
   const tier = useUserTier((state) => state.tier);
   const [loading, setLoading] = useState(false);
 
   const handleUpgrade = () => {
-    Alert.alert(
-      'Upgrade to KOOPE+',
-      'Get access to exclusive events, tastings, and masterclasses.\n\n• All Events Access\n• Early Registration\n• PRO: Priority Access + Bigger Discounts',
-      [
-        { text: 'Maybe Later', style: 'cancel' },
-        { text: 'View Plans', onPress: () => {
-          // Navigate to pricing/paywall when ready
-          Alert.alert('Coming Soon', 'Subscription plans will be available soon!');
-        }},
-      ]
-    );
+    // Navigate to Paywall screen for subscription plans
+    navigation.navigate('Paywall', { offering: null, displayCloseButton: true });
   };
 
   // Mock events data - replace with actual data source

@@ -32,18 +32,18 @@ export default function LockedRecipeCard({ image, onPress, style }: LockedRecipe
         style={styles.imageBackground}
         imageStyle={styles.image}
       >
-        {/* Dark overlay */}
+        {/* Light overlay - allows cocktail to be visible for attraction */}
         <LinearGradient
-          colors={['rgba(0,0,0,0.3)', 'rgba(0,0,0,0.7)']}
+          colors={['rgba(0,0,0,0.1)', 'rgba(0,0,0,0.35)']}
           style={StyleSheet.absoluteFillObject}
         />
 
-        {/* Lock icon overlay */}
+        {/* Lock icon overlay - positioned at top for better cocktail visibility */}
         <View style={styles.lockOverlay}>
           <View style={styles.lockIconContainer}>
-            <Ionicons name="lock-closed" size={32} color={colors.gold} />
+            <Ionicons name="lock-closed" size={28} color={colors.gold} />
           </View>
-          <Text style={styles.upgradeText}>Upgrade to Unlock</Text>
+          <Text style={styles.upgradeText}>Tap to Unlock</Text>
         </View>
 
         {/* Premium badge */}
@@ -75,19 +75,22 @@ const styles = StyleSheet.create({
     borderRadius: radii.lg,
   },
   lockOverlay: {
+    position: 'absolute',
+    top: spacing(2),
+    left: 0,
+    right: 0,
     alignItems: 'center',
-    justifyContent: 'center',
   },
   lockIconContainer: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: colors.bg + 'E6',
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: colors.bg + 'D9',
     borderWidth: 2,
     borderColor: colors.gold,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing(2),
+    marginBottom: spacing(1),
   },
   upgradeText: {
     fontSize: 13,

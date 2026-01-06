@@ -95,14 +95,14 @@ const COCKTAIL_MOODS = [
     subtitle: 'Colorful, lively, perfect for social energy',
     image: 'https://images.unsplash.com/photo-1551538827-9c037cb4f32a?auto=format&fit=crop&w=800&q=60',
     category: 'playful_fun',
-    cocktails: ['margarita', 'mojito', 'aperol-spritz', 'pornstar-martini', 'bramble', 'kamikaze', 'lemon-drop', 'woo-woo-shot', 'melon-ball-shot']
+    cocktails: ['margarita', 'mojito', 'aperol-spritz', 'pornstar-martini', 'bramble', 'lemon-drop', 'woo-woo-shot', 'melon-ball-shot']
   },
   {
     title: 'Tropical Escape',
     subtitle: 'Exotic, fruity, a trip to the islands',
     image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?auto=format&fit=crop&w=800&q=60',
     category: 'tropical_escape',
-    cocktails: ['mai-tai', 'pina-colada', 'zombie', 'painkiller', 'jungle-bird', 'navy-grog', 'fog-cutter', 'scorpion', 'blue-hawaii', 'hurricane', 'singapore-sling', 'surfer-on-acid', 'scooby-snack']
+    cocktails: ['mai-tai', 'pina-colada', 'zombie', 'painkiller', 'jungle-bird', 'navy-grog', 'fog-cutter', 'blue-hawaii', 'hurricane', 'singapore-sling', 'surfer-on-acid', 'scooby-snack']
   },
   {
     title: 'Cozy & Comforting',
@@ -116,7 +116,7 @@ const COCKTAIL_MOODS = [
     subtitle: 'Edgy, caffeinated, or party-fueled',
     image: 'https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?auto=format&fit=crop&w=800&q=60',
     category: 'late_night_energy',
-    cocktails: ['espresso-martini', 'paper-plane', 'naked-famous', 'kamikaze', 'jagerbomb', 'espresso-shot-cocktail']
+    cocktails: ['espresso-martini', 'paper-plane', 'naked-famous', 'jagerbomb', 'espresso-shot-cocktail']
   },
   {
     title: 'Mystery & Depth',
@@ -160,23 +160,6 @@ const PARTY_SHOTS = [
       { name: 'Sugar Rim', note: 'For glass' }
     ],
     description: 'Sweet and sour crowd favorite.',
-  },
-  {
-    id: 'kamikaze-shot',
-    name: 'Kamikaze',
-    title: 'Kamikaze',
-    subtitle: 'Party Shot • Vodka-based',
-    category: 'Shots',
-    image: 'https://images.unsplash.com/photo-1541745537411-b8046dc6d66c?q=80&w=1200&auto=format&fit=crop',
-    difficulty: 'Easy',
-    time: '1 min',
-    rating: 4.2,
-    ingredients: [
-      { name: '1 oz Vodka', note: 'Quality vodka' },
-      { name: '1/2 oz Triple Sec', note: 'Cointreau preferred' },
-      { name: '1/2 oz Fresh Lime Juice', note: 'Freshly squeezed' }
-    ],
-    description: 'Classic three-ingredient shot.',
   },
   {
     id: 'washington-apple',
@@ -1053,16 +1036,8 @@ export default function RecipesScreen() {
     // If locked, show LockedRecipeCard with thumbnail only (no name)
     if (!isAccessible) {
       const handleUpgradePress = () => {
-        Alert.alert(
-          'Unlock All Recipes',
-          getUpgradeMessage(tier),
-          [
-            { text: 'Maybe Later', style: 'cancel' },
-            { text: 'View Plans', onPress: () => {
-              Alert.alert('Coming Soon', 'Subscription plans will be available soon!');
-            }},
-          ]
-        );
+        // Navigate to Paywall screen for subscription plans
+        navigation.navigate('Paywall', { offering: null, displayCloseButton: true });
       };
 
       return (
