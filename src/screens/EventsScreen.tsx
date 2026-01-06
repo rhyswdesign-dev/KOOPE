@@ -10,12 +10,12 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing } from '../theme/tokens';
-import { useSubscription } from '../contexts/SubscriptionContext';
+import { useUserTier } from '../store/useUserTier';
 import EmptyState from '../components/states/EmptyState';
 import type { EventItem } from '../types/spirit';
 
 export default function EventsScreen() {
-  const { tier } = useSubscription();
+  const tier = useUserTier((state) => state.tier);
   const [loading, setLoading] = useState(false);
 
   const handleUpgrade = () => {

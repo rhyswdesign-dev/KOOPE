@@ -5,7 +5,7 @@
  */
 
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ImageBackground } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ImageBackground, ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, radii } from '../theme/tokens';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -13,12 +13,13 @@ import { LinearGradient } from 'expo-linear-gradient';
 interface LockedRecipeCardProps {
   image: any; // Cocktail thumbnail image
   onPress?: () => void; // Tap to show upgrade prompt
+  style?: ViewStyle; // Allow custom styling for different layouts
 }
 
-export default function LockedRecipeCard({ image, onPress }: LockedRecipeCardProps) {
+export default function LockedRecipeCard({ image, onPress, style }: LockedRecipeCardProps) {
   return (
     <TouchableOpacity
-      style={styles.card}
+      style={[styles.card, style]}
       onPress={onPress}
       activeOpacity={0.8}
       accessible={true}
@@ -57,11 +58,9 @@ export default function LockedRecipeCard({ image, onPress }: LockedRecipeCardPro
 
 const styles = StyleSheet.create({
   card: {
-    width: 160,
     height: 220,
     borderRadius: radii.lg,
     overflow: 'hidden',
-    marginRight: spacing(2),
     backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: colors.gold + '40',

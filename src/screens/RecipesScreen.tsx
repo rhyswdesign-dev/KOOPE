@@ -52,6 +52,9 @@ import RecipeCardSkeleton from '../components/RecipeCardSkeleton';
 import SearchBar from '../components/SearchBar';
 import FilterModal from '../components/FilterModal';
 import ForYouFeed from '../components/ForYouFeed';
+import { useUserTier } from '../store/useUserTier';
+import { isCocktailAccessible, FREE_TIER_COCKTAILS, getUpgradeMessage } from '../config/tierAccess';
+import LockedRecipeCard from '../components/LockedRecipeCard';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 const { width } = Dimensions.get('window');
@@ -638,6 +641,9 @@ export default function RecipesScreen() {
   const { recipes: userRecipes, loadRecipes } = useUserRecipes();
   const { toast, showToast, hideToast } = useToast();
 
+  // Tier-based access control
+  const tier = useUserTier((state) => state.tier);
+
   // Supabase recipes state
   const [allRecipes, setAllRecipes] = useState<any[]>([]);
   const [recipesLoading, setRecipesLoading] = useState(true);
@@ -1041,6 +1047,36 @@ export default function RecipesScreen() {
   }, [navigation, credits, isPremium, setCreditsPurchaseVisible, setCreditsInfoVisible, setViewMode]);
 
   const renderRecipeItem: ListRenderItem<any> = ({ item, index }) => {
+    // Check if this cocktail is accessible for current tier
+    const isAccessible = isCocktailAccessible(item.id, tier);
+
+    // If locked, show LockedRecipeCard with thumbnail only (no name)
+    if (!isAccessible) {
+      const handleUpgradePress = () => {
+        Alert.alert(
+          'Unlock All Recipes',
+          getUpgradeMessage(tier),
+          [
+            { text: 'Maybe Later', style: 'cancel' },
+            { text: 'View Plans', onPress: () => {
+              Alert.alert('Coming Soon', 'Subscription plans will be available soon!');
+            }},
+          ]
+        );
+      };
+
+      return (
+        <Animated.View entering={FadeInDown.delay((index || 0) * 80).duration(500).springify()}>
+          <LockedRecipeCard
+            image={typeof item.image === 'string' ? { uri: item.image } : item.image}
+            onPress={handleUpgradePress}
+            style={{ width: (width - spacing(2) * 2 - GUTTER) / 2, marginBottom: spacing(2) }}
+          />
+        </Animated.View>
+      );
+    }
+
+    // If accessible, show normal RecipeCard
     const cardProps = createRecipeCardProps(item, navigation, {
       toggleSavedCocktail,
       isCocktailSaved,
