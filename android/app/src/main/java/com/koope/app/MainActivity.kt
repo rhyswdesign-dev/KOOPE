@@ -1,4 +1,4 @@
-package com.anonymous.HomeGameAdvantage
+package com.koope.app
 
 import android.os.Build
 import android.os.Bundle

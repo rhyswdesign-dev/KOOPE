@@ -1,15 +1,23 @@
-import React, { useLayoutEffect } from 'react';
-import { View, Text, Pressable } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import { Ionicons } from '@expo/vector-icons';
+import React from 'react';
+import { View, StyleSheet } from 'react-native';
 import { colors } from '../theme/tokens';
+import EmptyState from '../components/states/EmptyState';
 
 export default function GameDetailsScreen() {
-  const nav = useNavigation();
-
   return (
-    <View style={{ flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' }}>
-      <Text style={{ color: '#f5ece3' }}>Game Details (coming soon)</Text>
+    <View style={styles.container}>
+      <EmptyState
+        variant="comingSoon"
+        title="Game Details"
+        description="Detailed game instructions, rules, and variations are on the way. Check back soon!"
+      />
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.bg,
+  },
+});

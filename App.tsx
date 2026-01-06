@@ -26,6 +26,7 @@ import AchievementUnlockModal from './src/components/AchievementUnlockModal';
 import { initAnalytics } from './src/services/analytics';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
 import { OfflineBanner } from './src/components/OfflineBanner';
+// import { StripeProvider } from './src/providers/StripeProvider'; // Disabled until Xcode is installed
 
 // Override console.error to filter out Firebase offline errors and RevenueCat analytics bugs
 const originalConsoleError = console.error;
@@ -148,37 +149,39 @@ export default function App() {
   // Show main app
   return (
     <ErrorBoundary>
-      <AnalyticsProvider>
-        <AuthProvider>
-          <ChallengeProvider>
-            <FirebaseProvider>
-              <SubscriptionProvider>
-                <MonetizationProvider>
-                  <UserProvider>
-                    <VaultProvider>
-                      <PostsProvider>
-                        <NavigationContainer theme={KOOPETheme}>
-                          <RootNavigator />
-                        </NavigationContainer>
+      {/* <StripeProvider> Disabled until Xcode is installed */}
+        <AnalyticsProvider>
+          <AuthProvider>
+            <ChallengeProvider>
+              <FirebaseProvider>
+                <SubscriptionProvider>
+                  <MonetizationProvider>
+                    <UserProvider>
+                      <VaultProvider>
+                        <PostsProvider>
+                          <NavigationContainer theme={KOOPETheme}>
+                            <RootNavigator />
+                          </NavigationContainer>
 
-                        {/* Global Achievement Unlock Modal */}
-                        <AchievementUnlockModal
-                          visible={!!unlockedAchievement}
-                          achievement={unlockedAchievement}
-                          onClose={clearUnlockedAchievement}
-                        />
+                          {/* Global Achievement Unlock Modal */}
+                          <AchievementUnlockModal
+                            visible={!!unlockedAchievement}
+                            achievement={unlockedAchievement}
+                            onClose={clearUnlockedAchievement}
+                          />
 
-                        {/* Offline Indicator */}
-                        <OfflineBanner />
-                      </PostsProvider>
-                    </VaultProvider>
-                  </UserProvider>
-                </MonetizationProvider>
-              </SubscriptionProvider>
-            </FirebaseProvider>
-          </ChallengeProvider>
-        </AuthProvider>
-      </AnalyticsProvider>
+                          {/* Offline Indicator */}
+                          <OfflineBanner />
+                        </PostsProvider>
+                      </VaultProvider>
+                    </UserProvider>
+                  </MonetizationProvider>
+                </SubscriptionProvider>
+              </FirebaseProvider>
+            </ChallengeProvider>
+          </AuthProvider>
+        </AnalyticsProvider>
+      {/* </StripeProvider> */}
     </ErrorBoundary>
   );
 }

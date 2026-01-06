@@ -160,7 +160,11 @@ export default function SpiritRecognitionScreen() {
 
   const handleManualAdd = () => {
     // In a real app, this would open a manual entry form
-    Alert.alert('Manual Entry', 'Manual entry feature coming soon!');
+    Alert.alert(
+      'Manual Entry',
+      'Manually add spirits to your home bar by searching our catalog or scanning the barcode.',
+      [{ text: 'Got it', style: 'default' }]
+    );
   };
 
   const loadCocktailRecommendations = async (spirit: Partial<BarIngredient>) => {

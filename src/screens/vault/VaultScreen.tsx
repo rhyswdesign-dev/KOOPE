@@ -12,6 +12,7 @@ import {
   TouchableOpacity,
   Pressable,
   Image,
+  Alert,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -82,7 +83,23 @@ export default function VaultScreen() {
       headerTintColor: colors.text,
       headerTitleStyle: { color: colors.text, fontWeight: '900' },
       headerShadowVisible: false,
-      headerLeft: () => null,
+      headerLeft: () => (
+        <Pressable
+          hitSlop={12}
+          onPress={() => {
+            Alert.alert(
+              'How the Vault Works',
+              'XP (Experience Points):\n• Earn XP by completing lessons and challenges\n• Use XP to unlock exclusive recipes, techniques, and bar features\n\nKeys:\n• Premium currency for special items\n• Purchase keys in the store\n• Unlock limited-edition content and boosters\n\nTip: Complete daily lessons to maximize your XP earnings!',
+              [{ text: 'Got it!', style: 'default' }]
+            );
+          }}
+          accessible={true}
+          accessibilityRole="button"
+          accessibilityLabel="Learn how the Vault economy works"
+        >
+          <Ionicons name="help-circle-outline" size={24} color={colors.accent} />
+        </Pressable>
+      ),
       headerRight: () => (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
           {/* Developer Tier Switcher - for testing only */}
@@ -116,6 +133,12 @@ export default function VaultScreen() {
             }}
           >
             <MaterialCommunityIcons name="storefront" size={24} color={colors.accent} />
+          </Pressable>
+          <Pressable
+            hitSlop={12}
+            onPress={() => nav.navigate('ShoppingCart')}
+          >
+            <Ionicons name="cart-outline" size={24} color={colors.accent} />
           </Pressable>
           <Pressable
             hitSlop={12}

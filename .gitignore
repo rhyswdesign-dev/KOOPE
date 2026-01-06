@@ -40,3 +40,6 @@ yarn-error.*
 # Firebase migration scripts - service account keys
 scripts/serviceAccountKey.json
 exports/
+
+# Supabase local cache
+supabase/.temp/

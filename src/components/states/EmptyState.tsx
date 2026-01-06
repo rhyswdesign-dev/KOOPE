@@ -16,11 +16,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, radii } from '../../theme/tokens';
 
 interface EmptyStateProps {
-  type?: 'search' | 'favorites' | 'history' | 'lessons' | 'vault' | 'notifications' | 'recipes' | 'network' | 'generic';
+  variant?: 'search' | 'favorites' | 'history' | 'lessons' | 'vault' | 'notifications' | 'recipes' | 'network' | 'generic' | 'comingSoon' | 'noContent';
+  type?: 'search' | 'favorites' | 'history' | 'lessons' | 'vault' | 'notifications' | 'recipes' | 'network' | 'generic' | 'comingSoon' | 'noContent';
   title?: string;
   message?: string;
+  description?: string;
   icon?: string;
   actionText?: string;
+  action?: { label: string; onPress: () => void };
   onAction?: () => void;
   secondaryActionText?: string;
   onSecondaryAction?: () => void;
@@ -92,14 +95,27 @@ const EMPTY_STATE_CONFIGS = {
     message: 'This section is empty, but don\'t worry - there\'s plenty to explore elsewhere!',
     actionText: 'Explore App',
   },
+  comingSoon: {
+    icon: 'hourglass-outline',
+    title: 'Coming Soon',
+    message: 'We\'re working on something special for you. Check back soon for exciting new features!',
+  },
+  noContent: {
+    icon: 'document-outline',
+    title: 'No Content Yet',
+    message: 'There\'s nothing to display right now. Check back later for updates!',
+  },
 };
 
 export default function EmptyState({
+  variant,
   type = 'generic',
   title,
   message,
+  description,
   icon,
   actionText,
+  action,
   onAction,
   secondaryActionText,
   onSecondaryAction,
@@ -107,12 +123,14 @@ export default function EmptyState({
   size = 'medium',
   theme = 'light',
 }: EmptyStateProps) {
-  const config = EMPTY_STATE_CONFIGS[type];
+  const stateType = variant || type;
+  const config = EMPTY_STATE_CONFIGS[stateType];
 
   const displayTitle = title || config.title;
-  const displayMessage = message || config.message;
+  const displayMessage = description || message || config.message;
   const displayIcon = icon || config.icon;
-  const displayActionText = actionText || config.actionText;
+  const displayActionText = action?.label || actionText || config.actionText;
+  const handleAction = action?.onPress || onAction;
   const displaySecondaryActionText = secondaryActionText || config.secondaryActionText;
 
   const getIconSize = () => {
@@ -201,7 +219,7 @@ export default function EmptyState({
               theme === 'accent' && styles.accentPrimaryAction,
               size === 'small' && styles.smallAction,
             ]}
-            onPress={onAction}
+            onPress={handleAction}
             activeOpacity={0.8}
           >
             <Text
@@ -250,7 +268,7 @@ export default function EmptyState({
         {renderActions()}
 
         {/* Decorative elements for certain types */}
-        {type === 'vault' && (
+        {stateType === 'vault' && (
           <View style={styles.decorativeElements}>
             <View style={styles.sparkle1}>
               <Ionicons name="sparkles" size={16} color={colors.gold} />
@@ -264,7 +282,7 @@ export default function EmptyState({
           </View>
         )}
 
-        {type === 'lessons' && (
+        {stateType === 'lessons' && (
           <View style={styles.progressIndicator}>
             <View style={styles.progressDots}>
               {[0, 1, 2, 3, 4].map((index) => (

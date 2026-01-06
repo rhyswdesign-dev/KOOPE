@@ -23,6 +23,11 @@ export default function SettingsScreen() {
     updates: true,
   });
 
+  const [appearance, setAppearance] = useState({
+    theme: 'dark', // 'dark' | 'light' | 'auto'
+    textSize: 'medium', // 'small' | 'medium' | 'large'
+  });
+
   useLayoutEffect(() => {
     nav.setOptions({
       title: 'Settings',
@@ -201,6 +206,69 @@ export default function SettingsScreen() {
               trackColor={{ true: colors.accent, false: colors.line }}
             />
           </View>
+        </View>
+
+        {/* Appearance Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Appearance</Text>
+
+          <TouchableOpacity
+            style={styles.settingItem}
+            onPress={() => {
+              Alert.alert(
+                'Theme',
+                'Choose your preferred theme',
+                [
+                  { text: 'Dark (Current)', style: 'default', onPress: () => setAppearance(prev => ({ ...prev, theme: 'dark' })) },
+                  { text: 'Light (Coming Soon)', style: 'default' },
+                  { text: 'Auto (System)', style: 'default' },
+                  { text: 'Cancel', style: 'cancel' }
+                ]
+              );
+            }}
+            activeOpacity={0.7}
+            accessible={true}
+            accessibilityRole="button"
+            accessibilityLabel="Change app theme"
+          >
+            <View style={styles.settingItemLeft}>
+              <Ionicons name="moon-outline" size={24} color={colors.text} />
+              <View>
+                <Text style={styles.settingItemText}>Theme</Text>
+                <Text style={styles.settingItemSubtext}>Dark Mode</Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={colors.subtext} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.settingItem}
+            onPress={() => {
+              Alert.alert(
+                'Text Size',
+                'Adjust text size for better readability',
+                [
+                  { text: 'Small', style: 'default', onPress: () => setAppearance(prev => ({ ...prev, textSize: 'small' })) },
+                  { text: 'Medium (Current)', style: 'default' },
+                  { text: 'Large', style: 'default', onPress: () => setAppearance(prev => ({ ...prev, textSize: 'large' })) },
+                  { text: 'Cancel', style: 'cancel' }
+                ]
+              );
+            }}
+            activeOpacity={0.7}
+            accessible={true}
+            accessibilityRole="button"
+            accessibilityLabel="Adjust text size"
+          >
+            <View style={styles.settingItemLeft}>
+              <Ionicons name="text-outline" size={24} color={colors.text} />
+              <View>
+                <Text style={styles.settingItemText}>Text Size</Text>
+                <Text style={styles.settingItemSubtext}>Medium</Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={colors.subtext} />
+          </TouchableOpacity>
         </View>
 
         {/* Privacy & Security Section */}

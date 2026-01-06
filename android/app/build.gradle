@@ -87,9 +87,10 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace 'com.anonymous.HomeGameAdvantage'
+    namespace 'com.koope.app'
     defaultConfig {
-        applicationId 'com.anonymous.HomeGameAdvantage'
+missingDimensionStrategy "store", "play"
+        applicationId 'com.koope.app'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
@@ -153,7 +154,6 @@ android {
 }
 
 dependencies {
-    implementation "io.github.hyochan.openiap:openiap-google:1.2.12"
     // The version of react-native is set by the React Native Gradle Plugin
     implementation("com.facebook.react:react-android")
 

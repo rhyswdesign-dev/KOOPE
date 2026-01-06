@@ -22,8 +22,8 @@ import { VaultRepository } from '../repos/supabase/vaultRepo';
 import * as vaultTransactionRepo from '../repos/supabase/vaultTransactionRepo';
 import { log } from '../lib/logger';
 
-// Mock Stripe imports (replace with actual Stripe imports)
-// import { StripeProvider, useStripe } from '@stripe/stripe-react-native';
+// Stripe imports
+import { createPaymentIntent } from '../lib/stripeApi';
 
 class VaultService {
   
@@ -438,63 +438,44 @@ class VaultService {
 
   /**
    * Processes Stripe payment for real money transactions
+   * Note: This returns the payment intent details for client-side confirmation
+   * The actual confirmation should be done in the UI component using useStripe() hook
    */
-  private async processStripePayment(
-    amountInCents: number, 
-    userId: string, 
-    paymentMethodId?: string
+  async createStripePayment(
+    amountInCents: number,
+    userId: string,
+    metadata?: Record<string, string>
   ): Promise<{
     success: boolean;
+    clientSecret?: string;
     paymentIntentId?: string;
     error?: string;
   }> {
-    
+
     try {
-      // In real implementation, this would call your backend API
-      // which creates a Stripe Payment Intent
-      
-      /*
-      const response = await fetch('/api/create-payment-intent', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          amount: amountInCents,
-          currency: 'usd',
-          userId,
-          paymentMethodId,
-          metadata: {
-            type: 'vault_purchase',
-            userId
-          }
-        }),
+      // Call backend API to create payment intent
+      const paymentIntent = await createPaymentIntent({
+        amount: amountInCents,
+        userId,
+        metadata,
       });
 
-      const { clientSecret, paymentIntentId } = await response.json();
-
-      // Use Stripe React Native SDK to confirm payment
-      const { error } = await stripe.confirmPayment(clientSecret, {
-        paymentMethodType: 'Card',
-      });
-
-      if (error) {
+      if (!paymentIntent) {
         return {
           success: false,
-          error: error.message
+          error: 'Failed to create payment intent'
         };
       }
 
-      return {
-        success: true,
-        paymentIntentId
-      };
-      */
+      log.info('VaultService', 'Payment intent created', {
+        paymentIntentId: paymentIntent.paymentIntentId,
+        amount: amountInCents,
+      });
 
-      // Mock successful payment for demo
       return {
         success: true,
-        paymentIntentId: `pi_mock_${Date.now()}`
+        clientSecret: paymentIntent.clientSecret,
+        paymentIntentId: paymentIntent.paymentIntentId,
       };
 
     } catch (error) {
@@ -504,6 +485,29 @@ class VaultService {
         error: 'Payment processing failed'
       };
     }
+  }
+
+  /**
+   * Legacy method for backward compatibility
+   * @deprecated Use createStripePayment instead and confirm in UI with useStripe() hook
+   */
+  private async processStripePayment(
+    amountInCents: number,
+    userId: string,
+    paymentMethodId?: string
+  ): Promise<{
+    success: boolean;
+    paymentIntentId?: string;
+    error?: string;
+  }> {
+    // Mock successful payment for backward compatibility
+    // This should be removed once all code uses createStripePayment
+    log.warn('VaultService', 'Using deprecated processStripePayment - use createStripePayment instead');
+
+    return {
+      success: true,
+      paymentIntentId: `pi_mock_${Date.now()}`
+    };
   }
 
   // ================== DATA ACCESS METHODS ==================

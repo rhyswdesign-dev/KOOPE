@@ -35,6 +35,7 @@ export default function ShoppingCartScreen() {
   const [savedShoppingLists, setSavedShoppingLists] = useState<any[]>([]);
   const [consolidatedShoppingItems, setConsolidatedShoppingItems] = useState<any>({ itemsByRecipe: {}, allItems: [] });
   const [checkedShoppingItems, setCheckedShoppingItems] = useState<Set<string>>(new Set());
+  const [sortBy, setSortBy] = useState<'name' | 'category' | 'price' | 'recent'>('recent');
 
   useLayoutEffect(() => {
     nav.setOptions({
@@ -347,30 +348,68 @@ export default function ShoppingCartScreen() {
 
       {/* View Mode Tabs */}
       <View style={styles.viewModeTabs}>
-        <TouchableOpacity
-          style={[styles.viewModeTab, viewMode === 'cocktail' && styles.viewModeTabActive]}
-          onPress={() => setViewMode('cocktail')}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.viewModeTabsContent}
         >
-          <Text style={[styles.viewModeTabText, viewMode === 'cocktail' && styles.viewModeTabTextActive]}>
-            Group by Cocktail
-          </Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.viewModeTab, viewMode === 'cocktail' && styles.viewModeTabActive]}
+            onPress={() => setViewMode('cocktail')}
+          >
+            <Text style={[styles.viewModeTabText, viewMode === 'cocktail' && styles.viewModeTabTextActive]}>
+              Group by Cocktail
+            </Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[styles.viewModeTab, viewMode === 'ingredient' && styles.viewModeTabActive]}
-          onPress={() => setViewMode('ingredient')}
-        >
-          <Text style={[styles.viewModeTabText, viewMode === 'ingredient' && styles.viewModeTabTextActive]}>
-            Group by Ingredient
-          </Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.viewModeTab, viewMode === 'ingredient' && styles.viewModeTabActive]}
+            onPress={() => setViewMode('ingredient')}
+          >
+            <Text style={[styles.viewModeTabText, viewMode === 'ingredient' && styles.viewModeTabTextActive]}>
+              Group by Ingredient
+            </Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.viewModeTab}
-          onPress={() => Alert.alert('Sort', 'Sort options coming soon')}
-        >
-          <Text style={styles.viewModeTabText}>Sort by</Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.viewModeTab}
+            onPress={() => {
+              Alert.alert(
+                'Sort Options',
+                'Choose how to sort your shopping items',
+                [
+                  {
+                    text: 'Name (A-Z)',
+                    onPress: () => {
+                      setSortBy('name');
+                      showToast('Sorted by Name', 'success');
+                    },
+                  },
+                  {
+                    text: 'Category',
+                    onPress: () => {
+                      setSortBy('category');
+                      showToast('Sorted by Category', 'success');
+                    },
+                  },
+                  {
+                    text: 'Recently Added',
+                    onPress: () => {
+                      setSortBy('recent');
+                      showToast('Sorted by Recent', 'success');
+                    },
+                  },
+                  { text: 'Cancel', style: 'cancel' },
+                ]
+              );
+            }}
+            accessible={true}
+            accessibilityRole="button"
+            accessibilityLabel="Sort shopping cart items"
+          >
+            <Text style={styles.viewModeTabText}>Sort by</Text>
+          </TouchableOpacity>
+        </ScrollView>
       </View>
 
       {/* Category Filters (only show in ingredient view) */}
@@ -453,11 +492,13 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   viewModeTabs: {
-    flexDirection: 'row',
-    paddingHorizontal: spacing(3),
     marginBottom: spacing(2),
     borderBottomWidth: 1,
     borderBottomColor: colors.line,
+  },
+  viewModeTabsContent: {
+    paddingHorizontal: spacing(3),
+    gap: spacing(1),
   },
   viewModeTab: {
     paddingVertical: spacing(2),

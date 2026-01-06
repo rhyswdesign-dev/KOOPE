@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useLayoutEffect } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   SafeAreaView,
   Alert,
   ScrollView,
+  Pressable,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { colors, spacing, radii } from '../theme/tokens';
@@ -34,6 +35,22 @@ export default function ProfileScreen() {
   const [userStats, setUserStats] = useState(achievementService.getUserStats());
   const [streakData, setStreakData] = useState<StreakData>(streakService.getStreakData());
 
+  useLayoutEffect(() => {
+    nav.setOptions({
+      headerRight: () => (
+        <Pressable
+          hitSlop={12}
+          onPress={() => nav.navigate('Settings')}
+          accessible={true}
+          accessibilityRole="button"
+          accessibilityLabel="Open settings"
+        >
+          <Ionicons name="settings-outline" size={24} color={colors.text} style={{ marginRight: 16 }} />
+        </Pressable>
+      ),
+    });
+  }, [nav]);
+
   useEffect(() => {
     // Load latest stats when screen focuses
     const loadStats = () => {
@@ -53,8 +70,17 @@ export default function ProfileScreen() {
   }, []);
 
   const handleSignIn = () => {
-    // Navigate to OAuth sign-in screen
-    nav.navigate('OAuthSignIn');
+    // Navigate to OAuth sign-in screen with callback
+    nav.navigate('OAuthSignIn', {
+      onComplete: () => {
+        // Navigate back to profile after successful sign-in
+        nav.goBack();
+      },
+      onSkip: () => {
+        // Allow user to skip sign-in
+        nav.goBack();
+      },
+    });
   };
 
   const handleSignOut = async () => {

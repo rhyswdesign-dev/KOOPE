@@ -6,6 +6,7 @@ import Tabs from './Tabs';
 import BarsScreen from '../screens/BarsScreen';
 import AccountSetupScreen from '../screens/AccountSetupScreen';
 import SpiritsScreen from '../screens/SpiritsScreen';
+import EventsScreen from '../screens/EventsScreen';
 import GamesScreen from '../screens/GamesScreen';
 import BrandScreen from '../screens/BrandScreen';
 import BarThemeScreen from '../screens/BarThemeScreen';
@@ -72,6 +73,7 @@ import LessonSummaryScreen from '../screens/lessons/LessonSummaryScreen';
 // Commerce screens
 import PricingScreen from '../screens/commerce/PricingScreen';
 // Auth screens
+import OAuthSignInScreen from '../screens/OAuthSignInScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import RecipeDetailScreen from '../screens/RecipeDetailScreen';
 import CartScreen from '../screens/commerce/CartScreen';
@@ -99,6 +101,7 @@ export type RootStackParamList = {
   Main: undefined;
   PersonalizedHome: undefined;
   Bars: undefined;
+  Events: undefined;
   Games: undefined;
   GamesScreen: undefined;
   Brand: { brand: string };
@@ -139,6 +142,7 @@ export type RootStackParamList = {
   SavedItems: { category: 'bars' | 'spirits' | 'cocktails' | 'events' | 'communities' };
   EditProfile: undefined;
   Profile: undefined;
+  OAuthSignIn: { onComplete?: () => void; onSkip?: () => void };
   NonAlcoholic: undefined;
   Vault: undefined;
   VaultStore: { tab?: string };
@@ -211,6 +215,7 @@ export default function RootNavigator({ initialRouteName = 'Main', onHiddenFlask
     >
       <Stack.Screen name="Main" component={Tabs} />
       <Stack.Screen name="Bars" component={BarsScreen} options={{ headerShown: true, title: 'Featured Bars' }} />
+      <Stack.Screen name="Events" component={EventsScreen} options={{ headerShown: true, title: 'Events' }} />
       <Stack.Screen name="Games" component={GamesScreen} options={{ headerShown: true, title: 'Games' }} />
       <Stack.Screen name="Brand" component={BrandScreen} options={({ route }) => ({ headerShown: true, title: route.params.brand })} />
       <Stack.Screen name="BarTheme" component={BarThemeScreen} options={({ route }) => ({ headerShown: true, title: route.params.theme })} />
@@ -387,6 +392,7 @@ export default function RootNavigator({ initialRouteName = 'Main', onHiddenFlask
       <Stack.Screen name="SavedItems" component={SavedItemsScreen} options={{ headerShown: true, title: 'Saved Items' }} />
       <Stack.Screen name="EditProfile" component={EditProfileScreen} options={{ headerShown: true, title: 'Edit Profile' }} />
       <Stack.Screen name="Profile" component={ProfileScreen} options={{ headerShown: true, title: 'Profile' }} />
+      <Stack.Screen name="OAuthSignIn" component={OAuthSignInScreen} options={{ headerShown: false }} />
       <Stack.Screen name="NonAlcoholic" component={NonAlcoholicScreen} options={{ headerShown: true, title: 'Non-Alcoholic' }} />
     <Stack.Screen name="Vault" component={VaultScreen} options={{ headerShown: true, title: 'Vault' }} />
     {/* Vault Economy Screens */}

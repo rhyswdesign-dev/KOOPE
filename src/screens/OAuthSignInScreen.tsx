@@ -39,7 +39,8 @@ export default function OAuthSignInScreen({ onComplete, onSkip }: OAuthSignInScr
       if (onComplete) onComplete();
     } catch (error: any) {
       log.error('OAuthSignInScreen', 'Apple Sign-In failed', error);
-      Alert.alert('Sign In Failed', 'Could not sign in with Apple. Please try again.');
+      // Always show error message
+      Alert.alert('Sign In Failed', 'Could not sign in with Apple. Please try again or skip to continue.');
     } finally {
       setIsLoading(false);
     }
@@ -54,7 +55,17 @@ export default function OAuthSignInScreen({ onComplete, onSkip }: OAuthSignInScr
       if (onComplete) onComplete();
     } catch (error: any) {
       log.error('OAuthSignInScreen', 'Google Sign-In failed', error);
-      Alert.alert('Sign In Failed', 'Could not sign in with Google. Please try again.');
+
+      // Check if it's a configuration error
+      if (error?.message?.includes('400') || error?.message?.includes('malformed')) {
+        Alert.alert(
+          'Google Sign-In Unavailable',
+          'Google authentication is not configured yet. Please use Apple Sign-In or skip to continue.',
+          [{ text: 'OK' }]
+        );
+      } else {
+        Alert.alert('Sign In Failed', 'Could not sign in with Google. Please try again or use Apple Sign-In.');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -127,9 +138,14 @@ export default function OAuthSignInScreen({ onComplete, onSkip }: OAuthSignInScr
               onPress={handleAppleSignIn}
               disabled={isLoading}
               activeOpacity={0.8}
+              accessible={true}
+              accessibilityRole="button"
+              accessibilityLabel="Continue with Apple"
+              accessibilityHint="Sign in to your account using Apple ID"
+              accessibilityState={{ disabled: isLoading }}
             >
               <View style={styles.buttonContent}>
-                <MaterialCommunityIcons name="apple" size={24} color="#FFFFFF" />
+                <MaterialCommunityIcons name="apple" size={24} color={colors.text} />
                 <Text style={styles.appleButtonText}>Continue with Apple</Text>
               </View>
             </TouchableOpacity>
@@ -141,9 +157,14 @@ export default function OAuthSignInScreen({ onComplete, onSkip }: OAuthSignInScr
             onPress={handleGoogleSignIn}
             disabled={isLoading}
             activeOpacity={0.8}
+            accessible={true}
+            accessibilityRole="button"
+            accessibilityLabel="Continue with Google"
+            accessibilityHint="Sign in to your account using Google"
+            accessibilityState={{ disabled: isLoading }}
           >
             <View style={styles.buttonContent}>
-              <MaterialCommunityIcons name="google" size={24} color="#FFFFFF" />
+              <MaterialCommunityIcons name="google" size={24} color={colors.text} />
               <Text style={styles.googleButtonText}>Continue with Google</Text>
             </View>
           </TouchableOpacity>
@@ -275,20 +296,24 @@ const styles = StyleSheet.create({
     gap: spacing(2),
   },
   appleButton: {
-    backgroundColor: '#000000',
+    backgroundColor: colors.card,
     borderRadius: radii.lg,
     paddingVertical: spacing(2.5),
-    shadowColor: '#000',
+    borderWidth: 1,
+    borderColor: colors.border,
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 8,
   },
   googleButton: {
-    backgroundColor: '#4285F4',
+    backgroundColor: colors.card,
     borderRadius: radii.lg,
     paddingVertical: spacing(2.5),
-    shadowColor: '#4285F4',
+    borderWidth: 1,
+    borderColor: colors.border,
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -301,12 +326,12 @@ const styles = StyleSheet.create({
     gap: spacing(1.5),
   },
   appleButtonText: {
-    color: '#FFFFFF',
+    color: colors.text,
     fontSize: 17,
     fontWeight: '600',
   },
   googleButtonText: {
-    color: '#FFFFFF',
+    color: colors.text,
     fontSize: 17,
     fontWeight: '600',
   },

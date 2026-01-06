@@ -103,33 +103,29 @@ export async function getUserVaultProfile(userId: string): Promise<UserVaultProf
 
 /**
  * Create new user vault profile
+ * Uses RPC function with SECURITY DEFINER to bypass RLS
  */
 export async function createUserVaultProfile(userId: string): Promise<UserVaultProfile> {
   try {
-    const { data, error } = await supabase
-      .from('user_vault_profiles')
-      .insert({
-        user_id: userId,
-        xp_balance: 0,
-        keys_balance: 0,
-      })
-      .select()
-      .single();
+    const { data, error } = await supabase.rpc('create_user_vault_profile_rpc', {
+      p_user_id: userId
+    });
 
     if (error) throw error;
+    if (!data) throw new Error('No data returned from RPC');
 
-    const row = data as VaultProfileRow;
+    const row = data as any;
     return {
       userId: row.user_id,
-      xpBalance: row.xp_balance,
-      keysBalance: row.keys_balance,
-      vaultCashBalance: row.vault_cash_balance,
-      totalXpEarned: row.total_xp_earned,
-      totalXpSpent: row.total_xp_spent,
-      totalKeysEarned: row.total_keys_earned,
-      totalKeysSpent: row.total_keys_spent,
-      totalCashSpent: row.total_cash_spent,
-      unlockedItems: [],
+      xpBalance: row.xp_balance || 0,
+      keysBalance: row.keys_balance || 0,
+      vaultCashBalance: row.vault_cash_balance || 0,
+      totalXpEarned: row.total_xp_earned || 0,
+      totalXpSpent: row.total_xp_spent || 0,
+      totalKeysEarned: row.total_keys_earned || 0,
+      totalKeysSpent: row.total_keys_spent || 0,
+      totalCashSpent: row.total_cash_spent || 0,
+      unlockedItems: row.unlocked_items || [],
       createdAt: new Date(row.created_at),
       updatedAt: new Date(row.updated_at),
     };

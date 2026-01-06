@@ -127,6 +127,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } catch (error: any) {
       if (error.code === 'ERR_REQUEST_CANCELED') {
         log.info('AuthContext', 'Apple sign-in cancelled by user');
+        // Re-throw so caller knows sign-in didn't complete
+        throw new Error('Sign-in cancelled');
       } else {
         log.error('AuthContext', 'Apple sign-in failed', error);
         throw error;
