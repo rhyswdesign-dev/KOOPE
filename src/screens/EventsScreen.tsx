@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing } from '../theme/tokens';
@@ -16,6 +17,20 @@ import type { EventItem } from '../types/spirit';
 export default function EventsScreen() {
   const { tier } = useSubscription();
   const [loading, setLoading] = useState(false);
+
+  const handleUpgrade = () => {
+    Alert.alert(
+      'Upgrade to KOOPE+',
+      'Get access to exclusive events, tastings, and masterclasses.\n\n• All Events Access\n• Early Registration\n• PRO: Priority Access + Bigger Discounts',
+      [
+        { text: 'Maybe Later', style: 'cancel' },
+        { text: 'View Plans', onPress: () => {
+          // Navigate to pricing/paywall when ready
+          Alert.alert('Coming Soon', 'Subscription plans will be available soon!');
+        }},
+      ]
+    );
+  };
 
   // Mock events data - replace with actual data source
   const events: EventItem[] = [
@@ -52,10 +67,7 @@ export default function EventsScreen() {
           description="Upgrade to KOOPE+ or PRO to access exclusive bartending events, tastings, and masterclasses."
           action={{
             label: 'View Plans',
-            onPress: () => {
-              // Navigate to paywall
-              // navigation.navigate('Paywall');
-            },
+            onPress: handleUpgrade,
           }}
         />
       </View>
@@ -156,9 +168,19 @@ function EventCard({ event, isPro }: EventCardProps) {
     }
   };
 
+  const handleEventPress = () => {
+    const discount = isPro ? '\n\n💎 PRO Discount Available!' : '';
+    Alert.alert(
+      event.title,
+      `📅 ${formatDate(event.dateISO)} at ${formatTime(event.dateISO)}\n📍 ${event.city}\n\nEvent registration and details coming soon!${discount}`,
+      [{ text: 'Got it!' }]
+    );
+  };
+
   return (
     <TouchableOpacity
       style={styles.eventCard}
+      onPress={handleEventPress}
       accessible={true}
       accessibilityRole="button"
       accessibilityLabel={`${event.title} event on ${formatDate(event.dateISO)}${event.city ? ` in ${event.city}` : ''}`}
@@ -202,15 +224,10 @@ function EventCard({ event, isPro }: EventCardProps) {
         </View>
       )}
 
-      <TouchableOpacity
-        style={styles.registerButton}
-        accessible={true}
-        accessibilityRole="button"
-        accessibilityLabel="Learn more about this event"
-      >
+      <View style={styles.registerButton}>
         <Text style={styles.registerButtonText}>Learn More</Text>
         <Ionicons name="chevron-forward" size={20} color={colors.text} />
-      </TouchableOpacity>
+      </View>
     </TouchableOpacity>
   );
 }
