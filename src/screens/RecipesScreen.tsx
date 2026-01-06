@@ -638,6 +638,7 @@ export default function RecipesScreen() {
     unlockCocktail,
     isCocktailUnlockedWithXP,
     checkDailyLogin,
+    unlockedCocktails,
   } = useXPSystem();
 
   // Check daily login on mount
