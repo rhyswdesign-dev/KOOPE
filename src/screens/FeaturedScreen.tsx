@@ -222,60 +222,16 @@ export default function FeaturedScreen() {
       </ScrollView>
 
 
-      {/* Personalization Demo Button */}
-      <TouchableOpacity
-        style={styles.demoButton}
-        onPress={() => nav.navigate('PersonalizedHome' as never)}
-      >
-        <View style={styles.demoContent}>
-          <Text style={styles.demoEmoji}>🧠</Text>
-          <View style={styles.demoTextContainer}>
-            <Text style={styles.demoTitle}>Try Personalized Recommendations</Text>
-            <Text style={styles.demoSubtitle}>See mood-based feeds & real-time learning</Text>
-          </View>
-          <Ionicons name="arrow-forward" size={24} color={colors.gold} />
+      {/* Featured Content */}
+
+      <Section title="Brand Partnerships">
+        <View style={styles.emptyStateCard}>
+          <Ionicons name="business-outline" size={48} color={colors.subtext} />
+          <Text style={styles.emptyStateTitle}>Premium Brand Partnerships</Text>
+          <Text style={styles.emptyStateDescription}>
+            We're partnering with top spirits brands to bring you exclusive recipes and sponsored content.
+          </Text>
         </View>
-      </TouchableOpacity>
-
-      {/* Featured Content - show all sections */}
-      <Section title="Featured Games" onPress={() => nav.navigate('Games' as never)}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: spacing(2), paddingHorizontal: spacing(2) }}>
-          {games.map(g=>(
-            <TouchableOpacity
-              key={g.id}
-              style={styles.gameCard}
-              onPress={() => nav.navigate('GameDetail', { gameId: g.id })}
-              activeOpacity={0.8}
-            >
-              <Image source={{ uri:g.img }} style={styles.gameImage}/>
-              <Text style={styles.cardTitle}>{g.title}</Text>
-              <Text style={styles.cardSub}>Difficulty: {g.difficulty}</Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      </Section>
-
-      <Section title="Featured Spirit Picks" onPress={() => nav.navigate('Spirits' as never)}>
-        <HScroll cards={goldSpirits} onPress={(item) => {
-          // Use same navigation logic as Spirits page for gold tier spirits
-          if (item.id && item.tier) {
-            nav.navigate('FeaturedSpirit', { spiritId: item.id, tier: item.tier as 'bronze' | 'silver' | 'gold' });
-          }
-        }} />
-      </Section>
-
-      <Section title="Featured Bar Picks" onPress={() => nav.navigate('Bars' as never)}>
-        <HScroll cards={goldBars} smallGap onPress={(item) => {
-          if (item.title === 'Untitled Champagne Lounge') {
-            nav.navigate('UntitledLounge' as never);
-          } else {
-            nav.navigate('BarDetails', {
-              name: item.title || '',
-              subtitle: item.subtitle || '',
-              image: item.img || ''
-            });
-          }
-        }} />
       </Section>
 
       <Section title="Cocktails of the Week">
@@ -329,23 +285,6 @@ export default function FeaturedScreen() {
 
 
 
-      <Section title="Next Upcoming Event">
-        <View style={styles.eventFlyer}>
-          <Image source={{ uri:'https://images.unsplash.com/photo-1574671928146-5c89a22b2e85?auto=format&fit=crop&w=1200&q=60' }}
-                 style={styles.flyerImage}/>
-          <View style={styles.flyerContent}>
-            <Text style={styles.flyerTitle}>Mixology Master Class</Text>
-            <Text style={styles.flyerSubtitle}>March 15, 2025 • 7:00 PM</Text>
-            <Text style={styles.flyerDescription}>
-              Join expert mixologists for hands-on training in premium cocktail techniques and presentation.
-            </Text>
-            <TouchableOpacity style={buttons.cta} onPress={() => nav.navigate('XPTransaction' as never)}>
-              <Text style={buttons.ctaText}>Register</Text>
-              <Ionicons name="chevron-forward" size={16} color={colors.white} style={{ marginLeft: 6 }} />
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Section>
 
       <Section title="Bartending Hack Videos">
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: spacing(2), paddingHorizontal: spacing(2) }}>
@@ -655,37 +594,30 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
-  // Demo Button
-  demoButton: {
-    marginHorizontal: spacing(2),
-    marginVertical: spacing(2),
-    backgroundColor: colors.gold + '20',
-    borderRadius: radii.lg,
-    borderWidth: 2,
-    borderColor: colors.gold,
-    overflow: 'hidden',
-  },
-  demoContent: {
-    flexDirection: 'row',
+  // Empty State
+  emptyStateCard: {
     alignItems: 'center',
-    padding: spacing(2.5),
-    gap: spacing(2),
+    justifyContent: 'center',
+    padding: spacing(4),
+    backgroundColor: colors.card,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.line,
+    marginHorizontal: spacing(2),
   },
-  demoEmoji: {
-    fontSize: 40,
-  },
-  demoTextContainer: {
-    flex: 1,
-  },
-  demoTitle: {
-    fontSize: 16,
+  emptyStateTitle: {
+    fontSize: 18,
     fontWeight: '700',
     color: colors.text,
-    marginBottom: spacing(0.5),
+    marginTop: spacing(2),
+    marginBottom: spacing(1),
+    textAlign: 'center',
   },
-  demoSubtitle: {
-    fontSize: 13,
+  emptyStateDescription: {
+    fontSize: 14,
     color: colors.subtext,
+    textAlign: 'center',
+    lineHeight: 20,
   },
 
 });
