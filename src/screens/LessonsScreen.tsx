@@ -32,11 +32,38 @@ function ChallengesView() {
   const { balance: totalXP } = useXPSystem();
   const engagement = useEngagement();
 
+  // Get a randomized trivia challenge based on current week
+  const getWeeklyTriviaChallenge = () => {
+    const triviaPool = [
+      { id: 101, title: 'Cocktail History Quiz', description: 'Test your knowledge on classic cocktail origins', reward: '75 XP', difficulty: 'Medium', icon: 'book-outline' },
+      { id: 102, title: 'Spirit Knowledge Challenge', description: 'Identify base spirits and their characteristics', reward: '75 XP', difficulty: 'Medium', icon: 'flask-outline' },
+      { id: 103, title: 'Bartending Techniques Trivia', description: 'Master the terminology and methods', reward: '75 XP', difficulty: 'Medium', icon: 'construct-outline' },
+      { id: 104, title: 'Glassware Master Quiz', description: 'Match cocktails to their proper glassware', reward: '60 XP', difficulty: 'Easy', icon: 'wine-outline' },
+      { id: 105, title: 'Ingredient Origins Challenge', description: 'Trace spirits and ingredients to their source', reward: '75 XP', difficulty: 'Medium', icon: 'leaf-outline' },
+      { id: 106, title: 'Famous Bars & Bartenders', description: 'Learn about legendary bars and mixologists', reward: '80 XP', difficulty: 'Hard', icon: 'ribbon-outline' },
+      { id: 107, title: 'Prohibition Era Quiz', description: 'Test your knowledge of speakeasy history', reward: '75 XP', difficulty: 'Medium', icon: 'lock-closed-outline' },
+      { id: 108, title: 'Modern Mixology Trends', description: 'Identify current cocktail innovations', reward: '70 XP', difficulty: 'Medium', icon: 'trending-up-outline' },
+    ];
+
+    // Rotate based on week of year for consistent randomization
+    const now = new Date();
+    const startOfYear = new Date(now.getFullYear(), 0, 1);
+    const weekNumber = Math.ceil(((now.getTime() - startOfYear.getTime()) / 86400000 + startOfYear.getDay() + 1) / 7);
+    const selectedIndex = weekNumber % triviaPool.length;
+
+    return triviaPool[selectedIndex];
+  };
+
+  const weeklyTrivia = getWeeklyTriviaChallenge();
+
   const challenges = [
-    { id: 1, title: 'Speed Mixing', description: 'Mix 5 cocktails in under 3 minutes', reward: '50 XP', difficulty: 'Easy', completed: false },
-    { id: 2, title: 'Perfect Pour', description: 'Pour 10 perfect shots without spillage', reward: '75 XP', difficulty: 'Medium', completed: true },
-    { id: 3, title: 'Memory Master', description: 'Recite 20 cocktail recipes from memory', reward: '100 XP', difficulty: 'Hard', completed: false },
-    { id: 4, title: 'Garnish Artist', description: 'Create 15 unique garnish combinations', reward: '60 XP', difficulty: 'Medium', completed: false },
+    // Bar Trivia - Rotates weekly
+    { ...weeklyTrivia, completed: false },
+
+    // Classic recipe unlocks (engagement-based)
+    { id: 2, title: 'Recipe Explorer', description: 'Try making 3 different cocktail recipes', reward: '50 XP', difficulty: 'Easy', completed: false, icon: 'restaurant-outline' },
+    { id: 3, title: 'Streak Master', description: 'Maintain a 7-day login streak', reward: '100 XP', difficulty: 'Hard', completed: false, icon: 'flame-outline' },
+    { id: 4, title: 'Share the Knowledge', description: 'Share 3 cocktail recipes with friends', reward: '60 XP', difficulty: 'Easy', completed: false, icon: 'share-social-outline' },
   ];
 
   // Calculate progress for unlock methods
