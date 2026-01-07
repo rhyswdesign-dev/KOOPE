@@ -57,8 +57,8 @@ export const EARNABLE_RECIPES: RecipeUnlock[] = [
     ],
   },
   {
-    recipeId: 'dark-n-stormy',
-    recipeName: 'Dark & Stormy',
+    recipeId: 'dark-stormy',
+    recipeName: 'Dark \'n\' Stormy',
     thumbnailUrl: 'https://images.unsplash.com/photo-1581795669633-91ef2c6cebaf?q=80&w=1200&auto=format&fit=crop',
     difficulty: 'easy',
     estimatedDays: 2,
@@ -203,8 +203,8 @@ export const EARNABLE_RECIPES: RecipeUnlock[] = [
     ],
   },
   {
-    recipeId: 'pina-colada',
-    recipeName: 'Piña Colada',
+    recipeId: 'hemingway-daiquiri',
+    recipeName: 'Hemingway Daiquiri',
     thumbnailUrl: 'https://images.unsplash.com/photo-1581795669633-91ef2c6cebaf?q=80&w=1200&auto=format&fit=crop',
     difficulty: 'hard',
     estimatedDays: 14,
