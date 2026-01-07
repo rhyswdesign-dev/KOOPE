@@ -25,56 +25,143 @@ import { EARNABLE_RECIPES } from '../config/recipeUnlocks';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
-// Challenges component - Original Design
+// Challenges component - Option 1: Primary Unlock Hub Design
 function ChallengesView() {
-  const { lives, xp, level, streak } = useUser();
+  const navigation = useNavigation<NavigationProp>();
+  const { completedLessons } = useUser();
+  const { balance: totalXP } = useXPSystem();
+  const engagement = useEngagement();
+  const { challenges } = useChallenges();
 
-  const challenges = [
-    { id: 1, title: 'Speed Mixing', description: 'Mix 5 cocktails in under 3 minutes', reward: '50 XP', difficulty: 'Easy', completed: false },
-    { id: 2, title: 'Perfect Pour', description: 'Pour 10 perfect shots without spillage', reward: '75 XP', difficulty: 'Medium', completed: true },
-    { id: 3, title: 'Memory Master', description: 'Recite 20 cocktail recipes from memory', reward: '100 XP', difficulty: 'Hard', completed: false },
-    { id: 4, title: 'Garnish Artist', description: 'Create 15 unique garnish combinations', reward: '60 XP', difficulty: 'Medium', completed: false },
-  ];
+  // Calculate progress for each unlock method
+  const getMethodProgress = (type: string, required: number) => {
+    let current = 0;
+    switch (type) {
+      case 'streak':
+        current = engagement.currentStreak;
+        break;
+      case 'lessons':
+        current = completedLessons.length;
+        break;
+      case 'challenges':
+        current = challenges.filter(c => c.isCompleted).length;
+        break;
+      case 'xp':
+        current = totalXP;
+        break;
+      case 'app-opens':
+        current = engagement.appOpenDates.length;
+        break;
+      case 'saved-recipes':
+        current = engagement.savedRecipeIds.length;
+        break;
+      case 'shares':
+        current = engagement.sharedRecipeIds.length;
+        break;
+      case 'ratings':
+        current = engagement.ratedRecipeIds.length;
+        break;
+      case 'invites':
+        current = engagement.invitedFriends;
+        break;
+      default:
+        current = 0;
+    }
+    return Math.min((current / required) * 100, 100);
+  };
+
+  // Handle method press
+  const handleMethodPress = (method: any) => {
+    log.info('ChallengesView', 'Method pressed', { type: method.type });
+  };
+
+  // Handle recipe unlock
+  const handleRecipeUnlock = (recipeId: string) => {
+    engagement.unlockRecipe(recipeId);
+    Alert.alert(
+      'Recipe Unlocked!',
+      `You've unlocked a new cocktail recipe!`,
+      [
+        {
+          text: 'View Recipe',
+          style: 'default',
+          onPress: () => navigation.navigate('CocktailDetail', { cocktailId: recipeId }),
+        },
+        {
+          text: 'Later',
+          style: 'cancel',
+        },
+      ]
+    );
+  };
+
+  // Get unlockable recipes (ready to claim!)
+  const unlockableRecipes = EARNABLE_RECIPES.filter(recipe => {
+    if (engagement.isRecipeUnlocked(recipe.recipeId)) return false;
+    return recipe.methods.some(method => getMethodProgress(method.type, method.required) >= 100);
+  });
+
+  // Get in-progress recipes (show top 5)
+  const inProgressRecipes = EARNABLE_RECIPES.filter(recipe => {
+    if (engagement.isRecipeUnlocked(recipe.recipeId)) return false;
+    const maxProgress = Math.max(...recipe.methods.map(m => getMethodProgress(m.type, m.required)));
+    return maxProgress > 0 && maxProgress < 100;
+  }).sort((a, b) => {
+    const aProgress = Math.max(...a.methods.map(m => getMethodProgress(m.type, m.required)));
+    const bProgress = Math.max(...b.methods.map(m => getMethodProgress(m.type, m.required)));
+    return bProgress - aProgress;
+  });
 
   return (
     <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Daily Challenges</Text>
-        <Text style={styles.sectionSubtitle}>
-          Complete challenges to earn extra XP and improve your skills
-        </Text>
+      {/* Recipe Unlocks Section - Primary Focus */}
+      {(unlockableRecipes.length > 0 || inProgressRecipes.length > 0) && (
+        <View style={styles.section}>
+          <View style={styles.sectionHeaderRow}>
+            <View>
+              <Text style={styles.sectionTitle}>🍸 Recipe Unlocks</Text>
+              <Text style={styles.sectionSubtitle}>
+                Earn new cocktails through engagement
+              </Text>
+            </View>
+          </View>
 
-        {challenges.map(challenge => (
-          <Pressable
-            key={challenge.id}
-            style={[styles.challengeCard, challenge.completed && styles.challengeCardCompleted]}
-          >
-            <View style={styles.challengeContent}>
-              <View style={styles.challengeHeader}>
-                <Text style={[styles.challengeTitle, challenge.completed && styles.completedText]}>
-                  {challenge.title}
-                </Text>
-                <Text style={[styles.challengeDifficulty, challenge.completed && styles.completedText]}>
-                  {challenge.difficulty}
-                </Text>
-              </View>
-              <Text style={[styles.challengeDescription, challenge.completed && styles.completedText]}>
-                {challenge.description}
-              </Text>
-              <Text style={[styles.challengeReward, challenge.completed && styles.completedText]}>
-                Reward: {challenge.reward}
-              </Text>
-            </View>
-            <View style={styles.challengeStatus}>
-              {challenge.completed ? (
-                <MaterialCommunityIcons name="check-circle" size={24} color={colors.accent} />
-              ) : (
-                <Ionicons name="play-circle" size={24} color={colors.accent} />
-              )}
-            </View>
-          </Pressable>
-        ))}
-      </View>
+          {/* Unlockable Recipes (Ready to claim!) */}
+          {unlockableRecipes.map(recipe => {
+            const currentProgress: { [key: string]: number } = {};
+            recipe.methods.forEach(method => {
+              currentProgress[method.type] = getMethodProgress(method.type, method.required);
+            });
+
+            return (
+              <RecipeUnlockCard
+                key={recipe.recipeId}
+                recipe={recipe}
+                currentProgress={currentProgress}
+                onMethodPress={handleMethodPress}
+                onUnlock={() => handleRecipeUnlock(recipe.recipeId)}
+              />
+            );
+          })}
+
+          {/* In-Progress Recipes (Show top 5) */}
+          {inProgressRecipes.slice(0, 5).map(recipe => {
+            const currentProgress: { [key: string]: number } = {};
+            recipe.methods.forEach(method => {
+              currentProgress[method.type] = getMethodProgress(method.type, method.required);
+            });
+
+            return (
+              <RecipeUnlockCard
+                key={recipe.recipeId}
+                recipe={recipe}
+                currentProgress={currentProgress}
+                onMethodPress={handleMethodPress}
+              />
+            );
+          })}
+        </View>
+      )}
     </ScrollView>
   );
 }

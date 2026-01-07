@@ -1556,12 +1556,9 @@ export default function RecipesScreen() {
               />
             )}
 
-            {/* All Cocktails Header with Search and Filter Buttons - Only show in Browse mode or when searching */}
+            {/* All Cocktails Header - Only show in Browse mode or when searching */}
             {(searchQuery.trim() || viewMode === 'browse') && (
               <View style={{
-                flexDirection: 'row',
-                justifyContent: 'space-between',
-                alignItems: 'center',
                 marginHorizontal: spacing(2),
                 marginTop: spacing(2),
                 marginBottom: spacing(1.5)
@@ -1569,12 +1566,19 @@ export default function RecipesScreen() {
                 <Text style={{
                   color: colors.text,
                   fontSize: 24,
-                  fontWeight: '900'
+                  fontWeight: '900',
+                  marginBottom: spacing(1.5)
                 }}>
                   All Cocktails
                 </Text>
+
+                {/* Horizontal Filter Buttons */}
                 {!searchQuery.trim() && !showSearchInput && (
-                  <View style={{ flexDirection: 'row', gap: spacing(1) }}>
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={{ gap: spacing(1) }}
+                  >
                     <Pressable
                       onPress={() => setShowSearchInput(true)}
                       style={{
@@ -1597,6 +1601,7 @@ export default function RecipesScreen() {
                         Search
                       </Text>
                     </Pressable>
+
                     <Pressable
                       onPress={() => setShowFilterModal(true)}
                       style={{
@@ -1619,7 +1624,37 @@ export default function RecipesScreen() {
                         Filter
                       </Text>
                     </Pressable>
-                  </View>
+
+                    {tier === 'FREE' && (
+                      <Pressable
+                        onPress={() => setShowOnlyUnlocked(!showOnlyUnlocked)}
+                        style={{
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          backgroundColor: showOnlyUnlocked ? colors.accent : colors.card,
+                          paddingHorizontal: spacing(1.5),
+                          paddingVertical: spacing(1),
+                          borderRadius: radii.md,
+                          borderWidth: 1,
+                          borderColor: showOnlyUnlocked ? colors.accent : colors.border
+                        }}
+                      >
+                        <Ionicons
+                          name={showOnlyUnlocked ? "checkmark-circle" : "lock-open"}
+                          size={16}
+                          color={showOnlyUnlocked ? colors.white : colors.accent}
+                          style={{ marginRight: spacing(0.5) }}
+                        />
+                        <Text style={{
+                          color: showOnlyUnlocked ? colors.white : colors.text,
+                          fontSize: 14,
+                          fontWeight: '500'
+                        }}>
+                          Unlocked
+                        </Text>
+                      </Pressable>
+                    )}
+                  </ScrollView>
                 )}
               </View>
             )}
