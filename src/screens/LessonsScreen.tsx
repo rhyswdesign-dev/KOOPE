@@ -25,9 +25,12 @@ import { EARNABLE_RECIPES } from '../config/recipeUnlocks';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
-// Challenges component - Original Design
+// Challenges component - Original Design with Recipe Unlocks
 function ChallengesView() {
-  const { lives, xp, level, streak } = useUser();
+  const navigation = useNavigation<NavigationProp>();
+  const { lives, xp, level, streak, completedLessons } = useUser();
+  const { balance: totalXP } = useXPSystem();
+  const engagement = useEngagement();
 
   const challenges = [
     { id: 1, title: 'Speed Mixing', description: 'Mix 5 cocktails in under 3 minutes', reward: '50 XP', difficulty: 'Easy', completed: false },
@@ -36,8 +39,163 @@ function ChallengesView() {
     { id: 4, title: 'Garnish Artist', description: 'Create 15 unique garnish combinations', reward: '60 XP', difficulty: 'Medium', completed: false },
   ];
 
+  // Calculate progress for unlock methods
+  const getMethodProgress = (type: string, required: number) => {
+    let current = 0;
+    switch (type) {
+      case 'streak':
+        current = engagement.currentStreak;
+        break;
+      case 'lessons':
+        current = completedLessons.length;
+        break;
+      case 'xp':
+        current = totalXP;
+        break;
+      case 'app-opens':
+        current = engagement.appOpenDates.length;
+        break;
+      case 'saved-recipes':
+        current = engagement.savedRecipeIds.length;
+        break;
+      case 'shares':
+        current = engagement.sharedRecipeIds.length;
+        break;
+      case 'ratings':
+        current = engagement.ratedRecipeIds.length;
+        break;
+      case 'invites':
+        current = engagement.invitedFriends;
+        break;
+      default:
+        current = 0;
+    }
+    return Math.min((current / required) * 100, 100);
+  };
+
+  // Handle recipe unlock
+  const handleRecipeUnlock = (recipeId: string, recipeName: string) => {
+    engagement.unlockRecipe(recipeId);
+    Alert.alert(
+      'Recipe Unlocked!',
+      `You've unlocked ${recipeName}!`,
+      [
+        {
+          text: 'View Recipe',
+          style: 'default',
+          onPress: () => navigation.navigate('CocktailDetail', { cocktailId: recipeId }),
+        },
+        {
+          text: 'Later',
+          style: 'cancel',
+        },
+      ]
+    );
+  };
+
+  // Get unlockable recipes
+  const unlockableRecipes = EARNABLE_RECIPES.filter(recipe => {
+    if (engagement.isRecipeUnlocked(recipe.recipeId)) return false;
+    return recipe.methods.some(method => getMethodProgress(method.type, method.required) >= 100);
+  });
+
+  // Get in-progress recipes (top 3)
+  const inProgressRecipes = EARNABLE_RECIPES.filter(recipe => {
+    if (engagement.isRecipeUnlocked(recipe.recipeId)) return false;
+    const maxProgress = Math.max(...recipe.methods.map(m => getMethodProgress(m.type, m.required)));
+    return maxProgress > 0 && maxProgress < 100;
+  }).sort((a, b) => {
+    const aProgress = Math.max(...a.methods.map(m => getMethodProgress(m.type, m.required)));
+    const bProgress = Math.max(...b.methods.map(m => getMethodProgress(m.type, m.required)));
+    return bProgress - aProgress;
+  }).slice(0, 3);
+
   return (
     <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      {/* Recipe Unlocks Section */}
+      {(unlockableRecipes.length > 0 || inProgressRecipes.length > 0) && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Recipe Unlocks</Text>
+          <Text style={styles.sectionSubtitle}>
+            Earn new cocktails through engagement
+          </Text>
+
+          {/* Unlockable Recipes */}
+          {unlockableRecipes.map(recipe => {
+            const bestMethod = recipe.methods.reduce((best, method) => {
+              const progress = getMethodProgress(method.type, method.required);
+              return progress > best.progress ? { method, progress } : best;
+            }, { method: recipe.methods[0], progress: 0 });
+
+            return (
+              <Pressable
+                key={recipe.recipeId}
+                style={[styles.challengeCard, styles.challengeCardCompleted]}
+                onPress={() => handleRecipeUnlock(recipe.recipeId, recipe.recipeName)}
+              >
+                <View style={styles.challengeContent}>
+                  <View style={styles.challengeHeader}>
+                    <Text style={[styles.challengeTitle, styles.completedText]}>
+                      {recipe.recipeName}
+                    </Text>
+                    <Text style={[styles.challengeDifficulty, styles.completedText]}>
+                      Ready!
+                    </Text>
+                  </View>
+                  <Text style={[styles.challengeDescription, styles.completedText]}>
+                    {bestMethod.method.description}
+                  </Text>
+                  <Text style={[styles.challengeReward, styles.completedText]}>
+                    Tap to unlock
+                  </Text>
+                </View>
+                <View style={styles.challengeStatus}>
+                  <Ionicons name="lock-open" size={24} color={colors.accent} />
+                </View>
+              </Pressable>
+            );
+          })}
+
+          {/* In-Progress Recipes */}
+          {inProgressRecipes.map(recipe => {
+            const bestMethod = recipe.methods.reduce((best, method) => {
+              const progress = getMethodProgress(method.type, method.required);
+              return progress > best.progress ? { method, progress } : best;
+            }, { method: recipe.methods[0], progress: 0 });
+
+            return (
+              <Pressable
+                key={recipe.recipeId}
+                style={styles.challengeCard}
+              >
+                <View style={styles.challengeContent}>
+                  <View style={styles.challengeHeader}>
+                    <Text style={styles.challengeTitle}>
+                      {recipe.recipeName}
+                    </Text>
+                    <Text style={styles.challengeDifficulty}>
+                      {Math.round(bestMethod.progress)}%
+                    </Text>
+                  </View>
+                  <Text style={styles.challengeDescription}>
+                    {bestMethod.method.description}
+                  </Text>
+                  <Text style={styles.challengeReward}>
+                    {recipe.difficulty === 'easy' && '⭐ Easy Unlock'}
+                    {recipe.difficulty === 'medium' && '⭐⭐ Medium Unlock'}
+                    {recipe.difficulty === 'hard' && '⭐⭐⭐ Hard Unlock'}
+                  </Text>
+                </View>
+                <View style={styles.challengeStatus}>
+                  <Ionicons name="lock-closed" size={24} color={colors.subtext} />
+                </View>
+              </Pressable>
+            );
+          })}
+        </View>
+      )}
+
+      {/* Daily Challenges */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Daily Challenges</Text>
         <Text style={styles.sectionSubtitle}>
