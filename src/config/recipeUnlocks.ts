@@ -40,7 +40,7 @@ export const EARNABLE_RECIPES: RecipeUnlock[] = [
   {
     recipeId: 'tom-collins',
     recipeName: 'Tom Collins',
-    thumbnailUrl: 'https://images.unsplash.com/photo-1551538827-9c037cb4f32a?w=400',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1551538827-9c037cb4f32a?q=80&w=1200&auto=format&fit=crop',
     difficulty: 'easy',
     estimatedDays: 3,
     methods: [
@@ -59,7 +59,7 @@ export const EARNABLE_RECIPES: RecipeUnlock[] = [
   {
     recipeId: 'dark-n-stormy',
     recipeName: 'Dark & Stormy',
-    thumbnailUrl: 'https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?w=400',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1581795669633-91ef2c6cebaf?q=80&w=1200&auto=format&fit=crop',
     difficulty: 'easy',
     estimatedDays: 2,
     methods: [
@@ -78,7 +78,7 @@ export const EARNABLE_RECIPES: RecipeUnlock[] = [
   {
     recipeId: 'paloma',
     recipeName: 'Paloma',
-    thumbnailUrl: 'https://images.unsplash.com/photo-1609040830796-68c4696e50a9?w=400',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1582745689430-86cd52ad5bf1?q=80&w=1200&auto=format&fit=crop',
     difficulty: 'easy',
     estimatedDays: 5,
     methods: [
@@ -99,7 +99,7 @@ export const EARNABLE_RECIPES: RecipeUnlock[] = [
   {
     recipeId: 'gimlet',
     recipeName: 'Gimlet',
-    thumbnailUrl: 'https://images.unsplash.com/photo-1536935338788-846bb9981813?w=400',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1551538827-9c037cb4f32a?q=80&w=1200&auto=format&fit=crop',
     difficulty: 'medium',
     estimatedDays: 7,
     methods: [
@@ -118,7 +118,7 @@ export const EARNABLE_RECIPES: RecipeUnlock[] = [
   {
     recipeId: 'aperol-spritz',
     recipeName: 'Aperol Spritz',
-    thumbnailUrl: 'https://images.unsplash.com/photo-1470337458703-46ad1756a187?w=400',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1574671928146-5c89a22b2e85?q=80&w=1200&auto=format&fit=crop',
     difficulty: 'medium',
     estimatedDays: 7,
     methods: [
@@ -137,7 +137,7 @@ export const EARNABLE_RECIPES: RecipeUnlock[] = [
   {
     recipeId: 'cosmopolitan',
     recipeName: 'Cosmopolitan',
-    thumbnailUrl: 'https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?w=400',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1569529465841-dfecdab7503b?q=80&w=1200&auto=format&fit=crop',
     difficulty: 'medium',
     estimatedDays: 7,
     methods: [
@@ -156,7 +156,7 @@ export const EARNABLE_RECIPES: RecipeUnlock[] = [
   {
     recipeId: 'french-75',
     recipeName: 'French 75',
-    thumbnailUrl: 'https://images.unsplash.com/photo-1578474846511-04ba529f0b88?w=400',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1551538827-9c037cb4f32a?q=80&w=1200&auto=format&fit=crop',
     difficulty: 'medium',
     estimatedDays: 10,
     methods: [
@@ -177,32 +177,21 @@ export const EARNABLE_RECIPES: RecipeUnlock[] = [
   {
     recipeId: 'espresso-martini',
     recipeName: 'Espresso Martini',
-    thumbnailUrl: 'https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?w=400',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1609951651556-5334e2706168?q=80&w=1200&auto=format&fit=crop',
     difficulty: 'hard',
     estimatedDays: 15,
     methods: [
       {
-        type: 'lessons',
-        required: 15,
-        description: 'Complete 15 lessons',
-      },
-      {
         type: 'xp',
         required: 750,
         description: 'Earn 750 total XP',
-      },
-      {
-        type: 'challenges',
-        required: 1,
-        challengeId: 'master-shaker-weekly',
-        description: 'Complete "Master Shaker" weekly challenge',
       },
     ],
   },
   {
     recipeId: 'sidecar',
     recipeName: 'Sidecar',
-    thumbnailUrl: 'https://images.unsplash.com/photo-1609040830796-68c4696e50a9?w=400',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1574671928146-5c89a22b2e85?q=80&w=1200&auto=format&fit=crop',
     difficulty: 'hard',
     estimatedDays: 14,
     methods: [
@@ -211,26 +200,15 @@ export const EARNABLE_RECIPES: RecipeUnlock[] = [
         required: 5,
         description: 'Complete 5 total challenges',
       },
-      {
-        type: 'xp',
-        required: 600,
-        description: 'Earn 600 total XP',
-      },
     ],
   },
   {
     recipeId: 'pina-colada',
     recipeName: 'Piña Colada',
-    thumbnailUrl: 'https://images.unsplash.com/photo-1514361892635-6b07e31e75f9?w=400',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1581795669633-91ef2c6cebaf?q=80&w=1200&auto=format&fit=crop',
     difficulty: 'hard',
     estimatedDays: 14,
     methods: [
-      {
-        type: 'challenges',
-        required: 1,
-        challengeId: 'weekly-challenge',
-        description: 'Complete any weekly challenge',
-      },
       {
         type: 'streak',
         required: 14,
@@ -241,7 +219,7 @@ export const EARNABLE_RECIPES: RecipeUnlock[] = [
   {
     recipeId: 'mai-tai',
     recipeName: 'Mai Tai',
-    thumbnailUrl: 'https://images.unsplash.com/photo-1578474846511-04ba529f0b88?w=400',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1581795669633-91ef2c6cebaf?q=80&w=1200&auto=format&fit=crop',
     difficulty: 'hard',
     estimatedDays: 30,
     methods: [
@@ -249,11 +227,6 @@ export const EARNABLE_RECIPES: RecipeUnlock[] = [
         type: 'streak',
         required: 30,
         description: 'Maintain a 30-day login streak',
-      },
-      {
-        type: 'lessons',
-        required: 20,
-        description: 'Complete 20 lessons (Expert level)',
       },
     ],
   },

@@ -81,6 +81,7 @@ function ChallengesView() {
 
 // Challenges 2 - Real Supabase Data with Reward Claiming
 function Challenges2View() {
+  const navigation = useNavigation<NavigationProp>();
   const { challenges, isLoading, refreshChallenges, claimReward: claimChallengeReward } = useChallenges();
   const { completedLessons } = useUser();
   const { balance: totalXP } = useXPSystem();
@@ -141,8 +142,18 @@ function Challenges2View() {
     engagement.unlockRecipe(recipeId);
     Alert.alert(
       'Recipe Unlocked!',
-      `You've unlocked a new cocktail recipe! Check it out in the Recipes tab.`,
-      [{ text: 'Awesome!', style: 'default' }]
+      `You've unlocked a new cocktail recipe!`,
+      [
+        {
+          text: 'View Recipe',
+          style: 'default',
+          onPress: () => navigation.navigate('CocktailDetail', { cocktailId: recipeId }),
+        },
+        {
+          text: 'Later',
+          style: 'cancel',
+        },
+      ]
     );
   };
 
@@ -578,7 +589,6 @@ function LessonsView() {
               accessibilityRole="button"
               accessibilityLabel={`XP Balance: ${xpBalance}`}
             >
-              <Ionicons name="star" size={18} color={colors.gold} />
               <Text style={styles.statValue}>{xpBalance}</Text>
               <Text style={styles.statLabel}>XP</Text>
             </Pressable>

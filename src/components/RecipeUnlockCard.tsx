@@ -60,7 +60,7 @@ export default function RecipeUnlockCard({
               styles.progressFill,
               {
                 width: `${overallProgress}%`,
-                backgroundColor: isUnlockable ? colors.accent : colors.gold,
+                backgroundColor: isUnlockable ? colors.accent : colors.subtext,
               }
             ]}
           />
@@ -119,7 +119,7 @@ export default function RecipeUnlockCard({
 }
 
 function getMethodIcon(type: string, isComplete: boolean) {
-  const iconColor = isComplete ? colors.accent : colors.gold;
+  const iconColor = isComplete ? colors.accent : colors.subtext;
   const iconSize = 20;
 
   switch (type) {
@@ -178,7 +178,7 @@ const styles = StyleSheet.create({
   },
   difficulty: {
     fontSize: 13,
-    color: colors.gold,
+    color: colors.subtext,
     fontWeight: '600',
   },
   progressContainer: {

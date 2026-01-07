@@ -58,6 +58,7 @@ import LockedRecipeCard from '../components/LockedRecipeCard';
 import { useXPSystem } from '../store/useXPSystem';
 import CocktailUnlockSheet from '../components/CocktailUnlockSheet';
 import XPBalanceModal from '../components/XPBalanceModal';
+import { useEngagement } from '../store/useEngagement';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 const { width } = Dimensions.get('window');
@@ -641,6 +642,9 @@ export default function RecipesScreen() {
     unlockedCocktails,
   } = useXPSystem();
 
+  // Engagement System
+  const { isRecipeUnlocked: isRecipeUnlockedWithEngagement } = useEngagement();
+
   // Check daily login on mount
   useEffect(() => {
     checkDailyLogin();
@@ -995,7 +999,8 @@ export default function RecipesScreen() {
       recipes = recipes.filter(recipe => {
         const isTierAccessible = isCocktailAccessible(recipe.id, tier);
         const isXPUnlocked = isCocktailUnlockedWithXP(recipe.id);
-        return isTierAccessible || isXPUnlocked;
+        const isEngagementUnlocked = isRecipeUnlockedWithEngagement(recipe.id);
+        return isTierAccessible || isXPUnlocked || isEngagementUnlocked;
       });
     }
 
@@ -1087,10 +1092,11 @@ export default function RecipesScreen() {
   }, [navigation, credits, isPremium, xpBalance, setCreditsPurchaseVisible, setCreditsInfoVisible, setViewMode]);
 
   const renderRecipeItem: ListRenderItem<any> = ({ item, index }) => {
-    // Check if this cocktail is accessible for current tier or unlocked with XP
+    // Check if this cocktail is accessible for current tier, unlocked with XP, or unlocked with engagement
     const isTierAccessible = isCocktailAccessible(item.id, tier);
     const isXPUnlocked = isCocktailUnlockedWithXP(item.id);
-    const isAccessible = isTierAccessible || isXPUnlocked;
+    const isEngagementUnlocked = isRecipeUnlockedWithEngagement(item.id);
+    const isAccessible = isTierAccessible || isXPUnlocked || isEngagementUnlocked;
 
     // If locked, show LockedRecipeCard with thumbnail only (no name) and XP unlock option
     if (!isAccessible) {
