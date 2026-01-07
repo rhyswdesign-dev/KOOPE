@@ -175,6 +175,7 @@ export default function VaultScreen() {
       case 'playbooks':
       case 'bars':
       case 'seasonal':
+      case 'games':
         return []; // New vault content categories (handled inline)
       case 'common':
         return items.filter(item => item.rarity === 'common');
@@ -192,6 +193,7 @@ export default function VaultScreen() {
     { key: 'seasonal', label: 'Seasonal' },
     { key: 'playbooks', label: 'Playbooks' },
     { key: 'bars', label: 'Bar Features' },
+    { key: 'games', label: 'Games' },
     // Archived for future product expansion
     // { key: 'common', label: 'Common' },
     // { key: 'limited', label: 'Limited' },
@@ -447,10 +449,51 @@ export default function VaultScreen() {
       );
     }
 
+    if (selectedTab === 'games') {
+      const games = state.vaultItems.filter(item => item.category === 'games' && item.isActive);
+      return (
+        <View style={styles.inlineContent}>
+          <View style={styles.contentSection}>
+            <Text style={styles.contentSectionTitle}>Drinking Games</Text>
+            <Text style={styles.contentSectionDescription}>
+              Classic party games with official rules and variations. Perfect for social gatherings!
+            </Text>
+            {games.map((game) => (
+              <View key={game.id} style={styles.contentItemCard}>
+                <Image
+                  source={{ uri: game.image }}
+                  style={styles.contentItemThumbnail}
+                  resizeMode="cover"
+                />
+                <View style={styles.contentItemInfo}>
+                  <Text style={styles.contentItemXP}>{game.xpCost} XP</Text>
+                  <Text style={styles.contentItemTitle}>{game.name}</Text>
+                  <Text style={styles.contentItemDescription} numberOfLines={2}>
+                    {game.description}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.contentItemUnlockButton}
+                  activeOpacity={0.8}
+                  onPress={() => {
+                    analytics.trackVaultView(game.id, game.category, game.rarity);
+                    dispatch({ type: 'SET_SELECTED_ITEM', payload: game });
+                    dispatch({ type: 'SHOW_UNLOCK_MODAL', payload: true });
+                  }}
+                >
+                  <Text style={styles.contentItemUnlockText}>Unlock</Text>
+                </TouchableOpacity>
+              </View>
+            ))}
+          </View>
+        </View>
+      );
+    }
+
     return null;
   };
 
-  const isNewCategory = ['variations', 'playbooks', 'bars', 'seasonal'].includes(selectedTab);
+  const isNewCategory = ['variations', 'playbooks', 'bars', 'seasonal', 'games'].includes(selectedTab);
 
   return (
     <View style={styles.container}>
@@ -690,6 +733,13 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.text,
     marginBottom: spacing(2),
+  },
+
+  contentSectionDescription: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: colors.subtext,
+    marginBottom: spacing(3),
   },
 
   contentItemCard: {

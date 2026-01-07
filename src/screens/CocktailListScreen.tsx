@@ -64,6 +64,17 @@ export default function CocktailListScreen({ navigation, route }: CocktailListSc
     }).filter(Boolean);
   }, [cocktailIds, allRecipes]);
 
+  // Group mocktails by subcategory
+  const mocktailSubcategories = useMemo(() => {
+    if (category !== 'mocktails') return null;
+
+    const zeroProof = validCocktails.filter(c => c.subtitle?.includes('Zero-Proof'));
+    const wellness = validCocktails.filter(c => c.subtitle?.includes('Wellness'));
+    const lowABV = validCocktails.filter(c => c.subtitle?.includes('Low-ABV'));
+
+    return { zeroProof, wellness, lowABV };
+  }, [category, validCocktails]);
+
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
@@ -90,28 +101,116 @@ export default function CocktailListScreen({ navigation, route }: CocktailListSc
           </Text>
         </Animated.View>
 
-        {/* Cocktail List */}
-        <View style={styles.cocktailGrid}>
-          {validCocktails.map((cocktail, index) => (
-            <Animated.View
-              key={cocktail.id}
-              entering={FadeInDown.delay(index * 100).duration(500).springify()}
-            >
-              <RecipeCard
-                style={styles.cocktailCard}
-                {...createRecipeCardProps(cocktail, navigation, {
-                  toggleSavedCocktail,
-                  isCocktailSaved,
-                  setSelectedRecipe,
-                  setGroceryListVisible,
-                  showSaveButton: true,
-                  showCartButton: true,
-                  showDeleteButton: false,
-                })}
-              />
-            </Animated.View>
-          ))}
-        </View>
+        {/* Cocktail List - Show subcategories for mocktails, otherwise flat grid */}
+        {category === 'mocktails' && mocktailSubcategories ? (
+          <View style={styles.categorizedContent}>
+            {/* Zero-Proof Spirits */}
+            {mocktailSubcategories.zeroProof.length > 0 && (
+              <View style={styles.subcategorySection}>
+                <Text style={styles.subcategoryTitle}>Zero-Proof Spirits</Text>
+                <View style={styles.cocktailGrid}>
+                  {mocktailSubcategories.zeroProof.map((cocktail, index) => (
+                    <Animated.View
+                      key={cocktail.id}
+                      entering={FadeInDown.delay(index * 100).duration(500).springify()}
+                    >
+                      <RecipeCard
+                        style={styles.cocktailCard}
+                        {...createRecipeCardProps(cocktail, navigation, {
+                          toggleSavedCocktail,
+                          isCocktailSaved,
+                          setSelectedRecipe,
+                          setGroceryListVisible,
+                          showSaveButton: true,
+                          showCartButton: true,
+                          showDeleteButton: false,
+                        })}
+                      />
+                    </Animated.View>
+                  ))}
+                </View>
+              </View>
+            )}
+
+            {/* Wellness Drinks */}
+            {mocktailSubcategories.wellness.length > 0 && (
+              <View style={styles.subcategorySection}>
+                <Text style={styles.subcategoryTitle}>Wellness Drinks</Text>
+                <View style={styles.cocktailGrid}>
+                  {mocktailSubcategories.wellness.map((cocktail, index) => (
+                    <Animated.View
+                      key={cocktail.id}
+                      entering={FadeInDown.delay(index * 100).duration(500).springify()}
+                    >
+                      <RecipeCard
+                        style={styles.cocktailCard}
+                        {...createRecipeCardProps(cocktail, navigation, {
+                          toggleSavedCocktail,
+                          isCocktailSaved,
+                          setSelectedRecipe,
+                          setGroceryListVisible,
+                          showSaveButton: true,
+                          showCartButton: true,
+                          showDeleteButton: false,
+                        })}
+                      />
+                    </Animated.View>
+                  ))}
+                </View>
+              </View>
+            )}
+
+            {/* Low-ABV Options */}
+            {mocktailSubcategories.lowABV.length > 0 && (
+              <View style={styles.subcategorySection}>
+                <Text style={styles.subcategoryTitle}>Low-ABV Options</Text>
+                <View style={styles.cocktailGrid}>
+                  {mocktailSubcategories.lowABV.map((cocktail, index) => (
+                    <Animated.View
+                      key={cocktail.id}
+                      entering={FadeInDown.delay(index * 100).duration(500).springify()}
+                    >
+                      <RecipeCard
+                        style={styles.cocktailCard}
+                        {...createRecipeCardProps(cocktail, navigation, {
+                          toggleSavedCocktail,
+                          isCocktailSaved,
+                          setSelectedRecipe,
+                          setGroceryListVisible,
+                          showSaveButton: true,
+                          showCartButton: true,
+                          showDeleteButton: false,
+                        })}
+                      />
+                    </Animated.View>
+                  ))}
+                </View>
+              </View>
+            )}
+          </View>
+        ) : (
+          <View style={styles.cocktailGrid}>
+            {validCocktails.map((cocktail, index) => (
+              <Animated.View
+                key={cocktail.id}
+                entering={FadeInDown.delay(index * 100).duration(500).springify()}
+              >
+                <RecipeCard
+                  style={styles.cocktailCard}
+                  {...createRecipeCardProps(cocktail, navigation, {
+                    toggleSavedCocktail,
+                    isCocktailSaved,
+                    setSelectedRecipe,
+                    setGroceryListVisible,
+                    showSaveButton: true,
+                    showCartButton: true,
+                    showDeleteButton: false,
+                  })}
+                />
+              </Animated.View>
+            ))}
+          </View>
+        )}
 
         {validCocktails.length === 0 && (
           <Animated.View entering={FadeIn.delay(300).duration(600)} style={styles.emptyState}>
@@ -177,6 +276,19 @@ const styles = StyleSheet.create({
     fontSize: fonts.body,
     color: colors.subtext,
     fontWeight: '500',
+  },
+  categorizedContent: {
+    paddingHorizontal: spacing(3),
+  },
+  subcategorySection: {
+    marginBottom: spacing(4),
+  },
+  subcategoryTitle: {
+    fontSize: fonts.h3,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: spacing(2),
+    paddingTop: spacing(2),
   },
   cocktailGrid: {
     padding: spacing(3),
