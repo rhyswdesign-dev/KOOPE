@@ -824,7 +824,18 @@ export default function RecipesScreen() {
               ) || item.data;
             })
             .filter(Boolean)
-            .filter(recipe => recipe.category?.toLowerCase() !== 'syrups');
+            .filter(recipe => recipe.category?.toLowerCase() !== 'syrups')
+            .filter(recipe => {
+              // Filter by tier access for FREE users
+              if (tier === 'FREE') {
+                const isTierAccessible = isCocktailAccessible(recipe.id, tier);
+                const isXPUnlocked = isCocktailUnlockedWithXP(recipe.id);
+                const isEngagementUnlocked = isRecipeUnlockedWithEngagement(recipe.id);
+                return isTierAccessible || isXPUnlocked || isEngagementUnlocked;
+              }
+              // PLUS and PRO users can see all results
+              return true;
+            });
 
           // AI Enhancement: Get personalized recommendations to boost relevant results
           try {
@@ -858,7 +869,16 @@ export default function RecipesScreen() {
           const queryLower = query.toLowerCase();
           const directResults = ALL_COCKTAILS.filter(cocktail => {
             const searchText = `${cocktail.name} ${cocktail.subtitle || ''} ${cocktail.description || ''} ${(cocktail.ingredients || []).join(' ')}`.toLowerCase();
-            return searchText.includes(queryLower);
+            if (!searchText.includes(queryLower)) return false;
+
+            // Filter by tier access for FREE users
+            if (tier === 'FREE') {
+              const isTierAccessible = isCocktailAccessible(cocktail.id, tier);
+              const isXPUnlocked = isCocktailUnlockedWithXP(cocktail.id);
+              const isEngagementUnlocked = isRecipeUnlockedWithEngagement(cocktail.id);
+              return isTierAccessible || isXPUnlocked || isEngagementUnlocked;
+            }
+            return true;
           });
           setSearchResults(directResults);
         }
