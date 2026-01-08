@@ -346,6 +346,19 @@ export default function AIRecommendations({
         <View style={styles.titleContainer}>
           <Ionicons name="sparkles" size={20} color={colors.accent} />
           <Text style={styles.title}>AI Recommendations</Text>
+          <TouchableOpacity
+            onPress={() => {
+              Alert.alert(
+                'Smart Recommendations',
+                'AI suggests cocktails based on:\n\n• Your taste profile (likes & views)\n• Your Home Bar inventory\n• Your mood preferences\n\nRecommendations show which drinks you can make now vs. what ingredients you need.',
+                [{ text: 'Got it!' }]
+              );
+            }}
+            style={styles.infoButton}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Ionicons name="information-circle-outline" size={18} color={colors.subtext} />
+          </TouchableOpacity>
         </View>
         <TouchableOpacity
           onPress={handleRefresh}
@@ -372,7 +385,20 @@ export default function AIRecommendations({
           <Ionicons name="sparkles-outline" size={48} color={colors.muted} />
           <Text style={styles.emptyStateTitle}>No Recommendations Yet</Text>
           <Text style={styles.emptyStateText}>
-            Get AI-powered cocktail suggestions based on your taste profile
+            Get personalized suggestions by:
+          </Text>
+          <View style={styles.tipsContainer}>
+            <View style={styles.tipRow}>
+              <Ionicons name="heart" size={16} color={colors.accent} />
+              <Text style={styles.tipText}>Liking recipes to learn your taste</Text>
+            </View>
+            <View style={styles.tipRow}>
+              <Ionicons name="home" size={16} color={colors.accent} />
+              <Text style={styles.tipText}>Adding ingredients to your Home Bar</Text>
+            </View>
+          </View>
+          <Text style={styles.emptyStateSubtext}>
+            AI will suggest cocktails you'll love that you can actually make!
           </Text>
           <TouchableOpacity
             style={styles.generateButton}
@@ -395,6 +421,27 @@ export default function AIRecommendations({
             const recipeCardData = convertToRecipeCardFormat(recommendation, index);
             return (
               <View key={recipeCardData.id} style={styles.recommendationWrapper}>
+                {/* Makeable Badge */}
+                <View style={[
+                  styles.makeableBadge,
+                  recommendation.canMakeNow ? styles.makeableBadgeSuccess : styles.makeableBadgeWarning
+                ]}>
+                  <Ionicons
+                    name={recommendation.canMakeNow ? "checkmark-circle" : "alert-circle"}
+                    size={14}
+                    color={recommendation.canMakeNow ? colors.success : colors.warning}
+                  />
+                  <Text style={[
+                    styles.makeableBadgeText,
+                    recommendation.canMakeNow ? styles.makeableBadgeTextSuccess : styles.makeableBadgeTextWarning
+                  ]}>
+                    {recommendation.canMakeNow
+                      ? 'Can Make Now'
+                      : `Need ${recommendation.missingIngredients.length} ingredient${recommendation.missingIngredients.length > 1 ? 's' : ''}`
+                    }
+                  </Text>
+                </View>
+
                 <RecipeCard
                   style={styles.recipeCard}
                   {...createRecipeCardProps(recipeCardData, navigation, {
@@ -474,6 +521,10 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.text,
   },
+  infoButton: {
+    padding: spacing(0.5),
+    marginLeft: spacing(0.5),
+  },
   refreshButton: {
     padding: spacing(1),
   },
@@ -501,6 +552,36 @@ const styles = StyleSheet.create({
   },
   recommendationWrapper: {
     marginRight: spacing(2),
+  },
+  makeableBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(0.5),
+    paddingVertical: spacing(0.75),
+    paddingHorizontal: spacing(1.5),
+    borderRadius: spacing(1.5),
+    marginBottom: spacing(1),
+    alignSelf: 'flex-start',
+  },
+  makeableBadgeSuccess: {
+    backgroundColor: colors.success + '20',
+    borderWidth: 1,
+    borderColor: colors.success,
+  },
+  makeableBadgeWarning: {
+    backgroundColor: colors.warning + '20',
+    borderWidth: 1,
+    borderColor: colors.warning,
+  },
+  makeableBadgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  makeableBadgeTextSuccess: {
+    color: colors.success,
+  },
+  makeableBadgeTextWarning: {
+    color: colors.warning,
   },
   recipeCard: {
     width: 280,
@@ -540,8 +621,32 @@ const styles = StyleSheet.create({
     fontSize: fonts.body,
     color: colors.muted,
     textAlign: 'center',
+    marginBottom: spacing(2),
+    lineHeight: 22,
+  },
+  tipsContainer: {
+    alignSelf: 'stretch',
+    marginBottom: spacing(2),
+    gap: spacing(1.5),
+  },
+  tipRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(1.5),
+    paddingHorizontal: spacing(2),
+  },
+  tipText: {
+    fontSize: fonts.body,
+    color: colors.text,
+    flex: 1,
+  },
+  emptyStateSubtext: {
+    fontSize: fonts.body,
+    color: colors.muted,
+    textAlign: 'center',
     marginBottom: spacing(3),
     lineHeight: 22,
+    fontWeight: '600',
   },
   generateButton: {
     flexDirection: 'row',
