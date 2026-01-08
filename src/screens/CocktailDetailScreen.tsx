@@ -26,6 +26,7 @@ import { log } from '../lib/logger';
 type CocktailDetailScreenRouteProp = {
   params: {
     cocktailId: string;
+    cocktail?: any; // Optional: Pass full cocktail object for local recipes
   };
 };
 
@@ -845,9 +846,17 @@ export default function CocktailDetailScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [groceryListVisible, setGroceryListVisible] = useState(false);
 
-  // Load recipe from Supabase first
+  // Load recipe from Supabase only if not passed directly
   useEffect(() => {
     const loadRecipe = async () => {
+      // If cocktail object is passed directly, skip Supabase load
+      if (route.params.cocktail) {
+        setLoading(false);
+        // Still track recipe view for achievements
+        await achievementService.trackAction('recipesViewed', 1);
+        return;
+      }
+
       try {
         const recipe = await RecipesRepository.getRecipeById(route.params.cocktailId);
         setFirebaseRecipe(recipe);
@@ -863,7 +872,7 @@ export default function CocktailDetailScreen() {
     };
 
     loadRecipe();
-  }, [route.params.cocktailId]);
+  }, [route.params.cocktailId, route.params.cocktail]);
 
   // Pull-to-refresh handler
   const onRefresh = async () => {
@@ -881,10 +890,12 @@ export default function CocktailDetailScreen() {
   };
 
   // Check data sources in priority order:
-  // 1. Non-alcoholic recipes
-  // 2. Firebase user-created recipes
-  // 3. Hardcoded premium cocktails (original 11)
-  // 4. Transformed centralized cocktails (new 81)
+  // 1. Passed cocktail object (for local recipes like mocktails)
+  // 2. Non-alcoholic recipes
+  // 3. Firebase user-created recipes
+  // 4. Hardcoded premium cocktails (original 11)
+  // 5. Transformed centralized cocktails (new 81)
+  const passedCocktail = route.params.cocktail;
   const nonAlcoholicRecipe = getNonAlcoholicRecipeData(route.params.cocktailId);
   const hardcodedCocktail = cocktailData[route.params.cocktailId as keyof typeof cocktailData];
   const transformedCocktail = getDetailedCocktail(route.params.cocktailId);
@@ -964,8 +975,8 @@ export default function CocktailDetailScreen() {
     };
   })() : null;
 
-  // Priority order: non-alcoholic > firebase > hardcoded > transformed centralized
-  const cocktail = nonAlcoholicRecipe || firebaseCocktail || hardcodedCocktail || transformedCocktail;
+  // Priority order: passed > non-alcoholic > firebase > hardcoded > transformed centralized
+  const cocktail = passedCocktail || nonAlcoholicRecipe || firebaseCocktail || hardcodedCocktail || transformedCocktail;
 
   // Check subscription requirement and redirect if needed
   useEffect(() => {
@@ -1136,10 +1147,22 @@ export default function CocktailDetailScreen() {
               <MaterialCommunityIcons name="speedometer" size={20} color={colors.accent} />
               <Text style={styles.statText}>{cocktail.difficulty}</Text>
             </View>
-            {cocktail.glassware && (
+            {(cocktail.glassware || cocktail.glass) && (
               <View style={styles.statItem}>
                 <MaterialCommunityIcons name="glass-cocktail" size={20} color={colors.accent} />
-                <Text style={styles.statText}>{cocktail.glassware}</Text>
+                <Text style={styles.statText}>{cocktail.glassware || cocktail.glass}</Text>
+              </View>
+            )}
+            {cocktail.method && (
+              <View style={styles.statItem}>
+                <MaterialCommunityIcons name="format-list-checks" size={20} color={colors.accent} />
+                <Text style={styles.statText}>{cocktail.method}</Text>
+              </View>
+            )}
+            {cocktail.ice && (
+              <View style={styles.statItem}>
+                <MaterialCommunityIcons name="snowflake" size={20} color={colors.accent} />
+                <Text style={styles.statText}>{cocktail.ice}</Text>
               </View>
             )}
           </View>
@@ -1154,6 +1177,17 @@ export default function CocktailDetailScreen() {
               </View>
             ))}
           </View>
+
+          {/* Garnish */}
+          {cocktail.garnish && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Garnish</Text>
+              <View style={styles.garnishItem}>
+                <MaterialCommunityIcons name="flower" size={16} color={colors.accent} />
+                <Text style={styles.garnishText}>{cocktail.garnish}</Text>
+              </View>
+            </View>
+          )}
 
           {/* Instructions */}
           <View style={styles.section}>
@@ -1372,6 +1406,24 @@ const styles = StyleSheet.create({
     color: colors.text,
     lineHeight: 24,
     paddingTop: spacing(0.5),
+  },
+  garnishItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(2),
+    backgroundColor: colors.card,
+    borderRadius: radii.lg,
+    paddingVertical: spacing(1.5),
+    paddingHorizontal: spacing(2),
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
+  garnishText: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+    lineHeight: 22,
   },
   tipItem: {
     flexDirection: 'row',

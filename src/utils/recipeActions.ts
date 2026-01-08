@@ -25,7 +25,12 @@ export const handleRecipeView = (
   recipe: Recipe,
   navigation: any
 ) => {
-  navigation.navigate('CocktailDetail', { cocktailId: recipe.id });
+  // Pass both cocktailId and the full cocktail object
+  // This allows local recipes (like mocktails) to be displayed without Supabase lookup
+  navigation.navigate('CocktailDetail', {
+    cocktailId: recipe.id,
+    cocktail: recipe
+  });
 
   // Record user behavior for AI learning
   try {
