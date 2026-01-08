@@ -24,7 +24,7 @@ interface CocktailListScreenProps {
 }
 
 export default function CocktailListScreen({ navigation, route }: CocktailListScreenProps) {
-  const { title, cocktailIds, category } = route.params;
+  const { title, cocktailIds, cocktails, category } = route.params;
   const [selectedRecipe, setSelectedRecipe] = useState<any>(null);
   const [groceryListVisible, setGroceryListVisible] = useState(false);
   const [allRecipes, setAllRecipes] = useState<any[]>([]);
@@ -35,9 +35,17 @@ export default function CocktailListScreen({ navigation, route }: CocktailListSc
     isCocktailSaved,
   } = useSession();
 
-  // Fetch all recipes from Supabase on mount
+  // Fetch all recipes from Supabase on mount (only if cocktails not provided directly)
   useEffect(() => {
     async function loadRecipes() {
+      // If cocktails are provided directly (e.g., mocktails), use those
+      if (cocktails && Array.isArray(cocktails)) {
+        setAllRecipes(cocktails);
+        setLoading(false);
+        return;
+      }
+
+      // Otherwise, fetch from Supabase
       try {
         const recipes = await RecipesRepository.getAllRecipes();
         setAllRecipes(recipes);
@@ -48,10 +56,16 @@ export default function CocktailListScreen({ navigation, route }: CocktailListSc
       }
     }
     loadRecipes();
-  }, []);
+  }, [cocktails]);
 
-  // Find cocktails by ID from Supabase data
+  // Find cocktails by ID from Supabase data or use provided cocktails
   const validCocktails = useMemo(() => {
+    // If cocktails are provided directly, use them
+    if (cocktails && Array.isArray(cocktails)) {
+      return cocktails;
+    }
+
+    // Otherwise, find by IDs
     if (!cocktailIds || !Array.isArray(cocktailIds) || allRecipes.length === 0) return [];
 
     return cocktailIds.map(id => {
@@ -62,7 +76,7 @@ export default function CocktailListScreen({ navigation, route }: CocktailListSc
         (cocktail.title || cocktail.name)?.toLowerCase().replace(/[^a-z0-9]/g, '') === id.replace(/-/g, '')
       );
     }).filter(Boolean);
-  }, [cocktailIds, allRecipes]);
+  }, [cocktailIds, cocktails, allRecipes]);
 
   // Group mocktails by subcategory
   const mocktailSubcategories = useMemo(() => {

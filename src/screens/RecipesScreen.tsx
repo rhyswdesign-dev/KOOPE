@@ -1794,15 +1794,35 @@ export default function RecipesScreen() {
             <SectionHeader
               title="Mocktails"
               onPress={() => {
-                // Ensure we only pass string IDs
-                const mocktailIds = sampleRecipes.map(recipe => recipe.id).filter(id => typeof id === 'string');
+                // Pass the actual mocktail recipes
                 navigation.navigate('CocktailList', {
                   title: 'Mocktails',
-                  cocktailIds: mocktailIds,
+                  cocktails: sampleRecipes,
                   category: 'mocktails'
                 });
               }}
             />
+
+            {/* Mocktails Horizontal Scroll Preview */}
+            <ScrollView horizontal nestedScrollEnabled showsHorizontalScrollIndicator={false} style={{ paddingLeft: spacing(2), marginBottom: spacing(2) }}>
+              {sampleRecipes.slice(0, 6).map((mocktail, index) => {
+                const cardProps = createRecipeCardProps(mocktail, navigation, {
+                  toggleSavedCocktail,
+                  isCocktailSaved,
+                  setSelectedRecipe,
+                  setGroceryListVisible,
+                  showToast,
+                  showSaveButton: false,
+                  showCartButton: false,
+                  showDeleteButton: false,
+                });
+                return (
+                  <Animated.View key={mocktail.id} entering={FadeInRight.delay(index * 100).duration(500).springify()}>
+                    <RecipeCard {...cardProps} style={{ width: 240, marginRight: 16 }} />
+                  </Animated.View>
+                );
+              })}
+            </ScrollView>
 
             {/* Essential Syrups */}
             <SectionHeader
