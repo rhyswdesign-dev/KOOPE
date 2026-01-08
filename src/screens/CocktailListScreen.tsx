@@ -6,11 +6,14 @@ import {
   StyleSheet,
   SafeAreaView,
   ActivityIndicator,
+  TextInput,
+  TouchableOpacity,
 } from 'react-native';
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import { RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { colors, spacing, fonts } from '../theme/tokens';
+import { Ionicons } from '@expo/vector-icons';
+import { colors, spacing, fonts, radii } from '../theme/tokens';
 import RecipeCard from '../components/RecipeCard';
 import GroceryListModal from '../components/GroceryListModal';
 import { createRecipeCardProps } from '../utils/recipeActions';
@@ -29,6 +32,7 @@ export default function CocktailListScreen({ navigation, route }: CocktailListSc
   const [groceryListVisible, setGroceryListVisible] = useState(false);
   const [allRecipes, setAllRecipes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const {
     toggleSavedCocktail,
@@ -78,16 +82,38 @@ export default function CocktailListScreen({ navigation, route }: CocktailListSc
     }).filter(Boolean);
   }, [cocktailIds, cocktails, allRecipes]);
 
+  // Filter cocktails based on search query
+  const filteredCocktails = useMemo(() => {
+    if (!searchQuery.trim()) return validCocktails;
+
+    const query = searchQuery.toLowerCase().trim();
+    return validCocktails.filter(cocktail => {
+      const name = (cocktail.name || cocktail.title || '').toLowerCase();
+      const subtitle = (cocktail.subtitle || '').toLowerCase();
+      const description = (cocktail.description || '').toLowerCase();
+      const ingredientNames = (cocktail.ingredients || [])
+        .map((ing: any) => (ing.name || '').toLowerCase())
+        .join(' ');
+
+      return (
+        name.includes(query) ||
+        subtitle.includes(query) ||
+        description.includes(query) ||
+        ingredientNames.includes(query)
+      );
+    });
+  }, [validCocktails, searchQuery]);
+
   // Group mocktails by subcategory
   const mocktailSubcategories = useMemo(() => {
     if (category !== 'mocktails') return null;
 
-    const zeroProof = validCocktails.filter(c => c.subtitle?.includes('Zero-Proof'));
-    const wellness = validCocktails.filter(c => c.subtitle?.includes('Wellness'));
-    const lowABV = validCocktails.filter(c => c.subtitle?.includes('Low-ABV'));
+    const zeroProof = filteredCocktails.filter(c => c.subtitle?.includes('Zero-Proof'));
+    const wellness = filteredCocktails.filter(c => c.subtitle?.includes('Wellness'));
+    const lowABV = filteredCocktails.filter(c => c.subtitle?.includes('Low-ABV'));
 
     return { zeroProof, wellness, lowABV };
-  }, [category, validCocktails]);
+  }, [category, filteredCocktails]);
 
   if (loading) {
     return (
@@ -111,9 +137,32 @@ export default function CocktailListScreen({ navigation, route }: CocktailListSc
         <Animated.View entering={FadeIn.duration(400)} style={styles.header}>
           <Text style={styles.title}>{title}</Text>
           <Text style={styles.subtitle}>
-            {validCocktails.length} {category === 'mocktails' ? (validCocktails.length === 1 ? 'mocktail' : 'mocktails') : category === 'syrups' ? (validCocktails.length === 1 ? 'recipe' : 'recipes') : (validCocktails.length === 1 ? 'cocktail' : 'cocktails')}
+            {filteredCocktails.length} {category === 'mocktails' ? (filteredCocktails.length === 1 ? 'mocktail' : 'mocktails') : category === 'syrups' ? (filteredCocktails.length === 1 ? 'recipe' : 'recipes') : (filteredCocktails.length === 1 ? 'cocktail' : 'cocktails')}
           </Text>
         </Animated.View>
+
+        {/* Search Bar (only for mocktails) */}
+        {category === 'mocktails' && (
+          <Animated.View entering={FadeIn.delay(200).duration(400)} style={styles.searchContainer}>
+            <View style={styles.searchBar}>
+              <Ionicons name="search" size={20} color={colors.subtext} style={styles.searchIcon} />
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Search mocktails, ingredients..."
+                placeholderTextColor={colors.subtext}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+              {searchQuery.length > 0 && (
+                <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearButton}>
+                  <Ionicons name="close-circle" size={20} color={colors.subtext} />
+                </TouchableOpacity>
+              )}
+            </View>
+          </Animated.View>
+        )}
 
         {/* Cocktail List - Show horizontal sections for mocktails, otherwise flat grid */}
         {category === 'mocktails' && mocktailSubcategories ? (
@@ -238,11 +287,15 @@ export default function CocktailListScreen({ navigation, route }: CocktailListSc
           </View>
         )}
 
-        {validCocktails.length === 0 && (
+        {filteredCocktails.length === 0 && (
           <Animated.View entering={FadeIn.delay(300).duration(600)} style={styles.emptyState}>
-            <Text style={styles.emptyText}>No cocktails found for this mood</Text>
+            <Text style={styles.emptyText}>
+              {searchQuery ? 'No results found' : 'No cocktails found for this mood'}
+            </Text>
             <Text style={styles.emptySubtext}>
-              Try exploring other moods or check back later for new additions!
+              {searchQuery
+                ? 'Try a different search term or clear the search to see all mocktails'
+                : 'Try exploring other moods or check back later for new additions!'}
             </Text>
           </Animated.View>
         )}
@@ -302,6 +355,33 @@ const styles = StyleSheet.create({
     fontSize: fonts.body,
     color: colors.subtext,
     fontWeight: '500',
+  },
+  searchContainer: {
+    paddingHorizontal: spacing(3),
+    paddingBottom: spacing(3),
+  },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.card,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.line,
+    paddingHorizontal: spacing(2),
+    height: 48,
+  },
+  searchIcon: {
+    marginRight: spacing(1.5),
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: fonts.body,
+    color: colors.text,
+    paddingVertical: spacing(1.5),
+  },
+  clearButton: {
+    padding: spacing(1),
+    marginLeft: spacing(1),
   },
   categorizedContent: {
     paddingHorizontal: spacing(3),
