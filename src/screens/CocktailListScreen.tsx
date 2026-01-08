@@ -115,21 +115,25 @@ export default function CocktailListScreen({ navigation, route }: CocktailListSc
           </Text>
         </Animated.View>
 
-        {/* Cocktail List - Show subcategories for mocktails, otherwise flat grid */}
+        {/* Cocktail List - Show horizontal sections for mocktails, otherwise flat grid */}
         {category === 'mocktails' && mocktailSubcategories ? (
-          <View style={styles.categorizedContent}>
+          <View>
             {/* Zero-Proof Spirits */}
             {mocktailSubcategories.zeroProof.length > 0 && (
               <View style={styles.subcategorySection}>
                 <Text style={styles.subcategoryTitle}>Zero-Proof Spirits</Text>
-                <View style={styles.cocktailGrid}>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.horizontalScrollContent}
+                >
                   {mocktailSubcategories.zeroProof.map((cocktail, index) => (
                     <Animated.View
                       key={cocktail.id}
                       entering={FadeInDown.delay(index * 100).duration(500).springify()}
+                      style={styles.horizontalCard}
                     >
                       <RecipeCard
-                        style={styles.cocktailCard}
                         {...createRecipeCardProps(cocktail, navigation, {
                           toggleSavedCocktail,
                           isCocktailSaved,
@@ -142,7 +146,7 @@ export default function CocktailListScreen({ navigation, route }: CocktailListSc
                       />
                     </Animated.View>
                   ))}
-                </View>
+                </ScrollView>
               </View>
             )}
 
@@ -150,14 +154,18 @@ export default function CocktailListScreen({ navigation, route }: CocktailListSc
             {mocktailSubcategories.wellness.length > 0 && (
               <View style={styles.subcategorySection}>
                 <Text style={styles.subcategoryTitle}>Wellness Drinks</Text>
-                <View style={styles.cocktailGrid}>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.horizontalScrollContent}
+                >
                   {mocktailSubcategories.wellness.map((cocktail, index) => (
                     <Animated.View
                       key={cocktail.id}
                       entering={FadeInDown.delay(index * 100).duration(500).springify()}
+                      style={styles.horizontalCard}
                     >
                       <RecipeCard
-                        style={styles.cocktailCard}
                         {...createRecipeCardProps(cocktail, navigation, {
                           toggleSavedCocktail,
                           isCocktailSaved,
@@ -170,7 +178,7 @@ export default function CocktailListScreen({ navigation, route }: CocktailListSc
                       />
                     </Animated.View>
                   ))}
-                </View>
+                </ScrollView>
               </View>
             )}
 
@@ -178,14 +186,18 @@ export default function CocktailListScreen({ navigation, route }: CocktailListSc
             {mocktailSubcategories.lowABV.length > 0 && (
               <View style={styles.subcategorySection}>
                 <Text style={styles.subcategoryTitle}>Low-ABV Options</Text>
-                <View style={styles.cocktailGrid}>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.horizontalScrollContent}
+                >
                   {mocktailSubcategories.lowABV.map((cocktail, index) => (
                     <Animated.View
                       key={cocktail.id}
                       entering={FadeInDown.delay(index * 100).duration(500).springify()}
+                      style={styles.horizontalCard}
                     >
                       <RecipeCard
-                        style={styles.cocktailCard}
                         {...createRecipeCardProps(cocktail, navigation, {
                           toggleSavedCocktail,
                           isCocktailSaved,
@@ -198,7 +210,7 @@ export default function CocktailListScreen({ navigation, route }: CocktailListSc
                       />
                     </Animated.View>
                   ))}
-                </View>
+                </ScrollView>
               </View>
             )}
           </View>
@@ -295,14 +307,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing(3),
   },
   subcategorySection: {
-    marginBottom: spacing(4),
+    marginBottom: spacing(3),
   },
   subcategoryTitle: {
     fontSize: fonts.h3,
     fontWeight: '700',
     color: colors.text,
     marginBottom: spacing(2),
-    paddingTop: spacing(2),
+    paddingLeft: spacing(2),
+  },
+  horizontalScrollContent: {
+    paddingLeft: spacing(2),
+    gap: spacing(2),
+  },
+  horizontalCard: {
+    width: 240,
   },
   cocktailGrid: {
     padding: spacing(3),
