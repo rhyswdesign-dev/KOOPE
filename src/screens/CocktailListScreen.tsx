@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useLayoutEffect } from 'react';
 import {
   View,
   Text,
@@ -10,7 +10,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
-import { RouteProp } from '@react-navigation/native';
+import { RouteProp, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, fonts, radii } from '../theme/tokens';
@@ -33,11 +33,38 @@ export default function CocktailListScreen({ navigation, route }: CocktailListSc
   const [allRecipes, setAllRecipes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchExpanded, setSearchExpanded] = useState(false);
 
   const {
     toggleSavedCocktail,
     isCocktailSaved,
   } = useSession();
+
+  // Set navigation options dynamically
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      title: title,
+      headerBackTitle: 'Recipes',
+      headerRight: category === 'mocktails' ? () => (
+        <TouchableOpacity
+          onPress={() => {
+            if (searchExpanded) {
+              // Closing search, clear the query
+              setSearchQuery('');
+            }
+            setSearchExpanded(!searchExpanded);
+          }}
+          style={{ marginRight: 8 }}
+        >
+          <Ionicons
+            name={searchExpanded ? 'close' : 'search'}
+            size={24}
+            color={colors.text}
+          />
+        </TouchableOpacity>
+      ) : undefined,
+    });
+  }, [navigation, title, category, searchExpanded]);
 
   // Fetch all recipes from Supabase on mount (only if cocktails not provided directly)
   useEffect(() => {
@@ -133,17 +160,9 @@ export default function CocktailListScreen({ navigation, route }: CocktailListSc
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
-        {/* Header */}
-        <Animated.View entering={FadeIn.duration(400)} style={styles.header}>
-          <Text style={styles.title}>{title}</Text>
-          <Text style={styles.subtitle}>
-            {filteredCocktails.length} {category === 'mocktails' ? (filteredCocktails.length === 1 ? 'mocktail' : 'mocktails') : category === 'syrups' ? (filteredCocktails.length === 1 ? 'recipe' : 'recipes') : (filteredCocktails.length === 1 ? 'cocktail' : 'cocktails')}
-          </Text>
-        </Animated.View>
-
-        {/* Search Bar (only for mocktails) */}
-        {category === 'mocktails' && (
-          <Animated.View entering={FadeIn.delay(200).duration(400)} style={styles.searchContainer}>
+        {/* Search Bar (only for mocktails and only when expanded) */}
+        {category === 'mocktails' && searchExpanded && (
+          <Animated.View entering={FadeIn.duration(300)} style={styles.searchContainer}>
             <View style={styles.searchBar}>
               <Ionicons name="search" size={20} color={colors.subtext} style={styles.searchIcon} />
               <TextInput
@@ -154,6 +173,7 @@ export default function CocktailListScreen({ navigation, route }: CocktailListSc
                 onChangeText={setSearchQuery}
                 autoCapitalize="none"
                 autoCorrect={false}
+                autoFocus
               />
               {searchQuery.length > 0 && (
                 <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearButton}>
@@ -340,24 +360,9 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingBottom: spacing(4),
   },
-  header: {
-    padding: spacing(3),
-    borderBottomWidth: 1,
-    borderBottomColor: colors.line,
-  },
-  title: {
-    fontSize: fonts.h2,
-    fontWeight: '800',
-    color: colors.text,
-    marginBottom: spacing(0.5),
-  },
-  subtitle: {
-    fontSize: fonts.body,
-    color: colors.subtext,
-    fontWeight: '500',
-  },
   searchContainer: {
     paddingHorizontal: spacing(3),
+    paddingTop: spacing(2),
     paddingBottom: spacing(3),
   },
   searchBar: {
