@@ -111,7 +111,7 @@ export default function CocktailListScreen({ navigation, route }: CocktailListSc
         <Animated.View entering={FadeIn.duration(400)} style={styles.header}>
           <Text style={styles.title}>{title}</Text>
           <Text style={styles.subtitle}>
-            {validCocktails.length} {category === 'syrups' ? (validCocktails.length === 1 ? 'recipe' : 'recipes') : (validCocktails.length === 1 ? 'cocktail' : 'cocktails')}
+            {validCocktails.length} {category === 'mocktails' ? (validCocktails.length === 1 ? 'mocktail' : 'mocktails') : category === 'syrups' ? (validCocktails.length === 1 ? 'recipe' : 'recipes') : (validCocktails.length === 1 ? 'cocktail' : 'cocktails')}
           </Text>
         </Animated.View>
 
