@@ -23,6 +23,11 @@ import {
   personalizeModeCategoryOrder,
   Mood
 } from '../services/moodBasedRecommendations';
+import { ALL_COCKTAILS } from '../data/cocktails';
+import RecipeCard from './RecipeCard';
+import { createRecipeCardProps } from '../utils/recipeActions';
+import { FlatList } from 'react-native';
+import { getCocktailImage } from '../../assets/images/cocktails';
 import {
   BehavioralLearning
 } from '../services/behavioralLearning';
@@ -31,6 +36,7 @@ import {
   generateCocktailSuggestions,
 } from '../services/aiPromptService';
 import { log } from '../lib/logger';
+import { getTrendingCocktails, getCurrentSeason, getSeasonDisplayName, getSeasonEmoji } from '../services/seasonalTrendingService';
 
 interface ForYouFeedProps {
   onCocktailPress: (cocktail: any) => void;
@@ -47,9 +53,88 @@ export default function ForYouFeed({
   savedRecipeIds = new Set(),
   onRefineProfile,
 }: ForYouFeedProps) {
-  const { profile } = usePersonalization();
+  const { profile, getFeaturedCocktails, scoreCocktail } = usePersonalization();
   const [personalizedMoods, setPersonalizedMoods] = useState(MOOD_CATEGORIES);
   const [engagementScore, setEngagementScore] = useState(0);
+  const [selectedRecommendTab, setSelectedRecommendTab] = useState<'matched' | 'beginner' | 'challenge' | 'trending'>('matched');
+
+  // Get current season info for trending tab
+  const currentSeason = getCurrentSeason();
+  const seasonName = getSeasonDisplayName(currentSeason);
+  const seasonEmoji = getSeasonEmoji(currentSeason);
+
+  // Get recommended cocktails by category - ALL TABS USE PERSONALIZED RECOMMENDATIONS
+  const recommendedCocktails = useMemo(() => {
+    const featured = getFeaturedCocktails();
+    const hasPersonalizedContent = featured && featured.length > 0;
+    const trending = getTrendingCocktails(ALL_COCKTAILS, 8);
+
+    // Filter out syrups and ingredients - only show actual cocktails
+    const actualCocktails = ALL_COCKTAILS.filter(cocktail =>
+      cocktail.category !== 'syrup' &&
+      cocktail.category !== 'ingredient' &&
+      !cocktail.name?.toLowerCase().includes('syrup')
+    );
+
+    log.debug('ForYouFeed', 'Building recommended cocktails', {
+      featuredCount: featured?.length || 0,
+      hasPersonalizedContent,
+      hasProfile,
+      trendingCount: trending.length,
+      actualCocktailsCount: actualCocktails.length,
+      userSpirits: profile?.favoriteSpirits,
+      userFlavors: profile?.flavorPreferences,
+    });
+
+    let matched, beginner, challenge;
+
+    if (hasProfile) {
+      // User has profile - use personalized scoring
+      const scoredCocktails = actualCocktails.map(cocktail => ({
+        cocktail,
+        score: scoreCocktail(cocktail)
+      }))
+      .sort((a, b) => b.score - a.score);
+
+      log.debug('ForYouFeed', 'Top scored cocktails', {
+        top5: scoredCocktails.slice(0, 5).map(item => ({
+          name: item.cocktail.name,
+          score: item.score,
+          spirit: item.cocktail.base,
+          difficulty: item.cocktail.difficulty
+        }))
+      });
+
+      matched = scoredCocktails.slice(0, 8).map(item => item.cocktail);
+      beginner = scoredCocktails.filter(item => item.cocktail.difficulty === 'Easy').slice(0, 8).map(item => item.cocktail);
+      challenge = scoredCocktails.filter(item => item.cocktail.difficulty === 'Hard' || item.cocktail.difficulty === 'Medium').slice(0, 8).map(item => item.cocktail);
+    } else {
+      // No profile - show random selection of actual cocktails
+      const shuffled = [...actualCocktails].sort(() => Math.random() - 0.5);
+      matched = shuffled.slice(0, 8);
+      beginner = shuffled.filter(c => c.difficulty === 'Easy').slice(0, 8);
+      challenge = shuffled.filter(c => c.difficulty === 'Hard' || c.difficulty === 'Medium').slice(0, 8);
+
+      log.debug('ForYouFeed', 'Using random cocktails (no profile)', {
+        matchedCount: matched.length,
+        sampleCocktails: matched.slice(0, 3).map(c => c.name)
+      });
+    }
+
+    log.debug('ForYouFeed', 'Recommended cocktails breakdown', {
+      matchedCount: matched.length,
+      beginnerCount: beginner.length,
+      challengeCount: challenge.length,
+      trendingCount: trending.length,
+    });
+
+    return {
+      matched, // Top personalized matches OR random popular cocktails
+      beginner, // Easy difficulty
+      challenge, // Medium/Hard difficulty
+      trending, // Seasonal trending cocktails
+    };
+  }, [getFeaturedCocktails, scoreCocktail, profile, hasProfile]);
 
   // AI Prompt Modal state
   const [promptModalVisible, setPromptModalVisible] = useState(false);
@@ -65,27 +150,32 @@ export default function ForYouFeed({
     return 'Good night';
   }, []);
 
-  // User profile data with safe defaults
+  // Check if user has completed taste profile
+  const hasProfile = profile && profile.favoriteSpirits && profile.favoriteSpirits.length > 0;
+
+  // User profile data - only use real data, no fake defaults
   const userProfile = useMemo(() => {
-    if (!profile) {
-      return {
-        favoriteSpirit: 'tequila',
-        skillLevel: 'beginner',
-        flavorProfiles: ['citrus', 'sweet'],
-        spiritPreferences: ['tequila'],
-      };
+    if (!hasProfile) {
+      return null;
     }
 
+    const favoriteSpirit = profile.favoriteSpirits?.[0] || 'whiskey';
+    log.debug('ForYouFeed', 'User profile updated', {
+      favoriteSpirit,
+      allSpirits: profile.favoriteSpirits,
+      profileTimestamp: profile.lastSurveyUpdate,
+    });
+
     return {
-      favoriteSpirit: profile.favoriteSpirits?.[0] || 'whiskey',
+      favoriteSpirit,
       skillLevel: profile.skillLevel || 'beginner',
       flavorProfiles: profile.flavorPreferences?.slice(0, 2) || ['citrus', 'sweet'],
       spiritPreferences: profile.favoriteSpirits || ['whiskey'],
     };
-  }, [profile]);
+  }, [profile, hasProfile]);
 
   useEffect(() => {
-    if (profile) {
+    if (hasProfile && userProfile) {
       // Personalize mood order based on user profile
       const mockProfile = {
         id: 'current-user',
@@ -105,7 +195,7 @@ export default function ForYouFeed({
       // Load remaining prompts
       loadRemainingPrompts();
     }
-  }, [profile, userProfile]);
+  }, [profile, userProfile, hasProfile]);
 
   const loadRemainingPrompts = async () => {
     try {
@@ -158,7 +248,7 @@ export default function ForYouFeed({
         <Text style={styles.moodDescription}>{mood.description}</Text>
 
         {/* Show why this mood was ranked here */}
-        {index === 0 && (
+        {index === 0 && hasProfile && userProfile && (
           <View style={styles.reasonBadge}>
             <Text style={styles.reasonText}>
               ⭐ Perfect for {userProfile.favoriteSpirit} lovers
@@ -177,41 +267,206 @@ export default function ForYouFeed({
           <View>
             <Text style={styles.greeting}>{greeting} 👋</Text>
             <Text style={styles.subtitle}>
-              {userProfile.favoriteSpirit} enthusiast
+              {hasProfile && userProfile ? `${userProfile.favoriteSpirit} enthusiast` : 'Cocktail explorer'}
             </Text>
           </View>
-          <View style={styles.engagementBadge}>
-            <Text style={styles.engagementText}>{Math.round(engagementScore)}%</Text>
-            <Text style={styles.engagementLabel}>Engaged</Text>
-          </View>
+          {hasProfile && (
+            <View style={styles.engagementBadge}>
+              <Text style={styles.engagementText}>{Math.round(engagementScore)}%</Text>
+              <Text style={styles.engagementLabel}>Engaged</Text>
+            </View>
+          )}
         </View>
 
-        {/* Personalization Stats */}
-        <View style={styles.statsCard}>
-          <Text style={styles.statsTitle}>🧠 Your Preferences</Text>
-          <View style={styles.statsGrid}>
-            <View style={styles.statItem}>
-              <Text style={styles.statLabel}>Favorite Spirit</Text>
-              <Text style={styles.statValue}>
-                {userProfile.favoriteSpirit.charAt(0).toUpperCase() + userProfile.favoriteSpirit.slice(1)}
-              </Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={styles.statLabel}>Skill Level</Text>
-              <Text style={styles.statValue}>
-                {userProfile.skillLevel.charAt(0).toUpperCase() + userProfile.skillLevel.slice(1)}
-              </Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={styles.statLabel}>Flavor Match</Text>
-              <Text style={styles.statValue}>
-                {userProfile.flavorProfiles.map(f => f.charAt(0).toUpperCase() + f.slice(1)).join(', ')}
-              </Text>
-            </View>
+        {/* Onboarding State - No Profile */}
+        {!hasProfile && onRefineProfile && (
+          <View style={styles.onboardingCard}>
+            <Text style={styles.onboardingEmoji}>🎯</Text>
+            <Text style={styles.onboardingTitle}>Create Your Taste Profile</Text>
+            <Text style={styles.onboardingDescription}>
+              Answer 3 quick questions to get personalized cocktail recommendations tailored to your preferences
+            </Text>
+            <TouchableOpacity
+              style={styles.onboardingButton}
+              onPress={onRefineProfile}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.onboardingButtonText}>Get Started</Text>
+              <Ionicons name="arrow-forward" size={20} color={colors.white} />
+            </TouchableOpacity>
           </View>
-          <Text style={styles.statsNote}>
-            💡 These update as you interact with recipes
+        )}
+
+        {/* Personalization Stats - Only show if profile exists */}
+        {hasProfile && userProfile && (
+          <View style={styles.statsCard}>
+            <Text style={styles.statsTitle}>🧠 Your Preferences</Text>
+            <View style={styles.statsGrid}>
+              <View style={styles.statItem}>
+                <Text style={styles.statLabel}>Favorite Spirits</Text>
+                {userProfile.spiritPreferences.length > 1 ? (
+                  <View style={styles.spiritStack}>
+                    {userProfile.spiritPreferences.map((spirit, idx) => (
+                      <Text key={idx} style={styles.statValue}>
+                        {spirit.charAt(0).toUpperCase() + spirit.slice(1)}
+                      </Text>
+                    ))}
+                  </View>
+                ) : (
+                  <Text style={styles.statValue}>
+                    {userProfile.favoriteSpirit.charAt(0).toUpperCase() + userProfile.favoriteSpirit.slice(1)}
+                  </Text>
+                )}
+              </View>
+              <View style={styles.statItem}>
+                <Text style={styles.statLabel}>Skill Level</Text>
+                <Text style={styles.statValue}>
+                  {userProfile.skillLevel.charAt(0).toUpperCase() + userProfile.skillLevel.slice(1)}
+                </Text>
+              </View>
+              <View style={styles.statItem}>
+                <Text style={styles.statLabel}>Flavor Match</Text>
+                {userProfile.flavorProfiles.length > 1 ? (
+                  <View style={styles.flavorStack}>
+                    {userProfile.flavorProfiles.map((f, idx) => (
+                      <Text key={idx} style={styles.statValue}>
+                        {f.charAt(0).toUpperCase() + f.slice(1)}
+                      </Text>
+                    ))}
+                  </View>
+                ) : (
+                  <Text style={styles.statValue}>
+                    {userProfile.flavorProfiles[0]?.charAt(0).toUpperCase() + userProfile.flavorProfiles[0]?.slice(1)}
+                  </Text>
+                )}
+              </View>
+            </View>
+            <Text style={styles.statsNote}>
+              💡 These update as you interact with recipes
+            </Text>
+
+            {/* Refine Taste Profile Button */}
+            {onRefineProfile && (
+              <TouchableOpacity
+                style={styles.refineButton}
+                onPress={onRefineProfile}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="settings-outline" size={18} color={colors.accent} />
+                <Text style={styles.refineButtonText}>Refine Your Taste Profile</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
+
+        {/* Recommended Cocktails Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>
+            {hasProfile ? 'Recommended Cocktails' : 'Explore Cocktails'}
           </Text>
+          {!hasProfile && (
+            <Text style={styles.sectionSubtitle}>
+              Popular cocktails to discover
+            </Text>
+          )}
+
+          {/* Tab Bar */}
+          <ScrollView
+            horizontal
+            nestedScrollEnabled
+            showsHorizontalScrollIndicator={false}
+            style={styles.tabBar}
+            contentContainerStyle={styles.tabBarContent}
+          >
+            <TouchableOpacity
+              style={[
+                styles.tab,
+                selectedRecommendTab === 'matched' && styles.tabActive,
+              ]}
+              onPress={() => setSelectedRecommendTab('matched')}
+              activeOpacity={0.7}
+            >
+              <Text style={[
+                styles.tabText,
+                selectedRecommendTab === 'matched' && styles.tabTextActive,
+              ]}>
+                {hasProfile ? '⭐ Matched for You' : '⭐ Popular'}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.tab,
+                selectedRecommendTab === 'beginner' && styles.tabActive,
+              ]}
+              onPress={() => setSelectedRecommendTab('beginner')}
+              activeOpacity={0.7}
+            >
+              <Text style={[
+                styles.tabText,
+                selectedRecommendTab === 'beginner' && styles.tabTextActive,
+              ]}>
+                🌱 Beginner Friendly
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.tab,
+                selectedRecommendTab === 'challenge' && styles.tabActive,
+              ]}
+              onPress={() => setSelectedRecommendTab('challenge')}
+              activeOpacity={0.7}
+            >
+              <Text style={[
+                styles.tabText,
+                selectedRecommendTab === 'challenge' && styles.tabTextActive,
+              ]}>
+                🌶️ Flavor Challenges
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.tab,
+                selectedRecommendTab === 'trending' && styles.tabActive,
+              ]}
+              onPress={() => setSelectedRecommendTab('trending')}
+              activeOpacity={0.7}
+            >
+              <Text style={[
+                styles.tabText,
+                selectedRecommendTab === 'trending' && styles.tabTextActive,
+              ]}>
+                {seasonEmoji} Trending {seasonName}
+              </Text>
+            </TouchableOpacity>
+          </ScrollView>
+
+          {/* Horizontal Cocktail Cards */}
+          <FlatList
+            horizontal
+            nestedScrollEnabled
+            data={recommendedCocktails[selectedRecommendTab]}
+            keyExtractor={(item) => item.id}
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.cocktailList}
+            renderItem={({ item }) => (
+              <View style={styles.cocktailCardWrapper}>
+                <RecipeCard
+                  recipe={{
+                    id: item.id,
+                    name: item.name,
+                    description: item.subtitle || item.description,
+                    image: getCocktailImage(item.id, item.image),
+                    difficulty: item.difficulty || 'Medium',
+                    time: item.time || '5 min',
+                  }}
+                  onPress={() => onCocktailPress(item)}
+                  onSave={onSaveCocktail}
+                  onAddToCart={onAddToCart}
+                  isSaved={savedRecipeIds.has(item.id)}
+                />
+              </View>
+            )}
+          />
         </View>
 
         {/* AI Cocktail Creator CTA */}
@@ -225,7 +480,7 @@ export default function ForYouFeed({
               <View style={styles.aiPromptTextContainer}>
                 <Text style={styles.aiPromptTitle}>What should I make tonight?</Text>
                 <Text style={styles.aiPromptSubtitle}>
-                  AI-powered suggestions • {remainingPrompts} {remainingPrompts === 1 ? 'prompt' : 'prompts'} left
+                  {remainingPrompts} {remainingPrompts === 1 ? 'prompt' : 'prompts'} remaining
                 </Text>
               </View>
             </View>
@@ -238,9 +493,16 @@ export default function ForYouFeed({
         {/* Mood Categories - Personalized Order */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Your Moods</Text>
-          <Text style={styles.sectionSubtitle}>
-            Ordered based on your {userProfile.favoriteSpirit} preference
-          </Text>
+          {hasProfile && userProfile && (
+            <Text style={styles.sectionSubtitle}>
+              Ordered based on your {userProfile.favoriteSpirit} preference
+            </Text>
+          )}
+          {!hasProfile && (
+            <Text style={styles.sectionSubtitle}>
+              Discover cocktails by mood and occasion
+            </Text>
+          )}
           <ScrollView
             horizontal
             nestedScrollEnabled
@@ -343,10 +605,34 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.accent,
   },
+  flavorStack: {
+    gap: spacing(0.25),
+  },
+  spiritStack: {
+    gap: spacing(0.25),
+  },
   statsNote: {
     fontSize: 12,
     color: colors.subtext,
     fontStyle: 'italic',
+  },
+  refineButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing(1),
+    marginTop: spacing(2),
+    paddingVertical: spacing(1.5),
+    paddingHorizontal: spacing(2),
+    backgroundColor: colors.accent + '15',
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: colors.accent,
+  },
+  refineButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.accent,
   },
   aiPromptCTA: {
     margin: spacing(3),
@@ -364,23 +650,26 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
+    marginRight: spacing(1),
   },
   aiPromptEmoji: {
-    fontSize: 32,
-    marginRight: spacing(2),
+    fontSize: 28,
+    marginRight: spacing(1.5),
   },
   aiPromptTextContainer: {
     flex: 1,
   },
   aiPromptTitle: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '700',
     color: colors.bg,
-    marginBottom: spacing(0.5),
+    marginBottom: spacing(0.25),
+    lineHeight: 22,
   },
   aiPromptSubtitle: {
-    fontSize: 13,
+    fontSize: 12,
     color: colors.bg + 'CC',
+    lineHeight: 16,
   },
   aiPromptBadge: {
     backgroundColor: colors.bg,
@@ -470,5 +759,82 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.gold,
     fontWeight: '600',
+  },
+  tabBar: {
+    marginBottom: spacing(2),
+  },
+  tabBarContent: {
+    paddingHorizontal: spacing(3),
+  },
+  tab: {
+    paddingHorizontal: spacing(2),
+    paddingVertical: spacing(1.5),
+    borderRadius: 20,
+    backgroundColor: colors.card,
+    marginRight: spacing(1.5),
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
+  tabActive: {
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
+  },
+  tabText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.subtext,
+  },
+  tabTextActive: {
+    color: colors.white,
+  },
+  cocktailList: {
+    gap: spacing(2),
+    paddingLeft: spacing(3),
+    paddingRight: spacing(3),
+  },
+  cocktailCardWrapper: {
+    width: 280,
+  },
+  onboardingCard: {
+    margin: spacing(3),
+    marginTop: 0,
+    backgroundColor: colors.card,
+    borderRadius: radii.lg,
+    padding: spacing(3),
+    borderWidth: 2,
+    borderColor: colors.accent,
+    alignItems: 'center',
+  },
+  onboardingEmoji: {
+    fontSize: 48,
+    marginBottom: spacing(2),
+  },
+  onboardingTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: spacing(1),
+    textAlign: 'center',
+  },
+  onboardingDescription: {
+    fontSize: 15,
+    color: colors.subtext,
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: spacing(3),
+  },
+  onboardingButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(1),
+    backgroundColor: colors.accent,
+    paddingVertical: spacing(1.5),
+    paddingHorizontal: spacing(3),
+    borderRadius: radii.md,
+  },
+  onboardingButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.white,
   },
 });

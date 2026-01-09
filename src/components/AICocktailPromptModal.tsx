@@ -110,21 +110,11 @@ export default function AICocktailPromptModal({
           </View>
 
           {/* Main Content */}
-          <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-            {/* Input Section */}
-            <Text style={styles.sectionTitle}>What are you in the mood for?</Text>
-            <TextInput
-              style={styles.textInput}
-              placeholder="E.g., Something tropical with rum..."
-              placeholderTextColor={colors.subtext}
-              value={prompt}
-              onChangeText={setPrompt}
-              multiline
-              numberOfLines={3}
-              autoFocus
-              keyboardAppearance="dark"
-            />
-
+          <ScrollView
+            style={styles.content}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.contentContainer}
+          >
             {/* Quick Prompts */}
             <Text style={styles.sectionTitle}>Quick Ideas</Text>
             <View style={styles.quickPromptsGrid}>
@@ -166,8 +156,23 @@ export default function AICocktailPromptModal({
             )}
           </ScrollView>
 
-          {/* Submit Button */}
+          {/* Input and Submit Section */}
           <View style={styles.footer}>
+            {/* Text Input */}
+            <Text style={styles.inputLabel}>What are you in the mood for?</Text>
+            <TextInput
+              style={styles.textInput}
+              placeholder="E.g., Something tropical with rum..."
+              placeholderTextColor={colors.subtext}
+              value={prompt}
+              onChangeText={setPrompt}
+              multiline
+              maxLength={200}
+              autoFocus
+              keyboardAppearance="dark"
+            />
+
+            {/* Submit Button */}
             <TouchableOpacity
               style={[styles.submitButton, !canSubmit && styles.submitButtonDisabled]}
               onPress={handleSubmit}
@@ -258,25 +263,30 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+  },
+  contentContainer: {
     padding: spacing(3),
+    paddingBottom: spacing(3),
   },
   sectionTitle: {
     fontSize: 16,
     fontWeight: '700',
     color: colors.text,
     marginBottom: spacing(1.5),
-    marginTop: spacing(2),
+    marginTop: spacing(1),
   },
   textInput: {
     backgroundColor: colors.card,
-    borderRadius: radii.md,
+    borderRadius: radii.lg,
     padding: spacing(2),
-    fontSize: 16,
-    color: colors.text,
-    minHeight: 100,
+    fontSize: 17,
+    color: colors.white,
+    minHeight: 80,
+    maxHeight: 120,
     textAlignVertical: 'top',
-    borderWidth: 1,
-    borderColor: colors.line,
+    borderWidth: 2,
+    borderColor: colors.gold,
+    fontWeight: '500',
   },
   quickPromptsGrid: {
     flexDirection: 'row',
@@ -354,8 +364,18 @@ const styles = StyleSheet.create({
   footer: {
     padding: spacing(3),
     paddingTop: spacing(2),
+    borderTopWidth: 1,
+    borderTopColor: colors.line,
+    backgroundColor: colors.bg,
+  },
+  inputLabel: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: spacing(1.5),
   },
   submitButton: {
+    marginTop: spacing(2),
     backgroundColor: colors.gold,
     borderRadius: radii.lg,
     padding: spacing(2.5),

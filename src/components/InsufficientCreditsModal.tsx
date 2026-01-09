@@ -106,7 +106,7 @@ const styles = StyleSheet.create({
   },
   message: {
     fontSize: fonts.body,
-    color: colors.textSecondary,
+    color: colors.white,
     textAlign: 'center',
     lineHeight: 22,
     marginBottom: spacing(3),
@@ -132,7 +132,7 @@ const styles = StyleSheet.create({
   cancelButtonText: {
     fontSize: fonts.body,
     fontWeight: '600',
-    color: colors.textSecondary,
+    color: colors.white,
   },
   getCreditsButton: {
     backgroundColor: colors.accent,

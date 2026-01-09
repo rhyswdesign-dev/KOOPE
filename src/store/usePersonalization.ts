@@ -117,9 +117,20 @@ export const usePersonalization = create<PersonalizationState>((set, get) => ({
     const { profile } = get();
 
     try {
+      log.info('PersonalizationStore', 'Updating profile', {
+        currentFavoriteSpirits: profile?.favoriteSpirits,
+        newFavoriteSpirits: updates.favoriteSpirits,
+        updates
+      });
+
       // If no profile exists, create a new one with the updates
       const updatedProfile = profile ? { ...profile, ...updates } : updates as UserPersonalizationProfile;
       const recommendations = personalizedExperience.generateRecommendations(updatedProfile);
+
+      log.info('PersonalizationStore', 'Setting new profile state', {
+        favoriteSpirits: updatedProfile.favoriteSpirits,
+        flavorPreferences: updatedProfile.flavorPreferences,
+      });
 
       set({
         profile: updatedProfile,
@@ -190,19 +201,43 @@ export const usePersonalization = create<PersonalizationState>((set, get) => ({
 
     log.debug('PersonalizationStore', 'Recording interaction', { type, itemId, context });
 
-    // Track interaction patterns
-    // This could be enhanced to update profile based on behavior patterns
+    // Track interaction patterns - only boost on meaningful actions
+    // Meaningful actions: save/favorite, rate, repeat views (not single views)
+    const meaningfulActions = ['cocktail_saved', 'cocktail_favorited', 'cocktail_rated'];
 
-    // Example: If user consistently chooses tequila cocktails, boost tequila score
-    if (type === 'cocktail_viewed' && context?.spirit && profile.spiritScores) {
+    if (meaningfulActions.includes(type) && context?.spirit && profile.spiritScores) {
       const currentScore = profile.spiritScores[context.spirit] || 50;
-      const boostedScore = Math.min(100, currentScore + 2);
+
+      // Higher boost for more meaningful actions
+      let boost = 0;
+      if (type === 'cocktail_saved' || type === 'cocktail_favorited') {
+        boost = 5; // Saving/favoriting shows strong preference
+      } else if (type === 'cocktail_rated') {
+        boost = context.rating >= 4 ? 7 : 3; // High ratings boost more
+      }
+
+      const boostedScore = Math.min(100, currentScore + boost);
 
       get().updateProfile({
         spiritScores: {
           ...profile.spiritScores,
           [context.spirit]: boostedScore
         }
+      });
+    }
+
+    // Also boost flavor scores on meaningful actions
+    if (meaningfulActions.includes(type) && context?.flavors && Array.isArray(context.flavors) && profile.flavorScores) {
+      const updatedFlavorScores = { ...profile.flavorScores };
+
+      context.flavors.forEach((flavor: string) => {
+        const currentScore = updatedFlavorScores[flavor] || 40;
+        const boost = type === 'cocktail_rated' && context.rating >= 4 ? 5 : 3;
+        updatedFlavorScores[flavor] = Math.min(100, currentScore + boost);
+      });
+
+      get().updateProfile({
+        flavorScores: updatedFlavorScores
       });
     }
   },
@@ -261,8 +296,46 @@ export const usePersonalization = create<PersonalizationState>((set, get) => ({
 
     // Spirit preference (40% weight)
     const cocktailSpirit = cocktail.base?.toLowerCase();
-    if (cocktailSpirit && profile.spiritScores && profile.spiritScores[cocktailSpirit]) {
-      score += (profile.spiritScores[cocktailSpirit] / 100) * 40;
+    const isLiqueurBased = cocktailSpirit === 'liqueur' || cocktailSpirit === 'liqueurs';
+
+    // Get user's primary spirits (non-liqueur spirits)
+    const primarySpirits = profile.favoriteSpirits?.filter(s =>
+      s.toLowerCase() !== 'liqueur' && s.toLowerCase() !== 'liqueurs'
+    ) || [];
+
+    const hasLiqueurPreference = profile.favoriteSpirits?.some(s =>
+      s.toLowerCase() === 'liqueur' || s.toLowerCase() === 'liqueurs'
+    );
+
+    if (cocktailSpirit && profile.spiritScores) {
+      if (isLiqueurBased) {
+        // Liqueur-based cocktails: only score well if user has other primary spirits too
+        // This makes liqueur a complement, not a replacement
+        if (primarySpirits.length > 0) {
+          // User has primary spirits + liqueur preference = good match
+          const liqueurScore = profile.spiritScores[cocktailSpirit] || 50;
+          score += (liqueurScore / 100) * 20; // Reduced weight (20 instead of 40)
+        } else if (hasLiqueurPreference && primarySpirits.length === 0) {
+          // ONLY liqueur preference = still allow but lower score
+          const liqueurScore = profile.spiritScores[cocktailSpirit] || 50;
+          score += (liqueurScore / 100) * 15;
+        } else {
+          // No liqueur preference = penalty
+          score += 5;
+        }
+      } else {
+        // Primary spirit cocktails: normal scoring
+        const spiritScore = profile.spiritScores[cocktailSpirit];
+        if (spiritScore) {
+          score += (spiritScore / 100) * 40;
+        } else if (primarySpirits.length > 0) {
+          // User has spirit preferences, but this isn't one of them = penalty
+          score += 10;
+        } else {
+          // No strong preference = neutral
+          score += 20;
+        }
+      }
     }
 
     // Difficulty appropriateness (30% weight)
