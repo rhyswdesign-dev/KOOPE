@@ -895,7 +895,33 @@ export default function CocktailDetailScreen() {
   // 3. Firebase user-created recipes
   // 4. Hardcoded premium cocktails (original 11)
   // 5. Transformed centralized cocktails (new 81)
-  const passedCocktail = route.params.cocktail;
+
+  // Transform passed cocktail if it exists and needs transformation
+  const passedCocktail = route.params.cocktail ? (() => {
+    const raw = route.params.cocktail;
+
+    // If it already has properly formatted ingredients, use as-is
+    if (raw.ingredients && Array.isArray(raw.ingredients) && raw.ingredients.length > 0 && typeof raw.ingredients[0] === 'object' && raw.ingredients[0].name) {
+      return raw;
+    }
+
+    // If it has string ingredients, transform them
+    if (raw.ingredients && Array.isArray(raw.ingredients) && raw.ingredients.length > 0) {
+      return {
+        ...raw,
+        ingredients: raw.ingredients.map((ing: any) => {
+          if (typeof ing === 'string') {
+            return { name: ing, note: undefined };
+          }
+          return ing;
+        })
+      };
+    }
+
+    // If no ingredients, use the transformer to get them from centralized data
+    return getDetailedCocktail(raw.id) || raw;
+  })() : null;
+
   const nonAlcoholicRecipe = getNonAlcoholicRecipeData(route.params.cocktailId);
   const hardcodedCocktail = cocktailData[route.params.cocktailId as keyof typeof cocktailData];
   const transformedCocktail = getDetailedCocktail(route.params.cocktailId);

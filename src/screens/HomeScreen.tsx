@@ -36,7 +36,7 @@ export default function HomeScreen() {
   }
 
   const handleRecipePress = (recipe: Recipe) => {
-    navigation.navigate('CocktailDetail', { cocktail: recipe as any });
+    navigation.navigate('CocktailDetail', { cocktailId: recipe.id });
   };
 
   return (
