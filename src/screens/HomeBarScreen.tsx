@@ -233,6 +233,9 @@ export default function HomeBarScreen() {
   const [manualEntryBrand, setManualEntryBrand] = useState('');
   const [manualEntryVolume, setManualEntryVolume] = useState('');
   const [showCustomInput, setShowCustomInput] = useState(false);
+  const [showAddOptionsModal, setShowAddOptionsModal] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
+  const [showItemOptionsModal, setShowItemOptionsModal] = useState(false);
 
   useLayoutEffect(() => {
     nav.setOptions({
@@ -323,15 +326,7 @@ export default function HomeBarScreen() {
   };
 
   const handleAddIngredient = () => {
-    Alert.alert(
-      'Add Ingredient',
-      'Choose how to add an ingredient to your bar',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Scan with Camera', onPress: () => nav.navigate('SpiritRecognition') },
-        { text: 'Manual Entry', onPress: () => setShowManualEntryModal(true) },
-      ]
-    );
+    setShowAddOptionsModal(true);
   };
 
   const handleSaveManualEntry = async () => {
@@ -379,6 +374,42 @@ export default function HomeBarScreen() {
     setShowManualEntryModal(false);
   };
 
+  const handleItemPress = (item: InventoryItem) => {
+    setSelectedItem(item);
+    setShowItemOptionsModal(true);
+  };
+
+  const handleDeleteItem = () => {
+    if (!selectedItem) return;
+
+    setHomeBar(prev => ({
+      ...prev,
+      ingredients: prev.ingredients.filter(item => item.id !== selectedItem.id)
+    }));
+
+    setShowItemOptionsModal(false);
+    setSelectedItem(null);
+  };
+
+  const handleAddToShoppingList = () => {
+    if (!selectedItem) return;
+
+    // Add to shopping list
+    ShoppingListStore.addItem({
+      id: `shopping-${Date.now()}`,
+      name: selectedItem.name,
+      category: selectedItem.category,
+      brand: selectedItem.brand,
+      quantity: 1,
+      addedAt: new Date(),
+    });
+
+    setShowItemOptionsModal(false);
+    setSelectedItem(null);
+
+    Alert.alert('Added to Shopping List', `${selectedItem.name} has been added to your shopping list`);
+  };
+
   const getIngredientImage = (item: BarIngredient) => {
     if (item.imageUrl) return { uri: item.imageUrl };
 
@@ -399,10 +430,7 @@ export default function HomeBarScreen() {
       <TouchableOpacity
         key={item.id}
         style={[styles.inventoryCard, isLowStock && styles.lowStockCard]}
-        onPress={() => Alert.alert(
-          item.name,
-          `${item.brand || 'No brand'}\n${item.percentFull}% full • Used in ${item.usedInCocktails} cocktails\n\nVolume: ${item.volume}ml`
-        )}
+        onPress={() => handleItemPress(item)}
       >
         <View style={styles.cardImageContainer}>
           {ingredientImage ? (
@@ -456,12 +484,11 @@ export default function HomeBarScreen() {
         style={styles.header}
       >
         <View style={styles.headerTop}>
-          <View style={styles.headerLeft}>
-            <TouchableOpacity onPress={() => nav.goBack()} style={styles.backButton}>
-              <Ionicons name="chevron-back" size={24} color={colors.text} />
-            </TouchableOpacity>
-            <Text style={styles.headerTitle}>My Bar Inventory</Text>
-          </View>
+          <TouchableOpacity onPress={() => nav.goBack()} style={styles.backButton}>
+            <Ionicons name="chevron-back" size={24} color={colors.text} />
+          </TouchableOpacity>
+
+          <Text style={styles.headerTitle}>Inventory</Text>
 
           <View style={styles.headerRight}>
             <TouchableOpacity onPress={() => nav.navigate('SpiritRecognition')} style={styles.headerButton}>
@@ -573,6 +600,133 @@ export default function HomeBarScreen() {
           <Text style={styles.recipesButtonText}>See What You Can Make →</Text>
         </TouchableOpacity>
       </View>
+
+      {/* Item Options Modal */}
+      <Modal
+        visible={showItemOptionsModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowItemOptionsModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>{selectedItem?.name}</Text>
+              <TouchableOpacity onPress={() => setShowItemOptionsModal(false)}>
+                <Ionicons name="close" size={24} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.itemDetailsContainer}>
+              <Text style={styles.itemDetail}>Brand: {selectedItem?.brand || 'Unknown'}</Text>
+              <Text style={styles.itemDetail}>Volume: {selectedItem?.volume}ml</Text>
+              <Text style={styles.itemDetail}>{selectedItem?.percentFull}% Full</Text>
+              <Text style={styles.itemDetail}>Used in {selectedItem?.usedInCocktails} cocktails</Text>
+            </View>
+
+            <View style={styles.optionsContainer}>
+              <TouchableOpacity
+                style={styles.optionButton}
+                onPress={handleAddToShoppingList}
+              >
+                <View style={styles.optionIconContainer}>
+                  <Ionicons name="cart" size={28} color={colors.gold} />
+                </View>
+                <View style={styles.optionTextContainer}>
+                  <Text style={styles.optionTitle}>Add to Shopping List</Text>
+                  <Text style={styles.optionDescription}>Restock this ingredient</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color={colors.muted} />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.optionButton, styles.deleteOptionButton]}
+                onPress={handleDeleteItem}
+              >
+                <View style={[styles.optionIconContainer, styles.deleteIconContainer]}>
+                  <Ionicons name="trash" size={28} color={colors.error || '#ff4444'} />
+                </View>
+                <View style={styles.optionTextContainer}>
+                  <Text style={[styles.optionTitle, styles.deleteOptionTitle]}>Remove from Bar</Text>
+                  <Text style={styles.optionDescription}>Delete this ingredient</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color={colors.muted} />
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity
+              style={styles.cancelButton}
+              onPress={() => setShowItemOptionsModal(false)}
+            >
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Add Options Modal */}
+      <Modal
+        visible={showAddOptionsModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowAddOptionsModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Add Ingredient</Text>
+              <TouchableOpacity onPress={() => setShowAddOptionsModal(false)}>
+                <Ionicons name="close" size={24} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.modalSubtitle}>Choose how to add an ingredient to your bar</Text>
+
+            <View style={styles.optionsContainer}>
+              <TouchableOpacity
+                style={styles.optionButton}
+                onPress={() => {
+                  setShowAddOptionsModal(false);
+                  nav.navigate('SpiritRecognition');
+                }}
+              >
+                <View style={styles.optionIconContainer}>
+                  <Ionicons name="camera" size={28} color={colors.gold} />
+                </View>
+                <View style={styles.optionTextContainer}>
+                  <Text style={styles.optionTitle}>Scan with Camera</Text>
+                  <Text style={styles.optionDescription}>Quickly add by scanning bottle label</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color={colors.muted} />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.optionButton}
+                onPress={() => {
+                  setShowAddOptionsModal(false);
+                  setShowManualEntryModal(true);
+                }}
+              >
+                <View style={styles.optionIconContainer}>
+                  <Ionicons name="create" size={28} color={colors.gold} />
+                </View>
+                <View style={styles.optionTextContainer}>
+                  <Text style={styles.optionTitle}>Manual Entry</Text>
+                  <Text style={styles.optionDescription}>Type in ingredient details</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color={colors.muted} />
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity
+              style={styles.cancelButton}
+              onPress={() => setShowAddOptionsModal(false)}
+            >
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
       {/* Manual Entry Modal */}
       <Modal
@@ -753,12 +907,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: spacing(2),
   },
-  headerLeft: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing(1),
-  },
   headerRight: {
     flexDirection: 'row',
     gap: spacing(1.5),
@@ -783,6 +931,10 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '700',
     color: colors.text,
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    textAlign: 'center',
   },
   headerSubtitle: {
     fontSize: 13,
@@ -1093,5 +1245,79 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: colors.text,
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    color: colors.subtext,
+    marginBottom: spacing(3),
+  },
+  optionsContainer: {
+    gap: spacing(2),
+    marginBottom: spacing(3),
+  },
+  optionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.bg,
+    padding: spacing(2.5),
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
+  optionIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: radii.md,
+    backgroundColor: colors.gold + '20',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing(2),
+  },
+  optionTextContainer: {
+    flex: 1,
+  },
+  optionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: spacing(0.5),
+  },
+  optionDescription: {
+    fontSize: 13,
+    color: colors.subtext,
+  },
+  cancelButton: {
+    padding: spacing(2.5),
+    borderRadius: radii.lg,
+    backgroundColor: colors.bg,
+    borderWidth: 1,
+    borderColor: colors.line,
+    alignItems: 'center',
+  },
+  cancelButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  itemDetailsContainer: {
+    backgroundColor: colors.bg,
+    padding: spacing(2.5),
+    borderRadius: radii.lg,
+    marginBottom: spacing(3),
+    gap: spacing(1),
+  },
+  itemDetail: {
+    fontSize: 14,
+    color: colors.text,
+    fontWeight: '500',
+  },
+  deleteOptionButton: {
+    borderColor: (colors.error || '#ff4444') + '40',
+  },
+  deleteIconContainer: {
+    backgroundColor: (colors.error || '#ff4444') + '20',
+  },
+  deleteOptionTitle: {
+    color: colors.error || '#ff4444',
   },
 });
