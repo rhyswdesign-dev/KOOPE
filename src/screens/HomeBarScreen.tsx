@@ -32,7 +32,6 @@ import * as Images from '../../assets/images';
 type InventoryCategory = 'spirits' | 'mixers' | 'garnishes' | 'ingredients' | 'liqueur' | 'bitters' | 'syrup' | 'other';
 
 interface InventoryItem extends BarIngredient {
-  percentFull?: number;
   usedInCocktails?: number;
 }
 
@@ -252,7 +251,7 @@ const mockHomeBar: HomeBar = {
       subcategory: 'vermouth',
       brand: 'Carpano Antica',
       abv: 16,
-      volume: 1000,
+      volume: 750,
       addedAt: new Date(),
       isFavorite: false,
       tags: ['sweet', 'fortified wine'],
@@ -602,17 +601,13 @@ export default function HomeBarScreen() {
       );
     }
 
-    // Separate into categories (mock percentFull for now)
+    // Add mock usage stats
     const itemsWithStats = filtered.map(item => ({
       ...item,
-      percentFull: Math.floor(Math.random() * 60) + 40, // Random 40-100%
       usedInCocktails: Math.floor(Math.random() * 12) + 1, // Random 1-12
     }));
 
-    const lowStock = itemsWithStats.filter(item => (item.percentFull || 100) <= 40);
-    const rest = itemsWithStats.filter(item => (item.percentFull || 100) > 40);
-
-    return { lowStock, rest, all: itemsWithStats };
+    return { lowStock: [], rest: itemsWithStats, all: itemsWithStats };
   };
 
   const { lowStock, rest, all } = getFilteredInventory();
@@ -750,13 +745,12 @@ export default function HomeBarScreen() {
   };
 
   const renderInventoryCard = (item: InventoryItem) => {
-    const isLowStock = (item.percentFull || 100) <= 40;
     const ingredientImage = getIngredientImage(item);
 
     return (
       <TouchableOpacity
         key={item.id}
-        style={[styles.inventoryCard, isLowStock && styles.lowStockCard]}
+        style={styles.inventoryCard}
         onPress={() => handleItemPress(item)}
       >
         <View style={styles.cardImageContainer}>
@@ -787,18 +781,12 @@ export default function HomeBarScreen() {
             {item.name}
           </Text>
           <Text style={styles.cardSubtitle}>
-            {item.volume}ml • {item.percentFull}% Full
+            {item.volume}ml{item.brand ? ` • ${item.brand}` : ''}
           </Text>
           <Text style={styles.cardFooter}>
             Used in {item.usedInCocktails} cocktails
           </Text>
         </View>
-
-        {isLowStock && (
-          <View style={styles.lowStockBadge}>
-            <Text style={styles.lowStockText}>Low Stock</Text>
-          </View>
-        )}
       </TouchableOpacity>
     );
   };
@@ -934,7 +922,7 @@ export default function HomeBarScreen() {
             <View style={styles.itemDetailsContainer}>
               <Text style={styles.itemDetail}>Brand: {selectedItem?.brand || 'Unknown'}</Text>
               <Text style={styles.itemDetail}>Volume: {selectedItem?.volume}ml</Text>
-              <Text style={styles.itemDetail}>{selectedItem?.percentFull}% Full</Text>
+              {selectedItem?.abv && <Text style={styles.itemDetail}>ABV: {selectedItem.abv}%</Text>}
               <Text style={styles.itemDetail}>Used in {selectedItem?.usedInCocktails} cocktails</Text>
             </View>
 
