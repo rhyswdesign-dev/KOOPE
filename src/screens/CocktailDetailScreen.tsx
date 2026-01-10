@@ -978,6 +978,21 @@ export default function CocktailDetailScreen() {
   // Priority order: passed > non-alcoholic > firebase > hardcoded > transformed centralized
   const cocktail = passedCocktail || nonAlcoholicRecipe || firebaseCocktail || hardcodedCocktail || transformedCocktail;
 
+  // Debug log to check cocktail data
+  useEffect(() => {
+    if (cocktail) {
+      log.debug('CocktailDetailScreen', 'Cocktail data loaded', {
+        id: cocktail.id,
+        title: cocktail.title,
+        hasIngredients: !!cocktail.ingredients,
+        ingredientsLength: cocktail.ingredients?.length || 0,
+        ingredientsType: typeof cocktail.ingredients,
+        firstIngredient: cocktail.ingredients?.[0],
+        source: passedCocktail ? 'passed' : nonAlcoholicRecipe ? 'nonAlcoholic' : firebaseCocktail ? 'firebase' : hardcodedCocktail ? 'hardcoded' : 'transformed'
+      });
+    }
+  }, [cocktail]);
+
   // Check subscription requirement and redirect if needed
   useEffect(() => {
     if (!loading && cocktail) {
@@ -1170,12 +1185,16 @@ export default function CocktailDetailScreen() {
           {/* Ingredients */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Ingredients</Text>
-            {cocktail.ingredients.map((ingredient, index) => (
-              <View key={`ingredient-${index}-${ingredient.name}`} style={styles.ingredientItem}>
-                <Text style={styles.ingredientName}>{ingredient.name}</Text>
-                {ingredient.note && <Text style={styles.ingredientNote}>{ingredient.note}</Text>}
-              </View>
-            ))}
+            {cocktail.ingredients && cocktail.ingredients.length > 0 ? (
+              cocktail.ingredients.map((ingredient, index) => (
+                <View key={`ingredient-${index}-${ingredient.name}`} style={styles.ingredientItem}>
+                  <Text style={styles.ingredientName}>{ingredient.name}</Text>
+                  {ingredient.note && <Text style={styles.ingredientNote}>{ingredient.note}</Text>}
+                </View>
+              ))
+            ) : (
+              <Text style={styles.ingredientName}>No ingredients available</Text>
+            )}
           </View>
 
           {/* Garnish */}
@@ -1228,21 +1247,23 @@ export default function CocktailDetailScreen() {
           )}
 
           {/* Pro Tips / Flavor Notes */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>
-              {cocktail.isNonAlcoholic ? 'Flavor Profile' : 'Pro Tips'}
-            </Text>
-            {cocktail.tips.map((tip, index) => (
-              <View key={`tip-${index}`} style={styles.tipItem}>
-                <MaterialCommunityIcons 
-                  name={cocktail.isNonAlcoholic ? "leaf" : "lightbulb-outline"} 
-                  size={16} 
-                  color={colors.accent} 
-                />
-                <Text style={styles.tipText}>{tip}</Text>
-              </View>
-            ))}
-          </View>
+          {cocktail.tips && cocktail.tips.length > 0 && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>
+                {cocktail.isNonAlcoholic ? 'Flavor Profile' : 'Pro Tips'}
+              </Text>
+              {cocktail.tips.map((tip, index) => (
+                <View key={`tip-${index}`} style={styles.tipItem}>
+                  <MaterialCommunityIcons
+                    name={cocktail.isNonAlcoholic ? "leaf" : "lightbulb-outline"}
+                    size={16}
+                    color={colors.accent}
+                  />
+                  <Text style={styles.tipText}>{tip}</Text>
+                </View>
+              ))}
+            </View>
+          )}
         </View>
       </ScrollView>
 
