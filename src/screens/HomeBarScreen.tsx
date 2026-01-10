@@ -20,7 +20,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/RootNavigator';
-import { LinearGradient } from 'expo-linear-gradient';
 import { HomeBar, BarIngredient, HomeBarService } from '../services/homeBarService';
 import { ShoppingListStore } from '../services/shoppingListStore';
 import EmptyState from '../components/EmptyState';
@@ -104,7 +103,7 @@ const CATEGORY_OPTIONS: Record<string, string[]> = {
   ],
 }
 
-// Mock data for demonstration
+// Mock data for demonstration - simplified to just 3 items
 const mockHomeBar: HomeBar = {
   id: 'default',
   userId: 'user1',
@@ -122,7 +121,6 @@ const mockHomeBar: HomeBar = {
       addedAt: new Date(),
       isFavorite: true,
       tags: ['premium', 'neutral'],
-      imageUrl: 'https://cdn.shopify.com/s/files/1/0012/4021/1900/products/titos-handmade-vodka-750ml_1024x1024.jpg?v=1574708617',
     },
     {
       id: '2',
@@ -135,86 +133,16 @@ const mockHomeBar: HomeBar = {
       addedAt: new Date(),
       isFavorite: true,
       tags: ['premium', 'juniper'],
-      imageUrl: 'https://cdn.shopify.com/s/files/1/0012/4021/1900/products/hendricks-gin-750ml_1024x1024.jpg?v=1574708617',
     },
     {
       id: '3',
-      name: 'Whiskey (Bourbon)',
-      category: 'spirit',
-      subcategory: 'whiskey',
-      brand: 'Buffalo Trace',
-      abv: 45,
-      volume: 750,
+      name: 'Simple Syrup',
+      category: 'syrup',
+      subcategory: 'syrup',
+      volume: 500,
       addedAt: new Date(),
       isFavorite: false,
-      tags: ['bourbon', 'american'],
-      imageUrl: 'https://cdn.shopify.com/s/files/1/0012/4021/1900/products/buffalo-trace-bourbon-750ml_1024x1024.jpg?v=1574708617',
-    },
-    {
-      id: '4',
-      name: 'Tequila',
-      category: 'spirit',
-      subcategory: 'tequila',
-      brand: 'Espolòn',
-      abv: 40,
-      volume: 750,
-      addedAt: new Date(),
-      isFavorite: true,
-      tags: ['blanco', 'agave'],
-    },
-    {
-      id: '5',
-      name: 'Orange Liqueur',
-      category: 'liqueur',
-      subcategory: 'orange liqueur',
-      brand: 'Cointreau',
-      abv: 40,
-      volume: 700,
-      addedAt: new Date(),
-      isFavorite: false,
-      tags: ['orange', 'triple sec'],
-    },
-    {
-      id: '6',
-      name: 'Rum',
-      category: 'spirit',
-      subcategory: 'rum',
-      brand: 'Mount Gay',
-      abv: 40,
-      volume: 750,
-      addedAt: new Date(),
-      isFavorite: true,
-      tags: ['golden', 'barbados'],
-    },
-    {
-      id: '7',
-      name: 'Lime Juice',
-      category: 'mixer',
-      subcategory: 'citrus',
-      volume: 750,
-      addedAt: new Date(),
-      isFavorite: false,
-      tags: ['fresh', 'citrus'],
-    },
-    {
-      id: '8',
-      name: 'Lemon Juice',
-      category: 'mixer',
-      subcategory: 'citrus',
-      volume: 750,
-      addedAt: new Date(),
-      isFavorite: false,
-      tags: ['fresh', 'citrus'],
-    },
-    {
-      id: '9',
-      name: 'Orange Juice',
-      category: 'mixer',
-      subcategory: 'citrus',
-      volume: 1000,
-      addedAt: new Date(),
-      isFavorite: false,
-      tags: ['fresh', 'citrus'],
+      tags: ['homemade'],
     },
   ],
   createdAt: new Date(),
@@ -224,6 +152,7 @@ const mockHomeBar: HomeBar = {
 
 export default function HomeBarScreen() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const [showSearchModal, setShowSearchModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState<InventoryCategory | 'all'>('all');
   const [homeBar, setHomeBar] = useState<HomeBar>(mockHomeBar);
@@ -478,11 +407,8 @@ export default function HomeBarScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Custom Header */}
-      <LinearGradient
-        colors={['#1a1a1a', colors.bg]}
-        style={styles.header}
-      >
+      {/* Header - Solid Color like Shopping Cart */}
+      <View style={styles.header}>
         <View style={styles.headerTop}>
           <TouchableOpacity onPress={() => nav.goBack()} style={styles.backButton}>
             <Ionicons name="chevron-back" size={24} color={colors.text} />
@@ -491,31 +417,21 @@ export default function HomeBarScreen() {
           <Text style={styles.headerTitle}>Inventory</Text>
 
           <View style={styles.headerRight}>
+            <TouchableOpacity onPress={() => setShowSearchModal(true)} style={styles.headerButton}>
+              <Ionicons name="search" size={20} color={colors.text} />
+            </TouchableOpacity>
             <TouchableOpacity onPress={() => nav.navigate('SpiritRecognition')} style={styles.headerButton}>
-              <Ionicons name="camera" size={22} color={colors.text} />
+              <Ionicons name="camera" size={20} color={colors.text} />
             </TouchableOpacity>
             <TouchableOpacity onPress={handleAddIngredient} style={styles.headerButton}>
-              <Ionicons name="add" size={22} color={colors.text} />
+              <Ionicons name="add" size={20} color={colors.text} />
             </TouchableOpacity>
           </View>
         </View>
 
         <Text style={styles.headerSubtitle}>
-          Everything you have in stock — updated automatically when you shop or batch.
+          Everything you have in stock
         </Text>
-
-        {/* Search Bar */}
-        <View style={styles.searchContainer}>
-          <Ionicons name="search" size={20} color={colors.muted} style={styles.searchIcon} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search"
-            placeholderTextColor={colors.muted}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            keyboardAppearance="dark"
-          />
-        </View>
 
         {/* Category Filters */}
         <ScrollView
@@ -541,7 +457,7 @@ export default function HomeBarScreen() {
             </TouchableOpacity>
           ))}
         </ScrollView>
-      </LinearGradient>
+      </View>
 
       {/* Inventory Content */}
       <ScrollView
@@ -900,6 +816,9 @@ const styles = StyleSheet.create({
     paddingTop: spacing(6),
     paddingHorizontal: spacing(3),
     paddingBottom: spacing(2),
+    backgroundColor: colors.bg,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.line,
   },
   headerTop: {
     flexDirection: 'row',
@@ -920,9 +839,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   headerButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: colors.card,
     alignItems: 'center',
     justifyContent: 'center',
@@ -939,41 +858,22 @@ const styles = StyleSheet.create({
   headerSubtitle: {
     fontSize: 13,
     color: colors.subtext,
-    marginBottom: spacing(3),
-    lineHeight: 18,
-  },
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.card,
-    borderRadius: radii.lg,
-    paddingHorizontal: spacing(3),
-    paddingVertical: spacing(2),
     marginBottom: spacing(2),
-  },
-  searchIcon: {
-    marginRight: spacing(2),
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 16,
-    color: colors.text,
-    padding: 0,
+    lineHeight: 18,
   },
   categoryFilters: {
     marginTop: spacing(1),
-    marginBottom: spacing(1),
   },
   categoryFiltersContent: {
     paddingRight: spacing(3),
-    gap: spacing(2),
+    gap: spacing(1.5),
   },
   categoryChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing(1),
-    paddingHorizontal: spacing(3),
-    paddingVertical: spacing(1.5),
+    gap: spacing(0.75),
+    paddingHorizontal: spacing(2),
+    paddingVertical: spacing(1),
     borderRadius: 999,
     backgroundColor: colors.card,
     borderWidth: 1,
@@ -984,7 +884,7 @@ const styles = StyleSheet.create({
     borderColor: colors.gold,
   },
   categoryChipText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
     color: colors.text,
   },
