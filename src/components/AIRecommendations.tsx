@@ -20,6 +20,7 @@ import { trackRecommendationView, trackRecommendationSaved } from '../services/r
 import RecommendationFeedbackModal from './RecommendationFeedbackModal';
 import InsufficientCreditsModal from './InsufficientCreditsModal';
 import { log } from '../lib/logger';
+import { supabase } from '../lib/supabase';
 
 interface AIRecommendationsProps {
   navigation: any;
@@ -58,43 +59,20 @@ export default function AIRecommendations({
   useEffect(() => {
     const loadUserData = async () => {
       try {
-        // Load user profile
-        const profile = await loadUserProfile('current-user'); // TODO: Get actual user ID
-
-        if (profile) {
-          // Convert profile to UserTasteProfile format
-          const validFlavors = ['sweet', 'sour', 'bitter', 'herbal', 'fruity', 'spicy', 'smoky', 'citrusy'] as const;
-          const tasteProfile: UserTasteProfile = {
-            preferredSpirits: profile.spiritPreferences || [],
-            flavorProfile: (profile.flavorProfiles || [])
-              .filter((f): f is typeof validFlavors[number] => validFlavors.includes(f as any)),
-            drinkStrength: profile.preferredABVRange?.max > 30 ? 'strong' :
-                          profile.preferredABVRange?.max > 15 ? 'medium' : 'light',
-            experience: profile.skillLevel === 'beginner' ? 'beginner' :
-                       profile.skillLevel === 'intermediate' ? 'intermediate' : 'expert',
-            preferredGlass: [],
-            occasion: [],
-            timeOfDay: [],
-            seasonPreference: [],
-            dietaryRestrictions: [],
-          };
-          setUserTasteProfile(tasteProfile);
-        } else {
-          // If no profile loaded, create default
-          log.info('AIRecommendations', 'No profile loaded, using defaults');
-          const defaultTasteProfile: UserTasteProfile = {
-            preferredSpirits: ['whiskey', 'gin'],
-            flavorProfile: ['citrusy', 'sweet'],
-            drinkStrength: 'medium',
-            experience: 'beginner',
-            preferredGlass: [],
-            occasion: [],
-            timeOfDay: [],
-            seasonPreference: [],
-            dietaryRestrictions: [],
-          };
-          setUserTasteProfile(defaultTasteProfile);
-        }
+        // Use default taste profile - recommendations will come from personalization store
+        log.info('AIRecommendations', 'Using default taste profile');
+        const defaultTasteProfile: UserTasteProfile = {
+          preferredSpirits: ['whiskey', 'gin'],
+          flavorProfile: ['citrusy', 'sweet'],
+          drinkStrength: 'medium',
+          experience: 'beginner',
+          preferredGlass: [],
+          occasion: [],
+          timeOfDay: [],
+          seasonPreference: [],
+          dietaryRestrictions: [],
+        };
+        setUserTasteProfile(defaultTasteProfile);
 
         // Load home bar ingredients
         const storedIngredients = await HomeBarService.getStoredIngredients();
@@ -442,6 +420,16 @@ export default function AIRecommendations({
                   </Text>
                 </View>
 
+                {/* Why Recommended Badge */}
+                {recommendation.reasoning?.tasteMatch && recommendation.reasoning.tasteMatch.length > 0 && (
+                  <View style={styles.reasoningBadge}>
+                    <Ionicons name="bulb" size={12} color={colors.gold} />
+                    <Text style={styles.reasoningText} numberOfLines={1}>
+                      {recommendation.reasoning.tasteMatch[0]}
+                    </Text>
+                  </View>
+                )}
+
                 <RecipeCard
                   style={styles.recipeCard}
                   {...createRecipeCardProps(recipeCardData, navigation, {
@@ -582,6 +570,26 @@ const styles = StyleSheet.create({
   },
   makeableBadgeTextWarning: {
     color: colors.warning,
+  },
+  reasoningBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(0.5),
+    paddingVertical: spacing(0.75),
+    paddingHorizontal: spacing(1.5),
+    borderRadius: spacing(1.5),
+    marginBottom: spacing(1),
+    alignSelf: 'flex-start',
+    backgroundColor: colors.gold + '15',
+    borderWidth: 1,
+    borderColor: colors.gold,
+    maxWidth: 280,
+  },
+  reasoningText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.gold,
+    flex: 1,
   },
   recipeCard: {
     width: 280,

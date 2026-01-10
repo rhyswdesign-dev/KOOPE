@@ -116,7 +116,29 @@ export const handleSaveRecipe = (
     }).catch(error => {
       log.warn('recipeActions', 'Failed to record recipe save behavior', { error, recipeId: recipe.id });
     });
+
+    // Also record for personalization profile with spirit and flavor context
+    try {
+      const { recordInteraction } = usePersonalization.getState();
+      recordInteraction('cocktail_saved', recipe.id, {
+        recipe,
+        spirit: (recipe as any).base?.toLowerCase() || (recipe as any).spirit?.toLowerCase(),
+        flavors: extractFlavors(recipe),
+      });
+    } catch (error) {
+      log.warn('recipeActions', 'Failed to record personalization interaction', { error, recipeId: recipe.id });
+    }
   }
+};
+
+/**
+ * Extract flavor keywords from recipe description
+ */
+const extractFlavors = (recipe: Recipe): string[] => {
+  const flavorKeywords = ['citrus', 'herbal', 'bitter', 'sweet', 'smoky', 'floral', 'spiced', 'fruity', 'sour', 'spicy'];
+  const text = `${recipe.description || ''} ${recipe.subtitle || ''}`.toLowerCase();
+
+  return flavorKeywords.filter(flavor => text.includes(flavor));
 };
 
 /**

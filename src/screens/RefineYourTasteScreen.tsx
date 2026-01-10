@@ -15,6 +15,7 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  TouchableOpacity,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/RootNavigator';
@@ -24,6 +25,9 @@ import { usePersonalization } from '../store/usePersonalization';
 import { SurveyAnswers } from '../services/placement';
 import { trackEvent } from '../lib/analytics';
 import { log } from '../lib/logger';
+import { ALL_COCKTAILS } from '../data/cocktails';
+import RecipeCard from '../components/RecipeCard';
+import { createRecipeCardProps, handleRecipeView } from '../utils/recipeActions';
 
 // Import spirit and flavor images directly
 const spiritImages = {
@@ -121,10 +125,18 @@ export default function RefineYourTasteScreen({ navigation }: Props) {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState<SurveyAnswers>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [previewCocktails, setPreviewCocktails] = useState<any[]>([]);
+  const [showPreview, setShowPreview] = useState(false);
+  const scrollViewRef = React.useRef<ScrollView>(null);
 
   const currentQuestion = TASTE_QUESTIONS[currentQuestionIndex];
   const isLastQuestion = currentQuestionIndex === TASTE_QUESTIONS.length - 1;
   const progress = ((currentQuestionIndex + 1) / TASTE_QUESTIONS.length) * 100;
+
+  // Scroll to top when question changes
+  useEffect(() => {
+    scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+  }, [currentQuestionIndex]);
 
   // Pre-fill answers from existing profile
   useEffect(() => {
@@ -156,7 +168,8 @@ export default function RefineYourTasteScreen({ navigation }: Props) {
     if (currentQuestion.type === 'mcq') {
       setTimeout(() => {
         if (isLastQuestion) {
-          handleComplete(newAnswers);
+          // Generate preview before completing
+          generatePreview(newAnswers);
         } else {
           setCurrentQuestionIndex((prev) => prev + 1);
         }
@@ -180,6 +193,76 @@ export default function RefineYourTasteScreen({ navigation }: Props) {
     }));
   };
 
+  // Generate preview cocktails based on current answers
+  const generatePreview = (currentAnswers: SurveyAnswers) => {
+    const spiritPrefs = (currentAnswers['q8'] as string[]) || [];
+    const flavorPrefs = (currentAnswers['q11'] as string[]) || [];
+    const abvPref = (currentAnswers['q9'] as string) || '';
+
+    log.info('RefineYourTaste', 'Generating preview', { spiritPrefs, flavorPrefs, abvPref, totalCocktails: ALL_COCKTAILS.length });
+
+    // Score cocktails based on available answers
+    const scoredCocktails = ALL_COCKTAILS.map(cocktail => {
+      let score = 0;
+
+      // Spirit matching (if spirits selected)
+      if (spiritPrefs.length > 0) {
+        const cocktailSpirit = cocktail.base?.toLowerCase();
+        if (cocktailSpirit && spiritPrefs.includes(cocktailSpirit)) {
+          const index = spiritPrefs.indexOf(cocktailSpirit);
+          score += (90 - index * 10); // 90 for first choice, 80 for second, etc.
+        }
+      }
+
+      // Flavor matching (if flavors selected)
+      if (flavorPrefs.length > 0) {
+        flavorPrefs.forEach(flavor => {
+          const flavorInDescription = cocktail.description?.toLowerCase().includes(flavor) ||
+                                     cocktail.subtitle?.toLowerCase().includes(flavor);
+          if (flavorInDescription) {
+            score += 15;
+          }
+        });
+      }
+
+      // ABV matching (if selected)
+      if (abvPref) {
+        const isLowABV = cocktail.description?.toLowerCase().includes('low') ||
+                         cocktail.subtitle?.toLowerCase().includes('light');
+        const isMocktail = cocktail.description?.toLowerCase().includes('non-alcoholic') ||
+                           cocktail.tags?.includes('mocktail');
+
+        if (abvPref === 'zero-proof' && isMocktail) score += 20;
+        else if (abvPref === 'low-abv' && isLowABV) score += 20;
+        else if (abvPref === 'alcoholic' && !isMocktail && !isLowABV) score += 20;
+      }
+
+      return { cocktail, score };
+    });
+
+    // Get top 3 cocktails
+    const topCocktails = scoredCocktails
+      .filter(item => item.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 3)
+      .map(item => item.cocktail);
+
+    log.info('RefineYourTaste', 'Preview generated', {
+      cocktailCount: topCocktails.length,
+      cocktails: topCocktails.map(c => ({ name: c.name || c.title, score: scoredCocktails.find(s => s.cocktail === c)?.score }))
+    });
+
+    if (topCocktails.length > 0) {
+      setPreviewCocktails(topCocktails);
+      setShowPreview(true);
+    } else {
+      // If no matches found, just complete without preview
+      log.warn('RefineYourTaste', 'No cocktails matched preferences, skipping preview');
+      handleComplete(currentAnswers);
+    }
+    // Preview will stay visible until user clicks "Continue"
+  };
+
   const canProceed = () => {
     const answer = answers[currentQuestion.id];
     if (!answer) return false;
@@ -193,7 +276,8 @@ export default function RefineYourTasteScreen({ navigation }: Props) {
 
   const handleNext = () => {
     if (isLastQuestion) {
-      handleComplete(answers);
+      // Generate preview after last question
+      generatePreview(answers);
     } else {
       setCurrentQuestionIndex((prev) => prev + 1);
     }
@@ -230,6 +314,12 @@ export default function RefineYourTasteScreen({ navigation }: Props) {
       });
 
       // Update personalization profile
+      log.info('RefineYourTaste', 'Updating profile with new preferences', {
+        favoriteSpirits: spiritPrefs,
+        flavorPreferences: flavorPrefs,
+        preferredABV: abvPref,
+      });
+
       await updateProfile({
         favoriteSpirits: spiritPrefs,
         flavorPreferences: flavorPrefs,
@@ -240,6 +330,8 @@ export default function RefineYourTasteScreen({ navigation }: Props) {
         lastSurveyUpdate: Date.now(),
       });
 
+      log.info('RefineYourTaste', 'Profile updated successfully');
+
       // Track analytics
       trackEvent('taste_profile_updated', {
         spirits_count: spiritPrefs.length,
@@ -247,17 +339,8 @@ export default function RefineYourTasteScreen({ navigation }: Props) {
         abv_preference: abvPref,
       });
 
-      // Show success message
-      Alert.alert(
-        '✨ Taste Profile Updated!',
-        'Your personalized recommendations have been refreshed based on your preferences.',
-        [
-          {
-            text: 'Done',
-            onPress: () => navigation.goBack(),
-          },
-        ]
-      );
+      // Navigate back without alert
+      navigation.goBack();
     } catch (error) {
       log.error('RefineYourTasteScreen', 'Failed to update taste profile', error as Error);
       Alert.alert(
@@ -424,6 +507,7 @@ export default function RefineYourTasteScreen({ navigation }: Props) {
 
       {/* Question Content */}
       <ScrollView
+        ref={scrollViewRef}
         style={styles.content}
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
@@ -442,6 +526,68 @@ export default function RefineYourTasteScreen({ navigation }: Props) {
         <View style={styles.loadingOverlay}>
           <ActivityIndicator size="large" color={colors.accent} />
           <Text style={styles.loadingText}>Updating your profile...</Text>
+        </View>
+      )}
+
+      {/* Preview Screen - Full Screen After Completion */}
+      {showPreview && previewCocktails.length > 0 && (
+        <View style={styles.previewOverlay}>
+          <View style={styles.previewFullContainer}>
+            <Text style={styles.previewHeader}>Your Recommended Cocktails</Text>
+            <Text style={styles.previewSubheader}>
+              Based on your taste profile
+            </Text>
+
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.previewScrollContent}
+              style={styles.previewScroll}
+            >
+              {previewCocktails.map((cocktail, index) => {
+                const recipeCardData = {
+                  id: cocktail.id || `preview-${index}`,
+                  name: cocktail.name || cocktail.title,
+                  title: cocktail.title || cocktail.name,
+                  subtitle: cocktail.subtitle || cocktail.description,
+                  description: cocktail.description || cocktail.subtitle,
+                  image: cocktail.image,
+                  difficulty: cocktail.difficulty || 'Medium',
+                  time: cocktail.time || '5 min',
+                  category: cocktail.category || 'cocktail',
+                  ingredients: cocktail.ingredients || [],
+                  instructions: cocktail.instructions || [],
+                  base: cocktail.base,
+                  tags: cocktail.tags || [],
+                };
+
+                return (
+                  <View key={index} style={styles.previewCardWrapper}>
+                    <RecipeCard
+                      {...createRecipeCardProps(recipeCardData, navigation, {
+                        showSaveButton: false,
+                        showCartButton: false,
+                        showDeleteButton: false,
+                      })}
+                      onPress={() => handleRecipeView(recipeCardData, navigation)}
+                    />
+                  </View>
+                );
+              })}
+            </ScrollView>
+
+            <TouchableOpacity
+              style={styles.previewContinueButton}
+              onPress={() => {
+                setShowPreview(false);
+                handleComplete(answers);
+              }}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.previewContinueText}>Continue</Text>
+              <Ionicons name="arrow-forward" size={20} color={colors.white} />
+            </TouchableOpacity>
+          </View>
         </View>
       )}
     </SafeAreaView>
@@ -597,6 +743,59 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: fonts.body,
     fontWeight: '600',
+    color: colors.white,
+  },
+  previewOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: colors.bg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: spacing(3),
+  },
+  previewFullContainer: {
+    width: '100%',
+    flex: 1,
+    justifyContent: 'center',
+  },
+  previewHeader: {
+    fontSize: fonts.h2,
+    fontWeight: '700',
+    color: colors.text,
+    textAlign: 'center',
+    marginBottom: spacing(1),
+  },
+  previewSubheader: {
+    fontSize: fonts.body,
+    color: colors.subtext,
+    textAlign: 'center',
+    marginBottom: spacing(3),
+  },
+  previewScroll: {
+    flexGrow: 0,
+  },
+  previewScrollContent: {
+    paddingHorizontal: spacing(2),
+    gap: spacing(2),
+  },
+  previewCardWrapper: {
+    width: 280,
+    marginRight: spacing(2),
+  },
+  previewContinueButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing(1),
+    backgroundColor: colors.accent,
+    paddingVertical: spacing(2),
+    paddingHorizontal: spacing(3),
+    borderRadius: radii.lg,
+    marginTop: spacing(4),
+    marginHorizontal: spacing(2),
+  },
+  previewContinueText: {
+    fontSize: fonts.body,
+    fontWeight: '700',
     color: colors.white,
   },
 });
