@@ -320,23 +320,49 @@ export default function HomeBarScreen() {
     setSelectedItem(null);
   };
 
-  const handleAddToShoppingList = () => {
+  const handleAddToShoppingList = async () => {
     if (!selectedItem) return;
 
-    // Add to shopping list
-    ShoppingListStore.addItem({
-      id: `shopping-${Date.now()}`,
-      name: selectedItem.name,
-      category: selectedItem.category,
-      brand: selectedItem.brand,
-      quantity: 1,
-      addedAt: new Date(),
-    });
+    try {
+      // Map BarIngredient category to GroceryItem category
+      const mapCategory = (barCategory: string): 'spirits_liquors' | 'mixers' | 'garnish' | 'bitters' | 'syrup' | 'other' => {
+        switch (barCategory) {
+          case 'spirit':
+          case 'liqueur':
+            return 'spirits_liquors';
+          case 'mixer':
+            return 'mixers';
+          case 'garnish':
+            return 'garnish';
+          case 'bitters':
+            return 'bitters';
+          case 'syrup':
+            return 'syrup';
+          default:
+            return 'other';
+        }
+      };
 
-    setShowItemOptionsModal(false);
-    setSelectedItem(null);
+      // Add to shopping list using the correct method
+      await ShoppingListStore.addItemToShoppingList(
+        {
+          name: selectedItem.name,
+          category: mapCategory(selectedItem.category),
+          subcategory: selectedItem.subcategory,
+          brand: selectedItem.brand,
+          checked: false,
+        },
+        'Inventory Restock'
+      );
 
-    Alert.alert('Added to Shopping List', `${selectedItem.name} has been added to your shopping list`);
+      setShowItemOptionsModal(false);
+      setSelectedItem(null);
+
+      Alert.alert('Added to Shopping List', `${selectedItem.name} has been added to your shopping list`);
+    } catch (error) {
+      log.error('HomeBarScreen', 'Error adding item to shopping list', error);
+      Alert.alert('Error', 'Failed to add item to shopping list');
+    }
   };
 
   const getIngredientImage = (item: BarIngredient) => {

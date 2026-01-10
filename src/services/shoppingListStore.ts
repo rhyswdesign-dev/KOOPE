@@ -331,7 +331,8 @@ export class ShoppingListStore {
    */
   static async addItemToShoppingList(
     item: Omit<GroceryItem, 'id' | 'checked' | 'isCompleted'>,
-    source: string = 'Recommendation'
+    source: string = 'Recommendation',
+    userId: string = 'default'
   ): Promise<void> {
     try {
       const uniqueId = `item_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -346,7 +347,7 @@ export class ShoppingListStore {
         }]
       };
 
-      await this.saveShoppingList(groceryList, source);
+      await this.saveShoppingList(groceryList, source, userId);
     } catch (error) {
       log.error('ShoppingListStore', 'Error adding item to shopping list', error);
       throw new Error('Failed to add item to shopping list');
