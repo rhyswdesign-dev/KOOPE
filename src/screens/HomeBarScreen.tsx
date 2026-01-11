@@ -1207,7 +1207,7 @@ export default function HomeBarScreen() {
         onRequestClose={() => setShowSearchModal(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+          <View style={[styles.modalContent, styles.searchModalContent]}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Search Inventory</Text>
               <TouchableOpacity onPress={() => setShowSearchModal(false)}>
@@ -1215,36 +1215,77 @@ export default function HomeBarScreen() {
               </TouchableOpacity>
             </View>
 
-            <View style={styles.formGroup}>
+            <View style={styles.searchInputContainer}>
+              <Ionicons name="search" size={20} color={colors.muted} style={styles.searchIcon} />
               <TextInput
-                style={styles.formInput}
+                style={styles.searchInput}
                 placeholder="Search by name, brand, or category..."
                 placeholderTextColor={colors.muted}
                 value={searchQuery}
                 onChangeText={setSearchQuery}
                 keyboardAppearance="dark"
                 autoFocus={true}
+                returnKeyType="search"
               />
+              {searchQuery.length > 0 && (
+                <TouchableOpacity onPress={() => setSearchQuery('')}>
+                  <Ionicons name="close-circle" size={20} color={colors.muted} />
+                </TouchableOpacity>
+              )}
             </View>
 
-            {searchQuery && (
-              <TouchableOpacity
-                style={styles.clearSearchButton}
-                onPress={() => {
-                  setSearchQuery('');
-                  setShowSearchModal(false);
-                }}
-              >
-                <Text style={styles.clearSearchText}>Clear Search</Text>
-              </TouchableOpacity>
-            )}
-
-            <TouchableOpacity
-              style={styles.cancelButton}
-              onPress={() => setShowSearchModal(false)}
-            >
-              <Text style={styles.cancelButtonText}>Done</Text>
-            </TouchableOpacity>
+            {/* Search Results */}
+            <ScrollView style={styles.searchResults} showsVerticalScrollIndicator={false}>
+              {searchQuery.length > 0 ? (
+                all.length > 0 ? (
+                  <>
+                    <Text style={styles.searchResultsTitle}>
+                      {all.length} {all.length === 1 ? 'result' : 'results'} found
+                    </Text>
+                    {all.map((item) => (
+                      <TouchableOpacity
+                        key={item.id}
+                        style={styles.searchResultItem}
+                        onPress={() => {
+                          handleItemPress(item);
+                          setShowSearchModal(false);
+                        }}
+                      >
+                        <View style={styles.searchResultIcon}>
+                          <Ionicons
+                            name={getCategoryIcon(item.category, item.subcategory)}
+                            size={24}
+                            color={colors.gold}
+                          />
+                        </View>
+                        <View style={styles.searchResultInfo}>
+                          <Text style={styles.searchResultName}>{item.name}</Text>
+                          <Text style={styles.searchResultDetails}>
+                            {item.volume}ml{item.brand ? ` • ${item.brand}` : ''}
+                          </Text>
+                        </View>
+                        <Ionicons name="chevron-forward" size={20} color={colors.muted} />
+                      </TouchableOpacity>
+                    ))}
+                  </>
+                ) : (
+                  <View style={styles.noResults}>
+                    <Ionicons name="search" size={48} color={colors.muted} />
+                    <Text style={styles.noResultsText}>No items found</Text>
+                    <Text style={styles.noResultsSubtext}>
+                      Try a different search term
+                    </Text>
+                  </View>
+                )
+              ) : (
+                <View style={styles.searchHint}>
+                  <Ionicons name="information-circle-outline" size={24} color={colors.muted} />
+                  <Text style={styles.searchHintText}>
+                    Start typing to search your inventory
+                  </Text>
+                </View>
+              )}
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -1665,19 +1706,97 @@ const styles = StyleSheet.create({
   deleteOptionTitle: {
     color: colors.error || '#ff4444',
   },
-  clearSearchButton: {
-    backgroundColor: colors.card,
-    paddingVertical: spacing(2.5),
-    paddingHorizontal: spacing(3),
-    borderRadius: radii.md,
-    marginBottom: spacing(2),
+  searchModalContent: {
+    maxHeight: '80%',
+  },
+  searchInputContainer: {
+    flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: colors.card,
+    borderRadius: radii.md,
+    paddingHorizontal: spacing(2),
+    paddingVertical: spacing(1.5),
+    marginBottom: spacing(2),
     borderWidth: 1,
     borderColor: colors.line,
   },
-  clearSearchText: {
+  searchIcon: {
+    marginRight: spacing(1.5),
+  },
+  searchInput: {
+    flex: 1,
     color: colors.text,
-    fontSize: fonts.body,
+    fontSize: 16,
+    paddingVertical: spacing(1),
+  },
+  searchResults: {
+    flex: 1,
+  },
+  searchResultsTitle: {
+    fontSize: 14,
     fontWeight: '600',
+    color: colors.subtext,
+    marginBottom: spacing(2),
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  searchResultItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.card,
+    padding: spacing(2),
+    borderRadius: radii.md,
+    marginBottom: spacing(1.5),
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
+  searchResultIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.bg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing(2),
+  },
+  searchResultInfo: {
+    flex: 1,
+  },
+  searchResultName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: spacing(0.5),
+  },
+  searchResultDetails: {
+    fontSize: 14,
+    color: colors.subtext,
+  },
+  noResults: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing(8),
+  },
+  noResultsText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.text,
+    marginTop: spacing(2),
+    marginBottom: spacing(1),
+  },
+  noResultsSubtext: {
+    fontSize: 14,
+    color: colors.subtext,
+  },
+  searchHint: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing(6),
+  },
+  searchHintText: {
+    fontSize: 14,
+    color: colors.subtext,
+    marginTop: spacing(2),
+    textAlign: 'center',
   },
 });
