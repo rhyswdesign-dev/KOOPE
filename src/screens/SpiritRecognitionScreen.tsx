@@ -9,7 +9,7 @@ import {
   Dimensions,
   Image,
 } from 'react-native';
-import { Camera, CameraType } from 'expo-camera';
+import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
 import { colors, spacing, radii, fonts } from '../theme/tokens';
 import { Ionicons } from '@expo/vector-icons';
@@ -26,22 +26,15 @@ const { width, height } = Dimensions.get('window');
 
 export default function SpiritRecognitionScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
-  const [type, setType] = useState(CameraType.back);
+  const [permission, requestPermission] = useCameraPermissions();
+  const [facing, setFacing] = useState<'back' | 'front'>('back');
   const [analyzing, setAnalyzing] = useState(false);
   const [recognizedSpirit, setRecognizedSpirit] = useState<Partial<BarIngredient> | null>(null);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [cocktailRecommendations, setCocktailRecommendations] = useState<any[]>([]);
   const [spiritEducation, setSpiritEducation] = useState<any>(null);
   const [loadingRecommendations, setLoadingRecommendations] = useState(false);
-  const cameraRef = useRef<Camera>(null);
-
-  useEffect(() => {
-    (async () => {
-      const { status } = await Camera.requestCameraPermissionsAsync();
-      setHasPermission(status === 'granted');
-    })();
-  }, []);
+  const cameraRef = useRef<CameraView>(null);
 
   const takePicture = async () => {
     if (cameraRef.current) {
@@ -49,11 +42,12 @@ export default function SpiritRecognitionScreen() {
         setAnalyzing(true);
         const photo = await cameraRef.current.takePictureAsync({
           quality: 0.7,
-          base64: false,
         });
 
-        setCapturedImage(photo.uri);
-        await analyzeImage(photo.uri);
+        if (photo) {
+          setCapturedImage(photo.uri);
+          await analyzeImage(photo.uri);
+        }
       } catch (error) {
         Alert.alert('Error', 'Failed to take picture');
         setAnalyzing(false);
@@ -223,23 +217,29 @@ export default function SpiritRecognitionScreen() {
     }
   };
 
-  if (hasPermission === null) {
+  if (!permission) {
     return (
       <View style={styles.centered}>
         <ActivityIndicator size="large" color={colors.accent} />
-        <Text style={styles.loadingText}>Requesting camera permissions...</Text>
+        <Text style={styles.loadingText}>Loading camera...</Text>
       </View>
     );
   }
 
-  if (hasPermission === false) {
+  if (!permission.granted) {
     return (
       <View style={styles.centered}>
         <Ionicons name="camera-off" size={64} color={colors.muted} />
-        <Text style={styles.errorText}>Camera access denied</Text>
+        <Text style={styles.errorText}>Camera access needed</Text>
         <Text style={styles.errorSubtext}>
-          Please enable camera permissions in your device settings to scan spirits.
+          We need camera access to scan spirit bottles
         </Text>
+        <TouchableOpacity
+          style={styles.addButton}
+          onPress={requestPermission}
+        >
+          <Text style={styles.addButtonText}>Grant Permission</Text>
+        </TouchableOpacity>
         <TouchableOpacity style={styles.galleryButton} onPress={pickImage}>
           <Ionicons name="images" size={20} color={colors.bg} />
           <Text style={styles.galleryButtonText}>Choose from Gallery</Text>
@@ -398,7 +398,7 @@ export default function SpiritRecognitionScreen() {
         </TouchableOpacity>
       </View>
 
-      <Camera style={styles.camera} type={type} ref={cameraRef}>
+      <CameraView style={styles.camera} facing={facing} ref={cameraRef}>
         <View style={styles.cameraOverlay}>
           <View style={styles.instructionContainer}>
             <Text style={styles.instructionText}>
@@ -411,7 +411,7 @@ export default function SpiritRecognitionScreen() {
           <View style={styles.cameraControls}>
             <TouchableOpacity
               style={styles.flipButton}
-              onPress={() => setType(type === CameraType.back ? CameraType.front : CameraType.back)}
+              onPress={() => setFacing(facing === 'back' ? 'front' : 'back')}
             >
               <Ionicons name="camera-reverse" size={24} color={colors.bg} />
             </TouchableOpacity>
@@ -433,7 +433,7 @@ export default function SpiritRecognitionScreen() {
             </TouchableOpacity>
           </View>
         </View>
-      </Camera>
+      </CameraView>
     </View>
   );
 }
