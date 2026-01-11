@@ -18,61 +18,14 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { HomeBarService, BarIngredient } from '../services/homeBarService';
 import { AIRecommendationEngine } from '../services/aiRecommendationEngine';
+import { GoogleVisionService } from '../services/googleVisionService';
 import { ScrollView } from 'react-native';
 import { log } from '../lib/logger';
 
 const { width, height } = Dimensions.get('window');
 
-// Mock vision service for demonstration
-class MockVisionService {
-  static async analyzeImage(imageUri: string): Promise<{
-    labels: string[];
-    text?: string[];
-    confidence: number;
-  }> {
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 2000));
-
-    // Mock different results based on a simple hash of the URI
-    const hash = imageUri.length % 5;
-
-    switch (hash) {
-      case 0:
-        return {
-          labels: ['bottle', 'vodka', 'tito\'s', 'alcohol', 'spirits'],
-          text: ['TITO\'S', 'HANDMADE', 'VODKA', '40%'],
-          confidence: 0.85,
-        };
-      case 1:
-        return {
-          labels: ['gin', 'hendrick\'s', 'bottle', 'spirits', 'cucumber'],
-          text: ['HENDRICK\'S', 'GIN', 'DISTILLED', '44%'],
-          confidence: 0.92,
-        };
-      case 2:
-        return {
-          labels: ['whiskey', 'bourbon', 'buffalo trace', 'american'],
-          text: ['BUFFALO', 'TRACE', 'KENTUCKY', 'BOURBON', '45%'],
-          confidence: 0.78,
-        };
-      case 3:
-        return {
-          labels: ['rum', 'bacardi', 'white rum', 'caribbean'],
-          text: ['BACARDI', 'SUPERIOR', 'WHITE RUM', '40%'],
-          confidence: 0.81,
-        };
-      default:
-        return {
-          labels: ['bottle', 'glass', 'liquid'],
-          text: ['BRAND', 'ALCOHOL'],
-          confidence: 0.45, // Low confidence for unrecognized spirits
-        };
-    }
-  }
-}
-
 export default function SpiritRecognitionScreen() {
-  const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [type, setType] = useState(CameraType.back);
   const [analyzing, setAnalyzing] = useState(false);
@@ -129,17 +82,41 @@ export default function SpiritRecognitionScreen() {
 
   const analyzeImage = async (imageUri: string) => {
     try {
-      const result = await MockVisionService.analyzeImage(imageUri);
-      const parsedSpirit = HomeBarService.parseRecognizedSpirit(result);
+      log.info('SpiritRecognitionScreen', 'Analyzing image with Google Vision API', { imageUri });
 
-      if (parsedSpirit) {
-        setRecognizedSpirit(parsedSpirit);
-        await loadCocktailRecommendations(parsedSpirit);
-        await loadSpiritEducation(parsedSpirit);
+      // Use Google Vision Service for real image analysis
+      const result = await GoogleVisionService.analyzeImage(imageUri);
+
+      log.info('SpiritRecognitionScreen', 'Vision API results', {
+        labelsCount: result.labels.length,
+        textCount: result.text?.length || 0,
+        confidence: result.confidence,
+      });
+
+      // Use the enhanced spirit matching from Google Vision Service
+      const matchedSpirit = GoogleVisionService.matchSpirit(result);
+
+      if (matchedSpirit && matchedSpirit.name) {
+        // Convert matched spirit to BarIngredient format
+        const recognizedIngredient: Partial<BarIngredient> = {
+          id: `scanned-${Date.now()}`,
+          name: matchedSpirit.name,
+          category: (matchedSpirit.category || 'spirit') as BarIngredient['category'],
+          subcategory: matchedSpirit.subcategory,
+          brand: matchedSpirit.brand,
+          abv: matchedSpirit.abv,
+          addedAt: new Date(),
+        };
+
+        setRecognizedSpirit(recognizedIngredient);
+        await loadCocktailRecommendations(recognizedIngredient);
+        await loadSpiritEducation(recognizedIngredient);
       } else {
+        log.warn('SpiritRecognitionScreen', 'Spirit not recognized from vision results');
+
         Alert.alert(
           'Spirit Not Recognized',
-          'We couldn\'t identify this spirit. You can still add it manually to your bar.',
+          'We couldn\'t identify this spirit. Try taking a clearer photo of the label, or add it manually to your bar.',
           [
             { text: 'Try Again', onPress: () => retryCapture() },
             { text: 'Add Manually', onPress: () => handleManualAdd() },
@@ -147,7 +124,15 @@ export default function SpiritRecognitionScreen() {
         );
       }
     } catch (error) {
-      Alert.alert('Error', 'Failed to analyze image');
+      log.error('SpiritRecognitionScreen', 'Error analyzing image', error);
+      Alert.alert(
+        'Analysis Failed',
+        'Failed to analyze the image. Please try again or add the spirit manually.',
+        [
+          { text: 'Try Again', onPress: () => retryCapture() },
+          { text: 'Add Manually', onPress: () => handleManualAdd() },
+        ]
+      );
     } finally {
       setAnalyzing(false);
     }
@@ -214,7 +199,7 @@ export default function SpiritRecognitionScreen() {
           text: 'Add',
           onPress: () => {
             Alert.alert('Added!', `${recognizedSpirit.name} has been added to your home bar.`);
-            nav.goBack();
+            navigation.goBack();
           },
         },
       ]
@@ -222,7 +207,7 @@ export default function SpiritRecognitionScreen() {
   };
 
   const handleCocktailPress = (cocktail: any) => {
-    nav.navigate('CocktailDetail', { cocktailId: cocktail.id });
+    navigation.navigate('CocktailDetail', { cocktailId: cocktail.id });
   };
 
   const handleLearnMore = () => {
@@ -232,7 +217,7 @@ export default function SpiritRecognitionScreen() {
         spiritEducation.description,
         [
           { text: 'Got it!' },
-          { text: 'View Lessons', onPress: () => nav.navigate('Main', { screen: 'Lessons' }) }
+          { text: 'View Lessons', onPress: () => navigation.navigate('Main', { screen: 'Lessons' }) }
         ]
       );
     }
@@ -267,7 +252,7 @@ export default function SpiritRecognitionScreen() {
     return (
       <View style={styles.container}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => nav.goBack()} style={styles.backButton}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
             <Ionicons name="arrow-back" size={24} color={colors.text} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Spirit Recognized!</Text>

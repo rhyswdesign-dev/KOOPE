@@ -14,6 +14,9 @@ import {
   TextInput,
   Alert,
   Modal,
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { colors, spacing, radii, fonts } from '../theme/tokens';
 import { Ionicons } from '@expo/vector-icons';
@@ -31,9 +34,7 @@ import * as Images from '../../assets/images';
 // Category definitions
 type InventoryCategory = 'spirits' | 'mixers' | 'garnishes' | 'ingredients' | 'liqueur' | 'bitters' | 'syrup' | 'other';
 
-interface InventoryItem extends BarIngredient {
-  usedInCocktails?: number;
-}
+interface InventoryItem extends BarIngredient {}
 
 // Predefined options for each category
 const CATEGORY_OPTIONS: Record<string, string[]> = {
@@ -601,13 +602,7 @@ export default function HomeBarScreen() {
       );
     }
 
-    // Add mock usage stats
-    const itemsWithStats = filtered.map(item => ({
-      ...item,
-      usedInCocktails: Math.floor(Math.random() * 12) + 1, // Random 1-12
-    }));
-
-    return { lowStock: [], rest: itemsWithStats, all: itemsWithStats };
+    return { lowStock: [], rest: filtered, all: filtered };
   };
 
   const { lowStock, rest, all } = getFilteredInventory();
@@ -744,9 +739,28 @@ export default function HomeBarScreen() {
     return null;
   };
 
-  const renderInventoryCard = (item: InventoryItem) => {
-    const ingredientImage = getIngredientImage(item);
+  const getCategoryIcon = (category: string, subcategory?: string) => {
+    switch (category) {
+      case 'spirit':
+        return 'wine';
+      case 'liqueur':
+        return 'wine-outline';
+      case 'mixer':
+        return 'water';
+      case 'syrup':
+        return 'water-outline';
+      case 'bitters':
+        return 'flask';
+      case 'garnish':
+        return 'leaf';
+      case 'ingredient':
+        return 'nutrition';
+      default:
+        return 'cube';
+    }
+  };
 
+  const renderInventoryCard = (item: InventoryItem) => {
     return (
       <TouchableOpacity
         key={item.id}
@@ -754,26 +768,13 @@ export default function HomeBarScreen() {
         onPress={() => handleItemPress(item)}
       >
         <View style={styles.cardImageContainer}>
-          {ingredientImage ? (
-            <Image source={ingredientImage} style={styles.cardImage} resizeMode="contain" />
-          ) : (
-            <View style={styles.placeholderImage}>
-              <Ionicons
-                name={
-                  item.category === 'spirit' ? 'wine' :
-                  item.category === 'mixer' ? 'water' :
-                  item.category === 'liqueur' ? 'wine-outline' :
-                  item.category === 'ingredient' ? 'nutrition' :
-                  item.category === 'garnish' ? 'leaf' :
-                  item.category === 'bitters' ? 'flask' :
-                  item.category === 'syrup' ? 'water-outline' :
-                  'cube'
-                }
-                size={40}
-                color={colors.gold}
-              />
-            </View>
-          )}
+          <View style={styles.placeholderImage}>
+            <Ionicons
+              name={getCategoryIcon(item.category, item.subcategory)}
+              size={40}
+              color={colors.gold}
+            />
+          </View>
         </View>
 
         <View style={styles.cardContent}>
@@ -782,9 +783,6 @@ export default function HomeBarScreen() {
           </Text>
           <Text style={styles.cardSubtitle}>
             {item.volume}ml{item.brand ? ` • ${item.brand}` : ''}
-          </Text>
-          <Text style={styles.cardFooter}>
-            Used in {item.usedInCocktails} cocktails
           </Text>
         </View>
       </TouchableOpacity>
@@ -923,7 +921,6 @@ export default function HomeBarScreen() {
               <Text style={styles.itemDetail}>Brand: {selectedItem?.brand || 'Unknown'}</Text>
               <Text style={styles.itemDetail}>Volume: {selectedItem?.volume}ml</Text>
               {selectedItem?.abv && <Text style={styles.itemDetail}>ABV: {selectedItem.abv}%</Text>}
-              <Text style={styles.itemDetail}>Used in {selectedItem?.usedInCocktails} cocktails</Text>
             </View>
 
             <View style={styles.optionsContainer}>
@@ -1037,14 +1034,21 @@ export default function HomeBarScreen() {
         transparent={true}
         onRequestClose={handleCancelManualEntry}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Add Ingredient</Text>
-              <TouchableOpacity onPress={handleCancelManualEntry}>
-                <Ionicons name="close" size={24} color={colors.text} />
-              </TouchableOpacity>
-            </View>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={{ flex: 1 }}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Add Ingredient</Text>
+                <TouchableOpacity onPress={() => Keyboard.dismiss()}>
+                  <Ionicons name="chevron-down" size={24} color={colors.text} />
+                </TouchableOpacity>
+                <TouchableOpacity onPress={handleCancelManualEntry}>
+                  <Ionicons name="close" size={24} color={colors.text} />
+                </TouchableOpacity>
+              </View>
 
             <ScrollView style={styles.modalForm} showsVerticalScrollIndicator={false}>
               {/* Category Picker - Moved to top */}
@@ -1132,12 +1136,14 @@ export default function HomeBarScreen() {
                   // Show text input for categories without predefined options OR when custom is selected
                   <TextInput
                     style={styles.formInput}
-                    placeholder="e.g., Tito's Vodka"
+                    placeholder="e.g., Vodka"
                     placeholderTextColor={colors.muted}
                     value={manualEntryName}
                     onChangeText={setManualEntryName}
                     keyboardAppearance="dark"
                     autoFocus={showCustomInput}
+                    returnKeyType="next"
+                    onSubmitEditing={() => Keyboard.dismiss()}
                   />
                 )}
               </View>
@@ -1152,6 +1158,8 @@ export default function HomeBarScreen() {
                   value={manualEntryBrand}
                   onChangeText={setManualEntryBrand}
                   keyboardAppearance="dark"
+                  returnKeyType="next"
+                  onSubmitEditing={() => Keyboard.dismiss()}
                 />
               </View>
 
@@ -1186,6 +1194,57 @@ export default function HomeBarScreen() {
                 <Text style={styles.modalButtonTextPrimary}>Add to Bar</Text>
               </TouchableOpacity>
             </View>
+          </View>
+        </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Search Modal */}
+      <Modal
+        visible={showSearchModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowSearchModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Search Inventory</Text>
+              <TouchableOpacity onPress={() => setShowSearchModal(false)}>
+                <Ionicons name="close" size={24} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.formGroup}>
+              <TextInput
+                style={styles.formInput}
+                placeholder="Search by name, brand, or category..."
+                placeholderTextColor={colors.muted}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                keyboardAppearance="dark"
+                autoFocus={true}
+              />
+            </View>
+
+            {searchQuery && (
+              <TouchableOpacity
+                style={styles.clearSearchButton}
+                onPress={() => {
+                  setSearchQuery('');
+                  setShowSearchModal(false);
+                }}
+              >
+                <Text style={styles.clearSearchText}>Clear Search</Text>
+              </TouchableOpacity>
+            )}
+
+            <TouchableOpacity
+              style={styles.cancelButton}
+              onPress={() => setShowSearchModal(false)}
+            >
+              <Text style={styles.cancelButtonText}>Done</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -1605,5 +1664,20 @@ const styles = StyleSheet.create({
   },
   deleteOptionTitle: {
     color: colors.error || '#ff4444',
+  },
+  clearSearchButton: {
+    backgroundColor: colors.card,
+    paddingVertical: spacing(2.5),
+    paddingHorizontal: spacing(3),
+    borderRadius: radii.md,
+    marginBottom: spacing(2),
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
+  clearSearchText: {
+    color: colors.text,
+    fontSize: fonts.body,
+    fontWeight: '600',
   },
 });
