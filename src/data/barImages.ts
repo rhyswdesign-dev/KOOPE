@@ -68,6 +68,7 @@ export const BAR_PAGE_HEADERS = {
   depth_frame_header_26: require('../../assets/images/bar-headers/Depth 5, Frame 0-26.png'),
   frame: require('../../assets/images/bar-headers/Frame.png'),
   proof: require('../../assets/images/bar-headers/Proof.png'),
+  untitled: require('../../assets/images/bar-headers/Untitled .png'),
 };
 
 // Spirit Images

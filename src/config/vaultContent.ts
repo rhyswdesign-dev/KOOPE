@@ -407,7 +407,7 @@ export const barFeatures: BarFeatureContent[] = [
     signatureCocktailName: "Golden Bubbles",
     whyItWorks: "Dom Pérignon elevated with elderflower and gold leaf creates a visual and taste experience that embodies luxury. The elderflower's floral notes complement the champagne's complexity without overpowering its character. This drink shows how to enhance premium champagne without masking its quality.",
     homeSubstitutions: "Can't afford Dom Pérignon? Use a quality Brut champagne (Veuve Clicquot or Moët) and the technique still works. For elderflower, St-Germain is the gold standard. Skip the gold leaf at home—the drink's elegance comes from proper champagne service and temperature, not garnish.",
-    thumbnailKey: "depth_frame_header_24",
+    thumbnailKey: "untitled",
     xpCost: 1200,
     moneyPriceCents: 499,
     unlockMethod: "XP_OR_MONEY",
