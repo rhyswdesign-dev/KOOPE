@@ -390,6 +390,7 @@ export interface BarFeatureContent {
   signatureCocktailName: string;
   whyItWorks: string;
   homeSubstitutions: string;
+  thumbnailKey?: string; // Key to look up thumbnail from BAR_IMAGES or BAR_PAGE_HEADERS
   xpCost: number;
   moneyPriceCents: number;
   unlockMethod: UnlockMethod;
@@ -399,6 +400,21 @@ export interface BarFeatureContent {
 
 export const barFeatures: BarFeatureContent[] = [
   {
+    id: "bar_untitled_champagne_lounge",
+    barName: "Untitled Champagne Lounge",
+    city: "Calgary",
+    vibeDescription: "Sophisticated luxury champagne lounge in Downtown Calgary. Known for premium champagne selections, caviar pairings, and live piano jazz. The ultimate destination for celebrating life's special moments with elegance and Rocky Mountain views.",
+    signatureCocktailName: "Golden Bubbles",
+    whyItWorks: "Dom Pérignon elevated with elderflower and gold leaf creates a visual and taste experience that embodies luxury. The elderflower's floral notes complement the champagne's complexity without overpowering its character. This drink shows how to enhance premium champagne without masking its quality.",
+    homeSubstitutions: "Can't afford Dom Pérignon? Use a quality Brut champagne (Veuve Clicquot or Moët) and the technique still works. For elderflower, St-Germain is the gold standard. Skip the gold leaf at home—the drink's elegance comes from proper champagne service and temperature, not garnish.",
+    thumbnailKey: "depth_frame_header_24",
+    xpCost: 1200,
+    moneyPriceCents: 499,
+    unlockMethod: "XP_OR_MONEY",
+    proEarlyAccess: false,
+    requiredTier: "PLUS", // PLUS - premium bar content
+  },
+  {
     id: "bar_death_and_co",
     barName: "Death & Co",
     city: "New York City",
@@ -406,6 +422,7 @@ export const barFeatures: BarFeatureContent[] = [
     signatureCocktailName: "Oaxaca Old Fashioned",
     whyItWorks: "Split-base technique using tequila and mezcal creates depth while maintaining Old Fashioned structure. The agave spirits bring smoke and complexity without overwhelming the template. This drink taught a generation of bartenders how to split bases effectively.",
     homeSubstitutions: "Can't find mezcal? Use a smoky Islay Scotch (like Laphroaig) at 25% of the base. For tequila, reposado works better than blanco here—you want some oak to bridge the gap with traditional whiskey Old Fashioneds.",
+    thumbnailKey: "depth_frame_header_25",
     xpCost: 1400,
     moneyPriceCents: 499,
     unlockMethod: "XP_OR_MONEY",
@@ -420,6 +437,7 @@ export const barFeatures: BarFeatureContent[] = [
     signatureCocktailName: "Ginger Smash",
     whyItWorks: "Fresh ginger, muddled with stone fruit, creates complexity without muddling technique errors. The key is pre-juicing ginger and controlling dilution. This drink proves that fresh ingredients don't need to be complicated—they need to be handled correctly.",
     homeSubstitutions: "No fresh ginger juice? Grate ginger on a microplane and strain through cheesecloth. For stone fruit (apricot or peach), quality apricot liqueur (Rothman & Winter) can substitute in winter months. The technique matters more than the exact fruit.",
+    thumbnailKey: "depth_frame_header_26",
     xpCost: 1300,
     moneyPriceCents: 499,
     unlockMethod: "XP_OR_MONEY",
@@ -434,6 +452,7 @@ export const barFeatures: BarFeatureContent[] = [
     signatureCocktailName: "The Bartender's Choice",
     whyItWorks: "Not a recipe, but a framework. Sam Ross and Michael McIlroy teach bartenders to listen first, then build. The process: spirit preference → flavor profile → technique selection → garnish. This isn't a cocktail—it's a consultation system that scales to any skill level.",
     homeSubstitutions: "To recreate the Attaboy experience at home: interview your guest (sweet/dry? spirit preference? any dislikes?), select a classic template that fits, make one modification (different citrus, infused spirit, unique bitter), present it as custom. You're not faking it—you're practicing their framework.",
+    thumbnailKey: "depth_frame_header_23",
     xpCost: 1500,
     moneyPriceCents: 599,
     unlockMethod: "XP_OR_MONEY",
@@ -448,6 +467,7 @@ export const barFeatures: BarFeatureContent[] = [
     signatureCocktailName: "Sherry Cobbler (Pantone 294)",
     whyItWorks: "Trick Dog modernized the forgotten Cobbler template with quality sherry, seasonal fruit, and proper dilution. The key insight: Cobblers aren't just crushed ice drinks—they're showcases for fortified wines. This version balances sherry's oxidative notes with bright fruit without over-sweetening.",
     homeSubstitutions: "Use Amontillado or Palo Cortado sherry (not cooking sherry). If you can't find quality sherry, try Madeira or tawny port as the base. For fruit, match seasonality: berries in summer, citrus in winter, stone fruit in spring. The template is flexible—crushed ice, fortified wine, fruit, light sweetener.",
+    thumbnailKey: "depth_frame_header_22",
     xpCost: 1350,
     moneyPriceCents: 499,
     unlockMethod: "XP_OR_MONEY",
