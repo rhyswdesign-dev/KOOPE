@@ -50,6 +50,7 @@ import { canAccessContent } from '../../utils/tierAccess';
 import TierBadge from '../../components/TierBadge';
 import LockedContentOverlay from '../../components/LockedContentOverlay';
 import { log } from '../../lib/logger';
+import { BAR_PAGE_HEADERS } from '../../data/barImages';
 
 
 export default function VaultScreen() {
@@ -319,6 +320,27 @@ export default function VaultScreen() {
     SPEED_SYSTEM: PLACEHOLDER_IMAGES.speed,
   };
 
+  // Helper function to get bar thumbnail from thumbnailKey
+  const getBarThumbnail = (thumbnailKey?: string) => {
+    if (!thumbnailKey) {
+      return { uri: PLACEHOLDER_IMAGES.bar };
+    }
+
+    // Check if it's a BAR_PAGE_HEADERS key
+    if (thumbnailKey in BAR_PAGE_HEADERS) {
+      return BAR_PAGE_HEADERS[thumbnailKey as keyof typeof BAR_PAGE_HEADERS];
+    }
+
+    // Fallback to placeholder
+    console.warn('Bar thumbnail not found for key:', thumbnailKey);
+    return { uri: PLACEHOLDER_IMAGES.bar };
+  };
+
+  // Helper function to check if a bar is unlocked
+  const isBarUnlocked = (barId: string): boolean => {
+    return state.userProfile.unlockedItems.some(item => item.itemId === barId);
+  };
+
   const renderContentItem = (item: any, imageUrl: string) => {
     const isLocked = !canAccessContent(tier, item.requiredTier);
 
@@ -412,27 +434,65 @@ export default function VaultScreen() {
 
     if (selectedTab === 'bars') {
       const bars = getBarFeaturesForDisplay(tier);
+
+      const handleBarPress = (barId: string) => {
+        // Navigate to specific bar detail screen based on bar ID
+        if (barId === 'bar_untitled_champagne_lounge') {
+          nav.navigate('UntitledLounge');
+        } else if (barId === 'bar_employees_only') {
+          console.log('Navigate to Employees Only');
+        } else {
+          console.log('Navigate to bar:', barId);
+        }
+      };
+
       return (
         <View style={styles.barSpotlightContainer}>
-          {bars.map((bar) => (
-            <View key={bar.id} style={styles.barSpotlightCard}>
-              <Image
-                source={{ uri: PLACEHOLDER_IMAGES.bar }}
-                style={styles.barSpotlightImage}
-                resizeMode="cover"
-              />
-              <View style={styles.barSpotlightOverlay}>
-                <Text style={styles.barSpotlightTitle}>{bar.barName}, {bar.city}</Text>
-                <Text style={styles.barSpotlightDescription}>{bar.vibeDescription}</Text>
-                <View style={styles.barSpotlightFooter}>
-                  <Text style={styles.barSpotlightXP}>Unlock with {bar.xpCost} XP</Text>
-                  <TouchableOpacity style={styles.barUnlockButton} activeOpacity={0.8}>
-                    <Text style={styles.barUnlockButtonText}>Unlock</Text>
-                  </TouchableOpacity>
+          {bars.map((bar) => {
+            const unlocked = isBarUnlocked(bar.id);
+            return (
+              <TouchableOpacity
+                key={bar.id}
+                style={styles.barSpotlightCard}
+                activeOpacity={0.7}
+                onPress={() => unlocked && handleBarPress(bar.id)}
+              >
+                <Image
+                  source={getBarThumbnail(bar.thumbnailKey)}
+                  style={styles.barSpotlightImage}
+                  resizeMode="cover"
+                />
+                <View style={styles.barSpotlightOverlay}>
+                  <Text style={styles.barSpotlightTitle}>{bar.barName}, {bar.city}</Text>
+                  <Text style={styles.barSpotlightDescription}>{bar.vibeDescription}</Text>
+                  <View style={styles.barSpotlightFooter}>
+                    {unlocked ? (
+                      <>
+                        <View style={styles.unlockedBadge}>
+                          <Ionicons name="checkmark-circle" size={16} color={colors.gold} />
+                          <Text style={styles.unlockedText}>UNLOCKED</Text>
+                        </View>
+                        <TouchableOpacity
+                          style={[styles.barUnlockButton, styles.barViewButton]}
+                          activeOpacity={0.8}
+                          onPress={() => handleBarPress(bar.id)}
+                        >
+                          <Text style={styles.barUnlockButtonText}>View</Text>
+                        </TouchableOpacity>
+                      </>
+                    ) : (
+                      <>
+                        <Text style={styles.barSpotlightXP}>Unlock with {bar.xpCost} XP</Text>
+                        <TouchableOpacity style={styles.barUnlockButton} activeOpacity={0.8}>
+                          <Text style={styles.barUnlockButtonText}>Unlock</Text>
+                        </TouchableOpacity>
+                      </>
+                    )}
+                  </View>
                 </View>
-              </View>
-            </View>
-          ))}
+              </TouchableOpacity>
+            );
+          })}
         </View>
       );
     }
@@ -857,6 +917,23 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: colors.white,
+  },
+
+  barViewButton: {
+    backgroundColor: colors.gold,
+  },
+
+  unlockedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(0.5),
+  },
+
+  unlockedText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.gold,
+    textTransform: 'uppercase',
   },
 
   // Locked content styles
