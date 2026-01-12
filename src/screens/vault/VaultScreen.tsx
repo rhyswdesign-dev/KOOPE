@@ -50,7 +50,7 @@ import { canAccessContent } from '../../utils/tierAccess';
 import TierBadge from '../../components/TierBadge';
 import LockedContentOverlay from '../../components/LockedContentOverlay';
 import { log } from '../../lib/logger';
-import { BAR_PAGE_HEADERS } from '../../data/barImages';
+import { BAR_PAGE_HEADERS, BAR_IMAGES } from '../../data/barImages';
 
 
 export default function VaultScreen() {
@@ -326,7 +326,12 @@ export default function VaultScreen() {
       return { uri: PLACEHOLDER_IMAGES.bar };
     }
 
-    // Check if it's a BAR_PAGE_HEADERS key
+    // Check if it's a BAR_IMAGES key (pill button thumbnails)
+    if (thumbnailKey in BAR_IMAGES) {
+      return BAR_IMAGES[thumbnailKey as keyof typeof BAR_IMAGES];
+    }
+
+    // Check if it's a BAR_PAGE_HEADERS key (page header images)
     if (thumbnailKey in BAR_PAGE_HEADERS) {
       return BAR_PAGE_HEADERS[thumbnailKey as keyof typeof BAR_PAGE_HEADERS];
     }
