@@ -25,7 +25,7 @@ import { StreakDisplay } from '../components/StreakDisplay';
 import { ProgressStats } from '../components/ProgressStats';
 
 export default function ProfileScreen() {
-  const { user, isAuthenticated, isLoading, signOut } = useAuth();
+  const { user, isAuthenticated: authStatus, isLoading, signOut } = useAuth();
   const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [loading, setLoading] = useState(false);
   const [preferencesModalVisible, setPreferencesModalVisible] = useState(false);
@@ -34,6 +34,9 @@ export default function ProfileScreen() {
   const { profile } = usePersonalization();
   const [userStats, setUserStats] = useState(achievementService.getUserStats());
   const [streakData, setStreakData] = useState<StreakData>(streakService.getStreakData());
+
+  // FOR DEVELOPMENT: Always show authenticated view
+  const isAuthenticated = true; // Change to authStatus to enable real auth
 
   useLayoutEffect(() => {
     nav.setOptions({
