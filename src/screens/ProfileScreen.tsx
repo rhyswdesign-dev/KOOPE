@@ -111,43 +111,76 @@ export default function ProfileScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-          {/* Profile Header */}
+          {/* Profile Header - Compact */}
           <View style={styles.profileHeader}>
             <View style={styles.avatarContainer}>
-              <MaterialCommunityIcons name="glass-cocktail" size={40} color={colors.accent} />
+              <MaterialCommunityIcons name="glass-cocktail" size={32} color={colors.accent} />
             </View>
             <View style={styles.profileInfo}>
               <Text style={styles.userName}>Bartender</Text>
-              <Text style={styles.userSubtext}>ID: {user?.id.substring(0, 8)}...</Text>
+              <Text style={styles.userSubtext}>Level {userStats.level} • {userStats.totalXP} XP</Text>
             </View>
           </View>
 
-          {/* Level & XP Display */}
-          <View style={styles.statsContainer}>
-            <View style={styles.statCard}>
-              <Ionicons name="trophy" size={20} color={colors.accent} />
-              <Text style={styles.statNumber}>Level {userStats.level}</Text>
-              <Text style={styles.statLabel}>Current Level</Text>
+          {/* Quick Stats Row - Minimal */}
+          <View style={styles.quickStatsRow}>
+            <View style={styles.quickStat}>
+              <Text style={styles.quickStatNumber}>{streakData.currentStreak}</Text>
+              <Text style={styles.quickStatLabel}>Day Streak</Text>
             </View>
-            <View style={styles.statCard}>
-              <Ionicons name="star" size={20} color={colors.accent} />
-              <Text style={styles.statNumber}>{userStats.totalXP}</Text>
-              <Text style={styles.statLabel}>Total XP</Text>
+            <View style={styles.quickStat}>
+              <Text style={styles.quickStatNumber}>{userStats.achievementsUnlocked || 0}</Text>
+              <Text style={styles.quickStatLabel}>Badges</Text>
             </View>
-            <View style={styles.statCard}>
-              <Ionicons name="flame" size={20} color={colors.accent} />
-              <Text style={styles.statNumber}>{streakData.currentStreak}</Text>
-              <Text style={styles.statLabel}>Day Streak</Text>
+            <View style={styles.quickStat}>
+              <Text style={styles.quickStatNumber}>{savedItems.length}</Text>
+              <Text style={styles.quickStatLabel}>Saved</Text>
             </View>
           </View>
 
-          {/* Streak Display Section */}
+          {/* Collections Grid - 2x2 */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Your Streak</Text>
-            <StreakDisplay streakData={streakData} />
+            <Text style={styles.sectionTitle}>My Collections</Text>
+            <View style={styles.collectionsGrid}>
+              <TouchableOpacity
+                style={styles.collectionCard}
+                onPress={() => nav.navigate('SavedItems')}
+              >
+                <Ionicons name="heart" size={28} color={colors.accent} />
+                <Text style={styles.collectionLabel}>Saved</Text>
+                <Text style={styles.collectionCount}>{savedItems.length}</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.collectionCard}
+                onPress={() => nav.navigate('MyRecipes')}
+              >
+                <Ionicons name="create" size={28} color="#F59E0B" />
+                <Text style={styles.collectionLabel}>My Recipes</Text>
+                <Text style={styles.collectionCount}>{recipes.length}</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.collectionCard}
+                onPress={() => nav.navigate('HomeBar')}
+              >
+                <Ionicons name="home" size={28} color="#8B5CF6" />
+                <Text style={styles.collectionLabel}>Home Bar</Text>
+                <Text style={styles.collectionCount}>{userStats.homeBarIngredients}</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.collectionCard}
+                onPress={() => nav.navigate('Achievements')}
+              >
+                <Ionicons name="trophy" size={28} color={colors.gold} />
+                <Text style={styles.collectionLabel}>Achievements</Text>
+                <Text style={styles.collectionCount}>{userStats.achievementsUnlocked || 0}</Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
-          {/* Progress Statistics Section */}
+          {/* Progress - Compact */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Your Progress</Text>
             <ProgressStats
@@ -191,74 +224,6 @@ export default function ProfileScreen() {
               ]}
               columns={3}
             />
-          </View>
-
-          {/* Progress Section */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Achievements</Text>
-
-            <TouchableOpacity
-              style={styles.settingButton}
-              onPress={() => nav.navigate('Achievements')}
-            >
-              <Ionicons name="trophy-outline" size={20} color={colors.text} />
-              <View style={styles.settingButtonContent}>
-                <Text style={styles.settingButtonText}>View All Achievements</Text>
-                <Text style={styles.settingButtonSubtext}>Level {userStats.level} • {userStats.totalXP} XP</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color={colors.subtext} />
-            </TouchableOpacity>
-          </View>
-
-          {/* Collections Section */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>My Collections</Text>
-
-            <View style={styles.collectionsGrid}>
-              <TouchableOpacity
-                style={styles.collectionCard}
-                onPress={() => nav.navigate('SavedItems')}
-              >
-                <View style={styles.collectionIconContainer}>
-                  <Ionicons name="heart" size={24} color={colors.accent} />
-                </View>
-                <Text style={styles.collectionLabel}>Saved</Text>
-                <Text style={styles.collectionCount}>{savedItems.length}</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.collectionCard}
-                onPress={() => nav.navigate('MyRecipes')}
-              >
-                <View style={styles.collectionIconContainer}>
-                  <Ionicons name="create" size={24} color="#F59E0B" />
-                </View>
-                <Text style={styles.collectionLabel}>My Recipes</Text>
-                <Text style={styles.collectionCount}>{recipes.length}</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.collectionCard}
-                onPress={() => nav.navigate('HomeBar')}
-              >
-                <View style={styles.collectionIconContainer}>
-                  <Ionicons name="home" size={24} color="#8B5CF6" />
-                </View>
-                <Text style={styles.collectionLabel}>Home Bar</Text>
-                <Text style={styles.collectionCount}>{userStats.homeBarIngredients}</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.collectionCard}
-                onPress={() => nav.navigate('Achievements')}
-              >
-                <View style={styles.collectionIconContainer}>
-                  <Ionicons name="trophy" size={24} color={colors.gold} />
-                </View>
-                <Text style={styles.collectionLabel}>Badges</Text>
-                <Text style={styles.collectionCount}>{userStats.achievementsUnlocked || 0}</Text>
-              </TouchableOpacity>
-            </View>
           </View>
 
           {/* Quick Actions */}
@@ -365,7 +330,7 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    paddingHorizontal: spacing(4),
+    paddingHorizontal: spacing(3),
   },
   header: {
     alignItems: 'center',
@@ -388,14 +353,14 @@ const styles = StyleSheet.create({
   profileHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: spacing(4),
-    marginBottom: spacing(4),
-    gap: spacing(3),
+    marginTop: spacing(2),
+    marginBottom: spacing(3),
+    gap: spacing(2),
   },
   avatarContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     backgroundColor: colors.card,
     borderWidth: 2,
     borderColor: colors.accent,
@@ -406,12 +371,35 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   userName: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: '700',
     color: colors.text,
   },
   userSubtext: {
-    fontSize: 14,
+    fontSize: 13,
+    color: colors.subtext,
+    marginTop: spacing(0.25),
+  },
+  quickStatsRow: {
+    flexDirection: 'row',
+    backgroundColor: colors.card,
+    borderRadius: radii.lg,
+    padding: spacing(2),
+    marginBottom: spacing(3),
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
+  quickStat: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  quickStatNumber: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.accent,
+  },
+  quickStatLabel: {
+    fontSize: 11,
     color: colors.subtext,
     marginTop: spacing(0.5),
   },
@@ -442,13 +430,13 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   section: {
-    marginBottom: spacing(4),
+    marginBottom: spacing(3),
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '700',
     color: colors.text,
-    marginBottom: spacing(2),
+    marginBottom: spacing(1.5),
   },
   actionButton: {
     backgroundColor: colors.card,
@@ -562,36 +550,34 @@ const styles = StyleSheet.create({
   collectionsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: spacing(2),
-    marginTop: spacing(1),
+    gap: spacing(1.5),
   },
   collectionCard: {
     flex: 1,
     minWidth: '47%',
     backgroundColor: colors.card,
     borderRadius: radii.lg,
-    padding: spacing(3),
+    padding: spacing(2.5),
     alignItems: 'center',
     borderWidth: 1,
     borderColor: colors.line,
+    gap: spacing(1),
   },
   collectionIconContainer: {
-    width: 56,
-    height: 56,
+    width: 48,
+    height: 48,
     borderRadius: radii.lg,
     backgroundColor: 'rgba(255, 255, 255, 0.05)',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing(2),
   },
   collectionLabel: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
     color: colors.text,
-    marginBottom: spacing(0.5),
   },
   collectionCount: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '700',
     color: colors.accent,
   },
