@@ -414,47 +414,38 @@ export default function VaultScreen() {
   };
 
   const renderContentItem = (item: any, imageUrl: string, category: string = 'variation') => {
-    const isLocked = !canAccessContent(tier, item.requiredTier);
+    const isTierLocked = !canAccessContent(tier, item.requiredTier);
 
     return (
       <TouchableOpacity
         key={item.id}
-        style={[styles.contentItemCard, isLocked && styles.lockedCard]}
+        style={[styles.contentItemCard, isTierLocked && styles.lockedCard]}
         activeOpacity={0.7}
-        onPress={() => !isLocked && handleItemPreview(item, imageUrl, category)}
-        disabled={isLocked}
+        onPress={() => handleItemPreview(item, imageUrl, category)}
       >
         <Image
           source={{ uri: imageUrl }}
-          style={[styles.contentItemThumbnail, isLocked && styles.lockedThumbnail]}
+          style={[styles.contentItemThumbnail, isTierLocked && styles.lockedThumbnail]}
           resizeMode="cover"
         />
         <View style={styles.contentItemInfo}>
-          <Text style={styles.contentItemXP}>
-            {isLocked ? `${item.requiredTier} Required` : `${item.xpCost} XP`}
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1) }}>
+            <Text style={styles.contentItemXP}>{item.xpCost} XP</Text>
+            {isTierLocked && item.requiredTier && (
+              <View style={styles.tierRequiredBadge}>
+                <Text style={styles.tierRequiredText}>{item.requiredTier} Required</Text>
+              </View>
+            )}
+          </View>
           <Text style={styles.contentItemTitle}>{item.title || item.barName || item.seasonName}</Text>
           <Text style={styles.contentItemDescription} numberOfLines={2}>
             {item.shortDescription || item.description || `${item.city} • ${item.signatureCocktailName}`}
           </Text>
         </View>
 
-        {isLocked ? (
-          <LockedContentOverlay
-            requiredTier={item.requiredTier}
-            onUpgradePress={() => {
-              nav.navigate('Paywall', {
-                source: 'vault_locked_content',
-                offering: item.requiredTier === 'PRO' ? 'pro' : null,
-              });
-            }}
-            variant="compact"
-          />
-        ) : (
-          <View style={styles.contentItemUnlockButton}>
-            <Text style={styles.contentItemUnlockText}>Unlock</Text>
-          </View>
-        )}
+        <View style={styles.contentItemUnlockButton}>
+          <Text style={styles.contentItemUnlockText}>Unlock</Text>
+        </View>
       </TouchableOpacity>
     );
   };
@@ -465,7 +456,7 @@ export default function VaultScreen() {
       return (
         <View style={styles.inlineContent}>
           {playbookTypes.map((type) => {
-            const playbooks = getTechniquePlaybooksByType(type, tier);
+            const playbooks = getTechniquePlaybooksByType(type); // Show all items regardless of tier
             if (playbooks.length === 0) return null;
             return (
               <View key={type} style={styles.contentSection}>
@@ -479,7 +470,7 @@ export default function VaultScreen() {
     }
 
     if (selectedTab === 'variations') {
-      const variations = getVariationsForDisplay(tier);
+      const variations = getVariationsForDisplay(); // Show all items regardless of tier
       const groupedByDifficulty: Record<string, typeof variations> = {
         simple: [],
         technique_forward: [],
@@ -511,7 +502,7 @@ export default function VaultScreen() {
     }
 
     if (selectedTab === 'bars') {
-      const bars = getBarFeaturesForDisplay(tier);
+      const bars = getBarFeaturesForDisplay(); // Show all items regardless of tier
 
       const handleBarPress = (barId: string) => {
         // Navigate to specific bar detail screen based on bar ID
@@ -528,12 +519,19 @@ export default function VaultScreen() {
         <View style={styles.barSpotlightContainer}>
           {bars.map((bar) => {
             const unlocked = isBarUnlocked(bar.id);
+            const isTierLocked = !canAccessContent(tier, bar.requiredTier);
             return (
               <TouchableOpacity
                 key={bar.id}
                 style={styles.barSpotlightCard}
                 activeOpacity={0.7}
-                onPress={() => unlocked && handleBarPress(bar.id)}
+                onPress={() => {
+                  if (unlocked) {
+                    handleBarPress(bar.id);
+                  } else {
+                    handleItemPreview(bar, getBarThumbnail(bar.thumbnailKey).uri || PLACEHOLDER_IMAGES.bar, 'bar');
+                  }
+                }}
               >
                 <Image
                   source={getBarThumbnail(bar.thumbnailKey)}
@@ -560,7 +558,14 @@ export default function VaultScreen() {
                       </>
                     ) : (
                       <>
-                        <Text style={styles.barSpotlightXP}>Unlock with {bar.xpCost} XP</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1) }}>
+                          <Text style={styles.barSpotlightXP}>Unlock with {bar.xpCost} XP</Text>
+                          {isTierLocked && bar.requiredTier && (
+                            <View style={styles.tierRequiredBadge}>
+                              <Text style={styles.tierRequiredText}>{bar.requiredTier} Required</Text>
+                            </View>
+                          )}
+                        </View>
                         <TouchableOpacity
                           style={styles.barUnlockButton}
                           activeOpacity={0.8}
@@ -580,7 +585,7 @@ export default function VaultScreen() {
     }
 
     if (selectedTab === 'seasonal') {
-      const drops = getAvailableSeasonalDropsForTier(tier);
+      const drops = getAvailableSeasonalDropsForTier(); // Show all items regardless of tier
       return (
         <View style={styles.inlineContent}>
           <View style={styles.contentSection}>
@@ -594,10 +599,6 @@ export default function VaultScreen() {
     if (selectedTab === 'games') {
       const allGames = state.vaultItems.filter(item => item.category === 'games' && item.isActive);
 
-      // FREE tier: limit to 2 games, PLUS/PRO: show all
-      const gamesToShow = tier === 'FREE' ? allGames.slice(0, 2) : allGames;
-      const hasMoreGames = tier === 'FREE' && allGames.length > 2;
-
       return (
         <View style={styles.inlineContent}>
           <View style={styles.contentSection}>
@@ -605,33 +606,43 @@ export default function VaultScreen() {
             <Text style={styles.contentSectionDescription}>
               Classic party games with official rules and variations. Perfect for social gatherings!
             </Text>
-            {gamesToShow.map((game) => (
-              <TouchableOpacity
-                key={game.id}
-                style={styles.contentItemCard}
-                activeOpacity={0.7}
-                onPress={() => handleItemPreview(game, game.image, 'game')}
-              >
-                <Image
-                  source={{ uri: game.image }}
-                  style={styles.contentItemThumbnail}
-                  resizeMode="cover"
-                />
-                <View style={styles.contentItemInfo}>
-                  <Text style={styles.contentItemXP}>{game.xpCost} XP</Text>
-                  <Text style={styles.contentItemTitle}>{game.name}</Text>
-                  <Text style={styles.contentItemDescription} numberOfLines={2}>
-                    {game.description}
-                  </Text>
-                </View>
-                <View style={styles.contentItemUnlockButton}>
-                  <Text style={styles.contentItemUnlockText}>Unlock</Text>
-                </View>
-              </TouchableOpacity>
-            ))}
+            {allGames.map((game) => {
+              const isTierLocked = !canAccessContent(tier, game.requiredTier);
+              return (
+                <TouchableOpacity
+                  key={game.id}
+                  style={[styles.contentItemCard, isTierLocked && styles.lockedCard]}
+                  activeOpacity={0.7}
+                  onPress={() => handleItemPreview(game, game.image, 'game')}
+                >
+                  <Image
+                    source={{ uri: game.image }}
+                    style={[styles.contentItemThumbnail, isTierLocked && styles.lockedThumbnail]}
+                    resizeMode="cover"
+                  />
+                  <View style={styles.contentItemInfo}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1) }}>
+                      <Text style={styles.contentItemXP}>{game.xpCost} XP</Text>
+                      {isTierLocked && game.requiredTier && (
+                        <View style={styles.tierRequiredBadge}>
+                          <Text style={styles.tierRequiredText}>{game.requiredTier} Required</Text>
+                        </View>
+                      )}
+                    </View>
+                    <Text style={styles.contentItemTitle}>{game.name}</Text>
+                    <Text style={styles.contentItemDescription} numberOfLines={2}>
+                      {game.description}
+                    </Text>
+                  </View>
+                  <View style={styles.contentItemUnlockButton}>
+                    <Text style={styles.contentItemUnlockText}>Unlock</Text>
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
 
-            {/* FREE tier upgrade prompt */}
-            {hasMoreGames && (
+            {/* Removed tier-based upgrade prompt - items now show tier requirements directly */}
+            {false && (
               <TouchableOpacity
                 style={styles.vaultUpgradeCard}
                 activeOpacity={0.8}
@@ -720,6 +731,30 @@ export default function VaultScreen() {
           // Handle unlock logic
           if (previewItem && typeof previewItem.xpCost === 'number') {
             const xpCost = previewItem.xpCost;
+
+            // Check tier access
+            const tierAccess = !previewItem.requiredTier || canAccessContent(tier, previewItem.requiredTier);
+            if (!tierAccess) {
+              Alert.alert(
+                'Subscription Required',
+                `This item requires ${previewItem.requiredTier}+ subscription to unlock.`,
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  {
+                    text: 'View Plans',
+                    style: 'default',
+                    onPress: () => {
+                      setPreviewModalVisible(false);
+                      nav.navigate('Paywall', {
+                        source: 'vault_tier_locked',
+                        offering: previewItem.requiredTier === 'PRO' ? 'pro' : null,
+                      });
+                    },
+                  },
+                ]
+              );
+              return;
+            }
 
             // Check if user can afford
             if (xpBalance < xpCost) {
@@ -994,6 +1029,18 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.subtext,
     marginBottom: spacing(0.5),
+  },
+  tierRequiredBadge: {
+    backgroundColor: colors.gold,
+    paddingHorizontal: spacing(1),
+    paddingVertical: spacing(0.5),
+    borderRadius: radii.sm,
+  },
+  tierRequiredText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.bg,
+    textTransform: 'uppercase',
   },
 
   contentItemTitle: {
