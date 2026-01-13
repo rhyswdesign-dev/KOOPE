@@ -368,7 +368,7 @@ export default function VaultScreen() {
         fullDescription = variationBenefits.fullDescription;
         break;
       case 'playbook':
-        const playbookBenefits = getBenefitsForPlaybook(item.type);
+        const playbookBenefits = getBenefitsForPlaybook(item.playbookType || item.type);
         benefits = playbookBenefits.benefits;
         fullDescription = playbookBenefits.fullDescription;
         break;
@@ -382,9 +382,18 @@ export default function VaultScreen() {
         benefits = gameBenefits.benefits;
         fullDescription = gameBenefits.fullDescription;
         break;
+      case 'seasonal':
+        // Seasonal items use a default template for now
+        fullDescription = 'Limited-time seasonal content curated around holidays, ingredients, and cultural moments.';
+        benefits = [
+          { icon: 'calendar', title: 'Seasonal Relevance', description: 'Recipes perfectly timed to ingredient availability' },
+          { icon: 'gift', title: 'Limited Availability', description: 'Exclusive content that rotates out' },
+          { icon: 'star', title: 'Holiday Entertaining', description: 'Impress guests with drinks for celebrations' },
+        ];
+        break;
     }
 
-    setPreviewItem({
+    const previewData = {
       title: item.title || item.barName || item.name || item.seasonName,
       description: fullDescription,
       imageUrl,
@@ -393,7 +402,10 @@ export default function VaultScreen() {
       requiredTier: item.requiredTier,
       benefits,
       isUnlocked: state.userProfile.unlockedItems.some(i => i.itemId === item.id),
-    });
+    };
+
+    log.info('VaultScreen', 'Opening preview modal', { item: previewData });
+    setPreviewItem(previewData);
     setPreviewModalVisible(true);
   };
 
