@@ -31,6 +31,18 @@ export default function SettingsScreen() {
     textSize: 'medium', // 'small' | 'medium' | 'large'
   });
 
+  const [expandedSections, setExpandedSections] = useState({
+    notifications: false,
+    appearance: false,
+    privacy: false,
+    support: false,
+    legal: false,
+  });
+
+  const toggleSection = (section: keyof typeof expandedSections) => {
+    setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));
+  };
+
   useLayoutEffect(() => {
     nav.setOptions({
       title: 'Settings',
@@ -124,12 +136,10 @@ export default function SettingsScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['left', 'right', 'bottom']}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        
+
         {/* Profile Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Profile</Text>
-          
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.settingItem}
             onPress={handleEditProfile}
             activeOpacity={0.7}
@@ -140,173 +150,6 @@ export default function SettingsScreen() {
             </View>
             <Ionicons name="chevron-forward" size={20} color={colors.subtext} />
           </TouchableOpacity>
-        </View>
-
-        {/* Notifications Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Notifications</Text>
-          
-          <View style={styles.settingItem}>
-            <View style={styles.settingItemLeft}>
-              <Ionicons name="calendar-outline" size={24} color={colors.text} />
-              <View>
-                <Text style={styles.settingItemText}>Events</Text>
-                <Text style={styles.settingItemSubtext}>Event reminders and updates</Text>
-              </View>
-            </View>
-            <Switch
-              value={notifications.events}
-              onValueChange={(value) => setNotifications(prev => ({ ...prev, events: value }))}
-              thumbColor={notifications.events ? colors.white : colors.subtle}
-              trackColor={{ true: colors.accent, false: colors.line }}
-            />
-          </View>
-
-          <View style={styles.settingItem}>
-            <View style={styles.settingItemLeft}>
-              <Ionicons name="people-outline" size={24} color={colors.text} />
-              <View>
-                <Text style={styles.settingItemText}>Social</Text>
-                <Text style={styles.settingItemSubtext}>Followers, likes, and mentions</Text>
-              </View>
-            </View>
-            <Switch
-              value={notifications.social}
-              onValueChange={(value) => setNotifications(prev => ({ ...prev, social: value }))}
-              thumbColor={notifications.social ? colors.white : colors.subtle}
-              trackColor={{ true: colors.accent, false: colors.line }}
-            />
-          </View>
-
-          <View style={styles.settingItem}>
-            <View style={styles.settingItemLeft}>
-              <Ionicons name="mail-outline" size={24} color={colors.text} />
-              <View>
-                <Text style={styles.settingItemText}>Marketing</Text>
-                <Text style={styles.settingItemSubtext}>Promotional offers and news</Text>
-              </View>
-            </View>
-            <Switch
-              value={notifications.marketing}
-              onValueChange={(value) => setNotifications(prev => ({ ...prev, marketing: value }))}
-              thumbColor={notifications.marketing ? colors.white : colors.subtle}
-              trackColor={{ true: colors.accent, false: colors.line }}
-            />
-          </View>
-
-          <View style={styles.settingItem}>
-            <View style={styles.settingItemLeft}>
-              <Ionicons name="notifications-outline" size={24} color={colors.text} />
-              <View>
-                <Text style={styles.settingItemText}>App Updates</Text>
-                <Text style={styles.settingItemSubtext}>New features and improvements</Text>
-              </View>
-            </View>
-            <Switch
-              value={notifications.updates}
-              onValueChange={(value) => setNotifications(prev => ({ ...prev, updates: value }))}
-              thumbColor={notifications.updates ? colors.white : colors.subtle}
-              trackColor={{ true: colors.accent, false: colors.line }}
-            />
-          </View>
-        </View>
-
-        {/* Appearance Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Appearance</Text>
-
-          <TouchableOpacity
-            style={styles.settingItem}
-            onPress={() => {
-              Alert.alert(
-                'Theme',
-                'Choose your preferred theme',
-                [
-                  { text: 'Dark (Current)', style: 'default', onPress: () => setAppearance(prev => ({ ...prev, theme: 'dark' })) },
-                  { text: 'Light (Coming Soon)', style: 'default' },
-                  { text: 'Auto (System)', style: 'default' },
-                  { text: 'Cancel', style: 'cancel' }
-                ]
-              );
-            }}
-            activeOpacity={0.7}
-            accessible={true}
-            accessibilityRole="button"
-            accessibilityLabel="Change app theme"
-          >
-            <View style={styles.settingItemLeft}>
-              <Ionicons name="moon-outline" size={24} color={colors.text} />
-              <View>
-                <Text style={styles.settingItemText}>Theme</Text>
-                <Text style={styles.settingItemSubtext}>Dark Mode</Text>
-              </View>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={colors.subtext} />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.settingItem}
-            onPress={() => {
-              Alert.alert(
-                'Text Size',
-                'Adjust text size for better readability',
-                [
-                  { text: 'Small', style: 'default', onPress: () => setAppearance(prev => ({ ...prev, textSize: 'small' })) },
-                  { text: 'Medium (Current)', style: 'default' },
-                  { text: 'Large', style: 'default', onPress: () => setAppearance(prev => ({ ...prev, textSize: 'large' })) },
-                  { text: 'Cancel', style: 'cancel' }
-                ]
-              );
-            }}
-            activeOpacity={0.7}
-            accessible={true}
-            accessibilityRole="button"
-            accessibilityLabel="Adjust text size"
-          >
-            <View style={styles.settingItemLeft}>
-              <Ionicons name="text-outline" size={24} color={colors.text} />
-              <View>
-                <Text style={styles.settingItemText}>Text Size</Text>
-                <Text style={styles.settingItemSubtext}>Medium</Text>
-              </View>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={colors.subtext} />
-          </TouchableOpacity>
-        </View>
-
-        {/* Privacy & Security Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Privacy & Security</Text>
-          
-          <TouchableOpacity
-            style={styles.settingItem}
-            onPress={() => log.info('SettingsScreen', 'Privacy Settings pressed')}
-            activeOpacity={0.7}
-          >
-            <View style={styles.settingItemLeft}>
-              <Ionicons name="shield-outline" size={24} color={colors.text} />
-              <Text style={styles.settingItemText}>Privacy Settings</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={colors.subtext} />
-          </TouchableOpacity>
-
-
-          <TouchableOpacity
-            style={styles.settingItem}
-            onPress={() => log.info('SettingsScreen', 'Blocked Users pressed')}
-            activeOpacity={0.7}
-          >
-            <View style={styles.settingItemLeft}>
-              <Ionicons name="ban-outline" size={24} color={colors.text} />
-              <Text style={styles.settingItemText}>Blocked Users</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={colors.subtext} />
-          </TouchableOpacity>
-        </View>
-
-        {/* Subscription Section (Dev/Test) */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Subscription</Text>
 
           <TouchableOpacity
             style={styles.settingItem}
@@ -314,160 +157,13 @@ export default function SettingsScreen() {
             activeOpacity={0.7}
           >
             <View style={styles.settingItemLeft}>
-              <Ionicons name="diamond-outline" size={24} color="#D4AF37" />
-              <Text style={styles.settingItemText}>Upgrade to Premium</Text>
+              <Ionicons name="diamond-outline" size={24} color={colors.gold} />
+              <Text style={styles.settingItemText}>Upgrade to KOOPE+</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color={colors.subtext} />
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.settingItem}
-            onPress={() => nav.navigate('SubscriptionDebug')}
-            activeOpacity={0.7}
-          >
-            <View style={styles.settingItemLeft}>
-              <Ionicons name="bug-outline" size={24} color={colors.text} />
-              <Text style={styles.settingItemText}>Subscription Debug</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={colors.subtext} />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.settingItem}
-            onPress={() => {
-              Alert.alert(
-                'Dev Helpers',
-                'Choose a development helper action',
-                [
-                  {
-                    text: 'Reset AI Credits to 50',
-                    onPress: async () => {
-                      const currentCredits = useAICredits.getState().credits;
-                      const creditsToAdd = Math.max(0, 50 - currentCredits);
-                      addCredits(creditsToAdd, 'promotion');
-                      Alert.alert('Success', `Added ${creditsToAdd} credits. You now have 50 AI credits!`);
-                    }
-                  },
-                  {
-                    text: 'Load Mock Inventory (50 items)',
-                    onPress: async () => {
-                      await HomeBarService.loadComprehensiveMockInventory();
-                      Alert.alert('Success', 'Loaded 50 comprehensive mock ingredients to Home Bar!');
-                    }
-                  },
-                  { text: 'Cancel', style: 'cancel' }
-                ]
-              );
-            }}
-            activeOpacity={0.7}
-          >
-            <View style={styles.settingItemLeft}>
-              <Ionicons name="flask-outline" size={24} color={colors.gold} />
-              <Text style={styles.settingItemText}>Dev Helpers</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={colors.subtext} />
-          </TouchableOpacity>
-        </View>
-
-        {/* Support Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Support</Text>
-
-          <TouchableOpacity
-            style={styles.settingItem}
-            onPress={handleHelpSupport}
-            activeOpacity={0.7}
-          >
-            <View style={styles.settingItemLeft}>
-              <Ionicons name="help-circle-outline" size={24} color={colors.text} />
-              <Text style={styles.settingItemText}>Help & Support</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={colors.subtext} />
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={styles.settingItem}
-            onPress={handleMapsDemo}
-            activeOpacity={0.7}
-          >
-            <View style={styles.settingItemLeft}>
-              <Ionicons name="map-outline" size={24} color={colors.text} />
-              <Text style={styles.settingItemText}>Maps Demo</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={colors.subtext} />
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={styles.settingItem}
-            onPress={() => nav.navigate('Feedback')}
-            activeOpacity={0.7}
-          >
-            <View style={styles.settingItemLeft}>
-              <Ionicons name="chatbubble-outline" size={24} color={colors.text} />
-              <Text style={styles.settingItemText}>Send Feedback</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={colors.subtext} />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.settingItem}
-            onPress={() => log.info('SettingsScreen', 'Rate App pressed')}
-            activeOpacity={0.7}
-          >
-            <View style={styles.settingItemLeft}>
-              <Ionicons name="star-outline" size={24} color={colors.text} />
-              <Text style={styles.settingItemText}>Rate App</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={colors.subtext} />
-          </TouchableOpacity>
-        </View>
-
-        {/* Legal Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Legal</Text>
-          
-          <TouchableOpacity 
-            style={styles.settingItem}
-            onPress={() => nav.navigate('TermsOfService')}
-            activeOpacity={0.7}
-          >
-            <View style={styles.settingItemLeft}>
-              <Ionicons name="document-text-outline" size={24} color={colors.text} />
-              <Text style={styles.settingItemText}>Terms of Service</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={colors.subtext} />
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={styles.settingItem}
-            onPress={() => nav.navigate('PrivacyPolicy')}
-            activeOpacity={0.7}
-          >
-            <View style={styles.settingItemLeft}>
-              <Ionicons name="shield-checkmark-outline" size={24} color={colors.text} />
-              <Text style={styles.settingItemText}>Privacy Policy</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={colors.subtext} />
-          </TouchableOpacity>
-        </View>
-
-        {/* Account Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Account</Text>
-          
-          <TouchableOpacity 
-            style={styles.settingItem}
-            onPress={handleAccountInfo}
-            activeOpacity={0.7}
-          >
-            <View style={styles.settingItemLeft}>
-              <Ionicons name="information-circle-outline" size={24} color={colors.text} />
-              <Text style={styles.settingItemText}>Account Information</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={colors.subtext} />
-          </TouchableOpacity>
-
-          <TouchableOpacity 
             style={styles.settingItem}
             onPress={handleSignOut}
             activeOpacity={0.7}
@@ -475,6 +171,336 @@ export default function SettingsScreen() {
             <View style={styles.settingItemLeft}>
               <Ionicons name="log-out-outline" size={24} color={colors.text} />
               <Text style={styles.settingItemText}>Sign Out</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={colors.subtext} />
+          </TouchableOpacity>
+        </View>
+
+        {/* Notifications Section - Collapsible */}
+        <View style={styles.section}>
+          <TouchableOpacity
+            style={styles.collapsibleHeader}
+            onPress={() => toggleSection('notifications')}
+            activeOpacity={0.7}
+          >
+            <View style={styles.settingItemLeft}>
+              <Ionicons name="notifications-outline" size={24} color={colors.text} />
+              <Text style={styles.settingItemText}>Notifications</Text>
+            </View>
+            <Ionicons
+              name={expandedSections.notifications ? "chevron-up" : "chevron-down"}
+              size={20}
+              color={colors.subtext}
+            />
+          </TouchableOpacity>
+
+          {expandedSections.notifications && (
+            <>
+              <View style={styles.settingItem}>
+                <View style={styles.settingItemLeft}>
+                  <Ionicons name="calendar-outline" size={24} color={colors.text} />
+                  <View>
+                    <Text style={styles.settingItemText}>Events</Text>
+                    <Text style={styles.settingItemSubtext}>Event reminders and updates</Text>
+                  </View>
+                </View>
+                <Switch
+                  value={notifications.events}
+                  onValueChange={(value) => setNotifications(prev => ({ ...prev, events: value }))}
+                  thumbColor={notifications.events ? colors.white : colors.subtle}
+                  trackColor={{ true: colors.accent, false: colors.line }}
+                />
+              </View>
+
+              <View style={styles.settingItem}>
+                <View style={styles.settingItemLeft}>
+                  <Ionicons name="people-outline" size={24} color={colors.text} />
+                  <View>
+                    <Text style={styles.settingItemText}>Social</Text>
+                    <Text style={styles.settingItemSubtext}>Followers, likes, and mentions</Text>
+                  </View>
+                </View>
+                <Switch
+                  value={notifications.social}
+                  onValueChange={(value) => setNotifications(prev => ({ ...prev, social: value }))}
+                  thumbColor={notifications.social ? colors.white : colors.subtle}
+                  trackColor={{ true: colors.accent, false: colors.line }}
+                />
+              </View>
+
+              <View style={styles.settingItem}>
+                <View style={styles.settingItemLeft}>
+                  <Ionicons name="mail-outline" size={24} color={colors.text} />
+                  <View>
+                    <Text style={styles.settingItemText}>Marketing</Text>
+                    <Text style={styles.settingItemSubtext}>Promotional offers and news</Text>
+                  </View>
+                </View>
+                <Switch
+                  value={notifications.marketing}
+                  onValueChange={(value) => setNotifications(prev => ({ ...prev, marketing: value }))}
+                  thumbColor={notifications.marketing ? colors.white : colors.subtle}
+                  trackColor={{ true: colors.accent, false: colors.line }}
+                />
+              </View>
+
+              <View style={styles.settingItem}>
+                <View style={styles.settingItemLeft}>
+                  <Ionicons name="notifications-outline" size={24} color={colors.text} />
+                  <View>
+                    <Text style={styles.settingItemText}>App Updates</Text>
+                    <Text style={styles.settingItemSubtext}>New features and improvements</Text>
+                  </View>
+                </View>
+                <Switch
+                  value={notifications.updates}
+                  onValueChange={(value) => setNotifications(prev => ({ ...prev, updates: value }))}
+                  thumbColor={notifications.updates ? colors.white : colors.subtle}
+                  trackColor={{ true: colors.accent, false: colors.line }}
+                />
+              </View>
+            </>
+          )}
+        </View>
+
+        {/* Appearance Section - Collapsible */}
+        <View style={styles.section}>
+          <TouchableOpacity
+            style={styles.collapsibleHeader}
+            onPress={() => toggleSection('appearance')}
+            activeOpacity={0.7}
+          >
+            <View style={styles.settingItemLeft}>
+              <Ionicons name="color-palette-outline" size={24} color={colors.text} />
+              <Text style={styles.settingItemText}>Appearance</Text>
+            </View>
+            <Ionicons
+              name={expandedSections.appearance ? "chevron-up" : "chevron-down"}
+              size={20}
+              color={colors.subtext}
+            />
+          </TouchableOpacity>
+
+          {expandedSections.appearance && (
+            <>
+              <TouchableOpacity
+                style={styles.settingItem}
+                onPress={() => {
+                  Alert.alert(
+                    'Theme',
+                    'Choose your preferred theme',
+                    [
+                      { text: 'Dark (Current)', style: 'default', onPress: () => setAppearance(prev => ({ ...prev, theme: 'dark' })) },
+                      { text: 'Light (Coming Soon)', style: 'default' },
+                      { text: 'Auto (System)', style: 'default' },
+                      { text: 'Cancel', style: 'cancel' }
+                    ]
+                  );
+                }}
+                activeOpacity={0.7}
+              >
+                <View style={styles.settingItemLeft}>
+                  <Ionicons name="moon-outline" size={24} color={colors.text} />
+                  <View>
+                    <Text style={styles.settingItemText}>Theme</Text>
+                    <Text style={styles.settingItemSubtext}>Dark Mode</Text>
+                  </View>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color={colors.subtext} />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.settingItem}
+                onPress={() => {
+                  Alert.alert(
+                    'Text Size',
+                    'Adjust text size for better readability',
+                    [
+                      { text: 'Small', style: 'default', onPress: () => setAppearance(prev => ({ ...prev, textSize: 'small' })) },
+                      { text: 'Medium (Current)', style: 'default' },
+                      { text: 'Large', style: 'default', onPress: () => setAppearance(prev => ({ ...prev, textSize: 'large' })) },
+                      { text: 'Cancel', style: 'cancel' }
+                    ]
+                  );
+                }}
+                activeOpacity={0.7}
+              >
+                <View style={styles.settingItemLeft}>
+                  <Ionicons name="text-outline" size={24} color={colors.text} />
+                  <View>
+                    <Text style={styles.settingItemText}>Text Size</Text>
+                    <Text style={styles.settingItemSubtext}>Medium</Text>
+                  </View>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color={colors.subtext} />
+              </TouchableOpacity>
+            </>
+          )}
+        </View>
+
+        {/* Privacy & Security Section - Collapsible */}
+        <View style={styles.section}>
+          <TouchableOpacity
+            style={styles.collapsibleHeader}
+            onPress={() => toggleSection('privacy')}
+            activeOpacity={0.7}
+          >
+            <View style={styles.settingItemLeft}>
+              <Ionicons name="shield-outline" size={24} color={colors.text} />
+              <Text style={styles.settingItemText}>Privacy & Security</Text>
+            </View>
+            <Ionicons
+              name={expandedSections.privacy ? "chevron-up" : "chevron-down"}
+              size={20}
+              color={colors.subtext}
+            />
+          </TouchableOpacity>
+
+          {expandedSections.privacy && (
+            <>
+              <TouchableOpacity
+                style={styles.settingItem}
+                onPress={() => log.info('SettingsScreen', 'Privacy Settings pressed')}
+                activeOpacity={0.7}
+              >
+                <View style={styles.settingItemLeft}>
+                  <Ionicons name="lock-closed-outline" size={24} color={colors.text} />
+                  <Text style={styles.settingItemText}>Privacy Settings</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color={colors.subtext} />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.settingItem}
+                onPress={() => log.info('SettingsScreen', 'Blocked Users pressed')}
+                activeOpacity={0.7}
+              >
+                <View style={styles.settingItemLeft}>
+                  <Ionicons name="ban-outline" size={24} color={colors.text} />
+                  <Text style={styles.settingItemText}>Blocked Users</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color={colors.subtext} />
+              </TouchableOpacity>
+            </>
+          )}
+        </View>
+
+        {/* Support Section - Collapsible */}
+        <View style={styles.section}>
+          <TouchableOpacity
+            style={styles.collapsibleHeader}
+            onPress={() => toggleSection('support')}
+            activeOpacity={0.7}
+          >
+            <View style={styles.settingItemLeft}>
+              <Ionicons name="help-circle-outline" size={24} color={colors.text} />
+              <Text style={styles.settingItemText}>Help & Support</Text>
+            </View>
+            <Ionicons
+              name={expandedSections.support ? "chevron-up" : "chevron-down"}
+              size={20}
+              color={colors.subtext}
+            />
+          </TouchableOpacity>
+
+          {expandedSections.support && (
+            <>
+              <TouchableOpacity
+                style={styles.settingItem}
+                onPress={handleHelpSupport}
+                activeOpacity={0.7}
+              >
+                <View style={styles.settingItemLeft}>
+                  <Ionicons name="information-circle-outline" size={24} color={colors.text} />
+                  <Text style={styles.settingItemText}>Support Center</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color={colors.subtext} />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.settingItem}
+                onPress={() => nav.navigate('Feedback')}
+                activeOpacity={0.7}
+              >
+                <View style={styles.settingItemLeft}>
+                  <Ionicons name="chatbubble-outline" size={24} color={colors.text} />
+                  <Text style={styles.settingItemText}>Send Feedback</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color={colors.subtext} />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.settingItem}
+                onPress={() => log.info('SettingsScreen', 'Rate App pressed')}
+                activeOpacity={0.7}
+              >
+                <View style={styles.settingItemLeft}>
+                  <Ionicons name="star-outline" size={24} color={colors.text} />
+                  <Text style={styles.settingItemText}>Rate App</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color={colors.subtext} />
+              </TouchableOpacity>
+            </>
+          )}
+        </View>
+
+        {/* Legal Section - Collapsible */}
+        <View style={styles.section}>
+          <TouchableOpacity
+            style={styles.collapsibleHeader}
+            onPress={() => toggleSection('legal')}
+            activeOpacity={0.7}
+          >
+            <View style={styles.settingItemLeft}>
+              <Ionicons name="document-text-outline" size={24} color={colors.text} />
+              <Text style={styles.settingItemText}>Legal</Text>
+            </View>
+            <Ionicons
+              name={expandedSections.legal ? "chevron-up" : "chevron-down"}
+              size={20}
+              color={colors.subtext}
+            />
+          </TouchableOpacity>
+
+          {expandedSections.legal && (
+            <>
+              <TouchableOpacity
+                style={styles.settingItem}
+                onPress={() => nav.navigate('TermsOfService')}
+                activeOpacity={0.7}
+              >
+                <View style={styles.settingItemLeft}>
+                  <Ionicons name="document-outline" size={24} color={colors.text} />
+                  <Text style={styles.settingItemText}>Terms of Service</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color={colors.subtext} />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.settingItem}
+                onPress={() => nav.navigate('PrivacyPolicy')}
+                activeOpacity={0.7}
+              >
+                <View style={styles.settingItemLeft}>
+                  <Ionicons name="shield-checkmark-outline" size={24} color={colors.text} />
+                  <Text style={styles.settingItemText}>Privacy Policy</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color={colors.subtext} />
+              </TouchableOpacity>
+            </>
+          )}
+        </View>
+
+        {/* Account Info */}
+        <View style={styles.section}>
+          <TouchableOpacity
+            style={styles.settingItem}
+            onPress={handleAccountInfo}
+            activeOpacity={0.7}
+          >
+            <View style={styles.settingItemLeft}>
+              <Ionicons name="information-circle-outline" size={24} color={colors.text} />
+              <Text style={styles.settingItemText}>Account Information</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color={colors.subtext} />
           </TouchableOpacity>
@@ -557,6 +583,17 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.subtext,
     marginTop: 2,
+  },
+  collapsibleHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.card,
+    borderRadius: radii.lg,
+    padding: spacing(2.5),
+    marginBottom: spacing(1),
+    borderWidth: 1,
+    borderColor: colors.line,
   },
   dangerSection: {
     marginTop: spacing(2),
