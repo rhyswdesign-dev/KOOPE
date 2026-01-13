@@ -210,101 +210,86 @@ export default function ProfileScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Personalization Section */}
+          {/* Collections Section */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Your Preferences</Text>
+            <Text style={styles.sectionTitle}>My Collections</Text>
 
-            <TouchableOpacity
-              style={styles.settingButton}
-              onPress={() => setPreferencesModalVisible(true)}
-            >
-              <Ionicons name="options-outline" size={20} color={colors.text} />
-              <Text style={styles.settingButtonText}>Recipe Preferences</Text>
-              <Ionicons name="chevron-forward" size={20} color={colors.subtext} />
-            </TouchableOpacity>
+            <View style={styles.collectionsGrid}>
+              <TouchableOpacity
+                style={styles.collectionCard}
+                onPress={() => nav.navigate('SavedItems')}
+              >
+                <View style={styles.collectionIconContainer}>
+                  <Ionicons name="heart" size={24} color={colors.accent} />
+                </View>
+                <Text style={styles.collectionLabel}>Saved</Text>
+                <Text style={styles.collectionCount}>{savedItems.length}</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.collectionCard}
+                onPress={() => nav.navigate('MyRecipes')}
+              >
+                <View style={styles.collectionIconContainer}>
+                  <Ionicons name="create" size={24} color="#F59E0B" />
+                </View>
+                <Text style={styles.collectionLabel}>My Recipes</Text>
+                <Text style={styles.collectionCount}>{recipes.length}</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.collectionCard}
+                onPress={() => nav.navigate('HomeBar')}
+              >
+                <View style={styles.collectionIconContainer}>
+                  <Ionicons name="home" size={24} color="#8B5CF6" />
+                </View>
+                <Text style={styles.collectionLabel}>Home Bar</Text>
+                <Text style={styles.collectionCount}>{userStats.homeBarIngredients}</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.collectionCard}
+                onPress={() => nav.navigate('Achievements')}
+              >
+                <View style={styles.collectionIconContainer}>
+                  <Ionicons name="trophy" size={24} color={colors.gold} />
+                </View>
+                <Text style={styles.collectionLabel}>Badges</Text>
+                <Text style={styles.collectionCount}>{userStats.achievementsUnlocked || 0}</Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
-          {/* Subscription Section */}
+          {/* Quick Actions */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Premium</Text>
+            <Text style={styles.sectionTitle}>Quick Actions</Text>
 
-            <TouchableOpacity
-              style={[styles.settingButton, { backgroundColor: 'rgba(212, 175, 55, 0.1)' }]}
-              onPress={() => nav.navigate('Paywall', { displayCloseButton: true })}
-            >
-              <Ionicons name="diamond-outline" size={20} color="#D4AF37" />
-              <Text style={[styles.settingButtonText, { color: colors.accent, fontWeight: '600' }]}>
-                Upgrade to KOOPE+
-              </Text>
-              <Ionicons name="chevron-forward" size={20} color="#D4AF37" />
-            </TouchableOpacity>
+            <View style={styles.quickActionsGrid}>
+              <TouchableOpacity
+                style={styles.quickActionButton}
+                onPress={() => setPreferencesModalVisible(true)}
+              >
+                <Ionicons name="options-outline" size={20} color={colors.text} />
+                <Text style={styles.quickActionText}>Preferences</Text>
+              </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.settingButton}
-              onPress={() => nav.navigate('SubscriptionDebug')}
-            >
-              <Ionicons name="bug-outline" size={20} color={colors.text} />
-              <Text style={styles.settingButtonText}>Subscription Status</Text>
-              <Ionicons name="chevron-forward" size={20} color={colors.subtext} />
-            </TouchableOpacity>
-          </View>
+              <TouchableOpacity
+                style={styles.quickActionButton}
+                onPress={() => nav.navigate('ShoppingCart')}
+              >
+                <Ionicons name="cart-outline" size={20} color={colors.text} />
+                <Text style={styles.quickActionText}>Cart</Text>
+              </TouchableOpacity>
 
-          {/* Settings Section */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Settings & Support</Text>
-
-            <TouchableOpacity
-              style={styles.settingButton}
-              onPress={() => nav.navigate('ShoppingCart')}
-            >
-              <Ionicons name="cart-outline" size={20} color={colors.text} />
-              <Text style={styles.settingButtonText}>Shopping Cart</Text>
-              <Ionicons name="chevron-forward" size={20} color={colors.subtext} />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.settingButton}
-              onPress={() => nav.navigate('HelpSupport')}
-            >
-              <Ionicons name="help-circle-outline" size={20} color={colors.text} />
-              <Text style={styles.settingButtonText}>Help & Support</Text>
-              <Ionicons name="chevron-forward" size={20} color={colors.subtext} />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.settingButton}
-              onPress={() => nav.navigate('PrivacyPolicy')}
-            >
-              <Ionicons name="shield-checkmark-outline" size={20} color={colors.text} />
-              <Text style={styles.settingButtonText}>Privacy Policy</Text>
-              <Ionicons name="chevron-forward" size={20} color={colors.subtext} />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.settingButton}
-              onPress={() => nav.navigate('TermsOfService')}
-            >
-              <Ionicons name="document-text-outline" size={20} color={colors.text} />
-              <Text style={styles.settingButtonText}>Terms of Service</Text>
-              <Ionicons name="chevron-forward" size={20} color={colors.subtext} />
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.settingButton}>
-              <Ionicons name="information-circle-outline" size={20} color={colors.text} />
-              <Text style={styles.settingButtonText}>About</Text>
-              <Ionicons name="chevron-forward" size={20} color={colors.subtext} />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.settingButton, styles.signOutButton]}
-              onPress={handleSignOut}
-              disabled={loading}
-            >
-              <Ionicons name="log-out-outline" size={20} color={colors.error} />
-              <Text style={[styles.settingButtonText, { color: colors.error }]}>
-                {loading ? 'Signing out...' : 'Sign Out'}
-              </Text>
-            </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.quickActionButton, { backgroundColor: 'rgba(212, 175, 55, 0.1)' }]}
+                onPress={() => nav.navigate('Paywall', { displayCloseButton: true })}
+              >
+                <Ionicons name="diamond-outline" size={20} color={colors.gold} />
+                <Text style={[styles.quickActionText, { color: colors.gold }]}>Upgrade</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </ScrollView>
 
@@ -613,5 +598,61 @@ const styles = StyleSheet.create({
   signOutButton: {
     marginTop: spacing(3),
     borderColor: colors.error + '20',
+  },
+  collectionsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing(2),
+    marginTop: spacing(1),
+  },
+  collectionCard: {
+    flex: 1,
+    minWidth: '47%',
+    backgroundColor: colors.card,
+    borderRadius: radii.lg,
+    padding: spacing(3),
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
+  collectionIconContainer: {
+    width: 56,
+    height: 56,
+    borderRadius: radii.lg,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing(2),
+  },
+  collectionLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: spacing(0.5),
+  },
+  collectionCount: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.accent,
+  },
+  quickActionsGrid: {
+    flexDirection: 'row',
+    gap: spacing(2),
+    marginTop: spacing(1),
+  },
+  quickActionButton: {
+    flex: 1,
+    backgroundColor: colors.card,
+    borderRadius: radii.lg,
+    padding: spacing(2.5),
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.line,
+    gap: spacing(1),
+  },
+  quickActionText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.text,
   },
 });
