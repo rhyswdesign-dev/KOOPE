@@ -108,8 +108,8 @@ export const useAICredits = create<AICreditsState>()(
   persist(
     (set, get) => ({
       // Initial state
-      credits: 10, // Start with 10 free credits
-      totalEarned: 10,
+      credits: 50, // Start with 50 free credits
+      totalEarned: 50,
       totalSpent: 0,
       dailyUsage: 0,
       monthlyUsage: 0,

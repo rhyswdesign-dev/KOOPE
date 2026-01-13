@@ -11,6 +11,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   Alert,
+  Modal,
 } from 'react-native';
 import { colors, spacing, radii, fonts } from '../theme/tokens';
 import { Ionicons } from '@expo/vector-icons';
@@ -36,6 +37,7 @@ export default function ShoppingCartScreen() {
   const [consolidatedShoppingItems, setConsolidatedShoppingItems] = useState<any>({ itemsByRecipe: {}, allItems: [] });
   const [checkedShoppingItems, setCheckedShoppingItems] = useState<Set<string>>(new Set());
   const [sortBy, setSortBy] = useState<'name' | 'category' | 'price' | 'recent'>('recent');
+  const [showSortModal, setShowSortModal] = useState(false);
 
   useLayoutEffect(() => {
     nav.setOptions({
@@ -157,19 +159,45 @@ export default function ShoppingCartScreen() {
     return colors.muted;
   };
 
-  const getFilteredItems = () => {
-    if (categoryFilter === 'all') {
-      return consolidatedShoppingItems.allItems;
+  const getFilteredAndSortedItems = () => {
+    let items = consolidatedShoppingItems.allItems;
+
+    // Apply category filter
+    if (categoryFilter !== 'all') {
+      items = items.filter((item: any) => {
+        const cat = item.category.toLowerCase();
+        if (categoryFilter === 'spirits') return cat.includes('spirit') || cat.includes('liquor');
+        if (categoryFilter === 'mixers') return cat.includes('mixer');
+        if (categoryFilter === 'garnishes') return cat.includes('garnish');
+        if (categoryFilter === 'syrups') return cat.includes('syrup') || cat.includes('bitter');
+        return true;
+      });
     }
 
-    return consolidatedShoppingItems.allItems.filter((item: any) => {
-      const cat = item.category.toLowerCase();
-      if (categoryFilter === 'spirits') return cat.includes('spirit') || cat.includes('liquor');
-      if (categoryFilter === 'mixers') return cat.includes('mixer');
-      if (categoryFilter === 'garnishes') return cat.includes('garnish');
-      if (categoryFilter === 'syrups') return cat.includes('syrup') || cat.includes('bitter');
-      return true;
-    });
+    // Apply sorting
+    const sortedItems = [...items];
+    switch (sortBy) {
+      case 'name':
+        sortedItems.sort((a: any, b: any) => a.name.localeCompare(b.name));
+        break;
+      case 'category':
+        sortedItems.sort((a: any, b: any) => {
+          const catCompare = a.category.localeCompare(b.category);
+          if (catCompare === 0) {
+            return a.name.localeCompare(b.name);
+          }
+          return catCompare;
+        });
+        break;
+      case 'recent':
+        // Most recent first (reverse order)
+        sortedItems.reverse();
+        break;
+      default:
+        break;
+    }
+
+    return sortedItems;
   };
 
   const renderCocktailGroupView = () => {
@@ -255,7 +283,7 @@ export default function ShoppingCartScreen() {
   };
 
   const renderIngredientGroupView = () => {
-    const filteredItems = getFilteredItems();
+    const filteredItems = getFilteredAndSortedItems();
 
     if (filteredItems.length === 0) {
       const message = categoryFilter === 'all'
@@ -347,12 +375,8 @@ export default function ShoppingCartScreen() {
       </Text>
 
       {/* View Mode Tabs */}
-      <View style={styles.viewModeTabs}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.viewModeTabsContent}
-        >
+      <View style={styles.viewModeSection}>
+        <View style={styles.viewModeTabs}>
           <TouchableOpacity
             style={[styles.viewModeTab, viewMode === 'cocktail' && styles.viewModeTabActive]}
             onPress={() => setViewMode('cocktail')}
@@ -372,44 +396,15 @@ export default function ShoppingCartScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.viewModeTab}
-            onPress={() => {
-              Alert.alert(
-                'Sort Options',
-                'Choose how to sort your shopping items',
-                [
-                  {
-                    text: 'Name (A-Z)',
-                    onPress: () => {
-                      setSortBy('name');
-                      showToast('Sorted by Name', 'success');
-                    },
-                  },
-                  {
-                    text: 'Category',
-                    onPress: () => {
-                      setSortBy('category');
-                      showToast('Sorted by Category', 'success');
-                    },
-                  },
-                  {
-                    text: 'Recently Added',
-                    onPress: () => {
-                      setSortBy('recent');
-                      showToast('Sorted by Recent', 'success');
-                    },
-                  },
-                  { text: 'Cancel', style: 'cancel' },
-                ]
-              );
-            }}
+            style={styles.sortIconButton}
+            onPress={() => setShowSortModal(true)}
             accessible={true}
             accessibilityRole="button"
             accessibilityLabel="Sort shopping cart items"
           >
-            <Text style={styles.viewModeTabText}>Sort by</Text>
+            <Ionicons name="funnel-outline" size={20} color={colors.gold} />
           </TouchableOpacity>
-        </ScrollView>
+        </View>
       </View>
 
       {/* Category Filters (only show in ingredient view) */}
@@ -455,6 +450,103 @@ export default function ShoppingCartScreen() {
         {viewMode === 'cocktail' ? renderCocktailGroupView() : renderIngredientGroupView()}
       </ScrollView>
 
+      {/* Sort Modal */}
+      <Modal
+        visible={showSortModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowSortModal(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowSortModal(false)}
+        >
+          <View style={styles.sortModalContent} onStartShouldSetResponder={() => true}>
+            <View style={styles.sortModalHeader}>
+              <Text style={styles.sortModalTitle}>Sort Items</Text>
+              <TouchableOpacity onPress={() => setShowSortModal(false)}>
+                <Ionicons name="close" size={24} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.sortOptions}>
+              <TouchableOpacity
+                style={[styles.sortOption, sortBy === 'name' && styles.sortOptionActive]}
+                onPress={() => {
+                  setSortBy('name');
+                  setShowSortModal(false);
+                  showToast('Sorted by Name', 'success');
+                }}
+              >
+                <Ionicons
+                  name="text-outline"
+                  size={20}
+                  color={sortBy === 'name' ? colors.gold : colors.text}
+                />
+                <View style={styles.sortOptionTextContainer}>
+                  <Text style={[styles.sortOptionText, sortBy === 'name' && styles.sortOptionTextActive]}>
+                    Name (A-Z)
+                  </Text>
+                  <Text style={styles.sortOptionDescription}>Sort alphabetically</Text>
+                </View>
+                {sortBy === 'name' && (
+                  <Ionicons name="checkmark-circle" size={24} color={colors.gold} />
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.sortOption, sortBy === 'category' && styles.sortOptionActive]}
+                onPress={() => {
+                  setSortBy('category');
+                  setShowSortModal(false);
+                  showToast('Sorted by Category', 'success');
+                }}
+              >
+                <Ionicons
+                  name="apps-outline"
+                  size={20}
+                  color={sortBy === 'category' ? colors.gold : colors.text}
+                />
+                <View style={styles.sortOptionTextContainer}>
+                  <Text style={[styles.sortOptionText, sortBy === 'category' && styles.sortOptionTextActive]}>
+                    Category
+                  </Text>
+                  <Text style={styles.sortOptionDescription}>Group by type</Text>
+                </View>
+                {sortBy === 'category' && (
+                  <Ionicons name="checkmark-circle" size={24} color={colors.gold} />
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.sortOption, sortBy === 'recent' && styles.sortOptionActive]}
+                onPress={() => {
+                  setSortBy('recent');
+                  setShowSortModal(false);
+                  showToast('Sorted by Recently Added', 'success');
+                }}
+              >
+                <Ionicons
+                  name="time-outline"
+                  size={20}
+                  color={sortBy === 'recent' ? colors.gold : colors.text}
+                />
+                <View style={styles.sortOptionTextContainer}>
+                  <Text style={[styles.sortOptionText, sortBy === 'recent' && styles.sortOptionTextActive]}>
+                    Recently Added
+                  </Text>
+                  <Text style={styles.sortOptionDescription}>Newest items first</Text>
+                </View>
+                {sortBy === 'recent' && (
+                  <Ionicons name="checkmark-circle" size={24} color={colors.gold} />
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
       {/* Toast Notification */}
       <Toast
         message={toast.message}
@@ -491,14 +583,24 @@ const styles = StyleSheet.create({
     marginBottom: spacing(2),
     lineHeight: 18,
   },
-  viewModeTabs: {
+  viewModeSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing(3),
     marginBottom: spacing(2),
     borderBottomWidth: 1,
     borderBottomColor: colors.line,
   },
-  viewModeTabsContent: {
-    paddingHorizontal: spacing(3),
-    gap: spacing(1),
+  viewModeTabs: {
+    flexDirection: 'row',
+    flex: 1,
+    alignItems: 'center',
+  },
+  sortIconButton: {
+    paddingVertical: spacing(2),
+    paddingHorizontal: spacing(2),
+    marginLeft: spacing(2),
   },
   viewModeTab: {
     paddingVertical: spacing(2),
@@ -677,5 +779,69 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.text,
     fontWeight: '600',
+  },
+
+  // Sort Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing(3),
+  },
+  sortModalContent: {
+    backgroundColor: colors.card,
+    borderRadius: radii.xl,
+    width: '100%',
+    maxWidth: 400,
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
+  sortModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: spacing(3),
+    borderBottomWidth: 1,
+    borderBottomColor: colors.line,
+  },
+  sortModalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  sortOptions: {
+    padding: spacing(2),
+  },
+  sortOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: spacing(2.5),
+    borderRadius: radii.lg,
+    marginBottom: spacing(1.5),
+    backgroundColor: colors.bg,
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
+  sortOptionActive: {
+    backgroundColor: colors.gold + '20',
+    borderColor: colors.gold,
+  },
+  sortOptionTextContainer: {
+    flex: 1,
+    marginLeft: spacing(2),
+  },
+  sortOptionText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: spacing(0.5),
+  },
+  sortOptionTextActive: {
+    color: colors.gold,
+  },
+  sortOptionDescription: {
+    fontSize: 13,
+    color: colors.subtext,
   },
 });

@@ -39,6 +39,75 @@ export interface IngredientSuggestion {
 }
 
 /**
+ * Comprehensive mock inventory for testing all icon variations
+ */
+export const COMPREHENSIVE_MOCK_INVENTORY: BarIngredient[] = [
+  // SPIRITS - All variations
+  { id: '1', name: 'Tito\'s Vodka', category: 'spirit', subcategory: 'vodka', brand: 'Tito\'s', abv: 40, volume: 750, addedAt: new Date(), isFavorite: true, tags: [] },
+  { id: '2', name: 'Hendrick\'s Gin', category: 'spirit', subcategory: 'gin', brand: 'Hendrick\'s', abv: 44, volume: 750, addedAt: new Date(), isFavorite: false, tags: [] },
+  { id: '3', name: 'Buffalo Trace Bourbon', category: 'spirit', subcategory: 'whiskey', brand: 'Buffalo Trace', abv: 45, volume: 750, addedAt: new Date(), isFavorite: true, tags: [] },
+  { id: '4', name: 'Bacardi White Rum', category: 'spirit', subcategory: 'rum', brand: 'Bacardi', abv: 40, volume: 750, addedAt: new Date(), isFavorite: false, tags: [] },
+  { id: '5', name: 'Patrón Silver Tequila', category: 'spirit', subcategory: 'tequila', brand: 'Patrón', abv: 40, volume: 750, addedAt: new Date(), isFavorite: true, tags: [] },
+  { id: '6', name: 'Mezcal Vida', category: 'spirit', subcategory: 'mezcal', brand: 'Del Maguey', abv: 42, volume: 750, addedAt: new Date(), isFavorite: false, tags: [] },
+  { id: '7', name: 'Cognac VSOP', category: 'spirit', subcategory: 'cognac', brand: 'Hennessy', abv: 40, volume: 700, addedAt: new Date(), isFavorite: false, tags: [] },
+
+  // LIQUEURS - Different types
+  { id: '8', name: 'Cointreau', category: 'liqueur', subcategory: 'triple sec', brand: 'Cointreau', abv: 40, volume: 750, addedAt: new Date(), isFavorite: false, tags: [] },
+  { id: '9', name: 'Amaretto', category: 'liqueur', subcategory: 'amaretto', brand: 'Disaronno', abv: 28, volume: 700, addedAt: new Date(), isFavorite: false, tags: [] },
+  { id: '10', name: 'Kahlúa', category: 'liqueur', subcategory: 'coffee liqueur', brand: 'Kahlúa', abv: 20, volume: 750, addedAt: new Date(), isFavorite: false, tags: [] },
+  { id: '11', name: 'Baileys Irish Cream', category: 'liqueur', subcategory: 'cream liqueur', brand: 'Baileys', abv: 17, volume: 750, addedAt: new Date(), isFavorite: false, tags: [] },
+  { id: '12', name: 'Campari', category: 'liqueur', subcategory: 'bitter liqueur', brand: 'Campari', abv: 25, volume: 750, addedAt: new Date(), isFavorite: true, tags: [] },
+  { id: '13', name: 'St-Germain', category: 'liqueur', subcategory: 'elderflower', brand: 'St-Germain', abv: 20, volume: 750, addedAt: new Date(), isFavorite: false, tags: [] },
+
+  // MIXERS - All types
+  { id: '14', name: 'Tonic Water', category: 'mixer', subcategory: 'tonic', brand: 'Fever-Tree', volume: 1000, addedAt: new Date(), isFavorite: false, tags: [] },
+  { id: '15', name: 'Soda Water', category: 'mixer', subcategory: 'soda', brand: 'Perrier', volume: 1000, addedAt: new Date(), isFavorite: false, tags: [] },
+  { id: '16', name: 'Ginger Beer', category: 'mixer', subcategory: 'ginger beer', brand: 'Fever-Tree', volume: 1000, addedAt: new Date(), isFavorite: false, tags: [] },
+  { id: '17', name: 'Cola', category: 'mixer', subcategory: 'cola', brand: 'Coca-Cola', volume: 1000, addedAt: new Date(), isFavorite: false, tags: [] },
+  { id: '18', name: 'Orange Juice', category: 'mixer', subcategory: 'juice', brand: 'Tropicana', volume: 1000, addedAt: new Date(), isFavorite: false, tags: [] },
+  { id: '19', name: 'Cranberry Juice', category: 'mixer', subcategory: 'juice', brand: 'Ocean Spray', volume: 1000, addedAt: new Date(), isFavorite: false, tags: [] },
+  { id: '20', name: 'Pineapple Juice', category: 'mixer', subcategory: 'juice', brand: 'Dole', volume: 1000, addedAt: new Date(), isFavorite: false, tags: [] },
+  { id: '21', name: 'Coconut Cream', category: 'mixer', subcategory: 'cream', brand: 'Coco López', volume: 425, addedAt: new Date(), isFavorite: false, tags: [] },
+  { id: '22', name: 'Heavy Cream', category: 'mixer', subcategory: 'cream', brand: 'Organic Valley', volume: 473, addedAt: new Date(), isFavorite: false, tags: [] },
+
+  // SYRUPS - Different flavors
+  { id: '23', name: 'Simple Syrup', category: 'syrup', subcategory: 'simple', volume: 375, addedAt: new Date(), isFavorite: false, tags: [] },
+  { id: '24', name: 'Grenadine', category: 'syrup', subcategory: 'grenadine', brand: 'Monin', volume: 750, addedAt: new Date(), isFavorite: false, tags: [] },
+  { id: '25', name: 'Honey Syrup', category: 'syrup', subcategory: 'honey', volume: 375, addedAt: new Date(), isFavorite: false, tags: [] },
+  { id: '26', name: 'Agave Syrup', category: 'syrup', subcategory: 'agave', brand: 'Organic Blue Agave', volume: 375, addedAt: new Date(), isFavorite: false, tags: [] },
+  { id: '27', name: 'Orgeat', category: 'syrup', subcategory: 'orgeat', brand: 'Monin', volume: 750, addedAt: new Date(), isFavorite: false, tags: [] },
+  { id: '28', name: 'Vanilla Syrup', category: 'syrup', subcategory: 'vanilla', brand: 'Torani', volume: 750, addedAt: new Date(), isFavorite: false, tags: [] },
+  { id: '29', name: 'Ginger Syrup', category: 'syrup', subcategory: 'ginger', volume: 375, addedAt: new Date(), isFavorite: false, tags: [] },
+
+  // BITTERS - All types
+  { id: '30', name: 'Angostura Bitters', category: 'bitters', subcategory: 'aromatic', brand: 'Angostura', volume: 118, addedAt: new Date(), isFavorite: true, tags: [] },
+  { id: '31', name: 'Orange Bitters', category: 'bitters', subcategory: 'orange', brand: 'Regan\'s', volume: 148, addedAt: new Date(), isFavorite: false, tags: [] },
+  { id: '32', name: 'Peychaud\'s Bitters', category: 'bitters', subcategory: 'aromatic', brand: 'Peychaud\'s', volume: 148, addedAt: new Date(), isFavorite: false, tags: [] },
+  { id: '33', name: 'Chocolate Bitters', category: 'bitters', subcategory: 'chocolate', brand: 'Fee Brothers', volume: 148, addedAt: new Date(), isFavorite: false, tags: [] },
+  { id: '34', name: 'Celery Bitters', category: 'bitters', subcategory: 'celery', brand: 'Bitter Truth', volume: 200, addedAt: new Date(), isFavorite: false, tags: [] },
+
+  // GARNISHES - All types
+  { id: '35', name: 'Lemons', category: 'garnish', subcategory: 'citrus', addedAt: new Date(), isFavorite: false, tags: [] },
+  { id: '36', name: 'Limes', category: 'garnish', subcategory: 'citrus', addedAt: new Date(), isFavorite: false, tags: [] },
+  { id: '37', name: 'Oranges', category: 'garnish', subcategory: 'citrus', addedAt: new Date(), isFavorite: false, tags: [] },
+  { id: '38', name: 'Maraschino Cherries', category: 'garnish', subcategory: 'cherry', brand: 'Luxardo', addedAt: new Date(), isFavorite: true, tags: [] },
+  { id: '39', name: 'Green Olives', category: 'garnish', subcategory: 'olive', brand: 'Castelvetrano', addedAt: new Date(), isFavorite: false, tags: [] },
+  { id: '40', name: 'Fresh Mint', category: 'garnish', subcategory: 'herbs', addedAt: new Date(), isFavorite: false, tags: [] },
+  { id: '41', name: 'Fresh Basil', category: 'garnish', subcategory: 'herbs', addedAt: new Date(), isFavorite: false, tags: [] },
+  { id: '42', name: 'Rosemary', category: 'garnish', subcategory: 'herbs', addedAt: new Date(), isFavorite: false, tags: [] },
+  { id: '43', name: 'Cucumber', category: 'garnish', subcategory: 'vegetables', addedAt: new Date(), isFavorite: false, tags: [] },
+  { id: '44', name: 'Celery Stalks', category: 'garnish', subcategory: 'vegetables', addedAt: new Date(), isFavorite: false, tags: [] },
+
+  // INGREDIENTS - Misc
+  { id: '45', name: 'Egg Whites', category: 'ingredient', subcategory: 'eggs', addedAt: new Date(), isFavorite: false, tags: [] },
+  { id: '46', name: 'Sugar', category: 'ingredient', subcategory: 'sweetener', addedAt: new Date(), isFavorite: false, tags: [] },
+  { id: '47', name: 'Salt', category: 'ingredient', subcategory: 'seasoning', addedAt: new Date(), isFavorite: false, tags: [] },
+  { id: '48', name: 'Black Pepper', category: 'ingredient', subcategory: 'spice', addedAt: new Date(), isFavorite: false, tags: [] },
+  { id: '49', name: 'Hot Sauce', category: 'ingredient', subcategory: 'condiment', brand: 'Tabasco', addedAt: new Date(), isFavorite: false, tags: [] },
+  { id: '50', name: 'Worcestershire Sauce', category: 'ingredient', subcategory: 'condiment', brand: 'Lea & Perrins', addedAt: new Date(), isFavorite: false, tags: [] },
+];
+
+/**
  * Home Bar Service
  * Manages user's home bar inventory and provides cocktail suggestions
  */
@@ -96,6 +165,19 @@ export class HomeBarService {
       await AsyncStorage.default.removeItem(this.STORAGE_KEY);
     } catch (error) {
       log.error('HomeBarService', 'Failed to clear stored ingredients', error);
+    }
+  }
+
+  /**
+   * Load comprehensive mock inventory (for testing all icon variations)
+   */
+  static async loadComprehensiveMockInventory(): Promise<void> {
+    try {
+      const AsyncStorage = await import('@react-native-async-storage/async-storage');
+      await AsyncStorage.default.setItem(this.STORAGE_KEY, JSON.stringify(COMPREHENSIVE_MOCK_INVENTORY));
+      log.info('HomeBarService', 'Comprehensive mock inventory loaded', { count: COMPREHENSIVE_MOCK_INVENTORY.length });
+    } catch (error) {
+      log.error('HomeBarService', 'Failed to load comprehensive mock inventory', error);
     }
   }
 

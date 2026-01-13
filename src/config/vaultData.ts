@@ -173,16 +173,17 @@ const techniquePlaybooks: VaultItem[] = [
 
 const barFeatures: VaultItem[] = [
   {
-    id: 'bar_attaboy_nyc',
+    id: 'bar_untitled_champagne_lounge',
     category: 'BAR_FEATURE' as const,
-    title: 'Attaboy',
-    description: 'Intimate speakeasy on NYC\'s Lower East Side.',
-    barName: 'Attaboy',
-    city: 'New York City',
-    vibeDescription: 'No menu, just conversation and classics done right.',
-    signatureCocktailName: 'Bartender\'s Choice',
-    xpCost: 1500,
-    moneyPriceCents: 399,
+    title: 'Untitled Champagne Lounge',
+    description: 'Luxury champagne experience in Downtown Calgary.',
+    barName: 'Untitled Champagne Lounge',
+    city: 'Calgary',
+    vibeDescription: 'Sophisticated luxury with premium champagne, caviar pairings, and live piano jazz with Rocky Mountain views.',
+    signatureCocktailName: 'Golden Bubbles',
+    thumbnailKey: 'depth_frame_header_24', // Uses bar tab thumbnail
+    xpCost: 1200,
+    moneyPriceCents: 499,
     unlockMethod: 'XP_OR_MONEY' as const,
     requiresTier: 'PLUS' as const,
   },
@@ -195,11 +196,27 @@ const barFeatures: VaultItem[] = [
     city: 'New York City',
     vibeDescription: 'Late-night energy, bartenders in white coats, serious cocktails.',
     signatureCocktailName: 'Ginger Smash',
+    thumbnailKey: 'the_iron_flask', // Speakeasy vibe
     xpCost: 1400,
     moneyPriceCents: 399,
     unlockMethod: 'XP_OR_MONEY' as const,
     requiresTier: 'PLUS' as const,
     hasProEarlyAccess: true,
+  },
+  {
+    id: 'bar_attaboy_nyc',
+    category: 'BAR_FEATURE' as const,
+    title: 'Attaboy',
+    description: 'Intimate speakeasy on NYC\'s Lower East Side.',
+    barName: 'Attaboy',
+    city: 'New York City',
+    vibeDescription: 'No menu, just conversation and classics done right.',
+    signatureCocktailName: 'Bartender\'s Choice',
+    thumbnailKey: 'the_velvet_curtain', // Intimate atmosphere
+    xpCost: 1500,
+    moneyPriceCents: 399,
+    unlockMethod: 'XP_OR_MONEY' as const,
+    requiresTier: 'PLUS' as const,
   },
   {
     id: 'bar_bar_raval_toronto',
@@ -210,6 +227,7 @@ const barFeatures: VaultItem[] = [
     city: 'Toronto',
     vibeDescription: 'Standing room only, Gaudí-esque interiors, vermut hour.',
     signatureCocktailName: 'Gin & Tonic with Spanish botanicals',
+    thumbnailKey: 'the_gilded_lily', // Elegant architecture
     xpCost: 1300,
     unlockMethod: 'KEY_OR_XP' as const,
     requiresTier: 'PRO' as const,

@@ -21,8 +21,9 @@ import {
   mockUserVaultProfile,
   getActiveVaultItems,
   getFeaturedVaultItems,
-  canUserUnlockItem 
+  canUserUnlockItem
 } from '../data/vaultData';
+import { useAuth } from './AuthContext';
 
 interface VaultState {
   // User economy
@@ -274,16 +275,27 @@ function vaultReducer(state: VaultState, action: VaultAction): VaultState {
 
 export function VaultProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(vaultReducer, initialState);
-  
+  const { user } = useAuth();
+
   // Auto-calculate cart totals when items change
   useEffect(() => {
     dispatch({ type: 'CALCULATE_CART_TOTALS' });
   }, [state.cart.items]);
-  
-  // Initialize vault data on mount
+
+  // Initialize vault data when user is available
   useEffect(() => {
-    refreshVaultData();
-  }, []);
+    if (user?.id) {
+      // Update cart userId with actual user ID
+      dispatch({
+        type: 'SET_USER_PROFILE',
+        payload: {
+          ...state.userProfile,
+          userId: user.id
+        }
+      });
+      refreshVaultData();
+    }
+  }, [user?.id]);
   
   // ================== VAULT UNLOCK FUNCTIONS ==================
   
@@ -435,21 +447,23 @@ export function VaultProvider({ children }: { children: ReactNode }) {
   
   const refreshVaultData = async (): Promise<void> => {
     dispatch({ type: 'SET_LOADING', payload: true });
-    
+
     try {
       // Load vault items
       const activeItems = getActiveVaultItems();
       dispatch({ type: 'SET_VAULT_ITEMS', payload: activeItems });
-      
+
       // Load monetization items
       dispatch({ type: 'SET_MONETIZATION_ITEMS', payload: monetizationItems });
-      
-      // Refresh user profile
-      const userProfile = await vaultService.getUserVaultProfile(state.userProfile.userId);
-      if (userProfile) {
-        dispatch({ type: 'SET_USER_PROFILE', payload: userProfile });
-      }
 
+      // Refresh user profile only if we have a valid user ID
+      const userId = user?.id || state.userProfile.userId;
+      if (userId && userId !== 'user_12345') {
+        const userProfile = await vaultService.getUserVaultProfile(userId);
+        if (userProfile) {
+          dispatch({ type: 'SET_USER_PROFILE', payload: userProfile });
+        }
+      }
 
     } catch (error) {
       log.error('VaultContext', 'Failed to refresh vault data', error);

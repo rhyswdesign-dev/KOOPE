@@ -153,6 +153,61 @@ export default function VaultStoreScreen() {
       ];
     }
 
+    // For bar features category, show purchasable bar experiences
+    if (selectedCategory === 'bar_features') {
+      return [
+        {
+          id: 'untitled-champagne-lounge',
+          name: 'Untitled Champagne Lounge',
+          description: 'Experience NYC\'s premier champagne bar with exclusive recipes & insider tips',
+          type: 'pass' as any,
+          price: 499, // $4.99
+          inStock: true,
+          barFeature: {
+            location: 'New York City',
+            signatureCocktails: ['French 75', 'Champagne Cocktail', 'Kir Royale'],
+            brief: 'Discover the art of champagne cocktails at one of NYC\'s most exclusive lounges',
+            debrief: 'Learn the secrets behind crafting perfect champagne-based cocktails',
+            atmosphere: 'Elegant & Sophisticated',
+            priceRange: '$$$'
+          }
+        },
+        {
+          id: 'the-dead-rabbit',
+          name: 'The Dead Rabbit',
+          description: 'World\'s best bar - Irish pub meets cocktail excellence',
+          type: 'pass' as any,
+          price: 599, // $5.99
+          inStock: true,
+          popular: true,
+          barFeature: {
+            location: 'New York City',
+            signatureCocktails: ['Irish Coffee', 'Whiskey Smash', 'Emerald Isle'],
+            brief: 'Explore award-winning Irish-American cocktail culture',
+            debrief: 'Master traditional Irish drinks with modern twists',
+            atmosphere: 'Historic & Lively',
+            priceRange: '$$'
+          }
+        },
+        {
+          id: 'attaboy',
+          name: 'Attaboy',
+          description: 'Secret speakeasy with legendary bartenders',
+          type: 'pass' as any,
+          price: 699, // $6.99
+          inStock: true,
+          barFeature: {
+            location: 'New York City',
+            signatureCocktails: ['Martinez', 'Old Fashioned', 'Boulevardier'],
+            brief: 'Uncover speakeasy secrets from world-class mixologists',
+            debrief: 'Learn classic cocktails from the masters',
+            atmosphere: 'Intimate & Classic',
+            priceRange: '$$$'
+          }
+        }
+      ];
+    }
+
     // For bundles category, show attractive bundle packages
     if (selectedCategory === 'bundles') {
       return [
@@ -281,6 +336,7 @@ export default function VaultStoreScreen() {
     { key: 'hearts', label: 'Hearts' },
     { key: 'boosters', label: 'Boosters' },
     { key: 'ai_credits', label: 'AI Credits' },
+    { key: 'bar_features', label: 'Bar Features' },
     { key: 'bundles', label: 'Bundles' },
   ];
 

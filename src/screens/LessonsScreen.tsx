@@ -22,6 +22,9 @@ import { log } from '../lib/logger';
 import XPBalanceModal from '../components/XPBalanceModal';
 import RecipeUnlockCard from '../components/RecipeUnlockCard';
 import { EARNABLE_RECIPES } from '../config/recipeUnlocks';
+import FeatureTooltipOverlay from '../components/FeatureTooltipOverlay';
+import { useFeatureTooltip } from '../hooks/useFeatureTooltip';
+import { TOOLTIP_CONFIGS } from '../config/tooltipContent';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -836,12 +839,12 @@ export default function LessonsScreen() {
   const layout = useWindowDimensions();
   const { lives, xp, level, streak } = useUser();
   const navigation = useNavigation<NavigationProp>();
+  const { showTooltip, dismissTooltip } = useFeatureTooltip('lessons');
 
   const [index, setIndex] = useState(0);
   const [routes] = useState([
     { key: 'lessons', title: 'Lessons' },
     { key: 'challenges', title: 'Challenges' },
-    { key: 'challenges2', title: 'Challenge 2' },
   ]);
 
   const handleHeartsPress = () => {
@@ -857,7 +860,6 @@ export default function LessonsScreen() {
   const renderScene = SceneMap({
     lessons: LessonsView,
     challenges: ChallengesView,
-    challenges2: Challenges2View,
   });
 
   const renderTabBar = (props: any) => (
@@ -886,6 +888,31 @@ export default function LessonsScreen() {
         onIndexChange={setIndex}
         initialLayout={{ width: layout.width }}
         renderTabBar={renderTabBar}
+      />
+
+      {/* Educational Tooltip Overlay */}
+      <FeatureTooltipOverlay
+        visible={showTooltip}
+        onDismiss={dismissTooltip}
+        title={TOOLTIP_CONFIGS.lessons.title}
+        steps={TOOLTIP_CONFIGS.lessons.steps}
+        arrows={[
+          {
+            from: { x: layout.width / 2, y: layout.height * 0.5 },
+            to: { x: layout.width - 60, y: 100 },
+            label: '❤️ Lives'
+          },
+          {
+            from: { x: layout.width / 2 - 60, y: layout.height * 0.5 },
+            to: { x: layout.width / 2 + 20, y: 100 },
+            label: '🔥 Streak'
+          },
+          {
+            from: { x: layout.width / 2 + 80, y: layout.height * 0.5 },
+            to: { x: layout.width - 20, y: 100 },
+            label: '👤 Profile'
+          },
+        ]}
       />
     </SafeAreaView>
   );
@@ -1189,8 +1216,8 @@ const styles = StyleSheet.create({
     borderRadius: radii.lg,
     borderWidth: 1,
     borderColor: colors.line,
-    padding: spacing(2.5),
-    marginBottom: spacing(2),
+    padding: spacing(1.5),
+    marginBottom: spacing(1.5),
     flexDirection: 'row',
     alignItems: 'center',
   },
@@ -1208,42 +1235,42 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: spacing(1),
+    marginBottom: spacing(0.5),
   },
 
   challengeTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '700',
     color: colors.text,
     flex: 1,
   },
 
   challengeDifficulty: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '600',
     color: colors.accent,
     backgroundColor: 'rgba(139, 103, 67, 0.15)',
-    paddingHorizontal: spacing(1),
-    paddingVertical: spacing(0.5),
+    paddingHorizontal: spacing(0.75),
+    paddingVertical: spacing(0.4),
     borderRadius: radii.sm,
     marginLeft: spacing(1),
   },
 
   challengeDescription: {
-    fontSize: 14,
+    fontSize: 13,
     color: colors.subtext,
-    marginBottom: spacing(1),
-    lineHeight: 20,
+    marginBottom: spacing(0.5),
+    lineHeight: 18,
   },
 
   challengeReward: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
     color: colors.accent,
   },
 
   challengeStatus: {
-    marginLeft: spacing(2),
+    marginLeft: spacing(1.5),
   },
 
   completedText: {

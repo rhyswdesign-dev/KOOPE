@@ -27,6 +27,7 @@ import {
   TechniquePlaybookType,
 } from '../../config/vaultContent';
 import { RootStackParamList } from '../../navigation/RootNavigator';
+import { BAR_IMAGES, BAR_PAGE_HEADERS } from '../../data/barImages';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'VaultCategory'>;
 
@@ -54,6 +55,27 @@ const PLAYBOOK_TYPE_IMAGES: Record<TechniquePlaybookType, string> = {
   ACID_CONTROL: PLACEHOLDER_IMAGES.acid,
   BATCH_MATH: PLACEHOLDER_IMAGES.batch,
   SPEED_SYSTEM: PLACEHOLDER_IMAGES.speed,
+};
+
+// Helper function to get bar thumbnail from thumbnailKey
+const getBarThumbnail = (thumbnailKey?: string) => {
+  if (!thumbnailKey) {
+    return { uri: PLACEHOLDER_IMAGES.bar };
+  }
+
+  // Check if it's a BAR_IMAGES key (pill button images)
+  if (thumbnailKey in BAR_IMAGES) {
+    return BAR_IMAGES[thumbnailKey as keyof typeof BAR_IMAGES];
+  }
+
+  // Check if it's a BAR_PAGE_HEADERS key (page header images)
+  if (thumbnailKey in BAR_PAGE_HEADERS) {
+    return BAR_PAGE_HEADERS[thumbnailKey as keyof typeof BAR_PAGE_HEADERS];
+  }
+
+  // Fallback to placeholder
+  console.warn('Bar thumbnail not found for key:', thumbnailKey);
+  return { uri: PLACEHOLDER_IMAGES.bar };
 };
 
 export default function VaultCategoryScreen({ navigation, route }: Props) {
@@ -176,13 +198,32 @@ export default function VaultCategoryScreen({ navigation, route }: Props) {
   const renderBarSection = () => {
     const bars = getBarFeaturesForDisplay();
 
+    const handleBarPress = (barId: string) => {
+      // Navigate to specific bar detail screen based on bar ID
+      if (barId === 'bar_untitled_champagne_lounge') {
+        navigation.navigate('UntitledLounge');
+      } else if (barId === 'bar_employees_only') {
+        // Could navigate to Employees Only screen if it exists
+        // For now, just log
+        console.log('Navigate to Employees Only');
+      } else {
+        // Generic navigation or show a message
+        console.log('Navigate to bar:', barId);
+      }
+    };
+
     return (
       <View style={styles.content}>
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Featured Bars</Text>
 
           {bars.map((bar) => (
-            <TouchableOpacity key={bar.id} style={styles.itemCard} activeOpacity={0.7}>
+            <TouchableOpacity
+              key={bar.id}
+              style={styles.itemCard}
+              activeOpacity={0.7}
+              onPress={() => handleBarPress(bar.id)}
+            >
               <View style={styles.itemInfo}>
                 <Text style={styles.itemXP}>{bar.xpCost} XP</Text>
                 <Text style={styles.itemTitle}>{bar.barName}</Text>
@@ -191,7 +232,7 @@ export default function VaultCategoryScreen({ navigation, route }: Props) {
                 </Text>
               </View>
               <Image
-                source={{ uri: PLACEHOLDER_IMAGES.bar }}
+                source={getBarThumbnail(bar.thumbnailKey)}
                 style={styles.itemThumbnail}
                 resizeMode="cover"
               />

@@ -5,7 +5,6 @@ import {
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, radii, fonts, standardText, buttons } from '../theme/tokens';
-import PillButton from '../components/PillButton';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { getBrandsByTier, getRandomizedBrandsByCategory } from '../data/brands';
@@ -21,15 +20,7 @@ import { FEATURED_SPIRIT_IMAGES } from '../data/barImages';
 import { getCocktailImage } from '../../assets/images/cocktails';
 import { getCocktailsOfTheWeek } from '../utils/weeklyRotation';
 import { log } from '../lib/logger';
-
-const chips: Array<{ key: string; label: string }> = [
-  { key: 'Home', label: 'Home' },
-  { key: 'Spirits', label: 'Spirits' },
-  { key: 'NonAlcoholic', label: 'Non-Alcoholic' },
-  { key: 'Bars',    label: 'Bars'    },
-  { key: 'Events',  label: 'Events'  },
-  { key: 'Games',   label: 'Games'   },
-];
+import { useUserTier } from '../store/useUserTier';
 
 // Get gold tier spirits from all categories but use uploaded images
 const goldSpirits = [
@@ -73,14 +64,7 @@ const goldBars = [
   }
 ];
 
-const games = [
-  { id: 'kings-cup', title:"King's Cup", difficulty:'Easy',
-    img:'https://images.unsplash.com/photo-1606092195730-5d7b9af1efc5?auto=format&fit=crop&w=880&q=60' },
-  { id: 'mixmaster-challenge', title:'MixMaster Challenge', difficulty:'Medium',
-    img:'https://images.unsplash.com/photo-1618221118493-9cfa1a0f3f4e?auto=format&fit=crop&w=880&q=60' },
-  { id: 'speedy-sips', title:'Speedy Sips', difficulty:'Easy',
-    img:'https://images.unsplash.com/photo-1582719478250-c89cae4dc84a?auto=format&fit=crop&w=880&q=60' },
-];
+// Drinking games moved to Vault
 
 // Get cocktails of the week (automatically rotates weekly with randomized order)
 // All classic cocktails get a spotlight in rotation
@@ -99,11 +83,11 @@ const videos = [
 
 export default function FeaturedScreen() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const [active, setActive] = React.useState<string>('Home');
   const { toggleSavedCocktail, isCocktailSaved } = useSavedItems();
   const { toggleFollow, isFollowing } = useSocialData();
-  const scrollViewRef = useRef<ScrollView>(null);
-  
+  const mainScrollRef = useRef<ScrollView>(null);
+  const { tier } = useUserTier();
+
   // Track screen view
   useScreenTracking('FeaturedScreen');
 
@@ -148,14 +132,6 @@ export default function FeaturedScreen() {
     log.info('FeaturedScreen', 'Competition entry created', { entryId });
     // Could navigate to the entry or competitions section
   };
-  const mainScrollRef = useRef<ScrollView>(null);
-
-  // Ensure Home button is highlighted when screen comes into focus
-  useFocusEffect(
-    React.useCallback(() => {
-      setActive('Home');
-    }, [])
-  );
 
   useLayoutEffect(() => {
     nav.setOptions({
@@ -167,61 +143,12 @@ export default function FeaturedScreen() {
       headerLeft: () => null,
       headerRight: () => null,
     });
-  }, [nav, active]);
-
-  const goto = (key: string) => {
-    if (key === 'Home') {
-      // Stay on this screen, keep Home highlighted, and reset scroll position
-      setActive('Home');
-      scrollViewRef.current?.scrollTo({ x: 0, animated: true });
-      mainScrollRef.current?.scrollTo({ y: 0, animated: true });
-      return;
-    }
-    
-    // Clear highlighting when navigating away
-    setActive('');
-    
-    // Navigate to individual screens like before
-    try {
-      if (key === 'Spirits') {
-        nav.navigate('Spirits' as never);
-      } else if (key === 'Bars') {
-        nav.navigate('Bars' as never);  
-      } else if (key === 'Events') {
-        nav.navigate('Events' as never);
-      } else if (key === 'Games') {
-        nav.navigate('Games' as never);
-      } else if (key === 'Vault') {
-        nav.navigate('Vault' as never);
-      } else if (key === 'NonAlcoholic') {
-        nav.navigate('NonAlcoholic');
-      }
-    } catch (error) {
-      // Silently handle navigation errors for non-existent screens
-    }
-  };
+  }, [nav]);
 
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScrollView ref={mainScrollRef} style={styles.container} contentContainerStyle={{ paddingBottom: spacing(4) }}>
-      {/* Chips - scrollable horizontal */}
-      <ScrollView ref={scrollViewRef} horizontal showsHorizontalScrollIndicator={false} style={styles.chipsContainer} contentContainerStyle={styles.chipsRow}>
-        {chips.map(c => {
-          const isActive = active === c.key;
-          return (
-            <PillButton
-              key={c.key}
-              title={c.label}
-              onPress={() => goto(c.key)}
-              style={!isActive ? { backgroundColor: 'transparent', borderWidth: 1, borderColor: colors.line } : undefined}
-              textStyle={!isActive ? { color: colors.text } : undefined}
-            />
-          )
-        })}
-      </ScrollView>
-
-
       {/* Featured Content */}
 
       <Section title="Brand Partnerships">
@@ -283,8 +210,7 @@ export default function FeaturedScreen() {
         </ScrollView>
       </Section>
 
-
-
+      {/* Drinking Games moved to Vault */}
 
       <Section title="Bartending Hack Videos">
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: spacing(2), paddingHorizontal: spacing(2) }}>
@@ -414,17 +340,6 @@ function ToolPromo({ title, subtitle, cta, onPress }:{
 const styles = StyleSheet.create({
   container:{ flex:1, backgroundColor:colors.bg },
 
-  // Scrollable chips container  
-  chipsContainer: {
-    paddingTop: spacing(2),
-    paddingBottom: spacing(1),
-  },
-  chipsRow: {
-    flexDirection: 'row',
-    paddingHorizontal: spacing(2),
-    gap: spacing(1),
-  },
-
   section:{ paddingHorizontal:spacing(2), marginTop:spacing(2) },
   sectionTitle:{ color:colors.text, fontSize:fonts.h2, fontWeight:'800' },
 
@@ -465,8 +380,38 @@ const styles = StyleSheet.create({
   eventSubtitle:{ color:colors.muted, marginTop:2 },
 
   grid2:{ flexDirection:'row', flexWrap:'wrap', gap:spacing(2) },
-  gameCard:{ width:220 },
+  gameCard:{ width:220, position: 'relative' },
   gameImage:{ width:220, height:140, borderRadius:radii.lg, marginBottom:spacing(1) },
+  gameInfo: {
+    gap: spacing(0.5),
+  },
+  lockedCard: {
+    opacity: 0.8,
+  },
+  lockedImage: {
+    opacity: 0.4,
+  },
+  lockedText: {
+    opacity: 0.6,
+  },
+  lockOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 40,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: radii.lg,
+    gap: spacing(1),
+  },
+  lockText: {
+    color: colors.gold,
+    fontSize: fonts.small,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+  },
 
   videoCard:{ width:220 },
   videoImage:{ width:220, height:140, borderRadius:radii.lg, marginBottom:spacing(1) },

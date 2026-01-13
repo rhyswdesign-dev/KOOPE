@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
-  View, Text, Pressable, StyleSheet, Dimensions
+  View, Text, Pressable, StyleSheet, Dimensions, InteractionManager
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -12,7 +12,6 @@ import Animated, {
   useAnimatedStyle,
   withSpring,
 } from 'react-native-reanimated';
-import { useEffect } from 'react';
 import { colors, spacing, radii, textStyles } from '../theme/tokens';
 const { width } = Dimensions.get('window');
 
@@ -64,11 +63,18 @@ function BartendingIllustration() {
 }
 
 export default function BartendingWelcomeScreen({ onComplete }: BartendingWelcomeScreenProps) {
+  const handleComplete = () => {
+    // Defer navigation until after animations complete
+    InteractionManager.runAfterInteractions(() => {
+      onComplete();
+    });
+  };
+
   return (
     <View style={styles.container}>
       <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
         {/* Illustration */}
-        <Animated.View 
+        <Animated.View
           entering={SlideInRight.delay(100).springify()}
           style={styles.iconContainer}
         >
@@ -77,14 +83,14 @@ export default function BartendingWelcomeScreen({ onComplete }: BartendingWelcom
 
         {/* Content */}
         <View style={styles.content}>
-          <Animated.Text 
+          <Animated.Text
             entering={FadeInUp.delay(200).springify()}
             style={styles.title}
           >
             Learn Bartending at Your Own Pace
           </Animated.Text>
-          
-          <Animated.Text 
+
+          <Animated.Text
             entering={FadeInUp.delay(300).springify()}
             style={styles.subtitle}
           >
@@ -92,13 +98,13 @@ export default function BartendingWelcomeScreen({ onComplete }: BartendingWelcom
           </Animated.Text>
 
           {/* Bullet points */}
-          <Animated.View 
+          <Animated.View
             entering={FadeInDown.delay(400).springify()}
             style={styles.bulletContainer}
           >
             {[
               "Learn when it's convenient for you - no rush, no pressure",
-              "Practice bartending skills in your familiar space", 
+              "Practice bartending skills in your familiar space",
               "Follow detailed tutorials designed for beginners",
               "Build confidence as you master each technique"
             ].map((bullet, index) => (
@@ -116,8 +122,11 @@ export default function BartendingWelcomeScreen({ onComplete }: BartendingWelcom
           {/* CTA Button */}
           <Animated.View entering={FadeInUp.delay(900).springify()}>
             <Pressable
-              onPress={onComplete}
-              style={styles.continueButton}
+              onPress={handleComplete}
+              style={({ pressed }) => [
+                styles.continueButton,
+                pressed && styles.continueButtonPressed
+              ]}
             >
               <Text style={styles.continueText}>Start Learning</Text>
             </Pressable>
@@ -273,6 +282,10 @@ const styles = StyleSheet.create({
     minWidth: 200,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  continueButtonPressed: {
+    opacity: 0.8,
+    transform: [{ scale: 0.98 }],
   },
   continueText: {
     color: colors.goldText,

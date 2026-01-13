@@ -133,8 +133,7 @@ const UntitledLoungeScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <ScrollView 
-        contentContainerStyle={styles.scrollContent}
+      <ScrollView
         showsVerticalScrollIndicator={false}
       >
         {/* Hero Section */}
@@ -303,27 +302,7 @@ const UntitledLoungeScreen: React.FC = () => {
           </Section>
         )}
 
-        {/* Bottom spacing for sticky bar */}
-        <View style={styles.bottomSpacing} />
       </ScrollView>
-
-      {/* Sticky Bottom CTA Bar */}
-      <SafeAreaView style={styles.stickyBar}>
-        <View style={styles.ctaContainer}>
-          <PillButton 
-            title="Buy Now"
-            onPress={() => {}}
-            variant="primary"
-            style={styles.ctaButton}
-          />
-          <PillButton 
-            title="Find Near You"
-            onPress={() => {}}
-            variant="outline"
-            style={styles.ctaButton}
-          />
-        </View>
-      </SafeAreaView>
     </View>
   );
 };
@@ -343,9 +322,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: colors.white,
     fontWeight: '600',
-  },
-  scrollContent: {
-    paddingBottom: 100, // Account for sticky bar
   },
 
   // Hero
@@ -514,29 +490,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.accent,
     fontWeight: '600',
-  },
-
-  // Sticky Bar
-  stickyBar: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: colors.card,
-    borderTopWidth: 1,
-    borderTopColor: colors.line,
-  },
-  ctaContainer: {
-    flexDirection: 'row',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    gap: 12,
-  },
-  ctaButton: {
-    flex: 1,
-  },
-  bottomSpacing: {
-    height: 24,
   },
 });
 

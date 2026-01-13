@@ -3,15 +3,15 @@
  *
  * Manages the onboarding flow for new users. The flow is:
  * 1. Splash screen
- * 2. Bartending Welcome screen ("Learn Bartending at Your Own Pace")
- * 3. Welcome Carousel (app features overview)
- * 4. Auth/Account Setup screen (can be skipped)
- * 5. Survey screen (taste preferences)
- * 6. Main app
+ * 2. Welcome Carousel (starts with "Welcome to KŌOPE")
+ * 3. Auth/Account Setup screen (can be skipped)
+ * 4. Bartending Welcome screen ("Learn Bartending at Your Own Pace")
+ * 5. Main app (survey is now optional and triggered on 2nd+ app open)
  *
  * For returning users (who have completed onboarding before):
  * - Skips all onboarding screens after splash
  * - Goes directly to main app
+ * - May see survey prompt modal if they haven't completed it yet
  *
  * Onboarding completion is stored in AsyncStorage and persists across app restarts.
  */
@@ -70,10 +70,10 @@ export function useSimpleOnboarding() {
         log.info('useSimpleOnboarding', 'Returning user detected, skipping onboarding');
         setAppState('main');
       } else {
-        // New user - start onboarding flow
+        // New user - start onboarding flow with Welcome Carousel first
         log.info('useSimpleOnboarding', 'New user detected, starting onboarding');
         trackEvent(ANALYTICS_EVENTS.ONBOARDING_STARTED);
-        setAppState('bartending_welcome');
+        setAppState('welcome');
       }
     } catch (error) {
       log.warn('useSimpleOnboarding', 'Error checking onboarding status', { error });
@@ -82,31 +82,41 @@ export function useSimpleOnboarding() {
     }
   };
 
-  const completeBartendingWelcome = () => {
-    // After bartending welcome, show welcome carousel
-    trackEvent(ANALYTICS_EVENTS.ONBOARDING_STEP_COMPLETED, {
-      [ANALYTICS_PROPS.STEP_NUMBER]: 1,
-      [ANALYTICS_PROPS.STEP_NAME]: 'bartending_welcome',
-    });
-    setAppState('welcome');
-  };
-
   const completeWelcome = () => {
     // After welcome carousel, show account setup
     trackEvent(ANALYTICS_EVENTS.ONBOARDING_STEP_COMPLETED, {
-      [ANALYTICS_PROPS.STEP_NUMBER]: 2,
+      [ANALYTICS_PROPS.STEP_NUMBER]: 1,
       [ANALYTICS_PROPS.STEP_NAME]: 'welcome_carousel',
     });
     setAppState('onboarding');
   };
 
   const completeOnboarding = () => {
-    // After account setup, show survey
+    // After account setup, show bartending welcome
     trackEvent(ANALYTICS_EVENTS.ONBOARDING_STEP_COMPLETED, {
-      [ANALYTICS_PROPS.STEP_NUMBER]: 3,
+      [ANALYTICS_PROPS.STEP_NUMBER]: 2,
       [ANALYTICS_PROPS.STEP_NAME]: 'account_setup',
     });
-    setAppState('survey');
+    setAppState('bartending_welcome');
+  };
+
+  const completeBartendingWelcome = async () => {
+    // After bartending welcome, go to main app (survey deferred)
+    trackEvent(ANALYTICS_EVENTS.ONBOARDING_STEP_COMPLETED, {
+      [ANALYTICS_PROPS.STEP_NUMBER]: 3,
+      [ANALYTICS_PROPS.STEP_NAME]: 'bartending_welcome',
+    });
+
+    try {
+      // Mark onboarding as completed
+      await AsyncStorage.setItem(ONBOARDING_COMPLETED_KEY, 'true');
+      log.info('useSimpleOnboarding', 'Onboarding completed and saved (survey deferred)');
+      trackEvent(ANALYTICS_EVENTS.ONBOARDING_COMPLETED);
+    } catch (error) {
+      log.warn('useSimpleOnboarding', 'Error saving onboarding completion status', { error });
+    }
+
+    setAppState('main');
   };
 
   const completeSurvey = async () => {
@@ -132,8 +142,17 @@ export function useSimpleOnboarding() {
   };
 
   const completeXPReminder = async () => {
-    // After XP reminder, show survey (no need to save onboarding completion here as survey will do it)
-    setAppState('survey');
+    // After XP reminder, go directly to main app (skip survey)
+    // Survey will be prompted later as an XP-earning opportunity
+    try {
+      await AsyncStorage.setItem(ONBOARDING_COMPLETED_KEY, 'true');
+      log.info('useSimpleOnboarding', 'Onboarding completed after XP reminder (survey deferred)');
+      trackEvent(ANALYTICS_EVENTS.ONBOARDING_COMPLETED);
+    } catch (error) {
+      log.warn('useSimpleOnboarding', 'Error saving onboarding completion status', { error });
+    }
+
+    setAppState('main');
   };
 
   const goBackToOnboarding = () => {

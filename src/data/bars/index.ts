@@ -473,19 +473,19 @@ export const BARS: Record<string, BarContent> = {
     name: 'Untitled Champagne Lounge',
     hero: {
       image: 'https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?q=80&w=1200&auto=format&fit=crop',
-      location: 'Financial District, Toronto',
+      location: 'Downtown, Calgary',
       xpReward: 300,
     },
     location: {
-      latitude: 43.6481,
-      longitude: -79.3821,
+      latitude: 51.0447,
+      longitude: -114.0719,
       name: 'Untitled Champagne Lounge',
-      address: '222 Bay St',
-      city: 'Toronto',
-      state: 'ON',
-      zipCode: 'M5K 1B5',
+      address: '888 8th Ave SW',
+      city: 'Calgary',
+      state: 'AB',
+      zipCode: 'T2P 1H2',
       country: 'Canada',
-      phone: '+1 (416) 555-0888',
+      phone: '+1 (403) 555-0888',
       website: 'https://untitledchampagne.ca'
     },
     quickInfo: {
@@ -522,8 +522,8 @@ export const BARS: Record<string, BarContent> = {
       },
       {
         image: 'https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?q=80&w=800&auto=format&fit=crop',
-        name: 'Toronto Tower',
-        tagline: 'Perrier-Jouët, maple, city lights',
+        name: 'Calgary Tower',
+        tagline: 'Perrier-Jouët, maple, mountain views',
         price: '$40'
       }
     ],
@@ -532,19 +532,19 @@ export const BARS: Record<string, BarContent> = {
         title: 'Champagne Masterclass with Sommelier',
         dateISO: '2024-09-21T18:00:00.000Z',
         time: '6:00 PM',
-        city: 'Toronto'
+        city: 'Calgary'
       },
       {
         title: 'Live Jazz & Champagne Evening',
         dateISO: '2024-09-26T20:00:00.000Z',
         time: '8:00 PM',
-        city: 'Toronto'
+        city: 'Calgary'
       },
       {
         title: 'Caviar & Champagne Tasting',
         dateISO: '2024-09-30T19:00:00.000Z',
         time: '7:00 PM',
-        city: 'Toronto'
+        city: 'Calgary'
       }
     ],
     challenge: {

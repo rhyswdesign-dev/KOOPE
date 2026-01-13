@@ -107,14 +107,35 @@ export async function getUserVaultProfile(userId: string): Promise<UserVaultProf
  */
 export async function createUserVaultProfile(userId: string): Promise<UserVaultProfile> {
   try {
-    const { data, error } = await supabase.rpc('create_user_vault_profile_rpc', {
-      p_user_id: userId
-    });
+    // Direct insert as fallback - RPC function may not exist
+    const now = new Date().toISOString();
+    const { data, error } = await supabase
+      .from('user_vault_profiles')
+      .insert({
+        user_id: userId,
+        xp_balance: 0,
+        keys_balance: 0,
+        vault_cash_balance: 0,
+        total_xp_earned: 0,
+        total_xp_spent: 0,
+        total_keys_earned: 0,
+        total_keys_spent: 0,
+        total_cash_spent: 0,
+        unlocked_items: [],
+        created_at: now,
+        updated_at: now,
+      })
+      .select()
+      .single();
 
-    if (error) throw error;
-    if (!data) throw new Error('No data returned from RPC');
+    if (error) {
+      log.error('VaultTransactionRepo', 'Failed to create vault profile', error);
+      throw error;
+    }
 
-    const row = data as any;
+    if (!data) throw new Error('No data returned from insert');
+
+    const row = data as VaultProfileRow;
     return {
       userId: row.user_id,
       xpBalance: row.xp_balance || 0,
@@ -230,12 +251,13 @@ export async function addUnlockedItem(userId: string, unlockedItem: UnlockedVaul
  */
 export async function logVaultTransaction(params: {
   userId: string;
+  transactionType?: 'unlock' | 'purchase_keys' | 'refund';
   itemId: string;
-  itemName: string;
+  itemName?: string;
   cycleId?: string;
-  xpSpent: number;
-  keysSpent: number;
-  cashSpent?: number;
+  xpCost?: number;
+  keysCost?: number;
+  cashCost?: number;
   stripePaymentIntentId?: string;
   shippingAddress?: any;
 }): Promise<string> {
@@ -244,15 +266,15 @@ export async function logVaultTransaction(params: {
       .from('vault_transactions')
       .insert({
         user_id: params.userId,
-        transaction_type: 'unlock',
+        transaction_type: params.transactionType || 'unlock',
         item_id: params.itemId,
-        item_name: params.itemName,
-        cycle_id: params.cycleId,
-        xp_spent: params.xpSpent,
-        keys_spent: params.keysSpent,
-        cash_spent: params.cashSpent || 0,
-        stripe_payment_intent_id: params.stripePaymentIntentId,
-        shipping_address: params.shippingAddress,
+        item_name: params.itemName || '',
+        cycle_id: params.cycleId || null,
+        xp_spent: params.xpCost || 0,
+        keys_spent: params.keysCost || 0,
+        cash_spent: params.cashCost || 0,
+        stripe_payment_intent_id: params.stripePaymentIntentId || null,
+        shipping_address: params.shippingAddress || null,
         fulfillment_status: params.shippingAddress ? 'pending' : null,
       })
       .select('id')
@@ -429,7 +451,7 @@ export async function getActiveCart(userId: string): Promise<any | null> {
 export async function upsertCart(
   userId: string,
   items: any[],
-  totals: { xp: number; keys: number; cash: number }
+  totals: { subtotal: number; tax: number; total: number }
 ): Promise<string> {
   try {
     const existingCart = await getActiveCart(userId);
@@ -440,9 +462,9 @@ export async function upsertCart(
         .from('vault_carts')
         .update({
           items,
-          total_xp: totals.xp,
-          total_keys: totals.keys,
-          total_cash: totals.cash,
+          subtotal: totals.subtotal,
+          tax: totals.tax,
+          total: totals.total,
         })
         .eq('id', existingCart.id);
 
@@ -454,9 +476,9 @@ export async function upsertCart(
         .insert({
           user_id: userId,
           items,
-          total_xp: totals.xp,
-          total_keys: totals.keys,
-          total_cash: totals.cash,
+          subtotal: totals.subtotal,
+          tax: totals.tax,
+          total: totals.total,
           status: 'active',
         })
         .select('id')

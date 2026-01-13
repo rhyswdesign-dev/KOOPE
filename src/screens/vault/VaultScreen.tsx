@@ -29,7 +29,14 @@ import XPBalanceModal from '../../components/XPBalanceModal';
 import PillButton from '../../components/PillButton';
 import VaultUnlockModal from './components/VaultUnlockModal';
 import VaultItemCard from './components/VaultItemCard';
+import VaultItemPreviewModal from './components/VaultItemPreviewModal';
 import AICreditsPurchaseModal from '../../components/AICreditsPurchaseModal';
+import {
+  getBenefitsForVariation,
+  getBenefitsForPlaybook,
+  getBenefitsForBar,
+  getBenefitsForGame,
+} from '../../config/vaultBenefits';
 import { useScreenTracking, useAnalyticsContext } from '../../context/AnalyticsContext';
 import { VaultCategory } from '../../config/vaultTypes';
 import {
@@ -51,6 +58,7 @@ import TierBadge from '../../components/TierBadge';
 import LockedContentOverlay from '../../components/LockedContentOverlay';
 import { log } from '../../lib/logger';
 import { BAR_PAGE_HEADERS, BAR_IMAGES } from '../../data/barImages';
+import UnlockCelebration from '../../components/UnlockCelebration';
 
 
 export default function VaultScreen() {
@@ -58,9 +66,8 @@ export default function VaultScreen() {
   const { state, dispatch } = useVault();
   const { tier, setTier } = useUserTier();
   const analytics = useAnalyticsContext();
-  const { xp } = useUser();
+  const { balance: xpBalance, spendXP } = useXPSystem(); // Use XPSystem for correct balance
   const { credits, isPremium } = useAICredits();
-  const { balance: xpBalance } = useXPSystem();
   const { savedItems, toggleSavedCocktail, isCocktailSaved } = useSavedItems();
   const [selectedTab, setSelectedTab] = useState<string>('variations');
   const [countdown, setCountdown] = useState(getVaultCountdown());
@@ -68,7 +75,15 @@ export default function VaultScreen() {
   const [xpBalanceModalVisible, setXpBalanceModalVisible] = useState(false);
   const [groceryListVisible, setGroceryListVisible] = useState(false);
   const [selectedRecipe, setSelectedRecipe] = useState<any>(null);
-  
+
+  // Preview Modal State
+  const [previewModalVisible, setPreviewModalVisible] = useState(false);
+  const [previewItem, setPreviewItem] = useState<any>(null);
+
+  // Celebration State
+  const [celebrationVisible, setCelebrationVisible] = useState(false);
+  const [unlockedItemName, setUnlockedItemName] = useState('');
+
   // Track screen view
   useScreenTracking('VaultScreen');
 
@@ -111,7 +126,7 @@ export default function VaultScreen() {
             onPress={() => {
               Alert.alert(
                 'How the Vault Works',
-                'XP (Experience Points):\n• Earn XP by completing lessons and challenges\n• Use XP to unlock exclusive recipes, techniques, and bar features\n\nKeys:\n• Premium currency for special items\n• Purchase keys in the store\n• Unlock limited-edition content and boosters\n\nTip: Complete daily lessons to maximize your XP earnings!',
+                'XP (Experience Points):\n• Earn XP by completing lessons and challenges\n• Use XP to unlock exclusive recipes, techniques, and bar features\n\nSubscription Tiers:\n• FREE: Limited access, earn XP to unlock select items\n• KOOPE+ ($8.99/mo): Unlock ALL Vault content with XP\n• KOOPE PRO ($17.99/mo): PLUS benefits + accelerated XP earning\n\nTip: Complete daily lessons to maximize your XP earnings!',
                 [{ text: 'Got it!', style: 'default' }]
               );
             }}
@@ -229,18 +244,12 @@ export default function VaultScreen() {
           </Text>
         </View>
         
-        {/* Quick Stats */}
+        {/* Quick Stats - Simplified: XP + AI Credits only (Keys removed) */}
         <View style={styles.quickStats}>
           <View style={styles.statCard}>
-            <MaterialCommunityIcons name="star" size={16} color={colors.gold} />
-            <Text style={styles.statValue}>{xp.toLocaleString()}</Text>
-            <Text style={styles.statLabel}>XP</Text>
-          </View>
-
-          <View style={styles.statCard}>
-            <MaterialCommunityIcons name="key" size={16} color={colors.accent} />
-            <Text style={styles.statValue}>{state.userProfile.keysBalance}</Text>
-            <Text style={styles.statLabel}>Keys</Text>
+            <MaterialCommunityIcons name="star" size={20} color={colors.gold} />
+            <Text style={styles.statValue}>{xpBalance.toLocaleString()}</Text>
+            <Text style={styles.statLabel}>XP Balance</Text>
           </View>
 
           <TouchableOpacity
@@ -249,7 +258,7 @@ export default function VaultScreen() {
           >
             <Ionicons
               name={isPremium ? "diamond" : "sparkles"}
-              size={16}
+              size={20}
               color={isPremium ? colors.gold : colors.accent}
             />
             <Text style={styles.statValue}>
@@ -346,11 +355,59 @@ export default function VaultScreen() {
     return state.userProfile.unlockedItems.some(item => item.itemId === barId);
   };
 
-  const renderContentItem = (item: any, imageUrl: string) => {
+  // Open preview modal with item details and benefits
+  const handleItemPreview = (item: any, imageUrl: string, category: string) => {
+    let benefits = [];
+    let fullDescription = '';
+
+    // Get benefits based on category
+    switch (category) {
+      case 'variation':
+        const variationBenefits = getBenefitsForVariation(item.difficulty || 'simple');
+        benefits = variationBenefits.benefits;
+        fullDescription = variationBenefits.fullDescription;
+        break;
+      case 'playbook':
+        const playbookBenefits = getBenefitsForPlaybook(item.type);
+        benefits = playbookBenefits.benefits;
+        fullDescription = playbookBenefits.fullDescription;
+        break;
+      case 'bar':
+        const barBenefits = getBenefitsForBar(item.id);
+        benefits = barBenefits.benefits;
+        fullDescription = barBenefits.fullDescription;
+        break;
+      case 'game':
+        const gameBenefits = getBenefitsForGame(item.id);
+        benefits = gameBenefits.benefits;
+        fullDescription = gameBenefits.fullDescription;
+        break;
+    }
+
+    setPreviewItem({
+      title: item.title || item.barName || item.name || item.seasonName,
+      description: fullDescription,
+      imageUrl,
+      category,
+      xpCost: item.xpCost,
+      requiredTier: item.requiredTier,
+      benefits,
+      isUnlocked: state.userProfile.unlockedItems.some(i => i.itemId === item.id),
+    });
+    setPreviewModalVisible(true);
+  };
+
+  const renderContentItem = (item: any, imageUrl: string, category: string = 'variation') => {
     const isLocked = !canAccessContent(tier, item.requiredTier);
 
     return (
-      <View key={item.id} style={[styles.contentItemCard, isLocked && styles.lockedCard]}>
+      <TouchableOpacity
+        key={item.id}
+        style={[styles.contentItemCard, isLocked && styles.lockedCard]}
+        activeOpacity={0.7}
+        onPress={() => !isLocked && handleItemPreview(item, imageUrl, category)}
+        disabled={isLocked}
+      >
         <Image
           source={{ uri: imageUrl }}
           style={[styles.contentItemThumbnail, isLocked && styles.lockedThumbnail]}
@@ -378,11 +435,11 @@ export default function VaultScreen() {
             variant="compact"
           />
         ) : (
-          <TouchableOpacity style={styles.contentItemUnlockButton} activeOpacity={0.8}>
+          <View style={styles.contentItemUnlockButton}>
             <Text style={styles.contentItemUnlockText}>Unlock</Text>
-          </TouchableOpacity>
+          </View>
         )}
-      </View>
+      </TouchableOpacity>
     );
   };
 
@@ -397,7 +454,7 @@ export default function VaultScreen() {
             return (
               <View key={type} style={styles.contentSection}>
                 <Text style={styles.contentSectionTitle}>{PLAYBOOK_TYPE_LABELS[type]}</Text>
-                {playbooks.map((playbook) => renderContentItem(playbook, PLAYBOOK_TYPE_IMAGES[type]))}
+                {playbooks.map((playbook) => renderContentItem(playbook, PLAYBOOK_TYPE_IMAGES[type], 'playbook'))}
               </View>
             );
           })}
@@ -429,7 +486,7 @@ export default function VaultScreen() {
                 <Text style={styles.contentSectionTitle}>
                   {difficultyLabels[difficulty as keyof typeof difficultyLabels]}
                 </Text>
-                {items.map((variation) => renderContentItem(variation, PLACEHOLDER_IMAGES.cocktail))}
+                {items.map((variation) => renderContentItem(variation, PLACEHOLDER_IMAGES.cocktail, 'variation'))}
               </View>
             );
           })}
@@ -488,7 +545,11 @@ export default function VaultScreen() {
                     ) : (
                       <>
                         <Text style={styles.barSpotlightXP}>Unlock with {bar.xpCost} XP</Text>
-                        <TouchableOpacity style={styles.barUnlockButton} activeOpacity={0.8}>
+                        <TouchableOpacity
+                          style={styles.barUnlockButton}
+                          activeOpacity={0.8}
+                          onPress={() => handleItemPreview(bar, getBarThumbnail(bar.thumbnailKey).uri || PLACEHOLDER_IMAGES.bar, 'bar')}
+                        >
                           <Text style={styles.barUnlockButtonText}>Unlock</Text>
                         </TouchableOpacity>
                       </>
@@ -508,14 +569,19 @@ export default function VaultScreen() {
         <View style={styles.inlineContent}>
           <View style={styles.contentSection}>
             <Text style={styles.contentSectionTitle}>Available Drops</Text>
-            {drops.map((drop) => renderContentItem({ ...drop, xpCost: 'Limited Time' }, PLACEHOLDER_IMAGES.seasonal))}
+            {drops.map((drop) => renderContentItem({ ...drop, xpCost: 'Limited Time' }, PLACEHOLDER_IMAGES.seasonal, 'seasonal'))}
           </View>
         </View>
       );
     }
 
     if (selectedTab === 'games') {
-      const games = state.vaultItems.filter(item => item.category === 'games' && item.isActive);
+      const allGames = state.vaultItems.filter(item => item.category === 'games' && item.isActive);
+
+      // FREE tier: limit to 2 games, PLUS/PRO: show all
+      const gamesToShow = tier === 'FREE' ? allGames.slice(0, 2) : allGames;
+      const hasMoreGames = tier === 'FREE' && allGames.length > 2;
+
       return (
         <View style={styles.inlineContent}>
           <View style={styles.contentSection}>
@@ -523,8 +589,13 @@ export default function VaultScreen() {
             <Text style={styles.contentSectionDescription}>
               Classic party games with official rules and variations. Perfect for social gatherings!
             </Text>
-            {games.map((game) => (
-              <View key={game.id} style={styles.contentItemCard}>
+            {gamesToShow.map((game) => (
+              <TouchableOpacity
+                key={game.id}
+                style={styles.contentItemCard}
+                activeOpacity={0.7}
+                onPress={() => handleItemPreview(game, game.image, 'game')}
+              >
                 <Image
                   source={{ uri: game.image }}
                   style={styles.contentItemThumbnail}
@@ -537,19 +608,36 @@ export default function VaultScreen() {
                     {game.description}
                   </Text>
                 </View>
-                <TouchableOpacity
-                  style={styles.contentItemUnlockButton}
-                  activeOpacity={0.8}
-                  onPress={() => {
-                    analytics.trackVaultView(game.id, game.category, game.rarity);
-                    dispatch({ type: 'SET_SELECTED_ITEM', payload: game });
-                    dispatch({ type: 'SHOW_UNLOCK_MODAL', payload: true });
-                  }}
-                >
+                <View style={styles.contentItemUnlockButton}>
                   <Text style={styles.contentItemUnlockText}>Unlock</Text>
-                </TouchableOpacity>
-              </View>
+                </View>
+              </TouchableOpacity>
             ))}
+
+            {/* FREE tier upgrade prompt */}
+            {hasMoreGames && (
+              <TouchableOpacity
+                style={styles.vaultUpgradeCard}
+                activeOpacity={0.8}
+                onPress={() => nav.navigate('Subscription')}
+              >
+                <View style={styles.vaultUpgradeContent}>
+                  <Ionicons name="lock-closed" size={32} color={colors.gold} />
+                  <View style={styles.vaultUpgradeText}>
+                    <Text style={styles.vaultUpgradeTitle}>
+                      {allGames.length - 2}+ More Games Locked
+                    </Text>
+                    <Text style={styles.vaultUpgradeSubtitle}>
+                      Upgrade to KOOPE+ to unlock all drinking games
+                    </Text>
+                  </View>
+                  <View style={styles.vaultUpgradeButton}>
+                    <Text style={styles.vaultUpgradeButtonText}>Upgrade</Text>
+                    <Ionicons name="arrow-forward" size={16} color={colors.text} />
+                  </View>
+                </View>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
       );
@@ -608,12 +696,69 @@ export default function VaultScreen() {
         onClose={() => setXpBalanceModalVisible(false)}
       />
 
+      {/* Item Preview Modal */}
+      <VaultItemPreviewModal
+        visible={previewModalVisible}
+        onDismiss={() => setPreviewModalVisible(false)}
+        onUnlock={async () => {
+          // Handle unlock logic
+          if (previewItem && typeof previewItem.xpCost === 'number') {
+            const xpCost = previewItem.xpCost;
+
+            // Check if user can afford
+            if (xpBalance < xpCost) {
+              Alert.alert(
+                'Insufficient XP',
+                `You need ${xpCost.toLocaleString()} XP to unlock this item. You currently have ${xpBalance.toLocaleString()} XP.`,
+                [{ text: 'OK', style: 'default' }]
+              );
+              return;
+            }
+
+            // Deduct XP
+            const itemId = `vault_${previewItem.category}_${previewItem.title.toLowerCase().replace(/\s+/g, '_')}`;
+            const success = spendXP(xpCost, itemId, `Unlocked: ${previewItem.title}`);
+
+            if (success) {
+              // Track analytics
+              analytics.trackVaultView(previewItem.title, previewItem.category, 'unlocked');
+
+              // Close preview modal
+              setPreviewModalVisible(false);
+
+              // Show celebration animation
+              setUnlockedItemName(previewItem.title);
+              setCelebrationVisible(true);
+
+              // TODO: Add item to user's unlocked collection
+            } else {
+              Alert.alert(
+                'Error',
+                'Failed to unlock item. Please try again.',
+                [{ text: 'OK', style: 'cancel' }]
+              );
+            }
+          }
+        }}
+        item={previewItem}
+        userXP={xpBalance}
+        userKeys={0}
+        userTier={tier}
+      />
+
       {/* Grocery List Modal */}
       <GroceryListModal
         visible={groceryListVisible}
         onClose={() => setGroceryListVisible(false)}
         recipe={selectedRecipe}
         navigation={nav}
+      />
+
+      {/* Unlock Celebration */}
+      <UnlockCelebration
+        visible={celebrationVisible}
+        itemName={unlockedItemName}
+        onComplete={() => setCelebrationVisible(false)}
       />
     </View>
   );
@@ -948,5 +1093,53 @@ const styles = StyleSheet.create({
 
   lockedThumbnail: {
     opacity: 0.5,
+  },
+
+  // Vault upgrade card (for FREE tier limitations)
+  vaultUpgradeCard: {
+    marginTop: spacing(2),
+    backgroundColor: colors.card,
+    borderRadius: radii.lg,
+    borderWidth: 2,
+    borderColor: colors.gold + '40',
+    padding: spacing(3),
+  },
+
+  vaultUpgradeContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(2),
+  },
+
+  vaultUpgradeText: {
+    flex: 1,
+    gap: spacing(0.5),
+  },
+
+  vaultUpgradeTitle: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: colors.text,
+  },
+
+  vaultUpgradeSubtitle: {
+    fontSize: 13,
+    color: colors.subtext,
+  },
+
+  vaultUpgradeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(0.5),
+    backgroundColor: colors.gold,
+    paddingVertical: spacing(1),
+    paddingHorizontal: spacing(2),
+    borderRadius: radii.md,
+  },
+
+  vaultUpgradeButtonText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.text,
   },
 });

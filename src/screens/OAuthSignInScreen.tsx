@@ -116,13 +116,13 @@ export default function OAuthSignInScreen({ onComplete, onSkip }: OAuthSignInScr
         {/* Benefits */}
         <View style={styles.benefits}>
           {[
-            { icon: 'sync', text: 'Sync progress across all devices' },
-            { icon: 'trophy', text: 'Track XP, streaks & achievements' },
-            { icon: 'lock-open', text: 'Access unlocked premium content' },
+            { icon: 'save-outline', text: 'Save your learning progress' },
+            { icon: 'trophy-outline', text: 'Track XP, streaks & achievements' },
+            { icon: 'lock-open-outline', text: 'Access your premium content' },
           ].map((benefit, index) => (
             <View key={index} style={styles.benefit}>
-              <View style={styles.benefitIconContainer}>
-                <Ionicons name={benefit.icon as any} size={20} color={colors.gold} />
+              <View style={styles.benefitIconPlaceholder}>
+                <Ionicons name={benefit.icon as any} size={22} color={colors.gold} />
               </View>
               <Text style={styles.benefitText}>{benefit.text}</Text>
             </View>
@@ -282,6 +282,12 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     backgroundColor: colors.gold,
     opacity: 0.15,
+  },
+  benefitIconPlaceholder: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.gold + '20',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: spacing(2),

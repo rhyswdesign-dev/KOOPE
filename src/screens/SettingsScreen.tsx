@@ -12,10 +12,13 @@ import type { RootStackParamList } from '../navigation/RootNavigator';
 import { log } from '../lib/logger';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
+import { useAICredits } from '../store/useAICredits';
+import { HomeBarService } from '../services/homeBarService';
 
 export default function SettingsScreen() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { user, signOut: supabaseSignOut } = useAuth();
+  const { addCredits } = useAICredits();
   const [notifications, setNotifications] = useState({
     events: true,
     social: true,
@@ -325,6 +328,42 @@ export default function SettingsScreen() {
             <View style={styles.settingItemLeft}>
               <Ionicons name="bug-outline" size={24} color={colors.text} />
               <Text style={styles.settingItemText}>Subscription Debug</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={colors.subtext} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.settingItem}
+            onPress={() => {
+              Alert.alert(
+                'Dev Helpers',
+                'Choose a development helper action',
+                [
+                  {
+                    text: 'Reset AI Credits to 50',
+                    onPress: async () => {
+                      const currentCredits = useAICredits.getState().credits;
+                      const creditsToAdd = Math.max(0, 50 - currentCredits);
+                      addCredits(creditsToAdd, 'promotion');
+                      Alert.alert('Success', `Added ${creditsToAdd} credits. You now have 50 AI credits!`);
+                    }
+                  },
+                  {
+                    text: 'Load Mock Inventory (50 items)',
+                    onPress: async () => {
+                      await HomeBarService.loadComprehensiveMockInventory();
+                      Alert.alert('Success', 'Loaded 50 comprehensive mock ingredients to Home Bar!');
+                    }
+                  },
+                  { text: 'Cancel', style: 'cancel' }
+                ]
+              );
+            }}
+            activeOpacity={0.7}
+          >
+            <View style={styles.settingItemLeft}>
+              <Ionicons name="flask-outline" size={24} color={colors.gold} />
+              <Text style={styles.settingItemText}>Dev Helpers</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color={colors.subtext} />
           </TouchableOpacity>

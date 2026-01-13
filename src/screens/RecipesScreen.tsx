@@ -59,6 +59,7 @@ import { useXPSystem } from '../store/useXPSystem';
 import CocktailUnlockSheet from '../components/CocktailUnlockSheet';
 import XPBalanceModal from '../components/XPBalanceModal';
 import { useEngagement } from '../store/useEngagement';
+import { getCocktailsOfTheWeek } from '../utils/weeklyRotation';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 const { width } = Dimensions.get('window');
@@ -68,13 +69,15 @@ const GOLD = '#C9A15A'; // spotlight color
 
 /* ------------------------- DATA ------------------------- */
 
-// Featured Cocktail of the Week
+// Get the featured cocktail of the week (first cocktail from weekly rotation)
+// This rotates automatically each week and matches the FeaturedScreen
+const weeklyCocktails = getCocktailsOfTheWeek(1);
 const COCKTAIL_OF_THE_WEEK = {
-  id: 'old-fashioned',
-  name: 'Old Fashioned',
+  id: weeklyCocktails[0].id,
+  name: weeklyCocktails[0].title,
   subtitle: 'Cocktail of the Week',
-  image: getCocktailImage('old-fashioned'),
-  description: 'A timeless classic that defined the cocktail era.',
+  image: weeklyCocktails[0].img,
+  description: weeklyCocktails[0].description,
   badge: 'GOLD' as const
 };
 
