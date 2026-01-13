@@ -59,6 +59,14 @@ export default function VaultItemPreviewModal({
 }: VaultItemPreviewModalProps) {
   if (!item) return null;
 
+  // Debug log
+  console.log('VaultItemPreviewModal rendering with item:', {
+    title: item.title,
+    description: item.description,
+    benefits: item.benefits?.length,
+    imageUrl: item.imageUrl,
+  });
+
   const canAfford = (item.xpCost ? userXP >= item.xpCost : true) &&
                     (item.keysCost ? userKeys >= item.keysCost : true);
 
@@ -315,7 +323,7 @@ const styles = StyleSheet.create({
   modalContainer: {
     width: width * 0.92,
     maxWidth: 480,
-    maxHeight: height * 0.85,
+    height: height * 0.85,
     borderRadius: radii.xl,
     backgroundColor: colors.bg,
     overflow: 'hidden',
@@ -324,9 +332,11 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.5,
     shadowRadius: 20,
     elevation: 10,
+    flexDirection: 'column',
   },
   scrollView: {
-    flex: 1,
+    flexGrow: 1,
+    flexShrink: 1,
   },
   heroContainer: {
     height: 240,

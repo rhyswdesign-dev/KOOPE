@@ -19,6 +19,28 @@ export interface VaultItemPreview {
 // ============================================================================
 
 export const VARIATION_BENEFITS: Record<string, VaultItemPreview> = {
+  // Specific variation - Spicy Margarita (custom preview)
+  spicy_margarita: {
+    fullDescription: "Transform the classic Margarita with controlled heat from fresh jalapeños or habaneros. This variation teaches you the fundamentals of spirit infusion and spice balance—essential skills that translate to dozens of other cocktails. Learn to control heat levels, balance sweetness against spice, and create consistent results every time.",
+    benefits: [
+      {
+        icon: "flame",
+        title: "Master Spice Infusion",
+        description: "Learn to infuse tequila with jalapeño or habanero for perfect heat levels"
+      },
+      {
+        icon: "flask",
+        title: "Balance Sweet & Heat",
+        description: "Discover how to balance agave sweetness against spicy kick"
+      },
+      {
+        icon: "restaurant",
+        title: "Crowd-Pleaser Recipe",
+        description: "Create a modern classic that works for parties and date nights"
+      }
+    ]
+  },
+
   // Simple Variations (200-300 XP)
   simple: {
     fullDescription: "An approachable twist on a classic cocktail that introduces you to professional techniques while maintaining familiar flavors. Perfect for building confidence and expanding your repertoire.",

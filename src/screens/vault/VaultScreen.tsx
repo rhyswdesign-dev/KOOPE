@@ -36,6 +36,7 @@ import {
   getBenefitsForPlaybook,
   getBenefitsForBar,
   getBenefitsForGame,
+  VARIATION_BENEFITS,
 } from '../../config/vaultBenefits';
 import { useScreenTracking, useAnalyticsContext } from '../../context/AnalyticsContext';
 import { VaultCategory } from '../../config/vaultTypes';
@@ -363,7 +364,10 @@ export default function VaultScreen() {
     // Get benefits based on category
     switch (category) {
       case 'variation':
-        const variationBenefits = getBenefitsForVariation(item.difficulty || 'simple');
+        // First try to get specific item benefits by ID (e.g., "spicy_margarita")
+        const itemKey = item.id.replace('var_', '');
+        const specificBenefits = VARIATION_BENEFITS[itemKey];
+        const variationBenefits = specificBenefits || getBenefitsForVariation(item.difficulty || 'simple');
         benefits = variationBenefits.benefits;
         fullDescription = variationBenefits.fullDescription;
         break;
