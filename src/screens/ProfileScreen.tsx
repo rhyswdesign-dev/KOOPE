@@ -323,75 +323,35 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Premium Section (Not Signed In) */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Premium</Text>
-
-          <TouchableOpacity
-            style={[styles.settingButton, { backgroundColor: 'rgba(212, 175, 55, 0.1)' }]}
-            onPress={() => nav.navigate('Paywall', { displayCloseButton: true })}
-          >
-            <Ionicons name="diamond-outline" size={20} color="#D4AF37" />
-            <Text style={[styles.settingButtonText, { color: colors.accent, fontWeight: '600' }]}>
-              Upgrade to KOOPE+
-            </Text>
-            <Ionicons name="chevron-forward" size={20} color="#D4AF37" />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.settingButton}
-            onPress={() => nav.navigate('SubscriptionDebug')}
-          >
-            <Ionicons name="bug-outline" size={20} color={colors.text} />
-            <Text style={styles.settingButtonText}>Subscription Status</Text>
-            <Ionicons name="chevron-forward" size={20} color={colors.subtext} />
-          </TouchableOpacity>
+        {/* Info Message */}
+        <View style={styles.infoCard}>
+          <Ionicons name="information-circle-outline" size={32} color={colors.accent} />
+          <Text style={styles.infoText}>
+            Sign in to view your collections, achievements, and personalized content
+          </Text>
         </View>
 
+        {/* Quick Actions for Non-Authenticated */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Settings & Support</Text>
+          <Text style={styles.sectionTitle}>Quick Access</Text>
 
-          <TouchableOpacity
-            style={styles.settingButton}
-            onPress={() => nav.navigate('ShoppingCart')}
-          >
-            <Ionicons name="cart-outline" size={20} color={colors.text} />
-            <Text style={styles.settingButtonText}>Shopping Cart</Text>
-            <Ionicons name="chevron-forward" size={20} color={colors.subtext} />
-          </TouchableOpacity>
+          <View style={styles.quickActionsGrid}>
+            <TouchableOpacity
+              style={[styles.quickActionButton, { backgroundColor: 'rgba(212, 175, 55, 0.1)' }]}
+              onPress={() => nav.navigate('Paywall', { displayCloseButton: true })}
+            >
+              <Ionicons name="diamond-outline" size={20} color={colors.gold} />
+              <Text style={[styles.quickActionText, { color: colors.gold }]}>Upgrade</Text>
+            </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.settingButton}
-            onPress={() => nav.navigate('HelpSupport')}
-          >
-            <Ionicons name="help-circle-outline" size={20} color={colors.text} />
-            <Text style={styles.settingButtonText}>Help & Support</Text>
-            <Ionicons name="chevron-forward" size={20} color={colors.subtext} />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.settingButton}
-            onPress={() => nav.navigate('PrivacyPolicy')}
-          >
-            <Ionicons name="shield-checkmark-outline" size={20} color={colors.text} />
-            <Text style={styles.settingButtonText}>Privacy Policy</Text>
-            <Ionicons name="chevron-forward" size={20} color={colors.subtext} />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.settingButton}
-            onPress={() => nav.navigate('TermsOfService')}
-          >
-            <Ionicons name="document-text-outline" size={20} color={colors.text} />
-            <Text style={styles.settingButtonText}>Terms of Service</Text>
-            <Ionicons name="chevron-forward" size={20} color={colors.subtext} />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.settingButton}>
-            <Ionicons name="information-circle-outline" size={20} color={colors.text} />
-            <Text style={styles.settingButtonText}>About</Text>
-            <Ionicons name="chevron-forward" size={20} color={colors.subtext} />
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.quickActionButton}
+              onPress={() => nav.navigate('ShoppingCart')}
+            >
+              <Ionicons name="cart-outline" size={20} color={colors.text} />
+              <Text style={styles.quickActionText}>Cart</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -654,5 +614,22 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     color: colors.text,
+  },
+  infoCard: {
+    backgroundColor: colors.card,
+    borderRadius: radii.lg,
+    padding: spacing(3),
+    marginBottom: spacing(4),
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(2),
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
+  infoText: {
+    flex: 1,
+    fontSize: 14,
+    color: colors.subtext,
+    lineHeight: 20,
   },
 });
