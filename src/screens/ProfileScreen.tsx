@@ -111,149 +111,92 @@ export default function ProfileScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-          {/* Profile Header - Compact */}
-          <View style={styles.profileHeader}>
-            <View style={styles.avatarContainer}>
-              <MaterialCommunityIcons name="glass-cocktail" size={32} color={colors.accent} />
+          {/* Profile Header with Avatar */}
+          <View style={styles.profileHeaderSection}>
+            <View style={styles.avatarLarge}>
+              <MaterialCommunityIcons name="glass-cocktail" size={48} color={colors.accent} />
             </View>
-            <View style={styles.profileInfo}>
-              <Text style={styles.userName}>Bartender</Text>
-              <Text style={styles.userSubtext}>Level {userStats.level} • {userStats.totalXP} XP</Text>
-            </View>
-          </View>
-
-          {/* Quick Stats Row - Minimal */}
-          <View style={styles.quickStatsRow}>
-            <View style={styles.quickStat}>
-              <Text style={styles.quickStatNumber}>{streakData.currentStreak}</Text>
-              <Text style={styles.quickStatLabel}>Day Streak</Text>
-            </View>
-            <View style={styles.quickStat}>
-              <Text style={styles.quickStatNumber}>{userStats.achievementsUnlocked || 0}</Text>
-              <Text style={styles.quickStatLabel}>Badges</Text>
-            </View>
-            <View style={styles.quickStat}>
-              <Text style={styles.quickStatNumber}>{savedItems.length}</Text>
-              <Text style={styles.quickStatLabel}>Saved</Text>
+            <Text style={styles.userHandle}>@Bartender</Text>
+            <Text style={styles.userTitle}>Bar Apprentice | {userStats.totalXP} XP | Level {userStats.level}</Text>
+            <View style={styles.streakBadge}>
+              <Ionicons name="flame" size={14} color="#FF6B35" />
+              <Text style={styles.streakText}>{streakData.currentStreak} Week Streak — Keep it Going!</Text>
             </View>
           </View>
 
-          {/* Collections Grid - 2x2 */}
+          {/* Level Progress Bar */}
+          <View style={styles.levelSection}>
+            <View style={styles.levelHeader}>
+              <Text style={styles.levelText}>Level {userStats.level}</Text>
+              <Text style={styles.levelXP}>{userStats.totalXP} / 2,000 XP</Text>
+            </View>
+            <View style={styles.progressBarContainer}>
+              <View style={[styles.progressBarFill, { width: `${Math.min((userStats.totalXP / 2000) * 100, 100)}%` }]} />
+            </View>
+          </View>
+
+          {/* Stats Overview - 2x2 Grid */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>My Collections</Text>
-            <View style={styles.collectionsGrid}>
-              <TouchableOpacity
-                style={styles.collectionCard}
-                onPress={() => nav.navigate('SavedItems')}
-              >
-                <Ionicons name="heart" size={28} color={colors.accent} />
-                <Text style={styles.collectionLabel}>Saved</Text>
-                <Text style={styles.collectionCount}>{savedItems.length}</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.collectionCard}
-                onPress={() => nav.navigate('MyRecipes')}
-              >
-                <Ionicons name="create" size={28} color="#F59E0B" />
-                <Text style={styles.collectionLabel}>My Recipes</Text>
-                <Text style={styles.collectionCount}>{recipes.length}</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.collectionCard}
-                onPress={() => nav.navigate('HomeBar')}
-              >
-                <Ionicons name="home" size={28} color="#8B5CF6" />
-                <Text style={styles.collectionLabel}>Home Bar</Text>
-                <Text style={styles.collectionCount}>{userStats.homeBarIngredients}</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.collectionCard}
-                onPress={() => nav.navigate('Achievements')}
-              >
-                <Ionicons name="trophy" size={28} color={colors.gold} />
-                <Text style={styles.collectionLabel}>Achievements</Text>
-                <Text style={styles.collectionCount}>{userStats.achievementsUnlocked || 0}</Text>
-              </TouchableOpacity>
+            <Text style={styles.sectionTitle}>Stats Overview</Text>
+            <View style={styles.statsGrid}>
+              <View style={styles.statBox}>
+                <Text style={styles.statLabel}>Lessons{'\n'}Completed</Text>
+                <Text style={styles.statValue}>{userStats.lessonsCompleted}</Text>
+              </View>
+              <View style={styles.statBox}>
+                <Text style={styles.statLabel}>Recipes{'\n'}Unlocked</Text>
+                <Text style={styles.statValue}>{userStats.recipesViewed}</Text>
+              </View>
+              <View style={styles.statBox}>
+                <Text style={styles.statLabel}>Inventory Items</Text>
+                <Text style={styles.statValue}>{userStats.homeBarIngredients}</Text>
+              </View>
+              <View style={styles.statBox}>
+                <Text style={styles.statLabel}>Total Time</Text>
+                <Text style={styles.statValue}>2h 45m</Text>
+              </View>
             </View>
           </View>
 
-          {/* Progress - Compact */}
+          {/* Badges & Achievements */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Your Progress</Text>
-            <ProgressStats
-              stats={[
-                {
-                  icon: 'book',
-                  label: 'Lessons',
-                  value: userStats.lessonsCompleted,
-                  color: colors.accent,
-                },
-                {
-                  icon: 'restaurant',
-                  label: 'Recipes',
-                  value: userStats.recipesViewed,
-                  color: '#F59E0B',
-                },
-                {
-                  icon: 'heart',
-                  label: 'Favorites',
-                  value: userStats.favoriteCount,
-                  color: '#EF4444',
-                },
-                {
-                  icon: 'home',
-                  label: 'Bar Items',
-                  value: userStats.homeBarIngredients,
-                  color: '#8B5CF6',
-                },
-                {
-                  icon: 'location',
-                  label: 'Bars Visited',
-                  value: userStats.barsVisited,
-                  color: '#10B981',
-                },
-                {
-                  icon: 'game-controller',
-                  label: 'Games',
-                  value: userStats.gamesPlayed,
-                  color: '#3B82F6',
-                },
-              ]}
-              columns={3}
-            />
+            <Text style={styles.sectionTitle}>Badges & Achievements</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.badgesScroll}>
+              <TouchableOpacity style={styles.badgeItem} onPress={() => nav.navigate('Achievements')}>
+                <View style={styles.badgeIcon}>
+                  <Ionicons name="wine" size={32} color={colors.gold} />
+                </View>
+                <Text style={styles.badgeName}>Glassware Guru</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.badgeItem} onPress={() => nav.navigate('Achievements')}>
+                <View style={styles.badgeIcon}>
+                  <Ionicons name="flame" size={32} color="#FF6B35" />
+                </View>
+                <Text style={styles.badgeName}>Streak Master</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.badgeItem} onPress={() => nav.navigate('Achievements')}>
+                <View style={styles.badgeIcon}>
+                  <Ionicons name="flask" size={32} color="#8B5CF6" />
+                </View>
+                <Text style={styles.badgeName}>Mixologist</Text>
+              </TouchableOpacity>
+            </ScrollView>
           </View>
 
-          {/* Quick Actions */}
+          {/* Insights / Personalization */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Quick Actions</Text>
-
-            <View style={styles.quickActionsGrid}>
-              <TouchableOpacity
-                style={styles.quickActionButton}
-                onPress={() => setPreferencesModalVisible(true)}
-              >
-                <Ionicons name="options-outline" size={20} color={colors.text} />
-                <Text style={styles.quickActionText}>Preferences</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.quickActionButton}
-                onPress={() => nav.navigate('ShoppingCart')}
-              >
-                <Ionicons name="cart-outline" size={20} color={colors.text} />
-                <Text style={styles.quickActionText}>Cart</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.quickActionButton, { backgroundColor: 'rgba(212, 175, 55, 0.1)' }]}
-                onPress={() => nav.navigate('Paywall', { displayCloseButton: true })}
-              >
-                <Ionicons name="diamond-outline" size={20} color={colors.gold} />
-                <Text style={[styles.quickActionText, { color: colors.gold }]}>Upgrade</Text>
-              </TouchableOpacity>
+            <Text style={styles.sectionTitle}>Insights / Personalization</Text>
+            <View style={styles.insightCard}>
+              <View style={styles.insightContent}>
+                <Text style={styles.insightTitle}>Personalized Feedback</Text>
+                <Text style={styles.insightSubtitle}>You excel at classic builds</Text>
+                <Text style={styles.insightDescription}>
+                  Your mastery of traditional techniques shines through in every cocktail. Keep refining your skills!
+                </Text>
+              </View>
+              <View style={styles.insightImage}>
+                <MaterialCommunityIcons name="glass-cocktail" size={48} color={colors.accent} />
+              </View>
             </View>
           </View>
         </ScrollView>
@@ -350,35 +293,72 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: spacing(1),
   },
-  profileHeader: {
-    flexDirection: 'row',
+  profileHeaderSection: {
     alignItems: 'center',
-    marginTop: spacing(2),
-    marginBottom: spacing(3),
-    gap: spacing(2),
+    paddingVertical: spacing(4),
   },
-  avatarContainer: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: colors.card,
-    borderWidth: 2,
-    borderColor: colors.accent,
+  avatarLarge: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: '#E5D5C3',
     alignItems: 'center',
     justifyContent: 'center',
+    marginBottom: spacing(2),
   },
-  profileInfo: {
-    flex: 1,
+  userHandle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: spacing(0.5),
   },
-  userName: {
-    fontSize: 20,
+  userTitle: {
+    fontSize: 13,
+    color: colors.subtext,
+    marginBottom: spacing(1.5),
+  },
+  streakBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 107, 53, 0.1)',
+    paddingHorizontal: spacing(2),
+    paddingVertical: spacing(0.75),
+    borderRadius: radii.lg,
+    gap: spacing(0.5),
+  },
+  streakText: {
+    fontSize: 12,
+    color: '#FF6B35',
+    fontWeight: '600',
+  },
+  levelSection: {
+    marginBottom: spacing(3),
+  },
+  levelHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing(1),
+  },
+  levelText: {
+    fontSize: 14,
     fontWeight: '700',
     color: colors.text,
   },
-  userSubtext: {
+  levelXP: {
     fontSize: 13,
     color: colors.subtext,
-    marginTop: spacing(0.25),
+  },
+  progressBarContainer: {
+    height: 8,
+    backgroundColor: colors.line,
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: '100%',
+    backgroundColor: colors.accent,
+    borderRadius: 4,
   },
   quickStatsRow: {
     flexDirection: 'row',
@@ -617,5 +597,90 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.subtext,
     lineHeight: 20,
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing(1.5),
+  },
+  statBox: {
+    flex: 1,
+    minWidth: '47%',
+    backgroundColor: colors.card,
+    borderRadius: radii.lg,
+    padding: spacing(2.5),
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: colors.subtext,
+    marginBottom: spacing(1),
+    lineHeight: 16,
+  },
+  statValue: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  badgesScroll: {
+    marginTop: spacing(1),
+  },
+  badgeItem: {
+    alignItems: 'center',
+    marginRight: spacing(2),
+    width: 100,
+  },
+  badgeIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: colors.card,
+    borderWidth: 2,
+    borderColor: colors.line,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing(1),
+  },
+  badgeName: {
+    fontSize: 11,
+    color: colors.text,
+    textAlign: 'center',
+    fontWeight: '600',
+  },
+  insightCard: {
+    backgroundColor: colors.card,
+    borderRadius: radii.lg,
+    padding: spacing(3),
+    borderWidth: 1,
+    borderColor: colors.line,
+    flexDirection: 'row',
+    gap: spacing(2),
+  },
+  insightContent: {
+    flex: 1,
+  },
+  insightTitle: {
+    fontSize: 11,
+    color: colors.subtext,
+    textTransform: 'uppercase',
+    marginBottom: spacing(0.5),
+    fontWeight: '600',
+  },
+  insightSubtitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: spacing(1),
+  },
+  insightDescription: {
+    fontSize: 13,
+    color: colors.subtext,
+    lineHeight: 18,
+  },
+  insightImage: {
+    width: 80,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
