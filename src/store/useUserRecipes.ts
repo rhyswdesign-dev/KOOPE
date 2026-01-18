@@ -10,7 +10,7 @@ import { log } from '../lib/logger';
 export interface UserRecipe {
   id: string;
   name: string;
-  type: 'created' | 'ai_generated' | 'modified';
+  type: 'created' | 'ai_generated' | 'modified' | 'imported';
   createdAt: Date;
   updatedAt: Date;
   description?: string;

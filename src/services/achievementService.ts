@@ -223,6 +223,94 @@ const ACHIEVEMENT_DEFINITIONS: Omit<Achievement, 'progress' | 'unlocked' | 'unlo
     rarity: 'legendary',
   },
 
+  // Advanced Recipe Achievements (for users who max out basics)
+  {
+    id: 'recipe_legend',
+    title: 'Recipe Legend',
+    description: 'View 250 different recipes',
+    icon: 'star',
+    category: 'recipe',
+    requirement: 250,
+    xpReward: 500,
+    rarity: 'legendary',
+  },
+  {
+    id: 'master_creator',
+    title: 'Master Creator',
+    description: 'Create 25 original recipes',
+    icon: 'sparkles',
+    category: 'recipe',
+    requirement: 25,
+    xpReward: 750,
+    rarity: 'legendary',
+  },
+
+  // Advanced Collection Achievements
+  {
+    id: 'ultimate_collector',
+    title: 'Ultimate Collector',
+    description: 'Add 100 ingredients to your home bar',
+    icon: 'diamond',
+    category: 'collection',
+    requirement: 100,
+    xpReward: 1000,
+    rarity: 'legendary',
+  },
+  {
+    id: 'favorites_master',
+    title: 'Favorites Master',
+    description: 'Add 50 recipes to favorites',
+    icon: 'heart',
+    category: 'collection',
+    requirement: 50,
+    xpReward: 200,
+    rarity: 'epic',
+  },
+
+  // Advanced Knowledge Achievements
+  {
+    id: 'knowledge_completionist',
+    title: 'Completionist',
+    description: 'Complete ALL available lessons',
+    icon: 'shield-checkmark',
+    category: 'knowledge',
+    requirement: 50, // Update based on total lessons
+    xpReward: 2000,
+    rarity: 'legendary',
+  },
+  {
+    id: 'perfect_student',
+    title: 'Perfect Student',
+    description: 'Complete 10 lessons with 100% accuracy',
+    icon: 'ribbon',
+    category: 'knowledge',
+    requirement: 10,
+    xpReward: 500,
+    rarity: 'epic',
+  },
+
+  // Advanced Streak Achievements
+  {
+    id: 'consistent_365',
+    title: 'Year-Long Legend',
+    description: 'Maintain a 365-day streak',
+    icon: 'trophy',
+    category: 'streak',
+    requirement: 365,
+    xpReward: 5000,
+    rarity: 'legendary',
+  },
+  {
+    id: 'streak_comeback',
+    title: 'Comeback Kid',
+    description: 'Rebuild a 30-day streak after breaking one',
+    icon: 'refresh',
+    category: 'streak',
+    requirement: 30,
+    xpReward: 250,
+    rarity: 'epic',
+  },
+
   // Social Achievements
   {
     id: 'bar_explorer',
@@ -233,6 +321,16 @@ const ACHIEVEMENT_DEFINITIONS: Omit<Achievement, 'progress' | 'unlocked' | 'unlo
     requirement: 5,
     xpReward: 50,
     rarity: 'common',
+  },
+  {
+    id: 'bar_master',
+    title: 'Bar Master',
+    description: 'Visit all 15 bars in the app',
+    icon: 'map',
+    category: 'social',
+    requirement: 15,
+    xpReward: 300,
+    rarity: 'legendary',
   },
   {
     id: 'game_player',

@@ -78,12 +78,7 @@ export default function AchievementsScreen() {
           <Text style={styles.headerTitle}>Your Progress</Text>
 
           {/* Level Card */}
-          <LinearGradient
-            colors={['#8B5CF6', '#7C3AED']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.levelCard}
-          >
+          <View style={styles.levelCard}>
             <View style={styles.levelHeader}>
               <View>
                 <Text style={styles.levelLabel}>LEVEL</Text>
@@ -109,7 +104,7 @@ export default function AchievementsScreen() {
                 {Math.floor((userStats.totalXP % 100))} / {nextLevelXP} XP to next level
               </Text>
             </View>
-          </LinearGradient>
+          </View>
 
           {/* Achievement Summary */}
           <View style={styles.summaryGrid}>
@@ -125,7 +120,7 @@ export default function AchievementsScreen() {
 
             <View style={styles.summaryCard}>
               <View style={styles.summaryIconContainer}>
-                <Ionicons name="flame" size={24} color="#F97316" />
+                <Ionicons name="flame" size={24} color={colors.accent} />
               </View>
               <Text style={styles.summaryValue}>{streakData.currentStreak}</Text>
               <Text style={styles.summaryLabel}>Day Streak</Text>
@@ -235,6 +230,9 @@ const styles = StyleSheet.create({
     padding: spacing(3),
     borderRadius: radii.lg,
     marginBottom: spacing(3),
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.line,
   },
   levelHeader: {
     flexDirection: 'row',
@@ -245,13 +243,13 @@ const styles = StyleSheet.create({
   levelLabel: {
     fontSize: 12,
     fontWeight: '700',
-    color: 'rgba(255, 255, 255, 0.7)',
+    color: colors.subtext,
     letterSpacing: 1,
   },
   levelNumber: {
     fontSize: 48,
     fontWeight: '900',
-    color: '#FFFFFF',
+    color: colors.text,
   },
   xpBadge: {
     flexDirection: 'row',
@@ -259,8 +257,10 @@ const styles = StyleSheet.create({
     gap: spacing(0.5),
     paddingHorizontal: spacing(2),
     paddingVertical: spacing(1),
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    backgroundColor: colors.bg,
     borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: colors.line,
   },
   xpText: {
     fontSize: 14,
@@ -272,19 +272,19 @@ const styles = StyleSheet.create({
   },
   progressBar: {
     height: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: colors.line,
     borderRadius: 4,
     overflow: 'hidden',
     marginBottom: spacing(1),
   },
   progressFill: {
     height: '100%',
-    backgroundColor: colors.white,
+    backgroundColor: colors.accent,
     borderRadius: 4,
   },
   progressText: {
     fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: colors.subtext,
     textAlign: 'right',
   },
   summaryGrid: {

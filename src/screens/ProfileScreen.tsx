@@ -25,7 +25,7 @@ import { StreakDisplay } from '../components/StreakDisplay';
 import { ProgressStats } from '../components/ProgressStats';
 
 export default function ProfileScreen() {
-  const { user, isAuthenticated: authStatus, isLoading, signOut } = useAuth();
+  const { user, isAuthenticated, isLoading, signOut } = useAuth();
   const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [loading, setLoading] = useState(false);
   const [preferencesModalVisible, setPreferencesModalVisible] = useState(false);
@@ -35,8 +35,13 @@ export default function ProfileScreen() {
   const [userStats, setUserStats] = useState(achievementService.getUserStats());
   const [streakData, setStreakData] = useState<StreakData>(streakService.getStreakData());
 
-  // FOR DEVELOPMENT: Always show authenticated view
-  const isAuthenticated = true; // Change to authStatus to enable real auth
+  // Debug: Log authentication state
+  useEffect(() => {
+    console.log('[ProfileScreen] Auth state:', { isAuthenticated, hasUser: !!user, userId: user?.id });
+  }, [isAuthenticated, user]);
+
+  // TEMPORARY: Force show authenticated view to see design
+  const showAuthenticatedView = true;
 
   useLayoutEffect(() => {
     nav.setOptions({
@@ -110,7 +115,18 @@ export default function ProfileScreen() {
     );
   };
 
-  if (isAuthenticated) {
+  // Show loading state while auth is initializing
+  if (isLoading && !showAuthenticatedView) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={[styles.content, { justifyContent: 'center', alignItems: 'center' }]}>
+          <Text style={styles.subtitle}>Loading...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (isAuthenticated || showAuthenticatedView) {
     return (
       <SafeAreaView style={styles.container}>
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
@@ -122,7 +138,7 @@ export default function ProfileScreen() {
             <Text style={styles.userHandle}>@Bartender</Text>
             <Text style={styles.userTitle}>Bar Apprentice | {userStats.totalXP} XP | Level {userStats.level}</Text>
             <View style={styles.streakBadge}>
-              <Ionicons name="flame" size={14} color="#FF6B35" />
+              <Ionicons name="flame" size={14} color={colors.accent} />
               <Text style={styles.streakText}>{streakData.currentStreak} Week Streak — Keep it Going!</Text>
             </View>
           </View>
@@ -184,6 +200,43 @@ export default function ProfileScreen() {
                 <Text style={styles.badgeName}>Mixologist</Text>
               </TouchableOpacity>
             </ScrollView>
+          </View>
+
+          {/* My Collection */}
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>My Collection</Text>
+              <TouchableOpacity onPress={() => nav.navigate('ProfileSavedItems')}>
+                <Text style={styles.seeAllText}>See All</Text>
+              </TouchableOpacity>
+            </View>
+            <TouchableOpacity
+              style={styles.collectionCard}
+              onPress={() => nav.navigate('ProfileSavedItems')}
+            >
+              <View style={styles.collectionStats}>
+                <View style={styles.collectionStatItem}>
+                  <Ionicons name="bookmark" size={20} color={colors.accent} />
+                  <Text style={styles.collectionStatValue}>{savedItems.savedCocktails?.length || 0}</Text>
+                  <Text style={styles.collectionStatLabel}>Saved</Text>
+                </View>
+                <View style={styles.collectionDivider} />
+                <View style={styles.collectionStatItem}>
+                  <Ionicons name="create" size={20} color={colors.accent} />
+                  <Text style={styles.collectionStatValue}>{recipes.filter(r => r.type === 'created' || r.type === 'ai_generated').length}</Text>
+                  <Text style={styles.collectionStatLabel}>Created</Text>
+                </View>
+                <View style={styles.collectionDivider} />
+                <View style={styles.collectionStatItem}>
+                  <Ionicons name="download" size={20} color={colors.accent} />
+                  <Text style={styles.collectionStatValue}>{recipes.filter(r => (r.type as string) === 'imported').length}</Text>
+                  <Text style={styles.collectionStatLabel}>Imported</Text>
+                </View>
+              </View>
+              <View style={styles.collectionArrow}>
+                <Ionicons name="chevron-forward" size={20} color={colors.subtext} />
+              </View>
+            </TouchableOpacity>
           </View>
 
           {/* Insights / Personalization */}
@@ -323,15 +376,17 @@ const styles = StyleSheet.create({
   streakBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 107, 53, 0.1)',
+    backgroundColor: colors.card,
     paddingHorizontal: spacing(2),
     paddingVertical: spacing(0.75),
     borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.line,
     gap: spacing(0.5),
   },
   streakText: {
     fontSize: 12,
-    color: '#FF6B35',
+    color: colors.accent,
     fontWeight: '600',
   },
   levelSection: {
@@ -536,15 +591,13 @@ const styles = StyleSheet.create({
     gap: spacing(1.5),
   },
   collectionCard: {
-    flex: 1,
-    minWidth: '47%',
+    flexDirection: 'row',
     backgroundColor: colors.card,
     borderRadius: radii.lg,
     padding: spacing(2.5),
     alignItems: 'center',
     borderWidth: 1,
     borderColor: colors.line,
-    gap: spacing(1),
   },
   collectionIconContainer: {
     width: 48,
@@ -685,5 +738,43 @@ const styles = StyleSheet.create({
     width: 80,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing(1.5),
+  },
+  seeAllText: {
+    fontSize: 13,
+    color: colors.accent,
+    fontWeight: '600',
+  },
+  collectionStats: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+  },
+  collectionStatItem: {
+    alignItems: 'center',
+    gap: spacing(0.5),
+  },
+  collectionStatValue: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  collectionStatLabel: {
+    fontSize: 11,
+    color: colors.subtext,
+  },
+  collectionDivider: {
+    width: 1,
+    height: 40,
+    backgroundColor: colors.line,
+  },
+  collectionArrow: {
+    paddingLeft: spacing(2),
   },
 });

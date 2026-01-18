@@ -2,19 +2,37 @@
  * DEEP LINKING UTILITIES
  * Handles deep links to policy documents with anchor support
  * Supports: myapp://policy?doc=privacy&anchor=tracking&lang=en
+ * Also handles shared URLs from social media for recipe import
  */
 
 import { Linking } from 'react-native';
 import type { PolicyDeepLink } from '../types/consent';
 import { log } from './logger';
+import { detectPlatform } from '../services/recipeImportService';
 
 /**
  * Deep link URL patterns
  */
 const DEEP_LINK_PATTERNS = {
   POLICY: /^(?:.*:\/\/)?policy\?(.*)$/,
-  APP_SCHEME: 'homegameadvantage', // Change this to your app's URL scheme
+  APP_SCHEME: 'koope', // Updated to match app.json
 } as const;
+
+/**
+ * Social media URL patterns for recipe import
+ */
+const SOCIAL_MEDIA_PATTERNS = [
+  /instagram\.com/i,
+  /instagr\.am/i,
+  /pinterest\.com/i,
+  /pin\.it/i,
+  /twitter\.com/i,
+  /x\.com/i,
+  /tiktok\.com/i,
+  /vm\.tiktok\.com/i,
+  /youtube\.com/i,
+  /youtu\.be/i,
+];
 
 /**
  * Parse policy deep link URL
@@ -64,12 +82,20 @@ export function generatePolicyDeepLink(params: PolicyDeepLink): string {
 }
 
 /**
+ * Check if URL is a social media URL that could contain a recipe
+ */
+export function isSocialMediaUrl(url: string): boolean {
+  return SOCIAL_MEDIA_PATTERNS.some(pattern => pattern.test(url));
+}
+
+/**
  * Handle incoming deep link URL
  */
 export function handleDeepLink(url: string, navigation: any): boolean {
   try {
     log.info('DeepLinking', 'Handling deep link', { url });
 
+    // Check for policy deep links first
     const policyLink = parsePolicyDeepLink(url);
     if (policyLink) {
       log.info('DeepLinking', 'Policy deep link detected', { policyLink });
@@ -88,6 +114,24 @@ export function handleDeepLink(url: string, navigation: any): boolean {
         });
         return true;
       }
+    }
+
+    // Check for social media URLs (recipe import)
+    if (isSocialMediaUrl(url)) {
+      const platform = detectPlatform(url);
+      log.info('DeepLinking', 'Social media URL detected for recipe import', { url, platform });
+
+      // Navigate to ImportRecipe screen with the URL
+      navigation.navigate('ImportRecipe', { url });
+      return true;
+    }
+
+    // Check if it's a generic URL that might be a recipe
+    // (user might share from a cocktail website)
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      log.info('DeepLinking', 'Generic URL shared, attempting recipe import', { url });
+      navigation.navigate('ImportRecipe', { url });
+      return true;
     }
 
     // Add other deep link patterns here

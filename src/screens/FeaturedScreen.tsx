@@ -21,6 +21,8 @@ import { getCocktailImage } from '../../assets/images/cocktails';
 import { getCocktailsOfTheWeek } from '../utils/weeklyRotation';
 import { log } from '../lib/logger';
 import { useUserTier } from '../store/useUserTier';
+import { useSubscription } from '../contexts/SubscriptionContext';
+import { BlurView } from 'expo-blur';
 
 // Get gold tier spirits from all categories but use uploaded images
 const goldSpirits = [
@@ -68,7 +70,7 @@ const goldBars = [
 
 // Get cocktails of the week (automatically rotates weekly with randomized order)
 // All classic cocktails get a spotlight in rotation
-const featuredCocktails = getCocktailsOfTheWeek(4);
+const featuredCocktails = getCocktailsOfTheWeek(3);
 
 const videos = [
   { id: 'perfect-pour-techniques', title:'Perfect Pour Techniques', duration:'Watch Now · 2 min',
@@ -87,6 +89,10 @@ export default function FeaturedScreen() {
   const { toggleFollow, isFollowing } = useSocialData();
   const mainScrollRef = useRef<ScrollView>(null);
   const { tier } = useUserTier();
+  const { subscriptionTier } = useSubscription();
+
+  // FREE users see teaser but can't access full recipe
+  const isPremiumUser = subscriptionTier === 'plus' || subscriptionTier === 'pro';
 
   // Track screen view
   useScreenTracking('FeaturedScreen');
@@ -162,6 +168,12 @@ export default function FeaturedScreen() {
       </Section>
 
       <Section title="Cocktails of the Week">
+        {!isPremiumUser && (
+          <View style={styles.premiumBadge}>
+            <Ionicons name="star" size={14} color={colors.gold} />
+            <Text style={styles.premiumBadgeText}>PLUS & PRO</Text>
+          </View>
+        )}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: spacing(2), paddingHorizontal: spacing(2) }}>
           {featuredCocktails.map(cocktail => {
             const resolvedImage = getCocktailImage(cocktail.id, cocktail.img);
@@ -169,14 +181,29 @@ export default function FeaturedScreen() {
             <TouchableOpacity
               key={cocktail.id}
               style={styles.cocktailCard}
-              onPress={() => nav.navigate('CocktailDetail', { cocktailId: cocktail.id })}
+              onPress={() => {
+                if (isPremiumUser) {
+                  nav.navigate('CocktailDetail', { cocktailId: cocktail.id });
+                } else {
+                  nav.navigate('Paywall', { source: 'cocktails_of_the_week' });
+                }
+              }}
               activeOpacity={0.8}
             >
               <Image
                 source={typeof resolvedImage === 'string' ? { uri: resolvedImage } : resolvedImage}
-                style={styles.cocktailImage}
+                style={[styles.cocktailImage, !isPremiumUser && styles.lockedCocktailImage]}
                 resizeMode="cover"
               />
+              {!isPremiumUser && (
+                <View style={styles.cocktailLockOverlay}>
+                  <BlurView intensity={20} tint="dark" style={StyleSheet.absoluteFill} />
+                  <View style={styles.cocktailLockContent}>
+                    <Ionicons name="lock-closed" size={28} color={colors.gold} />
+                    <Text style={styles.cocktailLockText}>Unlock Recipe</Text>
+                  </View>
+                </View>
+              )}
               <View style={styles.cocktailInfo}>
                 <Text style={styles.cardTitle}>{cocktail.title}</Text>
                 <Text style={styles.cardSub}>{cocktail.subtitle}</Text>
@@ -185,25 +212,27 @@ export default function FeaturedScreen() {
                   <Text style={styles.cocktailTime}>{cocktail.time}</Text>
                 </View>
               </View>
-              <TouchableOpacity
-                style={styles.saveButton}
-                activeOpacity={0.7}
-                onPress={(e) => {
-                  e.stopPropagation();
-                  toggleSavedCocktail({
-                    id: cocktail.id,
-                    name: cocktail.title,
-                    subtitle: cocktail.description,
-                    image: cocktail.img
-                  });
-                }}
-              >
-                <Ionicons
-                  name={isCocktailSaved(cocktail.id) ? "bookmark" : "bookmark-outline"}
-                  size={20}
-                  color={isCocktailSaved(cocktail.id) ? colors.accent : colors.text}
-                />
-              </TouchableOpacity>
+              {isPremiumUser && (
+                <TouchableOpacity
+                  style={styles.saveButton}
+                  activeOpacity={0.7}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    toggleSavedCocktail({
+                      id: cocktail.id,
+                      name: cocktail.title,
+                      subtitle: cocktail.description,
+                      image: cocktail.img
+                    });
+                  }}
+                >
+                  <Ionicons
+                    name={isCocktailSaved(cocktail.id) ? "bookmark" : "bookmark-outline"}
+                    size={20}
+                    color={isCocktailSaved(cocktail.id) ? colors.accent : colors.text}
+                  />
+                </TouchableOpacity>
+              )}
             </TouchableOpacity>
             );
           })}
@@ -537,6 +566,55 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.5)',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+
+  // Premium Badge
+  premiumBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(0.5),
+    backgroundColor: 'rgba(212, 175, 55, 0.15)',
+    paddingHorizontal: spacing(1.5),
+    paddingVertical: spacing(0.5),
+    borderRadius: radii.full,
+    alignSelf: 'flex-start',
+    marginBottom: spacing(1),
+    marginLeft: spacing(2),
+  },
+  premiumBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.gold,
+    letterSpacing: 0.5,
+  },
+
+  // Cocktail Lock Overlay (for FREE users)
+  lockedCocktailImage: {
+    opacity: 0.6,
+  },
+  cocktailLockOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 180,
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
+    borderTopLeftRadius: radii.lg,
+    borderTopRightRadius: radii.lg,
+  },
+  cocktailLockContent: {
+    alignItems: 'center',
+    gap: spacing(1),
+    zIndex: 1,
+  },
+  cocktailLockText: {
+    color: colors.gold,
+    fontSize: 13,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
 
   // Empty State

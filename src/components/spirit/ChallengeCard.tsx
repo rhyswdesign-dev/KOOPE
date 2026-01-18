@@ -1,8 +1,7 @@
 import React from 'react';
 import { View, Image, Text, TouchableOpacity, StyleSheet } from 'react-native';
 
-// Optimized with React.memo to prevent unnecessary re-renders in lists
-const ChallengeCard = React.memo(({
+export default function ChallengeCard({
   image,
   title,
   copy,
@@ -14,7 +13,7 @@ const ChallengeCard = React.memo(({
   copy: string;
   cta?: string;
   onPress?: () => void;
-}) => {
+}) {
   return (
     <View style={s.card}>
       <Image source={{ uri: image }} style={s.hero} />
@@ -27,9 +26,7 @@ const ChallengeCard = React.memo(({
       </View>
     </View>
   );
-});
-
-export default ChallengeCard;
+}
 
 const s = StyleSheet.create({
   card: {

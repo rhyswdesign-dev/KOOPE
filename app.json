@@ -3,6 +3,7 @@
     "name": "KŌOPE",
     "slug": "KOOPE",
     "version": "1.0.0",
+    "scheme": "koope",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -15,7 +16,10 @@
     "ios": {
       "supportsTablet": true,
       "statusBarStyle": "light",
-      "bundleIdentifier": "com.koope.app"
+      "bundleIdentifier": "com.koope.app",
+      "infoPlist": {
+        "LSApplicationQueriesSchemes": ["instagram", "pinterest", "twitter"]
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -24,7 +28,16 @@
       },
       "statusBarStyle": "light",
       "edgeToEdgeEnabled": true,
-      "package": "com.koope.app"
+      "package": "com.koope.app",
+      "intentFilters": [
+        {
+          "action": "android.intent.action.SEND",
+          "category": ["android.intent.category.DEFAULT"],
+          "data": {
+            "mimeType": "text/plain"
+          }
+        }
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"

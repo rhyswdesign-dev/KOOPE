@@ -96,6 +96,8 @@ import PaywallScreen from '../screens/PaywallScreen';
 import CustomerCenterScreen from '../screens/CustomerCenterScreen';
 import RequirePro from '../components/RequirePro';
 import { VaultCategory } from '../config/vaultTypes';
+import ImportRecipeScreen from '../screens/ImportRecipeScreen';
+import ProfileSavedItemsScreen from '../screens/ProfileSavedItemsScreen';
 
 export type RootStackParamList = {
   Main: undefined;
@@ -190,6 +192,8 @@ export type RootStackParamList = {
   SubscriptionDebug: undefined;
   Paywall: { offering?: string | null; displayCloseButton?: boolean };
   CustomerCenter: undefined;
+  ImportRecipe: { url?: string };
+  ProfileSavedItems: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -444,6 +448,8 @@ export default function RootNavigator({ initialRouteName = 'Main', onHiddenFlask
       <Stack.Screen name="SubscriptionDebug" component={SubscriptionDebugScreen} options={{ headerShown: true, title: '🔍 Subscription Debug' }} />
       <Stack.Screen name="Paywall" component={PaywallScreen} options={{ headerShown: false, presentation: 'modal' }} />
       <Stack.Screen name="CustomerCenter" component={CustomerCenterScreen} options={{ headerShown: false, presentation: 'modal' }} />
+      <Stack.Screen name="ImportRecipe" component={ImportRecipeScreen} options={{ headerShown: true, title: 'Import Recipe' }} />
+      <Stack.Screen name="ProfileSavedItems" component={ProfileSavedItemsScreen} options={{ headerShown: true, title: 'My Collection' }} />
     </Stack.Navigator>
   );
 }

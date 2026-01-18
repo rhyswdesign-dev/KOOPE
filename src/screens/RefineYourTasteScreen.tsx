@@ -31,13 +31,13 @@ import { createRecipeCardProps, handleRecipeView } from '../utils/recipeActions'
 
 // Import spirit and flavor images directly
 const spiritImages = {
-  tequila: require('../../assets/images/spirits/KOOPE Tequila.png'),
-  whiskey: require('../../assets/images/spirits/KOOPE Whiskey.png'),
-  rum: require('../../assets/images/spirits/KOOPE Rum.png'),
-  gin: require('../../assets/images/spirits/KOOPE Gin.png'),
-  vodka: require('../../assets/images/spirits/KOOPE Vodka.png'),
-  brandy: require('../../assets/images/spirits/KOOPE Brandy.png'),
-  liqueurs: require('../../assets/images/spirits/KOOPE Liqueurs.png'),
+  tequila: require('../../assets/images/spirits/koope-tequila.png'),
+  whiskey: require('../../assets/images/spirits/koope-whiskey.png'),
+  rum: require('../../assets/images/spirits/koope-rum.png'),
+  gin: require('../../assets/images/spirits/koope-gin.png'),
+  vodka: require('../../assets/images/spirits/koope-vodka.png'),
+  brandy: require('../../assets/images/spirits/koope-brandy.png'),
+  liqueurs: require('../../assets/images/spirits/koope-mezcal.png'),
 };
 
 const flavorImages = {

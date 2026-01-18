@@ -27,6 +27,8 @@ import { HomeBar, BarIngredient, HomeBarService } from '../services/homeBarServi
 import { ShoppingListStore } from '../services/shoppingListStore';
 import EmptyState from '../components/EmptyState';
 import { log } from '../lib/logger';
+import { usePaywallTriggers } from '../hooks/usePaywallTriggers';
+import { useSubscription } from '../contexts/SubscriptionContext';
 
 // Import images from assets
 import * as Images from '../../assets/images';
@@ -524,6 +526,8 @@ const mockHomeBar: HomeBar = {
 
 export default function HomeBarScreen() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const { inventoryGate } = usePaywallTriggers();
+  const { isKoopePlus, isKoopePro } = useSubscription();
   const [showSearchModal, setShowSearchModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState<InventoryCategory | 'all'>('all');
@@ -626,33 +630,42 @@ export default function HomeBarScreen() {
       return;
     }
 
-    const newIngredient: BarIngredient = {
-      id: `manual-${Date.now()}`,
-      name: manualEntryName.trim(),
-      category: manualEntryCategory,
-      brand: manualEntryBrand.trim() || undefined,
-      volume: manualEntryVolume ? parseInt(manualEntryVolume) : undefined,
-      addedAt: new Date(),
-      isFavorite: false,
-      tags: ['manual-entry'],
-    };
+    // Check inventory gate before adding
+    const currentCount = homeBar.ingredients.length;
+    const canProceed = inventoryGate(currentCount, async () => {
+      // Paywall passed - proceed with adding ingredient
+      const newIngredient: BarIngredient = {
+        id: `manual-${Date.now()}`,
+        name: manualEntryName.trim(),
+        category: manualEntryCategory,
+        brand: manualEntryBrand.trim() || undefined,
+        volume: manualEntryVolume ? parseInt(manualEntryVolume) : undefined,
+        addedAt: new Date(),
+        isFavorite: false,
+        tags: ['manual-entry'],
+      };
 
-    try {
-      await HomeBarService.addIngredient(newIngredient);
-      setHomeBar(prev => ({
-        ...prev,
-        ingredients: [...prev.ingredients, newIngredient]
-      }));
+      try {
+        await HomeBarService.addIngredient(newIngredient);
+        setHomeBar(prev => ({
+          ...prev,
+          ingredients: [...prev.ingredients, newIngredient]
+        }));
 
-      // Reset form
-      setManualEntryName('');
-      setManualEntryCategory('spirit');
-      setManualEntryBrand('');
-      setManualEntryVolume('');
-      setShowCustomInput(false);
-      setShowManualEntryModal(false);
-    } catch (error) {
-      Alert.alert('Error', 'Failed to add ingredient. Please try again.');
+        // Reset form
+        setManualEntryName('');
+        setManualEntryCategory('spirit');
+        setManualEntryBrand('');
+        setManualEntryVolume('');
+        setShowCustomInput(false);
+        setShowManualEntryModal(false);
+      } catch (error) {
+        Alert.alert('Error', 'Failed to add ingredient. Please try again.');
+      }
+    });
+
+    if (!canProceed) {
+      log.info('HomeBarScreen', 'Inventory gate blocked - upgrade required');
     }
   };
 

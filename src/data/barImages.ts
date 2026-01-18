@@ -72,15 +72,16 @@ export const BAR_PAGE_HEADERS = {
 
 // Spirit Images
 export const SPIRIT_IMAGES = {
-  brandy: require('../../assets/images/spirits/Brandy.png'),
-  gin: require('../../assets/images/spirits/Gin.png'),
-  gin_1: require('../../assets/images/spirits/Gin 1.png'),
-  mezcal: require('../../assets/images/spirits/Mezcal.png'),
-  rum: require('../../assets/images/spirits/Rum.png'),
-  rum_1: require('../../assets/images/spirits/Rum 1.png'),
-  scotch: require('../../assets/images/spirits/Scotch.png'),
-  tequila: require('../../assets/images/spirits/Tequila.png'),
-  whiskey: require('../../assets/images/spirits/Whiskey.png'),
+  brandy: require('../../assets/images/spirits/koope-brandy.png'),
+  gin: require('../../assets/images/spirits/koope-gin.png'),
+  gin_1: require('../../assets/images/spirits/koope-gin01.png'),
+  mezcal: require('../../assets/images/spirits/koope-mezcal.png'),
+  rum: require('../../assets/images/spirits/koope-rum.png'),
+  rum_1: require('../../assets/images/spirits/koope-rum01.png'),
+  scotch: require('../../assets/images/spirits/koope-scotch.png'),
+  tequila: require('../../assets/images/spirits/koope-tequila.png'),
+  whiskey: require('../../assets/images/spirits/koope-whiskey.png'),
+  vodka: require('../../assets/images/spirits/koope-vodka.png'),
 };
 
 // Featured Spirit Images

@@ -7,7 +7,6 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, radii } from '../theme/tokens';
-import { LinearGradient } from 'expo-linear-gradient';
 
 interface StreakCardProps {
   currentStreak: number;
@@ -29,34 +28,19 @@ export default function StreakCard({
   streakCalendar = [],
   style,
 }: StreakCardProps) {
-  const getFlameColor = () => {
-    if (currentStreak === 0) return colors.muted;
-    if (currentStreak < 3) return '#FCD34D'; // Yellow
-    if (currentStreak < 7) return '#FB923C'; // Orange
-    if (currentStreak < 30) return '#F97316'; // Deep Orange
-    return '#EF4444'; // Red (hot!)
-  };
-
-  const flameColor = getFlameColor();
-
   return (
     <View style={[styles.container, style]}>
-      <LinearGradient
-        colors={['#1F2937', '#111827']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.gradient}
-      >
+      <View style={styles.card}>
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.flameContainer}>
             <Ionicons
               name={currentStreak > 0 ? 'flame' : 'flame-outline'}
               size={48}
-              color={flameColor}
+              color={colors.accent}
             />
             {currentStreak > 0 && (
-              <View style={[styles.streakBadge, { backgroundColor: flameColor }]}>
+              <View style={styles.streakBadge}>
                 <Text style={styles.streakNumber}>{currentStreak}</Text>
               </View>
             )}
@@ -111,7 +95,7 @@ export default function StreakCard({
             </View>
           </View>
         )}
-      </LinearGradient>
+      </View>
     </View>
   );
 }
@@ -119,12 +103,13 @@ export default function StreakCard({
 const styles = StyleSheet.create({
   container: {
     marginBottom: spacing(2),
-    borderRadius: radii.lg,
-    overflow: 'hidden',
   },
-  gradient: {
+  card: {
     padding: spacing(3),
     borderRadius: radii.lg,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.line,
   },
   header: {
     flexDirection: 'row',
@@ -144,14 +129,15 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: colors.accent,
     borderWidth: 2,
-    borderColor: colors.bg,
+    borderColor: colors.card,
     paddingHorizontal: spacing(0.5),
   },
   streakNumber: {
     fontSize: 14,
     fontWeight: '900',
-    color: '#FFFFFF',
+    color: colors.bg,
   },
   stats: {
     flex: 1,
