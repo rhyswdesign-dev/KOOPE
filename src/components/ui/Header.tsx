@@ -1,9 +1,23 @@
 import React from 'react';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { colors, spacing, fonts } from '../../theme/tokens';
+import { colors, spacing, fonts, radii } from '../../theme/tokens';
+
+export interface HeaderAction {
+  icon: keyof typeof Ionicons.glyphMap;
+  onPress: () => void;
+  badge?: number;
+  accessibilityLabel?: string;
+}
+
+export interface HeaderFilter {
+  key: string;
+  label: string;
+  icon?: keyof typeof Ionicons.glyphMap;
+  active?: boolean;
+}
 
 interface HeaderProps {
   title?: string;
@@ -18,6 +32,10 @@ interface HeaderProps {
   centerTitle?: boolean;
   rightComponent?: React.ReactNode;
   leftComponent?: React.ReactNode;
+  // New props for extended functionality
+  rightActions?: HeaderAction[];
+  filters?: HeaderFilter[];
+  onFilterChange?: (key: string) => void;
 }
 
 export default function Header({
@@ -33,6 +51,9 @@ export default function Header({
   centerTitle = false,
   rightComponent,
   leftComponent,
+  rightActions = [],
+  filters = [],
+  onFilterChange,
 }: HeaderProps) {
   const navigation = useNavigation();
 
@@ -58,7 +79,7 @@ export default function Header({
     if (rightComponent) return rightComponent;
 
     const icons = [];
-    
+
     if (showSearch) {
       icons.push(
         <Pressable key="search" hitSlop={10} onPress={onSearch} style={styles.iconButton}>
@@ -66,7 +87,7 @@ export default function Header({
         </Pressable>
       );
     }
-    
+
     if (showFilter) {
       icons.push(
         <Pressable key="filter" hitSlop={10} onPress={onFilter} style={styles.iconButton}>
@@ -74,7 +95,7 @@ export default function Header({
         </Pressable>
       );
     }
-    
+
     if (showMenu) {
       icons.push(
         <Pressable key="menu" hitSlop={10} onPress={onMenu} style={styles.iconButton}>
@@ -82,6 +103,29 @@ export default function Header({
         </Pressable>
       );
     }
+
+    // Add rightActions support
+    rightActions.forEach((action, index) => {
+      icons.push(
+        <TouchableOpacity
+          key={`action-${index}`}
+          style={styles.actionButton}
+          onPress={action.onPress}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel={action.accessibilityLabel || action.icon}
+        >
+          <Ionicons name={action.icon} size={22} color={colors.text} />
+          {action.badge !== undefined && action.badge > 0 && (
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>
+                {action.badge > 99 ? '99+' : action.badge}
+              </Text>
+            </View>
+          )}
+        </TouchableOpacity>
+      );
+    });
 
     if (icons.length === 0) {
       return <View style={styles.iconButton} />;
@@ -94,11 +138,53 @@ export default function Header({
     );
   };
 
+  const renderFilters = () => {
+    if (filters.length === 0) return null;
+
+    return (
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.filtersContainer}
+        style={styles.filtersScroll}
+      >
+        {filters.map((filter) => (
+          <TouchableOpacity
+            key={filter.key}
+            style={[
+              styles.filterChip,
+              filter.active && styles.filterChipActive,
+            ]}
+            onPress={() => onFilterChange?.(filter.key)}
+            activeOpacity={0.7}
+          >
+            {filter.icon && (
+              <Ionicons
+                name={filter.icon}
+                size={16}
+                color={filter.active ? colors.goldText : colors.subtext}
+                style={styles.filterIcon}
+              />
+            )}
+            <Text
+              style={[
+                styles.filterText,
+                filter.active && styles.filterTextActive,
+              ]}
+            >
+              {filter.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+    );
+  };
+
   return (
     <SafeAreaView edges={['top']} style={styles.container}>
       <View style={styles.header}>
         {renderLeftContent()}
-        
+
         <View style={[styles.titleContainer, centerTitle && styles.centerTitle]}>
           {title && (
             <Text style={[styles.title, centerTitle && styles.centerTitleText]}>
@@ -111,9 +197,10 @@ export default function Header({
             </Text>
           )}
         </View>
-        
+
         {renderRightContent()}
       </View>
+      {renderFilters()}
     </SafeAreaView>
   );
 }
@@ -136,6 +223,32 @@ const styles = StyleSheet.create({
     height: 40,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  actionButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.card,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  badge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: colors.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+  },
+  badgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: colors.white,
   },
   titleContainer: {
     flex: 1,
@@ -161,5 +274,38 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing(1),
+  },
+  // Filter styles
+  filtersScroll: {
+    marginTop: spacing(1),
+  },
+  filtersContainer: {
+    paddingHorizontal: spacing(2),
+    gap: spacing(1),
+  },
+  filterChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing(2),
+    paddingVertical: spacing(1),
+    borderRadius: radii.pill,
+    backgroundColor: colors.chipBg,
+    borderWidth: 1,
+    borderColor: colors.chipBorder,
+  },
+  filterChipActive: {
+    backgroundColor: colors.gold,
+    borderColor: colors.gold,
+  },
+  filterIcon: {
+    marginRight: spacing(0.5),
+  },
+  filterText: {
+    fontSize: fonts.small,
+    fontWeight: '600',
+    color: colors.subtext,
+  },
+  filterTextActive: {
+    color: colors.goldText,
   },
 });

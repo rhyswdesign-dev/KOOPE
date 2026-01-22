@@ -83,12 +83,12 @@ export default function XPReminderScreen({ onComplete, onGoBack }: XPReminderScr
         {/* XP Progress Example */}
         <View style={styles.xpExample}>
           <Text style={styles.xpTitle}>What You're Missing:</Text>
+          <Text style={styles.xpText}>0 XP without account</Text>
           <View style={styles.xpBar}>
             <View style={styles.xpProgress} />
-            <Text style={styles.xpText}>0 XP without account</Text>
           </View>
           <Text style={styles.xpSubtext}>
-            Users with accounts average 150+ XP in their first week
+            Without an account, your progress and XP won't be saved
           </Text>
         </View>
       </View>
@@ -116,8 +116,8 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: spacing(3),
-    paddingTop: spacing(4),
     alignItems: 'center',
+    justifyContent: 'center',
   },
   iconContainer: {
     marginBottom: spacing(3),
@@ -178,27 +178,25 @@ const styles = StyleSheet.create({
     color: colors.text,
     marginBottom: spacing(1.5),
   },
+  xpText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.subtext,
+    marginBottom: spacing(1),
+  },
   xpBar: {
     width: '100%',
     height: 8,
     backgroundColor: colors.chipBg,
     borderRadius: 4,
-    position: 'relative',
-    marginBottom: spacing(1),
+    marginBottom: spacing(1.5),
+    overflow: 'hidden',
   },
   xpProgress: {
     width: '0%',
     height: '100%',
     backgroundColor: colors.accent,
     borderRadius: 4,
-  },
-  xpText: {
-    position: 'absolute',
-    top: -2,
-    left: 4,
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.subtext,
   },
   xpSubtext: {
     fontSize: 12,

@@ -1,5 +1,6 @@
 import React from 'react';
 import { TouchableOpacity, Text, StyleSheet, ViewStyle, TextStyle } from 'react-native';
+import { colors, radii, spacing } from '../../theme/tokens';
 
 type PillButtonVariant = 'filled' | 'outline' | 'ghost';
 
@@ -48,13 +49,13 @@ const BrandPillButton: React.FC<PillButtonProps> = ({
   };
 
   const getTextStyle = () => {
-    const baseTextColor = variant === 'filled' ? getTextColor('#E4933E') : '#E4933E';
-    
+    const baseTextColor = variant === 'filled' ? getTextColor(colors.accent) : colors.accent;
+
     switch (variant) {
       case 'outline':
-        return [styles.text, { color: '#E4933E' }, textStyle];
+        return [styles.text, { color: colors.accent }, textStyle];
       case 'ghost':
-        return [styles.text, { color: '#E4933E' }, textStyle];
+        return [styles.text, { color: colors.accent }, textStyle];
       default:
         return [styles.text, { color: baseTextColor }, textStyle];
     }
@@ -77,19 +78,19 @@ const BrandPillButton: React.FC<PillButtonProps> = ({
 const styles = StyleSheet.create({
   button: {
     height: 44,
-    borderRadius: 9999, // pill
-    paddingHorizontal: 16,
+    borderRadius: radii.full,
+    paddingHorizontal: spacing(2),
     justifyContent: 'center',
     alignItems: 'center',
     minWidth: 44,
   },
   filled: {
-    backgroundColor: '#E4933E', // primary
+    backgroundColor: colors.accent,
   },
   outline: {
     backgroundColor: 'transparent',
     borderWidth: 1,
-    borderColor: '#E4933E',
+    borderColor: colors.accent,
   },
   ghost: {
     backgroundColor: 'transparent',

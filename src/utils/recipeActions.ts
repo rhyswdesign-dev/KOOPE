@@ -2,6 +2,7 @@ import { Alert } from 'react-native';
 import { getDetailedCocktail } from './cocktailDataTransformer';
 import { usePersonalization } from '../store/usePersonalization';
 import { log } from '../lib/logger';
+import { trackEvent, ANALYTICS_EVENTS, ANALYTICS_PROPS } from '../lib/analytics';
 
 /**
  * Global Recipe Action Utilities
@@ -19,12 +20,39 @@ interface Recipe {
 }
 
 /**
+ * Recipe view source types for analytics tracking
+ */
+export type RecipeViewSource =
+  | 'featured'
+  | 'search'
+  | 'home_bar'
+  | 'vault'
+  | 'saved'
+  | 'category'
+  | 'related'
+  | 'onboarding'
+  | 'deep_link'
+  | 'notification'
+  | 'unknown';
+
+/**
  * Handle recipe view navigation and behavior tracking
+ * @param recipe - The recipe being viewed
+ * @param navigation - Navigation object
+ * @param source - Where the user discovered this recipe (for analytics)
  */
 export const handleRecipeView = (
   recipe: Recipe,
-  navigation: any
+  navigation: any,
+  source: RecipeViewSource = 'unknown'
 ) => {
+  // Track recipe view with source for analytics
+  trackEvent(ANALYTICS_EVENTS.RECIPE_VIEWED, {
+    [ANALYTICS_PROPS.RECIPE_ID]: recipe.id,
+    [ANALYTICS_PROPS.RECIPE_NAME]: recipe.name || recipe.title,
+    [ANALYTICS_PROPS.SOURCE]: source,
+  });
+
   // Pass both cocktailId and the full cocktail object
   // This allows local recipes (like mocktails) to be displayed without Supabase lookup
   navigation.navigate('CocktailDetail', {
@@ -35,7 +63,7 @@ export const handleRecipeView = (
   // Record user behavior for AI learning
   try {
     const { recordInteraction } = usePersonalization.getState();
-    recordInteraction('cocktail_viewed', recipe.id, { recipe });
+    recordInteraction('cocktail_viewed', recipe.id, { recipe, source });
   } catch (error) {
     log.warn('recipeActions', 'Failed to record recipe view behavior', { error, recipeId: recipe.id });
   }
@@ -192,6 +220,7 @@ export const createRecipeCardProps = (
     showSaveButton?: boolean;
     showCartButton?: boolean;
     showDeleteButton?: boolean;
+    source?: RecipeViewSource;
   } = {}
 ) => {
   const {
@@ -205,11 +234,12 @@ export const createRecipeCardProps = (
     showSaveButton = true,
     showCartButton = true,
     showDeleteButton = false,
+    source = 'unknown',
   } = options;
 
   return {
     recipe,
-    onPress: (recipe: Recipe) => handleRecipeView(recipe, navigation),
+    onPress: (recipe: Recipe) => handleRecipeView(recipe, navigation, source),
     onSave: toggleSavedCocktail && isCocktailSaved
       ? (recipe: Recipe) => handleSaveRecipe(recipe, toggleSavedCocktail, isCocktailSaved, navigation, showToast)
       : undefined,

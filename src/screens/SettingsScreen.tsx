@@ -14,17 +14,13 @@ import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { useAICredits } from '../store/useAICredits';
 import { HomeBarService } from '../services/homeBarService';
+import { useNotifications } from '../services/notificationService';
 
 export default function SettingsScreen() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { user, signOut: supabaseSignOut } = useAuth();
   const { addCredits } = useAICredits();
-  const [notifications, setNotifications] = useState({
-    events: true,
-    social: true,
-    marketing: false,
-    updates: true,
-  });
+  const { preferences: notificationPrefs, updatePreferences } = useNotifications();
 
   const [appearance, setAppearance] = useState({
     theme: 'dark', // 'dark' | 'light' | 'auto'
@@ -184,6 +180,18 @@ export default function SettingsScreen() {
 
           <TouchableOpacity
             style={styles.settingItem}
+            onPress={() => nav.navigate('ManageSubscription')}
+            activeOpacity={0.7}
+          >
+            <View style={styles.settingItemLeft}>
+              <Ionicons name="card-outline" size={22} color={colors.text} />
+              <Text style={styles.settingItemText}>Manage Subscription</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={colors.subtext} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.settingItem}
             onPress={() => nav.navigate('Paywall', { displayCloseButton: true })}
             activeOpacity={0.7}
           >
@@ -193,6 +201,21 @@ export default function SettingsScreen() {
             </View>
             <Ionicons name="chevron-forward" size={20} color={colors.subtext} />
           </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.settingItem}
+            onPress={() => nav.navigate('Referral')}
+            activeOpacity={0.7}
+          >
+            <View style={styles.settingItemLeft}>
+              <Ionicons name="gift-outline" size={22} color={colors.accent} />
+              <Text style={styles.settingItemText}>Refer Friends</Text>
+            </View>
+            <View style={styles.settingItemRight}>
+              <Text style={styles.settingItemBadge}>Earn Free Premium</Text>
+              <Ionicons name="chevron-forward" size={20} color={colors.subtext} />
+            </View>
+          </TouchableOpacity>
         </View>
 
         {/* Notifications Section - Collapsible */}
@@ -200,13 +223,25 @@ export default function SettingsScreen() {
           <Text style={styles.sectionTitle}>Preferences</Text>
 
           <TouchableOpacity
+            style={styles.settingItem}
+            onPress={() => nav.navigate('NotificationCenter')}
+            activeOpacity={0.7}
+          >
+            <View style={styles.settingItemLeft}>
+              <Ionicons name="notifications-outline" size={22} color={colors.text} />
+              <Text style={styles.settingItemText}>Notification Center</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={colors.subtext} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
             style={styles.collapsibleHeader}
             onPress={() => toggleSection('notifications')}
             activeOpacity={0.7}
           >
             <View style={styles.settingItemLeft}>
-              <Ionicons name="notifications-outline" size={22} color={colors.text} />
-              <Text style={styles.settingItemText}>Notifications</Text>
+              <Ionicons name="options-outline" size={22} color={colors.text} />
+              <Text style={styles.settingItemText}>Notification Settings</Text>
             </View>
             <Ionicons
               name={expandedSections.notifications ? "chevron-up" : "chevron-down"}
@@ -219,6 +254,22 @@ export default function SettingsScreen() {
             <>
               <View style={styles.settingItem}>
                 <View style={styles.settingItemLeft}>
+                  <Ionicons name="school-outline" size={22} color={colors.text} />
+                  <View>
+                    <Text style={styles.settingItemText}>Lessons</Text>
+                    <Text style={styles.settingItemSubtext}>Lesson reminders and streaks</Text>
+                  </View>
+                </View>
+                <Switch
+                  value={notificationPrefs.lessons}
+                  onValueChange={(value) => updatePreferences({ lessons: value })}
+                  thumbColor={notificationPrefs.lessons ? colors.white : colors.subtle}
+                  trackColor={{ true: colors.accent, false: colors.line }}
+                />
+              </View>
+
+              <View style={styles.settingItem}>
+                <View style={styles.settingItemLeft}>
                   <Ionicons name="calendar-outline" size={22} color={colors.text} />
                   <View>
                     <Text style={styles.settingItemText}>Events</Text>
@@ -226,9 +277,9 @@ export default function SettingsScreen() {
                   </View>
                 </View>
                 <Switch
-                  value={notifications.events}
-                  onValueChange={(value) => setNotifications(prev => ({ ...prev, events: value }))}
-                  thumbColor={notifications.events ? colors.white : colors.subtle}
+                  value={notificationPrefs.events}
+                  onValueChange={(value) => updatePreferences({ events: value })}
+                  thumbColor={notificationPrefs.events ? colors.white : colors.subtle}
                   trackColor={{ true: colors.accent, false: colors.line }}
                 />
               </View>
@@ -242,9 +293,9 @@ export default function SettingsScreen() {
                   </View>
                 </View>
                 <Switch
-                  value={notifications.social}
-                  onValueChange={(value) => setNotifications(prev => ({ ...prev, social: value }))}
-                  thumbColor={notifications.social ? colors.white : colors.subtle}
+                  value={notificationPrefs.social}
+                  onValueChange={(value) => updatePreferences({ social: value })}
+                  thumbColor={notificationPrefs.social ? colors.white : colors.subtle}
                   trackColor={{ true: colors.accent, false: colors.line }}
                 />
               </View>
@@ -258,25 +309,25 @@ export default function SettingsScreen() {
                   </View>
                 </View>
                 <Switch
-                  value={notifications.marketing}
-                  onValueChange={(value) => setNotifications(prev => ({ ...prev, marketing: value }))}
-                  thumbColor={notifications.marketing ? colors.white : colors.subtle}
+                  value={notificationPrefs.marketing}
+                  onValueChange={(value) => updatePreferences({ marketing: value })}
+                  thumbColor={notificationPrefs.marketing ? colors.white : colors.subtle}
                   trackColor={{ true: colors.accent, false: colors.line }}
                 />
               </View>
 
               <View style={styles.settingItem}>
                 <View style={styles.settingItemLeft}>
-                  <Ionicons name="notifications-outline" size={22} color={colors.text} />
+                  <Ionicons name="archive-outline" size={22} color={colors.text} />
                   <View>
-                    <Text style={styles.settingItemText}>App Updates</Text>
-                    <Text style={styles.settingItemSubtext}>New features and improvements</Text>
+                    <Text style={styles.settingItemText}>Vault Updates</Text>
+                    <Text style={styles.settingItemSubtext}>Hearts refilled, XP milestones</Text>
                   </View>
                 </View>
                 <Switch
-                  value={notifications.updates}
-                  onValueChange={(value) => setNotifications(prev => ({ ...prev, updates: value }))}
-                  thumbColor={notifications.updates ? colors.white : colors.subtle}
+                  value={notificationPrefs.vault}
+                  onValueChange={(value) => updatePreferences({ vault: value })}
+                  thumbColor={notificationPrefs.vault ? colors.white : colors.subtle}
                   trackColor={{ true: colors.accent, false: colors.line }}
                 />
               </View>
@@ -595,6 +646,20 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.subtext,
     marginTop: 2,
+  },
+  settingItemRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(1),
+  },
+  settingItemBadge: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.accent,
+    backgroundColor: 'rgba(214, 138, 56, 0.15)',
+    paddingHorizontal: spacing(1),
+    paddingVertical: 2,
+    borderRadius: radii.sm,
   },
   collapsibleHeader: {
     flexDirection: 'row',

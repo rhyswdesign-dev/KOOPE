@@ -17,12 +17,10 @@ import FilterDrawer from '../components/FilterDrawer';
 import CreateRecipeModal from '../components/CreateRecipeModal';
 import { useScreenTracking } from '../context/AnalyticsContext';
 import { FEATURED_SPIRIT_IMAGES } from '../data/barImages';
-import { getCocktailImage } from '../../assets/images/cocktails';
-import { getCocktailsOfTheWeek } from '../utils/weeklyRotation';
 import { log } from '../lib/logger';
 import { useUserTier } from '../store/useUserTier';
 import { useSubscription } from '../contexts/SubscriptionContext';
-import { BlurView } from 'expo-blur';
+import { getFeaturedVaultItems, getActiveVaultItems } from '../data/vaultData';
 
 // Get gold tier spirits from all categories but use uploaded images
 const goldSpirits = [
@@ -67,10 +65,6 @@ const goldBars = [
 ];
 
 // Drinking games moved to Vault
-
-// Get cocktails of the week (automatically rotates weekly with randomized order)
-// All classic cocktails get a spotlight in rotation
-const featuredCocktails = getCocktailsOfTheWeek(3);
 
 const videos = [
   { id: 'perfect-pour-techniques', title:'Perfect Pour Techniques', duration:'Watch Now · 2 min',
@@ -167,79 +161,36 @@ export default function FeaturedScreen() {
         </View>
       </Section>
 
-      <Section title="Cocktails of the Week">
-        {!isPremiumUser && (
-          <View style={styles.premiumBadge}>
-            <Ionicons name="star" size={14} color={colors.gold} />
-            <Text style={styles.premiumBadgeText}>PLUS & PRO</Text>
-          </View>
-        )}
+      <Section title="From the Vault" onPress={() => nav.navigate('VaultTab' as any)}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: spacing(2), paddingHorizontal: spacing(2) }}>
-          {featuredCocktails.map(cocktail => {
-            const resolvedImage = getCocktailImage(cocktail.id, cocktail.img);
-            return (
+          {getFeaturedVaultItems().map(item => (
             <TouchableOpacity
-              key={cocktail.id}
-              style={styles.cocktailCard}
-              onPress={() => {
-                if (isPremiumUser) {
-                  nav.navigate('CocktailDetail', { cocktailId: cocktail.id });
-                } else {
-                  nav.navigate('Paywall', { source: 'cocktails_of_the_week' });
-                }
-              }}
+              key={item.id}
+              style={styles.vaultCard}
+              onPress={() => nav.navigate('VaultTab' as any)}
               activeOpacity={0.8}
             >
               <Image
-                source={typeof resolvedImage === 'string' ? { uri: resolvedImage } : resolvedImage}
-                style={[styles.cocktailImage, !isPremiumUser && styles.lockedCocktailImage]}
+                source={{ uri: item.image }}
+                style={styles.vaultImage}
                 resizeMode="cover"
               />
-              {!isPremiumUser && (
-                <View style={styles.cocktailLockOverlay}>
-                  <BlurView intensity={20} tint="dark" style={StyleSheet.absoluteFill} />
-                  <View style={styles.cocktailLockContent}>
-                    <Ionicons name="lock-closed" size={28} color={colors.gold} />
-                    <Text style={styles.cocktailLockText}>Unlock Recipe</Text>
-                  </View>
-                </View>
-              )}
-              <View style={styles.cocktailInfo}>
-                <Text style={styles.cardTitle}>{cocktail.title}</Text>
-                <Text style={styles.cardSub}>{cocktail.subtitle}</Text>
-                <View style={styles.cocktailMeta}>
-                  <Text style={styles.cocktailDifficulty}>{cocktail.difficulty}</Text>
-                  <Text style={styles.cocktailTime}>{cocktail.time}</Text>
+              <View style={styles.vaultBadge}>
+                <Ionicons name="key" size={12} color={colors.gold} />
+                <Text style={styles.vaultBadgeText}>{item.keysCost > 0 ? `${item.keysCost} Key${item.keysCost > 1 ? 's' : ''}` : `${item.xpCost} XP`}</Text>
+              </View>
+              <View style={styles.vaultInfo}>
+                <Text style={styles.cardTitle} numberOfLines={1}>{item.name}</Text>
+                <Text style={styles.cardSub} numberOfLines={2}>{item.description}</Text>
+                <View style={styles.vaultMeta}>
+                  <Text style={styles.vaultStock}>{item.currentStock} left</Text>
+                  <Text style={styles.vaultValue}>{item.estimatedValue}</Text>
                 </View>
               </View>
-              {isPremiumUser && (
-                <TouchableOpacity
-                  style={styles.saveButton}
-                  activeOpacity={0.7}
-                  onPress={(e) => {
-                    e.stopPropagation();
-                    toggleSavedCocktail({
-                      id: cocktail.id,
-                      name: cocktail.title,
-                      subtitle: cocktail.description,
-                      image: cocktail.img
-                    });
-                  }}
-                >
-                  <Ionicons
-                    name={isCocktailSaved(cocktail.id) ? "bookmark" : "bookmark-outline"}
-                    size={20}
-                    color={isCocktailSaved(cocktail.id) ? colors.accent : colors.text}
-                  />
-                </TouchableOpacity>
-              )}
             </TouchableOpacity>
-            );
-          })}
+          ))}
         </ScrollView>
       </Section>
-
-      {/* Drinking Games moved to Vault */}
 
       <Section title="Bartending Hack Videos">
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: spacing(2), paddingHorizontal: spacing(2) }}>
@@ -641,6 +592,56 @@ const styles = StyleSheet.create({
     color: colors.subtext,
     textAlign: 'center',
     lineHeight: 20,
+  },
+
+  // Vault Cards
+  vaultCard: {
+    width: 220,
+    backgroundColor: colors.card,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.line,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  vaultImage: {
+    width: 220,
+    height: 140,
+  },
+  vaultBadge: {
+    position: 'absolute',
+    top: spacing(1),
+    right: spacing(1),
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    paddingHorizontal: spacing(1),
+    paddingVertical: spacing(0.5),
+    borderRadius: radii.full,
+  },
+  vaultBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.gold,
+  },
+  vaultInfo: {
+    padding: spacing(2),
+  },
+  vaultMeta: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: spacing(1),
+  },
+  vaultStock: {
+    fontSize: 12,
+    color: colors.accent,
+    fontWeight: '600',
+  },
+  vaultValue: {
+    fontSize: 12,
+    color: colors.subtext,
+    fontWeight: '600',
   },
 
 });

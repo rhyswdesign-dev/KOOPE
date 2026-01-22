@@ -16,7 +16,7 @@ import Purchases, {
   LOG_LEVEL,
   PURCHASES_ERROR_CODE
 } from 'react-native-purchases';
-import { SUBSCRIPTION_ENTITLEMENTS, REVENUECAT_CONFIG, SUBSCRIPTION_PRODUCTS } from '../constants/subscriptions';
+import { SUBSCRIPTION_ENTITLEMENTS, REVENUECAT_CONFIG, SUBSCRIPTION_PRODUCTS, PRICING_DISPLAY } from '../constants/subscriptions';
 import { setUserId, setUserProperties } from '../lib/analytics';
 import { useUserTier } from '../store/useUserTier';
 import type { UserTier } from '../store/useUserTier';
@@ -97,7 +97,11 @@ interface SubscriptionState {
   getOfferings: () => Promise<PurchasesOfferings | null>;
   restorePurchases: () => Promise<PurchaseResult>;
   // Purchase helpers
-  purchaseTier: (tier: 'pro' | 'prestige', billingMode: 'monthly' | 'yearly') => Promise<PurchaseResult>;
+  purchaseTier: (tier: 'plus' | 'pro' | 'prestige', billingMode: 'weekly' | 'monthly' | 'yearly') => Promise<PurchaseResult>;
+  purchasePlusWeekly: () => Promise<PurchaseResult>;
+  purchasePlusMonthly: () => Promise<PurchaseResult>;
+  purchasePlusYearly: () => Promise<PurchaseResult>;
+  purchaseProWeekly: () => Promise<PurchaseResult>;
   purchaseProMonthly: () => Promise<PurchaseResult>;
   purchaseProYearly: () => Promise<PurchaseResult>;
   purchasePrestigeMonthly: () => Promise<PurchaseResult>;
@@ -121,6 +125,10 @@ const defaultState: SubscriptionState = {
   getOfferings: async () => null,
   restorePurchases: async () => ({ success: false }),
   purchaseTier: async () => ({ success: false }),
+  purchasePlusWeekly: async () => ({ success: false }),
+  purchasePlusMonthly: async () => ({ success: false }),
+  purchasePlusYearly: async () => ({ success: false }),
+  purchaseProWeekly: async () => ({ success: false }),
   purchaseProMonthly: async () => ({ success: false }),
   purchaseProYearly: async () => ({ success: false }),
   purchasePrestigeMonthly: async () => ({ success: false }),
@@ -297,16 +305,28 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
 
   /**
    * Generic purchase tier function
+   * Supports plus, pro, and prestige tiers with weekly, monthly, and yearly billing
    */
-  const purchaseTier = async (tier: 'pro' | 'prestige', billingMode: 'monthly' | 'yearly'): Promise<PurchaseResult> => {
+  const purchaseTier = async (tier: 'plus' | 'pro' | 'prestige', billingMode: 'weekly' | 'monthly' | 'yearly'): Promise<PurchaseResult> => {
     try {
       setIsPurchasing(true);
       setError(null);
 
       let productId: string;
-      if (tier === 'pro') {
-        productId = billingMode === 'monthly' ? SUBSCRIPTION_PRODUCTS.PRO_MONTHLY : SUBSCRIPTION_PRODUCTS.PRO_YEARLY;
+      if (tier === 'plus') {
+        productId = billingMode === 'weekly'
+          ? SUBSCRIPTION_PRODUCTS.PLUS_WEEKLY
+          : billingMode === 'monthly'
+            ? SUBSCRIPTION_PRODUCTS.PLUS_MONTHLY
+            : SUBSCRIPTION_PRODUCTS.PLUS_YEARLY;
+      } else if (tier === 'pro') {
+        productId = billingMode === 'weekly'
+          ? SUBSCRIPTION_PRODUCTS.PRO_WEEKLY
+          : billingMode === 'monthly'
+            ? SUBSCRIPTION_PRODUCTS.PRO_MONTHLY
+            : SUBSCRIPTION_PRODUCTS.PRO_YEARLY;
       } else {
+        // Prestige doesn't have weekly option
         productId = billingMode === 'monthly' ? SUBSCRIPTION_PRODUCTS.PRESTIGE_MONTHLY : SUBSCRIPTION_PRODUCTS.PRESTIGE_YEARLY;
       }
 
@@ -340,8 +360,17 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
     }
   };
 
+  // KOOPE+ purchase shortcuts
+  const purchasePlusWeekly = async () => purchaseTier('plus', 'weekly');
+  const purchasePlusMonthly = async () => purchaseTier('plus', 'monthly');
+  const purchasePlusYearly = async () => purchaseTier('plus', 'yearly');
+
+  // KOOPE PRO purchase shortcuts
+  const purchaseProWeekly = async () => purchaseTier('pro', 'weekly');
   const purchaseProMonthly = async () => purchaseTier('pro', 'monthly');
   const purchaseProYearly = async () => purchaseTier('pro', 'yearly');
+
+  // Prestige purchase shortcuts (no weekly option)
   const purchasePrestigeMonthly = async () => purchaseTier('prestige', 'monthly');
   const purchasePrestigeYearly = async () => purchaseTier('prestige', 'yearly');
 
@@ -469,6 +498,10 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
     getOfferings,
     restorePurchases,
     purchaseTier,
+    purchasePlusWeekly,
+    purchasePlusMonthly,
+    purchasePlusYearly,
+    purchaseProWeekly,
     purchaseProMonthly,
     purchaseProYearly,
     purchasePrestigeMonthly,

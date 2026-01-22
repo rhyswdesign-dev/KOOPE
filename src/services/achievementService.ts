@@ -6,6 +6,7 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { log } from '../lib/logger';
+import { trackEvent, ANALYTICS_EVENTS, ANALYTICS_PROPS } from '../lib/analytics';
 
 export interface Achievement {
   id: string;
@@ -423,6 +424,17 @@ class AchievementService {
 
           // Notify listeners
           this.listeners.forEach(listener => listener(achievement));
+
+          // Track achievement unlock in Mixpanel
+          trackEvent(ANALYTICS_EVENTS.ACHIEVEMENT_UNLOCKED, {
+            [ANALYTICS_PROPS.ACHIEVEMENT_ID]: achievement.id,
+            [ANALYTICS_PROPS.ACHIEVEMENT_TITLE]: achievement.title,
+            [ANALYTICS_PROPS.ACHIEVEMENT_CATEGORY]: achievement.category,
+            [ANALYTICS_PROPS.ACHIEVEMENT_RARITY]: achievement.rarity,
+            [ANALYTICS_PROPS.XP_REWARD]: achievement.xpReward,
+            total_xp: this.userStats.totalXP,
+            user_level: this.userStats.level,
+          });
 
           log.info('AchievementService', 'Achievement unlocked', {
             title: achievement.title,

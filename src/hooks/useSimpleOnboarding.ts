@@ -38,7 +38,7 @@ export function useSimpleOnboarding() {
       // Clear saved items for fresh session
       await clearSavedItems();
 
-      // DEV MODE: Uncomment to always show full onboarding flow
+      // DEV MODE: Uncomment the following lines to always show full onboarding flow
       // await AsyncStorage.removeItem(ONBOARDING_COMPLETED_KEY);
       // log.info('useSimpleOnboarding', 'DEV MODE: Cleared onboarding status for fresh flow');
 

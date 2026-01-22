@@ -22,6 +22,7 @@ import CocktailDetailSkeleton from '../components/CocktailDetailSkeleton';
 import { achievementService } from '../services/achievementService';
 import { useSubscription } from '../contexts/SubscriptionContext';
 import { log } from '../lib/logger';
+import { trackEvent, ANALYTICS_EVENTS, ANALYTICS_PROPS } from '../lib/analytics';
 
 type CocktailDetailScreenRouteProp = {
   params: {
@@ -845,6 +846,8 @@ export default function CocktailDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [groceryListVisible, setGroceryListVisible] = useState(false);
+  const [hasMadeIt, setHasMadeIt] = useState(false);
+  const viewStartTime = React.useRef<number>(Date.now());
 
   // Load recipe from Supabase only if not passed directly
   useEffect(() => {
@@ -873,6 +876,24 @@ export default function CocktailDetailScreen() {
 
     loadRecipe();
   }, [route.params.cocktailId, route.params.cocktail]);
+
+  // Track engagement time when user leaves the screen
+  useEffect(() => {
+    viewStartTime.current = Date.now();
+
+    return () => {
+      const viewDurationSeconds = Math.round((Date.now() - viewStartTime.current) / 1000);
+
+      // Only track if user spent meaningful time (at least 3 seconds)
+      if (viewDurationSeconds >= 3) {
+        trackEvent(ANALYTICS_EVENTS.RECIPE_ENGAGEMENT, {
+          [ANALYTICS_PROPS.RECIPE_ID]: route.params.cocktailId,
+          [ANALYTICS_PROPS.RECIPE_NAME]: route.params.cocktail?.title || route.params.cocktail?.name || 'Unknown',
+          [ANALYTICS_PROPS.VIEW_DURATION_SECONDS]: viewDurationSeconds,
+        });
+      }
+    };
+  }, [route.params.cocktailId]);
 
   // Pull-to-refresh handler
   const onRefresh = async () => {
@@ -1040,10 +1061,22 @@ export default function CocktailDetailScreen() {
   const handleShare = async () => {
     if (!cocktail) return;
     try {
-      await Share.share({
+      const result = await Share.share({
         message: `Check out this amazing ${cocktail.title} recipe! Perfect for any occasion.`,
         title: `${cocktail.title} - Cocktail Recipe`,
       });
+
+      // Track share event
+      if (result.action === Share.sharedAction) {
+        trackEvent(ANALYTICS_EVENTS.RECIPE_SHARED, {
+          [ANALYTICS_PROPS.RECIPE_ID]: cocktail.id,
+          [ANALYTICS_PROPS.RECIPE_NAME]: cocktail.title,
+          [ANALYTICS_PROPS.SHARE_METHOD]: result.activityType || 'unknown',
+        });
+
+        // Track for achievements
+        await achievementService.trackAction('recipesShared', 1);
+      }
     } catch (error) {
       Alert.alert('Error', 'Unable to share at this time');
     }
@@ -1091,6 +1124,24 @@ export default function CocktailDetailScreen() {
   const handleDownload = () => {
     if (!cocktail) return;
     Alert.alert('Download Recipe', `${cocktail.title} recipe downloaded!`);
+  };
+
+  const handleMadeIt = async () => {
+    if (!cocktail || hasMadeIt) return;
+
+    setHasMadeIt(true);
+
+    // Track "Made It" event
+    trackEvent(ANALYTICS_EVENTS.RECIPE_MADE, {
+      [ANALYTICS_PROPS.RECIPE_ID]: cocktail.id,
+      [ANALYTICS_PROPS.RECIPE_NAME]: cocktail.title,
+      [ANALYTICS_PROPS.RECIPE_CATEGORY]: cocktail.subtitle,
+    });
+
+    // Track for achievements
+    await achievementService.trackAction('cocktailsMade', 1);
+
+    showToast(`Great job making ${cocktail.title}!`, 'success');
   };
 
   useLayoutEffect(() => {
@@ -1262,7 +1313,7 @@ export default function CocktailDetailScreen() {
           
           {cocktail.isNonAlcoholic && cocktail.beverage?.buyLink && (
             <View style={styles.section}>
-              <Pressable 
+              <Pressable
                 style={styles.addToCartButton}
                 onPress={() => Alert.alert('Buy Beverage', `Visit ${cocktail.beverage.name} store to purchase this premium non-alcoholic spirit.`)}
               >
@@ -1271,6 +1322,24 @@ export default function CocktailDetailScreen() {
               </Pressable>
             </View>
           )}
+
+          {/* Made It Button */}
+          <View style={styles.section}>
+            <Pressable
+              style={[styles.madeItButton, hasMadeIt && styles.madeItButtonActive]}
+              onPress={handleMadeIt}
+              disabled={hasMadeIt}
+            >
+              <MaterialCommunityIcons
+                name={hasMadeIt ? "check-circle" : "glass-cocktail"}
+                size={20}
+                color={hasMadeIt ? colors.white : colors.accent}
+              />
+              <Text style={[styles.madeItText, hasMadeIt && styles.madeItTextActive]}>
+                {hasMadeIt ? "You Made It!" : "I Made This!"}
+              </Text>
+            </Pressable>
+          </View>
 
           {/* Pro Tips / Flavor Notes */}
           {cocktail.tips && cocktail.tips.length > 0 && (
@@ -1520,6 +1589,30 @@ const styles = StyleSheet.create({
   addToCartText: {
     fontSize: 16,
     fontWeight: '700',
+    color: colors.white,
+  },
+  madeItButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.card,
+    borderRadius: radii.lg,
+    paddingVertical: spacing(2.5),
+    paddingHorizontal: spacing(3),
+    gap: spacing(1.5),
+    borderWidth: 2,
+    borderColor: colors.accent,
+  },
+  madeItButtonActive: {
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
+  },
+  madeItText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.accent,
+  },
+  madeItTextActive: {
     color: colors.white,
   },
 });

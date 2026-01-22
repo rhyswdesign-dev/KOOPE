@@ -1,7 +1,9 @@
+import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { Pressable } from 'react-native';
+import { Pressable, View, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, components } from '../theme/tokens';
+import { OfflineBanner } from '../components/OfflineBanner';
 import Tabs from './Tabs';
 import BarsScreen from '../screens/BarsScreen';
 import AccountSetupScreen from '../screens/AccountSetupScreen';
@@ -98,6 +100,9 @@ import RequirePro from '../components/RequirePro';
 import { VaultCategory } from '../config/vaultTypes';
 import ImportRecipeScreen from '../screens/ImportRecipeScreen';
 import ProfileSavedItemsScreen from '../screens/ProfileSavedItemsScreen';
+import ManageSubscriptionScreen from '../screens/ManageSubscriptionScreen';
+import NotificationCenterScreen from '../screens/NotificationCenterScreen';
+import ReferralScreen from '../screens/ReferralScreen';
 
 export type RootStackParamList = {
   Main: undefined;
@@ -194,6 +199,9 @@ export type RootStackParamList = {
   CustomerCenter: undefined;
   ImportRecipe: { url?: string };
   ProfileSavedItems: undefined;
+  ManageSubscription: undefined;
+  NotificationCenter: undefined;
+  Referral: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -205,7 +213,9 @@ interface RootNavigatorProps {
 
 export default function RootNavigator({ initialRouteName = 'Main', onHiddenFlaskComplete }: RootNavigatorProps = {}) {
   return (
-    <Stack.Navigator
+    <View style={styles.container}>
+      <OfflineBanner />
+      <Stack.Navigator
       initialRouteName={initialRouteName}
       screenOptions={{
         headerShown: false,
@@ -450,6 +460,16 @@ export default function RootNavigator({ initialRouteName = 'Main', onHiddenFlask
       <Stack.Screen name="CustomerCenter" component={CustomerCenterScreen} options={{ headerShown: false, presentation: 'modal' }} />
       <Stack.Screen name="ImportRecipe" component={ImportRecipeScreen} options={{ headerShown: true, title: 'Import Recipe' }} />
       <Stack.Screen name="ProfileSavedItems" component={ProfileSavedItemsScreen} options={{ headerShown: true, title: 'My Collection' }} />
+      <Stack.Screen name="ManageSubscription" component={ManageSubscriptionScreen} options={{ headerShown: true, title: 'Subscription' }} />
+      <Stack.Screen name="NotificationCenter" component={NotificationCenterScreen} options={{ headerShown: true, title: 'Notifications' }} />
+      <Stack.Screen name="Referral" component={ReferralScreen} options={{ headerShown: true, title: 'Invite Friends' }} />
     </Stack.Navigator>
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+});

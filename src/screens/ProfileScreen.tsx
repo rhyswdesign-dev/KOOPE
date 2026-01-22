@@ -40,8 +40,7 @@ export default function ProfileScreen() {
     console.log('[ProfileScreen] Auth state:', { isAuthenticated, hasUser: !!user, userId: user?.id });
   }, [isAuthenticated, user]);
 
-  // TEMPORARY: Force show authenticated view to see design
-  const showAuthenticatedView = true;
+  const showAuthenticatedView = isAuthenticated;
 
   useLayoutEffect(() => {
     nav.setOptions({
@@ -357,7 +356,7 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: '#E5D5C3',
+    backgroundColor: colors.card,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing(2),

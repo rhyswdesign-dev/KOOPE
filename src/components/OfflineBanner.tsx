@@ -1,28 +1,20 @@
 /**
  * Offline Banner Component
  * Displays a banner when the app is offline
- * Auto-detects network state changes
+ * Uses the offlineService for unified state management
  */
 
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
-import NetInfo from '@react-native-community/netinfo';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, fonts } from '../theme/tokens';
+import { useOffline } from '../services/offlineService';
 
 export const OfflineBanner: React.FC = () => {
-  const [isOffline, setIsOffline] = useState(false);
+  const { isOffline, queueSize } = useOffline();
   const slideAnim = React.useRef(new Animated.Value(-100)).current;
 
-  useEffect(() => {
-    const unsubscribe = NetInfo.addEventListener(state => {
-      setIsOffline(!state.isConnected);
-    });
-
-    return () => unsubscribe();
-  }, []);
-
-  useEffect(() => {
+  React.useEffect(() => {
     if (isOffline) {
       // Slide down
       Animated.spring(slideAnim, {
@@ -39,7 +31,7 @@ export const OfflineBanner: React.FC = () => {
         useNativeDriver: true,
       }).start();
     }
-  }, [isOffline]);
+  }, [isOffline, slideAnim]);
 
   if (!isOffline) {
     return null;
@@ -54,8 +46,13 @@ export const OfflineBanner: React.FC = () => {
         },
       ]}
     >
-      <Ionicons name="cloud-offline" size={20} color="#FFFFFF" />
-      <Text style={styles.text}>You're offline. Some features may be unavailable.</Text>
+      <View style={styles.content}>
+        <Ionicons name="cloud-offline" size={20} color={colors.white} />
+        <Text style={styles.text}>
+          You're offline
+          {queueSize > 0 && `. ${queueSize} pending ${queueSize === 1 ? 'change' : 'changes'}`}
+        </Text>
+      </View>
     </Animated.View>
   );
 };
@@ -67,12 +64,9 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     backgroundColor: colors.error,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
+    paddingTop: 50, // Account for safe area / notch
+    paddingBottom: spacing(1.5),
+    paddingHorizontal: spacing(2),
     zIndex: 1000,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -80,11 +74,17 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 5,
   },
-
+  content: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing(1),
+  },
   text: {
-    ...fonts.body,
-    fontSize: 14,
-    color: '#FFFFFF',
+    fontSize: fonts.small,
+    color: colors.white,
     fontWeight: '600',
   },
 });
+
+export default OfflineBanner;

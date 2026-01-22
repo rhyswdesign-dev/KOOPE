@@ -1,5 +1,7 @@
 import React from 'react';
-import { View, Image, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Image, Text, StyleSheet } from 'react-native';
+import { colors, spacing, radii, fonts } from '../../theme/tokens';
+import Button from '../ui/Button';
 
 export default function ChallengeCard({
   image,
@@ -20,9 +22,14 @@ export default function ChallengeCard({
       <View style={s.body}>
         <Text style={s.title}>{title}</Text>
         <Text style={s.copy}>{copy}</Text>
-        <TouchableOpacity style={s.btn} onPress={onPress}>
-          <Text style={s.btnLabel}>{cta}</Text>
-        </TouchableOpacity>
+        <Button
+          title={cta}
+          onPress={onPress || (() => {})}
+          variant="primary"
+          size="medium"
+          fullWidth
+          style={s.btn}
+        />
       </View>
     </View>
   );
@@ -30,8 +37,8 @@ export default function ChallengeCard({
 
 const s = StyleSheet.create({
   card: {
-    backgroundColor: '#2B231C',
-    borderRadius: 18,
+    backgroundColor: colors.card,
+    borderRadius: radii.lg,
     overflow: 'hidden'
   },
   hero: {
@@ -39,29 +46,20 @@ const s = StyleSheet.create({
     height: 180
   },
   body: {
-    padding: 16
+    padding: spacing(2)
   },
   title: {
-    color: '#F4ECE4',
-    fontSize: 22,
+    color: colors.text,
+    fontSize: fonts.h2,
     fontWeight: '800'
   },
   copy: {
-    color: '#C9BEB3',
+    color: colors.subtext,
     fontSize: 15,
     lineHeight: 20,
-    marginTop: 8
+    marginTop: spacing(1)
   },
   btn: {
-    backgroundColor: '#E58B2B',
-    borderRadius: 24,
-    paddingVertical: 12,
-    alignItems: 'center',
-    marginTop: 16
-  },
-  btnLabel: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '700'
+    marginTop: spacing(2)
   }
 });

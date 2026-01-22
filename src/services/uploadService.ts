@@ -3,6 +3,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
 import { Alert } from 'react-native';
 import { log } from '../lib/logger';
+import { trackEvent, ANALYTICS_EVENTS, ANALYTICS_PROPS } from '../lib/analytics';
 
 export interface UploadedFile {
   uri: string;
@@ -85,9 +86,15 @@ class UploadService {
     quality?: number;
     allowsMultipleSelection?: boolean;
   }): Promise<UploadedFile[]> {
+    const startTime = Date.now();
     try {
       const hasPermission = await this.requestPermissions();
       if (!hasPermission) return [];
+
+      trackEvent(ANALYTICS_EVENTS.UPLOAD_STARTED, {
+        [ANALYTICS_PROPS.UPLOAD_TYPE]: 'image',
+        [ANALYTICS_PROPS.SOURCE]: 'image_library',
+      });
 
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -99,6 +106,7 @@ class UploadService {
       if (result.canceled) return [];
 
       const files: UploadedFile[] = [];
+      let totalSize = 0;
 
       for (const asset of result.assets) {
         // Validate file size
@@ -111,17 +119,36 @@ class UploadService {
           continue;
         }
 
+        const fileSize = (fileInfo.exists && 'size' in fileInfo) ? fileInfo.size : 0;
+        totalSize += fileSize;
+
         files.push({
           uri: asset.uri,
           name: asset.fileName || `image_${Date.now()}.jpg`,
           type: 'image',
-          size: (fileInfo.exists && 'size' in fileInfo) ? fileInfo.size : 0,
+          size: fileSize,
           mimeType: asset.mimeType,
+        });
+      }
+
+      if (files.length > 0) {
+        trackEvent(ANALYTICS_EVENTS.UPLOAD_COMPLETED, {
+          [ANALYTICS_PROPS.UPLOAD_TYPE]: 'image',
+          [ANALYTICS_PROPS.FILE_COUNT]: files.length,
+          [ANALYTICS_PROPS.FILE_SIZE]: totalSize,
+          [ANALYTICS_PROPS.DURATION_MS]: Date.now() - startTime,
+          [ANALYTICS_PROPS.SOURCE]: 'image_library',
         });
       }
 
       return files;
     } catch (error) {
+      trackEvent(ANALYTICS_EVENTS.UPLOAD_FAILED, {
+        [ANALYTICS_PROPS.UPLOAD_TYPE]: 'image',
+        [ANALYTICS_PROPS.ERROR_MESSAGE]: error instanceof Error ? error.message : 'Unknown error',
+        [ANALYTICS_PROPS.DURATION_MS]: Date.now() - startTime,
+        [ANALYTICS_PROPS.SOURCE]: 'image_library',
+      });
       log.error('UploadService', 'Error picking image', error);
       Alert.alert('Error', 'Failed to pick image');
       return [];
@@ -129,9 +156,15 @@ class UploadService {
   }
 
   async takePhoto(): Promise<UploadedFile | null> {
+    const startTime = Date.now();
     try {
       const hasPermission = await this.requestPermissions();
       if (!hasPermission) return null;
+
+      trackEvent(ANALYTICS_EVENTS.UPLOAD_STARTED, {
+        [ANALYTICS_PROPS.UPLOAD_TYPE]: 'image',
+        [ANALYTICS_PROPS.SOURCE]: 'camera',
+      });
 
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -149,14 +182,30 @@ class UploadService {
         return null;
       }
 
+      const fileSize = (fileInfo.exists && 'size' in fileInfo) ? fileInfo.size : 0;
+
+      trackEvent(ANALYTICS_EVENTS.UPLOAD_COMPLETED, {
+        [ANALYTICS_PROPS.UPLOAD_TYPE]: 'image',
+        [ANALYTICS_PROPS.FILE_COUNT]: 1,
+        [ANALYTICS_PROPS.FILE_SIZE]: fileSize,
+        [ANALYTICS_PROPS.DURATION_MS]: Date.now() - startTime,
+        [ANALYTICS_PROPS.SOURCE]: 'camera',
+      });
+
       return {
         uri: asset.uri,
         name: asset.fileName || `photo_${Date.now()}.jpg`,
         type: 'image',
-        size: (fileInfo.exists && 'size' in fileInfo) ? fileInfo.size : 0,
+        size: fileSize,
         mimeType: asset.mimeType,
       };
     } catch (error) {
+      trackEvent(ANALYTICS_EVENTS.UPLOAD_FAILED, {
+        [ANALYTICS_PROPS.UPLOAD_TYPE]: 'image',
+        [ANALYTICS_PROPS.ERROR_MESSAGE]: error instanceof Error ? error.message : 'Unknown error',
+        [ANALYTICS_PROPS.DURATION_MS]: Date.now() - startTime,
+        [ANALYTICS_PROPS.SOURCE]: 'camera',
+      });
       log.error('UploadService', 'Error taking photo', error);
       Alert.alert('Error', 'Failed to take photo');
       return null;
@@ -164,9 +213,15 @@ class UploadService {
   }
 
   async pickVideo(): Promise<UploadedFile | null> {
+    const startTime = Date.now();
     try {
       const hasPermission = await this.requestPermissions();
       if (!hasPermission) return null;
+
+      trackEvent(ANALYTICS_EVENTS.UPLOAD_STARTED, {
+        [ANALYTICS_PROPS.UPLOAD_TYPE]: 'video',
+        [ANALYTICS_PROPS.SOURCE]: 'video_library',
+      });
 
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Videos,
@@ -187,14 +242,30 @@ class UploadService {
         return null;
       }
 
+      const fileSize = (fileInfo.exists && 'size' in fileInfo) ? fileInfo.size : 0;
+
+      trackEvent(ANALYTICS_EVENTS.UPLOAD_COMPLETED, {
+        [ANALYTICS_PROPS.UPLOAD_TYPE]: 'video',
+        [ANALYTICS_PROPS.FILE_COUNT]: 1,
+        [ANALYTICS_PROPS.FILE_SIZE]: fileSize,
+        [ANALYTICS_PROPS.DURATION_MS]: Date.now() - startTime,
+        [ANALYTICS_PROPS.SOURCE]: 'video_library',
+      });
+
       return {
         uri: asset.uri,
         name: asset.fileName || `video_${Date.now()}.mp4`,
         type: 'video',
-        size: (fileInfo.exists && 'size' in fileInfo) ? fileInfo.size : 0,
+        size: fileSize,
         mimeType: asset.mimeType,
       };
     } catch (error) {
+      trackEvent(ANALYTICS_EVENTS.UPLOAD_FAILED, {
+        [ANALYTICS_PROPS.UPLOAD_TYPE]: 'video',
+        [ANALYTICS_PROPS.ERROR_MESSAGE]: error instanceof Error ? error.message : 'Unknown error',
+        [ANALYTICS_PROPS.DURATION_MS]: Date.now() - startTime,
+        [ANALYTICS_PROPS.SOURCE]: 'video_library',
+      });
       log.error('UploadService', 'Error picking video', error);
       Alert.alert('Error', 'Failed to pick video');
       return null;
@@ -202,9 +273,15 @@ class UploadService {
   }
 
   async recordVideo(): Promise<UploadedFile | null> {
+    const startTime = Date.now();
     try {
       const hasPermission = await this.requestPermissions();
       if (!hasPermission) return null;
+
+      trackEvent(ANALYTICS_EVENTS.UPLOAD_STARTED, {
+        [ANALYTICS_PROPS.UPLOAD_TYPE]: 'video',
+        [ANALYTICS_PROPS.SOURCE]: 'camera_recording',
+      });
 
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Videos,
@@ -223,14 +300,30 @@ class UploadService {
         return null;
       }
 
+      const fileSize = (fileInfo.exists && 'size' in fileInfo) ? fileInfo.size : 0;
+
+      trackEvent(ANALYTICS_EVENTS.UPLOAD_COMPLETED, {
+        [ANALYTICS_PROPS.UPLOAD_TYPE]: 'video',
+        [ANALYTICS_PROPS.FILE_COUNT]: 1,
+        [ANALYTICS_PROPS.FILE_SIZE]: fileSize,
+        [ANALYTICS_PROPS.DURATION_MS]: Date.now() - startTime,
+        [ANALYTICS_PROPS.SOURCE]: 'camera_recording',
+      });
+
       return {
         uri: asset.uri,
         name: asset.fileName || `video_${Date.now()}.mp4`,
         type: 'video',
-        size: (fileInfo.exists && 'size' in fileInfo) ? fileInfo.size : 0,
+        size: fileSize,
         mimeType: asset.mimeType,
       };
     } catch (error) {
+      trackEvent(ANALYTICS_EVENTS.UPLOAD_FAILED, {
+        [ANALYTICS_PROPS.UPLOAD_TYPE]: 'video',
+        [ANALYTICS_PROPS.ERROR_MESSAGE]: error instanceof Error ? error.message : 'Unknown error',
+        [ANALYTICS_PROPS.DURATION_MS]: Date.now() - startTime,
+        [ANALYTICS_PROPS.SOURCE]: 'camera_recording',
+      });
       log.error('UploadService', 'Error recording video', error);
       Alert.alert('Error', 'Failed to record video');
       return null;
@@ -322,6 +415,7 @@ class UploadService {
     id?: string;
     error?: string;
   }> {
+    const startTime = Date.now();
     try {
       // Validate submission
       const validation = this.validateRecipeSubmission(submission);
@@ -342,6 +436,20 @@ class UploadService {
       // Store locally for demo purposes
       await this.saveRecipeLocally(recipeId, submission);
 
+      // Track successful recipe submission
+      const totalImageSize = submission.images.reduce((sum, img) => sum + img.size, 0);
+      const totalVideoSize = submission.videos.reduce((sum, vid) => sum + vid.size, 0);
+      trackEvent(ANALYTICS_EVENTS.RECIPE_SUBMITTED, {
+        [ANALYTICS_PROPS.RECIPE_ID]: recipeId,
+        [ANALYTICS_PROPS.RECIPE_NAME]: submission.title,
+        image_count: submission.images.length,
+        video_count: submission.videos.length,
+        ingredient_count: submission.ingredients.length,
+        total_file_size: totalImageSize + totalVideoSize,
+        difficulty: submission.difficulty,
+        [ANALYTICS_PROPS.DURATION_MS]: Date.now() - startTime,
+      });
+
       return {
         success: true,
         id: recipeId,
@@ -360,6 +468,7 @@ class UploadService {
     id?: string;
     error?: string;
   }> {
+    const startTime = Date.now();
     try {
       if (!entry.title?.trim()) {
         return {
@@ -389,6 +498,21 @@ class UploadService {
 
       // Store locally for demo purposes
       await this.saveCompetitionEntryLocally(entryId, entry);
+
+      // Track successful competition entry submission
+      const totalImageSize = entry.images.reduce((sum, img) => sum + img.size, 0);
+      const totalVideoSize = entry.videos.reduce((sum, vid) => sum + vid.size, 0);
+      trackEvent(ANALYTICS_EVENTS.COMPETITION_ENTRY_SUBMITTED, {
+        entry_id: entryId,
+        competition_id: entry.competitionId,
+        entry_title: entry.title,
+        category: entry.category,
+        image_count: entry.images.length,
+        video_count: entry.videos.length,
+        total_file_size: totalImageSize + totalVideoSize,
+        has_recipe: !!entry.recipe,
+        [ANALYTICS_PROPS.DURATION_MS]: Date.now() - startTime,
+      });
 
       return {
         success: true,

@@ -11,7 +11,7 @@ export { default as Avatar } from './Avatar';
 export { default as Icon } from './Icon';
 export { default as BrandPillButton } from './BrandPillButton';
 export { default as InfoRow } from './InfoRow';
-export { default as PillButton } from './PillButton';
+export { default as PillButton } from '../PillButton';
 export { default as SectionTitle } from './SectionTitle';
 export { default as Header } from './Header';
 export { default as SearchInput } from './SearchInput';
@@ -26,19 +26,7 @@ export { default as AudioButton } from './AudioButton';
 export { default as VideoPlayer, InlineVideoPlayer, CompactVideoPlayer } from './VideoPlayer';
 export { default as LocationMap, CompactLocationMap, BasicLocationMap } from './LocationMap';
 export { default as ActionMenu, SaveActionMenu, ContentActionMenu } from './ActionMenu';
-export { 
-  Skeleton, 
-  SkeletonCircle, 
-  SkeletonText, 
-  SkeletonCard, 
-  SkeletonListItem, 
-  SkeletonGrid,
-  SkeletonFeedItem,
-  SkeletonBarCard,
-  SkeletonSpiritCard,
-  SkeletonProfileHeader,
-  SkeletonScreen
-} from './SkeletonLoader';
+export { default as Skeleton } from '../Skeleton';
 export { 
   default as FeatureTooltip, 
   FeatureTooltipProvider,

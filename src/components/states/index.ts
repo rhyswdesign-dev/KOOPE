@@ -6,12 +6,7 @@
 export { default as LoadingState } from './LoadingState';
 export { default as EmptyState } from './EmptyState';
 export { default as ErrorState } from './ErrorState';
-export {
-  default as SkeletonLoader,
-  SkeletonText,
-  SkeletonCircle,
-  SkeletonButton,
-} from './SkeletonLoader';
+export { default as Skeleton } from '../Skeleton';
 
 // Type exports
 export type {

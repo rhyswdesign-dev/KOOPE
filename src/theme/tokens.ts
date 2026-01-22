@@ -57,8 +57,8 @@ export const colors = {
   tierTextOnSilver: '#000000',
   tierTextOnBronze: '#FFFFFF',
   
-  // Component-specific (legacy names for compatibility)
-  pillButtonColor: '#E4933E',
+  // Component-specific (legacy names - use accent instead)
+  // pillButtonColor removed - use colors.accent
   pillTextOnLight: '#000000',
   pillTextOnDark: '#FFFFFF',
 
@@ -82,6 +82,7 @@ export const radii = {
   lg: 18,    // large cards
   xl: 22,    // pill buttons (22-24px)
   pill: 9999, // full pill shape
+  full: 9999, // alias for pill (full rounded)
 };
 
 export const fonts = {

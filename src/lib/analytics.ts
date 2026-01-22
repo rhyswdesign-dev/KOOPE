@@ -160,6 +160,22 @@ export const ANALYTICS_EVENTS = {
   RECIPE_SAVED: 'Recipe Saved',
   RECIPE_UNSAVED: 'Recipe Unsaved',
   RECIPE_SAVE_LIMIT_REACHED: 'Recipe Save Limit Reached',
+
+  // Recipe Views
+  RECIPE_VIEWED: 'Recipe Viewed',
+  RECIPE_ENGAGEMENT: 'Recipe Engagement',
+  RECIPE_MADE: 'Recipe Made',
+  RECIPE_SHARED: 'Recipe Shared',
+
+  // Achievements
+  ACHIEVEMENT_UNLOCKED: 'Achievement Unlocked',
+
+  // Uploads
+  UPLOAD_STARTED: 'Upload Started',
+  UPLOAD_COMPLETED: 'Upload Completed',
+  UPLOAD_FAILED: 'Upload Failed',
+  RECIPE_SUBMITTED: 'Recipe Submitted',
+  COMPETITION_ENTRY_SUBMITTED: 'Competition Entry Submitted',
 } as const;
 
 /**
@@ -196,4 +212,20 @@ export const ANALYTICS_PROPS = {
   RECIPE_CATEGORY: 'recipe_category',
   TOTAL_SAVED: 'total_saved',
   SAVE_LIMIT: 'save_limit',
+  VIEW_DURATION_SECONDS: 'view_duration_seconds',
+  SHARE_METHOD: 'share_method',
+
+  // Achievements
+  ACHIEVEMENT_ID: 'achievement_id',
+  ACHIEVEMENT_TITLE: 'achievement_title',
+  ACHIEVEMENT_CATEGORY: 'achievement_category',
+  ACHIEVEMENT_RARITY: 'achievement_rarity',
+  XP_REWARD: 'xp_reward',
+
+  // Uploads
+  UPLOAD_TYPE: 'upload_type', // 'image' | 'video' | 'document'
+  FILE_SIZE: 'file_size',
+  FILE_COUNT: 'file_count',
+  DURATION_MS: 'duration_ms',
+  ERROR_MESSAGE: 'error_message',
 } as const;

@@ -29,13 +29,39 @@ export const SUBSCRIPTION_PRODUCTS = {
   YEARLY: 'yearly',
   LIFETIME: 'lifetime',
 
-  // Pro tier subscriptions
+  // KOOPE+ tier subscriptions
+  PLUS_WEEKLY: 'plus_weekly',
+  PLUS_MONTHLY: 'plus_monthly',
+  PLUS_YEARLY: 'plus_yearly',
+
+  // KOOPE PRO tier subscriptions
+  PRO_WEEKLY: 'pro_weekly',
   PRO_MONTHLY: 'pro_monthly',
   PRO_YEARLY: 'pro_yearly',
 
-  // Prestige tier subscriptions
+  // Prestige tier subscriptions (legacy)
   PRESTIGE_MONTHLY: 'prestige_monthly',
   PRESTIGE_YEARLY: 'prestige_yearly',
+} as const;
+
+/**
+ * Pricing configuration for display purposes
+ * NOTE: Actual prices come from RevenueCat/App Store Connect
+ * These are fallback display values
+ */
+export const PRICING_DISPLAY = {
+  PLUS: {
+    weekly: '$2.99',
+    monthly: '$8.99',
+    yearly: '$59.99',
+    yearlySavings: '44%',
+  },
+  PRO: {
+    weekly: '$5.99',
+    monthly: '$17.99',
+    yearly: '$119.99',
+    yearlySavings: '44%',
+  },
 } as const;
 
 /**

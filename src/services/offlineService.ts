@@ -4,6 +4,7 @@
  * Ensures app works seamlessly even without internet connectivity
  */
 
+import React from 'react';
 import NetInfo, { NetInfoState } from '@react-native-community/netinfo';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Recipe } from '../types/recipe';
@@ -506,3 +507,36 @@ class OfflineService {
 
 // Export singleton instance
 export const offlineService = OfflineService.getInstance();
+
+/**
+ * React hook for offline status
+ */
+export function useOffline() {
+  const [isOffline, setIsOffline] = React.useState(!offlineService.isOnline());
+  const [queueSize, setQueueSize] = React.useState(offlineService.getQueueSize());
+  const [networkStatus, setNetworkStatus] = React.useState(offlineService.getNetworkStatus());
+
+  React.useEffect(() => {
+    // Subscribe to network status changes
+    const unsubscribe = offlineService.addNetworkListener((status) => {
+      setIsOffline(!status.isConnected || status.isInternetReachable === false);
+      setNetworkStatus(status);
+      setQueueSize(offlineService.getQueueSize());
+    });
+
+    // Set initial state
+    setIsOffline(!offlineService.isOnline());
+    setNetworkStatus(offlineService.getNetworkStatus());
+    setQueueSize(offlineService.getQueueSize());
+
+    return unsubscribe;
+  }, []);
+
+  return {
+    isOffline,
+    isOnline: !isOffline,
+    queueSize,
+    networkStatus,
+    syncQueue: () => offlineService.syncOfflineQueue(),
+  };
+}
