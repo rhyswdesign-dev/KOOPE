@@ -1021,10 +1021,14 @@ export default function CocktailDetailScreen() {
     };
   })() : null;
 
-  // Priority order: passed > non-alcoholic > firebase (with valid ingredients) > hardcoded > transformed centralized
-  // If firebase data exists but has no ingredients, try to merge with transformed data or fall back
+  // Priority order: Prefer complete data sources (with ingredients)
+  // 1. Non-alcoholic recipes (local, always complete)
+  // 2. Firebase/Supabase data (if it has ingredients)
+  // 3. Passed cocktail (only if it has ingredients)
+  // 4. Hardcoded cocktails
+  // 5. Transformed centralized cocktails
   const cocktail = (() => {
-    if (passedCocktail) return passedCocktail;
+    // Non-alcoholic recipes are always complete
     if (nonAlcoholicRecipe) return nonAlcoholicRecipe;
 
     // Check if firebase data is complete (has ingredients)
@@ -1032,7 +1036,7 @@ export default function CocktailDetailScreen() {
       const hasValidIngredients = firebaseCocktail.ingredients && firebaseCocktail.ingredients.length > 0;
       const hasValidInstructions = firebaseCocktail.instructions && firebaseCocktail.instructions.length > 0;
 
-      // If firebase data is complete, use it
+      // If firebase data is complete, use it (this is the primary source of truth)
       if (hasValidIngredients && hasValidInstructions) {
         return firebaseCocktail;
       }
@@ -1048,13 +1052,19 @@ export default function CocktailDetailScreen() {
           glassware: firebaseCocktail.glassware || transformedCocktail.glassware,
         };
       }
-
-      // If no local data, return firebase data as-is (will show "No ingredients")
-      return firebaseCocktail;
     }
 
+    // Only use passed cocktail if it has actual ingredients (not lite-loaded)
+    if (passedCocktail && passedCocktail.ingredients && passedCocktail.ingredients.length > 0) {
+      return passedCocktail;
+    }
+
+    // Fallback to hardcoded or transformed local data
     if (hardcodedCocktail) return hardcodedCocktail;
-    return transformedCocktail;
+    if (transformedCocktail) return transformedCocktail;
+
+    // Last resort: return firebase data even if incomplete, or passed cocktail
+    return firebaseCocktail || passedCocktail || null;
   })();
 
   // Debug log to check cocktail data
