@@ -586,8 +586,11 @@ export default function SettingsScreen() {
 
         {/* App Version */}
         <View style={styles.versionSection}>
-          <Text style={styles.versionText}>Home Game Advantage v1.0.0</Text>
+          <Text style={styles.versionText}>KOOPE v1.0.0</Text>
           <Text style={styles.versionSubtext}>Build 2024.03.01</Text>
+          <Text style={styles.ageNotice}>
+            Must be 21+ to consume alcohol. Please drink responsibly.
+          </Text>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -691,6 +694,13 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: colors.subtle,
     marginTop: 4,
+    opacity: 0.6,
+  },
+  ageNotice: {
+    fontSize: 11,
+    color: colors.subtle,
+    marginTop: spacing(2),
+    textAlign: 'center',
     opacity: 0.6,
   },
 });

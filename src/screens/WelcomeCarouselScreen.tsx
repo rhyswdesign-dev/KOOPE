@@ -178,6 +178,11 @@ export default function WelcomeCarouselScreen({ onComplete }: WelcomeCarouselPro
             </>
           )}
         </View>
+
+        {/* Age/Alcohol Responsibility Notice */}
+        <Text style={styles.ageNotice}>
+          Must be 21+ to consume alcohol. Please drink responsibly.
+        </Text>
       </View>
     </View>
   );
@@ -301,5 +306,12 @@ const styles = StyleSheet.create({
     color: colors.goldText,
     fontSize: 17,
     fontWeight: '700',
+  },
+  ageNotice: {
+    color: colors.subtle,
+    fontSize: 11,
+    textAlign: 'center',
+    marginTop: spacing(2),
+    opacity: 0.7,
   },
 });
