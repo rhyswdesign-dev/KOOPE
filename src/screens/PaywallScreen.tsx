@@ -13,17 +13,18 @@ import {
   ActivityIndicator,
   Alert,
   Dimensions,
-  ImageBackground,
+  Platform,
+  StatusBar,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-import { PurchasesPackage } from 'react-native-purchases';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, spacing } from '../theme/tokens';
 import { useSubscription } from '../contexts/SubscriptionContext';
 import { trackEvent, ANALYTICS_EVENTS, ANALYTICS_PROPS } from '../lib/analytics';
 import { log } from '../lib/logger';
+
+// Safe area top padding fallback
+const SAFE_AREA_TOP = Platform.OS === 'ios' ? 50 : (StatusBar.currentHeight || 24);
 
 const { width } = Dimensions.get('window');
 
@@ -187,7 +188,6 @@ const PRO_FEATURES: FeatureBenefit[] = [
 
 export default function PaywallScreen({ route }: PaywallScreenProps) {
   const navigation = useNavigation();
-  const insets = useSafeAreaInsets();
   const { offerings, restorePurchases, purchaseTier, isKoopePro, isPro, isSubscriber } = useSubscription();
   const [isLoading, setIsLoading] = useState(true);
   const [isPurchasing, setIsPurchasing] = useState(false);
@@ -349,11 +349,12 @@ export default function PaywallScreen({ route }: PaywallScreenProps) {
         <View style={[
           styles.durationBadge,
           isSelected && { backgroundColor: tierColor },
-          option.isNew && !isSelected && styles.durationBadgeNew,
+          option.isNew && !isSelected && { backgroundColor: '#059669' },
         ]}>
           <Text style={[
             styles.durationBadgeText,
             isSelected && { color: '#000' },
+            option.isNew && !isSelected && { color: '#FFFFFF' },
           ]}>
             {option.label}
           </Text>
@@ -398,7 +399,7 @@ export default function PaywallScreen({ route }: PaywallScreenProps) {
       {/* Close Button */}
       {displayCloseButton && (
         <TouchableOpacity
-          style={[styles.closeButton, { top: insets.top + 8 }]}
+          style={[styles.closeButton, { top: SAFE_AREA_TOP }]}
           onPress={() => navigation.goBack()}
         >
           <Ionicons name="close" size={24} color="#FFFFFF" />
@@ -406,7 +407,7 @@ export default function PaywallScreen({ route }: PaywallScreenProps) {
       )}
 
       {/* Tier Tabs */}
-      <View style={[styles.tierTabs, { paddingTop: insets.top + 8 }]}>
+      <View style={[styles.tierTabs, { paddingTop: SAFE_AREA_TOP }]}>
         <TouchableOpacity
           style={[
             styles.tierTab,
@@ -444,10 +445,6 @@ export default function PaywallScreen({ route }: PaywallScreenProps) {
       >
         {/* Hero Section */}
         <View style={styles.heroSection}>
-          <LinearGradient
-            colors={['transparent', 'rgba(0,0,0,0.8)', colors.bg]}
-            style={styles.heroGradient}
-          />
           <View style={styles.heroContent}>
             <Text style={styles.heroTitle}>
               {selectedTier === 'koope_plus'
@@ -494,7 +491,7 @@ export default function PaywallScreen({ route }: PaywallScreenProps) {
       </ScrollView>
 
       {/* Sticky CTA Button */}
-      <View style={[styles.ctaContainer, { paddingBottom: insets.bottom + 16 }]}>
+      <View style={[styles.ctaContainer, { paddingBottom: Platform.OS === 'ios' ? 34 : 16 }]}>
         <TouchableOpacity
           style={[
             styles.ctaButton,
@@ -562,7 +559,7 @@ const styles = StyleSheet.create({
     borderBottomColor: 'transparent',
   },
   tierTabActive: {
-    borderBottomColor: '#FFFFFF',
+    borderBottomColor: colors.accent,
   },
   tierTabText: {
     fontSize: 16,
@@ -571,7 +568,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   tierTabTextActive: {
-    color: '#FFFFFF',
+    color: colors.accent,
   },
 
   // Scroll
@@ -584,26 +581,19 @@ const styles = StyleSheet.create({
 
   // Hero Section
   heroSection: {
-    height: 200,
-    backgroundColor: '#1a1a1a',
+    height: 120,
+    backgroundColor: colors.bg,
     justifyContent: 'flex-end',
   },
-  heroGradient: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 120,
-  },
   heroContent: {
-    padding: 20,
-    paddingBottom: 24,
+    paddingHorizontal: 20,
+    paddingBottom: 16,
   },
   heroTitle: {
-    fontSize: 28,
+    fontSize: 26,
     fontWeight: '800',
     color: '#FFFFFF',
-    marginBottom: 8,
+    marginBottom: 6,
     letterSpacing: -0.5,
   },
   heroSubtitle: {
@@ -614,7 +604,7 @@ const styles = StyleSheet.create({
 
   // Duration Cards
   durationsScroll: {
-    marginTop: 20,
+    marginTop: 8,
   },
   durationsContainer: {
     paddingHorizontal: 16,
@@ -623,7 +613,7 @@ const styles = StyleSheet.create({
   durationCard: {
     width: (width - 64) / 4,
     minWidth: 85,
-    backgroundColor: '#1F2937',
+    backgroundColor: colors.card,
     borderRadius: 12,
     padding: 12,
     alignItems: 'center',
@@ -631,25 +621,29 @@ const styles = StyleSheet.create({
     borderColor: 'transparent',
   },
   durationCardSelected: {
-    backgroundColor: '#374151',
+    backgroundColor: colors.card,
     borderWidth: 2,
   },
   durationBadge: {
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 6,
-    backgroundColor: '#374151',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
     marginBottom: 8,
+    alignSelf: 'center',
+    minWidth: 60,
+    alignItems: 'center',
   },
   durationBadgeNew: {
-    backgroundColor: '#059669',
+    backgroundColor: colors.accent,
   },
   durationBadgeText: {
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: '700',
     color: '#9CA3AF',
     textTransform: 'uppercase',
     letterSpacing: 0.3,
+    textAlign: 'center',
   },
   durationText: {
     fontSize: 14,

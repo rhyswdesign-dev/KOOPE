@@ -35,7 +35,7 @@ export const PillButton: React.FC<Props> = ({ title, onPress, style, textStyle, 
       case 'outline':
         return { backgroundColor: 'transparent', color: colors.text, borderWidth: 1, borderColor: colors.line };
       default:
-        return { backgroundColor: colors.pillButtonColor, color: bestTextColor(colors.pillButtonColor) };
+        return { backgroundColor: colors.accent, color: bestTextColor(colors.accent) };
     }
   };
   
