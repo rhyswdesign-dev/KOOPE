@@ -849,33 +849,32 @@ export default function CocktailDetailScreen() {
   const [hasMadeIt, setHasMadeIt] = useState(false);
   const viewStartTime = React.useRef<number>(Date.now());
 
-  // Load recipe from Supabase only if not passed directly
+  // Always fetch full recipe from Supabase to get complete data (ingredients, instructions)
+  // Passed cocktail object may be lite-loaded with empty ingredients
   useEffect(() => {
     const loadRecipe = async () => {
-      // If cocktail object is passed directly, skip Supabase load
-      if (route.params.cocktail) {
-        setLoading(false);
-        // Still track recipe view for achievements
-        await achievementService.trackAction('recipesViewed', 1);
-        return;
-      }
-
       try {
+        // Always fetch from Supabase to get complete data
         const recipe = await RecipesRepository.getRecipeById(route.params.cocktailId);
-        setFirebaseRecipe(recipe);
+        if (recipe) {
+          setFirebaseRecipe(recipe);
+        }
 
         // Track recipe view for achievements
         await achievementService.trackAction('recipesViewed', 1);
       } catch (error) {
         log.error('CocktailDetailScreen', 'Error loading recipe', error);
-        showToast('Failed to load recipe details', 'error');
+        // Only show error if we don't have fallback data
+        if (!route.params.cocktail) {
+          showToast('Failed to load recipe details', 'error');
+        }
       } finally {
         setLoading(false);
       }
     };
 
     loadRecipe();
-  }, [route.params.cocktailId, route.params.cocktail]);
+  }, [route.params.cocktailId]);
 
   // Track engagement time when user leaves the screen
   useEffect(() => {
