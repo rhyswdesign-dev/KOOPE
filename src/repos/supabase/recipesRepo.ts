@@ -472,10 +472,12 @@ export class RecipesRepository {
       createdAt: new Date(data.created_at),
       updatedAt: new Date(data.updated_at),
 
-      // Parse ingredients from JSON
-      ingredients: typeof data.ingredients === 'string'
-        ? JSON.parse(data.ingredients)
-        : data.ingredients,
+      // Parse ingredients from JSON with fallback
+      ingredients: data.ingredients
+        ? (typeof data.ingredients === 'string'
+          ? JSON.parse(data.ingredients)
+          : data.ingredients)
+        : [],
       instructions: data.instructions || [],
       garnish: data.garnish,
       glassware: data.glassware,

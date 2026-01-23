@@ -1022,8 +1022,41 @@ export default function CocktailDetailScreen() {
     };
   })() : null;
 
-  // Priority order: passed > non-alcoholic > firebase > hardcoded > transformed centralized
-  const cocktail = passedCocktail || nonAlcoholicRecipe || firebaseCocktail || hardcodedCocktail || transformedCocktail;
+  // Priority order: passed > non-alcoholic > firebase (with valid ingredients) > hardcoded > transformed centralized
+  // If firebase data exists but has no ingredients, try to merge with transformed data or fall back
+  const cocktail = (() => {
+    if (passedCocktail) return passedCocktail;
+    if (nonAlcoholicRecipe) return nonAlcoholicRecipe;
+
+    // Check if firebase data is complete (has ingredients)
+    if (firebaseCocktail) {
+      const hasValidIngredients = firebaseCocktail.ingredients && firebaseCocktail.ingredients.length > 0;
+      const hasValidInstructions = firebaseCocktail.instructions && firebaseCocktail.instructions.length > 0;
+
+      // If firebase data is complete, use it
+      if (hasValidIngredients && hasValidInstructions) {
+        return firebaseCocktail;
+      }
+
+      // If firebase data is incomplete, try to merge with transformed data
+      if (transformedCocktail) {
+        return {
+          ...firebaseCocktail,
+          // Use firebase data for basic info, but get ingredients/instructions from local if missing
+          ingredients: hasValidIngredients ? firebaseCocktail.ingredients : transformedCocktail.ingredients,
+          instructions: hasValidInstructions ? firebaseCocktail.instructions : transformedCocktail.instructions,
+          tips: firebaseCocktail.tips?.length > 0 ? firebaseCocktail.tips : transformedCocktail.tips,
+          glassware: firebaseCocktail.glassware || transformedCocktail.glassware,
+        };
+      }
+
+      // If no local data, return firebase data as-is (will show "No ingredients")
+      return firebaseCocktail;
+    }
+
+    if (hardcodedCocktail) return hardcodedCocktail;
+    return transformedCocktail;
+  })();
 
   // Debug log to check cocktail data
   useEffect(() => {
