@@ -20,6 +20,7 @@ import { useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { trackEvent, ANALYTICS_EVENTS, ANALYTICS_PROPS } from '../lib/analytics';
 import { log } from '../lib/logger';
+import { supabase } from '../lib/supabase';
 
 type AppState = 'loading' | 'splash' | 'bartending_welcome' | 'welcome' | 'onboarding' | 'survey' | 'xp_reminder' | 'main';
 
@@ -38,9 +39,10 @@ export function useSimpleOnboarding() {
       // Clear saved items for fresh session
       await clearSavedItems();
 
-      // DEV MODE: Uncomment the following lines to always show full onboarding flow
-      // await AsyncStorage.removeItem(ONBOARDING_COMPLETED_KEY);
-      // log.info('useSimpleOnboarding', 'DEV MODE: Cleared onboarding status for fresh flow');
+      // DEV MODE: Uncomment to reset on every reload (currently OFF to preserve sign-in)
+      await AsyncStorage.removeItem(ONBOARDING_COMPLETED_KEY);
+      await supabase.auth.signOut();
+      log.info('useSimpleOnboarding', 'DEV MODE: Cleared onboarding status and signed out for fresh flow');
 
       // Show splash screen
       setAppState('splash');

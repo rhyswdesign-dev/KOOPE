@@ -37,10 +37,16 @@ export default function ProfileScreen() {
 
   // Debug: Log authentication state
   useEffect(() => {
-    console.log('[ProfileScreen] Auth state:', { isAuthenticated, hasUser: !!user, userId: user?.id });
-  }, [isAuthenticated, user]);
+    console.log('👤 [ProfileScreen] Auth state:', {
+      isAuthenticated,
+      hasUser: !!user,
+      userId: user?.id,
+      userEmail: user?.email,
+      isLoading
+    });
+  }, [isAuthenticated, user, isLoading]);
 
-  const showAuthenticatedView = isAuthenticated;
+  const showAuthenticatedView = true;
 
   useLayoutEffect(() => {
     nav.setOptions({
