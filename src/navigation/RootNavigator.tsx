@@ -37,6 +37,7 @@ import TermsOfServiceScreen from '../screens/TermsOfServiceScreen';
 import FeedbackScreen from '../screens/FeedbackScreen';
 import CocktailDetailScreen from '../screens/CocktailDetailScreen';
 import CocktailListScreen from '../screens/CocktailListScreen';
+import WhatCanIMakeScreen from '../screens/WhatCanIMakeScreen';
 import SavedItemsScreen from '../screens/SavedItemsScreen';
 import EditProfileScreen from '../screens/EditProfileScreen';
 import NonAlcoholicScreen from '../screens/NonAlcoholicScreen';
@@ -91,7 +92,6 @@ import VoiceRecipeScreen from '../screens/VoiceRecipeScreen';
 import HomeBarScreen from '../screens/HomeBarScreen';
 import SpiritRecognitionScreen from '../screens/SpiritRecognitionScreen';
 import ShoppingCartScreen from '../screens/ShoppingCartScreen';
-import PersonalizedHomeScreen from '../screens/PersonalizedHomeScreen';
 import AchievementsScreen from '../screens/AchievementsScreen';
 import SubscriptionDebugScreen from '../screens/SubscriptionDebugScreen';
 import PaywallScreen from '../screens/PaywallScreen';
@@ -106,7 +106,6 @@ import ReferralScreen from '../screens/ReferralScreen';
 
 export type RootStackParamList = {
   Main: undefined;
-  PersonalizedHome: undefined;
   Bars: undefined;
   Events: undefined;
   Games: undefined;
@@ -146,6 +145,7 @@ export type RootStackParamList = {
   Feedback: undefined;
   CocktailDetail: { cocktailId: string };
   CocktailList: { title: string; cocktailIds: string[]; category: string };
+  WhatCanIMake: undefined;
   SavedItems: { category: 'bars' | 'spirits' | 'cocktails' | 'events' | 'communities' };
   EditProfile: undefined;
   Profile: undefined;
@@ -403,6 +403,7 @@ export default function RootNavigator({ initialRouteName = 'Main', onHiddenFlask
       <Stack.Screen name="Feedback" component={FeedbackScreen} options={{ headerShown: true, title: 'Feedback' }} />
       <Stack.Screen name="CocktailDetail" component={CocktailDetailScreen} options={{ headerShown: true, title: 'Cocktail' }} />
       <Stack.Screen name="CocktailList" component={CocktailListScreen} options={{ headerShown: true, title: 'Cocktails' }} />
+      <Stack.Screen name="WhatCanIMake" component={WhatCanIMakeScreen} options={{ headerShown: true, title: 'What Can I Make?' }} />
       <Stack.Screen name="SavedItems" component={SavedItemsScreen} options={{ headerShown: true, title: 'Saved Items' }} />
       <Stack.Screen name="EditProfile" component={EditProfileScreen} options={{ headerShown: true, title: 'Edit Profile' }} />
       <Stack.Screen name="Profile" component={ProfileScreen} options={{ headerShown: true, title: 'Profile' }} />
@@ -450,7 +451,6 @@ export default function RootNavigator({ initialRouteName = 'Main', onHiddenFlask
     <Stack.Screen name="OCRCapture" component={OCRCaptureScreen} options={{ headerShown: true, title: '📸 Scan Recipe' }} />
     <Stack.Screen name="URLRecipeInput" component={URLRecipeInputScreen} options={{ headerShown: true, title: '🔗 Add from URL' }} />
     <Stack.Screen name="VoiceRecipe" component={VoiceRecipeScreen} options={{ headerShown: true, title: '🎤 Voice Recipe Input' }} />
-    <Stack.Screen name="PersonalizedHome" component={PersonalizedHomeScreen} options={{ headerShown: true, title: '🧠 Personalized Feed' }} />
     <Stack.Screen name="HomeBar" component={HomeBarScreen} options={{ headerShown: false }} />
     <Stack.Screen name="SpiritRecognition" component={SpiritRecognitionScreen} options={{ headerShown: true, title: '📱 Scan Spirit' }} />
     <Stack.Screen name="ShoppingCart" component={ShoppingCartScreen} options={{ headerShown: true, title: '🛒 Shopping Cart' }} />

@@ -617,7 +617,7 @@ export default function HomeBarScreen() {
   const totalRecipes = Math.max(12, homeBar.ingredients.length * 2); // Mock calculation
 
   const handleSeeRecipes = () => {
-    nav.navigate('Recipes');
+    nav.navigate('WhatCanIMake');
   };
 
   const handleAddIngredient = () => {
@@ -862,6 +862,28 @@ export default function HomeBarScreen() {
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
       >
+        {/* Make With What You Have */}
+        {all.length > 0 && (
+          <View style={styles.makeWithSection}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>🎯 Make With What You Have</Text>
+              <TouchableOpacity onPress={() => navigation.navigate('RecipesMain' as any)}>
+                <Text style={styles.sectionLink}>Browse All</Text>
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.makeWithSubtitle}>
+              Recipes you can make with your current inventory
+            </Text>
+            {/* TODO: Filter and display recipes based on inventory */}
+            <View style={styles.comingSoonBadge}>
+              <Ionicons name="construct-outline" size={16} color={colors.accent} />
+              <Text style={styles.comingSoonText}>
+                Coming soon: Smart recipe recommendations based on your inventory
+              </Text>
+            </View>
+          </View>
+        )}
+
         {/* Low Stock Section */}
         {lowStock.length > 0 && (
           <View style={styles.section}>
@@ -901,6 +923,29 @@ export default function HomeBarScreen() {
               }
             }}
           />
+        )}
+
+        {/* AI Inventory Suggestions */}
+        {all.length > 0 && (
+          <View style={styles.aiInventoryCard}>
+            <View style={styles.aiInventoryHeader}>
+              <Ionicons name="sparkles" size={20} color={colors.gold} />
+              <Text style={styles.aiInventoryTitle}>AI Suggestions</Text>
+            </View>
+            <TouchableOpacity
+              style={styles.aiInventoryActionCard}
+              onPress={() => Alert.alert('Smart Inventory', 'AI-powered inventory suggestions coming soon! Get recommendations for what to buy next based on popular recipes you can make.')}
+            >
+              <View style={styles.aiInventoryActionContent}>
+                <Ionicons name="bulb-outline" size={22} color={colors.accent} />
+                <View style={styles.aiInventoryActionText}>
+                  <Text style={styles.aiInventoryActionTitle}>What should I buy next?</Text>
+                  <Text style={styles.aiInventoryActionSubtitle}>Get smart recommendations</Text>
+                </View>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={colors.subtext} />
+            </TouchableOpacity>
+          </View>
         )}
 
         {/* Bottom Spacing */}
@@ -1412,6 +1457,43 @@ const styles = StyleSheet.create({
     color: colors.text,
     marginBottom: spacing(2),
   },
+  sectionLink: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.accent,
+  },
+  makeWithSection: {
+    marginTop: spacing(2),
+    paddingHorizontal: spacing(3),
+    paddingVertical: spacing(2),
+    backgroundColor: `${colors.gold}08`,
+    borderRadius: radii.lg,
+    marginHorizontal: spacing(3),
+    borderWidth: 1,
+    borderColor: `${colors.gold}20`,
+  },
+  makeWithSubtitle: {
+    fontSize: 13,
+    color: colors.subtext,
+    marginBottom: spacing(1.5),
+    lineHeight: 18,
+  },
+  comingSoonBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(1),
+    backgroundColor: `${colors.accent}10`,
+    borderRadius: radii.md,
+    padding: spacing(1.5),
+    borderWidth: 1,
+    borderColor: `${colors.accent}30`,
+  },
+  comingSoonText: {
+    flex: 1,
+    fontSize: 12,
+    color: colors.subtext,
+    lineHeight: 16,
+  },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -1811,5 +1893,55 @@ const styles = StyleSheet.create({
     color: colors.subtext,
     marginTop: spacing(2),
     textAlign: 'center',
+  },
+  aiInventoryCard: {
+    backgroundColor: `${colors.gold}08`,
+    borderRadius: radii.lg,
+    padding: spacing(2),
+    marginHorizontal: spacing(3),
+    marginTop: spacing(3),
+    borderWidth: 1,
+    borderColor: `${colors.gold}20`,
+  },
+  aiInventoryHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(1),
+    marginBottom: spacing(1.5),
+  },
+  aiInventoryTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  aiInventoryActionCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.card,
+    borderRadius: radii.md,
+    padding: spacing(2),
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
+  aiInventoryActionContent: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(1.5),
+  },
+  aiInventoryActionText: {
+    flex: 1,
+  },
+  aiInventoryActionTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: spacing(0.25),
+  },
+  aiInventoryActionSubtitle: {
+    fontSize: 13,
+    color: colors.subtext,
+    lineHeight: 18,
   },
 });

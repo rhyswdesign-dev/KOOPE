@@ -18,29 +18,57 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { colors, spacing, radii } from '../theme/tokens';
 import { log } from '../lib/logger';
 import { useAuth } from '../contexts/AuthContext';
+import type { RootStackParamList } from '../navigation/RootNavigator';
 
-interface OAuthSignInScreenProps {
+interface OAuthSignInProps {
   onComplete?: () => void;
   onSkip?: () => void;
+  route?: { params?: { onComplete?: () => void; onSkip?: () => void } };
 }
 
 const { width } = Dimensions.get('window');
 
-export default function OAuthSignInScreen({ onComplete, onSkip }: OAuthSignInScreenProps) {
+export default function OAuthSignInScreen({ onComplete: propsOnComplete, onSkip: propsOnSkip, route }: OAuthSignInProps) {
+  // Support both direct props (from App.tsx onboarding) and route params (from navigation)
+  // Route params are passed by React Navigation automatically when navigated to
+  const onComplete = propsOnComplete || route?.params?.onComplete;
+  const onSkip = propsOnSkip || route?.params?.onSkip;
   const [isLoading, setIsLoading] = useState(false);
-  const { signInWithApple, signInWithGoogle } = useAuth();
+  const { signInWithApple, signInWithGoogle, signInWithEmail } = useAuth();
+
+  const handleTestSignIn = async () => {
+    setIsLoading(true);
+    try {
+      console.log('🔧 Test Sign-In initiated');
+      await signInWithEmail('test@koope.app', 'TestPassword123!');
+      console.log('✅ Test Sign-In successful!');
+      Alert.alert('Success!', 'Signed in with test account', [
+        { text: 'OK', onPress: () => { if (onComplete) onComplete(); } }
+      ]);
+    } catch (error: any) {
+      console.log('❌ Test Sign-In failed:', error);
+      Alert.alert('Sign In Failed', `Could not sign in: ${error.message}. Make sure you created the test user in Supabase.`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleAppleSignIn = async () => {
     setIsLoading(true);
     try {
       log.info('OAuthSignInScreen', 'Apple Sign-In initiated');
+      console.log('🔵 Starting Apple Sign-In...');
       await signInWithApple();
+      console.log('✅ Apple Sign-In successful!');
       log.info('OAuthSignInScreen', 'Apple Sign-In completed');
-      if (onComplete) onComplete();
+      Alert.alert('Success!', 'Signed in successfully', [
+        { text: 'OK', onPress: () => { if (onComplete) onComplete(); } }
+      ]);
     } catch (error: any) {
+      console.log('❌ Apple Sign-In failed:', error);
       log.error('OAuthSignInScreen', 'Apple Sign-In failed', error);
       // Always show error message
-      Alert.alert('Sign In Failed', 'Could not sign in with Apple. Please try again or skip to continue.');
+      Alert.alert('Sign In Failed', `Could not sign in with Apple: ${error.message}. Please try again or skip to continue.`);
     } finally {
       setIsLoading(false);
     }
@@ -89,7 +117,10 @@ export default function OAuthSignInScreen({ onComplete, onSkip }: OAuthSignInScr
       {onSkip && (
         <TouchableOpacity
           style={styles.skipButton}
-          onPress={onSkip}
+          onPress={() => {
+            console.log('🔵 Skip button pressed, calling onSkip...');
+            if (onSkip) onSkip();
+          }}
           disabled={isLoading}
         >
           <Text style={styles.skipButtonText}>Skip</Text>
@@ -135,7 +166,10 @@ export default function OAuthSignInScreen({ onComplete, onSkip }: OAuthSignInScr
           {Platform.OS === 'ios' && (
             <TouchableOpacity
               style={[styles.appleButton, isLoading && styles.buttonDisabled]}
-              onPress={handleAppleSignIn}
+              onPress={() => {
+                console.log('🍎 Apple button pressed!');
+                handleAppleSignIn();
+              }}
               disabled={isLoading}
               activeOpacity={0.8}
               accessible={true}
@@ -154,7 +188,10 @@ export default function OAuthSignInScreen({ onComplete, onSkip }: OAuthSignInScr
           {/* Google Sign-In */}
           <TouchableOpacity
             style={[styles.googleButton, isLoading && styles.buttonDisabled]}
-            onPress={handleGoogleSignIn}
+            onPress={() => {
+              console.log('🔵 Google button pressed!');
+              handleGoogleSignIn();
+            }}
             disabled={isLoading}
             activeOpacity={0.8}
             accessible={true}
@@ -166,6 +203,22 @@ export default function OAuthSignInScreen({ onComplete, onSkip }: OAuthSignInScr
             <View style={styles.buttonContent}>
               <MaterialCommunityIcons name="google" size={24} color={colors.text} />
               <Text style={styles.googleButtonText}>Continue with Google</Text>
+            </View>
+          </TouchableOpacity>
+
+          {/* Test Sign-In (Development Only) */}
+          <TouchableOpacity
+            style={[styles.testButton, isLoading && styles.buttonDisabled]}
+            onPress={() => {
+              console.log('🔧 Test button pressed!');
+              handleTestSignIn();
+            }}
+            disabled={isLoading}
+            activeOpacity={0.8}
+          >
+            <View style={styles.buttonContent}>
+              <Ionicons name="flask" size={24} color={colors.gold} />
+              <Text style={styles.testButtonText}>Sign In with Test Account</Text>
             </View>
           </TouchableOpacity>
         </View>
@@ -338,6 +391,19 @@ const styles = StyleSheet.create({
   },
   googleButtonText: {
     color: colors.text,
+    fontSize: 17,
+    fontWeight: '600',
+  },
+  testButton: {
+    backgroundColor: colors.gold + '20',
+    borderRadius: radii.lg,
+    paddingVertical: spacing(2.5),
+    borderWidth: 2,
+    borderColor: colors.gold,
+    borderStyle: 'dashed',
+  },
+  testButtonText: {
+    color: colors.gold,
     fontSize: 17,
     fontWeight: '600',
   },

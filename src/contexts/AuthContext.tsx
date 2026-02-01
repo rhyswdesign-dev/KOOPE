@@ -16,6 +16,7 @@ interface AuthContextType {
   isLoading: boolean;
   signInWithApple: () => Promise<void>;
   signInWithGoogle: () => Promise<void>;
+  signInWithEmail: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -26,6 +27,7 @@ const AuthContext = createContext<AuthContextType>({
   isLoading: true,
   signInWithApple: async () => {},
   signInWithGoogle: async () => {},
+  signInWithEmail: async () => {},
   signOut: async () => {},
 });
 
@@ -50,10 +52,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // Listen for auth state changes
   useEffect(() => {
     log.info('AuthContext', 'Setting up auth state listener');
+    console.log('🔐 AuthContext: Setting up auth state listener');
 
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       log.info('AuthContext', 'Initial session loaded', { userId: session?.user?.id || 'No user' });
+      console.log('🔐 AuthContext: Initial session loaded', {
+        hasSession: !!session,
+        userId: session?.user?.id || 'No user',
+        userEmail: session?.user?.email || 'No email'
+      });
       setSession(session);
       setUser(session?.user ?? null);
       setIsLoading(false);
@@ -64,6 +72,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       log.info('AuthContext', 'Auth state changed', {
         event: _event,
         userId: session?.user?.id || 'No user'
+      });
+      console.log('🔐 AuthContext: Auth state changed!', {
+        event: _event,
+        hasSession: !!session,
+        userId: session?.user?.id || 'No user',
+        userEmail: session?.user?.email || 'No email'
       });
       setSession(session);
       setUser(session?.user ?? null);
@@ -146,6 +160,26 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  const signInWithEmail = async (email: string, password: string) => {
+    try {
+      log.info('AuthContext', 'Email Sign-In initiated');
+      console.log('📧 Starting Email Sign-In...', { email });
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) throw error;
+
+      log.info('AuthContext', 'Email sign-in successful', { userId: data.user?.id });
+      console.log('✅ Email Sign-In successful!', { userId: data.user?.id });
+    } catch (error) {
+      log.error('AuthContext', 'Email sign-in failed', error);
+      console.log('❌ Email Sign-In failed:', error);
+      throw error;
+    }
+  };
+
   const signOut = async () => {
     try {
       log.info('AuthContext', 'Sign out initiated');
@@ -165,6 +199,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     isLoading,
     signInWithApple,
     signInWithGoogle,
+    signInWithEmail,
     signOut,
   };
 

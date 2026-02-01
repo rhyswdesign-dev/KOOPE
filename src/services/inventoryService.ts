@@ -1,0 +1,307 @@
+/**
+ * Inventory Service
+ * Handles user inventory management and scan tracking
+ */
+
+import { supabase } from '../lib/supabase';
+import type { UserInventoryItem, UserScan, ItemType, ScanType } from '../types/database';
+import * as Localization from 'expo-localization';
+import { log } from '../lib/logger';
+import { formatIngredientName } from '../utils/recipeMatching';
+
+export class InventoryService {
+  /**
+   * Get the user's current monthly scan count
+   */
+  static async getMonthlyScanCount(userId: string): Promise<number> {
+    try {
+      const { data, error } = await supabase
+        .rpc('get_monthly_scan_count', { p_user_id: userId });
+
+      if (error) {
+        log.error('InventoryService', 'Error getting scan count', error);
+        return 0;
+      }
+
+      return data || 0;
+    } catch (error) {
+      log.error('InventoryService', 'Exception getting scan count', error);
+      return 0;
+    }
+  }
+
+  /**
+   * Check if user has reached their monthly scan limit
+   * Free tier: 10 scans/month
+   * Paid tier: unlimited (checked via subscription status)
+   */
+  static async canUserScan(userId: string | null, isPaidUser: boolean = false): Promise<{
+    canScan: boolean;
+    scansRemaining: number;
+    isGuest: boolean;
+  }> {
+    // Guest users can scan (will prompt to sign up later)
+    if (!userId) {
+      return { canScan: true, scansRemaining: 10, isGuest: true };
+    }
+
+    // Paid users have unlimited scans
+    if (isPaidUser) {
+      return { canScan: true, scansRemaining: -1, isGuest: false };
+    }
+
+    // Free tier users: check monthly limit
+    const scanCount = await this.getMonthlyScanCount(userId);
+    const limit = 10;
+    const remaining = Math.max(0, limit - scanCount);
+
+    return {
+      canScan: scanCount < limit,
+      scansRemaining: remaining,
+      isGuest: false,
+    };
+  }
+
+  /**
+   * Record a scan for brand data tracking
+   */
+  static async recordScan(params: {
+    userId: string | null;
+    scanType: ScanType;
+    itemName?: string;
+    brandName?: string;
+    imageUrl?: string;
+    confidence?: number;
+    addedToInventory?: boolean;
+  }): Promise<void> {
+    try {
+      const locale = Localization.getLocales()[0];
+      const userLocation = locale.regionCode || null;
+
+      const { error } = await supabase
+        .from('user_scans')
+        .insert({
+          user_id: params.userId,
+          scan_type: params.scanType,
+          item_name: params.itemName || null,
+          brand_name: params.brandName || null,
+          image_url: params.imageUrl || null,
+          detection_confidence: params.confidence || null,
+          user_location: userLocation,
+          added_to_inventory: params.addedToInventory || false,
+        });
+
+      if (error) {
+        log.error('InventoryService', 'Error recording scan', error);
+      }
+    } catch (error) {
+      log.error('InventoryService', 'Exception recording scan', error);
+    }
+  }
+
+  /**
+   * Track when user clicks "Find Nearby" for brand partnership data
+   */
+  static async trackFindStoresClick(scanId: string): Promise<void> {
+    try {
+      const { error } = await supabase
+        .from('user_scans')
+        .update({
+          clicked_find_stores: true,
+          clicked_find_stores_at: new Date().toISOString(),
+        })
+        .eq('id', scanId);
+
+      if (error) {
+        log.error('InventoryService', 'Error tracking find stores click', error);
+      }
+    } catch (error) {
+      log.error('InventoryService', 'Exception tracking find stores click', error);
+    }
+  }
+
+  /**
+   * Check if item already exists in user's inventory
+   */
+  static async checkDuplicate(userId: string, itemName: string): Promise<boolean> {
+    try {
+      const { data, error } = await supabase
+        .from('user_inventory')
+        .select('id')
+        .eq('user_id', userId)
+        .ilike('item_name', itemName)
+        .maybeSingle();
+
+      if (error) {
+        log.error('InventoryService', 'Error checking duplicate', error);
+        return false;
+      }
+
+      return !!data;
+    } catch (error) {
+      log.error('InventoryService', 'Exception checking duplicate', error);
+      return false;
+    }
+  }
+
+  /**
+   * Add item to user's inventory
+   */
+  static async addToInventory(params: {
+    userId: string;
+    itemType: ItemType;
+    itemName: string;
+    category?: string;
+    imageUrl?: string;
+  }): Promise<{ success: boolean; duplicate: boolean }> {
+    try {
+      // Format ingredient name for consistency (Title Case)
+      // "ginger beer" → "Ginger Beer", "VODKA" → "Vodka"
+      const formattedName = formatIngredientName(params.itemName);
+
+      // Check for duplicate (using formatted name)
+      const isDuplicate = await this.checkDuplicate(params.userId, formattedName);
+      if (isDuplicate) {
+        return { success: false, duplicate: true };
+      }
+
+      const { error } = await supabase
+        .from('user_inventory')
+        .insert({
+          user_id: params.userId,
+          item_type: params.itemType,
+          item_name: formattedName, // Use formatted name
+          category: params.category || null,
+          image_url: params.imageUrl || null,
+        });
+
+      if (error) {
+        log.error('InventoryService', 'Error adding to inventory', error);
+        return { success: false, duplicate: false };
+      }
+
+      return { success: true, duplicate: false };
+    } catch (error) {
+      log.error('InventoryService', 'Exception adding to inventory', error);
+      return { success: false, duplicate: false };
+    }
+  }
+
+  /**
+   * Add multiple items to inventory (batch operation)
+   */
+  static async addMultipleToInventory(
+    userId: string,
+    items: Array<{
+      itemType: ItemType;
+      itemName: string;
+      category?: string;
+      imageUrl?: string;
+    }>
+  ): Promise<{ successCount: number; duplicates: string[] }> {
+    let successCount = 0;
+    const duplicates: string[] = [];
+
+    for (const item of items) {
+      const result = await this.addToInventory({
+        userId,
+        ...item,
+      });
+
+      if (result.success) {
+        successCount++;
+      } else if (result.duplicate) {
+        duplicates.push(item.itemName);
+      }
+    }
+
+    return { successCount, duplicates };
+  }
+
+  /**
+   * Get user's inventory
+   */
+  static async getUserInventory(userId: string): Promise<UserInventoryItem[]> {
+    try {
+      const { data, error } = await supabase
+        .from('user_inventory')
+        .select('*')
+        .eq('user_id', userId)
+        .order('added_at', { ascending: false });
+
+      if (error) {
+        log.error('InventoryService', 'Error getting inventory', error);
+        return [];
+      }
+
+      return data || [];
+    } catch (error) {
+      log.error('InventoryService', 'Exception getting inventory', error);
+      return [];
+    }
+  }
+
+  /**
+   * Get user's inventory count
+   */
+  static async getInventoryCount(userId: string): Promise<number> {
+    try {
+      const { count, error } = await supabase
+        .from('user_inventory')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId);
+
+      if (error) {
+        log.error('InventoryService', 'Error getting inventory count', error);
+        return 0;
+      }
+
+      return count || 0;
+    } catch (error) {
+      log.error('InventoryService', 'Exception getting inventory count', error);
+      return 0;
+    }
+  }
+
+  /**
+   * Remove item from inventory
+   */
+  static async removeFromInventory(userId: string, itemName: string): Promise<boolean> {
+    try {
+      const { error } = await supabase
+        .from('user_inventory')
+        .delete()
+        .eq('user_id', userId)
+        .ilike('item_name', itemName);
+
+      if (error) {
+        log.error('InventoryService', 'Error removing from inventory', error);
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      log.error('InventoryService', 'Exception removing from inventory', error);
+      return false;
+    }
+  }
+
+  /**
+   * Mark item as "user searched nearby" for brand data
+   */
+  static async markSearchedNearby(userId: string, itemName: string): Promise<void> {
+    try {
+      const { error } = await supabase
+        .from('user_inventory')
+        .update({ user_searched_nearby: true })
+        .eq('user_id', userId)
+        .ilike('item_name', itemName);
+
+      if (error) {
+        log.error('InventoryService', 'Error marking searched nearby', error);
+      }
+    } catch (error) {
+      log.error('InventoryService', 'Exception marking searched nearby', error);
+    }
+  }
+}
