@@ -20,6 +20,7 @@ interface GroceryListModalProps {
   recipeName: string;
   ingredients: string[] | { name: string; note?: string }[];
   recipeId?: string;
+  preSelectedIngredients?: string[]; // Ingredient names to pre-select (for missing ingredients)
 }
 
 export default function GroceryListModal({
@@ -28,13 +29,42 @@ export default function GroceryListModal({
   recipeName,
   ingredients,
   recipeId,
+  preSelectedIngredients = [],
 }: GroceryListModalProps) {
   const { user } = useAuth();
   const [groceryList] = useState<Omit<GroceryList, 'id' | 'createdAt' | 'updatedAt' | 'userId'>>(() =>
     GroceryListService.generateGroceryList(recipeName, ingredients, recipeId)
   );
 
-  const [checkedItems, setCheckedItems] = useState<Set<string>>(new Set());
+  // Pre-select items based on missing ingredients
+  const [checkedItems, setCheckedItems] = useState<Set<string>>(() => {
+    if (preSelectedIngredients.length === 0) {
+      // If no pre-selected ingredients, select all items by default
+      return new Set(groceryList.items.map(item => item.id));
+    }
+
+    // Pre-select only items that match the missing ingredient names
+    const preSelected = new Set<string>();
+    groceryList.items.forEach(item => {
+      // Check if this grocery item matches any of the pre-selected ingredient names
+      const matchesPreSelected = preSelectedIngredients.some(preSelectedName => {
+        // Normalize both names for comparison (lowercase, remove extra spaces)
+        const normalizedItemName = item.name.toLowerCase().trim();
+        const normalizedPreSelected = preSelectedName.toLowerCase().trim();
+
+        // Check if the grocery item name contains the pre-selected ingredient name
+        // or vice versa (to handle cases like "2 oz Vodka" matching "Vodka")
+        return normalizedItemName.includes(normalizedPreSelected) ||
+               normalizedPreSelected.includes(normalizedItemName);
+      });
+
+      if (matchesPreSelected) {
+        preSelected.add(item.id);
+      }
+    });
+
+    return preSelected;
+  });
 
   const groupedItems = useMemo(() => {
     const mockGroceryList = {

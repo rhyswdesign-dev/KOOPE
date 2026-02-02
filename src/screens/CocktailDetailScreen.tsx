@@ -1,7 +1,9 @@
 import React, { useState, useLayoutEffect, useEffect } from 'react';
 import {
-  View, Text, ScrollView, Image, TouchableOpacity, StyleSheet, Share, Alert, Pressable, RefreshControl
+  View, Text, ScrollView, Image, TouchableOpacity, StyleSheet, Share, Alert, Pressable, RefreshControl,
+  Platform, Dimensions, StatusBar
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -23,6 +25,12 @@ import { achievementService } from '../services/achievementService';
 import { useSubscription } from '../contexts/SubscriptionContext';
 import { log } from '../lib/logger';
 import { trackEvent, ANALYTICS_EVENTS, ANALYTICS_PROPS } from '../lib/analytics';
+import { useXPSystem } from '../store/useXPSystem';
+import { InventoryService } from '../services/inventoryService';
+import { useAuth } from '../contexts/AuthContext';
+import { hasIngredient } from '../utils/recipeMatching';
+import { getSpiritSubstitutions, getSubstitutionMessage } from '../utils/spiritSubstitutions';
+import type { UserInventoryItem } from '../types/database';
 
 type CocktailDetailScreenRouteProp = {
   params: {
@@ -817,9 +825,9 @@ const getNonAlcoholicRecipeData = (recipeId: string) => {
           img: beverage.image,
           difficulty: recipe.difficulty,
           time: recipe.time,
-          ingredients: recipe.ingredients.map(ingredient => ({ 
-            name: ingredient, 
-            note: beverage.name 
+          ingredients: recipe.ingredients.map(ingredient => ({
+            name: ingredient,
+            note: beverage.name
           })),
           instructions: recipe.instructions.split('. ').filter(step => step.trim()),
           tips: beverage.flavorNotes.map(note => `Features ${note.toLowerCase()} notes`),
@@ -841,13 +849,36 @@ export default function CocktailDetailScreen() {
   const { toggleSavedCocktail, isCocktailSaved } = useSavedItems();
   const { toast, showToast, hideToast } = useToast();
   const { isPro, isPrestige } = useSubscription();
+  const { earnRecipeMadeXP } = useXPSystem();
+  const { user } = useAuth();
+  const serifFont = Platform.select({ ios: 'Georgia', android: 'serif', default: 'serif' });
 
   const [firebaseRecipe, setFirebaseRecipe] = useState<Recipe | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [groceryListVisible, setGroceryListVisible] = useState(false);
   const [hasMadeIt, setHasMadeIt] = useState(false);
+  const [userInventory, setUserInventory] = useState<UserInventoryItem[]>([]);
+  const [missingIngredientNames, setMissingIngredientNames] = useState<string[]>([]);
   const viewStartTime = React.useRef<number>(Date.now());
+
+  // Fetch user inventory for substitution suggestions
+  useEffect(() => {
+    const loadInventory = async () => {
+      if (user) {
+        log.info('CocktailDetailScreen', 'Loading user inventory', { userId: user.id });
+        const inventory = await InventoryService.getUserInventory(user.id);
+        log.info('CocktailDetailScreen', 'Inventory loaded', {
+          inventoryCount: inventory.length,
+          items: inventory.map(i => i.item_name).slice(0, 10),
+        });
+        setUserInventory(inventory);
+      } else {
+        log.warn('CocktailDetailScreen', 'No user found - cannot load inventory');
+      }
+    };
+    loadInventory();
+  }, [user]);
 
   // Always fetch full recipe from Supabase to get complete data (ingredients, instructions)
   // Passed cocktail object may be lite-loaded with empty ingredients
@@ -1067,6 +1098,51 @@ export default function CocktailDetailScreen() {
     return firebaseCocktail || passedCocktail || null;
   })();
 
+  // Calculate ingredient ownership stats
+  const ingredientStats = React.useMemo(() => {
+    if (!cocktail || !cocktail.ingredients || cocktail.ingredients.length === 0) {
+      return { owned: 0, total: 0, missing: [] as string[] };
+    }
+
+    let owned = 0;
+    const missing: string[] = [];
+
+    log.debug('CocktailDetailScreen', 'Calculating ingredient stats', {
+      cocktailName: cocktail.title,
+      totalIngredients: cocktail.ingredients.length,
+      inventorySize: userInventory.length,
+      hasUser: !!user,
+      inventoryItems: userInventory.map(i => i.item_name).slice(0, 5),
+    });
+
+    cocktail.ingredients.forEach((ingredient) => {
+      const ingredientName = ingredient.name;
+      const hasIt = hasIngredient(userInventory, ingredientName);
+
+      log.debug('CocktailDetailScreen', `Checking ingredient: "${ingredientName}"`, {
+        hasIt,
+      });
+
+      if (hasIt) {
+        owned++;
+      } else {
+        missing.push(ingredientName);
+      }
+    });
+
+    log.debug('CocktailDetailScreen', 'Ingredient stats result', {
+      owned,
+      total: cocktail.ingredients.length,
+      missingCount: missing.length,
+    });
+
+    return {
+      owned,
+      total: cocktail.ingredients.length,
+      missing,
+    };
+  }, [cocktail, userInventory, user]);
+
   // Debug log to check cocktail data
   useEffect(() => {
     if (cocktail) {
@@ -1159,6 +1235,9 @@ export default function CocktailDetailScreen() {
       return;
     }
 
+    // Set missing ingredients for pre-selection in modal
+    setMissingIngredientNames(ingredientStats.missing);
+
     // Show the grocery list modal
     setGroceryListVisible(true);
   };
@@ -1183,7 +1262,10 @@ export default function CocktailDetailScreen() {
     // Track for achievements
     await achievementService.trackAction('cocktailsMade', 1);
 
-    showToast(`Great job making ${cocktail.title}!`, 'success');
+    // Award XP for making the recipe
+    earnRecipeMadeXP(cocktail.title);
+
+    showToast(`Great job making ${cocktail.title}! +10 XP`, 'success');
   };
 
   useLayoutEffect(() => {
@@ -1214,9 +1296,12 @@ export default function CocktailDetailScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['left', 'right', 'bottom']}>
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" />
       <ScrollView
+        style={styles.content}
         contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -1226,182 +1311,195 @@ export default function CocktailDetailScreen() {
           />
         }
       >
-        {/* Hero Image */}
-        <View style={styles.heroImageContainer}>
+        {/* --- Hero Section --- */}
+        <View style={styles.heroContainer}>
           <Image
             source={typeof resolvedImage === 'string' ? { uri: resolvedImage } : resolvedImage}
             style={styles.heroImage}
           />
-          
-          {/* Action Buttons Overlay */}
-          <View style={styles.actionButtonsContainer}>
-            <TouchableOpacity 
-              onPress={handleShare}
-              style={styles.actionButton}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="share-outline" size={18} color={colors.white} />
+          <LinearGradient
+            colors={['transparent', 'transparent', 'rgba(26, 18, 13, 0.8)', '#1A120D']}
+            style={styles.heroGradient}
+          >
+            <Text style={[styles.heroTitle, { fontFamily: serifFont }]}>
+              {cocktail.title}
+            </Text>
+
+            {/* Metadata Row */}
+            <View style={styles.metaRow}>
+              <View style={styles.metaItem}>
+                <MaterialCommunityIcons name="clock-outline" size={16} color={colors.subtext} />
+                <Text style={styles.metaText}>{cocktail.time}</Text>
+              </View>
+
+              <Text style={styles.metaDot}>•</Text>
+              <View style={styles.metaItem}>
+                <MaterialCommunityIcons name="chart-bar" size={16} color={colors.subtext} />
+                <Text style={styles.metaText}>{cocktail.difficulty}</Text>
+              </View>
+
+              {(cocktail.glassware || cocktail.glass) && (
+                <>
+                  <Text style={styles.metaDot}>•</Text>
+                  <View style={styles.metaItem}>
+                    <MaterialCommunityIcons name="glass-cocktail" size={16} color={colors.subtext} />
+                    <Text style={styles.metaText}>{cocktail.glassware || cocktail.glass}</Text>
+                  </View>
+                </>
+              )}
+            </View>
+
+            {/* Ingredient Ownership Indicator */}
+            {ingredientStats.total > 0 && (
+              <View style={styles.ingredientStatsRow}>
+                <MaterialCommunityIcons
+                  name="checkbox-marked-circle-outline"
+                  size={16}
+                  color={ingredientStats.owned === ingredientStats.total ? colors.success : colors.accent}
+                />
+                <Text style={[
+                  styles.ingredientStatsText,
+                  ingredientStats.owned === ingredientStats.total && { color: colors.success }
+                ]}>
+                  You have {ingredientStats.owned}/{ingredientStats.total} ingredients
+                </Text>
+              </View>
+            )}
+          </LinearGradient>
+
+          {/* Back Button (Absolute) */}
+          <TouchableOpacity style={styles.backButtonAbsolute} onPress={() => nav.goBack()}>
+            <Ionicons name="arrow-back" size={24} color={colors.white} />
+          </TouchableOpacity>
+
+          {/* Actions (Absolute Top Right) */}
+          <View style={styles.topActionsAbsolute}>
+            <TouchableOpacity style={styles.iconButton} onPress={handleShare}>
+              <Ionicons name="share-outline" size={22} color={colors.white} />
             </TouchableOpacity>
-            <TouchableOpacity 
-              onPress={handleDownload}
-              style={styles.actionButton}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="download-outline" size={18} color={colors.white} />
-            </TouchableOpacity>
-            <TouchableOpacity 
-              onPress={handleSave}
-              style={[styles.actionButton, isSaved && styles.actionButtonActive]}
-              activeOpacity={0.7}
-            >
-              <Ionicons 
-                name={isSaved ? "bookmark" : "bookmark-outline"} 
-                size={18} 
-                color={colors.white} 
-              />
+            <TouchableOpacity style={styles.iconButton} onPress={handleSave}>
+              <Ionicons name={isSaved ? "bookmark" : "bookmark-outline"} size={22} color={colors.white} />
             </TouchableOpacity>
           </View>
         </View>
-        
-        {/* Content */}
-        <View style={styles.content}>
-          {/* Header */}
-          <View style={styles.header}>
-            <Text style={styles.title}>{cocktail.title}</Text>
-            <Text style={styles.subtitle}>{cocktail.subtitle}</Text>
-          </View>
 
-          {/* Stats */}
-          <View style={styles.statsContainer}>
-            <View style={styles.statItem}>
-              <MaterialCommunityIcons name="clock-outline" size={20} color={colors.accent} />
-              <Text style={styles.statText}>{cocktail.time}</Text>
-            </View>
-            <View style={styles.statItem}>
-              <MaterialCommunityIcons name="speedometer" size={20} color={colors.accent} />
-              <Text style={styles.statText}>{cocktail.difficulty}</Text>
-            </View>
-            {(cocktail.glassware || cocktail.glass) && (
-              <View style={styles.statItem}>
-                <MaterialCommunityIcons name="glass-cocktail" size={20} color={colors.accent} />
-                <Text style={styles.statText}>{cocktail.glassware || cocktail.glass}</Text>
-              </View>
-            )}
-            {cocktail.method && (
-              <View style={styles.statItem}>
-                <MaterialCommunityIcons name="format-list-checks" size={20} color={colors.accent} />
-                <Text style={styles.statText}>{cocktail.method}</Text>
-              </View>
-            )}
-            {cocktail.ice && (
-              <View style={styles.statItem}>
-                <MaterialCommunityIcons name="snowflake" size={20} color={colors.accent} />
-                <Text style={styles.statText}>{cocktail.ice}</Text>
-              </View>
-            )}
-          </View>
-
-          {/* Ingredients */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Ingredients</Text>
-            {cocktail.ingredients && cocktail.ingredients.length > 0 ? (
-              cocktail.ingredients.map((ingredient, index) => (
-                <View key={`ingredient-${index}-${ingredient.name}`} style={styles.ingredientItem}>
-                  <Text style={styles.ingredientName}>{ingredient.name}</Text>
-                  {ingredient.note && <Text style={styles.ingredientNote}>{ingredient.note}</Text>}
-                </View>
-              ))
-            ) : (
-              <Text style={styles.ingredientName}>No ingredients available</Text>
-            )}
-          </View>
-
-          {/* Garnish */}
-          {cocktail.garnish && (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Garnish</Text>
-              <View style={styles.garnishItem}>
-                <MaterialCommunityIcons name="flower" size={16} color={colors.accent} />
-                <Text style={styles.garnishText}>{cocktail.garnish}</Text>
-              </View>
-            </View>
+        {/* --- Action Buttons --- */}
+        <View style={styles.actionButtonsContainer}>
+          {cocktail.kitAvailable ? (
+            <TouchableOpacity style={styles.primaryButton} onPress={handleAddToCart}>
+              <Text style={styles.primaryButtonText}>
+                {ingredientStats.missing.length === 0
+                  ? 'Add All Ingredients to Cart'
+                  : ingredientStats.missing.length === ingredientStats.total
+                  ? 'Add All Ingredients to Cart'
+                  : `Add Missing Ingredients (${ingredientStats.missing.length})`}
+              </Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity style={styles.primaryButton} onPress={handleMadeIt} disabled={hasMadeIt}>
+              <Text style={styles.primaryButtonText}>{hasMadeIt ? "You Made It!" : "I Made This"}</Text>
+            </TouchableOpacity>
           )}
 
-          {/* Instructions */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Instructions</Text>
-            {cocktail.instructions.map((instruction, index) => (
-              <View key={`instruction-${index}`} style={styles.instructionItem}>
-                <View style={styles.stepNumber}>
-                  <Text style={styles.stepNumberText}>{index + 1}</Text>
-                </View>
-                <Text style={styles.instructionText}>{instruction}</Text>
+          {cocktail.kitAvailable && (
+            <TouchableOpacity style={styles.secondaryButton} onPress={handleMadeIt} disabled={hasMadeIt}>
+              <Text style={styles.secondaryButtonText}>{hasMadeIt ? "You Made It!" : "I Made This"}</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* --- Ingredients --- */}
+        <View style={styles.section}>
+          <Text style={[styles.sectionHeader, { fontFamily: serifFont }]}>Ingredients</Text>
+          <View style={styles.ingredientsList}>
+            {cocktail.ingredients && cocktail.ingredients.length > 0 ? (
+              cocktail.ingredients.map((ingredient, index) => {
+                const userHasIt = hasIngredient(userInventory, ingredient.name);
+                const name = ingredient.name;
+                const note = ingredient.note;
+
+                // Simple icon logic based on keywords
+                let iconName: any = 'bottle-tonic-plus';
+                const lowerName = name.toLowerCase();
+                if (lowerName.includes('gin')) iconName = 'bottle-tonic';
+                else if (lowerName.includes('vermouth')) iconName = 'bottle-wine';
+                else if (lowerName.includes('campari')) iconName = 'bottle-wine';
+                else if (lowerName.includes('orange') || lowerName.includes('lemon') || lowerName.includes('lime')) iconName = 'fruit-citrus';
+                else if (lowerName.includes('ice')) iconName = 'cube-outline';
+                else if (lowerName.includes('syrup')) iconName = 'water-outline';
+                else if (lowerName.includes('garnish')) iconName = 'leaf';
+                else if (lowerName.includes('bitters')) iconName = 'water';
+
+                return (
+                  <View key={`ingredient-${index}`} style={styles.ingredientRow}>
+                    <View style={styles.ingredientIconBox}>
+                      <MaterialCommunityIcons name={iconName} size={20} color={userHasIt ? colors.success : colors.accent} />
+                    </View>
+                    <View style={styles.ingredientInfo}>
+                      <Text style={styles.ingredientName}>{name}</Text>
+                      {note && <Text style={styles.ingredientDetail}>{note}</Text>}
+                    </View>
+                    {userHasIt && (
+                      <Ionicons name="checkmark-circle" size={20} color={colors.success} style={{ marginLeft: 8 }} />
+                    )}
+                  </View>
+                );
+              })
+            ) : (
+              <Text style={{ color: colors.subtext }}>No ingredients listed.</Text>
+            )}
+          </View>
+        </View>
+
+        {/* --- Instructions --- */}
+        <View style={styles.section}>
+          <Text style={[styles.sectionHeader, { fontFamily: serifFont }]}>Instructions</Text>
+          <View style={styles.instructionsList}>
+            {cocktail.instructions.map((step, index) => (
+              <View key={`step-${index}`} style={styles.instructionRow}>
+                <Text style={[styles.stepNumber, { fontFamily: serifFont }]}>
+                  {String(index + 1).padStart(2, '0')}
+                </Text>
+                <Text style={styles.stepText}>{step}</Text>
               </View>
             ))}
           </View>
+        </View>
 
-          {/* Add to Cart Button or Buy Beverage */}
-          {cocktail.kitAvailable && (
-            <View style={styles.section}>
-              <Pressable 
-                style={styles.addToCartButton}
-                onPress={handleAddToCart}
-              >
-                <MaterialCommunityIcons name="cart-plus" size={20} color={colors.white} />
-                <Text style={styles.addToCartText}>Add Ingredients to Cart</Text>
-              </Pressable>
-            </View>
-          )}
-          
-          {cocktail.isNonAlcoholic && cocktail.beverage?.buyLink && (
-            <View style={styles.section}>
-              <Pressable
-                style={styles.addToCartButton}
-                onPress={() => Alert.alert('Buy Beverage', `Visit ${cocktail.beverage.name} store to purchase this premium non-alcoholic spirit.`)}
-              >
-                <MaterialCommunityIcons name="open-in-new" size={20} color={colors.white} />
-                <Text style={styles.addToCartText}>Buy {cocktail.beverage.name}</Text>
-              </Pressable>
-            </View>
-          )}
-
-          {/* Made It Button */}
+        {/* --- Pro Tips --- */}
+        {cocktail.tips && cocktail.tips.length > 0 && (
           <View style={styles.section}>
-            <Pressable
-              style={[styles.madeItButton, hasMadeIt && styles.madeItButtonActive]}
-              onPress={handleMadeIt}
-              disabled={hasMadeIt}
-            >
-              <MaterialCommunityIcons
-                name={hasMadeIt ? "check-circle" : "glass-cocktail"}
-                size={20}
-                color={hasMadeIt ? colors.white : colors.accent}
-              />
-              <Text style={[styles.madeItText, hasMadeIt && styles.madeItTextActive]}>
-                {hasMadeIt ? "You Made It!" : "I Made This!"}
-              </Text>
-            </Pressable>
-          </View>
-
-          {/* Pro Tips / Flavor Notes */}
-          {cocktail.tips && cocktail.tips.length > 0 && (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>
-                {cocktail.isNonAlcoholic ? 'Flavor Profile' : 'Pro Tips'}
-              </Text>
-              {cocktail.tips.map((tip, index) => (
-                <View key={`tip-${index}`} style={styles.tipItem}>
-                  <MaterialCommunityIcons
-                    name={cocktail.isNonAlcoholic ? "leaf" : "lightbulb-outline"}
-                    size={16}
-                    color={colors.accent}
-                  />
-                  <Text style={styles.tipText}>{tip}</Text>
-                </View>
+            <View style={styles.proTipsContainer}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                <MaterialCommunityIcons name="lightbulb-on" size={20} color={colors.accent} />
+                <Text style={[styles.proTipsTitle, { fontFamily: serifFont }]}>
+                  {cocktail.isNonAlcoholic ? 'Flavor Profile' : 'Pro Tips'}
+                </Text>
+              </View>
+              {cocktail.tips.map((tip, idx) => (
+                <Text key={idx} style={styles.proTipsText}>• {tip}</Text>
               ))}
             </View>
-          )}
+          </View>
+        )}
+
+        {/* --- AI Support --- */}
+        <View style={styles.aiSupportSection}>
+          <Text style={styles.aiSupportHeader}>AI SUPPORT</Text>
+          <View style={styles.aiButtonsRow}>
+            <TouchableOpacity style={styles.aiButton} onPress={() => Alert.alert('Coming Soon', 'AI Substitutes')}>
+              <MaterialCommunityIcons name="swap-horizontal" size={20} color={colors.accent} />
+              <Text style={styles.aiButtonTitle}>Find Ingredient Substitutes</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.aiButton} onPress={() => Alert.alert('Coming Soon', 'AI Customization')}>
+              <MaterialCommunityIcons name="wand" size={20} color={colors.accent} />
+              <Text style={styles.aiButtonTitle}>Customize This Recipe</Text>
+            </TouchableOpacity>
+          </View>
         </View>
+
+        <View style={{ height: 60 }} />
       </ScrollView>
 
       {/* Grocery List Modal */}
@@ -1412,6 +1510,7 @@ export default function CocktailDetailScreen() {
           recipeName={cocktail.title}
           ingredients={cocktail.ingredients}
           recipeId={cocktail.id}
+          preSelectedIngredients={missingIngredientNames}
         />
       )}
 
@@ -1422,7 +1521,7 @@ export default function CocktailDetailScreen() {
         visible={toast.visible}
         onHide={hideToast}
       />
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -1431,230 +1530,267 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.bg,
   },
-  scrollContent: {
-    paddingBottom: spacing(6),
+  content: {
+    flex: 1,
   },
-  heroImageContainer: {
+  scrollContent: {
+    paddingBottom: 40,
+  },
+
+  // Hero
+  heroContainer: {
+    width: '100%',
+    height: 480,
     position: 'relative',
   },
   heroImage: {
     width: '100%',
-    height: 300,
-    backgroundColor: colors.card,
+    height: '100%',
     resizeMode: 'cover',
   },
-  actionButtonsContainer: {
+  heroGradient: {
     position: 'absolute',
-    top: spacing(2),
-    right: spacing(2),
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 300,
+    justifyContent: 'flex-end',
+    paddingHorizontal: spacing(3),
+    paddingBottom: spacing(4),
+  },
+  heroTitle: {
+    fontSize: 36,
+    color: colors.text,
+    textAlign: 'center',
+    marginBottom: spacing(2),
+    fontWeight: '700',
+    textShadowColor: 'rgba(0,0,0,0.5)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
+  },
+  metaRow: {
     flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
     gap: spacing(1),
   },
-  actionButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+  metaItem: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
+    gap: 6,
   },
-  actionButtonActive: {
-    backgroundColor: colors.accent,
-  },
-  content: {
-    padding: spacing(3),
-  },
-  header: {
-    marginBottom: spacing(3),
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '900',
-    color: colors.text,
-    marginBottom: spacing(1),
-  },
-  subtitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.accent,
-    marginBottom: spacing(2),
-  },
-  description: {
-    fontSize: 16,
+  metaText: {
     color: colors.subtext,
-    lineHeight: 24,
+    fontSize: 14,
+    fontWeight: '500',
   },
-  statsContainer: {
+  metaDot: {
+    color: colors.subtext,
+    fontSize: 14,
+    marginHorizontal: 4,
+  },
+  backButtonAbsolute: {
+    position: 'absolute',
+    top: 60,
+    left: spacing(3),
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    borderRadius: 20,
+  },
+  topActionsAbsolute: {
+    position: 'absolute',
+    top: 60,
+    right: spacing(3),
     flexDirection: 'row',
-    gap: spacing(4),
-    marginBottom: spacing(4),
+    gap: spacing(2),
   },
-  statItem: {
+  iconButton: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    borderRadius: 20,
+  },
+
+  // Actions
+  actionButtonsContainer: {
+    paddingHorizontal: spacing(3),
+    marginTop: spacing(2),
+    gap: spacing(2),
+  },
+  primaryButton: {
+    backgroundColor: colors.accent,
+    borderRadius: radii.pill,
+    height: 52,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: colors.accent,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  primaryButtonText: {
+    color: '#FFF',
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  secondaryButton: {
+    backgroundColor: 'transparent',
+    borderRadius: radii.pill,
+    height: 52,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  secondaryButtonText: {
+    color: colors.text,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+
+  // Section
+  section: {
+    paddingHorizontal: spacing(3),
+    marginTop: spacing(4),
+  },
+  sectionHeader: {
+    fontSize: 28,
+    color: colors.text,
+    marginBottom: spacing(2.5),
+    fontWeight: '600',
+  },
+
+  // Ingredients
+  ingredientsList: {
+    gap: spacing(1.5),
+  },
+  ingredientRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing(1),
+    backgroundColor: '#261C16',
+    padding: spacing(2),
+    borderRadius: radii.xl,
   },
-  statText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  section: {
-    marginBottom: spacing(4),
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: colors.text,
-    marginBottom: spacing(2),
-  },
-  ingredientItem: {
-    backgroundColor: colors.card,
-    borderRadius: radii.lg,
-    paddingVertical: spacing(1.25),
-    paddingHorizontal: spacing(2),
-    marginBottom: spacing(0.5),
-    borderWidth: 1,
-    borderColor: colors.line,
+  ingredientIconBox: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(214, 138, 56, 0.15)',
     justifyContent: 'center',
-    minHeight: 44, // Ensures consistent height for touch targets
+    alignItems: 'center',
+    marginRight: spacing(2),
+  },
+  ingredientInfo: {
+    flex: 1,
   },
   ingredientName: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '700',
     color: colors.text,
-    marginBottom: 0,
-    lineHeight: 20, // Tight line height for vertical centering
   },
-  ingredientNote: {
+  ingredientDetail: {
     fontSize: 14,
     color: colors.subtext,
-    lineHeight: 18, // Tight line height
+    marginTop: 2,
   },
-  instructionItem: {
-    flexDirection: 'row',
-    marginBottom: spacing(2),
-    gap: spacing(2),
+
+  // Instructions
+  instructionsList: {
+    gap: spacing(3),
   },
-  stepNumber: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: colors.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: spacing(0.5),
-  },
-  stepNumberText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.white,
-  },
-  instructionText: {
-    flex: 1,
-    fontSize: 16,
-    color: colors.text,
-    lineHeight: 24,
-    paddingTop: spacing(0.5),
-  },
-  garnishItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing(2),
-    backgroundColor: colors.card,
-    borderRadius: radii.lg,
-    paddingVertical: spacing(1.5),
-    paddingHorizontal: spacing(2),
-    borderWidth: 1,
-    borderColor: colors.line,
-  },
-  garnishText: {
-    flex: 1,
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-    lineHeight: 22,
-  },
-  tipItem: {
+  instructionRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: spacing(2),
-    marginBottom: spacing(1.5),
   },
-  tipText: {
+  stepNumber: {
+    fontSize: 32,
+    color: colors.accent,
+    width: 50,
+    lineHeight: 40,
+  },
+  stepText: {
     flex: 1,
+    fontSize: 16,
+    color: colors.textMuted,
+    lineHeight: 24,
+    paddingTop: 8,
+  },
+
+  // Pro Tips
+  proTipsContainer: {
+    backgroundColor: '#261C16',
+    padding: spacing(3),
+    borderRadius: radii.lg,
+  },
+  proTipsTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  proTipsText: {
     fontSize: 15,
     color: colors.subtext,
     lineHeight: 22,
+    marginBottom: 8,
   },
-  errorContainer: {
+
+  // AI Support
+  aiSupportSection: {
+    marginTop: spacing(5),
+    paddingHorizontal: spacing(3),
+  },
+  aiSupportHeader: {
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 1.5,
+    color: colors.subtext,
+    marginBottom: spacing(2),
+    textTransform: 'uppercase',
+  },
+  aiButtonsRow: {
+    flexDirection: 'row',
+    gap: spacing(2),
+  },
+  aiButton: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: '#261C16',
+    borderRadius: radii.xl,
+    padding: spacing(2.5),
+    height: 120,
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
   },
-  errorText: {
-    fontSize: 18,
-    color: colors.subtext,
-    marginBottom: spacing(1),
+  aiButtonTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+    marginTop: spacing(1),
   },
-  errorSubtext: {
-    fontSize: 14,
-    color: colors.subtext,
-    textAlign: 'center',
-  },
-  addToCartButton: {
+
+  // Ingredient Stats
+  ingredientStatsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.accent,
-    borderRadius: radii.lg,
-    paddingVertical: spacing(2.5),
-    paddingHorizontal: spacing(3),
-    gap: spacing(1.5),
-    shadowColor: colors.accent,
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
+    gap: 6,
+    marginTop: spacing(1.5),
+    paddingHorizontal: spacing(2),
+    paddingVertical: spacing(1),
+    backgroundColor: 'rgba(214, 138, 56, 0.15)',
+    borderRadius: radii.md,
+    alignSelf: 'center',
   },
-  addToCartText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.white,
-  },
-  madeItButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.card,
-    borderRadius: radii.lg,
-    paddingVertical: spacing(2.5),
-    paddingHorizontal: spacing(3),
-    gap: spacing(1.5),
-    borderWidth: 2,
-    borderColor: colors.accent,
-  },
-  madeItButtonActive: {
-    backgroundColor: colors.accent,
-    borderColor: colors.accent,
-  },
-  madeItText: {
-    fontSize: 16,
-    fontWeight: '700',
+  ingredientStatsText: {
     color: colors.accent,
-  },
-  madeItTextActive: {
-    color: colors.white,
+    fontSize: 14,
+    fontWeight: '600',
   },
 });
