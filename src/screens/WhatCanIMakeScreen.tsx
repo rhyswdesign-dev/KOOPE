@@ -4,7 +4,7 @@
  * Allows filtering by selected ingredients
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -14,41 +14,77 @@ import {
   SafeAreaView,
   ActivityIndicator,
   ScrollView,
-  Alert,
-  Modal,
+  Dimensions,
+  TextInput,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, radii } from '../theme/tokens';
-import { supabase } from '../lib/supabase';
 import { InventoryService } from '../services/inventoryService';
-import * as AIRecipeService from '../services/aiRecipeGenerationService';
 import { useAuth } from '../contexts/AuthContext';
-import { useSubscription } from '../contexts/SubscriptionContext';
-import { sortByMatch, getMatchMessage } from '../utils/recipeMatching';
+import { filterAlmostMakeable, sortByMatch } from '../utils/recipeMatching';
 import type { Cocktail } from '../types/supabase';
 import type { RecipeMatch } from '../utils/recipeMatching';
 import type { UserInventoryItem } from '../types/database';
 import type { RootStackParamList } from '../navigation/RootNavigator';
+import RecipeCard from '../components/RecipeCard';
+import { createRecipeCardProps } from '../utils/recipeActions';
+import { useSavedItems } from '../hooks/useSavedItems';
+import { RecipesRepository } from '../repos/supabase';
+import { isCocktailAccessible } from '../config/tierAccess';
+import { useUserTier } from '../store/useUserTier';
+// BartenderAssistant removed in favor of full screen AI Chat
 
 type CocktailWithMatch = Cocktail & { match: RecipeMatch };
+
+const { width } = Dimensions.get('window');
+const GUTTER = 12;
 
 export default function WhatCanIMakeScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { user, isAuthenticated } = useAuth();
-  const { isKoopePlus, isKoopePro } = useSubscription();
+  const { tier } = useUserTier();
 
   const [loading, setLoading] = useState(true);
   const [inventory, setInventory] = useState<UserInventoryItem[]>([]);
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
   const [cocktails, setCocktails] = useState<CocktailWithMatch[]>([]);
   const [showFilters, setShowFilters] = useState(false);
+  const [ingredientSearch, setIngredientSearch] = useState('');
 
-  // AI Recipe Generation state
-  const [selectedDifficulty, setSelectedDifficulty] = useState<'beginner' | 'intermediate' | 'expert' | null>(null);
-  const [generatingRecipe, setGeneratingRecipe] = useState(false);
-  const [aiRecipes, setAiRecipes] = useState<CocktailWithMatch[]>([]);
+  // Wrap matchCocktails in useCallback to avoid dependency issues
+  const matchCocktails = useCallback(async () => {
+    try {
+      // Filter inventory to only selected items
+      const filteredInventory = inventory.filter(item =>
+        selectedItems.has(item.item_name)
+      );
+
+      // Load all recipes from RecipesRepository (same as RecipesScreen)
+      const recipesData = await RecipesRepository.getInitialRecipes(150);
+
+      if (recipesData) {
+        let matched;
+
+        if (tier === 'FREE') {
+          // Free users: show all 9 FREE_TIER_COCKTAILS sorted by match percentage
+          // This ensures they can always see which classics they're closest to making
+          const accessibleRecipes = recipesData.filter(cocktail =>
+            isCocktailAccessible(cocktail.id, tier)
+          );
+          matched = sortByMatch(accessibleRecipes as any[], filteredInventory);
+        } else {
+          // Premium users: show all cocktails that are 80%+ match
+          matched = filterAlmostMakeable(recipesData as any[], filteredInventory);
+        }
+
+        setCocktails(matched);
+      }
+    } catch (error) {
+      console.error('Error matching cocktails:', error);
+    }
+  }, [inventory, selectedItems, tier]);
 
   useEffect(() => {
     loadData();
@@ -59,7 +95,7 @@ export default function WhatCanIMakeScreen() {
     if (inventory.length > 0) {
       matchCocktails();
     }
-  }, [selectedItems, inventory]);
+  }, [selectedItems, inventory, matchCocktails]);
 
   const loadData = async () => {
     if (!user) {
@@ -77,48 +113,30 @@ export default function WhatCanIMakeScreen() {
       const allItemNames = new Set(userInventory.map(item => item.item_name));
       setSelectedItems(allItemNames);
 
-      // Load all cocktails from Supabase
-      const { data: cocktailsData, error } = await supabase
-        .from('cocktails')
-        .select('*')
-        .limit(100);
+      // Load all recipes from RecipesRepository (same as RecipesScreen)
+      const recipesData = await RecipesRepository.getInitialRecipes(150);
 
-      if (error) throw error;
+      if (recipesData) {
+        let matched;
 
-      if (cocktailsData) {
-        // Calculate matches
-        const matched = sortByMatch(cocktailsData, userInventory);
+        if (tier === 'FREE') {
+          // Free users: show all 9 FREE_TIER_COCKTAILS sorted by match percentage
+          // This ensures they can always see which classics they're closest to making
+          const accessibleRecipes = recipesData.filter(cocktail =>
+            isCocktailAccessible(cocktail.id, tier)
+          );
+          matched = sortByMatch(accessibleRecipes as any[], userInventory);
+        } else {
+          // Premium users: show all cocktails that are 80%+ match
+          matched = filterAlmostMakeable(recipesData as any[], userInventory);
+        }
+
         setCocktails(matched);
       }
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const matchCocktails = async () => {
-    try {
-      // Filter inventory to only selected items
-      const filteredInventory = inventory.filter(item =>
-        selectedItems.has(item.item_name)
-      );
-
-      // Load all cocktails
-      const { data: cocktailsData, error } = await supabase
-        .from('cocktails')
-        .select('*')
-        .limit(100);
-
-      if (error) throw error;
-
-      if (cocktailsData) {
-        // Calculate matches with filtered inventory
-        const matched = sortByMatch(cocktailsData, filteredInventory);
-        setCocktails(matched);
-      }
-    } catch (error) {
-      console.error('Error matching cocktails:', error);
     }
   };
 
@@ -132,75 +150,6 @@ export default function WhatCanIMakeScreen() {
     setSelectedItems(newSelected);
   };
 
-  const generateRecipe = async () => {
-    if (!user || !selectedDifficulty || generatingRecipe) return;
-
-    setGeneratingRecipe(true);
-    try {
-      // Check rate limit
-      const isPremium = isKoopePlus || isKoopePro;
-      const rateLimit = await AIRecipeService.checkRateLimit(user.id, isPremium);
-
-      if (!rateLimit.canGenerate) {
-        Alert.alert(
-          'Daily Limit Reached',
-          'Free users can generate 1 recipe per day. Upgrade to KŌOPE Plus for unlimited AI recipe generation!',
-          [
-            { text: 'Maybe Later', style: 'cancel' },
-            { text: 'Upgrade Now', onPress: () => navigation.navigate('Profile') },
-          ]
-        );
-        return;
-      }
-
-      // Get selected inventory items
-      const selectedInventory = inventory.filter(item =>
-        selectedItems.has(item.item_name)
-      );
-
-      if (selectedInventory.length === 0) {
-        Alert.alert('No Ingredients Selected', 'Please select some ingredients from your inventory to generate a recipe.');
-        return;
-      }
-
-      // Generate recipe
-      const generatedRecipe = await AIRecipeService.generateRecipeFromInventory({
-        userId: user.id,
-        userInventory: selectedInventory,
-        difficultyLevel: selectedDifficulty,
-        isPremium,
-      });
-
-      // Add to list with match data
-      const recipeWithMatch: CocktailWithMatch = {
-        ...generatedRecipe,
-        match: {
-          canMake: true,
-          matchPercentage: 100,
-          matchedIngredients: selectedInventory.map(i => i.item_name),
-          missingIngredients: [],
-          almostCanMake: false,
-        },
-      };
-
-      // Add to AI recipes and main cocktails list at the top
-      setAiRecipes([recipeWithMatch, ...aiRecipes]);
-      setCocktails([recipeWithMatch, ...cocktails]);
-
-      // Success feedback
-      Alert.alert(
-        'Recipe Generated! ✨',
-        `Created "${generatedRecipe.name}" using your ingredients. Scroll up to see it!`,
-        [{ text: 'View Recipe', onPress: () => navigation.navigate('CocktailDetail', { cocktailId: generatedRecipe.id }) }]
-      );
-    } catch (error: any) {
-      console.error('Recipe generation error:', error);
-      Alert.alert('Generation Failed', error.message || 'Failed to generate recipe. Please try again.');
-    } finally {
-      setGeneratingRecipe(false);
-    }
-  };
-
   const selectAll = () => {
     const allItemNames = new Set(inventory.map(item => item.item_name));
     setSelectedItems(allItemNames);
@@ -210,99 +159,24 @@ export default function WhatCanIMakeScreen() {
     setSelectedItems(new Set());
   };
 
-  const renderCocktailCard = ({ item }: { item: CocktailWithMatch }) => {
-    const { match } = item;
-    const isAI = item.is_ai_generated;
+  const { toggleSavedCocktail, isCocktailSaved } = useSavedItems();
+
+  const renderCocktailCard = ({ item, index }: { item: CocktailWithMatch; index?: number }) => {
+    // Recipes from RecipesRepository already have image, title, name, time, difficulty properly formatted
+    // Just pass directly to createRecipeCardProps like RecipesScreen does
+    const cardProps = createRecipeCardProps(item as any, navigation, {
+      toggleSavedCocktail,
+      isCocktailSaved,
+      showSaveButton: false,
+      showCartButton: false,
+      source: 'home_bar',
+    });
 
     return (
-      <TouchableOpacity
-        style={[
-          styles.cocktailCard,
-          isAI && styles.cocktailCardAI,
-        ]}
-        onPress={() => navigation.navigate('CocktailDetail', { cocktailId: item.id })}
-      >
-        {/* AI Badge */}
-        {isAI && (
-          <View style={styles.aiBadge}>
-            <Ionicons name="sparkles" size={12} color={colors.white} />
-            <Text style={styles.aiBadgeText}>AI Generated</Text>
-          </View>
-        )}
-
-        <View style={styles.cocktailHeader}>
-          <View style={styles.cocktailTitleRow}>
-            <Ionicons name="wine" size={24} color={colors.gold} />
-            <Text style={styles.cocktailName}>{item.name}</Text>
-          </View>
-
-          {/* Match Badge */}
-          <View
-            style={[
-              styles.matchBadge,
-              match.canMake
-                ? styles.matchBadgeFull
-                : match.almostCanMake
-                ? styles.matchBadgeAlmost
-                : styles.matchBadgeLow,
-            ]}
-          >
-            <Text
-              style={[
-                styles.matchPercentage,
-                match.canMake
-                  ? styles.matchPercentageFull
-                  : match.almostCanMake
-                  ? styles.matchPercentageAlmost
-                  : styles.matchPercentageLow,
-              ]}
-            >
-              {Math.round(match.matchPercentage)}%
-            </Text>
-          </View>
-        </View>
-
-        {/* Match Status */}
-        <View style={styles.matchStatus}>
-          {match.canMake ? (
-            <View style={styles.statusRow}>
-              <Ionicons name="checkmark-circle" size={16} color={colors.gold} />
-              <Text style={styles.statusText}>You can make this!</Text>
-            </View>
-          ) : (
-            <View style={styles.statusRow}>
-              <Ionicons name="information-circle-outline" size={16} color={colors.accent} />
-              <Text style={styles.statusTextMissing}>{getMatchMessage(match)}</Text>
-            </View>
-          )}
-        </View>
-
-        {/* Ingredients List with Highlighting */}
-        <View style={styles.ingredientsList}>
-          <Text style={styles.ingredientsLabel}>Ingredients:</Text>
-          <View style={styles.ingredientsGrid}>
-            {/* Matched Ingredients (Green/Gold) */}
-            {match.matchedIngredients.map((ingredient, index) => (
-              <View key={`matched-${index}`} style={styles.ingredientTag}>
-                <Ionicons name="checkmark-circle" size={14} color={colors.gold} />
-                <Text style={styles.ingredientTextMatched}>{ingredient}</Text>
-              </View>
-            ))}
-            {/* Missing Ingredients (Red/Muted) */}
-            {match.missingIngredients.map((ingredient, index) => (
-              <View key={`missing-${index}`} style={styles.ingredientTagMissing}>
-                <Ionicons name="close-circle-outline" size={14} color={colors.accent} />
-                <Text style={styles.ingredientTextMissing}>{ingredient}</Text>
-              </View>
-            ))}
-          </View>
-
-          {/* Summary */}
-          <Text style={styles.summaryLabel}>
-            Have: {match.matchedIngredients.length} / {match.matchedIngredients.length + match.missingIngredients.length}
-          </Text>
-        </View>
-      </TouchableOpacity>
+      <RecipeCard
+        {...cardProps}
+        style={{ width: (width - spacing(2) * 2 - GUTTER) / 2, marginBottom: spacing(2) }}
+      />
     );
   };
 
@@ -370,9 +244,6 @@ export default function WhatCanIMakeScreen() {
           <Text style={styles.headerSubtitle}>
             {selectedItems.size} of {inventory.length} ingredient{inventory.length !== 1 ? 's' : ''} selected
           </Text>
-          <Text style={styles.headerStats}>
-            {canMake.length} can make • {almostCanMake.length} almost there
-          </Text>
         </View>
 
         <View style={styles.headerRight}>
@@ -384,6 +255,17 @@ export default function WhatCanIMakeScreen() {
               <Text style={styles.inventoryLabel}>Items</Text>
             </View>
           </View>
+
+          {/* AI Generate Button */}
+          <TouchableOpacity
+            style={styles.aiButton}
+            onPress={() => navigation.navigate('AIRecipeGenerator', {
+              userInventory: inventory,
+              selectedItems,
+            })}
+          >
+            <Ionicons name="sparkles" size={20} color={colors.white} />
+          </TouchableOpacity>
 
           {/* Filter Button */}
           <TouchableOpacity
@@ -415,149 +297,107 @@ export default function WhatCanIMakeScreen() {
             </View>
           </View>
 
+          {/* Search Input */}
+          <View style={styles.searchContainer}>
+            <Ionicons name="search" size={18} color={colors.subtext} style={styles.searchIcon} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search ingredients..."
+              placeholderTextColor={colors.subtext}
+              value={ingredientSearch}
+              onChangeText={setIngredientSearch}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+            {ingredientSearch.length > 0 && (
+              <TouchableOpacity onPress={() => setIngredientSearch('')}>
+                <Ionicons name="close-circle" size={18} color={colors.subtext} />
+              </TouchableOpacity>
+            )}
+          </View>
+
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
             style={styles.filterScroll}
           >
-            {inventory.map(item => (
-              <TouchableOpacity
-                key={item.id}
-                style={[
-                  styles.ingredientChip,
-                  selectedItems.has(item.item_name) && styles.ingredientChipSelected,
-                ]}
-                onPress={() => toggleItem(item.item_name)}
-              >
-                <Ionicons
-                  name={selectedItems.has(item.item_name) ? 'checkmark-circle' : 'ellipse-outline'}
-                  size={16}
-                  color={selectedItems.has(item.item_name) ? colors.gold : colors.subtext}
-                />
-                <Text
+            {inventory
+              .filter(item =>
+                item.item_name.toLowerCase().includes(ingredientSearch.toLowerCase())
+              )
+              .map(item => (
+                <TouchableOpacity
+                  key={item.id}
                   style={[
-                    styles.ingredientChipText,
-                    selectedItems.has(item.item_name) && styles.ingredientChipTextSelected,
+                    styles.ingredientChip,
+                    selectedItems.has(item.item_name) && styles.ingredientChipSelected,
                   ]}
+                  onPress={() => toggleItem(item.item_name)}
                 >
-                  {item.item_name}
-                </Text>
-              </TouchableOpacity>
-            ))}
+                  <Ionicons
+                    name={selectedItems.has(item.item_name) ? 'checkmark-circle' : 'ellipse-outline'}
+                    size={16}
+                    color={selectedItems.has(item.item_name) ? colors.gold : colors.subtext}
+                  />
+                  <Text
+                    style={[
+                      styles.ingredientChipText,
+                      selectedItems.has(item.item_name) && styles.ingredientChipTextSelected,
+                    ]}
+                  >
+                    {item.item_name}
+                  </Text>
+                </TouchableOpacity>
+              ))}
           </ScrollView>
         </View>
       )}
 
-      {/* Stats */}
-      <View style={styles.stats}>
-        <View style={styles.statCard}>
-          <Text style={styles.statNumber}>{canMake.length}</Text>
-          <Text style={styles.statLabel}>Can Make</Text>
-        </View>
-        <View style={styles.statCard}>
-          <Text style={[styles.statNumber, styles.statNumberAlmost]}>{almostCanMake.length}</Text>
-          <Text style={styles.statLabel}>Almost There</Text>
-        </View>
-        <View style={styles.statCard}>
-          <Text style={styles.statNumber}>{cocktails.length}</Text>
-          <Text style={styles.statLabel}>Total Recipes</Text>
-        </View>
-      </View>
-
-      {/* AI Recipe Generation Section */}
-      <View style={styles.aiSection}>
-        <Text style={styles.aiSectionTitle}>Generate Custom Recipe ✨</Text>
-        <Text style={styles.aiSectionSubtitle}>Select difficulty level</Text>
-
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.difficultyScroll}
-          contentContainerStyle={styles.difficultyScrollContent}
-        >
-          {(['beginner', 'intermediate', 'expert'] as const).map(level => (
-            <TouchableOpacity
-              key={level}
-              style={[
-                styles.difficultyChip,
-                selectedDifficulty === level && styles.difficultyChipSelected,
-              ]}
-              onPress={() => setSelectedDifficulty(level)}
-            >
-              <Ionicons
-                name={
-                  level === 'beginner' ? 'wine-outline' :
-                  level === 'intermediate' ? 'flask-outline' :
-                  'flame-outline'
-                }
-                size={20}
-                color={selectedDifficulty === level ? colors.white : colors.gold}
-              />
-              <Text
-                style={[
-                  styles.difficultyText,
-                  selectedDifficulty === level && styles.difficultyTextSelected,
-                ]}
-              >
-                {level.charAt(0).toUpperCase() + level.slice(1)}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-
-        <TouchableOpacity
-          style={[
-            styles.generateButton,
-            (!selectedDifficulty || selectedItems.size === 0 || generatingRecipe) && styles.generateButtonDisabled,
-          ]}
-          onPress={generateRecipe}
-          disabled={!selectedDifficulty || selectedItems.size === 0 || generatingRecipe}
-        >
-          {generatingRecipe ? (
-            <>
-              <ActivityIndicator size="small" color={colors.white} />
-              <Text style={styles.generateButtonText}>Generating...</Text>
-            </>
-          ) : (
-            <>
-              <Ionicons name="sparkles" size={20} color={colors.white} />
-              <Text style={styles.generateButtonText}>Generate Recipe with AI</Text>
-            </>
-          )}
-        </TouchableOpacity>
-      </View>
-
-      {/* Loading Modal */}
-      <Modal
-        visible={generatingRecipe}
-        transparent
-        animationType="fade"
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <ActivityIndicator size="large" color={colors.gold} />
-            <Text style={styles.modalTitle}>Creating your recipe...</Text>
-            <Text style={styles.modalSubtitle}>This may take 10-15 seconds</Text>
-          </View>
-        </View>
-      </Modal>
-
       {/* Cocktail List */}
       <FlatList
-        data={cocktails}
+        data={cocktails.filter(cocktail => {
+          // If there's a search term, filter cocktails by ingredient name
+          if (ingredientSearch.trim().length > 0) {
+            const searchLower = ingredientSearch.toLowerCase();
+            // Check if any ingredient in the cocktail matches the search
+            const ingredients = typeof cocktail.ingredients === 'string'
+              ? cocktail.ingredients.toLowerCase()
+              : '';
+            return ingredients.includes(searchLower) || cocktail.name.toLowerCase().includes(searchLower);
+          }
+          return true;
+        })}
         renderItem={renderCocktailCard}
         keyExtractor={item => item.id}
+        numColumns={2}
+        columnWrapperStyle={{ gap: GUTTER }}
         contentContainerStyle={styles.listContent}
+        showsVerticalScrollIndicator={false}
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <Ionicons name="wine-outline" size={60} color={colors.subtext} />
             <Text style={styles.emptyTitle}>No matches found</Text>
             <Text style={styles.emptyDescription}>
-              Try selecting more ingredients or add more items to your inventory
+              {ingredientSearch.trim().length > 0
+                ? `No cocktails found with "${ingredientSearch}"`
+                : 'Try selecting more ingredients or add more items to your inventory'}
             </Text>
           </View>
         }
       />
+
+      {/* Bartender AI Assistant */}
+      {/* Floating Chat Button (Links to new Bar Assistant) */}
+      <TouchableOpacity
+        style={styles.floatingChatButton}
+        onPress={() => navigation.navigate('AIRecipeGenerator', {
+          userInventory: inventory,
+          selectedItems,
+        })}
+        activeOpacity={0.8}
+      >
+        <Ionicons name="chatbubble-ellipses" size={28} color={colors.white} />
+      </TouchableOpacity>
     </SafeAreaView>
   );
 }
@@ -636,6 +476,15 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
+  aiButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.gold,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing(1.5),
+  },
   filterButton: {
     width: 44,
     height: 44,
@@ -661,6 +510,27 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: colors.text,
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.bg,
+    borderRadius: radii.md,
+    paddingHorizontal: spacing(2),
+    paddingVertical: spacing(1.5),
+    marginHorizontal: spacing(3),
+    marginBottom: spacing(2),
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
+  searchIcon: {
+    marginRight: spacing(1),
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 14,
+    color: colors.text,
+    padding: 0,
   },
   filterActions: {
     flexDirection: 'row',
@@ -731,8 +601,8 @@ const styles = StyleSheet.create({
     marginTop: spacing(0.5),
   },
   listContent: {
-    padding: spacing(3),
-    paddingTop: 0,
+    padding: spacing(2),
+    paddingTop: spacing(2),
   },
   cocktailCard: {
     backgroundColor: colors.card,
@@ -920,6 +790,23 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: `${colors.gold}20`,
   },
+  floatingChatButton: {
+    position: 'absolute',
+    bottom: spacing(3),
+    right: spacing(3),
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: colors.gold,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+    zIndex: 1000,
+  },
   aiSectionTitle: {
     fontSize: 18,
     fontWeight: '700',
@@ -1027,5 +914,178 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
     color: colors.white,
+  },
+  // Spirit Selection Styles
+  selectionLabel: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.text,
+    marginTop: spacing(2),
+    marginBottom: spacing(1.5),
+  },
+  spiritScroll: {
+    marginBottom: spacing(2),
+  },
+  spiritScrollContent: {
+    paddingRight: spacing(2),
+  },
+  spiritCard: {
+    width: 100,
+    alignItems: 'center',
+    backgroundColor: colors.bg,
+    borderRadius: radii.lg,
+    padding: spacing(2),
+    marginRight: spacing(2),
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  spiritCardSelected: {
+    borderColor: colors.gold,
+    backgroundColor: `${colors.gold}10`,
+  },
+  spiritImage: {
+    width: 60,
+    height: 60,
+    borderRadius: radii.md,
+    marginBottom: spacing(1),
+  },
+  spiritEmoji: {
+    fontSize: 20,
+    marginBottom: spacing(0.5),
+  },
+  spiritLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.text,
+    textAlign: 'center',
+  },
+  spiritLabelSelected: {
+    color: colors.gold,
+  },
+  // Flavor Profile Styles
+  flavorScroll: {
+    marginBottom: spacing(2),
+  },
+  flavorScrollContent: {
+    paddingRight: spacing(2),
+  },
+  flavorChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(1),
+    paddingHorizontal: spacing(2),
+    paddingVertical: spacing(1.5),
+    borderRadius: radii.pill,
+    borderWidth: 2,
+    borderColor: colors.line,
+    backgroundColor: 'transparent',
+    marginRight: spacing(1.5),
+  },
+  flavorChipSelected: {
+    backgroundColor: colors.gold,
+    borderColor: colors.gold,
+  },
+  flavorEmoji: {
+    fontSize: 16,
+  },
+  flavorText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  flavorTextSelected: {
+    color: colors.white,
+  },
+  aiNote: {
+    fontSize: 12,
+    color: colors.subtext,
+    textAlign: 'center',
+    marginTop: spacing(2),
+    fontStyle: 'italic',
+  },
+  // Modal Styles
+  modalContainer: {
+    flex: 1,
+    backgroundColor: colors.bg,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing(3),
+    paddingVertical: spacing(2),
+    borderBottomWidth: 1,
+    borderBottomColor: colors.line,
+  },
+  modalHeaderTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  modalScrollView: {
+    flex: 1,
+  },
+  modalScrollContent: {
+    padding: spacing(3),
+  },
+  modalIntro: {
+    fontSize: 15,
+    color: colors.subtext,
+    lineHeight: 22,
+    marginBottom: spacing(3),
+  },
+  stepSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(1.5),
+    marginTop: spacing(3),
+    marginBottom: spacing(2),
+  },
+  stepNumber: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.gold,
+    backgroundColor: `${colors.gold}20`,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    textAlign: 'center',
+    lineHeight: 32,
+  },
+  stepTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  chipContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing(1.5),
+    marginBottom: spacing(2),
+  },
+  summaryCard: {
+    backgroundColor: `${colors.gold}10`,
+    borderRadius: radii.lg,
+    padding: spacing(3),
+    marginTop: spacing(3),
+    borderWidth: 1,
+    borderColor: `${colors.gold}30`,
+  },
+  summaryTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: spacing(1.5),
+  },
+  summaryText: {
+    fontSize: 14,
+    color: colors.subtext,
+    lineHeight: 22,
+  },
+  modalFooter: {
+    padding: spacing(3),
+    borderTopWidth: 1,
+    borderTopColor: colors.line,
+    backgroundColor: colors.bg,
   },
 });

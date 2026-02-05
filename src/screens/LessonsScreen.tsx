@@ -3,7 +3,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Pressable, ScrollView, Alert, SafeAreaView, useWindowDimensions } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ScrollView, Alert, SafeAreaView, useWindowDimensions, Platform } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/RootNavigator';
@@ -27,6 +27,9 @@ import { useFeatureTooltip } from '../hooks/useFeatureTooltip';
 import { TOOLTIP_CONFIGS } from '../config/tooltipContent';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
+
+// Lazy evaluation - only compute when StyleSheet is created (after runtime ready)
+const getSerifFont = () => Platform.select({ ios: 'Georgia', android: 'serif', default: 'serif' });
 
 // Challenges component - Original Design with Recipe Unlocks
 function ChallengesView() {
@@ -652,114 +655,110 @@ function LessonsView() {
     });
   };
 
-  const renderModule = (module: any, index: number) => (
-    <Pressable
-      key={module.id}
-      style={[styles.moduleCard, module.locked && styles.moduleCardLocked]}
-      disabled={module.locked}
-      onPress={() => handleModulePress(module)}
-    >
-      <View style={styles.moduleHeader}>
-        <View style={styles.moduleIndex}>
-          <Text style={styles.moduleIndexText}>{module.chapterIndex}</Text>
+  const renderModule = (module: any, index: number) => {
+    const isNext = !module.completed && !module.locked;
+    const isCompleted = module.completed;
+    const isLocked = module.locked;
+    const isLast = index === modules.length - 1;
+
+    return (
+      <View key={module.id} style={styles.timelineRow}>
+        {/* Timeline Container */}
+        <View style={styles.timelineColumn}>
+          <View style={[
+            styles.timelineNode,
+            isCompleted && styles.nodeCompleted,
+            isNext && styles.nodeNext,
+            isLocked && styles.nodeLocked
+          ]}>
+            {isCompleted && <MaterialCommunityIcons name="check" size={16} color="#FFF" />}
+            {isNext && <MaterialCommunityIcons name="star-outline" size={16} color="#FFF" />}
+            {isLocked && <MaterialCommunityIcons name="lock-outline" size={14} color="#FFF" />}
+          </View>
+          {!isLast && <View style={[styles.timelineLine, (isCompleted || isNext) && styles.lineActive]} />}
         </View>
-        <View style={styles.moduleInfo}>
-          <Text style={[styles.moduleTitle, module.locked && styles.lockedText]}>
+
+        {/* Content Container */}
+        <Pressable
+          style={styles.timelineContent}
+          disabled={module.locked}
+          onPress={() => handleModulePress(module)}
+        >
+          <Text style={[styles.timelineTitle, isLocked && styles.timelineTitleLocked]}>
             {module.title}
           </Text>
-          <Text style={[styles.moduleTime, module.locked && styles.lockedText]}>
-            {module.estimatedMinutes} min • {module.tags.join(', ')}
+          <Text style={[
+            styles.timelineSubtitle,
+            isCompleted && styles.subtitleCompleted,
+            isNext && styles.subtitleNext,
+            isLocked && styles.subtitleLocked
+          ]}>
+            {isCompleted ? 'Completed' : isNext ? 'In Progress' : 'Locked'}
           </Text>
-        </View>
-        <View style={styles.moduleActions}>
-          {module.locked && (
-            <Ionicons name="lock-closed" size={20} color={colors.subtext} />
-          )}
-          {module.completed && (
-            <MaterialCommunityIcons name="check-circle" size={20} color={colors.accent} />
-          )}
-          {!module.locked && !module.completed && (
-            <Ionicons name="chevron-forward" size={20} color={colors.subtext} />
-          )}
-        </View>
+        </Pressable>
       </View>
-    </Pressable>
-  );
+    );
+  };
 
   const renderLesson = (lesson: any, index: number) => {
     const isCompleted = completedLessons.includes(lesson.id);
-    // First lesson is always unlocked, subsequent lessons unlock when previous is completed
     const isLocked = index > 0 && !completedLessons.includes(moduleLessons[index - 1]?.id);
     const outOfLives = lives <= 0;
+    const isNext = !isCompleted && !isLocked;
+    const isLast = index === moduleLessons.length - 1;
+
+    // Determine status text and style
+    let statusText = 'Locked';
+    let subtitleStyle = styles.subtitleLocked;
+
+    if (isCompleted) {
+      statusText = 'Completed';
+      subtitleStyle = styles.subtitleCompleted;
+    } else if (isNext) {
+      statusText = outOfLives ? 'Out of Lives' : 'In Progress';
+      subtitleStyle = outOfLives ? { color: '#FF6B6B', opacity: 0.8 } : styles.subtitleNext;
+    }
 
     return (
-      <Pressable
-        key={lesson.id}
-        style={[
-          styles.lessonCard,
-          isLocked && styles.lessonCardLocked,
-          outOfLives && styles.lessonCardOutOfLives
-        ]}
-        onPress={() => {
-          if (isLocked) return;
-          handleLessonPress(lesson);
-        }}
-        disabled={isLocked}
-      >
-        <View style={styles.lessonContent}>
-          <View style={styles.lessonHeader}>
-            <Text style={[
-              styles.lessonTitle,
-              isLocked && styles.lockedText,
-              outOfLives && styles.outOfLivesText
-            ]}>
-              {lesson.title}
-            </Text>
-            <Text style={[
-              styles.lessonTime,
-              isLocked && styles.lockedText,
-              outOfLives && styles.outOfLivesText
-            ]}>
-              {lesson.estimatedMinutes} min
-            </Text>
+      <View key={lesson.id} style={styles.timelineRow}>
+        {/* Timeline Container */}
+        <View style={styles.timelineColumn}>
+          <View style={[
+            styles.timelineNode,
+            isCompleted && styles.nodeCompleted,
+            isNext && styles.nodeNext,
+            isLocked && styles.nodeLocked,
+            (isNext && outOfLives) && { borderColor: '#FF6B6B' }
+          ]}>
+            {isCompleted && <MaterialCommunityIcons name="check" size={16} color="#FFF" />}
+            {isNext && !outOfLives && <MaterialCommunityIcons name="star-outline" size={16} color="#FFF" />}
+            {isNext && outOfLives && <MaterialCommunityIcons name="heart-broken" size={16} color="#FF6B6B" />}
+            {isLocked && <MaterialCommunityIcons name="lock-outline" size={14} color="#FFF" />}
           </View>
-          <View style={styles.lessonTypes}>
-            {lesson.types.slice(0, 3).map((type: string, i: number) => (
-              <View key={i} style={[styles.typeTag, outOfLives && styles.typeTagDisabled]}>
-                <Text style={[styles.typeText, outOfLives && styles.typeTextDisabled]}>{type}</Text>
-              </View>
-            ))}
-          </View>
+          {!isLast && <View style={[styles.timelineLine, (isCompleted || isNext) && styles.lineActive]} />}
+        </View>
 
-          {/* Show unlock requirement for locked lessons */}
-          {isLocked && index > 0 && (
-            <Text style={styles.unlockRequirement}>
-              Complete "{moduleLessons[index - 1]?.title}" to unlock
+        {/* Content Container */}
+        <Pressable
+          style={styles.timelineContent}
+          disabled={isLocked || (isNext && outOfLives)}
+          onPress={() => handleLessonPress(lesson)}
+        >
+          <Text style={[styles.timelineTitle, isLocked && styles.timelineTitleLocked]}>
+            {lesson.title}
+          </Text>
+          <Text style={[styles.timelineSubtitle, subtitleStyle]}>
+            {statusText}
+          </Text>
+
+          {/* Optional: Show Duration if not locked */}
+          {!isLocked && (
+            <Text style={{ fontSize: 12, color: colors.subtext, marginTop: 2, opacity: 0.6 }}>
+              {lesson.estimatedMinutes} min • {lesson.types[0]}
             </Text>
           )}
-
-          {/* Show out of lives message */}
-          {outOfLives && !isLocked && (
-            <Text style={styles.outOfLivesMessage}>
-              Out of lives! Tap hearts to get more
-            </Text>
-          )}
-        </View>
-        <View style={styles.lessonStatus}>
-          {isCompleted && (
-            <MaterialCommunityIcons name="check-circle" size={24} color={colors.accent} />
-          )}
-          {isLocked && (
-            <Ionicons name="lock-closed" size={20} color={colors.subtext} />
-          )}
-          {outOfLives && !isLocked && (
-            <MaterialCommunityIcons name="heart-broken" size={24} color="#FF6B6B" />
-          )}
-          {!isCompleted && !isLocked && !outOfLives && (
-            <Ionicons name="play-circle" size={24} color={colors.accent} />
-          )}
-        </View>
-      </Pressable>
+        </Pressable>
+      </View>
     );
   };
 
@@ -791,8 +790,14 @@ function LessonsView() {
               <Text style={styles.heartsText}>{lives}</Text>
             </Pressable>
 
-            <Pressable style={styles.profileContainer} onPress={handleProfilePress}>
-              <Ionicons name="person-circle" size={28} color={colors.accent} />
+            <Pressable
+              style={styles.vaultIconButton}
+              onPress={() => {
+                log.nav('LessonsScreen', 'Vault', {});
+                navigation.navigate('Vault');
+              }}
+            >
+              <MaterialCommunityIcons name="treasure-chest" size={24} color={colors.gold} />
             </Pressable>
           </View>
 
@@ -850,11 +855,6 @@ export default function LessonsScreen() {
   const handleHeartsPress = () => {
     log.nav('LessonsScreen', 'VaultStore', { tab: 'hearts' });
     navigation.navigate('VaultStore', { tab: 'hearts' });
-  };
-
-  const handleProfilePress = () => {
-    log.nav('LessonsScreen', 'Profile', {});
-    navigation.navigate('Profile');
   };
 
   const renderScene = SceneMap({
@@ -944,9 +944,10 @@ const styles = StyleSheet.create({
 
   levelText: {
     fontSize: 20,
-    fontWeight: '800',
+    fontWeight: '700',
     color: colors.text,
     letterSpacing: 0.5,
+    fontFamily: getSerifFont(),
   },
 
   statsRow: {
@@ -990,8 +991,8 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#FF6B6B',
   },
-  profileContainer: {
-    backgroundColor: 'rgba(139, 103, 67, 0.15)',
+  vaultIconButton: {
+    backgroundColor: 'rgba(212, 175, 55, 0.15)',
     paddingHorizontal: spacing(1.5),
     paddingVertical: spacing(1),
     borderRadius: radii.lg,
@@ -1008,11 +1009,12 @@ const styles = StyleSheet.create({
   },
 
   sectionTitle: {
-    fontSize: 22,
-    fontWeight: '800',
+    fontSize: 24,
+    fontWeight: '700',
     color: colors.text,
-    marginBottom: spacing(0.75),
+    marginBottom: spacing(1),
     letterSpacing: 0.4,
+    fontFamily: getSerifFont(),
   },
 
   sectionSubtitle: {
@@ -1069,11 +1071,12 @@ const styles = StyleSheet.create({
   },
 
   moduleTitle: {
-    fontSize: 17,
+    fontSize: 18,
     fontWeight: '700',
     color: colors.text,
     marginBottom: spacing(0.5),
     letterSpacing: 0.2,
+    fontFamily: getSerifFont(),
   },
 
   moduleTime: {
@@ -1414,5 +1417,79 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingVertical: spacing(4),
+  },
+
+  // Timeline Styles
+  timelineRow: {
+    flexDirection: 'row',
+    marginBottom: 0, // Timeline flows continuously
+    minHeight: 80,
+  },
+  timelineColumn: {
+    alignItems: 'center',
+    width: 40,
+    marginRight: spacing(2),
+  },
+  timelineNode: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 2,
+    borderColor: '#3E3E3E',
+    backgroundColor: colors.bg,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1,
+  },
+  nodeCompleted: {
+    backgroundColor: colors.bg,
+    borderColor: '#FFF',
+  },
+  nodeNext: {
+    borderColor: '#FFF',
+  },
+  nodeLocked: {
+    borderColor: colors.subtext,
+    opacity: 0.5,
+  },
+  timelineLine: {
+    width: 2,
+    flex: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    marginVertical: 4,
+  },
+  lineActive: {
+    backgroundColor: colors.gold,
+  },
+  timelineContent: {
+    flex: 1,
+    paddingTop: 2,
+    paddingBottom: spacing(3),
+  },
+  timelineTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#FFF',
+    marginBottom: 4,
+    fontFamily: getSerifFont(),
+  },
+  timelineTitleLocked: {
+    color: colors.subtext,
+    opacity: 0.7,
+  },
+  timelineSubtitle: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  subtitleCompleted: {
+    color: colors.gold,
+  },
+  subtitleNext: {
+    color: colors.gold,
+    opacity: 0.9,
+  },
+  subtitleLocked: {
+    color: '#D4C5A9', // Beige-ish
+    opacity: 0.6,
   },
 });
