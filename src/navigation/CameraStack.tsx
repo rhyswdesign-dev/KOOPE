@@ -25,8 +25,7 @@ export default function CameraStack() {
       screenOptions={{
         animation: 'slide_from_right',
         animationDuration: 200,
-        headerBackTitleVisible: false,
-        headerBackTitle: ' ',
+        headerBackButtonDisplayMode: 'minimal',
       }}
     >
       <Stack.Screen
