@@ -7,7 +7,8 @@ import { View, Text, StyleSheet, Pressable, ScrollView, Alert, SafeAreaView, use
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/RootNavigator';
-import { colors, spacing, radii } from '../theme/tokens';
+import { colors, spacing, radii, serif } from '../theme/tokens';
+import { Heading } from '../components/ui';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { TabView, SceneMap, TabBar } from 'react-native-tab-view';
 import curriculumData from '../../curriculum-data.json';
@@ -29,48 +30,38 @@ import { TOOLTIP_CONFIGS } from '../config/tooltipContent';
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 // Lazy evaluation - only compute when StyleSheet is created (after runtime ready)
-const getSerifFont = () => Platform.select({ ios: 'Georgia', android: 'serif', default: 'serif' });
+const getSerifFont = () => serif;
 
-// Challenges component - Original Design with Recipe Unlocks
+// Challenges component - Original Design with Supabase Data
 function ChallengesView() {
   const navigation = useNavigation<NavigationProp>();
   const { lives, xp, level, streak, completedLessons } = useUser();
   const { balance: totalXP } = useXPSystem();
   const engagement = useEngagement();
+  const { challenges: supabaseChallenges, isLoading, claimReward } = useChallenges();
+  const [claimingId, setClaimingId] = useState<string | null>(null);
 
-  // Get a randomized trivia challenge based on current week
-  const getWeeklyTriviaChallenge = () => {
-    const triviaPool = [
-      { id: 101, title: 'Cocktail History Quiz', description: 'Test your knowledge on classic cocktail origins', reward: '75 XP', difficulty: 'Medium', icon: 'book-outline' },
-      { id: 102, title: 'Spirit Knowledge Challenge', description: 'Identify base spirits and their characteristics', reward: '75 XP', difficulty: 'Medium', icon: 'flask-outline' },
-      { id: 103, title: 'Bartending Techniques Trivia', description: 'Master the terminology and methods', reward: '75 XP', difficulty: 'Medium', icon: 'construct-outline' },
-      { id: 104, title: 'Glassware Master Quiz', description: 'Match cocktails to their proper glassware', reward: '60 XP', difficulty: 'Easy', icon: 'wine-outline' },
-      { id: 105, title: 'Ingredient Origins Challenge', description: 'Trace spirits and ingredients to their source', reward: '75 XP', difficulty: 'Medium', icon: 'leaf-outline' },
-      { id: 106, title: 'Famous Bars & Bartenders', description: 'Learn about legendary bars and mixologists', reward: '80 XP', difficulty: 'Hard', icon: 'ribbon-outline' },
-      { id: 107, title: 'Prohibition Era Quiz', description: 'Test your knowledge of speakeasy history', reward: '75 XP', difficulty: 'Medium', icon: 'lock-closed-outline' },
-      { id: 108, title: 'Modern Mixology Trends', description: 'Identify current cocktail innovations', reward: '70 XP', difficulty: 'Medium', icon: 'trending-up-outline' },
-    ];
+  // Group challenges by frequency
+  const weeklyChallenges = supabaseChallenges.filter(c => c.frequency === 'weekly');
+  const monthlyChallenges = supabaseChallenges.filter(c => c.frequency === 'monthly');
 
-    // Rotate based on week of year for consistent randomization
-    const now = new Date();
-    const startOfYear = new Date(now.getFullYear(), 0, 1);
-    const weekNumber = Math.ceil(((now.getTime() - startOfYear.getTime()) / 86400000 + startOfYear.getDay() + 1) / 7);
-    const selectedIndex = weekNumber % triviaPool.length;
-
-    return triviaPool[selectedIndex];
+  // Handle claiming a challenge reward
+  const handleClaimReward = async (challenge: Challenge) => {
+    setClaimingId(challenge.id);
+    try {
+      const reward = await claimReward(challenge.id);
+      if (reward) {
+        Alert.alert(
+          'Reward Claimed!',
+          `You received ${reward.xp} XP${reward.keys ? ` and ${reward.keys} keys` : ''}!`
+        );
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to claim reward');
+    } finally {
+      setClaimingId(null);
+    }
   };
-
-  const weeklyTrivia = getWeeklyTriviaChallenge();
-
-  const challenges = [
-    // Bar Trivia - Rotates weekly
-    { ...weeklyTrivia, completed: false },
-
-    // Classic recipe unlocks (engagement-based)
-    { id: 2, title: 'Recipe Explorer', description: 'Try making 3 different cocktail recipes', reward: '50 XP', difficulty: 'Easy', completed: false, icon: 'restaurant-outline' },
-    { id: 3, title: 'Streak Master', description: 'Maintain a 7-day login streak', reward: '100 XP', difficulty: 'Hard', completed: false, icon: 'flame-outline' },
-    { id: 4, title: 'Share the Knowledge', description: 'Share 3 cocktail recipes with friends', reward: '60 XP', difficulty: 'Easy', completed: false, icon: 'share-social-outline' },
-  ];
 
   // Calculate progress for unlock methods
   const getMethodProgress = (type: string, required: number) => {
@@ -148,7 +139,7 @@ function ChallengesView() {
       {/* Recipe Unlocks Section */}
       {(unlockableRecipes.length > 0 || inProgressRecipes.length > 0) && (
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Recipe Unlocks</Text>
+          <Heading level={2} style={styles.sectionTitle}>Recipe Unlocks</Heading>
           <Text style={styles.sectionSubtitle}>
             Earn new cocktails through engagement
           </Text>
@@ -168,9 +159,9 @@ function ChallengesView() {
               >
                 <View style={styles.challengeContent}>
                   <View style={styles.challengeHeader}>
-                    <Text style={[styles.challengeTitle, styles.completedText]}>
+                    <Heading level={3} style={[styles.challengeTitle, styles.completedText]}>
                       {recipe.recipeName}
-                    </Text>
+                    </Heading>
                     <Text style={[styles.challengeDifficulty, styles.completedText]}>
                       Ready!
                     </Text>
@@ -203,9 +194,9 @@ function ChallengesView() {
               >
                 <View style={styles.challengeContent}>
                   <View style={styles.challengeHeader}>
-                    <Text style={styles.challengeTitle}>
+                    <Heading level={3} style={styles.challengeTitle}>
                       {recipe.recipeName}
-                    </Text>
+                    </Heading>
                     <Text style={styles.challengeDifficulty}>
                       {Math.round(bestMethod.progress)}%
                     </Text>
@@ -228,44 +219,116 @@ function ChallengesView() {
         </View>
       )}
 
-      {/* Daily Challenges */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Daily Challenges</Text>
-        <Text style={styles.sectionSubtitle}>
-          Complete challenges to earn extra XP and improve your skills
-        </Text>
+      {/* Weekly Challenges */}
+      {weeklyChallenges.length > 0 && (
+        <View style={styles.section}>
+          <Heading level={2} style={styles.sectionTitle}>Weekly Challenges</Heading>
+          <Text style={styles.sectionSubtitle}>
+            Complete challenges to earn extra XP and improve your skills
+          </Text>
 
-        {challenges.map(challenge => (
-          <Pressable
-            key={challenge.id}
-            style={[styles.challengeCard, challenge.completed && styles.challengeCardCompleted]}
-          >
-            <View style={styles.challengeContent}>
-              <View style={styles.challengeHeader}>
-                <Text style={[styles.challengeTitle, challenge.completed && styles.completedText]}>
-                  {challenge.title}
+          {weeklyChallenges.map(challenge => {
+            const progressPercent = ((challenge.currentProgress || 0) / challenge.requirementCount) * 100;
+            return (
+              <Pressable
+                key={challenge.id}
+                style={[styles.challengeCard, challenge.isCompleted && styles.challengeCardCompleted]}
+                onPress={() => challenge.isCompleted && handleClaimReward(challenge)}
+              >
+                <View style={styles.challengeContent}>
+                  <View style={styles.challengeHeader}>
+                    <Heading level={3} style={[styles.challengeTitle, challenge.isCompleted && styles.completedText]}>
+                      {challenge.title}
+                    </Heading>
+                    <Text style={[styles.challengeDifficulty, challenge.isCompleted && styles.completedText]}>
+                      {challenge.difficulty}
+                    </Text>
+                  </View>
+                  <Text style={[styles.challengeDescription, challenge.isCompleted && styles.completedText]}>
+                    {challenge.description}
+                  </Text>
+                  <View style={styles.challengeProgressRow}>
+                    <Text style={[styles.challengeReward, challenge.isCompleted && styles.completedText]}>
+                      Reward: {challenge.xpReward} XP{challenge.keysReward ? ` + ${challenge.keysReward} keys` : ''}
+                    </Text>
+                    <Text style={styles.progressLabel}>
+                      {challenge.currentProgress || 0}/{challenge.requirementCount}
+                    </Text>
+                  </View>
+                </View>
+                <View style={styles.challengeStatus}>
+                  {challenge.isCompleted ? (
+                    <MaterialCommunityIcons name="check-circle" size={24} color={colors.accent} />
+                  ) : (
+                    <Ionicons name={challenge.icon as any || 'trophy-outline'} size={24} color={colors.accent} />
+                  )}
+                </View>
+              </Pressable>
+            );
+          })}
+        </View>
+      )}
+
+      {/* Monthly Challenges */}
+      {monthlyChallenges.length > 0 && (
+        <View style={styles.section}>
+          <Heading level={2} style={styles.sectionTitle}>Monthly Challenges</Heading>
+          <Text style={styles.sectionSubtitle}>
+            Bigger goals with bigger rewards
+          </Text>
+
+          {monthlyChallenges.map(challenge => (
+            <Pressable
+              key={challenge.id}
+              style={[styles.challengeCard, challenge.isCompleted && styles.challengeCardCompleted]}
+              onPress={() => challenge.isCompleted && handleClaimReward(challenge)}
+            >
+              <View style={styles.challengeContent}>
+                <View style={styles.challengeHeader}>
+                  <Heading level={3} style={[styles.challengeTitle, challenge.isCompleted && styles.completedText]}>
+                    {challenge.title}
+                  </Heading>
+                  <Text style={[styles.challengeDifficulty, challenge.isCompleted && styles.completedText]}>
+                    {challenge.difficulty}
+                  </Text>
+                </View>
+                <Text style={[styles.challengeDescription, challenge.isCompleted && styles.completedText]}>
+                  {challenge.description}
                 </Text>
-                <Text style={[styles.challengeDifficulty, challenge.completed && styles.completedText]}>
-                  {challenge.difficulty}
-                </Text>
+                <View style={styles.challengeProgressRow}>
+                  <Text style={[styles.challengeReward, challenge.isCompleted && styles.completedText]}>
+                    Reward: {challenge.xpReward} XP{challenge.keysReward ? ` + ${challenge.keysReward} keys` : ''}
+                  </Text>
+                  <Text style={styles.progressLabel}>
+                    {challenge.currentProgress || 0}/{challenge.requirementCount}
+                  </Text>
+                </View>
               </View>
-              <Text style={[styles.challengeDescription, challenge.completed && styles.completedText]}>
-                {challenge.description}
-              </Text>
-              <Text style={[styles.challengeReward, challenge.completed && styles.completedText]}>
-                Reward: {challenge.reward}
-              </Text>
-            </View>
-            <View style={styles.challengeStatus}>
-              {challenge.completed ? (
-                <MaterialCommunityIcons name="check-circle" size={24} color={colors.accent} />
-              ) : (
-                <Ionicons name="play-circle" size={24} color={colors.accent} />
-              )}
-            </View>
-          </Pressable>
-        ))}
-      </View>
+              <View style={styles.challengeStatus}>
+                {challenge.isCompleted ? (
+                  <MaterialCommunityIcons name="check-circle" size={24} color={colors.accent} />
+                ) : (
+                  <Ionicons name={challenge.icon as any || 'medal-outline'} size={24} color={colors.accent} />
+                )}
+              </View>
+            </Pressable>
+          ))}
+        </View>
+      )}
+
+      {/* Loading or Empty State */}
+      {isLoading && (
+        <View style={[styles.section, styles.centered]}>
+          <Text style={styles.sectionSubtitle}>Loading challenges...</Text>
+        </View>
+      )}
+
+      {!isLoading && supabaseChallenges.length === 0 && (
+        <View style={[styles.section, styles.centered]}>
+          <MaterialCommunityIcons name="trophy-outline" size={48} color={colors.subtext} />
+          <Text style={styles.sectionSubtitle}>No active challenges</Text>
+        </View>
+      )}
     </ScrollView>
   );
 }
@@ -404,9 +467,9 @@ function Challenges2View() {
 
         {/* Content */}
         <View style={styles.challenge2Content}>
-          <Text style={[styles.challenge2Title, isCompleted && styles.challenge2Completed]}>
+          <Heading level={3} style={[styles.challenge2Title, isCompleted && styles.challenge2Completed]}>
             {challenge.title}
-          </Text>
+          </Heading>
           <Text style={[styles.challenge2Description, isCompleted && styles.challenge2Completed]}>
             {challenge.description}
           </Text>
@@ -473,7 +536,7 @@ function Challenges2View() {
           <View style={styles.section}>
             <View style={styles.sectionHeaderRow}>
               <View>
-                <Text style={styles.sectionTitle}>🍸 Recipe Unlocks</Text>
+                <Heading level={2} style={styles.sectionTitle}>🍸 Recipe Unlocks</Heading>
                 <Text style={styles.sectionSubtitle}>
                   Earn new cocktails through engagement
                 </Text>
@@ -525,7 +588,7 @@ function Challenges2View() {
           <View style={styles.section}>
             <View style={styles.sectionHeaderRow}>
               <View>
-                <Text style={styles.sectionTitle}>Daily Challenges</Text>
+                <Heading level={2} style={styles.sectionTitle}>Daily Challenges</Heading>
                 <Text style={styles.sectionSubtitle}>Resets daily at midnight</Text>
               </View>
               <View style={styles.frequencyBadge}>
@@ -541,7 +604,7 @@ function Challenges2View() {
           <View style={styles.section}>
             <View style={styles.sectionHeaderRow}>
               <View>
-                <Text style={styles.sectionTitle}>Weekly Challenges</Text>
+                <Heading level={2} style={styles.sectionTitle}>Weekly Challenges</Heading>
                 <Text style={styles.sectionSubtitle}>Resets every Monday</Text>
               </View>
               <View style={styles.frequencyBadge}>
@@ -557,7 +620,7 @@ function Challenges2View() {
           <View style={styles.section}>
             <View style={styles.sectionHeaderRow}>
               <View>
-                <Text style={styles.sectionTitle}>Monthly Challenges</Text>
+                <Heading level={2} style={styles.sectionTitle}>Monthly Challenges</Heading>
                 <Text style={styles.sectionSubtitle}>Resets on the 1st</Text>
               </View>
               <View style={styles.frequencyBadge}>
@@ -571,7 +634,7 @@ function Challenges2View() {
         {challenges.length === 0 && (
           <View style={[styles.section, styles.centered]}>
             <MaterialCommunityIcons name="trophy-outline" size={64} color={colors.text.secondary} />
-            <Text style={styles.sectionTitle}>No Active Challenges</Text>
+            <Heading level={2} style={styles.sectionTitle}>No Active Challenges</Heading>
             <Text style={styles.sectionSubtitle}>Check back soon for new challenges!</Text>
           </View>
         )}
@@ -1276,6 +1339,18 @@ const styles = StyleSheet.create({
     marginLeft: spacing(1.5),
   },
 
+  challengeProgressRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+
+  progressLabel: {
+    fontSize: 12,
+    color: colors.subtext,
+    fontWeight: '600',
+  },
+
   completedText: {
     opacity: 0.7,
   },
@@ -1291,7 +1366,7 @@ const styles = StyleSheet.create({
   frequencyBadge: {
     width: 40,
     height: 40,
-    borderRadius: 20,
+    borderRadius: radii.full,
     backgroundColor: 'rgba(139, 103, 67, 0.15)',
     justifyContent: 'center',
     alignItems: 'center',
@@ -1299,7 +1374,7 @@ const styles = StyleSheet.create({
 
   challenge2Card: {
     backgroundColor: colors.card,
-    borderRadius: radii.xl,
+    borderRadius: radii.lg,
     marginBottom: spacing(2),
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.08)',
@@ -1398,7 +1473,7 @@ const styles = StyleSheet.create({
   claimButton: {
     marginTop: spacing(1.5),
     backgroundColor: colors.accent,
-    borderRadius: radii.md,
+    borderRadius: radii.pill,
     paddingVertical: spacing(1),
     paddingHorizontal: spacing(2),
     flexDirection: 'row',
