@@ -53,7 +53,7 @@ function ChallengesView() {
       if (reward) {
         Alert.alert(
           'Reward Claimed!',
-          `You received ${reward.xp} XP${reward.keys ? ` and ${reward.keys} keys` : ''}!`
+          `You received ${reward.xp} XP!`
         );
       }
     } catch (error) {
@@ -249,7 +249,7 @@ function ChallengesView() {
                   </Text>
                   <View style={styles.challengeProgressRow}>
                     <Text style={[styles.challengeReward, challenge.isCompleted && styles.completedText]}>
-                      Reward: {challenge.xpReward} XP{challenge.keysReward ? ` + ${challenge.keysReward} keys` : ''}
+                      Reward: {challenge.xpReward} XP
                     </Text>
                     <Text style={styles.progressLabel}>
                       {challenge.currentProgress || 0}/{challenge.requirementCount}
@@ -297,7 +297,7 @@ function ChallengesView() {
                 </Text>
                 <View style={styles.challengeProgressRow}>
                   <Text style={[styles.challengeReward, challenge.isCompleted && styles.completedText]}>
-                    Reward: {challenge.xpReward} XP{challenge.keysReward ? ` + ${challenge.keysReward} keys` : ''}
+                    Reward: {challenge.xpReward} XP
                   </Text>
                   <Text style={styles.progressLabel}>
                     {challenge.currentProgress || 0}/{challenge.requirementCount}
@@ -439,7 +439,7 @@ function Challenges2View() {
         log.info('Challenges2View', 'Reward claimed successfully', { challengeId: selectedChallenge.id });
         Alert.alert(
           'Reward Claimed!',
-          `You received ${reward.xp} XP${reward.keys ? ` and ${reward.keys} keys` : ''}!`,
+          `You received ${reward.xp} XP!`,
           [{ text: 'Awesome!', onPress: () => setSelectedChallenge(null) }]
         );
         await refreshChallenges();
@@ -490,12 +490,6 @@ function Challenges2View() {
               <MaterialCommunityIcons name="star-four-points" size={16} color={colors.gold} />
               <Text style={styles.rewardText}>{challenge.xpReward} XP</Text>
             </View>
-            {challenge.keysReward && challenge.keysReward > 0 && (
-              <View style={styles.rewardBadge}>
-                <MaterialCommunityIcons name="key" size={16} color={colors.gold} />
-                <Text style={styles.rewardText}>{challenge.keysReward} Keys</Text>
-              </View>
-            )}
           </View>
 
           {/* Claim Button */}
@@ -645,7 +639,6 @@ function Challenges2View() {
         visible={!!selectedChallenge}
         reward={selectedChallenge ? {
           xp: selectedChallenge.xpReward,
-          keys: selectedChallenge.keysReward,
           badge: selectedChallenge.badgeReward
         } : null}
         challengeTitle={selectedChallenge?.title || ''}
