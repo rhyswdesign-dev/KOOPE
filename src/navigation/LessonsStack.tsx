@@ -18,6 +18,8 @@ export default function LessonsStack() {
     <Stack.Navigator
       screenOptions={{
         headerShown: false,
+        headerBackTitleVisible: false,
+        headerBackTitle: ' ',
         animation: 'slide_from_right',
         animationDuration: 200,
       }}

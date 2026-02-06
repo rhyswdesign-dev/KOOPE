@@ -15,6 +15,8 @@ export default function VaultStack() {
         headerStyle: { backgroundColor: '#1A0F0B' },
         headerTintColor: '#FFFFFF',
         headerTitleStyle: { color: '#FFFFFF', fontWeight: '900' },
+        headerBackTitleVisible: false,
+        headerBackTitle: ' ',
         animation: 'slide_from_right',
         animationDuration: 200,
       }}

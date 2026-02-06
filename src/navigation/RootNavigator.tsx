@@ -228,18 +228,18 @@ export default function RootNavigator({ initialRouteName = 'Main', onHiddenFlask
         headerTitleStyle: components.headerText,
         headerShadowVisible: false,
         headerBackTitleVisible: false,
-        headerBackTitle: '',
+        headerBackTitle: ' ',
         animation: 'fade',
         animationDuration: 200,
       }}
     >
-      <Stack.Screen name="Main" component={Tabs} options={{ headerBackTitle: '' }} />
-      <Stack.Screen name="Bars" component={BarsScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: '', title: 'Featured Bars' }} />
-      <Stack.Screen name="Events" component={EventsScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: '', title: 'Events' }} />
-      <Stack.Screen name="Games" component={GamesScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: '', title: 'Games' }} />
-      <Stack.Screen name="Brand" component={BrandScreen} options={({ route }) => ({ headerShown: true, headerBackTitleVisible: false, headerBackTitle: '', title: route.params.brand })} />
-      <Stack.Screen name="BarTheme" component={BarThemeScreen} options={({ route }) => ({ headerShown: true, headerBackTitleVisible: false, headerBackTitle: '', title: route.params.theme })} />
-      <Stack.Screen name="BarDetails" component={BarDetailsScreen} options={({ route }) => ({ headerShown: true, headerBackTitleVisible: false, headerBackTitle: '', title: route.params.name })} />
+      <Stack.Screen name="Main" component={Tabs} options={{ headerBackTitle: ' ' }} />
+      <Stack.Screen name="Bars" component={BarsScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: ' ', title: 'Featured Bars' }} />
+      <Stack.Screen name="Events" component={EventsScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: ' ', title: 'Events' }} />
+      <Stack.Screen name="Games" component={GamesScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: ' ', title: 'Games' }} />
+      <Stack.Screen name="Brand" component={BrandScreen} options={({ route }) => ({ headerShown: true, headerBackTitleVisible: false, headerBackTitle: ' ', title: route.params.brand })} />
+      <Stack.Screen name="BarTheme" component={BarThemeScreen} options={({ route }) => ({ headerShown: true, headerBackTitleVisible: false, headerBackTitle: ' ', title: route.params.theme })} />
+      <Stack.Screen name="BarDetails" component={BarDetailsScreen} options={({ route }) => ({ headerShown: true, headerBackTitleVisible: false, headerBackTitle: ' ', title: route.params.name })} />
       <Stack.Screen name="UntitledLounge" component={UntitledLoungeScreen} options={({ navigation }) => ({ 
         headerShown: true, 
         title: 'Untitled Champagne Lounge',
@@ -384,7 +384,7 @@ export default function RootNavigator({ initialRouteName = 'Main', onHiddenFlask
           headerTitle: '',
           headerTintColor: '#FFFFFF',
           headerBackTitleVisible: false,
-          headerBackTitle: '',
+          headerBackTitle: ' ',
           headerStyle: {
             backgroundColor: 'transparent',
           },
@@ -399,42 +399,42 @@ export default function RootNavigator({ initialRouteName = 'Main', onHiddenFlask
           headerTitle: '',
           headerTintColor: '#FFFFFF',
           headerBackTitleVisible: false,
-          headerBackTitle: '',
+          headerBackTitle: ' ',
           headerStyle: {
             backgroundColor: 'transparent',
           },
         }}
       />
       <Stack.Screen name="XPTransaction" component={XPTransactionScreen} options={{ headerShown: false }} />
-      <Stack.Screen name="Settings" component={SettingsScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: '', title: 'Settings' }} />
-      <Stack.Screen name="HelpSupport" component={HelpSupportScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: '', title: 'Help & Support' }} />
-      <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: '', title: 'Privacy Policy' }} />
-      <Stack.Screen name="TermsOfService" component={TermsOfServiceScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: '', title: 'Terms of Service' }} />
-      <Stack.Screen name="Feedback" component={FeedbackScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: '', title: 'Feedback' }} />
-      <Stack.Screen name="CocktailDetail" component={CocktailDetailScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: '', title: 'Cocktail' }} />
-      <Stack.Screen name="CocktailList" component={CocktailListScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: '', title: 'Cocktails' }} />
+      <Stack.Screen name="Settings" component={SettingsScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: ' ', title: 'Settings' }} />
+      <Stack.Screen name="HelpSupport" component={HelpSupportScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: ' ', title: 'Help & Support' }} />
+      <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: ' ', title: 'Privacy Policy' }} />
+      <Stack.Screen name="TermsOfService" component={TermsOfServiceScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: ' ', title: 'Terms of Service' }} />
+      <Stack.Screen name="Feedback" component={FeedbackScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: ' ', title: 'Feedback' }} />
+      <Stack.Screen name="CocktailDetail" component={CocktailDetailScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: ' ', title: 'Cocktail' }} />
+      <Stack.Screen name="CocktailList" component={CocktailListScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: ' ', title: 'Cocktails' }} />
       <Stack.Screen name="WhatCanIMake" component={WhatCanIMakeScreen} options={{ headerShown: false }} />
-      <Stack.Screen name="SavedItems" component={SavedItemsScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: '', title: 'Saved Items' }} />
-      <Stack.Screen name="EditProfile" component={EditProfileScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: '', title: 'Edit Profile' }} />
-      <Stack.Screen name="Profile" component={ProfileScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: '', title: 'Profile' }} />
+      <Stack.Screen name="SavedItems" component={SavedItemsScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: ' ', title: 'Saved Items' }} />
+      <Stack.Screen name="EditProfile" component={EditProfileScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: ' ', title: 'Edit Profile' }} />
+      <Stack.Screen name="Profile" component={ProfileScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: ' ', title: 'Profile' }} />
       <Stack.Screen name="OAuthSignIn" component={OAuthSignInScreen} options={{ headerShown: false }} />
-      <Stack.Screen name="NonAlcoholic" component={NonAlcoholicScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: '', title: 'Non-Alcoholic' }} />
-    <Stack.Screen name="Vault" component={VaultScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: '', title: 'Vault' }} />
+      <Stack.Screen name="NonAlcoholic" component={NonAlcoholicScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: ' ', title: 'Non-Alcoholic' }} />
+    <Stack.Screen name="Vault" component={VaultScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: ' ', title: 'Vault' }} />
     {/* Vault Economy Screens */}
-    <Stack.Screen name="VaultStore" component={VaultStoreScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: '', title: 'XP Store' }} />
-    <Stack.Screen name="VaultCart" component={VaultCartScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: '', title: 'Cart' }} />
-    <Stack.Screen name="VaultCheckout" component={VaultCheckoutScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: '', title: 'Checkout' }} />
-    <Stack.Screen name="VaultPaymentMethods" component={VaultPaymentMethodsScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: '', title: 'Payment Methods' }} />
-    <Stack.Screen name="VaultOrderConfirmation" component={VaultOrderConfirmationScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: '', title: 'Order Confirmed' }} />
-    <Stack.Screen name="VaultOrderDetails" component={VaultOrderDetailsScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: '', title: 'Order Details' }} />
-    <Stack.Screen name="VaultOrderHistory" component={VaultOrderHistoryScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: '', title: 'Order History' }} />
-    <Stack.Screen name="VaultBilling" component={VaultBillingScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: '', title: 'Billing' }} />
-    <Stack.Screen name="VaultEarnXP" component={VaultEarnXPScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: '', title: 'Earn XP' }} />
+    <Stack.Screen name="VaultStore" component={VaultStoreScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: ' ', title: 'XP Store' }} />
+    <Stack.Screen name="VaultCart" component={VaultCartScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: ' ', title: 'Cart' }} />
+    <Stack.Screen name="VaultCheckout" component={VaultCheckoutScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: ' ', title: 'Checkout' }} />
+    <Stack.Screen name="VaultPaymentMethods" component={VaultPaymentMethodsScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: ' ', title: 'Payment Methods' }} />
+    <Stack.Screen name="VaultOrderConfirmation" component={VaultOrderConfirmationScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: ' ', title: 'Order Confirmed' }} />
+    <Stack.Screen name="VaultOrderDetails" component={VaultOrderDetailsScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: ' ', title: 'Order Details' }} />
+    <Stack.Screen name="VaultOrderHistory" component={VaultOrderHistoryScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: ' ', title: 'Order History' }} />
+    <Stack.Screen name="VaultBilling" component={VaultBillingScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: ' ', title: 'Billing' }} />
+    <Stack.Screen name="VaultEarnXP" component={VaultEarnXPScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: ' ', title: 'Earn XP' }} />
     <Stack.Screen name="VaultCategory" component={VaultCategoryScreen} options={{ headerShown: false }} />
-    <Stack.Screen name="CategoriesList" component={CategoriesListScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: '', title: 'Categories' }} />
-    <Stack.Screen name="CategoryDetail" component={CategoryDetailScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: '', title: 'Category' }} />
-    <Stack.Screen name="FeaturedBar" component={FeaturedBarsScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: '', title: 'Featured Bar' }} />
-    <Stack.Screen name="MapsDemo" component={MapsDemo} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: '', title: 'Maps Demo' }} />
+    <Stack.Screen name="CategoriesList" component={CategoriesListScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: ' ', title: 'Categories' }} />
+    <Stack.Screen name="CategoryDetail" component={CategoryDetailScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: ' ', title: 'Category' }} />
+    <Stack.Screen name="FeaturedBar" component={FeaturedBarsScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: ' ', title: 'Featured Bar' }} />
+    <Stack.Screen name="MapsDemo" component={MapsDemo} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: ' ', title: 'Maps Demo' }} />
     {/* Onboarding screens */}
     <Stack.Screen name="Welcome" component={WelcomeScreen} options={{ headerShown: false }} />
     <Stack.Screen name="Consent" component={ConsentScreen} options={{ headerShown: false }} />
@@ -443,38 +443,38 @@ export default function RootNavigator({ initialRouteName = 'Main', onHiddenFlask
     <Stack.Screen name="RefineYourTaste" component={RefineYourTasteScreen} options={{ headerShown: false }} />
     {/* Lesson screens */}
     {/* Commerce screens */}
-    <Stack.Screen name="Pricing" component={PricingScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: '', title: 'Premium' }} />
-    <Stack.Screen name="Cart" component={CartScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: '', title: 'Cart' }} />
-    <Stack.Screen name="Checkout" component={CheckoutScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: '', title: 'Checkout' }} />
-    <Stack.Screen name="OrderConfirmation" component={OrderConfirmationScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: '', title: 'Order Confirmed' }} />
-    <Stack.Screen name="OrderHistory" component={OrderHistoryScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: '', title: 'Order History' }} />
-    <Stack.Screen name="AddRecipe" component={AddRecipeScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: '', title: 'Add Recipe' }} />
-    <Stack.Screen name="MyRecipes" component={MyRecipesScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: '', title: 'My Recipes' }} />
-    <Stack.Screen name="RecipeDetail" component={RecipeDetailScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: '', title: 'Recipe' }} />
+    <Stack.Screen name="Pricing" component={PricingScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: ' ', title: 'Premium' }} />
+    <Stack.Screen name="Cart" component={CartScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: ' ', title: 'Cart' }} />
+    <Stack.Screen name="Checkout" component={CheckoutScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: ' ', title: 'Checkout' }} />
+    <Stack.Screen name="OrderConfirmation" component={OrderConfirmationScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: ' ', title: 'Order Confirmed' }} />
+    <Stack.Screen name="OrderHistory" component={OrderHistoryScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: ' ', title: 'Order History' }} />
+    <Stack.Screen name="AddRecipe" component={AddRecipeScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: ' ', title: 'Add Recipe' }} />
+    <Stack.Screen name="MyRecipes" component={MyRecipesScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: ' ', title: 'My Recipes' }} />
+    <Stack.Screen name="RecipeDetail" component={RecipeDetailScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: ' ', title: 'Recipe' }} />
     <Stack.Screen name="RecipeEditor" component={RecipeEditorScreen} options={{ headerShown: false, presentation: 'modal' }} />
     <Stack.Screen name="AIRecipeGenerator" component={AIRecipeGeneratorScreen} options={{ headerShown: false }} />
-    <Stack.Screen name="AIRecipeFormat" options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: '', title: 'AI Recipe Formatting' }}>
+    <Stack.Screen name="AIRecipeFormat" options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: ' ', title: 'AI Recipe Formatting' }}>
       {(props) => (
         <RequirePro>
           <AIRecipeFormatScreen {...props} />
         </RequirePro>
       )}
     </Stack.Screen>
-    <Stack.Screen name="OCRCapture" component={OCRCaptureScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: '', title: 'Scan Recipe' }} />
-    <Stack.Screen name="URLRecipeInput" component={URLRecipeInputScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: '', title: 'Add from URL' }} />
-    <Stack.Screen name="VoiceRecipe" component={VoiceRecipeScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: '', title: 'Voice Recipe Input' }} />
+    <Stack.Screen name="OCRCapture" component={OCRCaptureScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: ' ', title: 'Scan Recipe' }} />
+    <Stack.Screen name="URLRecipeInput" component={URLRecipeInputScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: ' ', title: 'Add from URL' }} />
+    <Stack.Screen name="VoiceRecipe" component={VoiceRecipeScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: ' ', title: 'Voice Recipe Input' }} />
     <Stack.Screen name="HomeBar" component={HomeBarScreen} options={{ headerShown: false }} />
-    <Stack.Screen name="SpiritRecognition" component={SpiritRecognitionScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: '', title: 'Scan Spirit' }} />
-    <Stack.Screen name="ShoppingCart" component={ShoppingCartScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: '', title: 'Shopping Cart' }} />
-      <Stack.Screen name="Achievements" component={AchievementsScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: '', title: 'Achievements' }} />
-      <Stack.Screen name="SubscriptionDebug" component={SubscriptionDebugScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: '', title: 'Subscription Debug' }} />
+    <Stack.Screen name="SpiritRecognition" component={SpiritRecognitionScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: ' ', title: 'Scan Spirit' }} />
+    <Stack.Screen name="ShoppingCart" component={ShoppingCartScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: ' ', title: 'Shopping Cart' }} />
+      <Stack.Screen name="Achievements" component={AchievementsScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: ' ', title: 'Achievements' }} />
+      <Stack.Screen name="SubscriptionDebug" component={SubscriptionDebugScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: ' ', title: 'Subscription Debug' }} />
       <Stack.Screen name="Paywall" component={PaywallScreen} options={{ headerShown: false, presentation: 'modal' }} />
       <Stack.Screen name="CustomerCenter" component={CustomerCenterScreen} options={{ headerShown: false, presentation: 'modal' }} />
-      <Stack.Screen name="ImportRecipe" component={ImportRecipeScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: '', title: 'Import Recipe' }} />
-      <Stack.Screen name="ProfileSavedItems" component={ProfileSavedItemsScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: '', title: 'My Collection' }} />
-      <Stack.Screen name="ManageSubscription" component={ManageSubscriptionScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: '', title: 'Subscription' }} />
-      <Stack.Screen name="NotificationCenter" component={NotificationCenterScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: '', title: 'Notifications' }} />
-      <Stack.Screen name="Referral" component={ReferralScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: '', title: 'Invite Friends' }} />
+      <Stack.Screen name="ImportRecipe" component={ImportRecipeScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: ' ', title: 'Import Recipe' }} />
+      <Stack.Screen name="ProfileSavedItems" component={ProfileSavedItemsScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: ' ', title: 'My Collection' }} />
+      <Stack.Screen name="ManageSubscription" component={ManageSubscriptionScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: ' ', title: 'Subscription' }} />
+      <Stack.Screen name="NotificationCenter" component={NotificationCenterScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: ' ', title: 'Notifications' }} />
+      <Stack.Screen name="Referral" component={ReferralScreen} options={{ headerShown: true, headerBackTitleVisible: false, headerBackTitle: ' ', title: 'Invite Friends' }} />
     </Stack.Navigator>
     </View>
   );

@@ -15,6 +15,8 @@ export default function RecipesStack() {
       screenOptions={{
         animation: 'slide_from_right',
         animationDuration: 200,
+        headerBackTitleVisible: false,
+        headerBackTitle: ' ',
       }}
     >
       <Stack.Screen name="RecipesMain" component={RecipesScreen} options={{ headerShown: true }} />
