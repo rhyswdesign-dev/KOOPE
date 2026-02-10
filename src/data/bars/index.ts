@@ -497,34 +497,22 @@ export const BARS: Record<string, BarContent> = {
     },
     signatureDrinks: [
       {
-        image: 'https://images.unsplash.com/photo-1470337458703-46ad1756a187?q=80&w=800&auto=format&fit=crop',
-        name: 'Golden Bubbles',
-        tagline: 'Dom Pérignon, gold leaf, elderflower',
-        price: '$45'
+        image: 'https://static.spotapps.co/spots/a5/ca32ea947b4e358e346531067a73ea/full',
+        name: 'Casablanca',
+        tagline: 'Champagne cocktail with exotic flair',
+        price: '$24'
       },
       {
-        image: 'https://images.unsplash.com/photo-1551024506-0bccd828d307?q=80&w=800&auto=format&fit=crop',
-        name: 'Diamond Fizz',
-        tagline: 'Cristal, white truffle, cucumber',
-        price: '$65'
+        image: 'https://static.spotapps.co/spots/e8/09729e7dd04ff0bd9bbb3203414bfb/full',
+        name: 'Oaxaca Sour',
+        tagline: 'Mezcal, lime, agave, egg white',
+        price: '$18'
       },
       {
-        image: 'https://images.unsplash.com/photo-1536935338788-846bb9981813?q=80&w=800&auto=format&fit=crop',
-        name: 'Royal Reserve',
-        tagline: 'Krug Grande Cuvée, rose petals',
-        price: '$55'
-      },
-      {
-        image: 'https://images.unsplash.com/photo-1574894709920-11b28e7367e3?q=80&w=800&auto=format&fit=crop',
-        name: 'Midnight Toast',
-        tagline: 'Vintage champagne, blackcurrant, gold',
-        price: '$50'
-      },
-      {
-        image: 'https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?q=80&w=800&auto=format&fit=crop',
-        name: 'Calgary Tower',
-        tagline: 'Perrier-Jouët, maple, mountain views',
-        price: '$40'
+        image: 'https://static.spotapps.co/spots/10/2bc1cabfec40c4bdf7a24040b2b892/full',
+        name: 'The Truffle Martini',
+        tagline: 'Vodka, truffle essence, premium garnish',
+        price: '$26'
       }
     ],
     events: [
@@ -626,9 +614,9 @@ export const BARS: Record<string, BarContent> = {
         { icon: 'clock-time-eight-outline', text: 'Peak Hours: 6 PM - 11 PM' },
       ],
       bartender: {
-        name: 'Isabella Moreau',
-        avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?q=80&w=400&auto=format&fit=crop',
-        subtitle: 'Head Sommelier & Founder',
+        name: 'Rhys Williams',
+        avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=400&auto=format&fit=crop',
+        subtitle: 'Legendary Bartender',
       },
       travelTips: [
         { icon: 'subway-variant', text: 'Union Station - 3 blocks' },
@@ -637,8 +625,7 @@ export const BARS: Record<string, BarContent> = {
       ],
       dressCodeAndEntry: [
         { icon: 'shirt-outline', text: 'Business Formal' },
-        { icon: 'currency-usd', text: 'Premium pricing' },
-        { icon: 'account-check', text: 'Member benefits available' },
+        { icon: 'account-tie', text: 'Upscale experience' },
       ],
     }
   }

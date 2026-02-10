@@ -104,9 +104,9 @@ export default function BartendingWelcomeScreen({ onComplete }: BartendingWelcom
           >
             {[
               "Learn when it's convenient for you - no rush, no pressure",
-              "Practice bartending skills in your familiar space",
               "Follow detailed tutorials designed for beginners",
-              "Build confidence as you master each technique"
+              "Earn XP with each lesson to unlock premium recipes",
+              "Build your Vault of cocktail mastery"
             ].map((bullet, index) => (
               <Animated.View
                 key={index}

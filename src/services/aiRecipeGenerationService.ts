@@ -18,6 +18,9 @@ export interface AIRecipeGenerationParams {
   userInventory: UserInventoryItem[];
   difficultyLevel: 'beginner' | 'intermediate' | 'expert';
   isPremium: boolean;
+  selectedSpirit: string;
+  selectedPreparationMethod: string;
+  selectedFlavorProfile: string;
 }
 
 export interface GeneratedRecipe extends Cocktail {
@@ -57,21 +60,38 @@ function isDevelopmentMode(): boolean {
 }
 
 /**
- * Build prompt for specific difficulty level
+ * Build prompt for specific difficulty level with spirit, preparation method, and flavor profile
  */
 function buildPromptForDifficulty(
   difficulty: 'beginner' | 'intermediate' | 'expert',
-  inventory: UserInventoryItem[]
+  inventory: UserInventoryItem[],
+  selectedSpirit: string,
+  selectedPreparationMethod: string,
+  selectedFlavorProfile: string
 ): string {
   const inventoryList = inventory
     .map(item => item.item_name)
     .join(', ');
 
-  const basePrompt = `You are a professional mixologist creating cocktail recipes.
+  const basePrompt = `You are a professional mixologist creating personalized cocktail recipes.
 
 User's available ingredients: ${inventoryList}
 
-CRITICAL: You MUST use ONLY the ingredients listed above. Do not suggest any additional ingredients.
+CRITICAL CONSTRAINTS:
+- You MUST use ONLY the ingredients listed above. Do not suggest any additional ingredients.
+- Base spirit MUST be: ${selectedSpirit}
+- Preparation method MUST be: ${selectedPreparationMethod}
+- Flavor profile MUST match: ${selectedFlavorProfile}
+- The recipe MUST be makeable with ONLY the ingredients in their inventory
+
+BALANCING RULES:
+- Bitter liqueurs (Campari, Aperol, Cynar): Use sparingly (0.25-0.75 oz max). MUST balance with sweet component (syrup/liqueur).
+  EXCEPTION: Aperol Spritz-style drinks can use 3 oz Aperol if heavily diluted with Prosecco/Champagne + soda water.
+- Strong spirits (mezcal, scotch, rum >80 proof): Use standard pour (1.5-2 oz) but balance with citrus or sweet.
+- Citrus juice: Fresh lime/lemon should be 0.5-1 oz to avoid overpowering.
+- Simple syrup: Start at 0.5 oz, adjust based on other sweet components.
+- Bitters: 2-3 dashes maximum unless recipe specifically calls for more.
+- Egg white: Only use with shaken drinks, never with stirred or built drinks.
 `;
 
   const difficultyInstructions = {
@@ -86,6 +106,8 @@ Requirements:
 - Standard glassware (rocks glass, highball, coupe)
 - Preparation time: under 5 minutes
 - Perfect for someone making their first cocktail
+- IMPORTANT: List ingredients in this order: Liquor → Syrup → Juice → Bitters
+- Include bartender tip: "Beginners should use the cheapest ingredients first, just in case of a mistake"
 
 Focus on: Classic flavor combinations, easy execution, confidence-building`,
 
@@ -98,6 +120,7 @@ Requirements:
 - More refined presentation and technique
 - Proper terminology (e.g., "fine-strain", "expressed oils")
 - Preparation time: 5-10 minutes
+- IMPORTANT: List ingredients in this order: Liquor → Syrup → Juice → Bitters
 
 Focus on: Well-balanced flavors, proper technique, impressive presentation`,
 
@@ -113,6 +136,7 @@ Requirements:
 - Specialty glassware and garnishes
 - Multiple preparation steps
 - Preparation time: 10-20 minutes
+- IMPORTANT: List ingredients in this order: Liquor → Syrup → Juice → Bitters
 
 Focus on: Innovation, complexity, restaurant-quality presentation`,
   };
@@ -121,13 +145,15 @@ Focus on: Innovation, complexity, restaurant-quality presentation`,
 Return ONLY valid JSON in this exact format (no markdown, no code blocks):
 {
   "name": "Recipe Name",
-  "ingredients": "2 oz vodka, 1 oz lime juice, 0.5 oz simple syrup, 4 mint leaves",
-  "instructions": "Muddle mint with simple syrup. Add vodka and lime juice. Shake with ice for 10 seconds. Fine-strain into chilled coupe glass.",
+  "ingredients": "2 oz vodka, 0.5 oz simple syrup, 1 oz lime juice, 2 dashes bitters",
+  "instructions": "Add all ingredients to shaker with ice. Shake for 10-12 seconds. Fine-strain into chilled coupe glass.",
   "glass_type": "Coupe Glass",
-  "garnish": "Mint sprig",
-  "category": "refreshing"
+  "garnish": "Lime wheel",
+  "category": "refreshing",
+  "tips": "Bartender tip: Use fresh citrus juice for best results. Beginners should practice with cheaper ingredients first."
 }
 
+IMPORTANT: List ingredients in this order: Liquor → Syrup → Juice → Bitters
 Category options: classic, modern, refreshing, spirit-forward, tropical, brunch
 `;
 
@@ -176,32 +202,50 @@ function parseAIResponse(response: string): Omit<GeneratedRecipe, 'id' | 'is_ai_
  */
 function getMockRecipeForDifficulty(
   difficulty: 'beginner' | 'intermediate' | 'expert',
-  inventory: UserInventoryItem[]
+  inventory: UserInventoryItem[],
+  selectedSpirit: string,
+  selectedPreparationMethod: string,
+  selectedFlavorProfile: string
 ): Omit<GeneratedRecipe, 'id' | 'is_ai_generated' | 'generated_by_user_id' | 'difficulty_level' | 'generation_prompt' | 'inventory_snapshot' | 'ai_model' | 'generation_timestamp'> {
+  // Use first few ingredients from inventory to create realistic mock recipe
+  const ingredientNames = inventory.slice(0, 6).map(i => i.item_name).join(', ');
+
+  // Customize instructions based on preparation method
+  const methodInstructions = {
+    shake: 'Shake vigorously with ice for 10-12 seconds. Strain into glass.',
+    stir: 'Stir gently with ice for 20-30 seconds. Strain into glass.',
+    build: 'Build directly in glass over ice. Stir gently to combine.',
+    muddle: 'Muddle ingredients in glass. Add ice and remaining ingredients. Stir well.',
+    blend: 'Blend all ingredients with ice until smooth. Pour into glass.',
+  };
+
   const mockRecipes = {
     beginner: {
-      name: 'Simple Refresher',
-      ingredients: '2 oz vodka, 1 oz lime juice, 0.5 oz simple syrup, soda water',
-      instructions: 'Fill glass with ice. Add vodka, lime juice, and simple syrup. Stir well. Top with soda water. Garnish with lime wheel.',
-      category: 'refreshing',
+      name: `${selectedFlavorProfile.charAt(0).toUpperCase() + selectedFlavorProfile.slice(1)} ${selectedSpirit.charAt(0).toUpperCase() + selectedSpirit.slice(1)} ${selectedPreparationMethod.charAt(0).toUpperCase() + selectedPreparationMethod.slice(1)}`,
+      ingredients: `2 oz ${selectedSpirit}, 1 oz lime juice, 0.5 oz simple syrup, soda water`,
+      instructions: `${methodInstructions[selectedPreparationMethod as keyof typeof methodInstructions]} Garnish with lime wheel. Tip: Beginners should use the cheapest ingredients first, just in case of a mistake.`,
+      category: selectedFlavorProfile,
       glass_type: 'Highball Glass',
       garnish: 'Lime wheel',
+      tips: 'Beginners should use the cheapest ingredients first, just in case of a mistake.',
     },
     intermediate: {
-      name: 'Citrus Garden',
-      ingredients: '2 oz gin, 0.75 oz lemon juice, 0.5 oz simple syrup, 3 basil leaves, 1 dash orange bitters',
-      instructions: 'Muddle basil with simple syrup. Add gin, lemon juice, and bitters. Shake vigorously with ice for 15 seconds. Double-strain into chilled coupe. Express lemon oils over drink.',
-      category: 'modern',
+      name: `${selectedFlavorProfile.charAt(0).toUpperCase() + selectedFlavorProfile.slice(1)} ${selectedSpirit.charAt(0).toUpperCase() + selectedSpirit.slice(1)} Garden`,
+      ingredients: `2 oz ${selectedSpirit}, 0.75 oz lemon juice, 0.5 oz simple syrup, fresh herbs, 1 dash bitters`,
+      instructions: `Add ${selectedSpirit}, lemon juice, simple syrup, herbs, and bitters. ${methodInstructions[selectedPreparationMethod as keyof typeof methodInstructions]} Express citrus oils over drink.`,
+      category: selectedFlavorProfile,
       glass_type: 'Coupe Glass',
-      garnish: 'Basil leaf and lemon twist',
+      garnish: 'Fresh herb sprig and citrus twist',
+      tips: 'Double-straining removes small herb particles for a cleaner presentation.',
     },
     expert: {
-      name: 'Elevated Infusion',
-      ingredients: '2 oz rum infused with fresh pineapple (30 min), 0.75 oz lime juice, 0.5 oz orgeat syrup, 0.25 oz orange curaçao, 2 dashes Angostura bitters',
-      instructions: 'Infusion: Muddle 1/4 cup fresh pineapple with 2 oz rum, let sit 30 minutes, fine-strain. Cocktail: Combine infused rum, lime juice, orgeat, curaçao, and bitters. Shake hard with crushed ice. Dirty dump into rocks glass. Top with additional crushed ice. Express lime oils.',
-      category: 'tropical',
+      name: `Elevated ${selectedSpirit.charAt(0).toUpperCase() + selectedSpirit.slice(1)} ${selectedFlavorProfile.charAt(0).toUpperCase() + selectedFlavorProfile.slice(1)}`,
+      ingredients: `2 oz ${selectedSpirit}, 0.75 oz lime juice, 0.5 oz house syrup, 0.25 oz liqueur, 2 dashes bitters`,
+      instructions: `Combine ${selectedSpirit}, lime juice, house syrup, liqueur, and bitters. ${methodInstructions[selectedPreparationMethod as keyof typeof methodInstructions]} Top with additional crushed ice. Express citrus oils and add garnish.`,
+      category: selectedFlavorProfile,
       glass_type: 'Rocks Glass',
-      garnish: 'Pineapple wedge, mint sprig, and edible flower',
+      garnish: 'Luxurious garnish with edible flower',
+      tips: 'Using crushed ice creates better dilution and a more refreshing texture.',
     },
   };
 
@@ -287,7 +331,7 @@ async function incrementRateLimit(userId: string): Promise<void> {
 export async function generateRecipeFromInventory(
   params: AIRecipeGenerationParams
 ): Promise<GeneratedRecipe> {
-  const { userId, userInventory, difficultyLevel, isPremium } = params;
+  const { userId, userInventory, difficultyLevel, isPremium, selectedSpirit, selectedPreparationMethod, selectedFlavorProfile } = params;
 
   try {
     log.info('aiRecipeGenerationService', 'Generating recipe', {
@@ -295,10 +339,13 @@ export async function generateRecipeFromInventory(
       difficulty: difficultyLevel,
       inventorySize: userInventory.length,
       isPremium,
+      spirit: selectedSpirit,
+      preparationMethod: selectedPreparationMethod,
+      flavorProfile: selectedFlavorProfile,
     });
 
-    // Build prompt
-    const prompt = buildPromptForDifficulty(difficultyLevel, userInventory);
+    // Build prompt with spirit, preparation method, and flavor profile
+    const prompt = buildPromptForDifficulty(difficultyLevel, userInventory, selectedSpirit, selectedPreparationMethod, selectedFlavorProfile);
 
     let recipeData;
 
@@ -306,7 +353,7 @@ export async function generateRecipeFromInventory(
     if (isDevelopmentMode()) {
       log.info('aiRecipeGenerationService', 'Using mock recipe (dev mode)');
       await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate API delay
-      recipeData = getMockRecipeForDifficulty(difficultyLevel, userInventory);
+      recipeData = getMockRecipeForDifficulty(difficultyLevel, userInventory, selectedSpirit, selectedPreparationMethod, selectedFlavorProfile);
     } else {
       // Production mode: call OpenAI API
       const completion = await openai.chat.completions.create({
@@ -334,8 +381,11 @@ export async function generateRecipeFromInventory(
     }
 
     // Create full recipe object
+    // Generate UUID compatible with React Native
+    const uuid = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
     const generatedRecipe: GeneratedRecipe = {
-      id: crypto.randomUUID(),
+      id: uuid,
       ...recipeData,
       is_ai_generated: true,
       generated_by_user_id: userId,
@@ -346,16 +396,19 @@ export async function generateRecipeFromInventory(
       generation_timestamp: new Date().toISOString(),
     };
 
-    // Save to Supabase
-    await saveGeneratedRecipe(generatedRecipe);
+    // Save to Supabase (skip for development mode mock recipes)
+    if (!isDevelopmentMode()) {
+      await saveGeneratedRecipe(generatedRecipe);
 
-    // Increment rate limit for free users
-    if (!isPremium) {
-      await incrementRateLimit(userId);
+      // Increment rate limit for free users (only for real AI generations)
+      if (!isPremium) {
+        await incrementRateLimit(userId);
+      }
     }
 
     log.info('aiRecipeGenerationService', 'Recipe generated successfully', {
       recipeName: generatedRecipe.name,
+      isDev: isDevelopmentMode(),
     });
 
     return generatedRecipe;

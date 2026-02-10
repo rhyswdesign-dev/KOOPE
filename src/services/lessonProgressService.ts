@@ -86,7 +86,7 @@ class LessonProgressService {
 
       // Get or create lesson progress
       let { data: existingProgress, error: fetchError } = await supabase
-        .from('user_lesson_progress')
+        .from('lesson_progress')
         .select('*')
         .eq('user_id', userId)
         .eq('lesson_id', lessonId)
@@ -109,7 +109,7 @@ class LessonProgressService {
       if (existingProgress) {
         // Update existing progress
         const { data: updatedProgress, error: updateError } = await supabase
-          .from('user_lesson_progress')
+          .from('lesson_progress')
           .update({
             is_completed: existingProgress.is_completed || isCompleted,
             completed_at: existingProgress.completed_at || (isCompleted ? new Date().toISOString() : null),
@@ -154,7 +154,7 @@ class LessonProgressService {
       } else {
         // Create new progress record
         const { data: newProgress, error: insertError } = await supabase
-          .from('user_lesson_progress')
+          .from('lesson_progress')
           .insert({
             user_id: userId,
             lesson_id: lessonId,
@@ -254,7 +254,7 @@ class LessonProgressService {
   async getLessonProgress(userId: string, lessonId: string): Promise<LessonProgress | null> {
     try {
       const { data, error } = await supabase
-        .from('user_lesson_progress')
+        .from('lesson_progress')
         .select('*')
         .eq('user_id', userId)
         .eq('lesson_id', lessonId)
@@ -278,7 +278,7 @@ class LessonProgressService {
   async getAllLessonProgress(userId: string): Promise<LessonProgress[]> {
     try {
       const { data, error } = await supabase
-        .from('user_lesson_progress')
+        .from('lesson_progress')
         .select('*')
         .eq('user_id', userId)
         .order('updated_at', { ascending: false });

@@ -131,8 +131,9 @@ class StreakService {
       // Update weekly activity
       this.updateWeeklyActivity();
 
-      // Track in achievement service
-      await achievementService.trackAction('currentStreak', this.streakData.currentStreak);
+      // Set streak in achievement service (set absolute value, not increment)
+      await achievementService.setStat('currentStreak', this.streakData.currentStreak);
+      await achievementService.setStat('longestStreak', this.streakData.longestStreak);
 
       // Track challenge progress if userId provided
       if (userId && streakIncreased) {

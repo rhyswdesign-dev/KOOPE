@@ -7,15 +7,16 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, radii } from '../theme/tokens';
-import { achievementService, Achievement, UserStats } from '../services/achievementService';
+import { colors, spacing, radii, serif } from '../theme/tokens';
+import { Heading } from '../components/ui';
+import { achievementService, Achievement } from '../services/achievementService';
 import { streakService } from '../services/streakService';
+import { useXPSystem } from '../store/useXPSystem';
 import AchievementCard from '../components/AchievementCard';
 import StreakCard from '../components/StreakCard';
 import AchievementUnlockModal from '../components/AchievementUnlockModal';
-import { LinearGradient } from 'expo-linear-gradient';
 
-type TabType = 'all' | 'recipe' | 'collection' | 'knowledge' | 'streak' | 'social';
+type TabType = 'all' | 'recipe' | 'collection' | 'knowledge' | 'streak';
 
 /**
  * AchievementsScreen Component
@@ -24,10 +25,16 @@ type TabType = 'all' | 'recipe' | 'collection' | 'knowledge' | 'streak' | 'socia
  */
 export default function AchievementsScreen() {
   const [achievements, setAchievements] = useState<Achievement[]>([]);
-  const [userStats, setUserStats] = useState<UserStats>(achievementService.getUserStats());
   const [activeTab, setActiveTab] = useState<TabType>('all');
   const [unlockedAchievement, setUnlockedAchievement] = useState<Achievement | null>(null);
   const [streakData, setStreakData] = useState(streakService.getStreakData());
+
+  // Use useXPSystem as the single source of truth for XP/level
+  const { balance: totalXP } = useXPSystem();
+  const currentLevel = Math.floor(totalXP / 100) + 1;
+  const xpInLevel = totalXP % 100;
+  const xpForNextLevel = 100;
+  const levelProgress = xpInLevel / xpForNextLevel;
 
   useEffect(() => {
     loadData();
@@ -45,7 +52,6 @@ export default function AchievementsScreen() {
 
   const loadData = () => {
     setAchievements(achievementService.getAchievements());
-    setUserStats(achievementService.getUserStats());
     setStreakData(streakService.getStreakData());
   };
 
@@ -55,8 +61,6 @@ export default function AchievementsScreen() {
 
   const unlockedCount = achievements.filter(a => a.unlocked).length;
   const totalAchievements = achievements.length;
-  const levelProgress = achievementService.getLevelProgress();
-  const nextLevelXP = achievementService.getNextLevelXP();
 
   const tabs: { key: TabType; label: string; icon: string }[] = [
     { key: 'all', label: 'All', icon: 'grid-outline' },
@@ -64,7 +68,6 @@ export default function AchievementsScreen() {
     { key: 'collection', label: 'Collection', icon: 'albums-outline' },
     { key: 'knowledge', label: 'Knowledge', icon: 'school-outline' },
     { key: 'streak', label: 'Streak', icon: 'flame-outline' },
-    { key: 'social', label: 'Social', icon: 'people-outline' },
   ];
 
   return (
@@ -75,18 +78,18 @@ export default function AchievementsScreen() {
       >
         {/* Header Stats */}
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>Your Progress</Text>
+          <Heading level={1} style={styles.headerTitle}>Your Progress</Heading>
 
           {/* Level Card */}
           <View style={styles.levelCard}>
             <View style={styles.levelHeader}>
               <View>
                 <Text style={styles.levelLabel}>LEVEL</Text>
-                <Text style={styles.levelNumber}>{userStats.level}</Text>
+                <Text style={styles.levelNumber}>{currentLevel}</Text>
               </View>
               <View style={styles.xpBadge}>
                 <Ionicons name="star" size={16} color={colors.gold} />
-                <Text style={styles.xpText}>{userStats.totalXP} XP</Text>
+                <Text style={styles.xpText}>{totalXP} XP</Text>
               </View>
             </View>
 
@@ -101,7 +104,7 @@ export default function AchievementsScreen() {
                 />
               </View>
               <Text style={styles.progressText}>
-                {Math.floor((userStats.totalXP % 100))} / {nextLevelXP} XP to next level
+                {xpInLevel} / {xpForNextLevel} XP to next level
               </Text>
             </View>
           </View>
@@ -225,6 +228,7 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     color: colors.text,
     marginBottom: spacing(3),
+    fontFamily: serif,
   },
   levelCard: {
     padding: spacing(3),
@@ -303,7 +307,7 @@ const styles = StyleSheet.create({
   summaryIconContainer: {
     width: 40,
     height: 40,
-    borderRadius: 20,
+    borderRadius: radii.full,
     backgroundColor: colors.bg,
     alignItems: 'center',
     justifyContent: 'center',
@@ -338,7 +342,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing(2),
     paddingVertical: spacing(1.5),
     backgroundColor: colors.card,
-    borderRadius: radii.lg,
+    borderRadius: radii.pill,
     borderWidth: 2,
     borderColor: colors.line,
   },

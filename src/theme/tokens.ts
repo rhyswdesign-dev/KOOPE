@@ -1,54 +1,72 @@
+import { Platform } from 'react-native';
+
+/**
+ * Typography Helpers
+ */
+export const getSerifFont = () => Platform.select({
+  ios: 'Georgia',
+  android: 'serif',
+  default: 'serif'
+});
+
+export const serif = getSerifFont();
+
 /**
  * Global Design System - All colors centralized here
  * Change these values to instantly update your entire app
  */
 export const colors = {
   // App Structure
-  bg:            '#1A120D', // espresso brown - primary background
-  card:          '#2B1F17', // darker brown - section / card background
-  modalOverlay:  'rgba(0,0,0,0.8)', // modal backgrounds
-  modalBg:       '#3B291F', // modal content background
+  bg: '#1A120D', // espresso brown - primary background
+  card: '#2B1F17', // darker brown - section / card background
+  modalOverlay: 'rgba(0,0,0,0.8)', // modal backgrounds
+  modalBg: '#3B291F', // modal content background
 
   // Navigation
-  headerBg:      '#1A120D', // same as primary background
-  headerText:    '#F2E5D5', // soft cream - header title/back button
-  
+  headerBg: '#1A120D', // same as primary background
+  headerText: '#F2E5D5', // soft cream - header title/back button
+
   // Chips & Pills
-  chipBg:        '#3A2A1F',
-  chipActive:    '#5A3F2A',
-  chipBorder:    'rgba(255,255,255,0.08)',
-  
+  chipBg: '#3A2A1F',
+  chipActive: '#5A3F2A',
+  chipBorder: 'rgba(255,255,255,0.08)',
+
   // Text Hierarchy
-  text:          '#F2E5D5', // soft cream - primary text
-  textLight:     '#F2E5D5', // soft cream
-  textMuted:     '#C7B8A5', // muted cream - secondary text
-  subtext:       '#C7B8A5', // muted cream - tertiary text
-  subtle:        '#C7B8A5', // muted cream
-  muted:         'rgba(242,229,213,0.35)', // disabled text
+  text: '#F2E5D5', // soft cream - primary text
+  textLight: '#F2E5D5', // soft cream
+  textMuted: '#C7B8A5', // muted cream - secondary text
+  subtext: '#C7B8A5', // muted cream - tertiary text
+  subtle: '#C7B8A5', // muted cream
+  muted: 'rgba(242,229,213,0.35)', // disabled text
 
   // Accents & Highlights (Amber/Gold)
-  gold:          '#D68A38', // amber gold - primary accent
-  goldText:      '#1A120D', // dark text on gold
-  accent:        '#D68A38', // amber gold - unified accent
-  accentDark:    '#E89C40', // glowing gold for gradients
-  accentText:    '#D68A38', // accent text color
-  accentLight:   '#E89C40', // highlighted icons
-  
+  gold: '#D68A38', // amber gold - primary accent
+  goldText: '#1A120D', // dark text on gold
+  accent: '#D68A38', // amber gold - unified accent
+  accentDark: '#E89C40', // glowing gold for gradients
+  accentText: '#D68A38', // accent text color
+  accentLight: '#E89C40', // highlighted icons
+
   // System Colors
-  white:         '#FFFFFF',
-  line:          'rgba(255,255,255,0.08)', // borders/dividers
-  border:        'rgba(255,255,255,0.08)', // border color alias
-  shadow:        'rgba(0,0,0,0.35)',
-  error:         '#F44336', // error/danger color
-  success:       '#4CAF50', // success color
-  successDark:   '#388E3C', // darker success for gradients
-  warning:       '#FF9800', // warning color
-  destructive:   '#F44336', // destructive action color
-  cardBg:        '#2B1B12', // card background (alias to card)
+  white: '#FFFFFF',
+  line: 'rgba(255,255,255,0.08)', // borders/dividers
+  border: 'rgba(255,255,255,0.08)', // border color alias
+  shadow: 'rgba(0,0,0,0.35)',
+  error: '#F44336', // error/danger color
+  success: '#4CAF50', // success color
+  successDark: '#388E3C', // darker success for gradients
+  warning: '#FF9800', // warning color
+  destructive: '#F44336', // destructive action color
+  cardBg: '#2B1B12', // card background (alias to card)
   
+  // Curriculum specific
+  curriculumLocked: 'rgba(242, 229, 213, 0.4)',
+  curriculumLockedText: '#8B6743', 
+  curriculumInProgress: '#D68A38',
+
   // Avatar/Profile
-  avatar:        '#2A241F', // avatar background
-  
+  avatar: '#2A241F', // avatar background
+
   // Tier Colors
   tierGold: '#FFD700',
   tierSilver: '#C0C0C0',
@@ -56,7 +74,7 @@ export const colors = {
   tierTextOnGold: '#000000',
   tierTextOnSilver: '#000000',
   tierTextOnBronze: '#FFFFFF',
-  
+
   // Component-specific (legacy names - use accent instead)
   // pillButtonColor removed - use colors.accent
   pillTextOnLight: '#000000',
@@ -288,6 +306,7 @@ export const components = {
   headerText: {
     color: colors.headerText,
     fontWeight: '800' as const,
+    fontFamily: Platform.select({ ios: 'Georgia', android: 'serif', default: 'serif' }),
   },
   icon: {
     color: colors.accentLight,

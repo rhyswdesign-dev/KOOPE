@@ -40,9 +40,9 @@ export function useSimpleOnboarding() {
       await clearSavedItems();
 
       // DEV MODE: Uncomment to reset on every reload (currently OFF to preserve sign-in)
-      await AsyncStorage.removeItem(ONBOARDING_COMPLETED_KEY);
-      await supabase.auth.signOut();
-      log.info('useSimpleOnboarding', 'DEV MODE: Cleared onboarding status and signed out for fresh flow');
+      // await AsyncStorage.removeItem(ONBOARDING_COMPLETED_KEY);
+      // await supabase.auth.signOut();
+      // log.info('useSimpleOnboarding', 'DEV MODE: Cleared onboarding status and signed out for fresh flow');
 
       // Show splash screen
       setAppState('splash');

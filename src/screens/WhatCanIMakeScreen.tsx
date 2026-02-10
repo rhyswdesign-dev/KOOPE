@@ -16,11 +16,13 @@ import {
   ScrollView,
   Dimensions,
   TextInput,
+  Alert,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, radii } from '../theme/tokens';
+import { colors, spacing, radii, serif } from '../theme/tokens';
+import { Heading } from '../components/ui';
 import { InventoryService } from '../services/inventoryService';
 import { useAuth } from '../contexts/AuthContext';
 import { filterAlmostMakeable, sortByMatch } from '../utils/recipeMatching';
@@ -31,9 +33,15 @@ import type { RootStackParamList } from '../navigation/RootNavigator';
 import RecipeCard from '../components/RecipeCard';
 import { createRecipeCardProps } from '../utils/recipeActions';
 import { useSavedItems } from '../hooks/useSavedItems';
+import GroceryListModal from '../components/GroceryListModal';
 import { RecipesRepository } from '../repos/supabase';
 import { isCocktailAccessible } from '../config/tierAccess';
 import { useUserTier } from '../store/useUserTier';
+import {
+  generateRecipeFromInventory,
+  checkRateLimit,
+} from '../services/aiRecipeGenerationService';
+import { supabase } from '../lib/supabase';
 // BartenderAssistant removed in favor of full screen AI Chat
 
 type CocktailWithMatch = Cocktail & { match: RecipeMatch };
@@ -52,6 +60,15 @@ export default function WhatCanIMakeScreen() {
   const [cocktails, setCocktails] = useState<CocktailWithMatch[]>([]);
   const [showFilters, setShowFilters] = useState(false);
   const [ingredientSearch, setIngredientSearch] = useState('');
+
+  // AI Recipe Generation State
+  const [selectedDifficulty, setSelectedDifficulty] = useState<'beginner' | 'intermediate' | 'expert' | null>(null);
+  const [generatingRecipe, setGeneratingRecipe] = useState(false);
+  const [aiRecipes, setAiRecipes] = useState<CocktailWithMatch[]>([]);
+
+  // Grocery List Modal State
+  const [groceryListVisible, setGroceryListVisible] = useState(false);
+  const [selectedRecipe, setSelectedRecipe] = useState<any>(null);
 
   // Wrap matchCocktails in useCallback to avoid dependency issues
   const matchCocktails = useCallback(async () => {
@@ -161,22 +178,152 @@ export default function WhatCanIMakeScreen() {
 
   const { toggleSavedCocktail, isCocktailSaved } = useSavedItems();
 
+  /**
+   * Generate AI recipe based on selected difficulty and inventory
+   */
+  const handleGenerateRecipe = async () => {
+    if (!user || !selectedDifficulty) return;
+
+    // Check rate limit first
+    const isPremium = tier !== 'FREE';
+    const { canGenerate } = await checkRateLimit(user.id, isPremium);
+
+    if (!canGenerate) {
+      Alert.alert(
+        'Daily Limit Reached',
+        'Free users can generate 1 recipe per day. Upgrade to premium for unlimited AI recipes!',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
+    setGeneratingRecipe(true);
+
+    try {
+      // Get filtered inventory based on selection
+      const filteredInventory = inventory.filter(item =>
+        selectedItems.has(item.item_name)
+      );
+
+      // Use defaults for spirit, method, and flavor since user only chose difficulty
+      const recipe = await generateRecipeFromInventory({
+        userId: user.id,
+        userInventory: filteredInventory,
+        difficultyLevel: selectedDifficulty,
+        isPremium,
+        selectedSpirit: 'any', // Let AI choose
+        selectedPreparationMethod: 'shake', // Default method
+        selectedFlavorProfile: 'refreshing', // Default flavor
+      });
+
+      // Add match data and required fields to the generated recipe
+      const recipeWithMatch: CocktailWithMatch = {
+        ...recipe,
+        match: {
+          matchPercentage: 100, // AI recipe uses user's inventory
+          matchedIngredients: filteredInventory.map(i => i.item_name),
+          missingIngredients: [],
+          canMake: true,
+          almostCanMake: true,
+        },
+      } as CocktailWithMatch;
+
+      // Add to AI recipes list at the top
+      setAiRecipes([recipeWithMatch, ...aiRecipes]);
+
+      Alert.alert(
+        'Recipe Generated! ✨',
+        `"${recipe.name}" has been added to your list!`,
+        [{ text: 'Awesome!' }]
+      );
+    } catch (error: any) {
+      console.error('Error generating recipe:', error);
+      Alert.alert(
+        'Generation Failed',
+        error.message || 'Failed to generate recipe. Please try again.',
+        [{ text: 'OK' }]
+      );
+    } finally {
+      setGeneratingRecipe(false);
+    }
+  };
+
+  /**
+   * Delete an AI-generated recipe
+   */
+  const handleDeleteAIRecipe = async (recipeId: string, recipeName: string) => {
+    Alert.alert(
+      'Delete Recipe?',
+      `Are you sure you want to delete "${recipeName}"?`,
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              // Remove from local state
+              setAiRecipes(aiRecipes.filter(recipe => recipe.id !== recipeId));
+
+              // Delete from Supabase
+              const { error } = await supabase
+                .from('cocktails')
+                .delete()
+                .eq('id', recipeId)
+                .eq('is_ai_generated', true)
+                .eq('generated_by_user_id', user?.id);
+
+              if (error) {
+                console.error('Error deleting AI recipe:', error);
+                // Still removed from UI, so just log the error
+              }
+            } catch (error) {
+              console.error('Error deleting AI recipe:', error);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const renderCocktailCard = ({ item, index }: { item: CocktailWithMatch; index?: number }) => {
+    // Check if this is an AI-generated recipe
+    const isAIRecipe = (item as any).is_ai_generated === true;
+
     // Recipes from RecipesRepository already have image, title, name, time, difficulty properly formatted
     // Just pass directly to createRecipeCardProps like RecipesScreen does
     const cardProps = createRecipeCardProps(item as any, navigation, {
       toggleSavedCocktail,
       isCocktailSaved,
+      setSelectedRecipe,
+      setGroceryListVisible,
       showSaveButton: false,
-      showCartButton: false,
+      showCartButton: true,
       source: 'home_bar',
     });
 
     return (
-      <RecipeCard
-        {...cardProps}
-        style={{ width: (width - spacing(2) * 2 - GUTTER) / 2, marginBottom: spacing(2) }}
-      />
+      <View style={{ width: (width - spacing(2) * 2 - GUTTER) / 2, marginBottom: spacing(2) }}>
+        <RecipeCard {...cardProps} />
+        {isAIRecipe && (
+          <>
+            <View style={styles.aiBadge}>
+              <Ionicons name="sparkles" size={10} color={colors.white} />
+              <Text style={styles.aiBadgeText}>AI Generated</Text>
+            </View>
+            <TouchableOpacity
+              style={styles.deleteButton}
+              onPress={() => handleDeleteAIRecipe(item.id, item.name)}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Ionicons name="close-circle" size={24} color={colors.white} />
+            </TouchableOpacity>
+          </>
+        )}
+      </View>
     );
   };
 
@@ -196,7 +343,7 @@ export default function WhatCanIMakeScreen() {
       <SafeAreaView style={styles.container}>
         <View style={styles.emptyState}>
           <Ionicons name="person-outline" size={80} color={colors.subtext} />
-          <Text style={styles.emptyTitle}>Sign In Required</Text>
+          <Heading level={2} style={styles.emptyTitle}>Sign In Required</Heading>
           <Text style={styles.emptyDescription}>
             Sign in to see what cocktails you can make with your inventory
           </Text>
@@ -216,7 +363,7 @@ export default function WhatCanIMakeScreen() {
       <SafeAreaView style={styles.container}>
         <View style={styles.emptyState}>
           <Ionicons name="scan-outline" size={80} color={colors.subtext} />
-          <Text style={styles.emptyTitle}>No Inventory Yet</Text>
+          <Heading level={2} style={styles.emptyTitle}>No Inventory Yet</Heading>
           <Text style={styles.emptyDescription}>
             Start scanning bottles and ingredients to see what cocktails you can make!
           </Text>
@@ -239,8 +386,11 @@ export default function WhatCanIMakeScreen() {
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <Ionicons name="chevron-back" size={28} color={colors.text} />
+        </TouchableOpacity>
         <View style={styles.headerLeft}>
-          <Text style={styles.headerTitle}>What Can I Make?</Text>
+          <Heading level={1} style={styles.headerTitle}>What Can I Make?</Heading>
           <Text style={styles.headerSubtitle}>
             {selectedItems.size} of {inventory.length} ingredient{inventory.length !== 1 ? 's' : ''} selected
           </Text>
@@ -255,17 +405,6 @@ export default function WhatCanIMakeScreen() {
               <Text style={styles.inventoryLabel}>Items</Text>
             </View>
           </View>
-
-          {/* AI Generate Button */}
-          <TouchableOpacity
-            style={styles.aiButton}
-            onPress={() => navigation.navigate('AIRecipeGenerator', {
-              userInventory: inventory,
-              selectedItems,
-            })}
-          >
-            <Ionicons name="sparkles" size={20} color={colors.white} />
-          </TouchableOpacity>
 
           {/* Filter Button */}
           <TouchableOpacity
@@ -285,7 +424,7 @@ export default function WhatCanIMakeScreen() {
       {showFilters && (
         <View style={styles.filterPanel}>
           <View style={styles.filterHeader}>
-            <Text style={styles.filterTitle}>Select Ingredients</Text>
+            <Heading level={3} style={styles.filterTitle}>Select Ingredients</Heading>
             <View style={styles.filterActions}>
               <TouchableOpacity onPress={selectAll}>
                 <Text style={styles.filterAction}>Select All</Text>
@@ -353,9 +492,81 @@ export default function WhatCanIMakeScreen() {
         </View>
       )}
 
+      {/* AI Recipe Generation Section */}
+      <View style={styles.aiSection}>
+        <View style={styles.aiSectionHeader}>
+          <Ionicons name="sparkles" size={20} color={colors.gold} />
+          <Heading level={3} style={styles.aiSectionTitle}>Generate Custom Recipe</Heading>
+        </View>
+        <Text style={styles.aiSectionSubtitle}>
+          Choose difficulty and let AI create a recipe with your ingredients
+        </Text>
+
+        {/* Difficulty Selector */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.difficultyScroll}
+          contentContainerStyle={styles.difficultyScrollContent}
+        >
+          {(['beginner', 'intermediate', 'expert'] as const).map(difficulty => (
+            <TouchableOpacity
+              key={difficulty}
+              style={[
+                styles.difficultyChip,
+                selectedDifficulty === difficulty && styles.difficultyChipSelected,
+              ]}
+              onPress={() => setSelectedDifficulty(difficulty)}
+            >
+              <Ionicons
+                name={
+                  difficulty === 'beginner'
+                    ? 'fitness-outline'
+                    : difficulty === 'intermediate'
+                      ? 'ribbon-outline'
+                      : 'trophy-outline'
+                }
+                size={16}
+                color={selectedDifficulty === difficulty ? colors.white : colors.gold}
+              />
+              <Text
+                style={[
+                  styles.difficultyText,
+                  selectedDifficulty === difficulty && styles.difficultyTextSelected,
+                ]}
+              >
+                {difficulty.charAt(0).toUpperCase() + difficulty.slice(1)}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+
+        {/* Generate Button */}
+        <TouchableOpacity
+          style={[
+            styles.generateButton,
+            (!selectedDifficulty || selectedItems.size === 0) && styles.generateButtonDisabled,
+          ]}
+          onPress={handleGenerateRecipe}
+          disabled={!selectedDifficulty || selectedItems.size === 0 || generatingRecipe}
+        >
+          {generatingRecipe ? (
+            <>
+              <ActivityIndicator size="small" color={colors.white} />
+              <Text style={styles.generateButtonText}>Generating...</Text>
+            </>
+          ) : (
+            <>
+              <Ionicons name="sparkles" size={20} color={colors.white} />
+              <Text style={styles.generateButtonText}>Generate Recipe with AI ✨</Text>
+            </>
+          )}
+        </TouchableOpacity>
+      </View>
+
       {/* Cocktail List */}
       <FlatList
-        data={cocktails.filter(cocktail => {
+        data={[...aiRecipes, ...cocktails].filter(cocktail => {
           // If there's a search term, filter cocktails by ingredient name
           if (ingredientSearch.trim().length > 0) {
             const searchLower = ingredientSearch.toLowerCase();
@@ -376,7 +587,7 @@ export default function WhatCanIMakeScreen() {
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <Ionicons name="wine-outline" size={60} color={colors.subtext} />
-            <Text style={styles.emptyTitle}>No matches found</Text>
+            <Heading level={2} style={styles.emptyTitle}>No matches found</Heading>
             <Text style={styles.emptyDescription}>
               {ingredientSearch.trim().length > 0
                 ? `No cocktails found with "${ingredientSearch}"`
@@ -386,15 +597,22 @@ export default function WhatCanIMakeScreen() {
         }
       />
 
-      {/* Bartender AI Assistant */}
-      {/* Floating Chat Button (Links to new Bar Assistant) */}
+      {/* Grocery List Modal */}
+      <GroceryListModal
+        visible={groceryListVisible}
+        recipeName={selectedRecipe?.name || selectedRecipe?.title || 'Recipe'}
+        ingredients={selectedRecipe?.ingredients || []}
+        recipeId={selectedRecipe?.id}
+        onClose={() => {
+          setGroceryListVisible(false);
+          setSelectedRecipe(null);
+        }}
+      />
+
+      {/* Floating AI Chat Button */}
       <TouchableOpacity
         style={styles.floatingChatButton}
-        onPress={() => navigation.navigate('AIRecipeGenerator', {
-          userInventory: inventory,
-          selectedItems,
-        })}
-        activeOpacity={0.8}
+        onPress={() => navigation.navigate('AIRecipeGenerator' as any)}
       >
         <Ionicons name="chatbubble-ellipses" size={28} color={colors.white} />
       </TouchableOpacity>
@@ -419,11 +637,16 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     justifyContent: 'space-between',
     padding: spacing(3),
+    paddingLeft: spacing(1),
     borderBottomWidth: 1,
     borderBottomColor: colors.line,
+  },
+  backButton: {
+    padding: spacing(1),
+    marginRight: spacing(1),
   },
   headerLeft: {
     flex: 1,
@@ -437,6 +660,7 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '700',
     color: colors.text,
+    fontFamily: serif,
   },
   headerSubtitle: {
     fontSize: 14,
@@ -488,7 +712,7 @@ const styles = StyleSheet.create({
   filterButton: {
     width: 44,
     height: 44,
-    borderRadius: 22,
+    borderRadius: radii.full,
     backgroundColor: `${colors.accent}15`,
     alignItems: 'center',
     justifyContent: 'center',
@@ -785,10 +1009,16 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
     borderRadius: radii.lg,
     padding: spacing(3),
-    marginHorizontal: spacing(3),
+    marginHorizontal: spacing(2),
     marginBottom: spacing(2),
     borderWidth: 1,
-    borderColor: `${colors.gold}20`,
+    borderColor: `${colors.gold}30`,
+  },
+  aiSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(1),
+    marginBottom: spacing(0.5),
   },
   floatingChatButton: {
     position: 'absolute',
@@ -914,6 +1144,18 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
     color: colors.white,
+  },
+  deleteButton: {
+    position: 'absolute',
+    top: spacing(1),
+    left: spacing(1),
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    borderRadius: 12,
+    width: 24,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10,
   },
   // Spirit Selection Styles
   selectionLabel: {

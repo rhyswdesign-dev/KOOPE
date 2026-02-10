@@ -9,7 +9,6 @@
  * - Technique Playbooks (educational systems)
  * - Bar Features (curated bar profiles)
  * - Seasonal Drops (time-limited bundles)
- * - Vault Key Bundles (key purchase options)
  */
 
 import { VaultItem, VaultCategoryMeta } from './vaultTypes';
@@ -79,7 +78,7 @@ const cocktailVariations: VaultItem[] = [
     tags: ['nitro', 'coffee', 'vodka'],
     xpCost: 2000,
     moneyPriceCents: 499,
-    unlockMethod: 'KEY_OR_XP',
+    unlockMethod: 'XP_ONLY',
     requiresTier: 'PRO',
   },
   {
@@ -229,7 +228,7 @@ const barFeatures: VaultItem[] = [
     signatureCocktailName: 'Gin & Tonic with Spanish botanicals',
     thumbnailKey: 'the_gilded_lily', // Elegant architecture
     xpCost: 1300,
-    unlockMethod: 'KEY_OR_XP' as const,
+    unlockMethod: 'XP_ONLY' as const,
     requiresTier: 'PRO' as const,
   },
 ];
@@ -251,35 +250,10 @@ const seasonalDrops: VaultItem[] = [
       'smoked_old_fashioned',
     ],
     xpCost: 2500,
-    unlockMethod: 'KEY_OR_XP' as const,
+    unlockMethod: 'XP_ONLY' as const,
     isLimitedTime: true,
     availableFrom: '2025-12-01T00:00:00Z',
     availableUntil: '2026-03-01T00:00:00Z',
-  },
-];
-
-// ============================================================================
-// VAULT KEY BUNDLES
-// ============================================================================
-
-const vaultKeyBundles: VaultItem[] = [
-  {
-    id: 'vault_key_single',
-    category: 'VAULT_KEY_BUNDLE' as const,
-    title: 'Single Vault Key',
-    description: 'Unlock one premium item or early seasonal drop.',
-    keysGranted: 1,
-    moneyPriceCents: 299,
-    unlockMethod: 'KEY_OR_MONEY' as const,
-  },
-  {
-    id: 'vault_key_triple',
-    category: 'VAULT_KEY_BUNDLE' as const,
-    title: '3-Key Bundle',
-    description: 'Best value for serious learners. Save 20%.',
-    keysGranted: 3,
-    moneyPriceCents: 699,
-    unlockMethod: 'KEY_OR_MONEY' as const,
   },
 ];
 
@@ -292,7 +266,6 @@ export const vaultItems: VaultItem[] = [
   ...techniquePlaybooks,
   ...barFeatures,
   ...seasonalDrops,
-  ...vaultKeyBundles,
 ];
 
 // ============================================================================
@@ -325,9 +298,9 @@ export const vaultCategoryMetadata: VaultCategoryMeta[] = [
     icon: '⏳',
   },
   {
-    category: 'VAULT_KEY_BUNDLE',
-    displayName: 'Vault Keys',
-    description: 'Unlock premium content instantly',
-    icon: '🔑',
+    category: 'DRINKING_GAME',
+    displayName: 'Drinking Games',
+    description: 'Classic party games with official rules',
+    icon: '🎲',
   },
 ];

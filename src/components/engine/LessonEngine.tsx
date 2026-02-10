@@ -37,6 +37,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useChallengeProgress } from '../../hooks/useChallengeProgress';
 import { log } from '../../lib/logger';
 import { lessonProgressService } from '../../services/lessonProgressService';
+import { achievementService } from '../../services/achievementService';
 
 interface LessonEngineProps {
   lessonId: string;
@@ -61,14 +62,14 @@ export const LessonEngine: React.FC<LessonEngineProps> = ({ lessonId, onComplete
   const { trackLessonComplete, trackXPEarned, trackQuizPerfect } = useChallengeProgress();
   const userStore = useUser();
   const { lives = 3, loseLife: loseUserLife, completeLesson: completeUserLesson } = userStore || {};
-  
+
   // Animation values
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const slideAnim = useRef(new Animated.Value(1)).current;
   const progressAnim = useRef(new Animated.Value(0)).current;
   const feedbackAnim = useRef(new Animated.Value(0)).current;
   const heartPulseAnim = useRef(new Animated.Value(1)).current;
-  
+
   const {
     items,
     currentItemIndex,
@@ -144,7 +145,7 @@ export const LessonEngine: React.FC<LessonEngineProps> = ({ lessonId, onComplete
         }
       });
     };
-    
+
     if (lives > 0) {
       createPulse();
     }
@@ -174,7 +175,7 @@ export const LessonEngine: React.FC<LessonEngineProps> = ({ lessonId, onComplete
       }
 
       startSession(lessonId, lessonItems);
-      
+
       // Track lesson start
       analytics.track({
         type: 'lesson.start',
@@ -237,7 +238,7 @@ export const LessonEngine: React.FC<LessonEngineProps> = ({ lessonId, onComplete
     } else {
       audio.playIncorrectAnswer();
     }
-    
+
     // Hide quick feedback after delay (reduced to 400ms for very fast transitions)
     setTimeout(() => {
       setShowQuickFeedback(false);
@@ -333,6 +334,13 @@ export const LessonEngine: React.FC<LessonEngineProps> = ({ lessonId, onComplete
       completeUserLesson(lessonId, xpAwarded);
     } else {
       log.warn('LessonEngine', 'completeUserLesson function not available');
+    }
+
+    // Track lesson completion for achievements (bridges to achievementService)
+    try {
+      await achievementService.trackAction('lessonsCompleted', 1);
+    } catch (err) {
+      log.error('LessonEngine', 'Error tracking achievement', err);
     }
 
     // Track lesson completion
@@ -462,29 +470,14 @@ export const LessonEngine: React.FC<LessonEngineProps> = ({ lessonId, onComplete
             </View>
           );
         }
-        // Temporary simple MCQ render for testing
+
+        // Use MCQ component
         return (
-          <View>
-            <Text style={{ color: 'white', fontSize: 18, marginBottom: 20, textAlign: 'center' }}>
-              {currentItem.prompt}
-            </Text>
-            {currentItem.options.map((option, index) => (
-              <Pressable
-                key={index}
-                style={{
-                  backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                  padding: 15,
-                  marginBottom: 10,
-                  borderRadius: 8,
-                  borderWidth: 1,
-                  borderColor: 'rgba(255, 255, 255, 0.2)'
-                }}
-                onPress={() => handleAnswer({ correct: index === currentItem.answerIndex, msToAnswer: 1000 })}
-              >
-                <Text style={{ color: 'white', fontSize: 16 }}>{option}</Text>
-              </Pressable>
-            ))}
-          </View>
+          <MCQExercise
+            key={currentItem.id}
+            item={currentItem}
+            onResult={handleAnswer}
+          />
         );
       case 'order':
         if (!currentItem.orderTarget || !currentItem.orderTarget.length) {
@@ -639,7 +632,7 @@ export const LessonEngine: React.FC<LessonEngineProps> = ({ lessonId, onComplete
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
-      
+
       {/* Luxury gradient background */}
       <LinearGradient
         colors={[colors.bg, '#1A0F0B', colors.card]}
@@ -670,7 +663,7 @@ export const LessonEngine: React.FC<LessonEngineProps> = ({ lessonId, onComplete
         {/* Animated Progress Bar */}
         <View style={styles.progressContainer}>
           <View style={styles.progressBar}>
-            <Animated.View 
+            <Animated.View
               style={[
                 styles.progressFill,
                 {
@@ -679,7 +672,7 @@ export const LessonEngine: React.FC<LessonEngineProps> = ({ lessonId, onComplete
                     outputRange: ['0%', '100%'],
                   }),
                 },
-              ]} 
+              ]}
             />
           </View>
           <Text style={styles.progressText}>
@@ -700,7 +693,7 @@ export const LessonEngine: React.FC<LessonEngineProps> = ({ lessonId, onComplete
                 },
               ]}
             >
-              <Ionicons name="heart" size={18} color="#FF6B6B" />
+              <Ionicons name="heart" size={18} color={colors.error} />
             </Animated.View>
           ))}
         </View>
@@ -756,21 +749,26 @@ export const LessonEngine: React.FC<LessonEngineProps> = ({ lessonId, onComplete
             styles.feedbackCard,
             lastResult.correct ? styles.correctFeedback : styles.incorrectFeedback
           ]}>
-            <View style={styles.feedbackIcon}>
-              <Ionicons 
-                name={lastResult.correct ? 'checkmark-circle' : 'fitness'} 
-                size={48} 
-                color={lastResult.correct ? colors.success : colors.gold} 
+            <View style={[
+              styles.feedbackIconCircle,
+              { backgroundColor: lastResult.correct ? colors.success : (colors.error || '#F44336') }
+            ]}>
+              <Ionicons
+                name={lastResult.correct ? 'checkmark' : 'close'}
+                size={36}
+                color="#FFFFFF"
               />
             </View>
             <Text style={styles.feedbackText}>
-              {lastResult.correct ? 'Perfect!' : 'Keep trying!'}
+              {lastResult.correct
+                ? ['Perfect!', 'Nailed it!', 'Correct!', 'Nice one!'][Math.floor(Math.random() * 4)]
+                : 'Not quite!'}
             </Text>
-            {!lastResult.correct && (
-              <Text style={styles.feedbackSubtext}>
-                You'll get it next time!
-              </Text>
-            )}
+            <Text style={styles.feedbackSubtext}>
+              {lastResult.correct
+                ? 'Keep up the great work'
+                : "Don't worry, you'll get it next time"}
+            </Text>
           </View>
         </Animated.View>
       )}
@@ -904,38 +902,42 @@ const styles = StyleSheet.create({
   feedbackCard: {
     backgroundColor: colors.card,
     borderRadius: radii.xl,
-    padding: spacing(4),
+    paddingVertical: spacing(4),
+    paddingHorizontal: spacing(5),
     alignItems: 'center',
     borderWidth: 2,
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.4,
-    shadowRadius: 24,
-    elevation: 12,
-    minWidth: 200,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 16 },
+    shadowOpacity: 0.5,
+    shadowRadius: 32,
+    elevation: 16,
+    minWidth: 240,
   },
   correctFeedback: {
     borderColor: colors.success,
-    backgroundColor: 'rgba(76, 175, 80, 0.1)',
+    backgroundColor: 'rgba(76, 175, 80, 0.15)',
   },
   incorrectFeedback: {
-    borderColor: colors.error,
-    backgroundColor: 'rgba(244, 67, 54, 0.1)',
+    borderColor: colors.error || '#F44336',
+    backgroundColor: 'rgba(244, 67, 54, 0.15)',
   },
-  feedbackIcon: {
-    marginBottom: spacing(2),
+  feedbackIconCircle: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     alignItems: 'center',
     justifyContent: 'center',
+    marginBottom: spacing(2),
   },
   feedbackText: {
-    fontSize: 24,
-    fontWeight: '700',
+    fontSize: 28,
+    fontWeight: '800',
     color: colors.text,
-    marginBottom: spacing(1),
+    marginBottom: spacing(0.5),
     textAlign: 'center',
   },
   feedbackSubtext: {
-    fontSize: 16,
+    fontSize: 15,
     color: colors.subtext,
     textAlign: 'center',
     fontWeight: '500',

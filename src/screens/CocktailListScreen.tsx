@@ -14,10 +14,11 @@ import { RouteProp, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, fonts, radii } from '../theme/tokens';
+import { Heading } from '../components/ui';
 import RecipeCard from '../components/RecipeCard';
 import GroceryListModal from '../components/GroceryListModal';
 import { createRecipeCardProps } from '../utils/recipeActions';
-import { useSession } from '../store/useSession';
+import { useSavedItems } from '../hooks/useSavedItems';
 import { RecipesRepository } from '../repos/supabase';
 import { log } from '../lib/logger';
 
@@ -38,13 +39,13 @@ export default function CocktailListScreen({ navigation, route }: CocktailListSc
   const {
     toggleSavedCocktail,
     isCocktailSaved,
-  } = useSession();
+  } = useSavedItems();
 
   // Set navigation options dynamically
   useLayoutEffect(() => {
     navigation.setOptions({
       title: title,
-      headerBackTitle: 'Recipes',
+      headerBackTitleVisible: false,
       headerRight: category === 'mocktails' ? () => (
         <TouchableOpacity
           onPress={() => {
@@ -190,7 +191,7 @@ export default function CocktailListScreen({ navigation, route }: CocktailListSc
             {/* Zero-Proof Spirits */}
             {mocktailSubcategories.zeroProof.length > 0 && (
               <View style={styles.subcategorySection}>
-                <Text style={styles.subcategoryTitle}>Zero-Proof Spirits</Text>
+                <Heading level={2} style={styles.subcategoryTitle}>Zero-Proof Spirits</Heading>
                 <ScrollView
                   horizontal
                   showsHorizontalScrollIndicator={false}
@@ -222,7 +223,7 @@ export default function CocktailListScreen({ navigation, route }: CocktailListSc
             {/* Wellness Drinks */}
             {mocktailSubcategories.wellness.length > 0 && (
               <View style={styles.subcategorySection}>
-                <Text style={styles.subcategoryTitle}>Wellness Drinks</Text>
+                <Heading level={2} style={styles.subcategoryTitle}>Wellness Drinks</Heading>
                 <ScrollView
                   horizontal
                   showsHorizontalScrollIndicator={false}
@@ -254,7 +255,7 @@ export default function CocktailListScreen({ navigation, route }: CocktailListSc
             {/* Low-ABV Options */}
             {mocktailSubcategories.lowABV.length > 0 && (
               <View style={styles.subcategorySection}>
-                <Text style={styles.subcategoryTitle}>Low-ABV Options</Text>
+                <Heading level={2} style={styles.subcategoryTitle}>Low-ABV Options</Heading>
                 <ScrollView
                   horizontal
                   showsHorizontalScrollIndicator={false}
@@ -309,9 +310,9 @@ export default function CocktailListScreen({ navigation, route }: CocktailListSc
 
         {filteredCocktails.length === 0 && (
           <Animated.View entering={FadeIn.delay(300).duration(600)} style={styles.emptyState}>
-            <Text style={styles.emptyText}>
+            <Heading level={3} style={styles.emptyText}>
               {searchQuery ? 'No results found' : 'No cocktails found for this mood'}
-            </Text>
+            </Heading>
             <Text style={styles.emptySubtext}>
               {searchQuery
                 ? 'Try a different search term or clear the search to see all mocktails'
@@ -395,9 +396,6 @@ const styles = StyleSheet.create({
     marginBottom: spacing(3),
   },
   subcategoryTitle: {
-    fontSize: fonts.h3,
-    fontWeight: '700',
-    color: colors.text,
     marginBottom: spacing(2),
     paddingLeft: spacing(2),
   },
@@ -423,9 +421,6 @@ const styles = StyleSheet.create({
     marginTop: spacing(8),
   },
   emptyText: {
-    fontSize: fonts.h3,
-    fontWeight: '600',
-    color: colors.text,
     textAlign: 'center',
     marginBottom: spacing(1),
   },

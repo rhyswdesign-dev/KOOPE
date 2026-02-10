@@ -38,13 +38,12 @@ interface VaultItemPreviewModalProps {
     imageUrl: string;
     category: string;
     xpCost?: number;
-    keysCost?: number;
     requiredTier?: 'FREE' | 'PLUS' | 'PRO';
     benefits?: PreviewBenefit[];
     isUnlocked?: boolean;
   } | null;
   userXP: number;
-  userKeys: number;
+  userKeys?: number;
   userTier: 'FREE' | 'PLUS' | 'PRO';
 }
 
@@ -54,7 +53,6 @@ export default function VaultItemPreviewModal({
   onUnlock,
   item,
   userXP,
-  userKeys,
   userTier,
 }: VaultItemPreviewModalProps) {
   if (!item) return null;
@@ -67,8 +65,7 @@ export default function VaultItemPreviewModal({
     imageUrl: item.imageUrl,
   });
 
-  const canAfford = (item.xpCost ? userXP >= item.xpCost : true) &&
-                    (item.keysCost ? userKeys >= item.keysCost : true);
+  const canAfford = item.xpCost ? userXP >= item.xpCost : true;
 
   const tierAccess = !item.requiredTier ||
                      (item.requiredTier === 'FREE') ||
@@ -186,31 +183,6 @@ export default function VaultItemPreviewModal({
                   </View>
                 )}
 
-                {/* Keys Cost */}
-                {item.keysCost && (
-                  <View style={styles.requirementRow}>
-                    <View style={styles.requirementLeft}>
-                      <MaterialCommunityIcons name="key" size={20} color={colors.accent} />
-                      <Text style={styles.requirementLabel}>Keys</Text>
-                    </View>
-                    <View style={styles.requirementRight}>
-                      <Text style={[
-                        styles.requirementValue,
-                        userKeys >= item.keysCost && styles.requirementMet
-                      ]}>
-                        {item.keysCost}
-                      </Text>
-                      {userKeys >= item.keysCost ? (
-                        <Ionicons name="checkmark-circle" size={20} color={colors.accent} />
-                      ) : (
-                        <Text style={styles.requirementBalance}>
-                          (You have: {userKeys})
-                        </Text>
-                      )}
-                    </View>
-                  </View>
-                )}
-
                 {/* Tier Requirement */}
                 {item.requiredTier && item.requiredTier !== 'FREE' && (
                   <View style={styles.requirementRow}>
@@ -250,7 +222,7 @@ export default function VaultItemPreviewModal({
                 <View style={styles.warningBanner}>
                   <Ionicons name="warning" size={24} color="#FF6B6B" />
                   <Text style={styles.warningText}>
-                    Insufficient {item.xpCost && userXP < item.xpCost ? 'XP' : 'Keys'}
+                    Insufficient XP
                   </Text>
                 </View>
               )}

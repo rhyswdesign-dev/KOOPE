@@ -1,6 +1,6 @@
 /**
  * FOR YOU FEED COMPONENT
- * Personalized cocktail discovery feed matching PersonalizedHomeScreen design
+ * Personalized cocktail discovery feed for the Recipes screen
  * Features: Greeting, engagement badge, preferences card, AI prompt, Your Moods, AI Recommendations
  */
 

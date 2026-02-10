@@ -60,6 +60,9 @@ export function formatIngredientName(ingredient: string): string {
  * Handles common variations and synonyms
  */
 export function normalizeIngredient(ingredient: string): string {
+  // Guard against undefined/null ingredients
+  if (!ingredient) return '';
+
   // Trim whitespace and convert to lowercase
   const normalized = ingredient.toLowerCase().trim().replace(/\s+/g, ' ');
 
@@ -131,10 +134,32 @@ export function hasIngredient(
  * Calculate how well user's inventory matches a recipe
  */
 export function matchRecipe(
-  recipeIngredients: string,
+  recipeIngredients: string | any[],
   userInventory: UserInventoryItem[]
 ): RecipeMatch {
-  const ingredients = parseIngredients(recipeIngredients);
+  // Handle both string format and array format
+  let ingredients: string[];
+
+  if (typeof recipeIngredients === 'string') {
+    // String format: "2 oz vodka, 1 oz lime juice"
+    ingredients = parseIngredients(recipeIngredients);
+  } else if (Array.isArray(recipeIngredients)) {
+    // Array format: [{name: "2 oz Vodka"}, {name: "1 oz Lime Juice"}]
+    ingredients = recipeIngredients
+      .map(ing => typeof ing === 'string' ? ing : ing.name)
+      .filter(Boolean)
+      .map(ing => {
+        // Remove quantities from array format ingredients
+        return ing
+          .replace(/^\d+(\.\d+)?\s*(oz|ml|tbsp|tsp|dash|drop|splash)?\s*/i, '')
+          .replace(/^\d+\/\d+\s*/i, '')
+          .trim()
+          .toLowerCase();
+      })
+      .filter(ing => ing.length > 0);
+  } else {
+    ingredients = [];
+  }
 
   if (ingredients.length === 0) {
     return {

@@ -6,7 +6,8 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, radii } from '../theme/tokens';
+import { colors, spacing, radii, serif } from '../theme/tokens';
+import { Heading } from './ui';
 
 interface StreakCardProps {
   currentStreak: number;
@@ -48,9 +49,9 @@ export default function StreakCard({
 
           <View style={styles.stats}>
             <Text style={styles.streakLabel}>Current Streak</Text>
-            <Text style={styles.streakValue}>
+            <Heading level={2} style={styles.streakValue}>
               {currentStreak} {currentStreak === 1 ? 'day' : 'days'}
-            </Text>
+            </Heading>
             <Text style={styles.longestStreak}>
               Longest: {longestStreak} {longestStreak === 1 ? 'day' : 'days'}
             </Text>
@@ -126,7 +127,7 @@ const styles = StyleSheet.create({
     right: -4,
     minWidth: 28,
     height: 28,
-    borderRadius: 14,
+    borderRadius: radii.full,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.accent,
@@ -152,6 +153,7 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     color: colors.text,
     marginBottom: spacing(0.25),
+    fontFamily: serif,
   },
   longestStreak: {
     fontSize: 12,

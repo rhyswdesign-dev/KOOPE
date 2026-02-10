@@ -436,6 +436,13 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
           ? REVENUECAT_CONFIG.IOS_API_KEY
           : REVENUECAT_CONFIG.ANDROID_API_KEY;
 
+        // Check for placeholder API key (not configured yet)
+        if (apiKey.includes('PLACEHOLDER') || apiKey.includes('appl_your') || apiKey.includes('goog_your')) {
+          log.info('SubscriptionContext', 'RevenueCat not configured - running in free mode');
+          setIsLoading(false);
+          return;
+        }
+
         // Configure RevenueCat with debug logging in development
         if (__DEV__) {
           Purchases.setLogLevel(LOG_LEVEL.DEBUG);
@@ -468,14 +475,22 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
           isPrestige: isEntitlementActive(info.entitlements.active[SUBSCRIPTION_ENTITLEMENTS.PRESTIGE]),
         });
 
-      } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : 'Failed to initialize RevenueCat';
-        log.error('SubscriptionContext', 'Initialization error', err);
-        setError(errorMessage);
+      } catch (err: any) {
+        // Check if this is an Expo Go / native store unavailable error
+        const errorMessage = err?.message || String(err);
+        const isExpoGoError = errorMessage.includes('native store is not available') ||
+                             errorMessage.includes('Invalid API key') ||
+                             errorMessage.includes('Expo Go');
 
-        // Don't immediately block - give user benefit of doubt during network issues
-        // Free users will still get gated by individual checks
-        log.warn('SubscriptionContext', 'Operating in degraded mode - some features may be limited');
+        if (isExpoGoError) {
+          // Expected in Expo Go - silently continue in free mode
+          log.info('SubscriptionContext', 'Running in Expo Go - IAP not available, using free mode');
+        } else {
+          log.warn('SubscriptionContext', 'RevenueCat initialization failed', { error: errorMessage });
+        }
+
+        // Continue in free mode - don't block the app
+        setError(null);
       } finally {
         setIsLoading(false);
       }

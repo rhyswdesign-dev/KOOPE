@@ -447,6 +447,29 @@ export default function ShoppingCartScreen() {
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
       >
+        {/* AI Shopping Optimization */}
+        {savedShoppingLists.length > 0 && (
+          <View style={styles.aiOptimizationCard}>
+            <View style={styles.aiOptimizationHeader}>
+              <Ionicons name="sparkles" size={20} color={colors.gold} />
+              <Text style={styles.aiOptimizationTitle}>AI Shopping Helper</Text>
+            </View>
+            <TouchableOpacity
+              style={styles.aiActionCard}
+              onPress={() => Alert.alert('Smart Shopping', 'AI-powered shopping optimization coming soon! Get store suggestions, price comparisons, and bundling recommendations.')}
+            >
+              <View style={styles.aiActionContent}>
+                <Ionicons name="cart-outline" size={22} color={colors.accent} />
+                <View style={styles.aiActionText}>
+                  <Text style={styles.aiActionTitle}>Optimize my shopping</Text>
+                  <Text style={styles.aiActionSubtitle}>Find best stores & prices</Text>
+                </View>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={colors.subtext} />
+            </TouchableOpacity>
+          </View>
+        )}
+
         {viewMode === 'cocktail' ? renderCocktailGroupView() : renderIngredientGroupView()}
       </ScrollView>
 
@@ -843,5 +866,55 @@ const styles = StyleSheet.create({
   sortOptionDescription: {
     fontSize: 13,
     color: colors.subtext,
+  },
+  aiOptimizationCard: {
+    backgroundColor: `${colors.gold}08`,
+    borderRadius: radii.lg,
+    padding: spacing(2),
+    marginHorizontal: spacing(3),
+    marginBottom: spacing(2),
+    borderWidth: 1,
+    borderColor: `${colors.gold}20`,
+  },
+  aiOptimizationHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(1),
+    marginBottom: spacing(1.5),
+  },
+  aiOptimizationTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  aiActionCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.card,
+    borderRadius: radii.md,
+    padding: spacing(2),
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
+  aiActionContent: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(1.5),
+  },
+  aiActionText: {
+    flex: 1,
+  },
+  aiActionTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: spacing(0.25),
+  },
+  aiActionSubtitle: {
+    fontSize: 13,
+    color: colors.subtext,
+    lineHeight: 18,
   },
 });

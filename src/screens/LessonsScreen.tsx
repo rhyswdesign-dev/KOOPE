@@ -15,6 +15,7 @@ import curriculumData from '../../curriculum-data.json';
 import { useUser } from '../store/useUser';
 import { useXPSystem } from '../store/useXPSystem';
 import { useEngagement } from '../store/useEngagement';
+import { streakService } from '../services/streakService';
 import { useChallenges } from '../contexts/ChallengeContext';
 import { RewardClaimModal } from '../components/RewardClaimModal';
 import { rewardService } from '../services/rewardService';
@@ -35,7 +36,7 @@ const getSerifFont = () => serif;
 // Challenges component - Original Design with Supabase Data
 function ChallengesView() {
   const navigation = useNavigation<NavigationProp>();
-  const { lives, xp, level, streak, completedLessons } = useUser();
+  const { lives, completedLessons } = useUser();
   const { balance: totalXP } = useXPSystem();
   const engagement = useEngagement();
   const { challenges: supabaseChallenges, isLoading, claimReward } = useChallenges();
@@ -653,12 +654,13 @@ function Challenges2View() {
 // Lessons component (extracted from main component)
 function LessonsView() {
   const navigation = useNavigation<NavigationProp>();
-  const { lives, xp, level, streak, completedLessons, checkLifeRefresh } = useUser();
+  const { lives, completedLessons, checkLifeRefresh } = useUser();
   const { balance: xpBalance } = useXPSystem();
   const [modules, setModules] = useState<any[]>([]);
   const [selectedModule, setSelectedModule] = useState<any | null>(null);
   const [moduleLessons, setModuleLessons] = useState<any[]>([]);
   const [xpBalanceModalVisible, setXpBalanceModalVisible] = useState(false);
+  const streak = streakService.getCurrentStreak();
 
   useEffect(() => {
     // Check for life refresh on screen load
@@ -898,7 +900,7 @@ function LessonsView() {
 
 export default function LessonsScreen() {
   const layout = useWindowDimensions();
-  const { lives, xp, level, streak } = useUser();
+  const { lives } = useUser();
   const navigation = useNavigation<NavigationProp>();
   const { showTooltip, dismissTooltip } = useFeatureTooltip('lessons');
 

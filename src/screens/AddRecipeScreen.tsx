@@ -19,6 +19,9 @@ import type { RootStackParamList } from '../navigation/RootNavigator';
 import { useUserRecipes } from '../store/useUserRecipes';
 import { log } from '../lib/logger';
 
+type RecipeType = 'cocktail' | 'syrup' | 'bitter' | 'infusion' | 'shrub' | 'cordial' | 'tincture';
+type RecipeMethod = 'shake' | 'stir' | 'build' | 'blend' | 'muddle' | 'layer' | 'swizzle' | 'throw';
+
 type ManualRecipe = {
   title: string;
   description: string;
@@ -32,6 +35,8 @@ type ManualRecipe = {
   time: string;
   servings: number;
   tags: string[];
+  recipeType?: RecipeType;
+  method?: RecipeMethod;
 };
 
 const glasswareOptions = [
@@ -66,7 +71,9 @@ export default function AddRecipeScreen() {
     glassware: 'Rocks Glass',
     time: '5',
     servings: 1,
-    tags: ['Easy']
+    tags: ['Easy'],
+    recipeType: 'cocktail',
+    method: undefined
   });
 
   useLayoutEffect(() => {
@@ -121,6 +128,99 @@ export default function AddRecipeScreen() {
         instructions: recipe.instructions.filter((_, i) => i !== index)
       });
     }
+  };
+
+  // Get step suggestions based on method and type
+  const getStepSuggestions = (method: RecipeMethod | null, type: RecipeType): string[] => {
+    if (!method) return [];
+
+    const suggestions: Record<RecipeMethod, string[]> = {
+      shake: [
+        'Add all ingredients to a cocktail shaker',
+        'Add ice and shake vigorously for 10-15 seconds',
+        'Double strain into a chilled glass',
+        'Garnish and serve',
+      ],
+      stir: [
+        'Add all ingredients to a mixing glass',
+        'Add ice and stir gently for 20-30 seconds',
+        'Strain into a chilled glass',
+        'Garnish and serve',
+      ],
+      build: [
+        'Add ingredients directly to the serving glass',
+        'Fill with ice',
+        'Stir gently to combine',
+        'Garnish and serve',
+      ],
+      blend: [
+        'Add all ingredients to a blender',
+        'Add ice and blend until smooth',
+        'Pour into serving glass',
+        'Garnish and serve',
+      ],
+      muddle: [
+        'Add fresh ingredients to the bottom of the glass',
+        'Muddle gently to release flavors',
+        'Add remaining ingredients and ice',
+        'Stir to combine',
+        'Garnish and serve',
+      ],
+      layer: [
+        'Pour the heaviest ingredient first',
+        'Slowly layer each ingredient over a bar spoon',
+        'Layer from heaviest to lightest',
+        'Serve without stirring',
+      ],
+      swizzle: [
+        'Add ingredients to a tall glass',
+        'Fill glass with crushed ice',
+        'Swizzle with a bar spoon or swizzle stick',
+        'Top with more crushed ice',
+        'Garnish and serve',
+      ],
+      throw: [
+        'Pour ingredients into one tin',
+        'Pour mixture back and forth between tins from a height',
+        'Repeat 4-5 times to aerate and chill',
+        'Strain into serving glass',
+        'Garnish and serve',
+      ],
+    };
+
+    // Adjust suggestions for non-cocktail types
+    if (type === 'syrup') {
+      return [
+        'Combine ingredients in a saucepan',
+        'Heat gently until sugar dissolves',
+        'Simmer for recommended time',
+        'Remove from heat and let cool',
+        'Strain and bottle',
+      ];
+    } else if (type === 'bitter' || type === 'tincture') {
+      return [
+        'Combine ingredients in a sterilized jar',
+        'Seal tightly and shake well',
+        'Store in a cool, dark place',
+        'Shake daily for recommended infusion period',
+        'Strain and bottle',
+      ];
+    } else if (type === 'infusion') {
+      return [
+        'Add flavoring ingredients to the spirit',
+        'Seal container and store in a cool place',
+        'Taste daily until desired flavor is reached',
+        'Strain out solids',
+        'Bottle and label',
+      ];
+    }
+
+    return suggestions[method] || [];
+  };
+
+  const applyMethodSuggestions = (method: RecipeMethod) => {
+    const suggestions = getStepSuggestions(method, recipe.recipeType || 'cocktail');
+    setRecipe({ ...recipe, method, instructions: suggestions });
   };
 
   const saveRecipe = async () => {
@@ -183,7 +283,9 @@ export default function AddRecipeScreen() {
       glassware: 'Rocks Glass',
       time: '5',
       servings: 1,
-      tags: ['Easy']
+      tags: ['Easy'],
+      recipeType: 'cocktail',
+      method: undefined
     });
   };
 
@@ -257,6 +359,43 @@ export default function AddRecipeScreen() {
         keyboardAppearance="dark"
       />
 
+      {/* Recipe Type Selection */}
+      <Text style={styles.minimalLabel}>What are you making?</Text>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.typeChipsContainer}
+        style={styles.typeChipsScroll}
+      >
+        {[
+          { key: 'cocktail', label: 'Cocktail', icon: 'wine' },
+          { key: 'syrup', label: 'Syrup', icon: 'water' },
+          { key: 'bitter', label: 'Bitter', icon: 'flask' },
+          { key: 'infusion', label: 'Infusion', icon: 'beaker' },
+          { key: 'shrub', label: 'Shrub', icon: 'leaf' },
+          { key: 'cordial', label: 'Cordial', icon: 'sparkles' },
+          { key: 'tincture', label: 'Tincture', icon: 'eyedropper' },
+        ].map((type) => {
+          const isSelected = recipe.recipeType === type.key;
+          return (
+            <TouchableOpacity
+              key={type.key}
+              style={[styles.typeChip, isSelected && styles.typeChipSelected]}
+              onPress={() => setRecipe({...recipe, recipeType: type.key as RecipeType, method: undefined})}
+            >
+              <Ionicons
+                name={type.icon as any}
+                size={16}
+                color={isSelected ? colors.gold : colors.subtext}
+              />
+              <Text style={[styles.typeChipText, isSelected && styles.typeChipTextSelected]}>
+                {type.label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
+
       {/* Divider */}
       <View style={styles.minimalDivider} />
 
@@ -300,8 +439,68 @@ export default function AddRecipeScreen() {
       {/* Divider */}
       <View style={styles.minimalDivider} />
 
+      {/* Method Selection (only for cocktails) */}
+      {recipe.recipeType === 'cocktail' && (
+        <>
+          <Text style={styles.minimalSectionTitle}>Preparation Method</Text>
+          <Text style={styles.minimalHelperText}>
+            Select a method to get step-by-step guidance
+          </Text>
+
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.methodScroll} contentContainerStyle={styles.methodScrollContent}>
+            {[
+              { key: 'shake', label: 'Shake', icon: 'flash' },
+              { key: 'stir', label: 'Stir', icon: 'repeat' },
+              { key: 'build', label: 'Build', icon: 'layers' },
+              { key: 'blend', label: 'Blend', icon: 'thunderstorm' },
+              { key: 'muddle', label: 'Muddle', icon: 'leaf' },
+              { key: 'layer', label: 'Layer', icon: 'reorder-four' },
+              { key: 'swizzle', label: 'Swizzle', icon: 'sync' },
+              { key: 'throw', label: 'Throw', icon: 'return-up-forward' },
+            ].map((method) => {
+              const isSelected = recipe.method === method.key;
+              return (
+                <TouchableOpacity
+                  key={method.key}
+                  style={[styles.methodOption, isSelected && styles.methodOptionSelected]}
+                  onPress={() => applyMethodSuggestions(method.key as RecipeMethod)}
+                >
+                  <Ionicons
+                    name={method.icon as any}
+                    size={24}
+                    color={isSelected ? colors.bg : colors.gold}
+                  />
+                  <Text style={[styles.methodText, isSelected && styles.methodTextSelected]}>
+                    {method.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+
+          {recipe.method && (
+            <View style={styles.methodHint}>
+              <Ionicons name="information-circle" size={16} color={colors.gold} />
+              <Text style={styles.methodHintText}>
+                Suggested steps added below. Customize as needed!
+              </Text>
+            </View>
+          )}
+
+          <View style={styles.minimalDivider} />
+        </>
+      )}
+
       {/* Instructions Section */}
       <Text style={styles.minimalSectionTitle}>Instructions</Text>
+      {!recipe.method && recipe.recipeType === 'cocktail' && (
+        <View style={styles.selectMethodPrompt}>
+          <Ionicons name="arrow-up" size={18} color={colors.gold} />
+          <Text style={styles.selectMethodPromptText}>
+            Select a method above to get suggested steps!
+          </Text>
+        </View>
+      )}
       {recipe.instructions.map((instruction, index) => (
         <View key={index} style={styles.minimalInstructionRow}>
           <Text style={styles.minimalStepLabel}>Step {index + 1}</Text>
@@ -698,6 +897,114 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   modalOptionTextSelected: {
+    fontWeight: '600',
+    color: colors.gold,
+  },
+
+  // Recipe Type Chips
+  typeChipsScroll: {
+    marginBottom: spacing(2),
+  },
+  typeChipsContainer: {
+    flexDirection: 'row',
+    gap: spacing(1.5),
+    paddingVertical: spacing(1),
+  },
+  typeChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(1),
+    paddingVertical: spacing(1.5),
+    paddingHorizontal: spacing(2.5),
+    borderWidth: 1.5,
+    borderColor: colors.line,
+    borderRadius: radii.pill,
+    backgroundColor: colors.bg,
+  },
+  typeChipSelected: {
+    borderColor: colors.gold,
+    backgroundColor: `${colors.gold}15`,
+  },
+  typeChipText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.subtext,
+  },
+  typeChipTextSelected: {
+    color: colors.gold,
+  },
+
+  // Method Selection
+  minimalHelperText: {
+    fontSize: 13,
+    color: colors.subtext,
+    marginBottom: spacing(2),
+    fontStyle: 'italic',
+  },
+  methodScroll: {
+    marginBottom: spacing(2),
+    marginHorizontal: -spacing(2.5),
+  },
+  methodScrollContent: {
+    paddingHorizontal: spacing(2.5),
+    gap: spacing(1.5),
+  },
+  methodOption: {
+    width: 90,
+    height: 90,
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: colors.gold,
+    borderRadius: radii.lg,
+    gap: spacing(0.75),
+    backgroundColor: colors.bg,
+  },
+  methodOptionSelected: {
+    backgroundColor: colors.gold,
+    borderColor: colors.gold,
+  },
+  methodText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  methodTextSelected: {
+    color: colors.bg,
+  },
+  methodHint: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(1.5),
+    backgroundColor: `${colors.gold}15`,
+    paddingHorizontal: spacing(2),
+    paddingVertical: spacing(2),
+    borderRadius: radii.md,
+    marginBottom: spacing(2),
+  },
+  methodHintText: {
+    flex: 1,
+    fontSize: 13,
+    color: colors.text,
+    lineHeight: 18,
+  },
+  selectMethodPrompt: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing(1.5),
+    backgroundColor: `${colors.gold}10`,
+    borderWidth: 2,
+    borderColor: `${colors.gold}30`,
+    borderStyle: 'dashed',
+    borderRadius: radii.lg,
+    paddingVertical: spacing(2.5),
+    paddingHorizontal: spacing(2),
+    marginBottom: spacing(3),
+  },
+  selectMethodPromptText: {
+    fontSize: 14,
     fontWeight: '600',
     color: colors.gold,
   },

@@ -12,7 +12,8 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Feather } from '@expo/vector-icons';
 import type { RootStackParamList } from '../navigation/RootNavigator';
-import { colors, spacing } from '../theme/tokens';
+import { colors, spacing, radii } from '../theme/tokens';
+import { Heading } from '../components/ui';
 
 const W = Dimensions.get('window').width;
 const CARD = W - 24 * 2;
@@ -102,7 +103,7 @@ export default function ExploreScreen() {
       <View style={styles.heroCard}>
         <Image source={{ uri: hero.image }} style={styles.heroImg} />
         <View style={styles.heroBody}>
-          <Text style={styles.heroTitle}>{hero.title}</Text>
+          <Heading level={2} style={styles.heroTitle}>{hero.title}</Heading>
           <Text style={styles.heroBlurb}>{hero.blurb}</Text>
           <Text style={styles.heroMeta}>Earn +{hero.xp} XP</Text>
 
@@ -119,22 +120,22 @@ export default function ExploreScreen() {
         cta="Random Game"
         onPressCTA={() => nav.navigate('Games')}
       />
-      <Text style={styles.sectionSub}>Classic Games</Text>
+      <Heading level={3} style={styles.sectionSub}>Classic Games</Heading>
       <CardGrid items={gridClassic} />
 
       {/* Section: Cultural Games */}
-      <Text style={[styles.sectionSub, { marginTop: spacing(2) }]}>Cultural Games</Text>
+      <Heading level={3} style={[styles.sectionSub, { marginTop: spacing(2) }]}>Cultural Games</Heading>
       <CardGrid items={gridCultural} />
 
       {/* Section: Card-Based Games (hero wide) */}
-      <Text style={[styles.sectionSub, { marginTop: spacing(2) }]}>Card-Based Games</Text>
+      <Heading level={3} style={[styles.sectionSub, { marginTop: spacing(2) }]}>Card-Based Games</Heading>
       <WidePromo
         image="https://images.unsplash.com/photo-1542401886-65d6c6114f7a?q=80&w=1600&auto=format&fit=crop"
         onPress={() => nav.navigate('Games')}
       />
 
       {/* Section: App-Enhanced */}
-      <Text style={[styles.sectionSub, { marginTop: spacing(2) }]}>App-Enhanced</Text>
+      <Heading level={3} style={[styles.sectionSub, { marginTop: spacing(2) }]}>App-Enhanced</Heading>
       <CardGrid
         items={[
           {
@@ -157,7 +158,7 @@ export default function ExploreScreen() {
       />
 
       {/* Section: Party Games */}
-      <Text style={[styles.sectionSub, { marginTop: spacing(2) }]}>Party Games</Text>
+      <Heading level={3} style={[styles.sectionSub, { marginTop: spacing(2) }]}>Party Games</Heading>
       <CardGrid items={gridParty} />
     </ScrollView>
   );
@@ -199,7 +200,7 @@ function SectionHeader({
 }) {
   return (
     <View style={styles.sectionHeader}>
-      <Text style={styles.sectionTitle}>{title}</Text>
+      <Heading level={2} style={styles.sectionTitle}>{title}</Heading>
       {!!cta && (
         <TouchableOpacity style={styles.cta} onPress={onPressCTA}>
           <Feather name="shuffle" size={14} color="#2a1c12" />
@@ -234,7 +235,7 @@ function CardGrid({
           activeOpacity={0.9}
         >
           <Image source={{ uri: it.image }} style={styles.gridImg} />
-          <Text style={styles.gridTitle}>{it.title}</Text>
+          <Heading level={3} style={styles.gridTitle}>{it.title}</Heading>
           <Text style={styles.gridMeta}>{it.meta}</Text>
         </TouchableOpacity>
       ))}
@@ -269,7 +270,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.gold,
     paddingHorizontal: spacing(2),
     paddingVertical: spacing(1),
-    borderRadius: 20,
+    borderRadius: radii.pill,
   },
   chipTxt: {
     color: colors.goldText,
@@ -279,7 +280,7 @@ const styles = StyleSheet.create({
   heroCard: {
     marginHorizontal: spacing(2),
     backgroundColor: colors.card,
-    borderRadius: 16,
+    borderRadius: radii.lg,
     overflow: 'hidden',
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.line,
@@ -293,7 +294,6 @@ const styles = StyleSheet.create({
     gap: spacing(1),
   },
   heroTitle: {
-    color: colors.text,
     fontSize: 20,
     fontWeight: '800',
   },
@@ -329,7 +329,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   sectionTitle: {
-    color: colors.text,
     fontSize: 18,
     fontWeight: '800',
   },
@@ -339,13 +338,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.gold,
     paddingHorizontal: spacing(1.75),
     paddingVertical: spacing(1),
-    borderRadius: 999,
+    borderRadius: radii.pill,
     alignItems: 'center',
   },
   ctaTxt: { color: colors.goldText, fontWeight: '700', fontSize: 12 },
 
   sectionSub: {
-    color: colors.text,
     fontSize: 16,
     fontWeight: '700',
     paddingHorizontal: spacing(2),
@@ -365,11 +363,10 @@ const styles = StyleSheet.create({
   gridImg: {
     width: '100%',
     height: 150,
-    borderRadius: 14,
+    borderRadius: radii.md,
   },
   gridTitle: {
     marginTop: spacing(1),
-    color: colors.text,
     fontWeight: '700',
   },
   gridMeta: {
@@ -379,7 +376,7 @@ const styles = StyleSheet.create({
 
   widePromo: {
     marginHorizontal: spacing(2),
-    borderRadius: 16,
+    borderRadius: radii.lg,
     overflow: 'hidden',
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.line,

@@ -38,20 +38,6 @@ export const hasEarlySeasonalAccess = (tier: UserTier): boolean => {
 };
 
 /**
- * Get number of monthly free keys for user tier
- */
-export const getMonthlyFreeKeys = (tier: UserTier): number => {
-  switch (tier) {
-    case 'FREE':
-      return 0;
-    case 'PLUS':
-      return 0;
-    case 'PRO':
-      return 1; // PRO users get 1 free key per month
-  }
-};
-
-/**
  * Get inventory item cap based on tier
  * @returns number of items allowed, or null for unlimited
  */

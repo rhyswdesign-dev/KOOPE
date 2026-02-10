@@ -3,7 +3,7 @@
  *
  * This file contains:
  * - Helper functions for filtering and checking Vault items
- * - Logic for unlocking items with XP or Keys
+ * - Logic for unlocking items with XP
  * - React hook for managing user Vault state
  *
  * TODO: In production, replace local state with backend API calls
@@ -91,8 +91,7 @@ export function canUnlockWithXP(
   // Does unlock method support XP?
   const supportsXP =
     item.unlockMethod === 'XP_ONLY' ||
-    item.unlockMethod === 'XP_OR_MONEY' ||
-    item.unlockMethod === 'KEY_OR_XP';
+    item.unlockMethod === 'XP_OR_MONEY';
 
   if (!supportsXP) return false;
 
@@ -101,31 +100,6 @@ export function canUnlockWithXP(
 
   // Does user have enough XP?
   if (userState.xp < item.xpCost) return false;
-
-  return true;
-}
-
-// ============================================================================
-// HELPER: Check if user can unlock with Key
-// ============================================================================
-
-export function canUnlockWithKey(
-  userState: UserVaultState,
-  item: VaultItem
-): boolean {
-  // Already owned?
-  if (isItemOwned(userState, item.id)) return false;
-
-  // Does unlock method support Keys?
-  const supportsKey =
-    item.unlockMethod === 'KEY_ONLY' ||
-    item.unlockMethod === 'KEY_OR_XP' ||
-    item.unlockMethod === 'KEY_OR_MONEY';
-
-  if (!supportsKey) return false;
-
-  // Does user have at least 1 key?
-  if (userState.vaultKeys < 1) return false;
 
   return true;
 }
@@ -150,25 +124,6 @@ export function unlockItemWithXP(
 }
 
 // ============================================================================
-// PURE FUNCTION: Unlock item with Key
-// ============================================================================
-
-export function unlockItemWithKey(
-  userState: UserVaultState,
-  item: VaultItem
-): UserVaultState {
-  if (!canUnlockWithKey(userState, item)) {
-    throw new Error('Cannot unlock item with Key');
-  }
-
-  return {
-    ...userState,
-    vaultKeys: userState.vaultKeys - 1,
-    ownedItemIds: [...userState.ownedItemIds, item.id],
-  };
-}
-
-// ============================================================================
 // REACT HOOK: Manage Vault State
 // ============================================================================
 
@@ -178,7 +133,6 @@ export function useVaultState() {
     userId: 'mock_user_123',
     tier: 'PLUS', // Mock tier - can be FREE, PLUS, or PRO
     xp: 1800,     // Starting XP for testing
-    vaultKeys: 2, // Starting keys for testing
     ownedItemIds: [], // Start with no owned items
   });
 
@@ -211,26 +165,6 @@ export function useVaultState() {
     [userState, allItems]
   );
 
-  // Unlock with Key
-  const unlockWithKey = useCallback(
-    (itemId: string) => {
-      const item = allItems.find((i) => i.id === itemId);
-      if (!item) {
-        throw new Error(`Item not found: ${itemId}`);
-      }
-
-      try {
-        const newState = unlockItemWithKey(userState, item);
-        setUserState(newState);
-        return { success: true, newState };
-      } catch (error) {
-        log.error('vaultState', 'Failed to unlock with Key', error as Error, { itemId });
-        return { success: false, error: error as Error };
-      }
-    },
-    [userState, allItems]
-  );
-
   // Get items by category
   const getItemsByCategory = useCallback(
     (category: VaultCategory) => {
@@ -252,20 +186,13 @@ export function useVaultState() {
     [userState]
   );
 
-  const checkCanUnlockWithKey = useCallback(
-    (item: VaultItem) => canUnlockWithKey(userState, item),
-    [userState]
-  );
-
   return {
     userState,
     allItems,
     availableItems,
     unlockWithXP,
-    unlockWithKey,
     getItemsByCategory,
     isOwned: checkIsOwned,
     canUnlockWithXP: checkCanUnlockWithXP,
-    canUnlockWithKey: checkCanUnlockWithKey,
   };
 }

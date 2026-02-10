@@ -14,14 +14,11 @@ export type VaultCategoryId =
   | "TECHNIQUE_PLAYBOOKS"
   | "BAR_FEATURES"
   | "SEASONAL_DROPS"
-  | "VAULT_KEYS";
+  | "GAMES";
 
 export type UnlockMethod =
   | "XP_ONLY"
-  | "XP_OR_MONEY"
-  | "KEY_ONLY"
-  | "KEY_OR_XP"
-  | "KEY_OR_MONEY";
+  | "XP_OR_MONEY";
 
 export type UserTier = "FREE" | "PLUS" | "PRO";
 
@@ -75,10 +72,10 @@ export const vaultCategories: VaultCategoryConfig[] = [
     sortOrder: 4,
   },
   {
-    id: "VAULT_KEYS",
-    title: "Vault Keys",
-    subtitle: "Privileged access & early unlocks",
-    description: "Vault Keys unlock premium content instantly. Use them for seasonal drops, bar features, and curated bundles. Keys represent leverage, not luck.",
+    id: "GAMES",
+    title: "Drinking Games",
+    subtitle: "Classic party games with full rules",
+    description: "Unlock official rules, variations, and strategies for the best drinking games. Perfect for parties, game nights, and social gatherings.",
     sortOrder: 5,
   },
 ];
@@ -225,7 +222,7 @@ export const cocktailVariations: CocktailVariationContent[] = [
     tags: ["spiced", "winter", "seasonal", "bitter"],
     xpCost: 500,
     moneyPriceCents: 499,
-    unlockMethod: "KEY_OR_XP",
+    unlockMethod: "XP_ONLY",
     requiredTier: "PLUS", // PLUS - seasonal content
   },
   {
@@ -237,7 +234,7 @@ export const cocktailVariations: CocktailVariationContent[] = [
     tags: ["berry", "summer", "seasonal", "fruit"],
     xpCost: 400,
     moneyPriceCents: 299,
-    unlockMethod: "KEY_OR_XP",
+    unlockMethod: "XP_ONLY",
     requiredTier: "PLUS", // PLUS - seasonal content
   },
 ];
@@ -567,54 +564,127 @@ export const seasonalDrops: SeasonalDropContent[] = [
 ];
 
 // ============================================================================
-// VAULT KEY CONFIGURATIONS
+// DRINKING GAMES
 // ============================================================================
 
-export interface VaultKeyConfig {
+export interface DrinkingGameContent {
   id: string;
   title: string;
-  description: string;
-  keysGranted: number;
-  proMonthlyIncluded: boolean;
-  isPurchasable: boolean;
-  moneyPriceCents?: number;
+  shortDescription: string;
+  players: string;
+  difficulty: "Easy" | "Medium" | "Hard";
+  origin: string;
+  category: "classic" | "cultural" | "app_enhanced" | "party";
+  xpCost: number;
+  requiredTier?: UserTier;
 }
 
-export const vaultKeyConfigs: VaultKeyConfig[] = [
+export const drinkingGames: DrinkingGameContent[] = [
+  // Classic Games
   {
-    id: "key_pro_monthly",
-    title: "PRO Monthly Key",
-    description: "Included free with KOOPE PRO subscription. Automatically granted on the 1st of each month. Use for seasonal drops, bar features, or curated bundles.",
-    keysGranted: 1,
-    proMonthlyIncluded: true,
-    isPurchasable: false,
+    id: "game_kings_cup",
+    title: "King's Cup",
+    shortDescription: "The ultimate card-based drinking game. Draw cards and perform actions based on the card drawn. A must-know for any party host.",
+    players: "4–10+",
+    difficulty: "Easy",
+    origin: "USA",
+    category: "classic",
+    xpCost: 200,
+    // FREE - entry point game
   },
   {
-    id: "key_single_purchase",
-    title: "Single Vault Key",
-    description: "Unlock one premium item instantly. Perfect for accessing a specific bar feature or seasonal drop without waiting.",
-    keysGranted: 1,
-    proMonthlyIncluded: false,
-    isPurchasable: true,
-    moneyPriceCents: 299,
+    id: "game_flip_cup",
+    title: "Flip Cup",
+    shortDescription: "Fast-paced team relay game. Drink and flip your cup before the next player goes. Speed, coordination, and team spirit required.",
+    players: "2–4 per team",
+    difficulty: "Easy",
+    origin: "USA",
+    category: "classic",
+    xpCost: 200,
+    // FREE - entry point game
   },
   {
-    id: "key_three_pack",
-    title: "3-Key Bundle",
-    description: "Best value for multiple unlocks. Save 25% compared to buying keys individually. Ideal for seasonal drop access.",
-    keysGranted: 3,
-    proMonthlyIncluded: false,
-    isPurchasable: true,
-    moneyPriceCents: 699,
+    id: "game_beer_pong",
+    title: "Beer Pong",
+    shortDescription: "The iconic party game. Toss ping pong balls into cups across the table. Master your arc and dominate the competition.",
+    players: "2–4",
+    difficulty: "Medium",
+    origin: "USA",
+    category: "classic",
+    xpCost: 250,
+    // FREE - popular game
+  },
+
+  // Cultural Games
+  {
+    id: "game_ring_of_fire",
+    title: "Ring of Fire",
+    shortDescription: "The British cousin of King's Cup with unique rule variations. Cards placed around a central cup create escalating stakes.",
+    players: "2+",
+    difficulty: "Medium",
+    origin: "UK",
+    category: "cultural",
+    xpCost: 300,
+    requiredTier: "PLUS",
   },
   {
-    id: "key_five_pack",
-    title: "5-Key Power Bundle",
-    description: "Maximum leverage for serious bartenders. Save 33% and unlock entire seasonal collections or multiple bar features instantly.",
-    keysGranted: 5,
-    proMonthlyIncluded: false,
-    isPurchasable: true,
-    moneyPriceCents: 999,
+    id: "game_fuzzy_duck",
+    title: "Fuzzy Duck",
+    shortDescription: "A tongue-twister drinking game that gets hilariously difficult. Say 'fuzzy duck' or 'ducky fuzz' without slipping up.",
+    players: "2+",
+    difficulty: "Hard",
+    origin: "UK",
+    category: "cultural",
+    xpCost: 300,
+    requiredTier: "PLUS",
+  },
+
+  // App-Enhanced Games
+  {
+    id: "game_truth_or_dare",
+    title: "Truth or Dare",
+    shortDescription: "The classic party game with a drinking twist. Refuse a truth or dare and take a drink. Includes curated question/dare decks.",
+    players: "2–10",
+    difficulty: "Medium",
+    origin: "Global",
+    category: "app_enhanced",
+    xpCost: 350,
+    requiredTier: "PLUS",
+  },
+  {
+    id: "game_most_likely_to",
+    title: "Most Likely To",
+    shortDescription: "Vote on who in the group is most likely to do something outrageous. The person with the most votes drinks.",
+    players: "2–10",
+    difficulty: "Easy",
+    origin: "Global",
+    category: "app_enhanced",
+    xpCost: 300,
+    requiredTier: "PLUS",
+  },
+
+  // Party Games
+  {
+    id: "game_rage_cage",
+    title: "Rage Cage",
+    shortDescription: "High-intensity bouncing game with stacking cups. When someone catches up, stack your cup on theirs. Pure chaos.",
+    players: "2+",
+    difficulty: "Hard",
+    origin: "Global",
+    category: "party",
+    xpCost: 400,
+    requiredTier: "PRO",
+  },
+  {
+    id: "game_power_hour",
+    title: "Power Hour",
+    shortDescription: "Take a shot of beer every minute for 60 minutes. Simple concept, legendary endurance challenge. Includes a built-in timer.",
+    players: "2+",
+    difficulty: "Easy",
+    origin: "Global",
+    category: "party",
+    xpCost: 350,
+    requiredTier: "PLUS",
   },
 ];
 
@@ -728,11 +798,11 @@ export function getItemsForSeasonalDrop(dropId: string): {
     drop.includedPlaybookIds.includes(pb.id)
   );
 
-  const barFeatures = barFeatures.filter((bf) =>
+  const bars = barFeatures.filter((bf) =>
     drop.includedBarFeatureIds?.includes(bf.id)
   );
 
-  return { variations, playbooks, barFeatures };
+  return { variations, playbooks, barFeatures: bars };
 }
 
 /**
@@ -820,19 +890,34 @@ export function getBarFeatureById(id: string): BarFeatureContent | undefined {
 }
 
 /**
- * Get vault key config by ID
+ * Get all drinking games for display
+ * Can optionally filter by user tier
  */
-export function getVaultKeyConfigById(
-  id: string
-): VaultKeyConfig | undefined {
-  return vaultKeyConfigs.find((key) => key.id === id);
+export function getDrinkingGamesForDisplay(userTier?: UserTier): DrinkingGameContent[] {
+  let games = [...drinkingGames];
+
+  if (userTier) {
+    games = games.filter(g => {
+      if (!g.requiredTier) return true;
+      return getTierLevel(userTier) >= getTierLevel(g.requiredTier);
+    });
+  }
+
+  return games.sort((a, b) => a.xpCost - b.xpCost);
 }
 
 /**
- * Get all purchasable vault keys
+ * Get drinking game by ID
  */
-export function getPurchasableVaultKeys(): VaultKeyConfig[] {
-  return vaultKeyConfigs.filter((key) => key.isPurchasable);
+export function getDrinkingGameById(id: string): DrinkingGameContent | undefined {
+  return drinkingGames.find((g) => g.id === id);
+}
+
+/**
+ * Get drinking games by category
+ */
+export function getDrinkingGamesByCategory(category: DrinkingGameContent['category']): DrinkingGameContent[] {
+  return drinkingGames.filter((g) => g.category === category);
 }
 
 /**

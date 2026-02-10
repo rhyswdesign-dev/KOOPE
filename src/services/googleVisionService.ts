@@ -5,6 +5,7 @@
 
 import * as FileSystem from 'expo-file-system';
 import { log } from '../lib/logger';
+import { findSpirit, type Spirit } from '../data/spiritsDatabase';
 
 // You'll need to set this in your environment variables or .env file
 const GOOGLE_CLOUD_VISION_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_VISION_API_KEY || '';
@@ -275,6 +276,235 @@ export class GoogleVisionService {
     }
 
     log.warn('GoogleVisionService', 'Could not match spirit from results');
+    return null;
+  }
+
+  /**
+   * Match ingredient from vision results
+   * Identifies common cocktail ingredients from image analysis
+   */
+  static matchIngredient(result: VisionResult): {
+    name: string;
+    category: string;
+    confidence: number;
+  } | null {
+    const allText = (result.text || []).join(' ').toUpperCase();
+    const allLabels = result.labels.join(' ').toLowerCase();
+
+    log.info('GoogleVisionService', 'Matching ingredient', {
+      textLength: allText.length,
+      labelsCount: result.labels.length,
+      confidence: result.confidence,
+    });
+
+    // Low confidence check
+    if (result.confidence < 0.3) {
+      log.warn('GoogleVisionService', 'Confidence too low for ingredient matching', {
+        confidence: result.confidence,
+      });
+      return null;
+    }
+
+    // Common cocktail ingredients by category
+    const ingredients = {
+      citrus: ['lemon', 'lime', 'orange', 'grapefruit', 'yuzu', 'bergamot'],
+      herbs: ['mint', 'basil', 'rosemary', 'thyme', 'sage', 'cilantro', 'parsley'],
+      fruits: ['strawberry', 'raspberry', 'blackberry', 'blueberry', 'cherry', 'pineapple', 'mango', 'watermelon', 'apple', 'pear', 'peach'],
+      vegetables: ['cucumber', 'celery', 'tomato', 'pepper', 'jalapeño', 'ginger'],
+      garnishes: ['olive', 'cherry', 'orange peel', 'lemon peel', 'lime wheel', 'mint sprig'],
+      spices: ['cinnamon', 'nutmeg', 'clove', 'cardamom', 'vanilla', 'pepper'],
+      sweeteners: ['sugar', 'honey', 'agave', 'syrup', 'simple syrup'],
+    };
+
+    // Try to identify ingredient from labels
+    for (const [category, ingredientList] of Object.entries(ingredients)) {
+      for (const ingredient of ingredientList) {
+        // Check both labels and text
+        if (allLabels.includes(ingredient) || allText.includes(ingredient.toUpperCase())) {
+          log.info('GoogleVisionService', 'Ingredient matched', {
+            name: ingredient,
+            category,
+            confidence: result.confidence,
+          });
+
+          return {
+            name: ingredient.charAt(0).toUpperCase() + ingredient.slice(1),
+            category: category.charAt(0).toUpperCase() + category.slice(1),
+            confidence: result.confidence,
+          };
+        }
+      }
+    }
+
+    // If no specific ingredient matched, try generic categories from labels
+    if (allLabels.includes('fruit')) {
+      return { name: 'Fruit', category: 'Fruits', confidence: result.confidence };
+    }
+    if (allLabels.includes('herb') || allLabels.includes('plant')) {
+      return { name: 'Herb', category: 'Herbs', confidence: result.confidence };
+    }
+    if (allLabels.includes('vegetable')) {
+      return { name: 'Vegetable', category: 'Vegetables', confidence: result.confidence };
+    }
+    if (allLabels.includes('citrus')) {
+      return { name: 'Citrus', category: 'Citrus', confidence: result.confidence };
+    }
+
+    log.warn('GoogleVisionService', 'Could not match ingredient from results');
+    return null;
+  }
+
+  /**
+   * Detect what type of item was scanned
+   * Returns: 'bottle' | 'recipe' | 'ingredient' | 'unknown'
+   */
+  static detectScanType(result: VisionResult): 'bottle' | 'recipe' | 'ingredient' | 'unknown' {
+    const allText = (result.text || []).join(' ').toUpperCase();
+    const allLabels = result.labels.join(' ').toLowerCase();
+
+    log.info('GoogleVisionService', 'Detecting scan type', {
+      labelsCount: result.labels.length,
+      textLength: allText.length,
+    });
+
+    // Check for bottle indicators
+    const bottleIndicators = [
+      'bottle', 'alcohol', 'spirits', 'liquor', 'vodka', 'gin', 'rum',
+      'whiskey', 'tequila', 'mezcal', 'brandy', 'cognac', 'liqueur',
+      'abv', 'alc/vol', 'proof', 'distilled', 'barrel'
+    ];
+
+    // Check for recipe indicators
+    const recipeIndicators = [
+      'oz', 'ml', 'cup', 'tsp', 'tbsp', 'dash', 'splash',
+      'ingredients', 'recipe', 'instructions', 'garnish',
+      'shake', 'stir', 'strain', 'muddle', 'build'
+    ];
+
+    // Check for ingredient indicators
+    const ingredientIndicators = [
+      'lemon', 'lime', 'orange', 'mint', 'basil', 'cucumber',
+      'fruit', 'herb', 'vegetable', 'citrus', 'berry'
+    ];
+
+    let bottleScore = 0;
+    let recipeScore = 0;
+    let ingredientScore = 0;
+
+    // Score based on labels
+    bottleIndicators.forEach(indicator => {
+      if (allLabels.includes(indicator)) bottleScore += 2;
+      if (allText.includes(indicator.toUpperCase())) bottleScore += 1;
+    });
+
+    recipeIndicators.forEach(indicator => {
+      if (allLabels.includes(indicator)) recipeScore += 2;
+      if (allText.includes(indicator.toUpperCase())) recipeScore += 1;
+    });
+
+    ingredientIndicators.forEach(indicator => {
+      if (allLabels.includes(indicator)) ingredientScore += 2;
+      if (allText.includes(indicator.toUpperCase())) ingredientScore += 1;
+    });
+
+    // Check for ABV pattern (strong bottle indicator)
+    if (/\d+(?:\.\d+)?%?\s*(?:ALC|ABV|PROOF)/i.test(allText)) {
+      bottleScore += 5;
+    }
+
+    // Check for measurements (strong recipe indicator)
+    if (/\d+\s*(?:oz|ml|cup|tsp|tbsp)/i.test(allText)) {
+      recipeScore += 5;
+    }
+
+    log.info('GoogleVisionService', 'Scan type scores', {
+      bottle: bottleScore,
+      recipe: recipeScore,
+      ingredient: ingredientScore,
+    });
+
+    // Determine type based on highest score
+    const maxScore = Math.max(bottleScore, recipeScore, ingredientScore);
+
+    if (maxScore === 0) {
+      return 'unknown';
+    }
+
+    if (bottleScore === maxScore) {
+      return 'bottle';
+    }
+
+    if (recipeScore === maxScore) {
+      return 'recipe';
+    }
+
+    return 'ingredient';
+  }
+
+  /**
+   * Match a bottle to the spirits database
+   * Returns detailed spirit information if found
+   */
+  static matchBottle(result: VisionResult): Spirit | null {
+    const allText = (result.text || []).join(' ').toUpperCase();
+    const allLabels = result.labels.join(' ').toLowerCase();
+
+    log.info('GoogleVisionService', 'Matching bottle to database', {
+      textLength: allText.length,
+      labelsCount: result.labels.length,
+    });
+
+    // Low confidence check
+    if (result.confidence < 0.4) {
+      log.warn('GoogleVisionService', 'Confidence too low for bottle matching', {
+        confidence: result.confidence,
+      });
+      return null;
+    }
+
+    // Extract potential brand names from text
+    // Try to find spirits by searching for brand names in the text
+    const textWords = allText.split(/\s+/).filter(word => word.length > 2);
+
+    // Try exact brand matches first
+    for (const word of textWords) {
+      const spirit = findSpirit(word);
+      if (spirit) {
+        log.info('GoogleVisionService', 'Bottle matched from text', {
+          brand: spirit.brand,
+          name: spirit.name,
+        });
+        return spirit;
+      }
+    }
+
+    // Try multi-word brand names
+    for (let i = 0; i < textWords.length - 1; i++) {
+      const twoWords = `${textWords[i]} ${textWords[i + 1]}`;
+      const spirit = findSpirit(twoWords);
+      if (spirit) {
+        log.info('GoogleVisionService', 'Bottle matched from multi-word text', {
+          brand: spirit.brand,
+          name: spirit.name,
+        });
+        return spirit;
+      }
+    }
+
+    // Try label-based matching
+    const labelWords = allLabels.split(/\s+/).filter(word => word.length > 2);
+    for (const word of labelWords) {
+      const spirit = findSpirit(word);
+      if (spirit) {
+        log.info('GoogleVisionService', 'Bottle matched from label', {
+          brand: spirit.brand,
+          name: spirit.name,
+        });
+        return spirit;
+      }
+    }
+
+    log.warn('GoogleVisionService', 'Could not match bottle to database');
     return null;
   }
 }

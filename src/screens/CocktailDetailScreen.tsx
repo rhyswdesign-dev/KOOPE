@@ -28,7 +28,7 @@ import { trackEvent, ANALYTICS_EVENTS, ANALYTICS_PROPS } from '../lib/analytics'
 import { useXPSystem } from '../store/useXPSystem';
 import { InventoryService } from '../services/inventoryService';
 import { useAuth } from '../contexts/AuthContext';
-import { hasIngredient } from '../utils/recipeMatching';
+import { hasIngredient, parseIngredients } from '../utils/recipeMatching';
 import { getSpiritSubstitutions, getSubstitutionMessage } from '../utils/spiritSubstitutions';
 import type { UserInventoryItem } from '../types/database';
 
@@ -1107,16 +1107,37 @@ export default function CocktailDetailScreen() {
     let owned = 0;
     const missing: string[] = [];
 
+    // Handle different ingredient formats
+    let ingredientList: string[];
+    if (typeof cocktail.ingredients === 'string') {
+      // Supabase format: comma-separated string
+      ingredientList = parseIngredients(cocktail.ingredients);
+      log.debug('CocktailDetailScreen', 'Parsed Supabase ingredients', {
+        originalString: cocktail.ingredients,
+        parsedList: ingredientList,
+      });
+    } else if (Array.isArray(cocktail.ingredients)) {
+      // Firebase format: array of objects with .name property
+      ingredientList = cocktail.ingredients.map((ing: any) => ing.name);
+      log.debug('CocktailDetailScreen', 'Parsed Firebase ingredients', {
+        parsedList: ingredientList,
+      });
+    } else {
+      log.warn('CocktailDetailScreen', 'Unknown ingredients format', {
+        ingredientsType: typeof cocktail.ingredients,
+      });
+      return { owned: 0, total: 0, missing: [] };
+    }
+
     log.debug('CocktailDetailScreen', 'Calculating ingredient stats', {
       cocktailName: cocktail.title,
-      totalIngredients: cocktail.ingredients.length,
+      totalIngredients: ingredientList.length,
       inventorySize: userInventory.length,
       hasUser: !!user,
       inventoryItems: userInventory.map(i => i.item_name).slice(0, 5),
     });
 
-    cocktail.ingredients.forEach((ingredient) => {
-      const ingredientName = ingredient.name;
+    ingredientList.forEach((ingredientName) => {
       const hasIt = hasIngredient(userInventory, ingredientName);
 
       log.debug('CocktailDetailScreen', `Checking ingredient: "${ingredientName}"`, {
@@ -1132,16 +1153,79 @@ export default function CocktailDetailScreen() {
 
     log.debug('CocktailDetailScreen', 'Ingredient stats result', {
       owned,
-      total: cocktail.ingredients.length,
+      total: ingredientList.length,
       missingCount: missing.length,
     });
 
     return {
       owned,
-      total: cocktail.ingredients.length,
+      total: ingredientList.length,
       missing,
     };
   }, [cocktail, userInventory, user]);
+
+  // Parse ingredients into consistent format for rendering
+  const parsedIngredients = React.useMemo(() => {
+    if (!cocktail || !cocktail.ingredients) return [];
+
+    if (typeof cocktail.ingredients === 'string') {
+      // Supabase format: split string but preserve original formatting for display
+      const separator = cocktail.ingredients.includes('|') ? '|' : ',';
+      const ingredientStrings = cocktail.ingredients
+        .split(separator)
+        .map(s => s.trim())
+        .filter(s => s.length > 0);
+      return ingredientStrings.map(name => ({ name, note: undefined }));
+    } else if (Array.isArray(cocktail.ingredients)) {
+      // Firebase format: already an array of objects
+      return cocktail.ingredients;
+    }
+
+    return [];
+  }, [cocktail]);
+
+  // Parse instructions into consistent format for rendering
+  const parsedInstructions = React.useMemo(() => {
+    if (!cocktail || !cocktail.instructions) return [];
+
+    if (typeof cocktail.instructions === 'string') {
+      // Supabase format: split string into array of steps
+      // Split by period followed by space, newline, or numbered steps
+      const steps = cocktail.instructions
+        .split(/\.\s+|\n+/)
+        .map(step => step.trim())
+        .filter(step => step.length > 0)
+        .map(step => {
+          // Remove leading numbers like "1. ", "2) ", etc.
+          return step.replace(/^\d+[\.\)]\s*/, '');
+        });
+      return steps;
+    } else if (Array.isArray(cocktail.instructions)) {
+      // Firebase format: already an array
+      return cocktail.instructions;
+    }
+
+    return [];
+  }, [cocktail]);
+
+  // Parse tips into consistent format for rendering
+  const parsedTips = React.useMemo(() => {
+    if (!cocktail || !cocktail.tips) return [];
+
+    if (typeof cocktail.tips === 'string') {
+      // String format: split by newlines or bullet points
+      const tips = cocktail.tips
+        .split(/\n+|•/)
+        .map(tip => tip.trim())
+        .filter(tip => tip.length > 0);
+      return tips;
+    } else if (Array.isArray(cocktail.tips)) {
+      // Array format: already parsed
+      return cocktail.tips;
+    }
+
+    return [];
+  }, [cocktail]);
 
   // Debug log to check cocktail data
   useEffect(() => {
@@ -1270,13 +1354,9 @@ export default function CocktailDetailScreen() {
 
   useLayoutEffect(() => {
     nav.setOptions({
-      title: cocktail?.title || 'Cocktail',
-      headerStyle: { backgroundColor: colors.bg },
-      headerTintColor: colors.text,
-      headerTitleStyle: { color: colors.text, fontWeight: '900' },
-      headerShadowVisible: false,
+      headerShown: false,
     });
-  }, [nav, cocktail?.title]);
+  }, [nav]);
 
   if (loading) {
     return <CocktailDetailSkeleton />;
@@ -1408,12 +1488,23 @@ export default function CocktailDetailScreen() {
           )}
         </View>
 
+        {/* --- AI Recipe Customize Button --- */}
+        {cocktail.is_ai_generated && (
+          <TouchableOpacity
+            style={styles.customizeButton}
+            onPress={() => nav.navigate('RecipeEditor', { recipe: cocktail })}
+          >
+            <Ionicons name="create-outline" size={20} color={colors.gold} />
+            <Text style={styles.customizeButtonText}>Customize this recipe</Text>
+          </TouchableOpacity>
+        )}
+
         {/* --- Ingredients --- */}
         <View style={styles.section}>
           <Text style={[styles.sectionHeader, { fontFamily: serifFont }]}>Ingredients</Text>
           <View style={styles.ingredientsList}>
-            {cocktail.ingredients && cocktail.ingredients.length > 0 ? (
-              cocktail.ingredients.map((ingredient, index) => {
+            {parsedIngredients && parsedIngredients.length > 0 ? (
+              parsedIngredients.map((ingredient, index) => {
                 const userHasIt = hasIngredient(userInventory, ingredient.name);
                 const name = ingredient.name;
                 const note = ingredient.note;
@@ -1452,22 +1543,24 @@ export default function CocktailDetailScreen() {
         </View>
 
         {/* --- Instructions --- */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionHeader, { fontFamily: serifFont }]}>Instructions</Text>
-          <View style={styles.instructionsList}>
-            {cocktail.instructions.map((step, index) => (
-              <View key={`step-${index}`} style={styles.instructionRow}>
-                <Text style={[styles.stepNumber, { fontFamily: serifFont }]}>
-                  {String(index + 1).padStart(2, '0')}
-                </Text>
-                <Text style={styles.stepText}>{step}</Text>
-              </View>
-            ))}
+        {parsedInstructions.length > 0 && (
+          <View style={styles.section}>
+            <Text style={[styles.sectionHeader, { fontFamily: serifFont }]}>Instructions</Text>
+            <View style={styles.instructionsList}>
+              {parsedInstructions.map((step, index) => (
+                <View key={`step-${index}`} style={styles.instructionRow}>
+                  <Text style={[styles.stepNumber, { fontFamily: serifFont }]}>
+                    {String(index + 1).padStart(2, '0')}
+                  </Text>
+                  <Text style={styles.stepText}>{step}</Text>
+                </View>
+              ))}
+            </View>
           </View>
-        </View>
+        )}
 
         {/* --- Pro Tips --- */}
-        {cocktail.tips && cocktail.tips.length > 0 && (
+        {parsedTips.length > 0 && (
           <View style={styles.section}>
             <View style={styles.proTipsContainer}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
@@ -1476,7 +1569,7 @@ export default function CocktailDetailScreen() {
                   {cocktail.isNonAlcoholic ? 'Flavor Profile' : 'Pro Tips'}
                 </Text>
               </View>
-              {cocktail.tips.map((tip, idx) => (
+              {parsedTips.map((tip, idx) => (
                 <Text key={idx} style={styles.proTipsText}>• {tip}</Text>
               ))}
             </View>
@@ -1508,7 +1601,7 @@ export default function CocktailDetailScreen() {
           visible={groceryListVisible}
           onClose={() => setGroceryListVisible(false)}
           recipeName={cocktail.title}
-          ingredients={cocktail.ingredients}
+          ingredients={parsedIngredients}
           recipeId={cocktail.id}
           preSelectedIngredients={missingIngredientNames}
         />
@@ -1651,6 +1744,25 @@ const styles = StyleSheet.create({
   secondaryButtonText: {
     color: colors.text,
     fontSize: 16,
+    fontWeight: '600',
+  },
+  customizeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing(1),
+    backgroundColor: `${colors.gold}15`,
+    borderWidth: 1,
+    borderColor: `${colors.gold}40`,
+    borderRadius: radii.pill,
+    paddingVertical: spacing(1.5),
+    paddingHorizontal: spacing(3),
+    marginTop: spacing(3),
+    marginHorizontal: spacing(3),
+  },
+  customizeButtonText: {
+    color: colors.gold,
+    fontSize: 15,
     fontWeight: '600',
   },
 

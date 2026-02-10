@@ -45,14 +45,17 @@ console.error = (...args: any[]) => {
     return;
   }
 
-  // Filter out RevenueCat analytics bug (known issue with event tracking)
+  // Filter out RevenueCat errors (expected in Expo Go - requires dev build for native IAP)
   if (
     typeof message === 'string' && (
-      message.includes('[RevenueCat] [Purchases] Error while tracking event') ||
+      message.includes('[RevenueCat]') ||
+      message.includes('Error configuring Purchases') ||
+      message.includes('Invalid API key') ||
+      message.includes('native store is not available') ||
       message.includes("Cannot read property 'search' of undefined")
     )
   ) {
-    // Silently ignore RevenueCat analytics errors
+    // Silently ignore RevenueCat errors in development
     return;
   }
 

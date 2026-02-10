@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Pressable, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, Pressable, TouchableOpacity, Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Item } from '../../types/domain';
 import { Ionicons } from '@expo/vector-icons';
@@ -209,7 +209,7 @@ export default function OrderExercise({ item, onResult, disabled = false }: Exer
                 styles.submitText,
                 disabled && styles.submitTextDisabled
               ]}>
-                Check My Order
+                CHECK MY ORDER
               </Text>
             </LinearGradient>
           </Pressable>
@@ -227,13 +227,13 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   prompt: {
-    fontSize: 22,
-    fontWeight: '600',
-    marginBottom: spacing(4),
-    lineHeight: 30,
-    textAlign: 'left',
+    fontSize: 28,
+    fontWeight: '400',
+    fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
     color: colors.text,
-    letterSpacing: -0.3,
+    textAlign: 'center',
+    marginBottom: spacing(5),
+    lineHeight: 34,
   },
   sectionLabel: {
     fontSize: 14,
@@ -272,7 +272,7 @@ const styles = StyleSheet.create({
   slot: {
     flex: 1,
     minHeight: 60,
-    borderRadius: radii.lg,
+    borderRadius: 30,
     overflow: 'hidden',
   },
   slotEmpty: {
@@ -289,8 +289,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: spacing(2),
-    paddingHorizontal: spacing(3),
+    paddingVertical: spacing(2.5),
+    paddingHorizontal: spacing(2),
   },
   slotText: {
     flex: 1,
@@ -313,7 +313,7 @@ const styles = StyleSheet.create({
     gap: spacing(2),
   },
   availableItem: {
-    borderRadius: radii.lg,
+    borderRadius: 30,
     overflow: 'hidden',
     shadowColor: colors.gold,
     shadowOffset: { width: 0, height: 2 },
@@ -326,7 +326,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingVertical: spacing(2.5),
-    paddingHorizontal: spacing(3),
+    paddingHorizontal: spacing(2),
   },
   availableText: {
     flex: 1,
@@ -336,31 +336,32 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   submitButton: {
-    borderRadius: radii.lg,
+    borderRadius: radii.full,
     overflow: 'hidden',
     shadowColor: colors.gold,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 16,
     elevation: 8,
+    marginHorizontal: spacing(4),
   },
   submitButtonDisabled: {
     shadowOpacity: 0.1,
     shadowRadius: 4,
   },
   submitGradient: {
-    paddingVertical: spacing(4),
-    paddingHorizontal: spacing(4),
+    paddingVertical: spacing(2),
     alignItems: 'center',
   },
   submitText: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '700',
-    color: colors.goldText,
-    letterSpacing: 0.3,
+    color: '#1A120D',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
   },
   submitTextDisabled: {
-    color: colors.subtext,
+    color: 'rgba(255,255,255,0.3)',
   },
   errorText: {
     fontSize: 16,

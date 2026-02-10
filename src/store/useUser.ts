@@ -1,26 +1,27 @@
 /**
  * User Store using Zustand
- * Manages persistent user state (XP, lives, completed lessons, etc.)
+ * Manages persistent user state (lives, completed lessons)
+ *
+ * NOTE: XP/level is managed by useXPSystem (single source of truth)
+ * NOTE: Streaks are managed by streakService (single source of truth)
  */
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { useXPSystem } from './useXPSystem';
 
 interface UserState {
   // Persistent user data
-  xp: number;
   lives: number;
-  level: number;
-  streak: number;
   completedLessons: string[];
   lastLifeLossTime: number | null;
 
   // Actions
-  gainXP: (amount: number) => void;
   loseLife: () => void;
   gainLife: () => void;
   completeLesson: (lessonId: string, xpEarned: number) => void;
   checkLifeRefresh: () => void;
+  resetUser: () => void;
 }
 
 const INITIAL_LIVES = 3;
@@ -31,23 +32,9 @@ export const useUser = create<UserState>()(
   persist(
     (set, get) => ({
       // Initial state
-      xp: 0,
       lives: INITIAL_LIVES,
-      level: 1,
-      streak: 0,
       completedLessons: [],
       lastLifeLossTime: null,
-
-      gainXP: (amount: number) => {
-        set(state => {
-          const newXP = state.xp + amount;
-          const newLevel = Math.floor(newXP / 100) + 1; // Level up every 100 XP
-          return {
-            xp: newXP,
-            level: newLevel
-          };
-        });
-      },
 
       loseLife: () => {
         set(state => {
@@ -66,21 +53,17 @@ export const useUser = create<UserState>()(
       },
 
       completeLesson: (lessonId: string, xpEarned: number) => {
-        set(state => {
-          if (state.completedLessons.includes(lessonId)) {
-            return state; // Already completed
-          }
+        const state = get();
+        if (state.completedLessons.includes(lessonId)) {
+          return; // Already completed
+        }
 
-          const newXP = state.xp + xpEarned;
-          const newLevel = Math.floor(newXP / 100) + 1;
-
-          return {
-            completedLessons: [...state.completedLessons, lessonId],
-            xp: newXP,
-            level: newLevel,
-            streak: state.streak + 1 // Simple streak increment
-          };
+        set({
+          completedLessons: [...state.completedLessons, lessonId],
         });
+
+        // Award XP through the global XP system (single source of truth)
+        useXPSystem.getState().earnXP(xpEarned, 'lesson-complete', `Completed lesson: ${lessonId}`);
       },
 
       checkLifeRefresh: () => {
@@ -96,11 +79,19 @@ export const useUser = create<UserState>()(
         const refreshTime = state.lives === 0 ? SUBSEQUENT_REFRESH_TIME : LIFE_REFRESH_TIME;
 
         if (timeSinceLastLoss >= refreshTime) {
-          set(state => ({
+          set({
             lives: INITIAL_LIVES,
             lastLifeLossTime: null
-          }));
+          });
         }
+      },
+
+      resetUser: () => {
+        set({
+          lives: INITIAL_LIVES,
+          completedLessons: [],
+          lastLifeLossTime: null
+        });
       }
     }),
     {

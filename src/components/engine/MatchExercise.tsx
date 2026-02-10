@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, Pressable, StyleSheet, Animated } from 'react-native';
+import { View, Text, Pressable, StyleSheet, Animated, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors, radii, spacing } from '../../theme/tokens';
 import { Item } from '../../types/domain';
@@ -122,6 +122,22 @@ export const MatchExercise: React.FC<MatchExerciseProps> = ({ item, onResult }) 
   const canSubmit = Object.keys(matches).length === pairs.length;
   const isRightItemMatched = (rightItem: string) => Object.values(matches).includes(rightItem);
 
+  // Color palette for matched pair indicators
+  const pairColors = ['#D68A38', '#4CAF50', '#2196F3', '#E91E63', '#9C27B0', '#FF9800'];
+
+  // Get the match index for a left item (order in which it was matched)
+  const getMatchIndex = (leftItem: string): number => {
+    const matchedKeys = Object.keys(matches);
+    return matchedKeys.indexOf(leftItem);
+  };
+
+  // Get the match index for a right item
+  const getRightMatchIndex = (rightItem: string): number => {
+    const entry = Object.entries(matches).find(([_, v]) => v === rightItem);
+    if (!entry) return -1;
+    return Object.keys(matches).indexOf(entry[0]);
+  };
+
   return (
     <Animated.View
       style={[
@@ -131,10 +147,12 @@ export const MatchExercise: React.FC<MatchExerciseProps> = ({ item, onResult }) 
         },
       ]}
     >
-      <Text style={styles.prompt}>{item.prompt}</Text>
+      <Text style={styles.prompt}>
+        Match the trait to its professional application
+      </Text>
 
       <View style={styles.matchContainer}>
-        {/* Left Column */}
+        {/* Left Column - Traits (White Pills) */}
         <View style={styles.column}>
           {leftItems.map((leftItem, index) => {
             const isSelected = selectedLeft === leftItem;
@@ -145,97 +163,92 @@ export const MatchExercise: React.FC<MatchExerciseProps> = ({ item, onResult }) 
                 key={index}
                 style={{
                   opacity: leftAnims[index],
-                  transform: [{
-                    scale: leftAnims[index],
-                  }],
+                  transform: [{ scale: leftAnims[index] }],
                 }}
               >
                 <Pressable
                   style={[
-                    styles.item,
-                    isSelected && styles.itemSelected,
-                    isMatched && styles.itemMatched,
+                    styles.itemLeft,
+                    isSelected && styles.itemLeftSelected,
+                    isMatched && [styles.itemLeftMatched, { borderColor: pairColors[getMatchIndex(leftItem) % pairColors.length] }],
                   ]}
                   onPress={() => handleLeftPress(leftItem)}
                   disabled={submitted}
                 >
-                  <LinearGradient
-                    colors={
-                      isSelected
-                        ? ['rgba(215, 161, 94, 0.25)', 'rgba(228, 147, 62, 0.15)']
-                        : isMatched
-                        ? ['rgba(76, 175, 80, 0.2)', 'rgba(76, 175, 80, 0.1)']
-                        : ['rgba(255, 255, 255, 0.08)', 'rgba(255, 255, 255, 0.02)']
-                    }
-                    style={styles.itemGradient}
-                  >
-                    <View style={styles.itemContent}>
-                      <Text style={[
-                        styles.itemText,
-                        (isSelected || isMatched) && styles.itemTextHighlight
-                      ]}>
-                        {leftItem}
-                      </Text>
-                      {isMatched && <Text style={styles.connectLabel}>Connect</Text>}
+                  {isMatched && (
+                    <View style={[styles.matchBadge, { backgroundColor: pairColors[getMatchIndex(leftItem) % pairColors.length] }]}>
+                      <Text style={styles.matchBadgeText}>{getMatchIndex(leftItem) + 1}</Text>
                     </View>
-                  </LinearGradient>
+                  )}
+                  <Text style={[
+                    styles.itemTextLeft,
+                    (isSelected || isMatched) && styles.itemTextLeftHighlight
+                  ]}>
+                    {leftItem}
+                  </Text>
+
+                  {/* Connection Point (Right side) */}
+                  {(isSelected || isMatched) && (
+                    <View style={[styles.connectionPointRight, isMatched && { backgroundColor: pairColors[getMatchIndex(leftItem) % pairColors.length] }]} />
+                  )}
                 </Pressable>
               </Animated.View>
             );
           })}
         </View>
 
-        {/* Right Column */}
+        {/* Right Column - Applications (Dark Outline Pills) */}
         <View style={styles.column}>
           {rightItems.map((rightItem, index) => {
             const isMatched = isRightItemMatched(rightItem);
+
+            // Find if this specific right item is involved in a current selection/match
+            // For selection visualization, we only highlight if it's the confirmed match
+            const isActive = isMatched;
 
             return (
               <Animated.View
                 key={index}
                 style={{
                   opacity: rightAnims[index],
-                  transform: [{
-                    scale: rightAnims[index],
-                  }],
+                  transform: [{ scale: rightAnims[index] }],
                 }}
               >
                 <Pressable
                   style={[
-                    styles.item,
-                    isMatched && styles.itemMatched,
+                    styles.itemRight,
+                    isMatched && [styles.itemRightMatched, { borderColor: pairColors[getRightMatchIndex(rightItem) % pairColors.length] }],
                     !selectedLeft && !isMatched && styles.itemDisabled,
                   ]}
                   onPress={() => handleRightPress(rightItem)}
                   disabled={!selectedLeft || submitted}
                 >
-                  <LinearGradient
-                    colors={
-                      isMatched
-                        ? ['rgba(76, 175, 80, 0.2)', 'rgba(76, 175, 80, 0.1)']
-                        : !selectedLeft
-                        ? ['rgba(255, 255, 255, 0.03)', 'rgba(255, 255, 255, 0.01)']
-                        : ['rgba(255, 255, 255, 0.08)', 'rgba(255, 255, 255, 0.02)']
-                    }
-                    style={styles.itemGradient}
-                  >
-                    <View style={styles.itemContent}>
-                      <Text style={[
-                        styles.itemText,
-                        isMatched && styles.itemTextHighlight,
-                        !selectedLeft && !isMatched && styles.itemTextDisabled,
-                      ]}>
-                        {rightItem}
-                      </Text>
-                      {isMatched && <Text style={styles.connectLabel}>Connect</Text>}
+                  {isMatched && (
+                    <View style={[styles.matchBadge, styles.matchBadgeRight, { backgroundColor: pairColors[getRightMatchIndex(rightItem) % pairColors.length] }]}>
+                      <Text style={styles.matchBadgeText}>{getRightMatchIndex(rightItem) + 1}</Text>
                     </View>
-                  </LinearGradient>
+                  )}
+                  <Text style={[
+                    styles.itemTextRight,
+                    isMatched && [styles.itemTextRightHighlight, { color: pairColors[getRightMatchIndex(rightItem) % pairColors.length] }],
+                  ]}>
+                    {rightItem}
+                  </Text>
+
+                  {/* Connection Point (Left side) */}
+                  {isMatched && (
+                    <View style={[styles.connectionPointLeft, { backgroundColor: pairColors[getRightMatchIndex(rightItem) % pairColors.length] }]} />
+                  )}
                 </Pressable>
               </Animated.View>
             );
           })}
         </View>
       </View>
+
+      <Text style={styles.footerInstruction}>
+        Tap a trait on the left, then its match on the right.
+      </Text>
 
       {!submitted && (
         <Pressable
@@ -268,109 +281,175 @@ export const MatchExercise: React.FC<MatchExerciseProps> = ({ item, onResult }) 
 const styles = StyleSheet.create({
   container: {
     width: '100%',
+    paddingHorizontal: spacing(1),
   },
   prompt: {
-    fontSize: 22,
-    fontWeight: '600',
+    fontSize: 28,
+    fontWeight: '400',
+    fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
     color: colors.text,
     textAlign: 'center',
-    marginBottom: spacing(4),
-    lineHeight: 30,
-    letterSpacing: -0.3,
+    marginBottom: spacing(5),
+    lineHeight: 34,
   },
   matchContainer: {
     flexDirection: 'row',
-    gap: spacing(2),
-    marginBottom: spacing(4),
+    gap: spacing(4),
+    marginBottom: spacing(6),
   },
   column: {
     flex: 1,
-    gap: spacing(1.5),
+    gap: spacing(3),
+    justifyContent: 'center',
   },
-  item: {
-    borderRadius: radii.md,
-    overflow: 'hidden',
+
+  // Left Item Styles (White Pill)
+  itemLeft: {
+    backgroundColor: '#FBFBFB', // Keeping close to white for paper contrast
+    borderRadius: 30,
+    paddingVertical: spacing(2.5),
+    paddingHorizontal: spacing(2),
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
     borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    elevation: 2,
+    borderColor: '#FBFBFB',
+    position: 'relative',
   },
-  itemSelected: {
+  itemLeftSelected: {
     borderColor: colors.gold,
     shadowColor: colors.gold,
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    elevation: 5,
+    shadowOpacity: 0.5,
+    shadowRadius: 12,
   },
-  itemMatched: {
-    borderColor: colors.success,
-    shadowColor: colors.success,
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
+  itemLeftMatched: {
+    borderColor: colors.gold,
+    backgroundColor: '#FFF8E1', // Very light gold/cream
+  },
+  itemTextLeft: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1A120D', // Dark text on paper
+    textAlign: 'center',
+    fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
+  },
+  itemTextLeftHighlight: {
+    color: '#1A120D',
+  },
+
+  // Right Item Styles (Dark Outline Pill)
+  itemRight: {
+    backgroundColor: 'transparent',
+    borderRadius: 30,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingVertical: spacing(2.5),
+    paddingHorizontal: spacing(2),
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  itemRightMatched: {
+    borderColor: colors.gold,
+    backgroundColor: 'rgba(214, 138, 56, 0.1)', // colors.gold with opacity
   },
   itemDisabled: {
-    opacity: 0.4,
+    opacity: 0.5,
   },
-  itemGradient: {
-    paddingVertical: spacing(2),
-    paddingHorizontal: spacing(2),
-  },
-  itemContent: {
-    alignItems: 'center',
-  },
-  itemText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: colors.text,
+  itemTextRight: {
+    fontSize: 14,
+    color: colors.subtext,
     textAlign: 'center',
+    fontWeight: '500',
     lineHeight: 20,
   },
-  itemTextHighlight: {
+  itemTextRightHighlight: {
     color: colors.gold,
-    fontWeight: '700',
-  },
-  itemTextDisabled: {
-    color: colors.subtext,
-  },
-  connectLabel: {
-    fontSize: 11,
-    color: colors.success,
-    textAlign: 'center',
-    marginTop: spacing(0.5),
     fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
   },
+
+  // Match Badge - numbered indicator showing which pairs are connected
+  matchBadge: {
+    position: 'absolute',
+    top: -8,
+    left: -8,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 20,
+  },
+  matchBadgeRight: {
+    left: undefined,
+    right: -8,
+  },
+  matchBadgeText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+
+  // Connection Points (Pseudo-elements)
+  connectionPointRight: {
+    position: 'absolute',
+    right: -6,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: colors.gold,
+    zIndex: 10,
+  },
+  connectionPointLeft: {
+    position: 'absolute',
+    left: -6,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: colors.gold,
+    zIndex: 10,
+  },
+
+  footerInstruction: {
+    fontStyle: 'italic',
+    color: colors.muted,
+    textAlign: 'center',
+    fontSize: 14,
+    marginBottom: spacing(3),
+    fontFamily: Platform.OS === 'ios' ? 'Georgia-Italic' : 'serif',
+  },
+
   submitButton: {
-    borderRadius: radii.lg,
+    borderRadius: radii.full,
     overflow: 'hidden',
     shadowColor: colors.gold,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 16,
     elevation: 8,
+    marginHorizontal: spacing(4),
   },
   submitButtonDisabled: {
     shadowOpacity: 0.1,
     shadowRadius: 4,
   },
   submitGradient: {
-    paddingVertical: spacing(4),
-    paddingHorizontal: spacing(4),
+    paddingVertical: spacing(2),
     alignItems: 'center',
   },
   submitText: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '700',
-    color: colors.goldText,
-    letterSpacing: 0.3,
+    color: '#1A120D', // Dark text on gold button
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
   },
   submitTextDisabled: {
-    color: colors.subtext,
+    color: 'rgba(255,255,255,0.3)',
   },
 });
 

@@ -10,7 +10,10 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import theme from '../theme/safeTheme';
 import PillButton from '../components/PillButton';
 import { useSavedItems } from '../hooks/useSavedItems';
+import { useXPSystem } from '../store/useXPSystem';
+import { getDrinkingGamesForDisplay } from '../config/vaultContent';
 import { games } from '../../assets/images/games';
+import { getGameWriteup } from '../data/gameWriteups';
 const { colors, spacing, radii, shadows } = theme;
 
 type RootStackParamList = {
@@ -69,6 +72,11 @@ export default function GamesScreen() {
   const nav = useNavigation<Nav>();
   const [activeChip, setActiveChip] = React.useState<string>('Games');
   const { toggleSavedGame, isGameSaved } = useSavedItems();
+  const { unlockedVaultItems } = useXPSystem();
+
+  // Get unlocked games from vault
+  const allVaultGames = getDrinkingGamesForDisplay();
+  const myGames = allVaultGames.filter(g => unlockedVaultItems.includes(g.id));
 
   useLayoutEffect(() => {
     nav.setOptions({
@@ -130,12 +138,37 @@ export default function GamesScreen() {
       </ScrollView>
 
 
+      {/* My Unlocked Games */}
+      {myGames.length > 0 && (
+        <>
+          <SectionHeader title="My Games" />
+          <Row>
+            {myGames.map(g => {
+              const navId = g.id.replace('game_', '').replace(/_/g, '-');
+              const writeup = getGameWriteup(navId);
+              return (
+                <GameCard
+                  key={g.id}
+                  id={navId}
+                  img={writeup?.image || games.kingsCup}
+                  title={g.title}
+                  subtitle={`${g.difficulty} · ${g.players} Players`}
+                  onPress={() => nav.navigate('GameDetails', { id: navId })}
+                  onSave={(item) => toggleSavedGame(item)}
+                  isSaved={isGameSaved(navId)}
+                />
+              );
+            })}
+          </Row>
+        </>
+      )}
+
       <CardHero
         image={hero.img}
         title={hero.title}
         desc={hero.desc}
         tags={['Classic Games','Cultural / International']}
-        onPress={() => nav.navigate('KingsCup' as any)}
+        onPress={() => nav.navigate('GameDetails', { id: 'kings-cup' })}
       />
 
       <SectionHeader
@@ -154,16 +187,10 @@ export default function GamesScreen() {
       />
       <Row>
         {classicGames.map(g => (
-          <GameCard 
-            key={g.id} 
-            {...g} 
-            onPress={() => {
-              if (g.id === 'kings-cup') {
-                nav.navigate('KingsCup' as any);
-              } else {
-                nav.navigate('GameDetails', { id: g.id });
-              }
-            }} 
+          <GameCard
+            key={g.id}
+            {...g}
+            onPress={() => nav.navigate('GameDetails', { id: g.id })} 
             onSave={(item) => toggleSavedGame(item)}
             isSaved={isGameSaved(g.id)}
           />

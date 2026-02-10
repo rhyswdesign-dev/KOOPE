@@ -21,14 +21,15 @@ export { default as ConfirmDialog } from './ConfirmDialog';
 export { default as EmptyState, SearchEmptyState, ErrorEmptyState, OfflineEmptyState, ListEmptyState } from './EmptyState';
 export { default as LoadingOverlay, LoadingProvider, useLoading, useAsyncOperation, useProgressLoading } from './LoadingOverlay';
 export { default as AudioButton } from './AudioButton';
+export { default as Heading } from './Heading';
 
 // New components
 export { default as VideoPlayer, InlineVideoPlayer, CompactVideoPlayer } from './VideoPlayer';
 export { default as LocationMap, CompactLocationMap, BasicLocationMap } from './LocationMap';
 export { default as ActionMenu, SaveActionMenu, ContentActionMenu } from './ActionMenu';
 export { default as Skeleton } from '../Skeleton';
-export { 
-  default as FeatureTooltip, 
+export {
+  default as FeatureTooltip,
   FeatureTooltipProvider,
   useFeatureTooltip,
   useFeatureTooltipContext,

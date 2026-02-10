@@ -19,7 +19,7 @@ class ChallengeService {
       const { data: challenges, error: challengesError } = await supabase
         .from('challenges')
         .select('*')
-        .gte('expiresAt', now)
+        .gte('expires_at', now)
         .order('frequency', { ascending: true })
         .order('difficulty', { ascending: true });
 
@@ -35,21 +35,36 @@ class ChallengeService {
       const { data: progress, error: progressError } = await supabase
         .from('user_challenge_progress')
         .select('*')
-        .eq('userId', userId)
-        .in('challengeId', challengeIds);
+        .eq('user_id', userId)
+        .in('challenge_id', challengeIds);
 
       if (progressError) {
         log.warn('challengeService', 'Could not load progress', { error: progressError });
       }
 
       // Merge challenges with user progress
-      const progressMap = new Map(progress?.map(p => [p.challengeId, p]) || []);
+      const progressMap = new Map(progress?.map(p => [p.challenge_id, p]) || []);
 
       const challengesWithProgress: Challenge[] = challenges.map(challenge => ({
-        ...challenge,
+        id: challenge.id,
+        title: challenge.title,
+        description: challenge.description,
+        category: challenge.category,
+        frequency: challenge.frequency,
+        difficulty: challenge.difficulty,
+        xpReward: challenge.xp_reward,
+        keysReward: challenge.keys_reward,
+        badgeReward: challenge.badge_reward,
+        requirementType: challenge.requirement_type,
+        requirementCount: challenge.requirement_count,
+        expiresAt: challenge.expires_at,
+        icon: challenge.icon,
+        color: challenge.color,
+        createdAt: challenge.created_at,
+        updatedAt: challenge.updated_at,
         currentProgress: progressMap.get(challenge.id)?.progress || 0,
-        isCompleted: progressMap.get(challenge.id)?.isCompleted || false,
-        completedAt: progressMap.get(challenge.id)?.completedAt,
+        isCompleted: progressMap.get(challenge.id)?.is_completed || false,
+        completedAt: progressMap.get(challenge.id)?.completed_at,
       }));
 
       log.info('challengeService', 'Loaded active challenges', {
@@ -77,8 +92,8 @@ class ChallengeService {
       const { data: existing, error: fetchError } = await supabase
         .from('user_challenge_progress')
         .select('*')
-        .eq('userId', userId)
-        .eq('challengeId', challengeId)
+        .eq('user_id', userId)
+        .eq('challenge_id', challengeId)
         .single();
 
       if (fetchError && fetchError.code !== 'PGRST116') { // PGRST116 = no rows
@@ -95,19 +110,19 @@ class ChallengeService {
       if (challengeError) throw challengeError;
 
       const newProgress = (existing?.progress || 0) + increment;
-      const isCompleted = newProgress >= challenge.requirementCount;
+      const isCompleted = newProgress >= challenge.requirement_count;
 
       // Upsert progress
       const { error: upsertError } = await supabase
         .from('user_challenge_progress')
         .upsert({
-          userId,
-          challengeId,
+          user_id: userId,
+          challenge_id: challengeId,
           progress: newProgress,
-          isCompleted,
-          completedAt: isCompleted ? new Date().toISOString() : existing?.completedAt,
-          startedAt: existing?.startedAt || new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
+          is_completed: isCompleted,
+          completed_at: isCompleted ? new Date().toISOString() : existing?.completed_at,
+          started_at: existing?.started_at || new Date().toISOString(),
+          updated_at: new Date().toISOString(),
         });
 
       if (upsertError) throw upsertError;
@@ -152,8 +167,8 @@ class ChallengeService {
       const { data: progress, error: progressError } = await supabase
         .from('user_challenge_progress')
         .select('*')
-        .eq('userId', userId)
-        .eq('challengeId', challengeId)
+        .eq('user_id', userId)
+        .eq('challenge_id', challengeId)
         .single();
 
       if (progressError || !progress?.isCompleted) {
@@ -167,14 +182,14 @@ class ChallengeService {
       log.info('challengeService', 'Reward claimed', {
         userId,
         challengeId,
-        xp: challenge.xpReward,
-        keys: challenge.keysReward
+        xp: challenge.xp_reward,
+        keys: challenge.keys_reward
       });
 
       return {
-        xp: challenge.xpReward,
-        keys: challenge.keysReward,
-        badge: challenge.badgeReward,
+        xp: challenge.xp_reward,
+        keys: challenge.keys_reward,
+        badge: challenge.badge_reward,
       };
     } catch (error) {
       log.error('challengeService', 'Error claiming reward', error);

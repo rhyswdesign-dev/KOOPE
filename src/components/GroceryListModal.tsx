@@ -280,8 +280,8 @@ export default function GroceryListModal({
             </View>
           ))}
 
-          {/* Bottom spacing for fixed actions + bottom nav */}
-          <View style={{ height: 220 }} />
+          {/* Bottom spacing for fixed actions */}
+          <View style={{ height: 120 }} />
         </ScrollView>
 
         {/* Actions - Fixed at bottom */}
@@ -301,30 +301,6 @@ export default function GroceryListModal({
               </Text>
             </View>
           )}
-        </View>
-
-        {/* Bottom Navigation */}
-        <View style={styles.bottomNav}>
-          <TouchableOpacity style={styles.navItem}>
-            <Ionicons name="book-outline" size={24} color="#888" />
-            <Text style={styles.navText}>Lessons</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.navItem}>
-            <Ionicons name="list" size={24} color="#888" />
-            <Text style={styles.navText}>Recipes</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.navItem}>
-            <Ionicons name="home-outline" size={24} color="#888" />
-            <Text style={styles.navText}>Featured</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.navItem}>
-            <Ionicons name="briefcase-outline" size={24} color="#888" />
-            <Text style={styles.navText}>Vault</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.navItem}>
-            <Ionicons name="person-outline" size={24} color="#888" />
-            <Text style={styles.navText}>Profile</Text>
-          </TouchableOpacity>
         </View>
       </View>
     </Modal>
@@ -478,11 +454,12 @@ const styles = StyleSheet.create({
   },
   actions: {
     position: 'absolute',
-    bottom: 80,
+    bottom: 20,
     left: 0,
     right: 0,
     paddingHorizontal: 20,
     paddingVertical: 12,
+    paddingBottom: 34, // Safe area padding
     backgroundColor: '#20150F', // Match container background
   },
   saveButton: {
@@ -511,28 +488,5 @@ const styles = StyleSheet.create({
     color: '#D6C2A8', // Subtext
     fontSize: 13,
     fontWeight: '500',
-  },
-  bottomNav: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingBottom: 34, // Extra padding for safe area
-    backgroundColor: '#2A211C', // Header background
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.08)', // Border
-  },
-  navItem: {
-    alignItems: 'center',
-    gap: 4,
-    paddingVertical: 8,
-  },
-  navText: {
-    fontSize: 11,
-    color: '#C9BEB3', // Subtle text
   },
 });

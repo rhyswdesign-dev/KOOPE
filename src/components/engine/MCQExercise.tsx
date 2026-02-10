@@ -1,18 +1,22 @@
 /**
  * Multiple Choice Question Exercise
- * Clean modern design with grid layout and images
+ * Standardized with MatchExercise design patterns
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Pressable, Animated, Image } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Animated, Platform } from 'react-native';
 import { Item } from '../../types/domain';
-import { ExerciseCommonProps } from './OrderExercise';
 import { colors, spacing, radii } from '../../theme/tokens';
 import { LinearGradient } from 'expo-linear-gradient';
-import { getImageForText, shouldShowImages } from '../../utils/questionImageMapper';
 
-export const MCQExercise: React.FC<ExerciseCommonProps> = ({ item, onResult }) => {
+export interface MCQExerciseProps {
+  item: Item;
+  onResult: (result: { correct: boolean; msToAnswer: number }) => void;
+}
+
+export const MCQExercise: React.FC<MCQExerciseProps> = ({ item, onResult }) => {
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
+  const [submitted, setSubmitted] = useState(false);
   const [startTime] = useState(Date.now());
 
   // Animation values
@@ -22,6 +26,7 @@ export const MCQExercise: React.FC<ExerciseCommonProps> = ({ item, onResult }) =
   // Reset state when item changes
   useEffect(() => {
     setSelectedOption(null);
+    setSubmitted(false);
 
     // Reset animations
     fadeAnim.setValue(0);
@@ -48,11 +53,15 @@ export const MCQExercise: React.FC<ExerciseCommonProps> = ({ item, onResult }) =
   }, [item.id]);
 
   const handleOptionPress = (optionIndex: number) => {
-    if (selectedOption !== null) return;
-
+    if (submitted) return;
     setSelectedOption(optionIndex);
+  };
 
-    const isCorrect = optionIndex === item.answerIndex;
+  const handleSubmit = () => {
+    if (selectedOption === null || submitted) return;
+
+    setSubmitted(true);
+    const isCorrect = selectedOption === item.answerIndex;
     const timeToAnswer = Date.now() - startTime;
 
     setTimeout(() => {
@@ -60,20 +69,7 @@ export const MCQExercise: React.FC<ExerciseCommonProps> = ({ item, onResult }) =
     }, 800);
   };
 
-  const getOptionStyle = (optionIndex: number) => {
-    if (selectedOption === null) {
-      return styles.option;
-    }
-
-    if (optionIndex === selectedOption) {
-      return [styles.option, styles.selectedOption];
-    }
-
-    return [styles.option, styles.unselectedOption];
-  };
-
-  // Check if we should show images for this question
-  const showImages = shouldShowImages(item.prompt, item.options, item.tags);
+  const allMatched = selectedOption !== null;
 
   return (
     <Animated.View
@@ -86,9 +82,9 @@ export const MCQExercise: React.FC<ExerciseCommonProps> = ({ item, onResult }) =
     >
       <Text style={styles.prompt}>{item.prompt}</Text>
 
-      <View style={styles.optionsGrid}>
+      <View style={styles.optionsList}>
         {item.options?.map((option, index) => {
-          const optionImage = showImages ? getImageForText(option) : null;
+          const isSelected = selectedOption === index;
 
           return (
             <Animated.View
@@ -104,43 +100,48 @@ export const MCQExercise: React.FC<ExerciseCommonProps> = ({ item, onResult }) =
               ]}
             >
               <Pressable
-                style={({ pressed }) => [
-                  getOptionStyle(index),
-                  pressed && selectedOption === null && styles.optionPressed,
+                style={[
+                  styles.option,
+                  isSelected && styles.optionSelected,
                 ]}
                 onPress={() => handleOptionPress(index)}
-                disabled={selectedOption !== null}
+                disabled={submitted}
               >
-                <LinearGradient
-                  colors={
-                    selectedOption === index
-                      ? ['rgba(215, 161, 94, 0.2)', 'rgba(228, 147, 62, 0.1)']
-                      : ['rgba(255, 255, 255, 0.08)', 'rgba(255, 255, 255, 0.02)']
-                  }
-                  style={styles.optionGradient}
-                >
-                  {optionImage && (
-                    <View style={styles.imageContainer}>
-                      <Image
-                        source={optionImage}
-                        style={styles.optionImage}
-                        resizeMode="cover"
-                      />
-                    </View>
-                  )}
-                  <Text style={[
-                    styles.optionText,
-                    selectedOption === index && styles.selectedOptionText,
-                    optionImage && styles.optionTextWithImage
-                  ]}>
-                    {option}
-                  </Text>
-                </LinearGradient>
+                <Text style={[
+                  styles.optionText,
+                  isSelected && styles.optionTextSelected,
+                ]}>
+                  {option}
+                </Text>
+                {isSelected && (
+                  <View style={styles.selectionDot} />
+                )}
               </Pressable>
             </Animated.View>
           );
         })}
       </View>
+
+      <Text style={styles.footerInstruction}>
+        Select your answer, then tap "Check Answer" below.
+      </Text>
+
+      <Pressable
+        style={[styles.submitButton, !allMatched && styles.submitButtonDisabled]}
+        onPress={handleSubmit}
+        disabled={!allMatched || submitted}
+      >
+        <LinearGradient
+          colors={allMatched ? [colors.gold, colors.accentDark] : ['rgba(255,255,255,0.1)', 'rgba(255,255,255,0.05)']}
+          style={styles.submitGradient}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+        >
+          <Text style={[styles.submitText, !allMatched && styles.submitTextDisabled]}>
+            CHECK ANSWER
+          </Text>
+        </LinearGradient>
+      </Pressable>
     </Animated.View>
   );
 };
@@ -148,79 +149,90 @@ export const MCQExercise: React.FC<ExerciseCommonProps> = ({ item, onResult }) =
 const styles = StyleSheet.create({
   container: {
     width: '100%',
+    paddingHorizontal: spacing(1),
   },
   prompt: {
-    fontSize: 22,
-    fontWeight: '600',
-    marginBottom: spacing(4),
-    lineHeight: 30,
-    textAlign: 'left',
+    fontSize: 28,
+    fontWeight: '400',
+    fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
     color: colors.text,
-    letterSpacing: -0.3,
+    textAlign: 'center',
+    marginBottom: spacing(5),
+    lineHeight: 34,
   },
-  optionsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+  optionsList: {
     gap: spacing(2),
+    marginBottom: spacing(4),
   },
   optionWrapper: {
-    width: '48%',
+    width: '100%',
   },
   option: {
-    borderRadius: radii.lg,
-    overflow: 'hidden',
-    borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  selectedOption: {
-    borderColor: colors.gold,
-    shadowColor: colors.gold,
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 6,
-  },
-  unselectedOption: {
-    opacity: 0.5,
-  },
-  optionPressed: {
-    transform: [{ scale: 0.97 }],
-  },
-  optionGradient: {
-    padding: spacing(3),
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 100,
+    justifyContent: 'space-between',
+    backgroundColor: colors.card,
+    borderRadius: 30,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    paddingVertical: spacing(2.5),
+    paddingHorizontal: spacing(2),
   },
-  imageContainer: {
-    width: '100%',
-    height: 140,
-    borderRadius: radii.md,
-    overflow: 'hidden',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    marginBottom: spacing(2),
-  },
-  optionImage: {
-    width: '100%',
-    height: '100%',
+  optionSelected: {
+    borderColor: colors.gold,
+    backgroundColor: 'rgba(214, 138, 56, 0.05)',
   },
   optionText: {
-    fontSize: 14,
-    textAlign: 'center',
-    fontWeight: '600',
+    fontSize: 16,
+    color: colors.subtext,
+    flex: 1,
+    lineHeight: 22,
+  },
+  optionTextSelected: {
     color: colors.text,
-    lineHeight: 20,
+    fontWeight: '500',
   },
-  optionTextWithImage: {
-    fontSize: 13,
-    marginTop: spacing(0.5),
+  selectionDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.gold,
+    marginLeft: 12,
   },
-  selectedOptionText: {
-    color: colors.gold,
+  footerInstruction: {
+    fontStyle: 'italic',
+    color: colors.muted,
+    textAlign: 'center',
+    fontSize: 14,
+    marginBottom: spacing(3),
+    fontFamily: Platform.OS === 'ios' ? 'Georgia-Italic' : 'serif',
+  },
+  submitButton: {
+    borderRadius: radii.full,
+    overflow: 'hidden',
+    shadowColor: colors.gold,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 8,
+    marginHorizontal: spacing(4),
+  },
+  submitButtonDisabled: {
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  submitGradient: {
+    paddingVertical: spacing(2),
+    alignItems: 'center',
+  },
+  submitText: {
+    fontSize: 16,
     fontWeight: '700',
+    color: '#1A120D',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  submitTextDisabled: {
+    color: 'rgba(255,255,255,0.3)',
   },
 });

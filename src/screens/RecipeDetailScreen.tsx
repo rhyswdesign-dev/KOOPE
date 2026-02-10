@@ -3,12 +3,15 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   ScrollView,
   Image,
   TouchableOpacity,
   Share,
+  Platform,
+  Dimensions,
+  StatusBar,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { colors, spacing, radii, fonts } from '../theme/tokens';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -16,7 +19,11 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import GroceryListModal from '../components/GroceryListModal';
 import { useChallengeProgress } from '../hooks/useChallengeProgress';
+import { useUserTier } from '../store/useUserTier';
+import { canAccessContent } from '../utils/tierAccess';
 import { log } from '../lib/logger';
+
+const { width } = Dimensions.get('window');
 
 export default function RecipeDetailScreen() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -24,6 +31,13 @@ export default function RecipeDetailScreen() {
   const recipe = (route.params as any)?.recipe;
   const [groceryListVisible, setGroceryListVisible] = useState(false);
   const { trackRecipeViewed } = useChallengeProgress();
+  const [proTipsOpen, setProTipsOpen] = useState(false);
+  const [batchMultiplier, setBatchMultiplier] = useState(1);
+  const { tier } = useUserTier();
+  const hasBatching = canAccessContent(tier, 'PLUS');
+
+  // Serif font family helper
+  const serifFont = Platform.select({ ios: 'Georgia', android: 'serif', default: 'serif' });
 
   // Track recipe view for challenges
   useEffect(() => {
@@ -36,7 +50,7 @@ export default function RecipeDetailScreen() {
 
   if (!recipe) {
     return (
-      <SafeAreaView style={styles.container}>
+      <View style={styles.container}>
         <View style={styles.errorContainer}>
           <Ionicons name="alert-circle-outline" size={64} color={colors.error} />
           <Text style={styles.errorText}>Recipe not found</Text>
@@ -44,19 +58,15 @@ export default function RecipeDetailScreen() {
             <Text style={styles.backButtonText}>Go Back</Text>
           </TouchableOpacity>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   const handleShare = async () => {
     try {
       let message = `Check out this ${recipe.name || recipe.title} recipe!`;
-      if (recipe.description) {
-        message += ` ${recipe.description}`;
-      }
-      if (recipe.sourceUrl) {
-        message += ` Source: ${recipe.sourceUrl}`;
-      }
+      if (recipe.description) message += ` ${recipe.description}`;
+      if (recipe.sourceUrl) message += ` Source: ${recipe.sourceUrl}`;
 
       await Share.share({
         message,
@@ -68,111 +78,266 @@ export default function RecipeDetailScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Recipe Image */}
-        {(recipe.image || recipe.imageUrl) && (
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" />
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false} bounces={false}>
+
+        {/* --- Hero Section --- */}
+        <View style={styles.heroContainer}>
           <Image
-            source={{ uri: recipe.image || recipe.imageUrl }}
-            style={styles.recipeImage}
+            source={{ uri: recipe.image || recipe.imageUrl || 'https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?q=80&w=1000&auto=format&fit=crop' }}
+            style={styles.heroImage}
           />
-        )}
+          <LinearGradient
+            colors={['transparent', 'transparent', 'rgba(26, 18, 13, 0.8)', '#1A120D']}
+            style={styles.heroGradient}
+          >
+            <Text style={[styles.heroTitle, { fontFamily: serifFont }]}>
+              {recipe.name || recipe.title}
+            </Text>
 
-        {/* Recipe Header */}
-        <View style={styles.header}>
-          <Text style={styles.title}>{recipe.name || recipe.title}</Text>
+            {/* Metadata Row */}
+            <View style={styles.metaRow}>
+              {recipe.time && (
+                <View style={styles.metaItem}>
+                  <MaterialCommunityIcons name="clock-outline" size={16} color={colors.subtext} />
+                  <Text style={styles.metaText}>{recipe.time}</Text>
+                </View>
+              )}
+              {recipe.difficulty && (
+                <>
+                  <Text style={styles.metaDot}>•</Text>
+                  <View style={styles.metaItem}>
+                    <MaterialCommunityIcons name="chart-bar" size={16} color={colors.subtext} />
+                    <Text style={styles.metaText}>{recipe.difficulty}</Text>
+                  </View>
+                </>
+              )}
+              {recipe.glassware && (
+                <>
+                  <Text style={styles.metaDot}>•</Text>
+                  <View style={styles.metaItem}>
+                    <MaterialCommunityIcons name="glass-cocktail" size={16} color={colors.subtext} />
+                    <Text style={styles.metaText}>{recipe.glassware || 'Coupe'}</Text>
+                  </View>
+                </>
+              )}
+            </View>
+          </LinearGradient>
 
-          <TouchableOpacity style={styles.shareButton} onPress={handleShare}>
-            <Ionicons name="share-outline" size={24} color={colors.accent} />
+          {/* Back Button (Absolute) */}
+          <TouchableOpacity style={styles.backButtonAbsolute} onPress={() => nav.goBack()}>
+            <Ionicons name="arrow-back" size={24} color={colors.white} />
+          </TouchableOpacity>
+
+          {/* Share Button (Absolute) */}
+          <TouchableOpacity style={styles.shareButtonAbsolute} onPress={handleShare}>
+            <Ionicons name="share-outline" size={24} color={colors.white} />
           </TouchableOpacity>
         </View>
 
-        {/* Recipe Stats */}
-        {(recipe.difficulty || recipe.time || recipe.rating) && (
-          <View style={styles.statsContainer}>
-            {recipe.time && (
-              <View style={styles.statItem}>
-                <Ionicons name="time-outline" size={16} color={colors.accent} />
-                <Text style={styles.statText}>{recipe.time}</Text>
-              </View>
-            )}
-            {recipe.difficulty && (
-              <View style={styles.statItem}>
-                <Ionicons name="bar-chart-outline" size={16} color={colors.accent} />
-                <Text style={styles.statText}>{recipe.difficulty}</Text>
-              </View>
-            )}
-            {recipe.rating && (
-              <View style={styles.statItem}>
-                <Ionicons name="star" size={16} color={colors.gold} />
-                <Text style={styles.statText}>{recipe.rating}</Text>
-              </View>
-            )}
-          </View>
-        )}
+        {/* --- Action Buttons --- */}
+        <View style={styles.actionButtonsContainer}>
+          <TouchableOpacity style={styles.primaryButton}>
+            <Text style={styles.primaryButtonText}>Make This Now</Text>
+          </TouchableOpacity>
 
-        {/* Recipe Description */}
-        {recipe.description && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Description</Text>
-            <Text style={styles.descriptionText}>{recipe.description}</Text>
-          </View>
-        )}
+          <TouchableOpacity style={styles.secondaryButton}>
+            <Text style={styles.secondaryButtonText}>I Made This</Text>
+          </TouchableOpacity>
+        </View>
 
-        {/* Source URL */}
-        {recipe.sourceUrl && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Source</Text>
-            <Text style={styles.sourceText}>{recipe.sourceUrl}</Text>
-          </View>
-        )}
+        {/* --- Ingredients --- */}
+        <View style={styles.section}>
+          <Text style={[styles.sectionHeader, { fontFamily: serifFont }]}>Ingredients</Text>
+          <View style={styles.ingredientsList}>
+            {(recipe.ingredients || recipe.tags || []).map((item: any, index: number) => {
+              const name = typeof item === 'string' ? item : (item.name || item);
+              const amount = typeof item === 'string' ? '' : item.amount;
+              const notes = typeof item === 'string' ? '' : item.notes;
 
-        {/* Ingredients */}
-        {(recipe.ingredients || recipe.tags) && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Ingredients</Text>
-            <View style={styles.ingredientsContainer}>
-              {(recipe.ingredients || recipe.tags || []).map((item: any, index: number) => (
-                <View key={index} style={styles.ingredientCard}>
-                  <Text style={styles.ingredientTitle}>
-                    {typeof item === 'string'
-                      ? item
-                      : `${item.name || item}`
-                    }
-                  </Text>
-                  <Text style={styles.ingredientDescription}>
-                    {typeof item === 'string'
-                      ? ''
-                      : `${item.amount ? item.amount : ''}${item.notes ? ` ${item.notes}` : ''}`
-                    }
-                  </Text>
+              // Simple icon logic based on keywords
+              let iconName: any = 'bottle-tonic-plus';
+              const lowerName = name.toLowerCase();
+              if (lowerName.includes('gin')) iconName = 'bottle-tonic';
+              else if (lowerName.includes('vermouth')) iconName = 'bottle-wine';
+              else if (lowerName.includes('campari')) iconName = 'bottle-wine'; // or a generic bottle
+              else if (lowerName.includes('orange') || lowerName.includes('lemon') || lowerName.includes('lime')) iconName = 'fruit-citrus';
+              else if (lowerName.includes('ice')) iconName = 'cube-outline';
+              else if (lowerName.includes('syrup')) iconName = 'water-outline';
+              else if (lowerName.includes('garnish')) iconName = 'leaf';
+              else if (lowerName.includes('bitters')) iconName = 'water';
+
+              return (
+                <View key={index} style={styles.ingredientRow}>
+                  <View style={styles.ingredientIconBox}>
+                    <MaterialCommunityIcons name={iconName} size={20} color={colors.accent} />
+                  </View>
+                  <View style={styles.ingredientInfo}>
+                    <Text style={styles.ingredientName}>{name}</Text>
+                    {(amount || notes) && (
+                      <Text style={styles.ingredientDetail}>
+                        {amount}{amount && notes ? ' • ' : ''}{notes}
+                      </Text>
+                    )}
+                  </View>
                 </View>
+              );
+            })}
+          </View>
+        </View>
+
+        {/* --- Instructions --- */}
+        <View style={styles.section}>
+          <Text style={[styles.sectionHeader, { fontFamily: serifFont }]}>Instructions</Text>
+          <View style={styles.instructionsList}>
+            {/* If instructions is an array */}
+            {Array.isArray(recipe.instructions) ? (
+              recipe.instructions.map((step: string, index: number) => (
+                <View key={index} style={styles.instructionRow}>
+                  <Text style={[styles.stepNumber, { fontFamily: serifFont }]}>
+                    {String(index + 1).padStart(2, '0')}
+                  </Text>
+                  <Text style={styles.stepText}>{step}</Text>
+                </View>
+              ))
+            ) : recipe.description ? (
+              // Fallback if no structured instructions, try to split description or just show it
+              <View style={styles.instructionRow}>
+                <Text style={[styles.stepNumber, { fontFamily: serifFont }]}>01</Text>
+                <Text style={styles.stepText}>{recipe.description}</Text>
+              </View>
+            ) : null}
+          </View>
+        </View>
+
+        {/* --- Batch Calculator (PLUS/PRO only) --- */}
+        {hasBatching && (recipe.ingredients || recipe.tags) && (
+          <View style={styles.section}>
+            <Text style={[styles.sectionHeader, { fontFamily: serifFont }]}>Batch Calculator</Text>
+            <View style={styles.batchChips}>
+              {[1, 2, 4, 8].map((mult) => (
+                <TouchableOpacity
+                  key={mult}
+                  style={[
+                    styles.batchChip,
+                    batchMultiplier === mult && styles.batchChipActive,
+                  ]}
+                  onPress={() => setBatchMultiplier(mult)}
+                >
+                  <Text style={[
+                    styles.batchChipText,
+                    batchMultiplier === mult && styles.batchChipTextActive,
+                  ]}>
+                    {mult === 1 ? 'Single' : `${mult}x`}
+                  </Text>
+                </TouchableOpacity>
               ))}
             </View>
+
+            {batchMultiplier > 1 && (
+              <View style={styles.batchResult}>
+                {(recipe.ingredients || recipe.tags || []).map((item: any, index: number) => {
+                  const name = typeof item === 'string' ? item : (item.name || item);
+                  const amount = typeof item === 'string' ? '' : item.amount;
+
+                  // Try to scale numeric amounts
+                  let scaledAmount = amount;
+                  if (amount) {
+                    const numericMatch = String(amount).match(/^([\d.\/]+)\s*(.*)/);
+                    if (numericMatch) {
+                      let numVal = 0;
+                      const rawNum = numericMatch[1];
+                      if (rawNum.includes('/')) {
+                        const parts = rawNum.split('/');
+                        numVal = Number(parts[0]) / Number(parts[1]);
+                      } else {
+                        numVal = Number(rawNum);
+                      }
+                      if (!isNaN(numVal)) {
+                        const scaled = numVal * batchMultiplier;
+                        const unit = numericMatch[2] || '';
+                        scaledAmount = `${scaled % 1 === 0 ? scaled : scaled.toFixed(1)} ${unit}`.trim();
+                      }
+                    }
+                  }
+
+                  return (
+                    <View key={index} style={styles.batchRow}>
+                      <Text style={styles.batchIngredient}>{name}</Text>
+                      <Text style={styles.batchAmount}>
+                        {scaledAmount || `${batchMultiplier}x`}
+                      </Text>
+                    </View>
+                  );
+                })}
+                <Text style={styles.batchNote}>
+                  Serves ~{batchMultiplier} {batchMultiplier === 1 ? 'drink' : 'drinks'}
+                </Text>
+              </View>
+            )}
           </View>
         )}
 
-        {/* Folder */}
-        {recipe.folder && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Folder</Text>
-            <View style={styles.folderContainer}>
-              <Ionicons name="folder-outline" size={16} color={colors.accent} />
-              <Text style={styles.folderText}>{recipe.folder}</Text>
-            </View>
-          </View>
-        )}
-
-        {/* Actions */}
-        <View style={styles.actionsSection}>
+        {!hasBatching && (recipe.ingredients || recipe.tags) && (
           <TouchableOpacity
-            style={styles.groceryListButton}
-            onPress={() => setGroceryListVisible(true)}
+            style={styles.batchLockedSection}
+            activeOpacity={0.8}
+            onPress={() => nav.navigate('Paywall' as any, { source: 'batch_calculator' })}
           >
-            <Ionicons name="list" size={20} color={colors.bg} />
-            <Text style={styles.groceryListButtonText}>Create Shopping List</Text>
+            <MaterialCommunityIcons name="lock-outline" size={20} color={colors.gold} />
+            <View style={{ flex: 1, marginLeft: spacing(1.5) }}>
+              <Text style={styles.batchLockedTitle}>Batch Calculator</Text>
+              <Text style={styles.batchLockedSub}>Upgrade to KOOPE+ to scale recipes for parties</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.subtext} />
           </TouchableOpacity>
+        )}
+
+        {/* --- Pro Tips (Accordion) --- */}
+        <View style={styles.section}>
+          <TouchableOpacity
+            style={styles.proTipsHeader}
+            onPress={() => setProTipsOpen(!proTipsOpen)}
+            activeOpacity={0.7}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
+              <MaterialCommunityIcons name="lightbulb-on" size={20} color={colors.accent} />
+              <Text style={[styles.proTipsTitle, { fontFamily: serifFont }]}>Pro Tips</Text>
+            </View>
+            <Ionicons name={proTipsOpen ? "chevron-up" : "chevron-down"} size={20} color={colors.subtext} />
+          </TouchableOpacity>
+
+          {proTipsOpen && (
+            <View style={styles.proTipsContent}>
+              <Text style={styles.proTipsText}>
+                Use large-format ice to minimize dilution while keeping the drink freezing cold.
+                {'\n\n'}
+                Expressing the orange twist over the glass adds essential aromatic oils that enhance the first sip.
+              </Text>
+            </View>
+          )}
         </View>
+
+        {/* --- AI Support --- */}
+        <View style={styles.aiSupportSection}>
+          <Text style={styles.aiSupportHeader}>AI SUPPORT</Text>
+          <View style={styles.aiButtonsRow}>
+            <TouchableOpacity style={styles.aiButton}>
+              <MaterialCommunityIcons name="swap-horizontal" size={20} color={colors.accent} />
+              <Text style={styles.aiButtonTitle}>Find Ingredient Substitutes</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.aiButton}>
+              <MaterialCommunityIcons name="wand" size={20} color={colors.accent} />
+              <Text style={styles.aiButtonTitle}>Customize This Recipe</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Extra bottom padding */}
+        <View style={{ height: 40 }} />
+
       </ScrollView>
 
       {/* Grocery List Modal */}
@@ -191,7 +356,7 @@ export default function RecipeDetailScreen() {
           recipeId={recipe.id}
         />
       )}
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -203,154 +368,350 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
   },
-  recipeImage: {
+  // Hero
+  heroContainer: {
     width: '100%',
-    height: 250,
+    height: 480, // Tall hero image
+    position: 'relative',
+  },
+  heroImage: {
+    width: '100%',
+    height: '100%',
     resizeMode: 'cover',
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    padding: spacing(3),
-    paddingBottom: spacing(2),
-  },
-  title: {
-    flex: 1,
-    fontSize: 24,
-    fontWeight: '700',
-    color: colors.text,
-    marginRight: spacing(2),
-  },
-  shareButton: {
-    padding: spacing(1),
-  },
-  statsContainer: {
-    flexDirection: 'row',
+  heroGradient: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 300,
+    justifyContent: 'flex-end',
     paddingHorizontal: spacing(3),
-    paddingBottom: spacing(2),
-    gap: spacing(3),
+    paddingBottom: spacing(4),
   },
-  statItem: {
+  heroTitle: {
+    fontSize: 36,
+    color: colors.text,
+    textAlign: 'center',
+    marginBottom: spacing(2),
+    // fontWeight is handled by font family usually, but adding weight for fallback
+    fontWeight: '700',
+    textShadowColor: 'rgba(0,0,0,0.5)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
+  },
+  metaRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: spacing(1),
+  },
+  metaItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing(0.5),
+    gap: 6,
   },
-  statText: {
-    fontSize: 14,
+  metaText: {
     color: colors.subtext,
+    fontSize: 14,
     fontWeight: '500',
   },
+  metaDot: {
+    color: colors.subtext,
+    fontSize: 14,
+    marginHorizontal: 4,
+  },
+  backButtonAbsolute: {
+    position: 'absolute',
+    top: 60,
+    left: spacing(3),
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    borderRadius: 20,
+  },
+  shareButtonAbsolute: {
+    position: 'absolute',
+    top: 60,
+    right: spacing(3),
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    borderRadius: 20,
+  },
+
+  // Actions
+  actionButtonsContainer: {
+    paddingHorizontal: spacing(3),
+    marginTop: spacing(2),
+    gap: spacing(2),
+  },
+  primaryButton: {
+    backgroundColor: colors.accent,
+    borderRadius: radii.pill,
+    height: 52,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: colors.accent,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  primaryButtonText: {
+    color: '#FFF', // Always white on gold
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  secondaryButton: {
+    backgroundColor: 'transparent',
+    borderRadius: radii.pill,
+    height: 52,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  secondaryButtonText: {
+    color: colors.text,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+
+  // Section
   section: {
     paddingHorizontal: spacing(3),
-    paddingVertical: spacing(2),
+    marginTop: spacing(4),
   },
-  sectionTitle: {
+  sectionHeader: {
+    fontSize: 28,
+    color: colors.text,
+    marginBottom: spacing(2.5),
+    fontWeight: '600',
+  },
+
+  // Ingredients
+  ingredientsList: {
+    gap: spacing(1.5),
+  },
+  ingredientRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#261C16', // Slightly lighter than bg, matches mock
+    padding: spacing(2),
+    borderRadius: radii.xl, // Pill-ish shape
+  },
+  ingredientIconBox: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(214, 138, 56, 0.15)', // low opacity gold
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: spacing(2),
+  },
+  ingredientInfo: {
+    flex: 1,
+  },
+  ingredientName: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  ingredientDetail: {
+    fontSize: 14,
+    color: colors.subtext,
+    marginTop: 2,
+  },
+
+  // Instructions
+  instructionsList: {
+    gap: spacing(3),
+  },
+  instructionRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  stepNumber: {
+    fontSize: 32,
+    color: colors.accent,
+    width: 50,
+    // fontStyle: 'italic', // Optional
+    lineHeight: 40,
+  },
+  stepText: {
+    flex: 1,
+    fontSize: 16,
+    color: colors.textMuted,
+    lineHeight: 24,
+    paddingTop: 8, // Align with number visually
+  },
+
+  // Pro Tips
+  proTipsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#261C16',
+    padding: spacing(2.5),
+    borderRadius: radii.lg,
+  },
+  proTipsTitle: {
     fontSize: 18,
     fontWeight: '600',
     color: colors.text,
-    marginBottom: spacing(1),
   },
-  descriptionText: {
-    fontSize: 16,
-    color: colors.text,
-    lineHeight: 24,
+  proTipsContent: {
+    backgroundColor: '#261C16',
+    marginTop: 2, // Tiny gap
+    padding: spacing(2.5),
+    borderBottomLeftRadius: radii.lg,
+    borderBottomRightRadius: radii.lg,
   },
-  sourceText: {
-    fontSize: 16,
-    color: colors.accent,
-    lineHeight: 24,
+  proTipsText: {
+    fontSize: 15,
+    color: colors.subtext,
+    lineHeight: 22,
   },
-  tagsContainer: {
+
+  // AI Support
+  aiSupportSection: {
+    marginTop: spacing(5),
+    paddingHorizontal: spacing(3),
+  },
+  aiSupportHeader: {
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 1.5,
+    color: colors.subtext,
+    marginBottom: spacing(2),
+    textTransform: 'uppercase',
+  },
+  aiButtonsRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing(1),
-  },
-  tag: {
-    backgroundColor: colors.card,
-    paddingHorizontal: spacing(2),
-    paddingVertical: spacing(0.5),
-    borderRadius: radii.sm,
-    borderWidth: 1,
-    borderColor: colors.line,
-  },
-  tagText: {
-    fontSize: 14,
-    color: colors.text,
-  },
-  ingredientsContainer: {
     gap: spacing(2),
   },
-  ingredientCard: {
-    backgroundColor: colors.card,
-    borderRadius: radii.lg,
-    padding: spacing(3),
+  aiButton: {
+    flex: 1,
+    backgroundColor: '#261C16',
+    borderRadius: radii.xl,
+    padding: spacing(2.5),
+    height: 120, // Taller cards
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
     borderWidth: 1,
-    borderColor: colors.line,
+    borderColor: 'rgba(255,255,255,0.05)',
   },
-  ingredientTitle: {
+  aiButtonTitle: {
     fontSize: 16,
     fontWeight: '600',
     color: colors.text,
-    marginBottom: spacing(0.5),
+    marginTop: spacing(1),
   },
-  ingredientDescription: {
-    fontSize: 14,
-    color: colors.subtext,
-    lineHeight: 20,
-  },
-  folderContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing(1),
-  },
-  folderText: {
-    fontSize: 16,
-    color: colors.text,
-  },
+
+  // Error state
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: spacing(4),
   },
   errorText: {
     fontSize: 18,
     color: colors.error,
-    marginVertical: spacing(2),
-    textAlign: 'center',
+    marginTop: spacing(2),
   },
   backButton: {
+    marginTop: spacing(3),
     backgroundColor: colors.accent,
-    paddingHorizontal: spacing(4),
-    paddingVertical: spacing(2),
-    borderRadius: radii.md,
-    marginTop: spacing(2),
+    paddingHorizontal: spacing(3),
+    paddingVertical: spacing(1.5),
+    borderRadius: radii.pill,
   },
   backButtonText: {
     color: colors.bg,
-    fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
   },
-  actionsSection: {
-    paddingHorizontal: spacing(3),
-    paddingVertical: spacing(3),
-    borderTopWidth: 1,
-    borderTopColor: colors.line,
-    marginTop: spacing(2),
+
+  // Batch Calculator
+  batchChips: {
+    flexDirection: 'row',
+    gap: spacing(1.5),
+    marginBottom: spacing(2),
   },
-  groceryListButton: {
+  batchChip: {
+    flex: 1,
+    paddingVertical: spacing(1.5),
+    backgroundColor: '#261C16',
+    borderRadius: radii.pill,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  batchChipActive: {
     backgroundColor: colors.accent,
+    borderColor: colors.accent,
+  },
+  batchChipText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.subtext,
+  },
+  batchChipTextActive: {
+    color: '#FFF',
+  },
+  batchResult: {
+    backgroundColor: '#261C16',
+    borderRadius: radii.lg,
+    padding: spacing(2),
+  },
+  batchRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: spacing(1),
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: 'rgba(255,255,255,0.06)',
+  },
+  batchIngredient: {
+    fontSize: 15,
+    color: colors.text,
+    flex: 1,
+  },
+  batchAmount: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.accent,
+    textAlign: 'right',
+  },
+  batchNote: {
+    fontSize: 13,
+    color: colors.subtext,
+    marginTop: spacing(1.5),
+    textAlign: 'center',
+  },
+  batchLockedSection: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: spacing(3),
-    borderRadius: radii.md,
-    gap: spacing(1),
+    marginHorizontal: spacing(3),
+    marginTop: spacing(4),
+    backgroundColor: '#261C16',
+    borderRadius: radii.lg,
+    padding: spacing(2.5),
+    borderWidth: 1,
+    borderColor: colors.gold + '30',
   },
-  groceryListButtonText: {
-    color: colors.bg,
-    fontSize: fonts.body,
-    fontWeight: '600',
+  batchLockedTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  batchLockedSub: {
+    fontSize: 13,
+    color: colors.subtext,
+    marginTop: 2,
   },
 });

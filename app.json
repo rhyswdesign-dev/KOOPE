@@ -6,25 +6,28 @@
     "scheme": "koope",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
-    "newArchEnabled": false,
+    "userInterfaceStyle": "dark",
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#1A120D"
     },
     "ios": {
       "supportsTablet": true,
       "statusBarStyle": "light",
       "bundleIdentifier": "com.koope.app",
       "infoPlist": {
-        "LSApplicationQueriesSchemes": ["instagram", "pinterest", "twitter"]
-      }
+        "LSApplicationQueriesSchemes": ["instagram", "pinterest", "twitter"],
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": true
+        }
+      },
+      "associatedDomains": ["applinks:koope.app"]
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#1A120D"
       },
       "statusBarStyle": "light",
       "edgeToEdgeEnabled": true,

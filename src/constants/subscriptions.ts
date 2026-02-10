@@ -77,13 +77,20 @@ export const OFFERINGS = {
 
 /**
  * RevenueCat API Keys
- * NOTE: These are test keys. Replace with production keys before launch.
- * In production, consider using environment variables or secure configuration.
+ *
+ * SETUP INSTRUCTIONS:
+ * 1. Go to https://app.revenuecat.com and create a project for KOOPE
+ * 2. Navigate to API Keys section
+ * 3. Copy the iOS and Android public API keys
+ * 4. Add them to your .env file as:
+ *    EXPO_PUBLIC_REVENUECAT_IOS_KEY=appl_xxxxxxxxxxxxx
+ *    EXPO_PUBLIC_REVENUECAT_ANDROID_KEY=goog_xxxxxxxxxxxxx
+ *
+ * For production, these should be set in your CI/CD environment
  */
 export const REVENUECAT_CONFIG = {
-  // Get these from: https://app.revenuecat.com/projects/<your-project>/api-keys
-  IOS_API_KEY: 'test_KIZwnFeRKJvlQzvHuvqxkwSdSda',
-  ANDROID_API_KEY: 'test_KIZwnFeRKJvlQzvHuvqxkwSdSda',
+  IOS_API_KEY: process.env.EXPO_PUBLIC_REVENUECAT_IOS_KEY || 'appl_PLACEHOLDER_REPLACE_ME',
+  ANDROID_API_KEY: process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_KEY || 'goog_PLACEHOLDER_REPLACE_ME',
 } as const;
 
 /**

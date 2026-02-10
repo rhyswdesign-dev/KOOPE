@@ -21,6 +21,9 @@ interface CreateRecipeModalProps {
   onSuccess?: (recipeId: string) => void;
 }
 
+type RecipeType = 'cocktail' | 'syrup' | 'bitter' | 'infusion' | 'shrub' | 'cordial' | 'tincture';
+type RecipeMethod = 'shake' | 'stir' | 'build' | 'blend' | 'muddle' | 'layer' | 'swizzle' | 'throw';
+
 export default function CreateRecipeModal({
   visible,
   onClose,
@@ -43,6 +46,8 @@ export default function CreateRecipeModal({
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [currentTag, setCurrentTag] = useState('');
+  const [recipeType, setRecipeType] = useState<RecipeType>('cocktail');
+  const [recipeMethod, setRecipeMethod] = useState<RecipeMethod | null>(null);
 
   const updateField = <K extends keyof RecipeSubmission>(
     key: K,
@@ -94,6 +99,94 @@ export default function CreateRecipeModal({
   const removeTag = (tag: string) => {
     const updated = (recipe.tags || []).filter(t => t !== tag);
     updateField('tags', updated);
+  };
+
+  // Get step suggestions based on method and type
+  const getStepSuggestions = (method: RecipeMethod | null, type: RecipeType): string[] => {
+    if (!method) return [];
+
+    const suggestions: Record<RecipeMethod, string[]> = {
+      shake: [
+        'Add all ingredients to a cocktail shaker',
+        'Add ice and shake vigorously for 10-15 seconds',
+        'Double strain into a chilled glass',
+        'Garnish and serve',
+      ],
+      stir: [
+        'Add all ingredients to a mixing glass',
+        'Add ice and stir gently for 20-30 seconds',
+        'Strain into a chilled glass',
+        'Garnish and serve',
+      ],
+      build: [
+        'Add ingredients directly to the serving glass',
+        'Fill with ice',
+        'Stir gently to combine',
+        'Garnish and serve',
+      ],
+      blend: [
+        'Add all ingredients to a blender',
+        'Add ice and blend until smooth',
+        'Pour into serving glass',
+        'Garnish and serve',
+      ],
+      muddle: [
+        'Add fresh ingredients to the bottom of the glass',
+        'Muddle gently to release flavors',
+        'Add remaining ingredients and ice',
+        'Stir to combine',
+        'Garnish and serve',
+      ],
+      layer: [
+        'Pour the heaviest ingredient first',
+        'Slowly layer each ingredient over a bar spoon',
+        'Layer from heaviest to lightest',
+        'Serve without stirring',
+      ],
+      swizzle: [
+        'Add ingredients to a tall glass',
+        'Fill glass with crushed ice',
+        'Swizzle with a bar spoon or swizzle stick',
+        'Top with more crushed ice',
+        'Garnish and serve',
+      ],
+      throw: [
+        'Pour ingredients into one tin',
+        'Pour mixture back and forth between tins from a height',
+        'Repeat 4-5 times to aerate and chill',
+        'Strain into serving glass',
+        'Garnish and serve',
+      ],
+    };
+
+    // Adjust suggestions for non-cocktail types
+    if (type === 'syrup') {
+      return [
+        'Combine ingredients in a saucepan',
+        'Heat gently until sugar dissolves',
+        'Simmer for recommended time',
+        'Remove from heat and let cool',
+        'Strain and bottle',
+      ];
+    } else if (type === 'bitter' || type === 'tincture') {
+      return [
+        'Combine ingredients in a sterilized jar',
+        'Seal tightly and shake well',
+        'Store in a cool, dark place',
+        'Shake daily for recommended infusion period',
+        'Strain and bottle',
+      ];
+    } else if (type === 'infusion') {
+      return [
+        'Add flavoring ingredients to the spirit',
+        'Seal container and store in a cool place',
+        'Taste daily until desired flavor is reached',
+        'Strain out solids',
+        'Bottle and label',
+      ];
+    }
+
+    return suggestions[method] || [];
   };
 
   const handleAddImage = async () => {
@@ -242,6 +335,50 @@ export default function CreateRecipeModal({
               />
             </View>
 
+            {/* Recipe Type */}
+            <View style={styles.field}>
+              <Text style={styles.fieldLabel}>What are you making? *</Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.typeOptions}
+              >
+                {[
+                  { key: 'cocktail', label: 'Cocktail', icon: 'wine' },
+                  { key: 'syrup', label: 'Syrup', icon: 'water' },
+                  { key: 'bitter', label: 'Bitter', icon: 'flask' },
+                  { key: 'infusion', label: 'Infusion', icon: 'beaker' },
+                  { key: 'shrub', label: 'Shrub', icon: 'leaf' },
+                  { key: 'cordial', label: 'Cordial', icon: 'sparkles' },
+                  { key: 'tincture', label: 'Tincture', icon: 'eyedropper' },
+                ].map((type) => {
+                  const isSelected = recipeType === type.key;
+                  return (
+                    <Pressable
+                      key={type.key}
+                      style={[
+                        styles.typeOption,
+                        isSelected && styles.typeOptionSelected,
+                      ]}
+                      onPress={() => setRecipeType(type.key as RecipeType)}
+                    >
+                      <Ionicons
+                        name={type.icon as any}
+                        size={20}
+                        color={isSelected ? colors.gold : colors.text}
+                      />
+                      <Text style={[
+                        styles.typeText,
+                        isSelected && styles.typeTextSelected,
+                      ]}>
+                        {type.label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+            </View>
+
             <View style={styles.rowFields}>
               <View style={[styles.field, { flex: 1 }]}>
                 <Text style={styles.fieldLabel}>Prep Time (min) *</Text>
@@ -338,6 +475,68 @@ export default function CreateRecipeModal({
             ))}
           </View>
 
+          {/* Method Selection (only for cocktails) */}
+          {recipeType === 'cocktail' && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Preparation Method</Text>
+              <Text style={styles.helperText}>
+                Select a method to get step-by-step guidance
+              </Text>
+
+              <View style={styles.methodGrid}>
+                {[
+                  { key: 'shake', label: 'Shake', icon: 'flash' },
+                  { key: 'stir', label: 'Stir', icon: 'repeat' },
+                  { key: 'build', label: 'Build', icon: 'layers' },
+                  { key: 'blend', label: 'Blend', icon: 'thunderstorm' },
+                  { key: 'muddle', label: 'Muddle', icon: 'leaf' },
+                  { key: 'layer', label: 'Layer', icon: 'reorder-four' },
+                  { key: 'swizzle', label: 'Swizzle', icon: 'sync' },
+                  { key: 'throw', label: 'Throw', icon: 'return-up-forward' },
+                ].map((method) => {
+                  const isSelected = recipeMethod === method.key;
+                  return (
+                    <Pressable
+                      key={method.key}
+                      style={[
+                        styles.methodOption,
+                        isSelected && styles.methodOptionSelected,
+                      ]}
+                      onPress={() => {
+                        const selectedMethod = method.key as RecipeMethod;
+                        setRecipeMethod(selectedMethod);
+                        // Auto-apply suggestions
+                        const suggestions = getStepSuggestions(selectedMethod, recipeType);
+                        updateField('instructions', suggestions);
+                      }}
+                    >
+                      <Ionicons
+                        name={method.icon as any}
+                        size={24}
+                        color={isSelected ? colors.white : colors.accent}
+                      />
+                      <Text style={[
+                        styles.methodText,
+                        isSelected && styles.methodTextSelected,
+                      ]}>
+                        {method.label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+
+              {recipeMethod && (
+                <View style={styles.methodHint}>
+                  <Ionicons name="information-circle" size={16} color={colors.accent} />
+                  <Text style={styles.methodHintText}>
+                    Suggested steps have been added below. Feel free to customize them!
+                  </Text>
+                </View>
+              )}
+            </View>
+          )}
+
           {/* Instructions */}
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
@@ -346,6 +545,15 @@ export default function CreateRecipeModal({
                 <Ionicons name="add" size={20} color={colors.accent} />
               </Pressable>
             </View>
+
+            {!recipeMethod && recipeType === 'cocktail' && (
+              <View style={styles.selectMethodHint}>
+                <Ionicons name="arrow-up" size={20} color={colors.gold} />
+                <Text style={styles.selectMethodHintText}>
+                  Select a method above to get suggested steps!
+                </Text>
+              </View>
+            )}
 
             {(recipe.instructions || []).map((instruction, index) => (
               <View key={index} style={styles.instructionRow}>
@@ -648,5 +856,98 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: colors.accent,
+  },
+  typeOptions: {
+    flexDirection: 'row',
+    gap: spacing(2),
+    paddingVertical: spacing(1),
+  },
+  typeOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing(2),
+    paddingHorizontal: spacing(3),
+    borderWidth: 2,
+    borderColor: colors.line,
+    borderRadius: radii.md,
+    gap: spacing(1),
+    minWidth: 100,
+  },
+  typeOptionSelected: {
+    backgroundColor: `${colors.gold}20`,
+    borderColor: colors.gold,
+  },
+  typeText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  typeTextSelected: {
+    color: colors.gold,
+  },
+  methodGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing(2),
+    marginTop: spacing(2),
+  },
+  methodOption: {
+    width: '48%',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing(3),
+    borderWidth: 2,
+    borderColor: colors.accent,
+    borderRadius: radii.lg,
+    gap: spacing(1),
+  },
+  methodOptionSelected: {
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
+  },
+  methodText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  methodTextSelected: {
+    color: colors.white,
+  },
+  methodHint: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(1.5),
+    backgroundColor: `${colors.accent}15`,
+    paddingHorizontal: spacing(2.5),
+    paddingVertical: spacing(2),
+    borderRadius: radii.md,
+    marginTop: spacing(3),
+  },
+  methodHintText: {
+    flex: 1,
+    fontSize: 13,
+    color: colors.text,
+    lineHeight: 18,
+  },
+  selectMethodHint: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing(1.5),
+    backgroundColor: `${colors.gold}15`,
+    paddingVertical: spacing(3),
+    paddingHorizontal: spacing(2),
+    borderRadius: radii.lg,
+    marginBottom: spacing(3),
+    borderWidth: 2,
+    borderColor: `${colors.gold}30`,
+    borderStyle: 'dashed',
+  },
+  selectMethodHintText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.gold,
   },
 });

@@ -3,8 +3,8 @@
  *
  * Core types for the Vault system:
  * - User tiers and access levels
- * - Vault categories (variations, playbooks, bar features, etc.)
- * - Unlock methods (XP, Keys, Money)
+ * - Vault categories (variations, playbooks, bar features, games, etc.)
+ * - Unlock methods (XP, Money)
  * - Item structures for all content types
  */
 
@@ -23,7 +23,7 @@ export type VaultCategory =
   | "TECHNIQUE_PLAYBOOK"
   | "BAR_FEATURE"
   | "SEASONAL_DROP"
-  | "VAULT_KEY_BUNDLE";
+  | "DRINKING_GAME";
 
 // ============================================================================
 // UNLOCK METHOD
@@ -31,10 +31,7 @@ export type VaultCategory =
 
 export type UnlockMethod =
   | "XP_ONLY"           // Can only be unlocked with XP
-  | "XP_OR_MONEY"       // Can be unlocked with XP or purchased
-  | "KEY_ONLY"          // Requires a Vault Key
-  | "KEY_OR_XP"         // Can use Key or XP
-  | "KEY_OR_MONEY";     // Can use Key or purchase
+  | "XP_OR_MONEY";      // Can be unlocked with XP or purchased
 
 // ============================================================================
 // VAULT ITEM BASE INTERFACE
@@ -92,6 +89,7 @@ export interface BarFeatureItem extends VaultItemBase {
   city: string;
   vibeDescription: string;
   signatureCocktailName: string;
+  thumbnailKey?: string;         // Key to look up thumbnail image
   hasProEarlyAccess?: boolean;   // PRO tier gets early access
 }
 
@@ -106,12 +104,14 @@ export interface SeasonalDropItem extends VaultItemBase {
 }
 
 // ============================================================================
-// VAULT KEY BUNDLE ITEM
+// DRINKING GAME ITEM
 // ============================================================================
 
-export interface VaultKeyBundleItem extends VaultItemBase {
-  category: "VAULT_KEY_BUNDLE";
-  keysGranted: number;           // how many keys this bundle gives
+export interface DrinkingGameItem extends VaultItemBase {
+  category: "DRINKING_GAME";
+  players: string;
+  gameDifficulty: "Easy" | "Medium" | "Hard";
+  origin: string;
 }
 
 // ============================================================================
@@ -123,7 +123,7 @@ export type VaultItem =
   | TechniquePlaybookItem
   | BarFeatureItem
   | SeasonalDropItem
-  | VaultKeyBundleItem;
+  | DrinkingGameItem;
 
 // ============================================================================
 // USER VAULT STATE
@@ -133,7 +133,6 @@ export interface UserVaultState {
   userId: string;
   tier: UserTier;
   xp: number;
-  vaultKeys: number;
   ownedItemIds: string[];        // IDs of items user has unlocked
 }
 

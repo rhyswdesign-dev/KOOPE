@@ -23,8 +23,8 @@ import { useSubscription } from '../contexts/SubscriptionContext';
 import { trackEvent, ANALYTICS_EVENTS, ANALYTICS_PROPS } from '../lib/analytics';
 import { log } from '../lib/logger';
 
-// Safe area top padding fallback
-const SAFE_AREA_TOP = Platform.OS === 'ios' ? 50 : (StatusBar.currentHeight || 24);
+// Safe area top padding fallback - lazy evaluation to ensure runtime is ready
+const getSafeAreaTop = () => Platform.OS === 'ios' ? 50 : (StatusBar.currentHeight || 24);
 
 const { width } = Dimensions.get('window');
 
@@ -399,7 +399,7 @@ export default function PaywallScreen({ route }: PaywallScreenProps) {
       {/* Close Button */}
       {displayCloseButton && (
         <TouchableOpacity
-          style={[styles.closeButton, { top: SAFE_AREA_TOP }]}
+          style={[styles.closeButton, { top: getSafeAreaTop() }]}
           onPress={() => navigation.goBack()}
         >
           <Ionicons name="close" size={24} color="#FFFFFF" />
@@ -407,7 +407,7 @@ export default function PaywallScreen({ route }: PaywallScreenProps) {
       )}
 
       {/* Tier Tabs */}
-      <View style={[styles.tierTabs, { paddingTop: SAFE_AREA_TOP }]}>
+      <View style={[styles.tierTabs, { paddingTop: getSafeAreaTop() }]}>
         <TouchableOpacity
           style={[
             styles.tierTab,

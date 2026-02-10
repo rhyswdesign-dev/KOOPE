@@ -1,5 +1,5 @@
 /**
- * VAULT HOME SCREEN - XP + KEYS ECONOMY
+ * VAULT HOME SCREEN - XP ECONOMY
  * Clean layout matching app's current design patterns
  */
 
@@ -49,6 +49,7 @@ import {
   getAvailableSeasonalDropsForTier,
   getAllPlaybookTypes,
   TechniquePlaybookType,
+  getDrinkingGamesForDisplay,
 } from '../../config/vaultContent';
 import AIRecommendations from '../../components/AIRecommendations';
 import { useSavedItems } from '../../hooks/useSavedItems';
@@ -67,7 +68,7 @@ export default function VaultScreen() {
   const { state, dispatch } = useVault();
   const { tier, setTier } = useUserTier();
   const analytics = useAnalyticsContext();
-  const { balance: xpBalance, spendXP } = useXPSystem(); // Use XPSystem for correct balance
+  const { balance: xpBalance, spendXP, unlockVaultItem, isVaultItemUnlocked } = useXPSystem();
   const { credits, isPremium } = useAICredits();
   const { savedItems, toggleSavedCocktail, isCocktailSaved } = useSavedItems();
   const [selectedTab, setSelectedTab] = useState<string>('variations');
@@ -127,7 +128,7 @@ export default function VaultScreen() {
             onPress={() => {
               Alert.alert(
                 'How the Vault Works',
-                'XP (Experience Points):\n• Earn XP by completing lessons and challenges\n• Use XP to unlock exclusive recipes, techniques, and bar features\n\nSubscription Tiers:\n• FREE: Limited access, earn XP to unlock select items\n• KOOPE+ ($8.99/mo): Unlock ALL Vault content with XP\n• KOOPE PRO ($17.99/mo): PLUS benefits + accelerated XP earning\n\nTip: Complete daily lessons to maximize your XP earnings!',
+                'XP (Experience Points):\n• Earn XP by completing lessons and challenges\n• Use XP to unlock exclusive recipes, techniques, and games\n\nSubscription Tiers:\n• FREE: Limited access, earn XP to unlock select items\n• KOOPE+ ($8.99/mo): Unlock ALL Vault content with XP\n• KOOPE PRO ($17.99/mo): PLUS benefits + accelerated XP earning\n\nTip: Complete daily lessons to maximize your XP earnings!',
                 [{ text: 'Got it!', style: 'default' }]
               );
             }}
@@ -209,12 +210,9 @@ export default function VaultScreen() {
     { key: 'variations', label: 'Cocktails' },
     { key: 'seasonal', label: 'Seasonal' },
     { key: 'playbooks', label: 'Playbooks' },
-    { key: 'bars', label: 'Bar Features' },
     { key: 'games', label: 'Games' },
     // Archived for future product expansion
-    // { key: 'common', label: 'Common' },
-    // { key: 'limited', label: 'Limited' },
-    // { key: 'rare', label: 'Rare' },
+    // { key: 'bars', label: 'Bar Features' },
   ];
 
   const renderVaultItem = ({ item }: { item: VaultItem }) => (
@@ -356,6 +354,16 @@ export default function VaultScreen() {
     return state.userProfile.unlockedItems.some(item => item.itemId === barId);
   };
 
+  // Helper function to check if a game is unlocked (persisted in XP store)
+  const isGameUnlocked = (gameId: string): boolean => {
+    return isVaultItemUnlocked(gameId);
+  };
+
+  // Map vault game IDs to GameDetailsScreen navigation IDs
+  const getGameNavId = (vaultGameId: string): string => {
+    return vaultGameId.replace('game_', '').replace(/_/g, '-');
+  };
+
   // Open preview modal with item details and benefits
   const handleItemPreview = (item: any, imageUrl: string, category: string) => {
     let benefits = [];
@@ -398,6 +406,7 @@ export default function VaultScreen() {
     }
 
     const previewData = {
+      id: item.id,
       title: item.title || item.barName || item.name || item.seasonName,
       description: fullDescription,
       imageUrl,
@@ -405,7 +414,7 @@ export default function VaultScreen() {
       xpCost: item.xpCost,
       requiredTier: item.requiredTier,
       benefits,
-      isUnlocked: state.userProfile.unlockedItems.some(i => i.itemId === item.id),
+      isUnlocked: isVaultItemUnlocked(item.id),
     };
 
     log.info('VaultScreen', 'Opening preview modal', { item: previewData });
@@ -597,75 +606,91 @@ export default function VaultScreen() {
     }
 
     if (selectedTab === 'games') {
-      const allGames = state.vaultItems.filter(item => item.category === 'games' && item.isActive);
+      const allGames = getDrinkingGamesForDisplay(); // Show all games regardless of tier
+      const gameCategories: Record<string, string> = {
+        classic: 'Classic Games',
+        cultural: 'Cultural / International',
+        app_enhanced: 'App-Enhanced Games',
+        party: 'Party Games',
+      };
+
+      const groupedGames: Record<string, typeof allGames> = {
+        classic: [],
+        cultural: [],
+        app_enhanced: [],
+        party: [],
+      };
+      allGames.forEach((g) => {
+        groupedGames[g.category].push(g);
+      });
 
       return (
         <View style={styles.inlineContent}>
-          <View style={styles.contentSection}>
-            <Text style={styles.contentSectionTitle}>Drinking Games</Text>
-            <Text style={styles.contentSectionDescription}>
-              Classic party games with official rules and variations. Perfect for social gatherings!
-            </Text>
-            {allGames.map((game) => {
-              const isTierLocked = !canAccessContent(tier, game.requiredTier);
-              return (
-                <TouchableOpacity
-                  key={game.id}
-                  style={[styles.contentItemCard, isTierLocked && styles.lockedCard]}
-                  activeOpacity={0.7}
-                  onPress={() => handleItemPreview(game, game.image, 'game')}
-                >
-                  <Image
-                    source={{ uri: game.image }}
-                    style={[styles.contentItemThumbnail, isTierLocked && styles.lockedThumbnail]}
-                    resizeMode="cover"
-                  />
-                  <View style={styles.contentItemInfo}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1) }}>
-                      <Text style={styles.contentItemXP}>{game.xpCost} XP</Text>
-                      {isTierLocked && game.requiredTier && (
-                        <View style={styles.tierRequiredBadge}>
-                          <Text style={styles.tierRequiredText}>{game.requiredTier} Required</Text>
-                        </View>
-                      )}
-                    </View>
-                    <Text style={styles.contentItemTitle}>{game.name}</Text>
-                    <Text style={styles.contentItemDescription} numberOfLines={2}>
-                      {game.description}
-                    </Text>
-                  </View>
-                  <View style={styles.contentItemUnlockButton}>
-                    <Text style={styles.contentItemUnlockText}>Unlock</Text>
-                  </View>
-                </TouchableOpacity>
-              );
-            })}
+          {Object.entries(groupedGames).map(([cat, games]) => {
+            if (games.length === 0) return null;
+            return (
+              <View key={cat} style={styles.contentSection}>
+                <Text style={styles.contentSectionTitle}>{gameCategories[cat]}</Text>
+                {games.map((game) => {
+                  const unlocked = isGameUnlocked(game.id);
+                  const isTierLocked = !canAccessContent(tier, game.requiredTier);
 
-            {/* Removed tier-based upgrade prompt - items now show tier requirements directly */}
-            {false && (
-              <TouchableOpacity
-                style={styles.vaultUpgradeCard}
-                activeOpacity={0.8}
-                onPress={() => nav.navigate('Subscription')}
-              >
-                <View style={styles.vaultUpgradeContent}>
-                  <Ionicons name="lock-closed" size={32} color={colors.gold} />
-                  <View style={styles.vaultUpgradeText}>
-                    <Text style={styles.vaultUpgradeTitle}>
-                      {allGames.length - 2}+ More Games Locked
-                    </Text>
-                    <Text style={styles.vaultUpgradeSubtitle}>
-                      Upgrade to KOOPE+ to unlock all drinking games
-                    </Text>
-                  </View>
-                  <View style={styles.vaultUpgradeButton}>
-                    <Text style={styles.vaultUpgradeButtonText}>Upgrade</Text>
-                    <Ionicons name="arrow-forward" size={16} color={colors.text} />
-                  </View>
-                </View>
-              </TouchableOpacity>
-            )}
-          </View>
+                  return (
+                    <TouchableOpacity
+                      key={game.id}
+                      style={[styles.contentItemCard, isTierLocked && styles.lockedCard]}
+                      activeOpacity={0.7}
+                      onPress={() => {
+                        if (unlocked) {
+                          nav.navigate('GameDetails', { id: getGameNavId(game.id) });
+                        } else {
+                          handleItemPreview(
+                            { ...game, title: game.title, shortDescription: game.shortDescription },
+                            PLACEHOLDER_IMAGES.cocktail,
+                            'game'
+                          );
+                        }
+                      }}
+                    >
+                      <Image
+                        source={{ uri: PLACEHOLDER_IMAGES.cocktail }}
+                        style={[styles.contentItemThumbnail, isTierLocked && styles.lockedThumbnail]}
+                        resizeMode="cover"
+                      />
+                      <View style={styles.contentItemInfo}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1) }}>
+                          <Text style={styles.contentItemXP}>
+                            {unlocked ? '' : `${game.xpCost} XP`}
+                          </Text>
+                          {unlocked && (
+                            <View style={styles.unlockedBadge}>
+                              <Ionicons name="checkmark-circle" size={16} color={colors.gold} />
+                              <Text style={styles.unlockedText}>UNLOCKED</Text>
+                            </View>
+                          )}
+                          {!unlocked && isTierLocked && game.requiredTier && (
+                            <View style={styles.tierRequiredBadge}>
+                              <Text style={styles.tierRequiredText}>{game.requiredTier} Required</Text>
+                            </View>
+                          )}
+                        </View>
+                        <Text style={styles.contentItemTitle}>{game.title}</Text>
+                        <Text style={styles.contentItemDescription} numberOfLines={2}>
+                          {game.shortDescription}
+                        </Text>
+                      </View>
+
+                      <View style={styles.contentItemUnlockButton}>
+                        <Text style={styles.contentItemUnlockText}>
+                          {unlocked ? 'View' : 'Unlock'}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            );
+          })}
         </View>
       );
     }
@@ -767,7 +792,7 @@ export default function VaultScreen() {
             }
 
             // Deduct XP
-            const itemId = `vault_${previewItem.category}_${previewItem.title.toLowerCase().replace(/\s+/g, '_')}`;
+            const itemId = previewItem.id || `vault_${previewItem.category}_${previewItem.title.toLowerCase().replace(/\s+/g, '_')}`;
             const success = spendXP(xpCost, itemId, `Unlocked: ${previewItem.title}`);
 
             if (success) {
@@ -781,7 +806,8 @@ export default function VaultScreen() {
               setUnlockedItemName(previewItem.title);
               setCelebrationVisible(true);
 
-              // TODO: Add item to user's unlocked collection
+              // Persist unlocked item to XP store
+              unlockVaultItem(itemId);
             } else {
               Alert.alert(
                 'Error',

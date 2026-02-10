@@ -13,28 +13,34 @@ import {
   Dimensions,
   Alert,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors, spacing, radii } from '../theme/tokens';
 import { log } from '../lib/logger';
 import { useAuth } from '../contexts/AuthContext';
-import type { RootStackParamList } from '../navigation/RootNavigator';
-
 interface OAuthSignInProps {
   onComplete?: () => void;
   onSkip?: () => void;
-  route?: { params?: { onComplete?: () => void; onSkip?: () => void } };
 }
 
 const { width } = Dimensions.get('window');
 
-export default function OAuthSignInScreen({ onComplete: propsOnComplete, onSkip: propsOnSkip, route }: OAuthSignInProps) {
-  // Support both direct props (from App.tsx onboarding) and route params (from navigation)
-  // Route params are passed by React Navigation automatically when navigated to
-  const onComplete = propsOnComplete || route?.params?.onComplete;
-  const onSkip = propsOnSkip || route?.params?.onSkip;
+export default function OAuthSignInScreen({ onComplete, onSkip }: OAuthSignInProps) {
   const [isLoading, setIsLoading] = useState(false);
   const { signInWithApple, signInWithGoogle, signInWithEmail } = useAuth();
+
+  // Safely get navigation - may be undefined when not in NavigationContainer (during onboarding)
+  let navigation;
+  try {
+    navigation = useNavigation();
+  } catch (e) {
+    navigation = null;
+  }
+
+  // Use navigation if callbacks aren't provided (when used as a navigation screen)
+  const handleComplete = onComplete || (() => navigation?.canGoBack() && navigation.goBack());
+  const handleSkip = onSkip || (() => navigation?.canGoBack() && navigation.goBack());
 
   const handleTestSignIn = async () => {
     setIsLoading(true);
@@ -43,7 +49,7 @@ export default function OAuthSignInScreen({ onComplete: propsOnComplete, onSkip:
       await signInWithEmail('test@koope.app', 'TestPassword123!');
       console.log('✅ Test Sign-In successful!');
       Alert.alert('Success!', 'Signed in with test account', [
-        { text: 'OK', onPress: () => { if (onComplete) onComplete(); } }
+        { text: 'OK', onPress: handleComplete }
       ]);
     } catch (error: any) {
       console.log('❌ Test Sign-In failed:', error);
@@ -62,7 +68,7 @@ export default function OAuthSignInScreen({ onComplete: propsOnComplete, onSkip:
       console.log('✅ Apple Sign-In successful!');
       log.info('OAuthSignInScreen', 'Apple Sign-In completed');
       Alert.alert('Success!', 'Signed in successfully', [
-        { text: 'OK', onPress: () => { if (onComplete) onComplete(); } }
+        { text: 'OK', onPress: handleComplete }
       ]);
     } catch (error: any) {
       console.log('❌ Apple Sign-In failed:', error);
@@ -80,7 +86,7 @@ export default function OAuthSignInScreen({ onComplete: propsOnComplete, onSkip:
       log.info('OAuthSignInScreen', 'Google Sign-In initiated');
       await signInWithGoogle();
       log.info('OAuthSignInScreen', 'Google Sign-In completed');
-      if (onComplete) onComplete();
+      handleComplete();
     } catch (error: any) {
       log.error('OAuthSignInScreen', 'Google Sign-In failed', error);
 
@@ -114,12 +120,12 @@ export default function OAuthSignInScreen({ onComplete: propsOnComplete, onSkip:
       <View style={[styles.lightOrb, styles.lightOrbBottom]} />
 
       {/* Skip Button */}
-      {onSkip && (
+      {(onSkip || (navigation && navigation.canGoBack())) && (
         <TouchableOpacity
           style={styles.skipButton}
           onPress={() => {
-            console.log('🔵 Skip button pressed, calling onSkip...');
-            if (onSkip) onSkip();
+            console.log('🔵 Skip button pressed, calling handleSkip...');
+            handleSkip();
           }}
           disabled={isLoading}
         >

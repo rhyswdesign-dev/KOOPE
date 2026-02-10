@@ -1,15 +1,17 @@
 // src/screens/HomeScreen.tsx
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Platform } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/RootNavigator';
-import { colors, spacing, radii } from '../theme/tokens';
+import { colors, spacing, radii, serif } from '../theme/tokens';
 import { getCocktailOfTheMonth } from '../services/cocktailOfTheMonth';
 import { RecipesRepository } from '../repos/supabase';
 import CocktailOfTheMonthCard from '../components/CocktailOfTheMonthCard';
 import { Recipe } from '../types/recipe';
 import { log } from '../lib/logger';
+import { Heading } from '../components/ui';
 
 export default function HomeScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -40,49 +42,37 @@ export default function HomeScreen() {
   };
 
   return (
-    <ScrollView style={styles.scrollContainer} contentContainerStyle={styles.scrollContent}>
-      <View style={styles.container}>
-        <Text style={styles.title}>Home</Text>
+    <LinearGradient
+      colors={['rgba(0,0,0,0)', '#1A120D']}
+      style={styles.background}
+    >
+      <ScrollView style={styles.scrollContainer} contentContainerStyle={styles.scrollContent}>
+        <View style={styles.container}>
+          <Heading level={1} style={styles.title}>Home</Heading>
 
-        {/* Cocktail of the Month */}
-        {loading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={colors.gold} />
-          </View>
-        ) : featuredRecipe ? (
-          <CocktailOfTheMonthCard
-            recipe={featuredRecipe}
-            onPress={handleRecipePress}
-            style={styles.featuredCard}
-          />
-        ) : null}
-
-        {/* Demo Button for Personalization System */}
-        <TouchableOpacity
-          style={styles.demoButton}
-          onPress={() => navigation.navigate('PersonalizedHome')}
-        >
-          <Text style={styles.demoButtonEmoji}>🧠</Text>
-          <Text style={styles.demoButtonTitle}>Personalization Demo</Text>
-          <Text style={styles.demoButtonSubtitle}>
-            See mood-based organization & real-time learning
-          </Text>
-        </TouchableOpacity>
-
-        <View style={styles.infoBox}>
-          <Text style={styles.infoTitle}>What you'll see:</Text>
-          <Text style={styles.infoItem}>✅ Mood categories personalized by preferences</Text>
-          <Text style={styles.infoItem}>✅ Recipe recommendations with scoring</Text>
-          <Text style={styles.infoItem}>✅ Real-time behavioral learning</Text>
-          <Text style={styles.infoItem}>✅ Engagement tracking</Text>
+          {/* Cocktail of the Month */}
+          {loading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color={colors.gold} />
+            </View>
+          ) : featuredRecipe ? (
+            <CocktailOfTheMonthCard
+              recipe={featuredRecipe}
+              onPress={handleRecipePress}
+              style={styles.featuredCard}
+            />
+          ) : null}
         </View>
-      </View>
-    </ScrollView>
+      </ScrollView>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
   scrollContainer: {
+    flex: 1,
+  },
+  background: {
     flex: 1,
     backgroundColor: colors.bg,
   },
@@ -107,14 +97,11 @@ const styles = StyleSheet.create({
     marginBottom: spacing(3),
   },
   title: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: colors.text,
     marginBottom: spacing(4),
   },
   demoButton: {
     backgroundColor: colors.gold,
-    borderRadius: radii.lg,
+    borderRadius: radii.pill,
     padding: spacing(3),
     alignItems: 'center',
     width: '100%',
@@ -156,6 +143,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.text,
     marginBottom: spacing(1.5),
+    fontFamily: serif,
   },
   infoItem: {
     fontSize: 14,

@@ -7,6 +7,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getCocktailXPCost as getDefaultCocktailXPCost } from '../config/cocktailXPCosts';
+import { achievementService } from '../services/achievementService';
 
 export type XPSource =
   | 'daily-login'
@@ -20,6 +21,10 @@ export type XPSource =
   | 'profile-complete'
   | 'invite-friend'
   | 'cocktail-unlock'
+  | 'inventory-add'
+  | 'recipe-made'
+  | 'recipe-rating'
+  | 'streak-bonus'
   | 'other';
 
 export interface XPTransaction {
@@ -62,6 +67,10 @@ export const XP_EARNING_RATES = {
   vaultSeasonalItem: 30,
   profileComplete: 50,
   inviteFriend: 100,
+  inventoryAdd: 5,
+  recipeMade: 10,
+  recipeRating: 5,
+  streakBonus: 25,
 };
 
 interface XPSystemState {
@@ -70,6 +79,7 @@ interface XPSystemState {
   earnedToday: number;
   lastResetDate: string | null;
   unlockedCocktails: string[]; // Array of cocktail IDs unlocked with XP
+  unlockedVaultItems: string[]; // Array of vault item IDs unlocked with XP
   transactions: XPTransaction[];
   streaks: XPStreaks;
   cocktailCosts: CocktailUnlockCost; // Custom costs per cocktail
@@ -81,10 +91,17 @@ interface XPSystemState {
   earnXP: (amount: number, source: XPSource, description: string) => void;
   spendXP: (amount: number, cocktailId: string, description: string) => boolean;
   unlockCocktail: (cocktailId: string, cost: number) => boolean;
+  unlockVaultItem: (itemId: string) => void;
+  isVaultItemUnlocked: (itemId: string) => boolean;
   getCocktailCost: (cocktailId: string) => number;
   setCocktailCost: (cocktailId: string, cost: number) => void;
   canAffordCocktail: (cocktailId: string) => boolean;
   isCocktailUnlockedWithXP: (cocktailId: string) => boolean;
+
+  // Specific XP earning methods
+  earnInventoryXP: (ingredientName: string) => void;
+  earnRecipeMadeXP: (recipeName: string) => void;
+  earnRecipeRatingXP: (recipeName: string) => void;
 
   // Daily/Streak management
   checkDailyLogin: () => void;
@@ -105,11 +122,12 @@ interface XPSystemState {
 export const useXPSystem = create<XPSystemState>()(
   persist(
     (set, get) => ({
-      // Initial state
-      balance: 500, // Start with 500 XP for testing!
+      // Initial state (500 XP for testing Vault unlock flow)
+      balance: 500,
       earnedToday: 0,
       lastResetDate: null,
       unlockedCocktails: [],
+      unlockedVaultItems: [],
       transactions: [],
       streaks: {
         dailyLogin: 0,
@@ -132,11 +150,15 @@ export const useXPSystem = create<XPSystemState>()(
           timestamp: new Date().toISOString(),
         };
 
+        const newBalance = state.balance + amount;
         set({
-          balance: state.balance + amount,
+          balance: newBalance,
           earnedToday: state.earnedToday + amount,
           transactions: [transaction, ...state.transactions].slice(0, 100), // Keep last 100
         });
+
+        // Sync XP to achievement service so achievements screen stays in sync
+        achievementService.syncXP(newBalance);
       },
 
       // Spend XP
@@ -244,6 +266,22 @@ export const useXPSystem = create<XPSystemState>()(
         return state.unlockedCocktails.includes(cocktailId);
       },
 
+      // Unlock a vault item (games, playbooks, etc.)
+      unlockVaultItem: (itemId: string) => {
+        const state = get();
+        if (!state.unlockedVaultItems.includes(itemId)) {
+          set({
+            unlockedVaultItems: [...state.unlockedVaultItems, itemId],
+          });
+        }
+      },
+
+      // Check if a vault item is unlocked
+      isVaultItemUnlocked: (itemId: string) => {
+        const state = get();
+        return state.unlockedVaultItems.includes(itemId);
+      },
+
       // Check daily login
       checkDailyLogin: () => {
         const state = get();
@@ -273,6 +311,15 @@ export const useXPSystem = create<XPSystemState>()(
               lastLoginDate: new Date().toISOString(),
             },
           });
+
+          // Award streak bonuses
+          if (newStreak === 3) {
+            get().earnXP(XP_EARNING_RATES.streakBonus, 'streak-bonus', '3-day login streak!');
+          } else if (newStreak === 7) {
+            get().earnXP(XP_EARNING_RATES.streakBonus * 2, 'streak-bonus', '7-day login streak!');
+          } else if (newStreak === 30) {
+            get().earnXP(XP_EARNING_RATES.streakBonus * 4, 'streak-bonus', '30-day login streak!');
+          }
         }
       },
 
@@ -321,6 +368,33 @@ export const useXPSystem = create<XPSystemState>()(
         }
       },
 
+      // Earn XP for adding ingredient to inventory
+      earnInventoryXP: (ingredientName: string) => {
+        get().earnXP(
+          XP_EARNING_RATES.inventoryAdd,
+          'inventory-add',
+          `Added ${ingredientName} to inventory`
+        );
+      },
+
+      // Earn XP for making a recipe
+      earnRecipeMadeXP: (recipeName: string) => {
+        get().earnXP(
+          XP_EARNING_RATES.recipeMade,
+          'recipe-made',
+          `Made ${recipeName}`
+        );
+      },
+
+      // Earn XP for rating a recipe
+      earnRecipeRatingXP: (recipeName: string) => {
+        get().earnXP(
+          XP_EARNING_RATES.recipeRating,
+          'recipe-rating',
+          `Rated ${recipeName}`
+        );
+      },
+
       // Reset XP system (for testing)
       resetXPSystem: () => {
         set({
@@ -328,6 +402,7 @@ export const useXPSystem = create<XPSystemState>()(
           earnedToday: 0,
           lastResetDate: null,
           unlockedCocktails: [],
+          unlockedVaultItems: [],
           transactions: [],
           streaks: {
             dailyLogin: 0,

@@ -24,7 +24,8 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { colors, spacing, radii } from '../theme/tokens';
+import { colors, spacing, radii, serif } from '../theme/tokens';
+import { Heading } from '../components/ui';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import type { UserInventoryItem } from '../types/database';
 import * as BartenderService from '../services/bartenderAssistantService';
@@ -38,7 +39,6 @@ interface RouteParams {
   selectedItems: Set<string>;
 }
 
-const serifFont = Platform.select({ ios: 'Georgia', android: 'serif', default: 'serif' });
 const { width } = Dimensions.get('window');
 
 export default function AIRecipeGeneratorScreen() {
@@ -160,7 +160,7 @@ export default function AIRecipeGeneratorScreen() {
                Reference: "CONCIERGE" label above assistant bubble. "YOU" label above user bubble.
            */}
           <Text style={[styles.senderLabel, isUser ? styles.senderLabelUser : styles.senderLabelAssistant]}>
-            {isUser ? 'YOU' : 'CONCIERGE'}
+            {isUser ? 'YOU' : 'BAR CONCIERGE'}
           </Text>
 
           <Text style={styles.messageText}>
@@ -258,7 +258,7 @@ export default function AIRecipeGeneratorScreen() {
           </TouchableOpacity>
 
           <View style={styles.titleContainer}>
-            <Text style={styles.headerTitle}>Bar Assistant</Text>
+            <Heading level={2} style={styles.headerTitle}>Bar Assistant</Heading>
             <View style={styles.liveStatus}>
               <View style={styles.liveDot} />
               <Text style={styles.liveText}>LIVE INVENTORY ({userInventory.length})</Text>
@@ -352,7 +352,7 @@ const styles = StyleSheet.create({
   backText: {
     color: colors.gold,
     fontSize: 16,
-    fontFamily: serifFont, // Serif for "Back to Discovery"? Reference likely yes
+    fontFamily: serif,
     marginLeft: -2,
   },
   titleContainer: {
@@ -362,7 +362,7 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 20,
     fontWeight: '700',
-    fontFamily: serifFont,
+    fontFamily: serif,
     marginBottom: 4,
   },
   liveStatus: {
@@ -407,7 +407,7 @@ const styles = StyleSheet.create({
   avatarContainer: {
     width: 32,
     height: 32,
-    borderRadius: 16,
+    borderRadius: radii.full,
     backgroundColor: 'rgba(255,255,255,0.1)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -444,7 +444,7 @@ const styles = StyleSheet.create({
     color: '#665', // Muted
     letterSpacing: 1,
     marginBottom: 6,
-    fontFamily: serifFont,
+    fontFamily: serif,
     textTransform: 'uppercase',
   },
   senderLabelUser: {
@@ -460,7 +460,7 @@ const styles = StyleSheet.create({
     color: '#F2E5D5',
     fontSize: 16,
     lineHeight: 24,
-    fontFamily: serifFont,
+    fontFamily: serif,
   },
   chipsScroll: {
     maxHeight: 50, // Limit height to prevent taking up screen
@@ -488,7 +488,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     letterSpacing: 1,
-    fontFamily: serifFont,
+    fontFamily: serif,
     textTransform: 'uppercase',
   },
   inputContainer: {

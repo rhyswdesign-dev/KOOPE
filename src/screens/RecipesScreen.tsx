@@ -561,8 +561,8 @@ const sampleRecipes = [
     title: 'Virgin Mojito',
     subtitle: 'Non-Alcoholic • Refreshing',
     category: 'Mocktails',
-    image: 'https://images.unsplash.com/photo-1497534547324-0ebb3f052e88?q=80&w=1200&auto=format&fit=crop',
-    img: 'https://images.unsplash.com/photo-1497534547324-0ebb3f052e88?q=80&w=1200&auto=format&fit=crop',
+    image: require('../../assets/images/mocktails/virgin_mojito.png'),
+    img: require('../../assets/images/mocktails/virgin_mojito.png'),
     difficulty: 'Easy',
     time: '2 min',
     rating: 4.6,
@@ -598,8 +598,8 @@ const sampleRecipes = [
     title: 'Garden 108 & Tonic',
     subtitle: 'Zero-Proof • Herbal & Garden Fresh',
     category: 'Mocktails',
-    image: 'https://images.unsplash.com/photo-1544145945-f90425340c7e?q=80&w=1200&auto=format&fit=crop',
-    img: 'https://images.unsplash.com/photo-1544145945-f90425340c7e?q=80&w=1200&auto=format&fit=crop',
+    image: require('../../assets/images/mocktails/garden_108_tonic.png'),
+    img: require('../../assets/images/mocktails/garden_108_tonic.png'),
     difficulty: 'Easy',
     time: '2 min',
     rating: 4.7,
@@ -635,8 +635,8 @@ const sampleRecipes = [
     title: 'Herbaceous Spritz',
     subtitle: 'Zero-Proof • Garden Fresh',
     category: 'Mocktails',
-    image: 'https://images.unsplash.com/photo-1544145945-f90425340c7e?q=80&w=1200&auto=format&fit=crop',
-    img: 'https://images.unsplash.com/photo-1544145945-f90425340c7e?q=80&w=1200&auto=format&fit=crop',
+    image: require('../../assets/images/mocktails/herbaceous_spritz.png'),
+    img: require('../../assets/images/mocktails/herbaceous_spritz.png'),
     difficulty: 'Easy',
     time: '3 min',
     rating: 4.6,
@@ -672,8 +672,8 @@ const sampleRecipes = [
     title: 'Garden Gimlet',
     subtitle: 'Zero-Proof • Classic Style',
     category: 'Mocktails',
-    image: 'https://images.unsplash.com/photo-1544145945-f90425340c7e?q=80&w=1200&auto=format&fit=crop',
-    img: 'https://images.unsplash.com/photo-1544145945-f90425340c7e?q=80&w=1200&auto=format&fit=crop',
+    image: require('../../assets/images/mocktails/garden_gimlet.png'),
+    img: require('../../assets/images/mocktails/garden_gimlet.png'),
     difficulty: 'Easy',
     time: '3 min',
     rating: 4.7,
@@ -709,8 +709,8 @@ const sampleRecipes = [
     title: 'Smokeless Old Fashioned',
     subtitle: 'Zero-Proof • Rich & Smoky',
     category: 'Mocktails',
-    image: 'https://images.unsplash.com/photo-1569529465841-dfecdab7503b?q=80&w=1200&auto=format&fit=crop',
-    img: 'https://images.unsplash.com/photo-1569529465841-dfecdab7503b?q=80&w=1200&auto=format&fit=crop',
+    image: require('../../assets/images/mocktails/smokeless_old_fashioned.png'),
+    img: require('../../assets/images/mocktails/smokeless_old_fashioned.png'),
     difficulty: 'Easy',
     time: '3 min',
     rating: 4.8,
@@ -746,8 +746,8 @@ const sampleRecipes = [
     title: 'Zero Proof Manhattan',
     subtitle: 'Zero-Proof • Whiskey Style',
     category: 'Mocktails',
-    image: 'https://images.unsplash.com/photo-1569529465841-dfecdab7503b?q=80&w=1200&auto=format&fit=crop',
-    img: 'https://images.unsplash.com/photo-1569529465841-dfecdab7503b?q=80&w=1200&auto=format&fit=crop',
+    image: require('../../assets/images/mocktails/zero_proof_manhattan.png'),
+    img: require('../../assets/images/mocktails/zero_proof_manhattan.png'),
     difficulty: 'Easy',
     time: '3 min',
     rating: 4.7,
@@ -1785,8 +1785,8 @@ export default function RecipesScreen() {
           try {
             const context = {
               timeOfDay: new Date().getHours() < 12 ? 'morning' as const :
-                       new Date().getHours() < 17 ? 'afternoon' as const :
-                       new Date().getHours() < 22 ? 'evening' as const : 'night' as const,
+                new Date().getHours() < 17 ? 'afternoon' as const :
+                  new Date().getHours() < 22 ? 'evening' as const : 'night' as const,
               dayOfWeek: new Date().getDay(),
               recentActivity: [query] // Include current search as recent activity
             };
@@ -1952,9 +1952,24 @@ export default function RecipesScreen() {
           const categoryLower = cat.toLowerCase();
           // Check if category matches the recipe's category field or appears in subtitle/description
           return recipeCategory === categoryLower ||
-                 recipeSubtitle.includes(categoryLower) ||
-                 recipeDescription.includes(categoryLower);
+            recipeSubtitle.includes(categoryLower) ||
+            recipeDescription.includes(categoryLower);
         });
+      });
+    }
+
+    // Filter by mood
+    if (currentFilters.mood && currentFilters.mood.length > 0) {
+      recipes = recipes.filter(recipe => {
+        // Find which moods this recipe belongs to
+        const recipeMoods = COCKTAIL_MOODS.filter(moodCategory =>
+          moodCategory.cocktails.includes(recipe.id)
+        ).map(m => m.title);
+
+        // Check if recipe belongs to any of the selected moods
+        return currentFilters.mood.some(selectedMood =>
+          recipeMoods.includes(selectedMood)
+        );
       });
     }
 
@@ -2041,9 +2056,6 @@ export default function RecipesScreen() {
           <Pressable hitSlop={12} onPress={() => navigation.navigate('AddRecipe')}>
             <Ionicons name="add-circle-outline" size={24} color={colors.accent} />
           </Pressable>
-          <Pressable hitSlop={12} onPress={() => navigation.navigate('HomeBar')}>
-            <Ionicons name="library" size={24} color={colors.accent} />
-          </Pressable>
           <Pressable
             hitSlop={12}
             onPress={() => navigation.navigate('ShoppingCart')}
@@ -2112,8 +2124,9 @@ export default function RecipesScreen() {
   const renderEmptyState = () => {
     const currentRecipes = getCurrentRecipes() || [];
     const hasFilters = (currentFilters.ingredients && currentFilters.ingredients.length > 0) ||
-                      (currentFilters.difficulty && currentFilters.difficulty.length > 0) ||
-                      (currentFilters.category && currentFilters.category.length > 0);
+      (currentFilters.difficulty && currentFilters.difficulty.length > 0) ||
+      (currentFilters.category && currentFilters.category.length > 0) ||
+      (currentFilters.mood && currentFilters.mood.length > 0);
 
     if (searchQuery.trim()) {
       return (
@@ -2251,170 +2264,170 @@ export default function RecipesScreen() {
                   <>
                     {/* Cocktail of the Week */}
                     <View style={{ marginTop: spacing(1) }}>
-              <HeroCard
-                cocktail={COCKTAIL_OF_THE_WEEK}
-                onPress={() => navigation.navigate('CocktailDetail', { cocktailId: COCKTAIL_OF_THE_WEEK.id })}
-              />
-            </View>
+                      <HeroCard
+                        cocktail={COCKTAIL_OF_THE_WEEK}
+                        onPress={() => navigation.navigate('CocktailDetail', { cocktailId: COCKTAIL_OF_THE_WEEK.id })}
+                      />
+                    </View>
 
-            {/* Shots */}
-            <SectionHeader
-              title="Shots"
-              onPress={() => {
-                // Ensure we only pass string IDs
-                const shotIds = ALL_SHOTS.map(shot => shot.id).filter(id => typeof id === 'string');
-                navigation.navigate('CocktailList', {
-                  title: 'Shots',
-                  cocktailIds: shotIds,
-                  category: 'shots'
-                });
-              }}
-            />
-            <ScrollView horizontal nestedScrollEnabled showsHorizontalScrollIndicator={false} style={{ paddingLeft: spacing(2), marginBottom: spacing(2) }}>
-              {PARTY_SHOTS?.slice(0, 5).map((shot, index) => {
-                const cardProps = createRecipeCardProps(shot, navigation, {
-                  toggleSavedCocktail,
-                  isCocktailSaved,
-                  setSelectedRecipe,
-                  setGroceryListVisible,
-                  showToast,
-                  showSaveButton: false,
-                  showCartButton: false,
-                  showDeleteButton: false,
-                });
-                return (
-                  <Animated.View key={shot.id} entering={FadeInRight.delay(index * 100).duration(500).springify()}>
-                    <RecipeCard {...cardProps} style={{ width: 240, marginRight: 16 }} />
-                  </Animated.View>
-                );
-              })}
-            </ScrollView>
+                    {/* Shots */}
+                    <SectionHeader
+                      title="Shots"
+                      onPress={() => {
+                        // Ensure we only pass string IDs
+                        const shotIds = ALL_SHOTS.map(shot => shot.id).filter(id => typeof id === 'string');
+                        navigation.navigate('CocktailList', {
+                          title: 'Shots',
+                          cocktailIds: shotIds,
+                          category: 'shots'
+                        });
+                      }}
+                    />
+                    <ScrollView horizontal nestedScrollEnabled showsHorizontalScrollIndicator={false} style={{ paddingLeft: spacing(2), marginBottom: spacing(2) }}>
+                      {PARTY_SHOTS?.slice(0, 5).map((shot, index) => {
+                        const cardProps = createRecipeCardProps(shot, navigation, {
+                          toggleSavedCocktail,
+                          isCocktailSaved,
+                          setSelectedRecipe,
+                          setGroceryListVisible,
+                          showToast,
+                          showSaveButton: false,
+                          showCartButton: false,
+                          showDeleteButton: false,
+                        });
+                        return (
+                          <Animated.View key={shot.id} entering={FadeInRight.delay(index * 100).duration(500).springify()}>
+                            <RecipeCard {...cardProps} style={{ width: 240, marginRight: 16 }} />
+                          </Animated.View>
+                        );
+                      })}
+                    </ScrollView>
 
-            {/* Mocktails */}
-            <SectionHeader
-              title="Mocktails"
-              onPress={() => {
-                // Pass the actual mocktail recipes
-                navigation.navigate('CocktailList', {
-                  title: 'Mocktails',
-                  cocktails: sampleRecipes,
-                  category: 'mocktails'
-                });
-              }}
-            />
+                    {/* Mocktails */}
+                    <SectionHeader
+                      title="Mocktails"
+                      onPress={() => {
+                        // Pass the actual mocktail recipes
+                        navigation.navigate('CocktailList', {
+                          title: 'Mocktails',
+                          cocktails: sampleRecipes,
+                          category: 'mocktails'
+                        });
+                      }}
+                    />
 
-            {/* Mocktails Horizontal Scroll Preview */}
-            <ScrollView horizontal nestedScrollEnabled showsHorizontalScrollIndicator={false} style={{ paddingLeft: spacing(2), marginBottom: spacing(2) }}>
-              {sampleRecipes.slice(0, 6).map((mocktail, index) => {
-                const cardProps = createRecipeCardProps(mocktail, navigation, {
-                  toggleSavedCocktail,
-                  isCocktailSaved,
-                  setSelectedRecipe,
-                  setGroceryListVisible,
-                  showToast,
-                  showSaveButton: false,
-                  showCartButton: false,
-                  showDeleteButton: false,
-                });
-                return (
-                  <Animated.View key={mocktail.id} entering={FadeInRight.delay(index * 100).duration(500).springify()}>
-                    <RecipeCard {...cardProps} style={{ width: 240, marginRight: 16 }} />
-                  </Animated.View>
-                );
-              })}
-            </ScrollView>
+                    {/* Mocktails Horizontal Scroll Preview */}
+                    <ScrollView horizontal nestedScrollEnabled showsHorizontalScrollIndicator={false} style={{ paddingLeft: spacing(2), marginBottom: spacing(2) }}>
+                      {sampleRecipes.slice(0, 6).map((mocktail, index) => {
+                        const cardProps = createRecipeCardProps(mocktail, navigation, {
+                          toggleSavedCocktail,
+                          isCocktailSaved,
+                          setSelectedRecipe,
+                          setGroceryListVisible,
+                          showToast,
+                          showSaveButton: false,
+                          showCartButton: false,
+                          showDeleteButton: false,
+                        });
+                        return (
+                          <Animated.View key={mocktail.id} entering={FadeInRight.delay(index * 100).duration(500).springify()}>
+                            <RecipeCard {...cardProps} style={{ width: 240, marginRight: 16 }} />
+                          </Animated.View>
+                        );
+                      })}
+                    </ScrollView>
 
-            {/* Essential Syrups */}
-            <SectionHeader
-              title="Essential Syrups"
-            />
-            <ScrollView horizontal nestedScrollEnabled showsHorizontalScrollIndicator={false} style={{ paddingLeft: spacing(2), marginBottom: spacing(2) }}>
-              {ESSENTIAL_SYRUPS.map((syrup, index) => {
-                const cardProps = createRecipeCardProps(syrup, navigation, {
-                  toggleSavedCocktail,
-                  isCocktailSaved,
-                  setSelectedRecipe,
-                  setGroceryListVisible,
-                  showToast,
-                  showSaveButton: true,
-                  showCartButton: false,
-                  showDeleteButton: false,
-                });
-                return (
-                  <Animated.View
-                    key={syrup.id}
-                    entering={FadeInRight.delay(index * 100).duration(500).springify()}
-                    style={{ width: (width - spacing(2) * 2 - GUTTER) / 2, marginRight: 16 }}
-                  >
-                    <RecipeCard {...cardProps} />
-                  </Animated.View>
-                );
-              })}
-            </ScrollView>
+                    {/* Essential Syrups */}
+                    <SectionHeader
+                      title="Essential Syrups"
+                    />
+                    <ScrollView horizontal nestedScrollEnabled showsHorizontalScrollIndicator={false} style={{ paddingLeft: spacing(2), marginBottom: spacing(2) }}>
+                      {ESSENTIAL_SYRUPS.map((syrup, index) => {
+                        const cardProps = createRecipeCardProps(syrup, navigation, {
+                          toggleSavedCocktail,
+                          isCocktailSaved,
+                          setSelectedRecipe,
+                          setGroceryListVisible,
+                          showToast,
+                          showSaveButton: true,
+                          showCartButton: false,
+                          showDeleteButton: false,
+                        });
+                        return (
+                          <Animated.View
+                            key={syrup.id}
+                            entering={FadeInRight.delay(index * 100).duration(500).springify()}
+                            style={{ width: (width - spacing(2) * 2 - GUTTER) / 2, marginRight: 16 }}
+                          >
+                            <RecipeCard {...cardProps} />
+                          </Animated.View>
+                        );
+                      })}
+                    </ScrollView>
 
-            {/* My Recipes */}
-            <SectionHeader
-              title="My Recipes"
-              onPress={() => navigation.navigate('MyRecipes')}
-            />
-            <ScrollView horizontal nestedScrollEnabled showsHorizontalScrollIndicator={false} style={{ paddingLeft: spacing(2), marginBottom: spacing(2) }}>
-              {userRecipes.length > 0 ? (
-                userRecipes.slice(0, 5).map((recipe, index) => {
-                  // Convert UserRecipe to cocktail format for createRecipeCardProps
-                  const cocktailData = {
-                    id: recipe.id,
-                    name: recipe.name,
-                    subtitle: recipe.type === 'ai_generated' ? 'AI Generated' : recipe.type === 'modified' ? 'Modified Recipe' : 'My Creation',
-                    description: recipe.description || 'Custom recipe',
-                    image: recipe.image || 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=240&h=160&fit=crop',
-                    tags: recipe.tags || [],
-                  };
+                    {/* My Recipes */}
+                    <SectionHeader
+                      title="My Recipes"
+                      onPress={() => navigation.navigate('MyRecipes')}
+                    />
+                    <ScrollView horizontal nestedScrollEnabled showsHorizontalScrollIndicator={false} style={{ paddingLeft: spacing(2), marginBottom: spacing(2) }}>
+                      {userRecipes.length > 0 ? (
+                        userRecipes.slice(0, 5).map((recipe, index) => {
+                          // Convert UserRecipe to cocktail format for createRecipeCardProps
+                          const cocktailData = {
+                            id: recipe.id,
+                            name: recipe.name,
+                            subtitle: recipe.type === 'ai_generated' ? 'AI Generated' : recipe.type === 'modified' ? 'Modified Recipe' : 'My Creation',
+                            description: recipe.description || 'Custom recipe',
+                            image: recipe.image || 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=240&h=160&fit=crop',
+                            tags: recipe.tags || [],
+                          };
 
-                  const cardProps = createRecipeCardProps(cocktailData, navigation, {
-                    toggleSavedCocktail,
-                    isCocktailSaved,
-                    setSelectedRecipe,
-                    setGroceryListVisible,
-                    showToast,
-                    showSaveButton: false,
-                    showCartButton: false,
-                    showDeleteButton: false,
-                  });
+                          const cardProps = createRecipeCardProps(cocktailData, navigation, {
+                            toggleSavedCocktail,
+                            isCocktailSaved,
+                            setSelectedRecipe,
+                            setGroceryListVisible,
+                            showToast,
+                            showSaveButton: false,
+                            showCartButton: false,
+                            showDeleteButton: false,
+                          });
 
-                  // Override the onPress to navigate to RecipeDetail with user recipe data
-                  cardProps.onPress = () => {
-                    navigation.navigate('RecipeDetail', { recipe });
-                  };
+                          // Override the onPress to navigate to RecipeDetail with user recipe data
+                          cardProps.onPress = () => {
+                            navigation.navigate('RecipeDetail', { recipe });
+                          };
 
-                  return (
-                    <Animated.View key={recipe.id} entering={FadeInRight.delay(index * 100).duration(500).springify()}>
-                      <RecipeCard {...cardProps} style={{ width: 240, marginRight: 16 }} />
-                    </Animated.View>
-                  );
-                })
-              ) : (
-                <Pressable
-                  style={{
-                    width: 240,
-                    height: 160,
-                    marginRight: 16,
-                    backgroundColor: colors.card,
-                    borderRadius: radii.lg,
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    borderWidth: 2,
-                    borderColor: colors.border,
-                    borderStyle: 'dashed'
-                  }}
-                  onPress={() => navigation.navigate('AddRecipe')}
-                >
-                  <Ionicons name="add-circle-outline" size={32} color={colors.muted} />
-                  <Text style={{ color: colors.muted, marginTop: 8, textAlign: 'center' }}>
-                    Create your first{'\n'}custom recipe
-                  </Text>
-                </Pressable>
-              )}
-            </ScrollView>
+                          return (
+                            <Animated.View key={recipe.id} entering={FadeInRight.delay(index * 100).duration(500).springify()}>
+                              <RecipeCard {...cardProps} style={{ width: 240, marginRight: 16 }} />
+                            </Animated.View>
+                          );
+                        })
+                      ) : (
+                        <Pressable
+                          style={{
+                            width: 240,
+                            height: 160,
+                            marginRight: 16,
+                            backgroundColor: colors.card,
+                            borderRadius: radii.lg,
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            borderWidth: 2,
+                            borderColor: colors.border,
+                            borderStyle: 'dashed'
+                          }}
+                          onPress={() => navigation.navigate('AddRecipe')}
+                        >
+                          <Ionicons name="add-circle-outline" size={32} color={colors.muted} />
+                          <Text style={{ color: colors.muted, marginTop: 8, textAlign: 'center' }}>
+                            Create your first{'\n'}custom recipe
+                          </Text>
+                        </Pressable>
+                      )}
+                    </ScrollView>
 
 
 
@@ -2596,41 +2609,41 @@ export default function RecipesScreen() {
                           gap: spacing(1),
                           paddingRight: spacing(2)
                         }}>
-                        {['All', 'Brandy', 'Cognac', 'Gin', 'Mezcal', 'Rum', 'Tequila', 'Vodka', 'Whiskey'].map((spirit) => {
-                          const isSelected = currentFilters.ingredients?.includes(spirit.toLowerCase()) || (spirit === 'All' && !currentFilters.ingredients?.length);
-                          return (
-                            <Pressable
-                              key={spirit}
-                              onPress={() => {
-                                if (spirit === 'All') {
-                                  setCurrentFilters({ ...currentFilters, ingredients: [] });
-                                } else {
-                                  const ingredients = currentFilters.ingredients || [];
-                                  const newIngredients = ingredients.includes(spirit.toLowerCase())
-                                    ? ingredients.filter(i => i !== spirit.toLowerCase())
-                                    : [spirit.toLowerCase()];
-                                  setCurrentFilters({ ...currentFilters, ingredients: newIngredients });
-                                }
-                              }}
-                              style={{
-                                backgroundColor: isSelected ? colors.accent : colors.card,
-                                paddingHorizontal: spacing(2),
-                                paddingVertical: spacing(1.5),
-                                borderRadius: radii.md,
-                                borderWidth: 1,
-                                borderColor: isSelected ? colors.accent : colors.border
-                              }}
-                            >
-                              <Text style={{
-                                color: isSelected ? colors.white : colors.text,
-                                fontSize: 16,
-                                fontWeight: isSelected ? '600' : '400'
-                              }}>
-                                {spirit}
-                              </Text>
-                            </Pressable>
-                          );
-                        })}
+                          {['All', 'Brandy', 'Cognac', 'Gin', 'Mezcal', 'Rum', 'Tequila', 'Vodka', 'Whiskey'].map((spirit) => {
+                            const isSelected = currentFilters.ingredients?.includes(spirit.toLowerCase()) || (spirit === 'All' && !currentFilters.ingredients?.length);
+                            return (
+                              <Pressable
+                                key={spirit}
+                                onPress={() => {
+                                  if (spirit === 'All') {
+                                    setCurrentFilters({ ...currentFilters, ingredients: [] });
+                                  } else {
+                                    const ingredients = currentFilters.ingredients || [];
+                                    const newIngredients = ingredients.includes(spirit.toLowerCase())
+                                      ? ingredients.filter(i => i !== spirit.toLowerCase())
+                                      : [spirit.toLowerCase()];
+                                    setCurrentFilters({ ...currentFilters, ingredients: newIngredients });
+                                  }
+                                }}
+                                style={{
+                                  backgroundColor: isSelected ? colors.accent : colors.card,
+                                  paddingHorizontal: spacing(2),
+                                  paddingVertical: spacing(1.5),
+                                  borderRadius: radii.md,
+                                  borderWidth: 1,
+                                  borderColor: isSelected ? colors.accent : colors.border
+                                }}
+                              >
+                                <Text style={{
+                                  color: isSelected ? colors.white : colors.text,
+                                  fontSize: 16,
+                                  fontWeight: isSelected ? '600' : '400'
+                                }}>
+                                  {spirit}
+                                </Text>
+                              </Pressable>
+                            );
+                          })}
                         </View>
                       </ScrollView>
                     </View>
@@ -2735,6 +2748,64 @@ export default function RecipesScreen() {
                                   fontWeight: isSelected ? '600' : '400'
                                 }}>
                                   {category}
+                                </Text>
+                              </Pressable>
+                            );
+                          })}
+                        </View>
+                      </ScrollView>
+                    </View>
+
+                    {/* Moods */}
+                    <View style={{ marginBottom: spacing(3) }}>
+                      <Text style={{
+                        fontSize: 16,
+                        fontWeight: '600',
+                        color: colors.text,
+                        marginBottom: spacing(2)
+                      }}>Your Moods</Text>
+
+                      <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        style={{ marginHorizontal: -spacing(2) }}
+                        contentContainerStyle={{ paddingHorizontal: spacing(2) }}
+                      >
+                        <View style={{
+                          flexDirection: 'row',
+                          gap: spacing(1)
+                        }}>
+                          {['All', 'Bold & Serious', 'Romantic & Elegant', 'Fun & Playful', 'Adventurous & Exotic', 'Chill & Refreshing', 'Cozy & Warm'].map((mood) => {
+                            const isSelected = currentFilters.mood?.includes(mood) || (mood === 'All' && !currentFilters.mood?.length);
+                            return (
+                              <Pressable
+                                key={mood}
+                                onPress={() => {
+                                  if (mood === 'All') {
+                                    setCurrentFilters({ ...currentFilters, mood: [] });
+                                  } else {
+                                    const moods = currentFilters.mood || [];
+                                    const newMoods = moods.includes(mood)
+                                      ? moods.filter(m => m !== mood)
+                                      : [mood];
+                                    setCurrentFilters({ ...currentFilters, mood: newMoods });
+                                  }
+                                }}
+                                style={{
+                                  backgroundColor: isSelected ? colors.gold : colors.card,
+                                  paddingHorizontal: spacing(2),
+                                  paddingVertical: spacing(1.5),
+                                  borderRadius: radii.md,
+                                  borderWidth: 1,
+                                  borderColor: isSelected ? colors.gold : colors.border
+                                }}
+                              >
+                                <Text style={{
+                                  color: isSelected ? colors.goldText : colors.text,
+                                  fontSize: 14,
+                                  fontWeight: isSelected ? '600' : '400'
+                                }}>
+                                  {mood}
                                 </Text>
                               </Pressable>
                             );

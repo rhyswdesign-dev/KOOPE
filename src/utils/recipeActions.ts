@@ -3,6 +3,7 @@ import { getDetailedCocktail } from './cocktailDataTransformer';
 import { usePersonalization } from '../store/usePersonalization';
 import { log } from '../lib/logger';
 import { trackEvent, ANALYTICS_EVENTS, ANALYTICS_PROPS } from '../lib/analytics';
+import { getCocktailImage } from '../../assets/images/cocktails';
 
 /**
  * Global Recipe Action Utilities
@@ -109,7 +110,7 @@ export const handleSaveRecipe = (
     id: recipe.id,
     name: recipe.name || recipe.title || 'Untitled Recipe',
     subtitle: recipe.description || recipe.subtitle || '',
-    image: recipe.image
+    image: getCocktailImage(recipe.id, recipe.image) // Resolve to local image if available
   };
 
   const wasSaved = isCocktailSaved(recipe.id);

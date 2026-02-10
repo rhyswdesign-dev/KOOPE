@@ -11,6 +11,7 @@ import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-na
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, radii, fonts } from '../theme/tokens';
 import { getCocktailImage } from '../../assets/images/cocktails';
+import { Heading } from './ui';
 
 interface RecipeCardProps {
   recipe: {
@@ -105,7 +106,7 @@ const RecipeCard = React.memo(({
           style={styles.cocktailImage}
         />
         <View style={styles.cocktailInfo}>
-          <Text style={styles.cardTitle}>{recipe.name || recipe.title}</Text>
+          <Heading level={3} style={styles.cardTitle}>{recipe.name || recipe.title}</Heading>
           <Text style={styles.cardSub}>{displayText}</Text>
           <View style={styles.cocktailMeta}>
             <Text style={styles.cocktailDifficulty}>{recipe.difficulty}</Text>
@@ -113,58 +114,58 @@ const RecipeCard = React.memo(({
           </View>
         </View>
 
-      {/* Action buttons */}
-      <View style={styles.recipeActions}>
-        {/* Shopping cart button */}
-        {showCartButton && onAddToCart && (
-          <TouchableOpacity
-            style={styles.shoppingCartButton}
-            activeOpacity={0.7}
-            onPress={(e) => {
-              e.stopPropagation();
-              onAddToCart(recipe);
-            }}
-          >
-            <Ionicons
-              name="basket"
-              size={18}
-              color={colors.white}
-            />
-          </TouchableOpacity>
-        )}
+        {/* Action buttons */}
+        <View style={styles.recipeActions}>
+          {/* Shopping cart button */}
+          {showCartButton && onAddToCart && (
+            <TouchableOpacity
+              style={styles.shoppingCartButton}
+              activeOpacity={0.7}
+              onPress={(e) => {
+                e.stopPropagation();
+                onAddToCart(recipe);
+              }}
+            >
+              <Ionicons
+                name="basket"
+                size={18}
+                color={colors.white}
+              />
+            </TouchableOpacity>
+          )}
 
-        {/* Delete button */}
-        {showDeleteButton && onDelete && (
-          <TouchableOpacity
-            style={styles.deleteButton}
-            activeOpacity={0.7}
-            onPress={(e) => {
-              e.stopPropagation();
-              onDelete(recipe);
-            }}
-          >
-            <Ionicons name="trash-outline" size={18} color={colors.white} />
-          </TouchableOpacity>
-        )}
+          {/* Delete button */}
+          {showDeleteButton && onDelete && (
+            <TouchableOpacity
+              style={styles.deleteButton}
+              activeOpacity={0.7}
+              onPress={(e) => {
+                e.stopPropagation();
+                onDelete(recipe);
+              }}
+            >
+              <Ionicons name="trash-outline" size={18} color={colors.white} />
+            </TouchableOpacity>
+          )}
 
-        {/* Save/Bookmark button */}
-        {showSaveButton && onSave && (
-          <TouchableOpacity
-            style={styles.saveButton}
-            activeOpacity={0.7}
-            onPress={(e) => {
-              e.stopPropagation();
-              onSave(recipe);
-            }}
-          >
-            <Ionicons
-              name={isSaved ? "bookmark" : "bookmark-outline"}
-              size={20}
-              color={isSaved ? colors.accent : colors.text}
-            />
-          </TouchableOpacity>
-        )}
-      </View>
+          {/* Save/Bookmark button */}
+          {showSaveButton && onSave && (
+            <TouchableOpacity
+              style={styles.saveButton}
+              activeOpacity={0.7}
+              onPress={(e) => {
+                e.stopPropagation();
+                onSave(recipe);
+              }}
+            >
+              <Ionicons
+                name={isSaved ? "bookmark" : "bookmark-outline"}
+                size={20}
+                color={isSaved ? colors.accent : colors.text}
+              />
+            </TouchableOpacity>
+          )}
+        </View>
       </Pressable>
     </Animated.View>
   );
@@ -216,7 +217,7 @@ const styles = StyleSheet.create({
   shoppingCartButton: {
     width: 36,
     height: 36,
-    borderRadius: 18,
+    borderRadius: radii.full,
     backgroundColor: colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
@@ -229,7 +230,7 @@ const styles = StyleSheet.create({
   saveButton: {
     width: 36,
     height: 36,
-    borderRadius: 18,
+    borderRadius: radii.full,
     backgroundColor: 'rgba(0,0,0,0.5)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -237,17 +238,15 @@ const styles = StyleSheet.create({
   deleteButton: {
     width: 36,
     height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(220, 38, 38, 0.8)', // Red background for delete
+    borderRadius: radii.full,
+    backgroundColor: `${colors.error}CC`, // Red background with CC (80%) opacity
     alignItems: 'center',
     justifyContent: 'center',
   },
 
   // Text styles matching Old Fashioned card
   cardTitle: {
-    color: colors.text,
-    fontWeight: '800',
-    fontSize: fonts.h3,
+    marginBottom: spacing(0.5),
   },
   cardSub: {
     color: colors.muted,

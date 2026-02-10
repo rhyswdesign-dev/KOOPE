@@ -22,7 +22,6 @@ import {
   getTechniquePlaybooksByType,
   getBarFeaturesForDisplay,
   getAvailableSeasonalDropsForTier,
-  getPurchasableVaultKeys,
   getAllPlaybookTypes,
   TechniquePlaybookType,
 } from '../../config/vaultContent';

@@ -6,7 +6,8 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, radii } from '../theme/tokens';
+import { colors, spacing, radii, serif } from '../theme/tokens';
+import { Heading } from './ui';
 import { Achievement } from '../services/achievementService';
 
 interface AchievementCardProps {
@@ -38,9 +39,9 @@ export default function AchievementCard({ achievement, style }: AchievementCardP
         {/* Content */}
         <View style={styles.content}>
           <View style={styles.header}>
-            <Text style={styles.title}>
+            <Heading level={3} style={styles.title}>
               {achievement.title}
-            </Text>
+            </Heading>
             {isUnlocked && (
               <Ionicons name="checkmark-circle" size={20} color={colors.accent} />
             )}
@@ -105,7 +106,7 @@ const styles = StyleSheet.create({
   iconContainer: {
     width: 60,
     height: 60,
-    borderRadius: 30,
+    borderRadius: radii.full,
     backgroundColor: colors.bg,
     alignItems: 'center',
     justifyContent: 'center',
@@ -130,6 +131,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.text,
     flex: 1,
+    fontFamily: serif,
   },
   description: {
     fontSize: 14,

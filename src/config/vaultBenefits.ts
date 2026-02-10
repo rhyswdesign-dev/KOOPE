@@ -313,6 +313,132 @@ export const GAME_BENEFITS: Record<string, VaultItemPreview> = {
       }
     ]
   },
+
+  ring_of_fire: {
+    fullDescription: "The British cousin of King's Cup with unique rule variations that make it a distinct experience. Learn the critical 'breaking the ring' rule, Thumb Master strategies, and how stacking Jack rules creates escalating chaos throughout the night.",
+    benefits: [
+      {
+        icon: "flame",
+        title: "Unique British Rules",
+        description: "Learn rule variations like Thumb Master and the 'breaking the ring' penalty"
+      },
+      {
+        icon: "layers",
+        title: "Escalating Gameplay",
+        description: "Jack rules stack throughout the game, creating increasingly wild conditions"
+      },
+      {
+        icon: "people",
+        title: "Works with Any Group Size",
+        description: "Scales from 2 players to large parties with no setup changes"
+      }
+    ]
+  },
+
+  fuzzy_duck: {
+    fullDescription: "A deceptively simple tongue-twister game that becomes hilariously difficult as the night progresses. Master the timing of direction reversals to catch opponents off guard, and learn why this game has been a British pub staple for decades.",
+    benefits: [
+      {
+        icon: "chatbubble",
+        title: "Tongue-Twister Mastery",
+        description: "Learn the rhythm and timing that separates winners from drinkers"
+      },
+      {
+        icon: "refresh",
+        title: "Reversal Strategy",
+        description: "Use 'Does He?' at the perfect moment to trip up your opponents"
+      },
+      {
+        icon: "happy",
+        title: "Guaranteed Laughs",
+        description: "One of the funniest games to play — slip-ups are half the entertainment"
+      }
+    ]
+  },
+
+  truth_or_dare: {
+    fullDescription: "Elevate the classic Truth or Dare with curated question decks, escalating dare tiers, and a drinking penalty system that keeps everyone engaged. Includes over 100 prompts organized by intensity level, from icebreaker to no-holds-barred.",
+    benefits: [
+      {
+        icon: "help-circle",
+        title: "Curated Prompt Decks",
+        description: "100+ truths and dares organized by intensity: Mild, Spicy, and Extreme"
+      },
+      {
+        icon: "trending-up",
+        title: "Escalation System",
+        description: "Built-in progression from icebreaker rounds to peak-night intensity"
+      },
+      {
+        icon: "shield",
+        title: "Boundary Guidelines",
+        description: "Framework for setting ground rules so everyone stays comfortable"
+      }
+    ]
+  },
+
+  most_likely_to: {
+    fullDescription: "The easiest drinking game to learn and one of the most entertaining to play. Simply vote on who in your group is most likely to do something ridiculous, and the winner (or loser) drinks. Includes 150+ curated prompts for every occasion.",
+    benefits: [
+      {
+        icon: "thumbs-up",
+        title: "150+ Curated Prompts",
+        description: "Prompts for every vibe: funny, embarrassing, wholesome, and wild"
+      },
+      {
+        icon: "people",
+        title: "Zero Equipment Needed",
+        description: "Just friends and drinks — no cards, cups, or balls required"
+      },
+      {
+        icon: "time",
+        title: "Perfect Icebreaker",
+        description: "Great for mixed groups and getting the party energy going"
+      }
+    ]
+  },
+
+  rage_cage: {
+    fullDescription: "The most intense drinking game on this list. Rage Cage combines speed, pressure, and the dreaded 'death cup' into a chaotic race around the table. Learn the stacking mechanic, first-shot strategy, and how to set up the perfect death cup for maximum drama.",
+    benefits: [
+      {
+        icon: "flash",
+        title: "High-Intensity Gameplay",
+        description: "Non-stop action where speed and accuracy determine who drinks"
+      },
+      {
+        icon: "layers",
+        title: "Stacking Mechanic",
+        description: "Master the signature move — stack your cup on slower players"
+      },
+      {
+        icon: "alert-circle",
+        title: "Death Cup Strategy",
+        description: "Learn placement and pour strategies for the dreaded center cup"
+      }
+    ]
+  },
+
+  power_hour: {
+    fullDescription: "The ultimate endurance challenge: 60 shots of beer in 60 minutes. Simple in concept, legendary in execution. Includes timer integration, playlist recommendations, and survival strategies for making it all the way through — plus the Century Club variant for true legends.",
+    benefits: [
+      {
+        icon: "time",
+        title: "Built-in Timer",
+        description: "Automatic 60-second intervals keep the pace consistent and fair"
+      },
+      {
+        icon: "musical-notes",
+        title: "Playlist Integration",
+        description: "Curated Power Hour playlists where songs change every 60 seconds"
+      },
+      {
+        icon: "trophy",
+        title: "Endurance Challenge",
+        description: "Track your progress and earn bragging rights for completing the full hour"
+      }
+    ]
+  },
 };
 
 // ============================================================================
@@ -366,8 +492,8 @@ export function getBenefitsForBar(barId: string): VaultItemPreview {
 }
 
 export function getBenefitsForGame(gameId: string): VaultItemPreview {
-  // Strip 'vault_game_' prefix if present to match benefit keys
-  const cleanId = gameId.replace('vault_game_', '');
+  // Strip 'vault_game_' or 'game_' prefix if present to match benefit keys
+  const cleanId = gameId.replace('vault_game_', '').replace('game_', '');
   return GAME_BENEFITS[cleanId] || GAME_BENEFITS.kings_cup;
 }
 

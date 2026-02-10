@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, Pressable, StyleSheet, Animated } from 'react-native';
+import { View, Text, Pressable, StyleSheet, Animated, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, radii, spacing } from '../../theme/tokens';
@@ -174,7 +174,7 @@ export const CheckboxExercise: React.FC<CheckboxExerciseProps> = ({ item, onResu
               styles.submitText,
               !canSubmit && styles.submitTextDisabled
             ]}>
-              Submit Answer
+              CHECK ANSWERS
             </Text>
           </LinearGradient>
         </Pressable>
@@ -188,13 +188,13 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   prompt: {
-    fontSize: 22,
-    fontWeight: '600',
+    fontSize: 28,
+    fontWeight: '400',
+    fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
     color: colors.text,
     textAlign: 'center',
-    marginBottom: spacing(4),
-    lineHeight: 30,
-    letterSpacing: -0.3,
+    marginBottom: spacing(5),
+    lineHeight: 34,
   },
   optionsContainer: {
     gap: spacing(1.5),
@@ -204,10 +204,10 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   optionButton: {
-    borderRadius: radii.md,
+    borderRadius: 30,
     overflow: 'hidden',
-    borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
     shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -226,7 +226,7 @@ const styles = StyleSheet.create({
   },
   optionGradient: {
     paddingVertical: spacing(2.5),
-    paddingHorizontal: spacing(2.5),
+    paddingHorizontal: spacing(2),
   },
   optionContent: {
     flexDirection: 'row',
@@ -245,31 +245,32 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   submitButton: {
-    borderRadius: radii.lg,
+    borderRadius: radii.full,
     overflow: 'hidden',
     shadowColor: colors.gold,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 16,
     elevation: 8,
+    marginHorizontal: spacing(4),
   },
   submitButtonDisabled: {
     shadowOpacity: 0.1,
     shadowRadius: 4,
   },
   submitGradient: {
-    paddingVertical: spacing(4),
-    paddingHorizontal: spacing(4),
+    paddingVertical: spacing(2),
     alignItems: 'center',
   },
   submitText: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '700',
-    color: colors.goldText,
-    letterSpacing: 0.3,
+    color: '#1A120D',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
   },
   submitTextDisabled: {
-    color: colors.subtext,
+    color: 'rgba(255,255,255,0.3)',
   },
 });
 

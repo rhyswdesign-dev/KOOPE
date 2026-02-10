@@ -33,7 +33,9 @@ export default function BarVibesSection({ vibes }: { vibes?: BarVibes }) {
         <View style={styles.block}>
           <SectionTitle>Bartender Spotlight</SectionTitle>
           <View style={styles.bartenderRow}>
-            <Image source={{ uri: vibes.bartender.avatar }} style={styles.avatar} />
+            <View style={styles.iconBox}>
+              <MaterialCommunityIcons name="account" size={22} color={colors.accentLight} />
+            </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.bartenderName}>{vibes.bartender.name}</Text>
               {!!vibes.bartender.subtitle && (
@@ -106,13 +108,13 @@ const styles = StyleSheet.create({
     backgroundColor: colors.line,
     ...layouts.center,
   },
-  rowText: { 
+  rowText: {
     ...textStyles.body,
     color: colors.textMuted,
   },
-  bartenderRow: { 
-    ...layouts.row, 
-    gap: spacing(1.5), 
+  bartenderRow: {
+    ...layouts.row,
+    gap: spacing(1.5),
     marginTop: spacing(0.5),
   },
   avatar: components.avatar,

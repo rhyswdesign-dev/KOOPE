@@ -38,11 +38,11 @@ class RewardService {
       const { error } = await supabase
         .from('user_challenge_progress')
         .update({
-          rewardClaimed: true,
-          claimedAt: new Date().toISOString()
+          reward_claimed: true,
+          claimed_at: new Date().toISOString()
         })
-        .eq('userId', userId)
-        .eq('challengeId', challengeId);
+        .eq('user_id', userId)
+        .eq('challenge_id', challengeId);
 
       if (error) {
         log.error('rewardService', 'Error marking reward as claimed', error);
@@ -235,13 +235,13 @@ class RewardService {
         .select(`
           *,
           challenges (
-            xpReward,
-            keysReward,
-            badgeReward
+            xp_reward,
+            keys_reward,
+            badge_reward
           )
         `)
-        .eq('userId', userId)
-        .eq('rewardClaimed', true);
+        .eq('user_id', userId)
+        .eq('reward_claimed', true);
 
       if (error) {
         log.error('rewardService', 'Error fetching rewards summary', error);
@@ -257,9 +257,9 @@ class RewardService {
         (acc, item: any) => {
           const challenge = item.challenges;
           if (challenge) {
-            acc.totalXPFromChallenges += challenge.xpReward || 0;
-            acc.totalKeysFromChallenges += challenge.keysReward || 0;
-            if (challenge.badgeReward) {
+            acc.totalXPFromChallenges += challenge.xp_reward || 0;
+            acc.totalKeysFromChallenges += challenge.keys_reward || 0;
+            if (challenge.badge_reward) {
               acc.totalBadgesFromChallenges += 1;
             }
           }

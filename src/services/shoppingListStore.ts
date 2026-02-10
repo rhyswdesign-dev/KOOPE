@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { GroceryList, GroceryItem } from './groceryListService';
 import { log } from '../lib/logger';
+import { useXPSystem } from '../store/useXPSystem';
 
 interface SavedShoppingList extends GroceryList {
   recipeName: string;
@@ -62,6 +63,9 @@ export class ShoppingListStore {
       const updatedLists = [...existingLists, savedList];
 
       await AsyncStorage.setItem(this.STORAGE_KEY, JSON.stringify(updatedLists));
+
+      // Award XP for adding ingredients to cart
+      useXPSystem.getState().earnXP(5, 'add-to-cart', `Added ${recipeName} ingredients to cart`);
 
       return savedList;
     } catch (error) {

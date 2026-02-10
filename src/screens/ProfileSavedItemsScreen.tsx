@@ -18,7 +18,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/RootNavigator';
-import { colors, spacing, radii, fonts } from '../theme/tokens';
+import { colors, spacing, radii, fonts, serif } from '../theme/tokens';
+import { Heading } from '../components/ui';
 import { useSavedItems } from '../hooks/useSavedItems';
 import { useUserRecipes, UserRecipe } from '../store/useUserRecipes';
 import RecipeCard from '../components/RecipeCard';
@@ -52,7 +53,7 @@ export default function ProfileSavedItemsScreen() {
       title: 'My Collection',
       headerStyle: { backgroundColor: colors.bg },
       headerTintColor: colors.text,
-      headerTitleStyle: { color: colors.text, fontWeight: '700' },
+      headerTitleStyle: { color: colors.text, fontWeight: '700', fontFamily: serif },
       headerShadowVisible: false,
       headerRight: () => (
         <TouchableOpacity
@@ -146,8 +147,8 @@ export default function ProfileSavedItemsScreen() {
             name: item.name,
             title: item.name,
             description: item.description || '',
-            image: item.image,
-            difficulty: item.difficulty || 'Medium',
+            image: item.image || 'https://images.unsplash.com/photo-1514362545857-3f16c0c5604c?q=80&w=1200',
+            difficulty: (item.difficulty as any) || 'Medium',
             time: item.prepTime ? `${item.prepTime} min` : '5 min',
           }}
           onPress={() =>
@@ -189,7 +190,7 @@ export default function ProfileSavedItemsScreen() {
         title: 'No saved recipes yet',
         subtitle: 'Browse recipes and tap the bookmark icon to save them here',
         action: 'Browse Recipes',
-        onAction: () => nav.navigate('Main', { screen: 'Recipes' }),
+        onAction: () => (nav as any).navigate('Main', { screen: 'Recipes' }),
       },
       created: {
         icon: 'create-outline',
@@ -214,7 +215,7 @@ export default function ProfileSavedItemsScreen() {
         <View style={styles.emptyIconContainer}>
           <Ionicons name={config.icon as any} size={48} color={colors.muted} />
         </View>
-        <Text style={styles.emptyTitle}>{config.title}</Text>
+        <Heading level={2} style={styles.emptyTitle}>{config.title}</Heading>
         <Text style={styles.emptySubtitle}>{config.subtitle}</Text>
         <TouchableOpacity style={styles.emptyAction} onPress={config.onAction}>
           <Text style={styles.emptyActionText}>{config.action}</Text>
@@ -231,7 +232,7 @@ export default function ProfileSavedItemsScreen() {
     <SafeAreaView style={styles.container} edges={['left', 'right', 'bottom']}>
       {/* Summary Header */}
       <View style={styles.summaryHeader}>
-        <Text style={styles.summaryCount}>{totalCount}</Text>
+        <Heading level={1} style={styles.summaryCount}>{totalCount}</Heading>
         <Text style={styles.summaryLabel}>Total Recipes</Text>
       </View>
 
@@ -278,7 +279,7 @@ export default function ProfileSavedItemsScreen() {
         renderEmptyState()
       ) : (
         <FlatList
-          data={activeData}
+          data={activeData as any[]}
           renderItem={activeTab === 'saved' ? renderSavedItem : renderUserRecipe}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContent}
@@ -333,6 +334,7 @@ const styles = StyleSheet.create({
     fontSize: 36,
     fontWeight: '800',
     color: colors.text,
+    fontFamily: serif,
   },
   summaryLabel: {
     fontSize: fonts.caption,
@@ -360,7 +362,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
   },
   tabActive: {
-    backgroundColor: colors.accentBg,
+    backgroundColor: colors.accent + '20',
   },
   tabText: {
     fontSize: fonts.caption,
@@ -414,7 +416,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accent,
   },
   importedBadge: {
-    backgroundColor: colors.primary,
+    backgroundColor: colors.accent,
   },
   typeBadgeText: {
     fontSize: 10,
@@ -433,7 +435,7 @@ const styles = StyleSheet.create({
   emptyIconContainer: {
     width: 80,
     height: 80,
-    borderRadius: 40,
+    borderRadius: radii.full,
     backgroundColor: colors.card,
     alignItems: 'center',
     justifyContent: 'center',
@@ -475,7 +477,7 @@ const styles = StyleSheet.create({
   fab: {
     width: 48,
     height: 48,
-    borderRadius: 24,
+    borderRadius: radii.full,
     backgroundColor: colors.card,
     alignItems: 'center',
     justifyContent: 'center',

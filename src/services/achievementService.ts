@@ -26,6 +26,8 @@ export interface UserStats {
   recipesViewed: number;
   recipesMade: number;
   recipesCreated: number;
+  recipesShared: number;
+  cocktailsMade: number;
   favoriteCount: number;
   homeBarIngredients: number;
   lessonsCompleted: number;
@@ -352,6 +354,8 @@ class AchievementService {
     recipesViewed: 0,
     recipesMade: 0,
     recipesCreated: 0,
+    recipesShared: 0,
+    cocktailsMade: 0,
     favoriteCount: 0,
     homeBarIngredients: 0,
     lessonsCompleted: 0,
@@ -384,18 +388,33 @@ class AchievementService {
 
   /**
    * Track an action and check for achievement unlocks
+   * Increments the stat by the given value
    */
   public async trackAction(
     action: keyof UserStats,
     value: number = 1
   ): Promise<Achievement[]> {
-    // Update user stats
+    // Update user stats (increment)
     this.userStats[action] = (this.userStats[action] as number) + value;
     await this.saveUserStats();
 
     // Check and unlock achievements
     const unlockedAchievements = await this.checkAchievements();
 
+    return unlockedAchievements;
+  }
+
+  /**
+   * Set a stat to an absolute value (used for streaks which should be set, not incremented)
+   */
+  public async setStat(
+    action: keyof UserStats,
+    value: number
+  ): Promise<Achievement[]> {
+    this.userStats[action] = value;
+    await this.saveUserStats();
+
+    const unlockedAchievements = await this.checkAchievements();
     return unlockedAchievements;
   }
 
@@ -461,25 +480,31 @@ class AchievementService {
       case 'recipe_explorer':
       case 'recipe_enthusiast':
       case 'recipe_master':
+      case 'recipe_legend':
         return this.userStats.recipesViewed;
 
       case 'first_creation':
       case 'recipe_creator':
+      case 'master_creator':
         return this.userStats.recipesCreated;
 
       // Collection achievements
       case 'favorite_collector':
+      case 'favorites_master':
         return this.userStats.favoriteCount;
 
       case 'home_bar_starter':
       case 'home_bar_pro':
       case 'full_bar':
+      case 'ultimate_collector':
         return this.userStats.homeBarIngredients;
 
       // Knowledge achievements
       case 'first_lesson':
       case 'dedicated_student':
       case 'master_mixologist':
+      case 'knowledge_completionist':
+      case 'perfect_student':
         return this.userStats.lessonsCompleted;
 
       // Streak achievements
@@ -487,10 +512,13 @@ class AchievementService {
       case 'consistent_7':
       case 'consistent_30':
       case 'consistent_100':
+      case 'consistent_365':
+      case 'streak_comeback':
         return this.userStats.currentStreak;
 
       // Social achievements
       case 'bar_explorer':
+      case 'bar_master':
         return this.userStats.barsVisited;
 
       case 'game_player':
@@ -559,6 +587,16 @@ class AchievementService {
   }
 
   /**
+   * Sync XP/level from the global XP system (useXPSystem)
+   * This ensures achievements screen shows the same XP as the rest of the app
+   */
+  public syncXP(totalXP: number): void {
+    this.userStats.totalXP = totalXP;
+    this.userStats.level = Math.floor(totalXP / 100) + 1;
+    this.saveUserStats();
+  }
+
+  /**
    * Subscribe to achievement unlocks
    */
   public addAchievementListener(listener: (achievement: Achievement) => void): () => void {
@@ -615,7 +653,9 @@ class AchievementService {
     try {
       const statsData = await AsyncStorage.getItem(STORAGE_KEYS.USER_STATS);
       if (statsData) {
-        this.userStats = JSON.parse(statsData);
+        const parsed = JSON.parse(statsData);
+        // Merge with defaults to handle missing fields from older versions
+        this.userStats = { ...this.userStats, ...parsed };
       }
     } catch (error) {
       log.error('AchievementService', 'Failed to load user stats', error);
@@ -646,6 +686,8 @@ class AchievementService {
       recipesViewed: 0,
       recipesMade: 0,
       recipesCreated: 0,
+      recipesShared: 0,
+      cocktailsMade: 0,
       favoriteCount: 0,
       homeBarIngredients: 0,
       lessonsCompleted: 0,
