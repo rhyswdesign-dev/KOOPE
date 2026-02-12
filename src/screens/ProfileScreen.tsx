@@ -201,21 +201,27 @@ export default function ProfileScreen() {
               >
                 <View style={styles.collectionStats}>
                   <View style={styles.collectionStatItem}>
-                    <Ionicons name="bookmark" size={20} color={colors.accent} />
+                    <Ionicons name="bookmark" size={18} color={colors.accent} />
                     <Text style={styles.collectionStatValue}>{savedItems.savedCocktails?.length || 0}</Text>
                     <Text style={styles.collectionStatLabel}>Saved</Text>
                   </View>
                   <View style={styles.collectionDivider} />
                   <View style={styles.collectionStatItem}>
-                    <Ionicons name="create" size={20} color={colors.accent} />
+                    <Ionicons name="create" size={18} color={colors.accent} />
                     <Text style={styles.collectionStatValue}>{recipes.filter(r => r.type === 'created' || r.type === 'ai_generated').length}</Text>
                     <Text style={styles.collectionStatLabel}>Created</Text>
                   </View>
                   <View style={styles.collectionDivider} />
                   <View style={styles.collectionStatItem}>
-                    <Ionicons name="download" size={20} color={colors.accent} />
-                    <Text style={styles.collectionStatValue}>{recipes.filter(r => (r.type as string) === 'imported').length}</Text>
-                    <Text style={styles.collectionStatLabel}>Imported</Text>
+                    <Ionicons name="game-controller" size={18} color={colors.accent} />
+                    <Text style={styles.collectionStatValue}>{savedItems.savedGames?.length || 0}</Text>
+                    <Text style={styles.collectionStatLabel}>Games</Text>
+                  </View>
+                  <View style={styles.collectionDivider} />
+                  <View style={styles.collectionStatItem}>
+                    <Ionicons name="diamond" size={18} color={colors.accent} />
+                    <Text style={styles.collectionStatValue}>{savedItems.savedVaultItems?.length || 0}</Text>
+                    <Text style={styles.collectionStatLabel}>Vault</Text>
                   </View>
                 </View>
                 <View style={styles.collectionArrow}>

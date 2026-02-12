@@ -67,6 +67,12 @@ export const useUserRecipes = create<UserRecipesState>((set, get) => ({
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updatedRecipes));
 
       log.info('UserRecipesStore', 'Recipe added successfully', { recipeName: newRecipe.name });
+
+      // Track recipe creation for achievements
+      try {
+        const { achievementService } = await import('../services/achievementService');
+        await achievementService.trackAction('recipesCreated', 1);
+      } catch {}
     } catch (error) {
       log.error('UserRecipesStore', 'Error adding recipe', error);
     }

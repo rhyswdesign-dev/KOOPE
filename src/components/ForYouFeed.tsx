@@ -11,18 +11,10 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Pressable,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, radii, fonts } from '../theme/tokens';
 import { usePersonalization } from '../store/usePersonalization';
-import AIRecommendations from './AIRecommendations';
-import AICocktailPromptModal from './AICocktailPromptModal';
-import {
-  MOOD_CATEGORIES,
-  personalizeModeCategoryOrder,
-  Mood
-} from '../services/moodBasedRecommendations';
 import { ALL_COCKTAILS } from '../data/cocktails';
 import RecipeCard from './RecipeCard';
 import { createRecipeCardProps } from '../utils/recipeActions';
@@ -31,10 +23,6 @@ import { getCocktailImage } from '../../assets/images/cocktails';
 import {
   BehavioralLearning
 } from '../services/behavioralLearning';
-import {
-  getRemainingPrompts,
-  generateCocktailSuggestions,
-} from '../services/aiPromptService';
 import { log } from '../lib/logger';
 import { getTrendingCocktails, getCurrentSeason, getSeasonDisplayName, getSeasonEmoji } from '../services/seasonalTrendingService';
 import { useUserTier } from '../store/useUserTier';
@@ -56,9 +44,11 @@ export default function ForYouFeed({
 }: ForYouFeedProps) {
   const { profile, getFeaturedCocktails, scoreCocktail } = usePersonalization();
   const { tier } = useUserTier();
-  const [personalizedMoods, setPersonalizedMoods] = useState(MOOD_CATEGORIES);
   const [engagementScore, setEngagementScore] = useState(0);
   const [selectedRecommendTab, setSelectedRecommendTab] = useState<'matched' | 'beginner' | 'challenge' | 'trending'>('matched');
+
+  // Check if user has completed taste profile (must be declared before useMemo that depends on it)
+  const hasProfile = profile && profile.favoriteSpirits && profile.favoriteSpirits.length > 0;
 
   // Get current season info for trending tab
   const currentSeason = getCurrentSeason();
@@ -96,30 +86,50 @@ export default function ForYouFeed({
     let matched, beginner, challenge;
 
     if (hasProfile) {
-      // User has profile - use personalized scoring
-      const scoredCocktails = actualCocktails.map(cocktail => ({
+      // FREE tier: limit to 2 cocktails per category (to make room for feature previews)
+      // PLUS/PRO tier: show 8 cocktails per category
+      const limit = tier === 'FREE' ? 2 : 8;
+
+      // Use pre-computed featured cocktails for "Matched" tab when available
+      // This is the same list shown during onboarding, ensuring consistency
+      if (hasPersonalizedContent) {
+        matched = featured.slice(0, limit);
+
+        log.debug('ForYouFeed', 'Using getFeaturedCocktails for matched tab', {
+          matchedCount: matched.length,
+          matchedNames: matched.slice(0, 5).map((c: any) => c.name),
+        });
+      } else {
+        // Fallback to scoreCocktail if featured list not yet computed
+        const scoredCocktails = actualCocktails.map(cocktail => ({
+          cocktail,
+          score: scoreCocktail(cocktail)
+        }))
+        .sort((a, b) => b.score - a.score);
+
+        log.debug('ForYouFeed', 'Fallback: Top scored cocktails', {
+          top5: scoredCocktails.slice(0, 5).map(item => ({
+            name: item.cocktail.name,
+            score: item.score,
+            spirit: item.cocktail.base,
+            difficulty: item.cocktail.difficulty
+          }))
+        });
+
+        matched = scoredCocktails.slice(0, limit).map(item => item.cocktail);
+      }
+
+      // Beginner & Challenge tabs always use scoreCocktail for difficulty filtering
+      const scoredForTabs = actualCocktails.map(cocktail => ({
         cocktail,
         score: scoreCocktail(cocktail)
       }))
       .sort((a, b) => b.score - a.score);
 
-      log.debug('ForYouFeed', 'Top scored cocktails', {
-        top5: scoredCocktails.slice(0, 5).map(item => ({
-          name: item.cocktail.name,
-          score: item.score,
-          spirit: item.cocktail.base,
-          difficulty: item.cocktail.difficulty
-        }))
-      });
+      beginner = scoredForTabs.filter(item => item.cocktail.difficulty === 'Easy').slice(0, limit).map(item => item.cocktail);
+      challenge = scoredForTabs.filter(item => item.cocktail.difficulty === 'Hard' || item.cocktail.difficulty === 'Medium').slice(0, limit).map(item => item.cocktail);
 
-      // FREE tier: limit to 2 cocktails per category (to make room for feature previews)
-      // PLUS/PRO tier: show 8 cocktails per category
-      const limit = tier === 'FREE' ? 2 : 8;
-      matched = scoredCocktails.slice(0, limit).map(item => item.cocktail);
-      beginner = scoredCocktails.filter(item => item.cocktail.difficulty === 'Easy').slice(0, limit).map(item => item.cocktail);
-      challenge = scoredCocktails.filter(item => item.cocktail.difficulty === 'Hard' || item.cocktail.difficulty === 'Medium').slice(0, limit).map(item => item.cocktail);
-
-      log.debug('ForYouFeed', 'Applied FREE tier limits', {
+      log.debug('ForYouFeed', 'Recommendation counts', {
         matchedCount: matched.length,
         beginnerCount: beginner.length,
         challengeCount: challenge.length,
@@ -155,11 +165,6 @@ export default function ForYouFeed({
     };
   }, [getFeaturedCocktails, scoreCocktail, profile, hasProfile, tier]);
 
-  // AI Prompt Modal state
-  const [promptModalVisible, setPromptModalVisible] = useState(false);
-  const [remainingPrompts, setRemainingPrompts] = useState(1);
-  const isPremium = false; // TODO: Get from user subscription status
-
   // Get current time for greeting
   const greeting = useMemo(() => {
     const hour = new Date().getHours();
@@ -168,9 +173,6 @@ export default function ForYouFeed({
     if (hour < 22) return 'Good evening';
     return 'Good night';
   }, []);
-
-  // Check if user has completed taste profile
-  const hasProfile = profile && profile.favoriteSpirits && profile.favoriteSpirits.length > 0;
 
   // User profile data - only use real data, no fake defaults
   const userProfile = useMemo(() => {
@@ -195,7 +197,6 @@ export default function ForYouFeed({
 
   useEffect(() => {
     if (hasProfile && userProfile) {
-      // Personalize mood order based on user profile
       const mockProfile = {
         id: 'current-user',
         favoriteSpirit: userProfile.favoriteSpirit,
@@ -204,79 +205,10 @@ export default function ForYouFeed({
         skillLevel: userProfile.skillLevel,
       };
 
-      const moods = personalizeModeCategoryOrder(mockProfile as any);
-      setPersonalizedMoods(moods);
-
-      // Calculate engagement score
       const score = BehavioralLearning.calculateEngagementScore(mockProfile as any);
       setEngagementScore(score);
-
-      // Load remaining prompts
-      loadRemainingPrompts();
     }
   }, [profile, userProfile, hasProfile]);
-
-  const loadRemainingPrompts = async () => {
-    try {
-      const remaining = await getRemainingPrompts('current-user', isPremium);
-      setRemainingPrompts(remaining);
-    } catch (error) {
-      log.error('ForYouFeed', 'Error loading prompts', error);
-      setRemainingPrompts(1);
-    }
-  };
-
-  const handleAIPromptSubmit = async (prompt: string) => {
-    try {
-      const result = await generateCocktailSuggestions('current-user', prompt, isPremium);
-
-      if (result.success && result.suggestions) {
-        setPromptModalVisible(false);
-        await loadRemainingPrompts();
-        // Show success in a toast or alert
-        log.info('ForYouFeed', 'AI suggestions generated', { count: result.suggestions.length, xp: result.xpEarned });
-      } else {
-        log.error('ForYouFeed', 'Failed to generate suggestions', { error: result.error });
-      }
-    } catch (error) {
-      log.error('ForYouFeed', 'Error generating AI suggestions', error);
-    }
-  };
-
-  const renderMoodCard = (mood: typeof MOOD_CATEGORIES[0], index: number) => {
-    const isTop3 = index < 3;
-
-    return (
-      <TouchableOpacity
-        key={mood.id}
-        style={[styles.moodCard, isTop3 && styles.moodCardHighlight]}
-        onPress={() => {
-          log.info('ForYouFeed', 'Mood card pressed', { mood: mood.name });
-          // TODO: Navigate to mood-filtered recipes
-        }}
-      >
-        <View style={styles.moodHeader}>
-          <Text style={styles.moodEmoji}>{mood.emoji}</Text>
-          {isTop3 && (
-            <View style={styles.topBadge}>
-              <Text style={styles.topBadgeText}>TOP {index + 1}</Text>
-            </View>
-          )}
-        </View>
-        <Text style={styles.moodName}>{mood.name}</Text>
-        <Text style={styles.moodDescription}>{mood.description}</Text>
-
-        {/* Show why this mood was ranked here */}
-        {index === 0 && hasProfile && userProfile && (
-          <View style={styles.reasonBadge}>
-            <Text style={styles.reasonText}>
-              ⭐ Perfect for {userProfile.favoriteSpirit} lovers
-            </Text>
-          </View>
-        )}
-      </TouchableOpacity>
-    );
-  };
 
   return (
     <View style={styles.container}>
@@ -485,151 +417,9 @@ export default function ForYouFeed({
                 />
               </View>
             )}
-            ListFooterComponent={
-              tier === 'FREE' ? (
-                <View style={{ flexDirection: 'row', gap: spacing(2) }}>
-                  {/* Feature Preview Card 1: AI Recommendations */}
-                  <TouchableOpacity
-                    style={styles.featurePreviewCard}
-                    onPress={() => {
-                      log.info('ForYouFeed', 'AI Recommendations preview pressed');
-                    }}
-                    activeOpacity={0.8}
-                  >
-                    <View style={styles.previewVideoPlaceholder}>
-                      <View style={styles.playIconContainer}>
-                        <Ionicons name="play-circle" size={56} color={colors.gold} />
-                      </View>
-                      <View style={styles.previewBadge}>
-                        <Ionicons name="sparkles" size={14} color={colors.gold} />
-                        <Text style={styles.previewBadgeText}>AI Feature</Text>
-                      </View>
-                    </View>
-                    <View style={styles.previewContent}>
-                      <Text style={styles.previewTitle}>AI Recommendations</Text>
-                      <Text style={styles.previewSubtitle}>
-                        Smart suggestions based on your taste
-                      </Text>
-                      <View style={styles.previewCTA}>
-                        <Text style={styles.previewCTAText}>Watch Preview</Text>
-                      </View>
-                    </View>
-                  </TouchableOpacity>
-
-                  {/* Feature Preview Card 2: Personalized Matching */}
-                  <TouchableOpacity
-                    style={styles.featurePreviewCard}
-                    onPress={() => {
-                      log.info('ForYouFeed', 'Personalized Matching preview pressed');
-                    }}
-                    activeOpacity={0.8}
-                  >
-                    <View style={styles.previewVideoPlaceholder}>
-                      <View style={styles.playIconContainer}>
-                        <Ionicons name="play-circle" size={56} color={colors.gold} />
-                      </View>
-                      <View style={styles.previewBadge}>
-                        <Ionicons name="heart" size={14} color={colors.gold} />
-                        <Text style={styles.previewBadgeText}>Premium</Text>
-                      </View>
-                    </View>
-                    <View style={styles.previewContent}>
-                      <Text style={styles.previewTitle}>Advanced Matching</Text>
-                      <Text style={styles.previewSubtitle}>
-                        Unlock 6+ more personalized picks
-                      </Text>
-                      <View style={styles.previewCTA}>
-                        <Text style={styles.previewCTAText}>See How It Works</Text>
-                      </View>
-                    </View>
-                  </TouchableOpacity>
-
-                  {/* Final Upgrade CTA Card */}
-                  <TouchableOpacity
-                    style={styles.upgradeCard}
-                    onPress={() => {
-                      log.info('ForYouFeed', 'Upgrade CTA pressed');
-                    }}
-                    activeOpacity={0.8}
-                  >
-                    <View style={styles.upgradeCardContent}>
-                      <Ionicons name="rocket" size={32} color={colors.gold} />
-                      <Text style={styles.upgradeCardTitle}>Upgrade Now</Text>
-                      <Text style={styles.upgradeCardSubtitle}>
-                        Get unlimited access to all features
-                      </Text>
-                      <View style={styles.upgradeButton}>
-                        <Text style={styles.upgradeButtonText}>Go Premium</Text>
-                        <Ionicons name="arrow-forward" size={16} color={colors.text} />
-                      </View>
-                    </View>
-                  </TouchableOpacity>
-                </View>
-              ) : null
-            }
-          />
-        </View>
-
-        {/* AI Cocktail Creator CTA */}
-        <Pressable
-          style={styles.aiPromptCTA}
-          onPress={() => setPromptModalVisible(true)}
-        >
-          <View style={styles.aiPromptContent}>
-            <View style={styles.aiPromptLeft}>
-              <Text style={styles.aiPromptEmoji}>✨</Text>
-              <View style={styles.aiPromptTextContainer}>
-                <Text style={styles.aiPromptTitle}>What should I make tonight?</Text>
-                <Text style={styles.aiPromptSubtitle}>
-                  {remainingPrompts} {remainingPrompts === 1 ? 'prompt' : 'prompts'} remaining
-                </Text>
-              </View>
-            </View>
-            <View style={styles.aiPromptBadge}>
-              <Text style={styles.aiPromptBadgeText}>+50 XP</Text>
-            </View>
-          </View>
-        </Pressable>
-
-        {/* Mood Categories - Personalized Order */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Your Moods</Text>
-          {hasProfile && userProfile && (
-            <Text style={styles.sectionSubtitle}>
-              Ordered based on your {userProfile.favoriteSpirit} preference
-            </Text>
-          )}
-          {!hasProfile && (
-            <Text style={styles.sectionSubtitle}>
-              Discover cocktails by mood and occasion
-            </Text>
-          )}
-          <ScrollView
-            horizontal
-            nestedScrollEnabled
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.moodsList}
-          >
-            {personalizedMoods.map((mood, index) => renderMoodCard(mood, index))}
-          </ScrollView>
-        </View>
-
-        {/* AI Recommendations - For You */}
-        <View style={styles.section}>
-          <AIRecommendations
-            navigation={null}
           />
         </View>
       </ScrollView>
-
-      {/* AI Prompt Modal */}
-      <AICocktailPromptModal
-        visible={promptModalVisible}
-        onClose={() => setPromptModalVisible(false)}
-        onSubmit={handleAIPromptSubmit}
-        remainingPrompts={remainingPrompts}
-        isPremium={isPremium}
-      />
     </View>
   );
 }
@@ -735,55 +525,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.accent,
   },
-  aiPromptCTA: {
-    margin: spacing(3),
-    marginTop: 0,
-    backgroundColor: colors.accent,
-    borderRadius: radii.lg,
-    padding: spacing(2.5),
-  },
-  aiPromptContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  aiPromptLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    marginRight: spacing(1),
-  },
-  aiPromptEmoji: {
-    fontSize: 28,
-    marginRight: spacing(1.5),
-  },
-  aiPromptTextContainer: {
-    flex: 1,
-  },
-  aiPromptTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: colors.bg,
-    marginBottom: spacing(0.25),
-    lineHeight: 22,
-  },
-  aiPromptSubtitle: {
-    fontSize: 12,
-    color: colors.bg + 'CC',
-    lineHeight: 16,
-  },
-  aiPromptBadge: {
-    backgroundColor: colors.bg,
-    borderRadius: radii.md,
-    paddingVertical: spacing(0.75),
-    paddingHorizontal: spacing(1.5),
-    marginLeft: spacing(2),
-  },
-  aiPromptBadgeText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.accent,
-  },
   section: {
     marginBottom: spacing(3),
   },
@@ -799,67 +540,6 @@ const styles = StyleSheet.create({
     color: colors.subtext,
     marginHorizontal: spacing(3),
     marginBottom: spacing(2),
-  },
-  moodsList: {
-    paddingLeft: spacing(3),
-    paddingRight: spacing(3),
-  },
-  moodCard: {
-    width: 280,
-    backgroundColor: colors.card,
-    borderRadius: radii.lg,
-    padding: spacing(2.5),
-    marginRight: spacing(2),
-    borderWidth: 1,
-    borderColor: colors.line,
-  },
-  moodCardHighlight: {
-    borderColor: colors.accent,
-    borderWidth: 2,
-  },
-  moodHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: spacing(1.5),
-  },
-  moodEmoji: {
-    fontSize: 40,
-  },
-  topBadge: {
-    backgroundColor: colors.accent,
-    borderRadius: radii.sm,
-    paddingVertical: spacing(0.5),
-    paddingHorizontal: spacing(1),
-  },
-  topBadgeText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: colors.white,
-  },
-  moodName: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: spacing(0.5),
-  },
-  moodDescription: {
-    fontSize: 14,
-    color: colors.subtext,
-    lineHeight: 20,
-  },
-  reasonBadge: {
-    marginTop: spacing(1.5),
-    backgroundColor: colors.gold + '20',
-    borderRadius: radii.sm,
-    padding: spacing(1),
-    borderWidth: 1,
-    borderColor: colors.gold,
-  },
-  reasonText: {
-    fontSize: 12,
-    color: colors.gold,
-    fontWeight: '600',
   },
   tabBar: {
     marginBottom: spacing(2),
@@ -937,110 +617,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: colors.white,
-  },
-  featurePreviewCard: {
-    width: 280,
-    marginLeft: spacing(2),
-    backgroundColor: colors.card,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: colors.line,
-    overflow: 'hidden',
-  },
-  previewVideoPlaceholder: {
-    width: '100%',
-    height: 180,
-    backgroundColor: colors.bg,
-    justifyContent: 'center',
-    alignItems: 'center',
-    position: 'relative',
-  },
-  playIconContainer: {
-    opacity: 0.9,
-  },
-  previewBadge: {
-    position: 'absolute',
-    top: spacing(1.5),
-    right: spacing(1.5),
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing(0.5),
-    backgroundColor: colors.card,
-    paddingVertical: spacing(0.5),
-    paddingHorizontal: spacing(1),
-    borderRadius: radii.sm,
-    borderWidth: 1,
-    borderColor: colors.gold + '60',
-  },
-  previewBadgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: colors.gold,
-    textTransform: 'uppercase',
-  },
-  previewContent: {
-    padding: spacing(2),
-    gap: spacing(0.5),
-  },
-  previewTitle: {
-    fontSize: 17,
-    fontWeight: '800',
-    color: colors.text,
-  },
-  previewSubtitle: {
-    fontSize: 13,
-    color: colors.subtext,
-    marginBottom: spacing(1),
-  },
-  previewCTA: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing(0.5),
-  },
-  previewCTAText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.accent,
-  },
-  upgradeCard: {
-    width: 280,
-    marginLeft: spacing(2),
-    backgroundColor: colors.card,
-    borderRadius: radii.lg,
-    borderWidth: 2,
-    borderColor: colors.gold + '40',
-    padding: spacing(3),
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  upgradeCardContent: {
-    alignItems: 'center',
-    gap: spacing(1.5),
-  },
-  upgradeCardTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: colors.text,
-    textAlign: 'center',
-  },
-  upgradeCardSubtitle: {
-    fontSize: 14,
-    color: colors.subtext,
-    textAlign: 'center',
-    marginBottom: spacing(1),
-  },
-  upgradeButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing(1),
-    backgroundColor: colors.gold,
-    paddingVertical: spacing(1.5),
-    paddingHorizontal: spacing(2),
-    borderRadius: radii.md,
-  },
-  upgradeButtonText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: colors.text,
   },
 });

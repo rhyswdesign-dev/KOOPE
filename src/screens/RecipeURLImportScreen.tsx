@@ -3,34 +3,53 @@
  * Allows users to import recipes from URLs (paste or share extension)
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   SafeAreaView,
-  Alert,
   ActivityIndicator,
   TextInput,
   ScrollView,
   Keyboard,
+  Modal,
+  Pressable,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
+import { BlurView } from 'expo-blur';
 import { colors, spacing, radii } from '../theme/tokens';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { log } from '../lib/logger';
 import { useXPSystem } from '../store/useXPSystem';
+import { useUserRecipes } from '../store/useUserRecipes';
 
 export default function RecipeURLImportScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute();
   const { earnXP } = useXPSystem();
+  const { addRecipe } = useUserRecipes();
 
   const [url, setUrl] = useState('');
   const [loading, setLoading] = useState(false);
+  const [alertConfig, setAlertConfig] = useState<{
+    title: string;
+    message: string;
+    icon: string;
+    iconColor: string;
+    actions: Array<{ label: string; onPress?: () => void; style?: 'primary' | 'secondary' }>;
+  } | null>(null);
+
+  const showAlert = useCallback((config: NonNullable<typeof alertConfig>) => {
+    setAlertConfig(config);
+  }, []);
+
+  const hideAlert = useCallback(() => {
+    setAlertConfig(null);
+  }, []);
 
   // Check if URL was passed via share extension or deep link
   useEffect(() => {
@@ -42,7 +61,13 @@ export default function RecipeURLImportScreen() {
 
   const handleImport = async () => {
     if (!url.trim()) {
-      Alert.alert('Enter URL', 'Please enter a recipe URL to import');
+      showAlert({
+        title: 'Enter URL',
+        message: 'Please enter a recipe URL to import.',
+        icon: 'alert-circle',
+        iconColor: colors.warning,
+        actions: [{ label: 'OK', style: 'primary' }],
+      });
       return;
     }
 
@@ -50,7 +75,13 @@ export default function RecipeURLImportScreen() {
     try {
       new URL(url);
     } catch {
-      Alert.alert('Invalid URL', 'Please enter a valid URL (e.g., https://example.com/recipe)');
+      showAlert({
+        title: 'Invalid URL',
+        message: 'Please enter a valid URL (e.g., https://example.com/recipe).',
+        icon: 'alert-circle',
+        iconColor: colors.warning,
+        actions: [{ label: 'OK', style: 'primary' }],
+      });
       return;
     }
 
@@ -64,33 +95,40 @@ export default function RecipeURLImportScreen() {
       // For now, simulate the process
       await new Promise(resolve => setTimeout(resolve, 2000));
 
+      // Extract domain name for display
+      const domain = new URL(url).hostname.replace('www.', '');
+
+      // Save imported recipe to store
+      await addRecipe({
+        name: `Imported from ${domain}`,
+        type: 'imported',
+        ingredients: [],
+        instructions: ['Imported from URL — tap Edit to add details'],
+        notes: url,
+      });
+
       // Award XP for importing recipe
       earnXP(10, 'other', 'Imported recipe from URL');
 
-      Alert.alert(
-        'Recipe Imported!',
-        'The recipe has been saved to your collection.',
-        [
-          {
-            text: 'View Recipe',
-            onPress: () => {
-              // TODO: Navigate to recipe detail
-              navigation.goBack();
-            },
-          },
-          {
-            text: 'Import Another',
-            onPress: () => setUrl(''),
-          },
-        ]
-      );
+      showAlert({
+        title: 'Recipe Imported!',
+        message: 'The recipe has been saved to your collection.',
+        icon: 'checkmark-circle',
+        iconColor: colors.success,
+        actions: [
+          { label: 'View Recipe', onPress: () => navigation.navigate('ProfileSavedItems' as any), style: 'primary' },
+          { label: 'Import Another', onPress: () => setUrl(''), style: 'secondary' },
+        ],
+      });
     } catch (error) {
       log.error('RecipeURLImportScreen', 'Error importing recipe', error);
-      Alert.alert(
-        'Import Failed',
-        'Could not import the recipe. Make sure the URL contains a valid recipe.',
-        [{ text: 'OK' }]
-      );
+      showAlert({
+        title: 'Import Failed',
+        message: 'Could not import the recipe. Make sure the URL contains a valid recipe.',
+        icon: 'close-circle',
+        iconColor: colors.error,
+        actions: [{ label: 'OK', style: 'primary' }],
+      });
     } finally {
       setLoading(false);
     }
@@ -99,11 +137,13 @@ export default function RecipeURLImportScreen() {
   const handlePasteFromClipboard = async () => {
     // Note: Clipboard API requires expo-clipboard
     // For now, show a message to paste manually
-    Alert.alert(
-      'Paste URL',
-      'Tap the URL field and paste the recipe link from your clipboard',
-      [{ text: 'OK' }]
-    );
+    showAlert({
+      title: 'Paste URL',
+      message: 'Tap the URL field and paste the recipe link from your clipboard.',
+      icon: 'clipboard',
+      iconColor: colors.accent,
+      actions: [{ label: 'Got It', style: 'primary' }],
+    });
   };
 
   const popularSources = [
@@ -189,18 +229,29 @@ export default function RecipeURLImportScreen() {
           <View style={styles.dividerLine} />
         </View>
 
-        <View style={styles.sourcesGrid}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.sourcesRow}
+          style={styles.sourcesScroll}
+        >
           {popularSources.map((source) => (
             <TouchableOpacity
               key={source.name}
               style={styles.sourceCard}
-              onPress={() => Alert.alert(source.name, `Visit ${source.url} to find recipes`)}
+              onPress={() => showAlert({
+                title: source.name,
+                message: `Visit ${source.url} to find recipes.`,
+                icon: 'globe-outline',
+                iconColor: colors.accent,
+                actions: [{ label: 'OK', style: 'primary' }],
+              })}
             >
               <Text style={styles.sourceIcon}>{source.icon}</Text>
               <Text style={styles.sourceName}>{source.name}</Text>
             </TouchableOpacity>
           ))}
-        </View>
+        </ScrollView>
 
         <View style={styles.tipCard}>
           <Ionicons name="information-circle-outline" size={24} color={colors.accent} />
@@ -215,6 +266,43 @@ export default function RecipeURLImportScreen() {
           </View>
         </View>
       </ScrollView>
+
+      {/* Branded Alert Modal */}
+      <Modal visible={!!alertConfig} transparent animationType="fade" statusBarTranslucent>
+        <Pressable style={styles.alertBackdrop} onPress={hideAlert}>
+          <BlurView intensity={15} style={StyleSheet.absoluteFill} />
+          <View style={styles.alertCenter}>
+            <Pressable onPress={(e) => e.stopPropagation()}>
+              <View style={styles.alertDialog}>
+                <View style={styles.alertIconWrap}>
+                  <Ionicons name={alertConfig?.icon as any} size={48} color={alertConfig?.iconColor} />
+                </View>
+                <Text style={styles.alertTitle}>{alertConfig?.title}</Text>
+                <Text style={styles.alertMessage}>{alertConfig?.message}</Text>
+                <View style={styles.alertActions}>
+                  {alertConfig?.actions.map((action, i) => (
+                    <TouchableOpacity
+                      key={i}
+                      style={[
+                        styles.alertButton,
+                        action.style === 'secondary' ? styles.alertSecondaryBtn : styles.alertPrimaryBtn,
+                      ]}
+                      onPress={() => { hideAlert(); action.onPress?.(); }}
+                    >
+                      <Text style={[
+                        styles.alertButtonText,
+                        action.style === 'secondary' && styles.alertSecondaryBtnText,
+                      ]}>
+                        {action.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -327,14 +415,14 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     fontWeight: '600',
   },
-  sourcesGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing(2),
+  sourcesScroll: {
     marginBottom: spacing(3),
   },
+  sourcesRow: {
+    gap: spacing(1.5),
+  },
   sourceCard: {
-    width: '48%',
+    width: 120,
     backgroundColor: colors.card,
     borderRadius: radii.md,
     padding: spacing(2),
@@ -374,5 +462,77 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.subtext,
     lineHeight: 20,
+  },
+  alertBackdrop: {
+    flex: 1,
+    justifyContent: 'center' as const,
+    alignItems: 'center' as const,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+  },
+  alertCenter: {
+    justifyContent: 'center' as const,
+    alignItems: 'center' as const,
+    padding: spacing(3),
+    width: '100%' as const,
+  },
+  alertDialog: {
+    backgroundColor: colors.card,
+    borderRadius: radii.xl,
+    padding: spacing(3),
+    width: '100%' as const,
+    maxWidth: 340,
+    shadowColor: '#000',
+    shadowOpacity: 0.25,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 12,
+    elevation: 8,
+    alignItems: 'center' as const,
+  },
+  alertIconWrap: {
+    marginBottom: spacing(2),
+  },
+  alertTitle: {
+    fontSize: 18,
+    fontWeight: '700' as const,
+    color: colors.text,
+    textAlign: 'center' as const,
+    marginBottom: spacing(1),
+  },
+  alertMessage: {
+    fontSize: 14,
+    color: colors.subtext,
+    textAlign: 'center' as const,
+    lineHeight: 20,
+    marginBottom: spacing(3),
+  },
+  alertActions: {
+    flexDirection: 'row' as const,
+    gap: spacing(1.5),
+    width: '100%' as const,
+  },
+  alertButton: {
+    flex: 1,
+    paddingVertical: spacing(1.5),
+    paddingHorizontal: spacing(2),
+    borderRadius: radii.lg,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    minHeight: 44,
+  },
+  alertPrimaryBtn: {
+    backgroundColor: colors.accent,
+  },
+  alertSecondaryBtn: {
+    backgroundColor: colors.chipBg,
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
+  alertButtonText: {
+    fontSize: 16,
+    fontWeight: '600' as const,
+    color: colors.goldText,
+  },
+  alertSecondaryBtnText: {
+    color: colors.text,
   },
 });

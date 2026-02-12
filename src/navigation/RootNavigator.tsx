@@ -38,7 +38,7 @@ import FeedbackScreen from '../screens/FeedbackScreen';
 import CocktailDetailScreen from '../screens/CocktailDetailScreen';
 import CocktailListScreen from '../screens/CocktailListScreen';
 import WhatCanIMakeScreen from '../screens/WhatCanIMakeScreen';
-import SavedItemsScreen from '../screens/SavedItemsScreen';
+
 import EditProfileScreen from '../screens/EditProfileScreen';
 import NonAlcoholicScreen from '../screens/NonAlcoholicScreen';
 import VaultScreen from '../screens/vault/VaultScreen';
@@ -86,7 +86,7 @@ import CheckoutScreen from '../screens/commerce/CheckoutScreen';
 import OrderConfirmationScreen from '../screens/commerce/OrderConfirmationScreen';
 import OrderHistoryScreen from '../screens/commerce/OrderHistoryScreen';
 import AddRecipeScreen from '../screens/AddRecipeScreen';
-import MyRecipesScreen from '../screens/MyRecipesScreen';
+
 import AIRecipeFormatScreen from '../screens/AIRecipeFormatScreen';
 import OCRCaptureScreen from '../screens/OCRCaptureScreen';
 import URLRecipeInputScreen from '../screens/URLRecipeInputScreen';
@@ -100,7 +100,7 @@ import PaywallScreen from '../screens/PaywallScreen';
 import CustomerCenterScreen from '../screens/CustomerCenterScreen';
 import RequirePro from '../components/RequirePro';
 import { VaultCategory } from '../config/vaultTypes';
-import ImportRecipeScreen from '../screens/ImportRecipeScreen';
+
 import ProfileSavedItemsScreen from '../screens/ProfileSavedItemsScreen';
 import ManageSubscriptionScreen from '../screens/ManageSubscriptionScreen';
 import NotificationCenterScreen from '../screens/NotificationCenterScreen';
@@ -148,7 +148,7 @@ export type RootStackParamList = {
   CocktailDetail: { cocktailId: string };
   CocktailList: { title: string; cocktailIds: string[]; category: string };
   WhatCanIMake: undefined;
-  SavedItems: { category: 'bars' | 'spirits' | 'cocktails' | 'events' | 'communities' };
+
   EditProfile: undefined;
   Profile: undefined;
   OAuthSignIn: undefined;
@@ -186,7 +186,7 @@ export type RootStackParamList = {
   Billing: undefined;
   AddAddress: { addressId?: string };
   AddRecipe: undefined;
-  MyRecipes: undefined;
+
   RecipeDetail: { recipe: any };
   RecipeEditor: { recipe: any };
   AIRecipeGenerator: { userInventory: any[]; selectedItems: Set<string> };
@@ -201,7 +201,7 @@ export type RootStackParamList = {
   SubscriptionDebug: undefined;
   Paywall: { offering?: string | null; displayCloseButton?: boolean };
   CustomerCenter: undefined;
-  ImportRecipe: { url?: string };
+
   ProfileSavedItems: undefined;
   ManageSubscription: undefined;
   NotificationCenter: undefined;
@@ -409,7 +409,7 @@ export default function RootNavigator({ initialRouteName = 'Main', onHiddenFlask
       <Stack.Screen name="CocktailDetail" component={CocktailDetailScreen} options={{ headerShown: true, title: 'Cocktail' }} />
       <Stack.Screen name="CocktailList" component={CocktailListScreen} options={{ headerShown: true, title: 'Cocktails' }} />
       <Stack.Screen name="WhatCanIMake" component={WhatCanIMakeScreen} options={{ headerShown: false }} />
-      <Stack.Screen name="SavedItems" component={SavedItemsScreen} options={{ headerShown: true, title: 'Saved Items' }} />
+
       <Stack.Screen name="EditProfile" component={EditProfileScreen} options={{ headerShown: true, title: 'Edit Profile' }} />
       <Stack.Screen name="Profile" component={ProfileScreen} options={{ headerShown: true, title: 'Profile' }} />
       <Stack.Screen name="OAuthSignIn" component={OAuthSignInScreen} options={{ headerShown: false }} />
@@ -444,7 +444,7 @@ export default function RootNavigator({ initialRouteName = 'Main', onHiddenFlask
     <Stack.Screen name="OrderConfirmation" component={OrderConfirmationScreen} options={{ headerShown: true, title: 'Order Confirmed' }} />
     <Stack.Screen name="OrderHistory" component={OrderHistoryScreen} options={{ headerShown: true, title: 'Order History' }} />
     <Stack.Screen name="AddRecipe" component={AddRecipeScreen} options={{ headerShown: true, title: 'Add Recipe' }} />
-    <Stack.Screen name="MyRecipes" component={MyRecipesScreen} options={{ headerShown: true, title: 'My Recipes' }} />
+
     <Stack.Screen name="RecipeDetail" component={RecipeDetailScreen} options={{ headerShown: true, title: 'Recipe' }} />
     <Stack.Screen name="RecipeEditor" component={RecipeEditorScreen} options={{ headerShown: false, presentation: 'modal' }} />
     <Stack.Screen name="AIRecipeGenerator" component={AIRecipeGeneratorScreen} options={{ headerShown: false }} />
@@ -465,7 +465,7 @@ export default function RootNavigator({ initialRouteName = 'Main', onHiddenFlask
       <Stack.Screen name="SubscriptionDebug" component={SubscriptionDebugScreen} options={{ headerShown: true, title: 'Subscription Debug' }} />
       <Stack.Screen name="Paywall" component={PaywallScreen} options={{ headerShown: false, presentation: 'modal' }} />
       <Stack.Screen name="CustomerCenter" component={CustomerCenterScreen} options={{ headerShown: false, presentation: 'modal' }} />
-      <Stack.Screen name="ImportRecipe" component={ImportRecipeScreen} options={{ headerShown: true, title: 'Import Recipe' }} />
+
       <Stack.Screen name="ProfileSavedItems" component={ProfileSavedItemsScreen} options={{ headerShown: true, title: 'My Collection' }} />
       <Stack.Screen name="ManageSubscription" component={ManageSubscriptionScreen} options={{ headerShown: true, title: 'Subscription' }} />
       <Stack.Screen name="NotificationCenter" component={NotificationCenterScreen} options={{ headerShown: true, title: 'Notifications' }} />

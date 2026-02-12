@@ -80,26 +80,29 @@ export const usePersonalization = create<PersonalizationState>((set, get) => ({
         updatedAt: Date.now()
       }));
 
-      // Save to Supabase (if user is authenticated)
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        // Store personalization data in user preferences
-        const { error } = await supabase
-          .from('user_preferences')
-          .upsert({
-            user_id: user.id,
-            preferences: {
-              personalizationProfile: profile,
-              personalizationUpdatedAt: Date.now(),
-            },
-            updated_at: new Date().toISOString()
-          });
+      // Sync to Supabase (optional — AsyncStorage is the primary store)
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { error } = await supabase
+            .from('user_preferences')
+            .upsert({
+              user_id: user.id,
+              preferences: {
+                personalizationProfile: profile,
+                personalizationUpdatedAt: Date.now(),
+              },
+              updated_at: new Date().toISOString()
+            });
 
-        if (error) {
-          log.error('PersonalizationStore', 'Error saving to Supabase', error);
-        } else {
-          log.info('PersonalizationStore', 'Personalization profile saved to Supabase', { userId: user.id });
+          if (error) {
+            log.warn('PersonalizationStore', 'Supabase sync skipped (run 002_app_data_schema migration)', { code: error.code });
+          } else {
+            log.info('PersonalizationStore', 'Personalization profile saved to Supabase', { userId: user.id });
+          }
         }
+      } catch {
+        // Supabase sync is optional — data is persisted locally
       }
 
       log.info('PersonalizationStore', 'Personalization profile saved successfully');
@@ -145,25 +148,29 @@ export const usePersonalization = create<PersonalizationState>((set, get) => ({
         updatedAt: Date.now()
       }));
 
-      // Save to Supabase (if user is authenticated)
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { error } = await supabase
-          .from('user_preferences')
-          .upsert({
-            user_id: user.id,
-            preferences: {
-              personalizationProfile: updatedProfile,
-              personalizationUpdatedAt: Date.now(),
-            },
-            updated_at: new Date().toISOString()
-          });
+      // Sync to Supabase (optional — AsyncStorage is the primary store)
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { error } = await supabase
+            .from('user_preferences')
+            .upsert({
+              user_id: user.id,
+              preferences: {
+                personalizationProfile: updatedProfile,
+                personalizationUpdatedAt: Date.now(),
+              },
+              updated_at: new Date().toISOString()
+            });
 
-        if (error) {
-          log.error('PersonalizationStore', 'Error saving to Supabase', error);
-        } else {
-          log.info('PersonalizationStore', 'Profile saved to Supabase', { userId: user.id });
+          if (error) {
+            log.warn('PersonalizationStore', 'Supabase sync skipped (run 002_app_data_schema migration)', { code: error.code });
+          } else {
+            log.info('PersonalizationStore', 'Profile saved to Supabase', { userId: user.id });
+          }
         }
+      } catch {
+        // Supabase sync is optional — data is persisted locally
       }
 
       log.info('PersonalizationStore', 'Profile updated', { updates });
@@ -329,8 +336,8 @@ export const usePersonalization = create<PersonalizationState>((set, get) => ({
         if (spiritScore) {
           score += (spiritScore / 100) * 40;
         } else if (primarySpirits.length > 0) {
-          // User has spirit preferences, but this isn't one of them = penalty
-          score += 10;
+          // User has spirit preferences, but this isn't one of them = strong penalty
+          score += 0;
         } else {
           // No strong preference = neutral
           score += 20;

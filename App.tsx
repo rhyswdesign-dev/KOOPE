@@ -26,6 +26,7 @@ import AchievementUnlockModal from './src/components/AchievementUnlockModal';
 import { initAnalytics } from './src/services/analytics';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
 import { OfflineBanner } from './src/components/OfflineBanner';
+import KeyboardDismissBar from './src/components/KeyboardDismissBar';
 // import { StripeProvider } from './src/providers/StripeProvider'; // Disabled until Xcode is installed
 
 // Override console.error to filter out Firebase offline errors and RevenueCat analytics bugs
@@ -175,6 +176,9 @@ export default function App() {
 
                           {/* Offline Indicator */}
                           <OfflineBanner />
+
+                          {/* Global Keyboard Dismiss Bar */}
+                          <KeyboardDismissBar />
                         </PostsProvider>
                       </VaultProvider>
                     </UserProvider>

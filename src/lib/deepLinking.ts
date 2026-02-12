@@ -121,8 +121,8 @@ export function handleDeepLink(url: string, navigation: any): boolean {
       const platform = detectPlatform(url);
       log.info('DeepLinking', 'Social media URL detected for recipe import', { url, platform });
 
-      // Navigate to ImportRecipe screen with the URL
-      navigation.navigate('ImportRecipe', { url });
+      // Navigate to RecipeURLImport screen in Camera tab with the URL
+      navigation.navigate('Main', { screen: 'Camera', params: { screen: 'RecipeURLImport', params: { url } } });
       return true;
     }
 
@@ -130,7 +130,7 @@ export function handleDeepLink(url: string, navigation: any): boolean {
     // (user might share from a cocktail website)
     if (url.startsWith('http://') || url.startsWith('https://')) {
       log.info('DeepLinking', 'Generic URL shared, attempting recipe import', { url });
-      navigation.navigate('ImportRecipe', { url });
+      navigation.navigate('Main', { screen: 'Camera', params: { screen: 'RecipeURLImport', params: { url } } });
       return true;
     }
 

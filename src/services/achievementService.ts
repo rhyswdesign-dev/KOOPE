@@ -248,6 +248,70 @@ const ACHIEVEMENT_DEFINITIONS: Omit<Achievement, 'progress' | 'unlocked' | 'unlo
     rarity: 'legendary',
   },
 
+  // Cocktails Made Achievements
+  {
+    id: 'first_cocktail_made',
+    title: 'First Mix',
+    description: 'Make your first cocktail',
+    icon: 'wine-outline',
+    category: 'recipe',
+    requirement: 1,
+    xpReward: 20,
+    rarity: 'common',
+  },
+  {
+    id: 'home_bartender',
+    title: 'Home Bartender',
+    description: 'Make 10 cocktails',
+    icon: 'wine',
+    category: 'recipe',
+    requirement: 10,
+    xpReward: 100,
+    rarity: 'rare',
+  },
+  {
+    id: 'seasoned_mixologist',
+    title: 'Seasoned Mixologist',
+    description: 'Make 50 cocktails',
+    icon: 'flask',
+    category: 'recipe',
+    requirement: 50,
+    xpReward: 300,
+    rarity: 'epic',
+  },
+
+  // Recipes Shared Achievements
+  {
+    id: 'first_share',
+    title: 'Social Butterfly',
+    description: 'Share your first recipe',
+    icon: 'share-social-outline',
+    category: 'social',
+    requirement: 1,
+    xpReward: 15,
+    rarity: 'common',
+  },
+  {
+    id: 'influencer',
+    title: 'Influencer',
+    description: 'Share 10 recipes',
+    icon: 'megaphone-outline',
+    category: 'social',
+    requirement: 10,
+    xpReward: 80,
+    rarity: 'rare',
+  },
+  {
+    id: 'viral_sensation',
+    title: 'Viral Sensation',
+    description: 'Share 25 recipes',
+    icon: 'rocket-outline',
+    category: 'social',
+    requirement: 25,
+    xpReward: 200,
+    rarity: 'epic',
+  },
+
   // Advanced Collection Achievements
   {
     id: 'ultimate_collector',
@@ -487,6 +551,18 @@ class AchievementService {
       case 'recipe_creator':
       case 'master_creator':
         return this.userStats.recipesCreated;
+
+      // Cocktails made achievements
+      case 'first_cocktail_made':
+      case 'home_bartender':
+      case 'seasoned_mixologist':
+        return this.userStats.cocktailsMade;
+
+      // Recipes shared achievements
+      case 'first_share':
+      case 'influencer':
+      case 'viral_sensation':
+        return this.userStats.recipesShared;
 
       // Collection achievements
       case 'favorite_collector':

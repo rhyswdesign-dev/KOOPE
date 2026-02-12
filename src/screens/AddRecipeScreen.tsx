@@ -263,7 +263,7 @@ export default function AddRecipeScreen() {
 
       Alert.alert('Success!', 'Your recipe has been saved', [
         { text: 'Create Another', onPress: resetForm },
-        { text: 'View My Recipes', onPress: () => nav.navigate('MyRecipes') }
+        { text: 'View My Collection', onPress: () => nav.navigate('ProfileSavedItems') }
       ]);
     } catch (error: any) {
       log.error('AddRecipeScreen', 'Save error', error, { recipeName: recipe.title });

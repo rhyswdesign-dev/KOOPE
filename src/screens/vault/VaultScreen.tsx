@@ -70,7 +70,7 @@ export default function VaultScreen() {
   const analytics = useAnalyticsContext();
   const { balance: xpBalance, spendXP, unlockVaultItem, isVaultItemUnlocked } = useXPSystem();
   const { credits, isPremium } = useAICredits();
-  const { savedItems, toggleSavedCocktail, isCocktailSaved } = useSavedItems();
+  const { savedItems, toggleSavedCocktail, isCocktailSaved, toggleSavedVaultItem } = useSavedItems();
   const [selectedTab, setSelectedTab] = useState<string>('variations');
   const [countdown, setCountdown] = useState(getVaultCountdown());
   const [creditsPurchaseVisible, setCreditsPurchaseVisible] = useState(false);
@@ -808,6 +808,9 @@ export default function VaultScreen() {
 
               // Persist unlocked item to XP store
               unlockVaultItem(itemId);
+
+              // Add to saved items so it appears in My Collection
+              toggleSavedVaultItem({ id: itemId, name: previewItem.title });
             } else {
               Alert.alert(
                 'Error',

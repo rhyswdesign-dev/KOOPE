@@ -13,12 +13,14 @@ import {
   StatusBar,
   Platform,
   Pressable,
-  TextInput
+  TextInput,
+  TouchableOpacity
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSession } from '../../store/useSession';
 import { useUser } from '../../store/useUser';
 import { SupabaseContentRepository } from '../../repos/supabase/contentRepository';
+import Heading from '../ui/Heading';
 import { MCQExercise } from './MCQExercise';
 import OrderExercise from './OrderExercise';
 import ShortAnswerExercise from './ShortAnswerExercise';
@@ -727,49 +729,95 @@ export const LessonEngine: React.FC<LessonEngineProps> = ({ lessonId, onComplete
         </View>
       </Animated.View>
 
-      {/* Feedback Overlay */}
+      {/* Feedback Overlay - Minimalist Design */}
       {showFeedback && lastResult && (
         <Animated.View
           style={[
             styles.feedbackOverlay,
             {
               opacity: feedbackAnim,
-              transform: [
-                {
-                  scale: feedbackAnim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [0.8, 1],
-                  }),
-                },
-              ],
             },
           ]}
         >
-          <View style={[
-            styles.feedbackCard,
-            lastResult.correct ? styles.correctFeedback : styles.incorrectFeedback
-          ]}>
-            <View style={[
-              styles.feedbackIconCircle,
-              { backgroundColor: lastResult.correct ? colors.success : (colors.error || '#F44336') }
-            ]}>
-              <Ionicons
-                name={lastResult.correct ? 'checkmark' : 'close'}
-                size={36}
-                color="#FFFFFF"
-              />
-            </View>
-            <Text style={styles.feedbackText}>
+          <View style={styles.feedbackContent}>
+            {/* Concentric Circle Icon */}
+            <Animated.View
+              style={[
+                styles.iconOuterGlow,
+                {
+                  backgroundColor: lastResult.correct
+                    ? 'rgba(76, 175, 80, 0.15)'
+                    : 'rgba(244, 67, 54, 0.15)',
+                  transform: [
+                    {
+                      scale: feedbackAnim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [0.8, 1],
+                      }),
+                    },
+                  ],
+                },
+              ]}
+            >
+              <View style={[
+                styles.iconMiddleRing,
+                { backgroundColor: lastResult.correct ? '#2E7D32' : '#C62828' }
+              ]}>
+                <View style={[
+                  styles.iconInnerCircle,
+                  { backgroundColor: lastResult.correct ? colors.success : colors.error }
+                ]}>
+                  <Ionicons
+                    name={lastResult.correct ? 'checkmark' : 'close'}
+                    size={48}
+                    color="#FFFFFF"
+                  />
+                </View>
+              </View>
+            </Animated.View>
+
+            {/* Feedback Title */}
+            <Heading level={1} style={styles.feedbackTitle}>
               {lastResult.correct
-                ? ['Perfect!', 'Nailed it!', 'Correct!', 'Nice one!'][Math.floor(Math.random() * 4)]
-                : 'Not quite!'}
-            </Text>
-            <Text style={styles.feedbackSubtext}>
-              {lastResult.correct
-                ? 'Keep up the great work'
-                : "Don't worry, you'll get it next time"}
-            </Text>
+                ? ['Perfect!', 'Excellent!', 'Nailed it!'][Math.floor(Math.random() * 3)]
+                : ['Not quite', 'Try again', 'Almost!'][Math.floor(Math.random() * 3)]}
+            </Heading>
           </View>
+
+          {/* Continue Button */}
+          <TouchableOpacity
+            style={styles.continueButton}
+            onPress={() => {
+              setShowFeedback(false);
+              setLastResult(null);
+              feedbackAnim.setValue(0);
+
+              if (isLastItem) {
+                completeLesson();
+              } else {
+                // Move to next item
+                Animated.parallel([
+                  Animated.timing(fadeAnim, {
+                    toValue: 0,
+                    duration: 100,
+                    useNativeDriver: true,
+                  }),
+                  Animated.timing(slideAnim, {
+                    toValue: 0,
+                    duration: 100,
+                    useNativeDriver: true,
+                  })
+                ]).start(() => {
+                  setCurrentItemIndex(prev => prev + 1);
+                  fadeAnim.setValue(1);
+                  slideAnim.setValue(1);
+                });
+              }
+            }}
+          >
+            <Text style={styles.continueButtonText}>Continue</Text>
+            <Ionicons name="arrow-forward" size={20} color={colors.bg} />
+          </TouchableOpacity>
         </Animated.View>
       )}
 
@@ -888,59 +936,70 @@ const styles = StyleSheet.create({
     marginTop: 100,
     fontWeight: '600',
   },
+  // Minimalist Feedback Overlay
   feedbackOverlay: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    backgroundColor: '#1A1A1A',
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 1000,
+    paddingBottom: spacing(12),
   },
-  feedbackCard: {
-    backgroundColor: colors.card,
-    borderRadius: radii.xl,
-    paddingVertical: spacing(4),
-    paddingHorizontal: spacing(5),
-    alignItems: 'center',
-    borderWidth: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 16 },
-    shadowOpacity: 0.5,
-    shadowRadius: 32,
-    elevation: 16,
-    minWidth: 240,
-  },
-  correctFeedback: {
-    borderColor: colors.success,
-    backgroundColor: 'rgba(76, 175, 80, 0.15)',
-  },
-  incorrectFeedback: {
-    borderColor: colors.error || '#F44336',
-    backgroundColor: 'rgba(244, 67, 54, 0.15)',
-  },
-  feedbackIconCircle: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
+  feedbackContent: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing(2),
   },
-  feedbackText: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: colors.text,
-    marginBottom: spacing(0.5),
+  // Concentric Circle Icon
+  iconOuterGlow: {
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing(5),
+  },
+  iconMiddleRing: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconInnerCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  feedbackTitle: {
+    fontSize: 40,
+    fontWeight: '700',
+    color: colors.white,
     textAlign: 'center',
   },
-  feedbackSubtext: {
-    fontSize: 15,
-    color: colors.subtext,
-    textAlign: 'center',
-    fontWeight: '500',
+  continueButton: {
+    position: 'absolute',
+    bottom: spacing(6),
+    left: spacing(4),
+    right: spacing(4),
+    backgroundColor: colors.white,
+    borderRadius: radii.pill,
+    paddingVertical: spacing(2),
+    paddingHorizontal: spacing(3),
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing(1),
+  },
+  continueButtonText: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.bg,
   },
   errorContainer: {
     backgroundColor: 'rgba(244, 67, 54, 0.1)',

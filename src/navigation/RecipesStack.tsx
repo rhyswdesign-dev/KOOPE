@@ -1,10 +1,8 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import RecipesScreen from '../screens/RecipesScreen';
-import MyRecipesScreen from '../screens/MyRecipesScreen';
 
 export type RecipesStackParamList = {
   RecipesMain: undefined;
-  MyRecipes: undefined;
 };
 
 const Stack = createNativeStackNavigator<RecipesStackParamList>();
@@ -19,7 +17,6 @@ export default function RecipesStack() {
       }}
     >
       <Stack.Screen name="RecipesMain" component={RecipesScreen} options={{ headerShown: true }} />
-      <Stack.Screen name="MyRecipes" component={MyRecipesScreen} options={{ headerShown: true, title: 'My Recipes' }} />
     </Stack.Navigator>
   );
 }

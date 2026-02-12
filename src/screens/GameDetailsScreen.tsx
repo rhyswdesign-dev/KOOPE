@@ -1,4 +1,4 @@
-import React, { useLayoutEffect } from 'react';
+import React, { useLayoutEffect, useEffect } from 'react';
 import {
   View,
   Text,
@@ -28,6 +28,15 @@ export default function GameDetailsScreen() {
       nav.setOptions({ title: game.title });
     }
   }, [nav, game]);
+
+  // Track game view for achievements
+  useEffect(() => {
+    if (game) {
+      import('../services/achievementService').then(({ achievementService }) => {
+        achievementService.trackAction('gamesPlayed', 1);
+      }).catch(() => {});
+    }
+  }, [game]);
 
   if (!game) {
     return (

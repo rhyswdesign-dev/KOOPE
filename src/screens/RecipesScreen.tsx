@@ -1717,9 +1717,16 @@ export default function RecipesScreen() {
   }, [navigation]);
 
   const handleSaveRecipe = useCallback((cocktail: any) => {
-    toggleSavedCocktail(cocktail.id);
+    const cocktailData = {
+      id: cocktail.id,
+      name: cocktail.name || cocktail.title || 'Untitled Recipe',
+      subtitle: cocktail.description || cocktail.subtitle || '',
+      image: getCocktailImage(cocktail.id, cocktail.image),
+    };
+    const wasSaved = isCocktailSaved(cocktail.id);
+    toggleSavedCocktail(cocktailData);
     showToast(
-      isCocktailSaved(cocktail.id) ? 'Removed from saved' : 'Saved!',
+      wasSaved ? 'Removed from saved' : 'Saved!',
       'success'
     );
   }, [toggleSavedCocktail, isCocktailSaved, showToast]);
@@ -1731,8 +1738,8 @@ export default function RecipesScreen() {
 
   // Get saved recipe IDs for ForYouFeed (as a Set for efficient lookup)
   const savedRecipeIds = useMemo(() => {
-    if (!Array.isArray(savedItems)) return new Set<string>();
-    return new Set(savedItems.map(item => item.id));
+    const cocktails = savedItems.savedCocktails || [];
+    return new Set(cocktails.map((item: any) => item.id));
   }, [savedItems]);
 
   // Search functionality with debouncing and fallback
@@ -2368,7 +2375,7 @@ export default function RecipesScreen() {
                     {/* My Recipes */}
                     <SectionHeader
                       title="My Recipes"
-                      onPress={() => navigation.navigate('MyRecipes')}
+                      onPress={() => navigation.navigate('ProfileSavedItems' as any)}
                     />
                     <ScrollView horizontal nestedScrollEnabled showsHorizontalScrollIndicator={false} style={{ paddingLeft: spacing(2), marginBottom: spacing(2) }}>
                       {userRecipes.length > 0 ? (
