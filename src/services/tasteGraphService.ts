@@ -1,0 +1,405 @@
+/**
+ * Taste Graph Service — KOOPE PRO
+ * Advanced taste intelligence with:
+ *   - Read-time decay (preferences fade over time)
+ *   - Weight normalization (prevents clustering at 1.0)
+ *   - Radar chart data generation
+ *   - Manual flavor overrides (PRO slider controls)
+ *
+ * This is the intelligence moat that justifies $119/yr.
+ */
+
+import { TasteProfile, FlavorProfile, Spirit } from '../types/userProfile';
+
+// ============================================================================
+// TYPES
+// ============================================================================
+
+/** Timestamps for when each weight category was last updated by an interaction */
+export interface WeightTimestamps {
+  flavors: Partial<Record<FlavorProfile, string>>; // ISO date strings
+  spirits: Partial<Record<Spirit, string>>;
+  complexity?: string;
+}
+
+/** PRO user's manual overrides — pins on the radar chart */
+export interface ManualFlavorOverrides {
+  /** Flavor weights manually set by the user (0-1). Null = use learned value. */
+  flavors: Partial<Record<FlavorProfile, number | null>>;
+  /** Spirit weights manually set by the user. */
+  spirits: Partial<Record<Spirit, number | null>>;
+  /** Last time user adjusted overrides */
+  lastModified: string;
+}
+
+/** Full Taste Graph state stored on the user profile */
+export interface TasteGraphData {
+  /** Raw learned weights (from behavioral learning) */
+  rawProfile: TasteProfile;
+  /** When each weight was last interacted with */
+  timestamps: WeightTimestamps;
+  /** PRO manual overrides */
+  overrides?: ManualFlavorOverrides;
+  /** Interaction count per category (for confidence scoring) */
+  interactionCounts: {
+    flavors: Partial<Record<FlavorProfile, number>>;
+    spirits: Partial<Record<Spirit, number>>;
+    total: number;
+  };
+}
+
+/** Radar chart data point */
+export interface RadarChartPoint {
+  label: string;
+  value: number; // 0-1, effective (decayed + normalized)
+  rawValue: number; // 0-1, raw (no decay)
+  isOverridden: boolean;
+  confidence: number; // 0-1 based on interaction count
+}
+
+/** Complete radar chart output for the flavor profile dashboard */
+export interface FlavorRadarChart {
+  flavorPoints: RadarChartPoint[];
+  spiritPoints: RadarChartPoint[];
+  complexity: { value: number; label: string };
+  abvRange: { min: number; max: number; label: string };
+  engagementScore: number; // 0-100
+  dataConfidence: number; // 0-1
+}
+
+// ============================================================================
+// DECAY CONFIG
+// ============================================================================
+
+/**
+ * Decay function: effectiveWeight = rawWeight * max(FLOOR, exp(-RATE * daysSince))
+ * - Weight halves after ~140 days
+ * - Floors at 30% of original (never fully disappears)
+ * - No data loss — raw weights preserved, decay computed on read
+ */
+const DECAY_RATE = 0.005;
+const DECAY_FLOOR = 0.3;
+
+// ============================================================================
+// CORE FUNCTIONS
+// ============================================================================
+
+/**
+ * Apply read-time decay to a weight value.
+ * Raw weight is preserved; decay is computed on read.
+ */
+export function applyDecay(rawWeight: number, lastInteractedAt?: string): number {
+  if (!lastInteractedAt) return rawWeight; // No timestamp = no decay (legacy data)
+
+  const daysSince = getDaysSince(lastInteractedAt);
+  if (daysSince <= 0) return rawWeight;
+
+  const decayFactor = Math.max(DECAY_FLOOR, Math.exp(-DECAY_RATE * daysSince));
+  return rawWeight * decayFactor;
+}
+
+/**
+ * Normalize weights so they sum to 1.0.
+ * Preserves relative preferences while preventing uniform clustering.
+ */
+export function normalizeWeights(weights: Record<string, number>): Record<string, number> {
+  const entries = Object.entries(weights);
+  const sum = entries.reduce((acc, [, v]) => acc + v, 0);
+
+  if (sum === 0) {
+    // All zeros — return uniform distribution
+    const uniform = 1 / entries.length;
+    return Object.fromEntries(entries.map(([k]) => [k, uniform]));
+  }
+
+  return Object.fromEntries(entries.map(([k, v]) => [k, v / sum]));
+}
+
+/**
+ * Get effective TasteProfile with decay applied and weights normalized.
+ * This is the profile used for all recommendations in PRO mode.
+ */
+export function getEffectiveTasteProfile(graphData: TasteGraphData): TasteProfile {
+  const allFlavors: FlavorProfile[] = ['citrus', 'herbal', 'bitter', 'sweet', 'smoky', 'floral', 'spiced'];
+  const allSpirits: Spirit[] = ['tequila', 'whiskey', 'rum', 'gin', 'vodka', 'brandy', 'liqueurs', 'gin-alternative', 'rum-alternative', 'none'];
+
+  // Apply decay to flavor weights
+  const decayedFlavors: Record<FlavorProfile, number> = {} as any;
+  for (const flavor of allFlavors) {
+    const raw = graphData.rawProfile.flavorWeights[flavor] ?? 0;
+    const ts = graphData.timestamps.flavors[flavor];
+
+    // Check for manual override first (PRO)
+    const override = graphData.overrides?.flavors[flavor];
+    if (override !== undefined && override !== null) {
+      decayedFlavors[flavor] = override;
+    } else {
+      decayedFlavors[flavor] = applyDecay(raw, ts);
+    }
+  }
+
+  // Apply decay to spirit weights
+  const decayedSpirits: Record<Spirit, number> = {} as any;
+  for (const spirit of allSpirits) {
+    const raw = graphData.rawProfile.spiritWeights[spirit] ?? 0;
+    const ts = graphData.timestamps.spirits[spirit];
+
+    const override = graphData.overrides?.spirits[spirit];
+    if (override !== undefined && override !== null) {
+      decayedSpirits[spirit] = override;
+    } else {
+      decayedSpirits[spirit] = applyDecay(raw, ts);
+    }
+  }
+
+  // Normalize
+  const normalizedFlavors = normalizeWeights(decayedFlavors) as Record<FlavorProfile, number>;
+  const normalizedSpirits = normalizeWeights(decayedSpirits) as Record<Spirit, number>;
+
+  return {
+    flavorWeights: normalizedFlavors,
+    spiritWeights: normalizedSpirits,
+    preferredABV: graphData.rawProfile.preferredABV,
+    preferredComplexity: graphData.rawProfile.preferredComplexity,
+  };
+}
+
+/**
+ * Generate radar chart data for the flavor profile dashboard.
+ * PRO users see this as an interactive visualization.
+ */
+export function generateRadarChart(graphData: TasteGraphData): FlavorRadarChart {
+  const allFlavors: FlavorProfile[] = ['citrus', 'herbal', 'bitter', 'sweet', 'smoky', 'floral', 'spiced'];
+  const displaySpirits: Spirit[] = ['tequila', 'whiskey', 'rum', 'gin', 'vodka', 'brandy'];
+
+  const effective = getEffectiveTasteProfile(graphData);
+
+  // Flavor points
+  const flavorPoints: RadarChartPoint[] = allFlavors.map(flavor => {
+    const raw = graphData.rawProfile.flavorWeights[flavor] ?? 0;
+    const eff = effective.flavorWeights[flavor] ?? 0;
+    const isOverridden = graphData.overrides?.flavors[flavor] !== undefined
+      && graphData.overrides?.flavors[flavor] !== null;
+    const count = graphData.interactionCounts.flavors[flavor] ?? 0;
+
+    return {
+      label: flavorDisplayName(flavor),
+      value: eff,
+      rawValue: raw,
+      isOverridden,
+      confidence: Math.min(1, count / 20), // 20 interactions = full confidence
+    };
+  });
+
+  // Spirit points (exclude alternatives and 'none' for cleaner chart)
+  const spiritPoints: RadarChartPoint[] = displaySpirits.map(spirit => {
+    const raw = graphData.rawProfile.spiritWeights[spirit] ?? 0;
+    const eff = effective.spiritWeights[spirit] ?? 0;
+    const isOverridden = graphData.overrides?.spirits[spirit] !== undefined
+      && graphData.overrides?.spirits[spirit] !== null;
+    const count = graphData.interactionCounts.spirits[spirit] ?? 0;
+
+    return {
+      label: spiritDisplayName(spirit),
+      value: eff,
+      rawValue: raw,
+      isOverridden,
+      confidence: Math.min(1, count / 10), // 10 interactions = full confidence
+    };
+  });
+
+  // Complexity
+  const complexity = {
+    value: effective.preferredComplexity,
+    label: effective.preferredComplexity < 0.33
+      ? 'Simple'
+      : effective.preferredComplexity < 0.66
+      ? 'Moderate'
+      : 'Complex',
+  };
+
+  // ABV
+  const abvRange = {
+    ...effective.preferredABV,
+    label: effective.preferredABV.max <= 0.5
+      ? 'Zero-Proof'
+      : effective.preferredABV.max <= 15
+      ? 'Low ABV'
+      : 'Standard',
+  };
+
+  // Data confidence: average of all point confidences
+  const allConfidences = [...flavorPoints, ...spiritPoints].map(p => p.confidence);
+  const dataConfidence = allConfidences.length > 0
+    ? allConfidences.reduce((a, b) => a + b, 0) / allConfidences.length
+    : 0;
+
+  // Engagement score
+  const engagementScore = Math.min(100, Math.round(graphData.interactionCounts.total * 2));
+
+  return {
+    flavorPoints,
+    spiritPoints,
+    complexity,
+    abvRange,
+    engagementScore,
+    dataConfidence,
+  };
+}
+
+/**
+ * Apply a manual flavor override (PRO slider adjustment).
+ */
+export function setFlavorOverride(
+  graphData: TasteGraphData,
+  flavor: FlavorProfile,
+  value: number | null
+): TasteGraphData {
+  const overrides: ManualFlavorOverrides = graphData.overrides ?? {
+    flavors: {},
+    spirits: {},
+    lastModified: new Date().toISOString(),
+  };
+
+  if (value === null) {
+    delete overrides.flavors[flavor];
+  } else {
+    overrides.flavors[flavor] = Math.max(0, Math.min(1, value));
+  }
+  overrides.lastModified = new Date().toISOString();
+
+  return { ...graphData, overrides };
+}
+
+/**
+ * Apply a manual spirit override (PRO slider adjustment).
+ */
+export function setSpiritOverride(
+  graphData: TasteGraphData,
+  spirit: Spirit,
+  value: number | null
+): TasteGraphData {
+  const overrides: ManualFlavorOverrides = graphData.overrides ?? {
+    flavors: {},
+    spirits: {},
+    lastModified: new Date().toISOString(),
+  };
+
+  if (value === null) {
+    delete overrides.spirits[spirit];
+  } else {
+    overrides.spirits[spirit] = Math.max(0, Math.min(1, value));
+  }
+  overrides.lastModified = new Date().toISOString();
+
+  return { ...graphData, overrides };
+}
+
+/**
+ * Reset all manual overrides to learned values.
+ */
+export function clearOverrides(graphData: TasteGraphData): TasteGraphData {
+  return { ...graphData, overrides: undefined };
+}
+
+/**
+ * Initialize TasteGraphData from an existing TasteProfile.
+ * Used for migrating PLUS users upgrading to PRO.
+ */
+export function initializeTasteGraph(profile: TasteProfile): TasteGraphData {
+  const now = new Date().toISOString();
+
+  return {
+    rawProfile: profile,
+    timestamps: {
+      flavors: Object.fromEntries(
+        Object.keys(profile.flavorWeights).map(k => [k, now])
+      ) as Partial<Record<FlavorProfile, string>>,
+      spirits: Object.fromEntries(
+        Object.keys(profile.spiritWeights).map(k => [k, now])
+      ) as Partial<Record<Spirit, string>>,
+      complexity: now,
+    },
+    interactionCounts: {
+      flavors: {},
+      spirits: {},
+      total: 0,
+    },
+  };
+}
+
+/**
+ * Record an interaction timestamp for a specific weight category.
+ * Called by BehavioralLearning after updating raw weights.
+ */
+export function recordInteraction(
+  graphData: TasteGraphData,
+  flavors: FlavorProfile[],
+  spirit?: Spirit
+): TasteGraphData {
+  const now = new Date().toISOString();
+  const updated = { ...graphData };
+  updated.timestamps = { ...graphData.timestamps };
+  updated.interactionCounts = { ...graphData.interactionCounts };
+
+  // Update flavor timestamps and counts
+  updated.timestamps.flavors = { ...graphData.timestamps.flavors };
+  updated.interactionCounts.flavors = { ...graphData.interactionCounts.flavors };
+  for (const flavor of flavors) {
+    updated.timestamps.flavors[flavor] = now;
+    updated.interactionCounts.flavors[flavor] =
+      (graphData.interactionCounts.flavors[flavor] ?? 0) + 1;
+  }
+
+  // Update spirit timestamp and count
+  if (spirit) {
+    updated.timestamps.spirits = { ...graphData.timestamps.spirits };
+    updated.interactionCounts.spirits = { ...graphData.interactionCounts.spirits };
+    updated.timestamps.spirits[spirit] = now;
+    updated.interactionCounts.spirits[spirit] =
+      (graphData.interactionCounts.spirits[spirit] ?? 0) + 1;
+  }
+
+  updated.interactionCounts.total = (graphData.interactionCounts.total ?? 0) + 1;
+
+  return updated;
+}
+
+// ============================================================================
+// HELPERS
+// ============================================================================
+
+function getDaysSince(isoDate: string): number {
+  const then = new Date(isoDate).getTime();
+  const now = Date.now();
+  return (now - then) / (1000 * 60 * 60 * 24);
+}
+
+function flavorDisplayName(flavor: FlavorProfile): string {
+  const map: Record<FlavorProfile, string> = {
+    citrus: 'Citrus',
+    herbal: 'Herbal',
+    bitter: 'Bitter',
+    sweet: 'Sweet',
+    smoky: 'Smoky',
+    floral: 'Floral',
+    spiced: 'Spiced',
+  };
+  return map[flavor] ?? flavor;
+}
+
+function spiritDisplayName(spirit: Spirit): string {
+  const map: Record<Spirit, string> = {
+    tequila: 'Tequila',
+    whiskey: 'Whiskey',
+    rum: 'Rum',
+    gin: 'Gin',
+    vodka: 'Vodka',
+    brandy: 'Brandy',
+    liqueurs: 'Liqueurs',
+    'gin-alternative': 'Gin Alt',
+    'rum-alternative': 'Rum Alt',
+    none: 'Non-Alcoholic',
+  };
+  return map[spirit] ?? spirit;
+}
