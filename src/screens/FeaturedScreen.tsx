@@ -176,8 +176,8 @@ export default function FeaturedScreen() {
                 resizeMode="cover"
               />
               <View style={styles.vaultBadge}>
-                <Ionicons name="key" size={12} color={colors.gold} />
-                <Text style={styles.vaultBadgeText}>{item.keysCost > 0 ? `${item.keysCost} Key${item.keysCost > 1 ? 's' : ''}` : `${item.xpCost} XP`}</Text>
+                <Ionicons name="star" size={12} color={colors.gold} />
+                <Text style={styles.vaultBadgeText}>{item.xpCost} XP</Text>
               </View>
               <View style={styles.vaultInfo}>
                 <Text style={styles.cardTitle} numberOfLines={1}>{item.name}</Text>

@@ -17,7 +17,7 @@ export type AnalyticsEvent =
   | { type: 'screen.viewed'; screenName: string; properties?: Record<string, any> }
   | { type: 'audio.played'; soundType: string; context?: string }
   | { type: 'vault.item.viewed'; itemId: string; category: string; rarity: string }
-  | { type: 'vault.item.unlocked'; itemId: string; xpSpent: number; keysSpent: number; cashSpent?: number }
+  | { type: 'vault.item.unlocked'; itemId: string; xpSpent: number; cashSpent?: number }
   | { type: 'vault.purchase.completed'; itemId: string; amount: number; currency: string }
   | { type: 'search.performed'; query: string; category?: string; resultsCount: number }
   | { type: 'user.identified'; userId: string; traits?: Record<string, any> };

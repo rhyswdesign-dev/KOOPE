@@ -27,7 +27,11 @@ import { initAnalytics } from './src/services/analytics';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
 import { OfflineBanner } from './src/components/OfflineBanner';
 import KeyboardDismissBar from './src/components/KeyboardDismissBar';
+import AppAlertRenderer, { installAppAlert } from './src/components/AppAlertRenderer';
 // import { StripeProvider } from './src/providers/StripeProvider'; // Disabled until Xcode is installed
+
+// Override native Alert.alert with branded modals
+installAppAlert();
 
 // Override console.error to filter out Firebase offline errors and RevenueCat analytics bugs
 const originalConsoleError = console.error;
@@ -69,6 +73,17 @@ console.error = (...args: any[]) => {
     )
   ) {
     console.log('[Handled] tasteProfile initialization error - using defaults');
+    return;
+  }
+
+  // Filter out Expo auto-refresh / disk-space transient errors
+  if (
+    typeof message === 'string' && (
+      message.includes('Auto refresh tick failed') ||
+      message.includes('out of space') ||
+      message.includes('Failed to write value')
+    )
+  ) {
     return;
   }
 
@@ -179,6 +194,9 @@ export default function App() {
 
                           {/* Global Keyboard Dismiss Bar */}
                           <KeyboardDismissBar />
+
+                          {/* Global Branded Alert Renderer */}
+                          <AppAlertRenderer />
                         </PostsProvider>
                       </VaultProvider>
                     </UserProvider>

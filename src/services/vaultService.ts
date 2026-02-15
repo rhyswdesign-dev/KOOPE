@@ -1,19 +1,15 @@
 /**
  * VAULT SERVICE
- * Handles all XP + Keys economy transactions and Stripe integration
+ * Handles all XP economy transactions and Stripe integration
  */
 
-import { 
-  VaultItem, 
-  VaultUnlockRequest, 
-  VaultUnlockResponse, 
+import {
+  VaultItem,
+  VaultUnlockRequest,
+  VaultUnlockResponse,
   VaultUnlockError,
-  VaultPurchaseRequest,
-  VaultPurchaseResponse,
   UserVaultProfile,
   MonetizationItem,
-  VaultCart,
-  VaultCartItem,
   UnlockedVaultItem
 } from '../types/vault';
 
@@ -30,7 +26,7 @@ class VaultService {
   // ================== VAULT UNLOCK FLOW ==================
   
   /**
-   * Unlocks a vault item by deducting XP and Keys from user profile
+   * Unlocks a vault item by deducting XP from user profile
    * This is the core transaction of the Vault economy
    */
   async unlockVaultItem(request: VaultUnlockRequest): Promise<VaultUnlockResponse> {
@@ -83,7 +79,6 @@ class VaultService {
         userId: request.userId,
         itemId: request.itemId,
         xpCost: costs.xpCost,
-        keysCost: costs.keysCost,
         cashCost: costs.cashCost,
         stripePaymentIntentId,
         shippingAddress: request.shippingAddress
@@ -99,11 +94,9 @@ class VaultService {
         transaction: {
           transactionId,
           xpSpent: costs.xpCost,
-          keysSpent: costs.keysCost,
           cashCharged: costs.cashCost,
           itemUnlocked: item,
           newXpBalance: updatedProfile!.xpBalance,
-          newKeysBalance: updatedProfile!.keysBalance
         }
       };
 
@@ -156,33 +149,25 @@ class VaultService {
       return { success: false, error: 'insufficient_xp' };
     }
 
-    // Check Keys balance
-    if (userProfile.keysBalance < costs.keysCost) {
-      return { success: false, error: 'insufficient_keys' };
-    }
-
     return { success: true };
   }
 
   /**
-   * Calculates XP and Keys cost based on discount option
+   * Calculates XP cost based on discount option
    */
   private calculateUnlockCosts(item: VaultItem, useDiscountOption: boolean): {
     xpCost: number;
-    keysCost: number;
     cashCost: number;
   } {
     if (useDiscountOption && item.discountOption) {
       return {
         xpCost: item.discountOption.reducedXP,
-        keysCost: item.keysCost, // Keys cost never changes
         cashCost: item.discountOption.cashPrice
       };
     }
 
     return {
       xpCost: item.xpCost,
-      keysCost: item.keysCost,
       cashCost: 0
     };
   }
@@ -194,17 +179,15 @@ class VaultService {
     userId: string;
     itemId: string;
     xpCost: number;
-    keysCost: number;
     cashCost: number;
     stripePaymentIntentId?: string;
     shippingAddress?: any;
   }): Promise<string> {
 
-    // 1. Deduct XP and Keys from user profile using Supabase
+    // 1. Deduct XP from user profile using Supabase
     await vaultTransactionRepo.updateVaultBalances(
       params.userId,
       -params.xpCost,   // Negative to deduct
-      -params.keysCost, // Negative to deduct
       0                 // No cash balance change
     );
 
@@ -215,7 +198,6 @@ class VaultService {
       unlockedAt: new Date().toISOString(),
       cycleId: '', // Would be populated from item data
       xpSpent: params.xpCost,
-      keysSpent: params.keysCost,
       cashSpent: params.cashCost > 0 ? params.cashCost : undefined,
       fulfillmentStatus: 'pending',
       shippingAddress: params.shippingAddress
@@ -229,209 +211,12 @@ class VaultService {
       transactionType: 'unlock',
       itemId: params.itemId,
       xpCost: params.xpCost,
-      keysCost: params.keysCost,
       cashCost: params.cashCost,
       stripePaymentIntentId: params.stripePaymentIntentId,
       shippingAddress: params.shippingAddress
     });
 
     return transactionId;
-  }
-
-  // ================== KEYS/BOOSTERS PURCHASE FLOW ==================
-
-  /**
-   * Purchases Keys or Boosters with real money via Stripe
-   */
-  async purchaseMonetizationItem(request: VaultPurchaseRequest): Promise<VaultPurchaseResponse> {
-    try {
-      // 1. Get monetization item details
-      const item = await this.getMonetizationItem(request.monetizationItemId);
-      if (!item) {
-        return {
-          success: false,
-          error: 'Item not found'
-        };
-      }
-
-      // 2. Check stock availability
-      if (!item.inStock) {
-        return {
-          success: false,
-          error: 'Item out of stock'
-        };
-      }
-
-      if (item.stockLimit && item.stockLimit <= 0) {
-        return {
-          success: false,
-          error: 'Item sold out'
-        };
-      }
-
-      // 3. Calculate total cost
-      const totalCost = item.price * request.quantity;
-
-      // 4. Process Stripe payment
-      const paymentResult = await this.processStripePayment(
-        totalCost, 
-        request.userId, 
-        request.paymentMethodId
-      );
-
-      if (!paymentResult.success) {
-        return {
-          success: false,
-          error: paymentResult.error || 'Payment failed'
-        };
-      }
-
-      // 5. Grant Keys and/or Boosters to user
-      const purchaseId = await this.grantPurchaseRewards(request.userId, item, request.quantity);
-
-      // 6. Update user balances
-      const updatedProfile = await this.getUserVaultProfile(request.userId);
-
-      return {
-        success: true,
-        purchase: {
-          purchaseId,
-          totalPaid: totalCost,
-          keysGranted: (item.keysGranted || 0) * request.quantity,
-          boosterGranted: item.boosterEffect,
-          stripePaymentIntentId: paymentResult.paymentIntentId!,
-          newKeysBalance: updatedProfile!.keysBalance
-        }
-      };
-
-    } catch (error) {
-      log.error('VaultService', 'Purchase failed', error, {
-        userId: request.userId,
-        itemId: request.monetizationItemId
-      });
-      return {
-        success: false,
-        error: 'Purchase failed'
-      };
-    }
-  }
-
-  /**
-   * Grants Keys and Boosters to user after successful purchase
-   */
-  private async grantPurchaseRewards(
-    userId: string,
-    item: MonetizationItem,
-    quantity: number
-  ): Promise<string> {
-
-    // Grant Keys using Supabase
-    if (item.keysGranted) {
-      await vaultTransactionRepo.updateVaultBalances(
-        userId,
-        0, // No XP change
-        item.keysGranted * quantity, // Add Keys
-        0  // No cash change
-      );
-    }
-
-    // Apply Booster
-    if (item.boosterEffect) {
-      const success = await vaultTransactionRepo.activateBooster(
-        userId,
-        item.boosterEffect.type,
-        item.boosterEffect.multiplier || 1,
-        item.boosterEffect.duration
-      );
-
-      if (!success) {
-        log.warn('VaultService', 'Failed to activate booster', {
-          userId,
-          boosterType: item.boosterEffect.type
-        });
-      }
-    }
-
-    // Log the purchase transaction
-    const purchaseId = await vaultTransactionRepo.logVaultTransaction({
-      userId,
-      transactionType: 'purchase_keys',
-      itemId: item.id,
-      xpCost: 0,
-      keysCost: 0,
-      cashCost: item.price * quantity,
-      stripePaymentIntentId: undefined // Will be set by caller
-    });
-
-    return purchaseId;
-  }
-
-  // ================== VAULT CART SYSTEM ==================
-
-  /**
-   * Adds monetization item to user's cart (Keys/Boosters only)
-   */
-  async addToVaultCart(userId: string, itemId: string, quantity: number): Promise<boolean> {
-    try {
-      const item = await this.getMonetizationItem(itemId);
-      if (!item || !item.inStock) {
-        return false;
-      }
-
-      // Get active cart from Supabase
-      let cart = await vaultTransactionRepo.getActiveCart(userId);
-
-      if (!cart) {
-        // Create new cart
-        cart = {
-          userId,
-          items: [],
-          subtotal: 0,
-          tax: 0,
-          total: 0,
-          updatedAt: new Date().toISOString()
-        };
-      }
-
-      // Check if item already in cart
-      const existingItemIndex = cart.items.findIndex(
-        cartItem => cartItem.monetizationItemId === itemId
-      );
-
-      if (existingItemIndex >= 0) {
-        // Update quantity
-        cart.items[existingItemIndex].quantity += quantity;
-        cart.items[existingItemIndex].totalPrice =
-          cart.items[existingItemIndex].quantity * item.price;
-      } else {
-        // Add new item
-        const cartItem: VaultCartItem = {
-          monetizationItemId: itemId,
-          quantity,
-          unitPrice: item.price,
-          totalPrice: quantity * item.price
-        };
-        cart.items.push(cartItem);
-      }
-
-      // Recalculate totals
-      cart.subtotal = cart.items.reduce((sum, item) => sum + item.totalPrice, 0);
-      cart.tax = Math.round(cart.subtotal * 0.08); // 8% tax
-      cart.total = cart.subtotal + cart.tax;
-      cart.updatedAt = new Date().toISOString();
-
-      // Save cart to Supabase
-      await vaultTransactionRepo.upsertCart(userId, cart.items, {
-        subtotal: cart.subtotal,
-        tax: cart.tax,
-        total: cart.total
-      });
-
-      return true;
-    } catch (error) {
-      log.error('VaultService', 'Add to cart failed', error, { userId, itemId });
-      return false;
-    }
   }
 
   // ================== STRIPE INTEGRATION ==================
@@ -513,7 +298,7 @@ class VaultService {
   // ================== DATA ACCESS METHODS ==================
 
   /**
-   * Gets user's vault profile with XP and Keys balances
+   * Gets user's vault profile with XP balance
    */
   async getUserVaultProfile(userId: string): Promise<UserVaultProfile | null> {
     try {

@@ -16,9 +16,7 @@ interface VaultItemCardProps {
   userState: UserVaultState;
   isOwned: boolean;
   canUnlockWithXP: boolean;
-  canUnlockWithKey: boolean;
   onUnlockWithXP?: () => void;
-  onUnlockWithKey?: () => void;
   onPress?: () => void;
 }
 
@@ -27,16 +25,14 @@ export function VaultItemCard({
   userState,
   isOwned,
   canUnlockWithXP,
-  canUnlockWithKey,
   onUnlockWithXP,
-  onUnlockWithKey,
   onPress,
 }: VaultItemCardProps) {
   // Determine unlock state message
   const getUnlockStateMessage = () => {
     if (isOwned) return 'Unlocked';
 
-    if (item.requiresTier && !canUnlockWithXP && !canUnlockWithKey) {
+    if (item.requiresTier && !canUnlockWithXP) {
       return `Requires ${item.requiresTier} tier`;
     }
 
@@ -70,17 +66,7 @@ export function VaultItemCard({
           </Pressable>
         )}
 
-        {canUnlockWithKey && (
-          <Pressable
-            style={[styles.unlockButton, styles.keyButton]}
-            onPress={onUnlockWithKey}
-          >
-            <Ionicons name="key" size={16} color={colors.white} />
-            <Text style={styles.unlockButtonText}>Use Key</Text>
-          </Pressable>
-        )}
-
-        {!canUnlockWithXP && !canUnlockWithKey && (
+        {!canUnlockWithXP && (
           <View style={styles.lockedBadge}>
             <Ionicons name="lock-closed" size={16} color={colors.subtext} />
             <Text style={styles.lockedText}>{getUnlockStateMessage()}</Text>
@@ -153,12 +139,6 @@ export function VaultItemCard({
       {'seasonName' in item && (
         <Text style={styles.metaText}>
           🗓️ {item.seasonName}
-        </Text>
-      )}
-
-      {'keysGranted' in item && (
-        <Text style={styles.metaText}>
-          🔑 {item.keysGranted} {item.keysGranted === 1 ? 'Key' : 'Keys'}
         </Text>
       )}
 

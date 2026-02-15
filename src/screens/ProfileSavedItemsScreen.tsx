@@ -39,12 +39,12 @@ const TABS: TabConfig[] = [
   { key: 'created', label: 'Created', icon: 'create-outline' },
   { key: 'imported', label: 'Imported', icon: 'download-outline' },
   { key: 'games', label: 'Games', icon: 'game-controller-outline' },
-  { key: 'vault', label: 'Vault', icon: 'diamond-outline' },
+  { key: 'vault', label: 'Playbooks', icon: 'book-outline' },
 ];
 
 export default function ProfileSavedItemsScreen() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { savedItems, toggleSavedCocktail, isCocktailSaved, toggleSavedGame, isGameSaved } = useSavedItems();
+  const { savedItems, toggleSavedCocktail, isCocktailSaved } = useSavedItems();
   const { recipes: userRecipes, loadRecipes, deleteRecipe } = useUserRecipes();
 
   const [activeTab, setActiveTab] = useState<TabType>('saved');
@@ -57,14 +57,6 @@ export default function ProfileSavedItemsScreen() {
       headerTintColor: colors.text,
       headerTitleStyle: { color: colors.text, fontWeight: '700', fontFamily: serif },
       headerShadowVisible: false,
-      headerRight: () => (
-        <TouchableOpacity
-          onPress={() => nav.navigate('AddRecipe')}
-          style={styles.headerButton}
-        >
-          <Ionicons name="add-circle-outline" size={24} color={colors.accent} />
-        </TouchableOpacity>
-      ),
     });
   }, [nav]);
 
@@ -91,12 +83,12 @@ export default function ProfileSavedItemsScreen() {
     return userRecipes.filter((r) => (r.type as string) === 'imported');
   };
 
-  const getSavedGames = () => {
-    return savedItems.savedGames || [];
+  const getUnlockedGames = () => {
+    return (savedItems.savedVaultItems || []).filter((item) => item.id.startsWith('game_'));
   };
 
-  const getSavedVaultItems = () => {
-    return savedItems.savedVaultItems || [];
+  const getPlaybookItems = () => {
+    return (savedItems.savedVaultItems || []).filter((item) => item.id.startsWith('playbook_'));
   };
 
   const getActiveData = () => {
@@ -108,9 +100,9 @@ export default function ProfileSavedItemsScreen() {
       case 'imported':
         return getImportedRecipes();
       case 'games':
-        return getSavedGames();
+        return getUnlockedGames();
       case 'vault':
-        return getSavedVaultItems();
+        return getPlaybookItems();
       default:
         return [];
     }
@@ -125,9 +117,9 @@ export default function ProfileSavedItemsScreen() {
       case 'imported':
         return getImportedRecipes().length;
       case 'games':
-        return getSavedGames().length;
+        return getUnlockedGames().length;
       case 'vault':
-        return getSavedVaultItems().length;
+        return getPlaybookItems().length;
       default:
         return 0;
     }
@@ -212,15 +204,9 @@ export default function ProfileSavedItemsScreen() {
         </View>
         <View style={{ flex: 1 }}>
           <Text style={styles.savedItemTitle}>{item.name}</Text>
-          {item.subtitle ? <Text style={styles.savedItemSubtitle}>{item.subtitle}</Text> : null}
+          <Text style={styles.savedItemSubtitle}>Unlocked from Vault</Text>
         </View>
-        <TouchableOpacity onPress={() => toggleSavedGame(item)} hitSlop={12}>
-          <Ionicons
-            name={isGameSaved(item.id) ? 'bookmark' : 'bookmark-outline'}
-            size={20}
-            color={isGameSaved(item.id) ? colors.accent : colors.subtext}
-          />
-        </TouchableOpacity>
+        <Ionicons name="lock-open-outline" size={18} color={colors.success} />
       </TouchableOpacity>
     );
   };
@@ -229,12 +215,13 @@ export default function ProfileSavedItemsScreen() {
     return (
       <View style={styles.savedItemCard}>
         <View style={[styles.savedItemIcon, { backgroundColor: colors.accent + '20' }]}>
-          <Ionicons name="diamond-outline" size={24} color={colors.accent} />
+          <Ionicons name="book-outline" size={24} color={colors.accent} />
         </View>
         <View style={{ flex: 1 }}>
           <Text style={styles.savedItemTitle}>{item.name}</Text>
-          {item.subtitle ? <Text style={styles.savedItemSubtitle}>{item.subtitle}</Text> : null}
+          <Text style={styles.savedItemSubtitle}>Technique Playbook</Text>
         </View>
+        <Ionicons name="lock-open-outline" size={18} color={colors.success} />
       </View>
     );
   };
@@ -264,15 +251,15 @@ export default function ProfileSavedItemsScreen() {
       },
       games: {
         icon: 'game-controller-outline',
-        title: 'No saved games yet',
-        subtitle: 'Browse games and tap the bookmark icon to save them here',
-        action: 'Browse Games',
-        onAction: () => (nav as any).navigate('Main', { screen: 'Games' }),
+        title: 'No unlocked games yet',
+        subtitle: 'Earn XP and unlock drinking games from the Vault',
+        action: 'Explore Vault',
+        onAction: () => (nav as any).navigate('Main', { screen: 'Vault' }),
       },
       vault: {
-        icon: 'diamond-outline',
-        title: 'No vault items yet',
-        subtitle: 'Earn XP to unlock exclusive recipes, techniques, and more',
+        icon: 'book-outline',
+        title: 'No playbooks yet',
+        subtitle: 'Earn XP and unlock technique playbooks from the Vault',
         action: 'Explore Vault',
         onAction: () => (nav as any).navigate('Main', { screen: 'Vault' }),
       },
@@ -296,7 +283,7 @@ export default function ProfileSavedItemsScreen() {
   };
 
   const activeData = getActiveData();
-  const totalCount = getSavedRecipes().length + getCreatedRecipes().length + getImportedRecipes().length + getSavedGames().length + getSavedVaultItems().length;
+  const totalCount = getSavedRecipes().length + getCreatedRecipes().length + getImportedRecipes().length + getUnlockedGames().length + getPlaybookItems().length;
 
   return (
     <SafeAreaView style={styles.container} edges={['left', 'right', 'bottom']}>
@@ -369,15 +356,6 @@ export default function ProfileSavedItemsScreen() {
         />
       )}
 
-      {/* Quick Actions FAB */}
-      <View style={styles.fabContainer}>
-        <TouchableOpacity
-          style={[styles.fab, styles.fabPrimary]}
-          onPress={() => nav.navigate('AddRecipe')}
-        >
-          <Ionicons name="add" size={24} color={colors.bg} />
-        </TouchableOpacity>
-      </View>
     </SafeAreaView>
   );
 }
@@ -387,11 +365,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.bg,
   },
-  headerButton: {
-    padding: spacing(1),
-    marginRight: spacing(1),
-  },
-
   // Summary Header
   summaryHeader: {
     alignItems: 'center',
@@ -568,31 +541,4 @@ const styles = StyleSheet.create({
     color: colors.accent,
   },
 
-  // FAB
-  fabContainer: {
-    position: 'absolute',
-    bottom: spacing(3),
-    right: spacing(3),
-    flexDirection: 'row',
-    gap: spacing(2),
-  },
-  fab: {
-    width: 48,
-    height: 48,
-    borderRadius: radii.full,
-    backgroundColor: colors.card,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: colors.line,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  fabPrimary: {
-    backgroundColor: colors.accent,
-    borderColor: colors.accent,
-  },
 });

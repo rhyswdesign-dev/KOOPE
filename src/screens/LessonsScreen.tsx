@@ -693,9 +693,9 @@ function LessonsView() {
   };
 
   const handleHeartsPress = () => {
-    // Navigate to vault store hearts section
-    log.nav('LessonsScreen', 'VaultStore', { tab: 'hearts' });
-    navigation.navigate('VaultStore', { tab: 'hearts' });
+    // Navigate to vault
+    log.nav('LessonsScreen', 'Vault');
+    navigation.navigate('Vault');
   };
 
   const handleProfilePress = () => {
@@ -911,8 +911,8 @@ export default function LessonsScreen() {
   ]);
 
   const handleHeartsPress = () => {
-    log.nav('LessonsScreen', 'VaultStore', { tab: 'hearts' });
-    navigation.navigate('VaultStore', { tab: 'hearts' });
+    log.nav('LessonsScreen', 'Vault');
+    navigation.navigate('Vault');
   };
 
   const renderScene = SceneMap({

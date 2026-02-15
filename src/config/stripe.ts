@@ -36,9 +36,5 @@ export const CURRENCY = 'usd';
 
 // Vault cash product IDs (for tracking)
 export const VAULT_CASH_PRODUCTS = {
-  KEYS_5: 'vault_keys_5',
-  KEYS_10: 'vault_keys_10',
-  KEYS_25: 'vault_keys_25',
-  KEYS_50: 'vault_keys_50',
   CASH_DISCOUNT: 'vault_cash_discount',
 } as const;

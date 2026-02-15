@@ -16,7 +16,7 @@ interface AnalyticsContextType {
   trackScreen: (screenName: string, properties?: Record<string, any>) => Promise<void>;
   trackAudio: (soundType: string, context?: string) => Promise<void>;
   trackVaultView: (itemId: string, category: string, rarity: string) => Promise<void>;
-  trackVaultUnlock: (itemId: string, xpSpent: number, keysSpent: number, cashSpent?: number) => Promise<void>;
+  trackVaultUnlock: (itemId: string, xpSpent: number, cashSpent?: number) => Promise<void>;
   trackSearch: (query: string, category?: string, resultsCount?: number) => Promise<void>;
   identify: (userId: string, traits?: Record<string, any>) => Promise<void>;
 }

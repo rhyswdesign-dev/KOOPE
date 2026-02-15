@@ -141,6 +141,30 @@ export default function ShoppingCartScreen() {
     }
   };
 
+  const deleteShoppingList = (listId: string, recipeName: string) => {
+    Alert.alert(
+      'Remove Recipe',
+      `Remove all ingredients for "${recipeName}" from your cart?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await ShoppingListStore.deleteShoppingList(listId);
+              await loadShoppingLists();
+              showToast(`${recipeName} removed from cart`, 'info');
+            } catch (error) {
+              log.error('ShoppingCartScreen', 'Delete list error', error);
+              showToast('Failed to remove recipe', 'error');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const getCategoryIcon = (category: string) => {
     const cat = category.toLowerCase();
     if (cat.includes('spirit') || cat.includes('liquor')) return 'wine';
@@ -208,7 +232,7 @@ export default function ShoppingCartScreen() {
           title="No shopping lists yet"
           message="Add ingredients from cocktail recipes to start shopping"
           actionLabel="Explore Recipes"
-          onAction={() => nav.navigate('Recipes')}
+          onAction={() => (nav as any).navigate('Main', { screen: 'Recipes' })}
         />
       );
     }
@@ -217,15 +241,16 @@ export default function ShoppingCartScreen() {
       <View style={styles.cocktailGroups}>
         {savedShoppingLists.map((list) => (
           <View key={list.id} style={styles.cocktailCard}>
-            <TouchableOpacity
-              style={styles.cocktailHeader}
-              onPress={() => {
-                // Expand/collapse functionality could be added here
-              }}
-            >
+            <View style={styles.cocktailHeader}>
               <Text style={styles.cocktailName}>{list.recipeName}</Text>
-              <Ionicons name="chevron-forward" size={20} color={colors.muted} />
-            </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => deleteShoppingList(list.id, list.recipeName)}
+                hitSlop={8}
+                style={styles.deleteListButton}
+              >
+                <Ionicons name="close" size={20} color={colors.bg} />
+              </TouchableOpacity>
+            </View>
 
             <View style={styles.ingredientsList}>
               {list.items.map((item: any) => {
@@ -272,6 +297,14 @@ export default function ShoppingCartScreen() {
                     <Text style={[styles.ingredientSize, isChecked && styles.ingredientSizeChecked]}>
                       {item.size || '750ml'}
                     </Text>
+
+                    <TouchableOpacity
+                      onPress={() => deleteShoppingItem(item.id, item.name)}
+                      hitSlop={8}
+                      style={styles.deleteItemButton}
+                    >
+                      <Ionicons name="close-circle" size={18} color={colors.muted} />
+                    </TouchableOpacity>
                   </View>
                 );
               })}
@@ -298,7 +331,7 @@ export default function ShoppingCartScreen() {
           actionLabel={categoryFilter === 'all' ? "Explore Recipes" : "Clear Filter"}
           onAction={() => {
             if (categoryFilter === 'all') {
-              nav.navigate('Recipes');
+              (nav as any).navigate('Main', { screen: 'Recipes' });
             } else {
               setCategoryFilter('all');
             }
@@ -353,10 +386,47 @@ export default function ShoppingCartScreen() {
               <Text style={[styles.ingredientCardBottles, isChecked && styles.ingredientSizeChecked]}>
                 1 bottle
               </Text>
+
+              <TouchableOpacity
+                onPress={() => deleteShoppingItem(item.id, item.name)}
+                hitSlop={8}
+                style={styles.deleteItemButton}
+              >
+                <Ionicons name="close-circle" size={20} color={colors.muted} />
+              </TouchableOpacity>
             </View>
           );
         })}
       </View>
+    );
+  };
+
+  const handleClearAll = () => {
+    if (consolidatedShoppingItems.allItems.length === 0) return;
+    Alert.alert(
+      'Clear Shopping Cart',
+      'Remove all items from your shopping cart?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Clear All',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              for (const list of savedShoppingLists) {
+                for (const item of list.items) {
+                  await ShoppingListStore.deleteShoppingItem(item.id);
+                }
+              }
+              await loadShoppingLists();
+              showToast('Shopping cart cleared', 'info');
+            } catch (error) {
+              log.error('ShoppingCartScreen', 'Clear all error', error);
+              showToast('Failed to clear cart', 'error');
+            }
+          },
+        },
+      ]
     );
   };
 
@@ -365,9 +435,16 @@ export default function ShoppingCartScreen() {
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Shopping Overview</Text>
-        <TouchableOpacity onPress={() => nav.goBack()}>
-          <Ionicons name="close" size={24} color={colors.text} />
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          {consolidatedShoppingItems.allItems.length > 0 && (
+            <TouchableOpacity onPress={handleClearAll} style={styles.clearAllButton}>
+              <Text style={styles.clearAllText}>Clear All</Text>
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity onPress={() => nav.goBack()}>
+            <Ionicons name="close" size={24} color={colors.text} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <Text style={styles.headerSubtitle}>
@@ -599,6 +676,24 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.text,
   },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(2),
+  },
+  clearAllButton: {
+    paddingHorizontal: spacing(2),
+    paddingVertical: spacing(1),
+    borderRadius: radii.full,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
+  clearAllText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#E57373',
+  },
   headerSubtitle: {
     fontSize: 13,
     color: colors.subtext,
@@ -704,6 +799,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: colors.bg,
+    flex: 1,
+  },
+  deleteListButton: {
+    padding: spacing(0.5),
+    opacity: 0.6,
   },
   ingredientsList: {
     backgroundColor: colors.card,
@@ -769,6 +869,10 @@ const styles = StyleSheet.create({
   ingredientSizeChecked: {
     textDecorationLine: 'line-through',
     color: colors.muted,
+  },
+  deleteItemButton: {
+    marginLeft: spacing(1.5),
+    padding: spacing(0.5),
   },
 
   // Ingredient Group View

@@ -1,6 +1,6 @@
 /**
  * VAULT ITEM CARD
- * Shows XP + Keys pricing, stock counters, and rarity indicators
+ * Shows XP pricing, stock counters, and rarity indicators
  */
 
 import React from 'react';
@@ -23,10 +23,9 @@ interface VaultItemCardProps {
   item: VaultItem;
   userProfile: UserVaultProfile;
   onPress: () => void;
-  onAddToCart?: () => void;
 }
 
-export default function VaultItemCard({ item, userProfile, onPress, onAddToCart }: VaultItemCardProps) {
+export default function VaultItemCard({ item, userProfile, onPress }: VaultItemCardProps) {
   const navigation = useNavigation();
   const { isPro, isPrestige } = useSubscription();
   const { canUnlock, reason } = canUserUnlockItem(item, userProfile);
@@ -179,7 +178,7 @@ export default function VaultItemCard({ item, userProfile, onPress, onAddToCart 
           {item.description}
         </Text>
         
-        {/* XP + Keys Pricing */}
+        {/* XP Pricing */}
         <View style={styles.pricingContainer}>
           <View style={styles.costRow}>
             {/* XP Cost */}
@@ -190,17 +189,6 @@ export default function VaultItemCard({ item, userProfile, onPress, onAddToCart 
                 userProfile.xpBalance < item.xpCost && styles.insufficientText
               ]}>
                 {item.xpCost.toLocaleString()} XP
-              </Text>
-            </View>
-            
-            {/* Keys Cost */}
-            <View style={styles.costItem}>
-              <MaterialCommunityIcons name="key" size={16} color={colors.accent} />
-              <Text style={[
-                styles.costText,
-                userProfile.keysBalance < item.keysCost && styles.insufficientText
-              ]}>
-                {item.keysCost} Key{item.keysCost !== 1 ? 's' : ''}
               </Text>
             </View>
           </View>
@@ -241,7 +229,7 @@ export default function VaultItemCard({ item, userProfile, onPress, onAddToCart 
               </Text>
             </TouchableOpacity>
           ) : canUnlock ? (
-            <TouchableOpacity 
+            <TouchableOpacity
               style={[styles.actionButton, styles.unlockButton]}
               onPress={onPress}
               activeOpacity={0.8}
@@ -249,17 +237,6 @@ export default function VaultItemCard({ item, userProfile, onPress, onAddToCart 
               <Ionicons name="lock-open" size={16} color={colors.white} />
               <Text style={[styles.actionButtonText, { color: colors.white }]}>
                 Unlock
-              </Text>
-            </TouchableOpacity>
-          ) : userProfile.keysBalance < item.keysCost ? (
-            <TouchableOpacity 
-              style={[styles.actionButton, styles.getKeysButton]}
-              onPress={() => {/* Navigate to Get Keys */}}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="key" size={16} color={colors.white} />
-              <Text style={[styles.actionButtonText, { color: colors.white }]}>
-                Get Keys
               </Text>
             </TouchableOpacity>
           ) : userProfile.xpBalance < item.xpCost && !(item as any).discountOption ? (
@@ -549,9 +526,6 @@ const styles = StyleSheet.create({
   },
   unlockButton: {
     backgroundColor: colors.gold,
-  },
-  getKeysButton: {
-    backgroundColor: colors.accent,
   },
   earnXpButton: {
     backgroundColor: colors.gold,

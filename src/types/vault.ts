@@ -1,6 +1,6 @@
 /**
  * VAULT ECONOMY SYSTEM
- * Core type definitions for XP + Keys based virtual economy
+ * Core type definitions for XP-based virtual economy
  */
 
 // ================== VAULT ITEM TYPES ==================
@@ -18,9 +18,8 @@ export interface VaultItem {
   type: VaultItemType;
   rarity: VaultItemRarity;
 
-  // XP + Keys Cost Structure
-  xpCost: number;                    // Base XP requirement
-  keysCost: number;                  // Keys required (1-4 typically)
+  // XP Cost
+  xpCost: number;                    // XP requirement to unlock
 
   // XP-as-Discount Option (optional)
   discountOption?: {
@@ -80,13 +79,10 @@ export interface UserVaultProfile {
   
   // Balances
   xpBalance: number;                 // Earned XP (lessons, challenges, videos)
-  keysBalance: number;               // Purchased Keys
-  
+
   // Lifetime Stats
   totalXpEarned: number;
-  totalKeysEarned: number;           // From purchases + promotions
   totalXpSpent: number;
-  totalKeysSpent: number;
   
   // Unlocked Items History
   unlockedItems: UnlockedVaultItem[];
@@ -105,7 +101,6 @@ export interface UnlockedVaultItem {
   
   // Cost paid to unlock
   xpSpent: number;
-  keysSpent: number;
   cashSpent?: number;                // If used XP-as-discount option
   
   // Delivery/fulfillment status (for physical items)
@@ -118,43 +113,42 @@ export interface UnlockedVaultItem {
 
 export interface MonetizationItem {
   id: string;
-  type: 'keys' | 'booster' | 'pass' | 'merch';
+  type: 'booster' | 'pass' | 'merch';
   name: string;
   description: string;
   image: string;
-  
+
   // Real money pricing
   price: number;                     // USD cents (e.g., 499 = $4.99)
   originalPrice?: number;            // For discount display
-  
+
   // What you get
-  keysGranted?: number;              // For key bundles
   boosterEffect?: BoosterEffect;     // For XP multipliers
-  
+
   // Bundle specifics
   isBundle: boolean;
   bundleItems?: BundleItem[];
-  
+
   // Availability
   inStock: boolean;
   stockLimit?: number;               // Limited quantity items
-  
+
   // Stripe integration
   stripePriceId: string;
   stripeProductId: string;
-  
+
   createdAt: string;
   updatedAt: string;
 }
 
 export interface BundleItem {
-  type: 'keys' | 'booster';
+  type: 'booster';
   quantity: number;
   name: string;
 }
 
 export interface BoosterEffect {
-  type: 'xp_multiplier' | 'double_keys' | 'mystery_luck';
+  type: 'xp_multiplier' | 'mystery_luck';
   multiplier?: number;               // e.g., 2.0 for 2x XP
   duration: number;                  // Hours active
   description: string;
@@ -184,17 +178,14 @@ export interface VaultUnlockResponse {
   transaction?: {
     transactionId: string;
     xpSpent: number;
-    keysSpent: number;
     cashCharged?: number;            // If discount option used
     itemUnlocked: VaultItem;
     newXpBalance: number;
-    newKeysBalance: number;
   };
 }
 
-export type VaultUnlockError = 
+export type VaultUnlockError =
   | 'insufficient_xp'
-  | 'insufficient_keys'
   | 'item_out_of_stock'
   | 'item_not_active'
   | 'item_not_found'
@@ -206,42 +197,10 @@ export type VaultUnlockError =
 
 export interface VaultPurchaseRequest {
   userId: string;
-  monetizationItemId: string;
-  quantity: number;
-  paymentMethodId: string;           // Stripe payment method
-}
-
-export interface VaultPurchaseResponse {
-  success: boolean;
-  error?: string;
-  
-  // Purchase details
-  purchase?: {
-    purchaseId: string;
-    totalPaid: number;               // USD cents
-    keysGranted: number;
-    boosterGranted?: BoosterEffect;
-    stripePaymentIntentId: string;
-    newKeysBalance: number;
-  };
-}
-
-// ================== VAULT CART (Keys/Boosters Only) ==================
-
-export interface VaultCartItem {
-  monetizationItemId: string;
-  quantity: number;
-  unitPrice: number;                 // USD cents
-  totalPrice: number;                // quantity * unitPrice
-}
-
-export interface VaultCart {
-  userId: string;
-  items: VaultCartItem[];
-  subtotal: number;                  // USD cents
-  tax: number;                       // USD cents
-  total: number;                     // USD cents
-  updatedAt: string;
+  cartItems: any[];
+  paymentMethodId: string;
+  shippingAddress?: VaultAddress;
+  total: number;
 }
 
 // ================== ADDRESSES & DELIVERY ==================
@@ -269,15 +228,12 @@ export interface VaultAnalytics {
   // Item performance
   itemUnlocks: Record<string, number>;     // itemId -> unlock count
   xpSpentByItem: Record<string, number>;   // itemId -> total XP spent
-  keysSpentByItem: Record<string, number>; // itemId -> total Keys spent
-  
+
   // User behavior
   totalActiveUsers: number;
   avgXpPerUser: number;
-  avgKeysPerUser: number;
-  
+
   // Revenue metrics
-  keysSold: number;
   boostersSold: number;
   totalRevenue: number;                    // USD cents
   
@@ -292,7 +248,6 @@ export interface FirestoreVaultSchema {
   vaultCycles: VaultCycle[];
   userVaultProfiles: UserVaultProfile[];
   monetizationItems: MonetizationItem[];
-  vaultCarts: VaultCart[];
   vaultAddresses: VaultAddress[];
   
   // Transaction logs

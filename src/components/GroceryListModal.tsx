@@ -323,19 +323,20 @@ const styles = StyleSheet.create({
   closeButton: {
     padding: 4,
     width: 36,
+    zIndex: 1,
   },
   headerTitle: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#F5ECDF', // App text color
+    color: '#F5ECDF',
     flex: 1,
     textAlign: 'center',
-    marginHorizontal: -36, // Offset the close button width to center title
   },
   shareButton: {
     padding: 4,
     width: 36,
     alignItems: 'flex-end',
+    zIndex: 1,
   },
   subtitle: {
     fontSize: 14,

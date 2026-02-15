@@ -167,15 +167,6 @@ export default function VaultScreen() {
 
           <Pressable
             hitSlop={12}
-            onPress={() => {
-              log.info('VaultScreen', 'Shop icon pressed, navigating to VaultStore');
-              nav.navigate('VaultStore');
-            }}
-          >
-            <MaterialCommunityIcons name="storefront" size={24} color={colors.accent} />
-          </Pressable>
-          <Pressable
-            hitSlop={12}
             onPress={() => nav.navigate('VaultOrderHistory')}
           >
             <Ionicons name="receipt-outline" size={24} color={colors.text} />

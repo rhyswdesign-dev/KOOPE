@@ -1,6 +1,6 @@
 /**
  * VAULT UNLOCK MODAL
- * Handles XP + Keys unlock transactions with XP-as-discount options
+ * Handles XP unlock transactions with XP-as-discount options
  */
 
 import React, { useState } from 'react';
@@ -33,7 +33,7 @@ export default function VaultUnlockModal({
   userProfile, 
   onClose 
 }: VaultUnlockModalProps) {
-  const { unlockVaultItem, state } = useVault();
+  const { unlockVaultItem } = useVault();
   const [useDiscountOption, setUseDiscountOption] = useState(false);
   const [isUnlocking, setIsUnlocking] = useState(false);
 
@@ -45,23 +45,20 @@ export default function VaultUnlockModal({
     if (useDiscountOption && item.discountOption) {
       return {
         xp: item.discountOption.reducedXP,
-        keys: item.keysCost,
         cash: item.discountOption.cashPrice
       };
     }
     return {
       xp: item.xpCost,
-      keys: item.keysCost,
       cash: 0
     };
   };
 
   const costs = getUnlockCosts();
-  
+
   const canAffordDiscountOption = () => {
     if (!item.discountOption) return false;
-    return userProfile.xpBalance >= item.discountOption.reducedXP && 
-           userProfile.keysBalance >= item.keysCost;
+    return userProfile.xpBalance >= item.discountOption.reducedXP;
   };
 
   const handleUnlock = async () => {
@@ -226,16 +223,6 @@ export default function VaultUnlockModal({
                     {item.xpCost.toLocaleString()} XP
                   </Text>
                 </View>
-                
-                <View style={styles.costItem}>
-                  <MaterialCommunityIcons name="key" size={18} color={colors.accent} />
-                  <Text style={[
-                    styles.costText,
-                    userProfile.keysBalance < item.keysCost && styles.insufficientText
-                  ]}>
-                    {item.keysCost} Key{item.keysCost !== 1 ? 's' : ''}
-                  </Text>
-                </View>
               </View>
             </TouchableOpacity>
 
@@ -258,7 +245,7 @@ export default function VaultUnlockModal({
                     <Text style={styles.discountBadgeText}>SAVE XP</Text>
                   </View>
                 </View>
-                
+
                 <View style={styles.costBreakdown}>
                   <View style={styles.costItem}>
                     <MaterialCommunityIcons name="star" size={18} color={colors.gold} />
@@ -269,17 +256,7 @@ export default function VaultUnlockModal({
                       {item.discountOption.reducedXP.toLocaleString()} XP
                     </Text>
                   </View>
-                  
-                  <View style={styles.costItem}>
-                    <MaterialCommunityIcons name="key" size={18} color={colors.accent} />
-                    <Text style={[
-                      styles.costText,
-                      userProfile.keysBalance < item.keysCost && styles.insufficientText
-                    ]}>
-                      {item.keysCost} Key{item.keysCost !== 1 ? 's' : ''}
-                    </Text>
-                  </View>
-                  
+
                   <View style={styles.costItem}>
                     <Ionicons name="card" size={18} color={colors.text} />
                     <Text style={styles.costText}>
@@ -298,21 +275,13 @@ export default function VaultUnlockModal({
           {/* Balance After Unlock */}
           <View style={styles.balancePreview}>
             <Text style={styles.sectionTitle}>After Unlock:</Text>
-            
+
             <View style={styles.balanceRow}>
               <View style={styles.balanceItem}>
                 <MaterialCommunityIcons name="star" size={16} color={colors.gold} />
                 <Text style={styles.balanceLabel}>XP:</Text>
                 <Text style={styles.balanceValue}>
                   {userProfile.xpBalance.toLocaleString()} → {(userProfile.xpBalance - costs.xp).toLocaleString()}
-                </Text>
-              </View>
-              
-              <View style={styles.balanceItem}>
-                <MaterialCommunityIcons name="key" size={16} color={colors.accent} />
-                <Text style={styles.balanceLabel}>Keys:</Text>
-                <Text style={styles.balanceValue}>
-                  {userProfile.keysBalance} → {userProfile.keysBalance - costs.keys}
                 </Text>
               </View>
             </View>
@@ -349,7 +318,7 @@ export default function VaultUnlockModal({
           
           <Text style={styles.disclaimer}>
             {costs.cash > 0 && '💳 Payment will be processed securely\n'}
-            🔒 XP and Keys will be deducted immediately
+            🔒 XP will be deducted immediately
           </Text>
         </View>
       </View>

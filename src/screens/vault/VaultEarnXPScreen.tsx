@@ -198,7 +198,7 @@ export default function VaultEarnXPScreen() {
       {!hasActiveBooster && (
         <TouchableOpacity 
           style={styles.boosterUpsell}
-          onPress={() => nav.navigate('VaultStore')}
+          onPress={() => nav.navigate('Vault')}
         >
           <View style={styles.upsellIcon}>
             <MaterialCommunityIcons name="flash" size={20} color={colors.gold} />

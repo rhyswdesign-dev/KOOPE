@@ -43,14 +43,8 @@ import EditProfileScreen from '../screens/EditProfileScreen';
 import NonAlcoholicScreen from '../screens/NonAlcoholicScreen';
 import VaultScreen from '../screens/vault/VaultScreen';
 // Vault screens
-import VaultStoreScreen from '../screens/vault/VaultStoreScreen';
-import VaultCartScreen from '../screens/vault/VaultCartScreen';
-import VaultCheckoutScreen from '../screens/vault/VaultCheckoutScreen';
-import VaultPaymentMethodsScreen from '../screens/vault/VaultPaymentMethodsScreen';
-import VaultOrderConfirmationScreen from '../screens/vault/VaultOrderConfirmationScreen';
 import VaultOrderDetailsScreen from '../screens/vault/VaultOrderDetailsScreen';
 import VaultOrderHistoryScreen from '../screens/vault/VaultOrderHistoryScreen';
-import VaultBillingScreen from '../screens/vault/VaultBillingScreen';
 import VaultEarnXPScreen from '../screens/vault/VaultEarnXPScreen';
 import VaultCategoryScreen from '../screens/vault/VaultCategoryScreen';
 import CategoriesListScreen from '../screens/CategoriesListScreen';
@@ -154,14 +148,8 @@ export type RootStackParamList = {
   OAuthSignIn: undefined;
   NonAlcoholic: undefined;
   Vault: undefined;
-  VaultStore: { tab?: string };
-  VaultCart: undefined;
-  VaultCheckout: undefined;
-  VaultPaymentMethods: undefined;
-  VaultOrderConfirmation: { orderId: string; total: number };
   VaultOrderDetails: { orderId: string };
   VaultOrderHistory: undefined;
-  VaultBilling: undefined;
   VaultEarnXP: undefined;
   VaultCategory: { category: VaultCategory };
   CategoriesList: undefined;
@@ -416,14 +404,8 @@ export default function RootNavigator({ initialRouteName = 'Main', onHiddenFlask
       <Stack.Screen name="NonAlcoholic" component={NonAlcoholicScreen} options={{ headerShown: true, title: 'Non-Alcoholic' }} />
     <Stack.Screen name="Vault" component={VaultScreen} options={{ headerShown: true, title: 'Vault' }} />
     {/* Vault Economy Screens */}
-    <Stack.Screen name="VaultStore" component={VaultStoreScreen} options={{ headerShown: true, title: 'XP Store' }} />
-    <Stack.Screen name="VaultCart" component={VaultCartScreen} options={{ headerShown: true, title: 'Cart' }} />
-    <Stack.Screen name="VaultCheckout" component={VaultCheckoutScreen} options={{ headerShown: true, title: 'Checkout' }} />
-    <Stack.Screen name="VaultPaymentMethods" component={VaultPaymentMethodsScreen} options={{ headerShown: true, title: 'Payment Methods' }} />
-    <Stack.Screen name="VaultOrderConfirmation" component={VaultOrderConfirmationScreen} options={{ headerShown: true, title: 'Order Confirmed' }} />
     <Stack.Screen name="VaultOrderDetails" component={VaultOrderDetailsScreen} options={{ headerShown: true, title: 'Order Details' }} />
     <Stack.Screen name="VaultOrderHistory" component={VaultOrderHistoryScreen} options={{ headerShown: true, title: 'Order History' }} />
-    <Stack.Screen name="VaultBilling" component={VaultBillingScreen} options={{ headerShown: true, title: 'Billing' }} />
     <Stack.Screen name="VaultEarnXP" component={VaultEarnXPScreen} options={{ headerShown: true, title: 'Earn XP' }} />
     <Stack.Screen name="VaultCategory" component={VaultCategoryScreen} options={{ headerShown: false }} />
     <Stack.Screen name="CategoriesList" component={CategoriesListScreen} options={{ headerShown: true, title: 'Categories' }} />

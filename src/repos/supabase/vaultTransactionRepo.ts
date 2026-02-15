@@ -14,12 +14,9 @@ import { UserVaultProfile, UnlockedVaultItem } from '../../types/vault';
 interface VaultProfileRow {
   user_id: string;
   xp_balance: number;
-  keys_balance: number;
   vault_cash_balance: number;
   total_xp_earned: number;
   total_xp_spent: number;
-  total_keys_earned: number;
-  total_keys_spent: number;
   total_cash_spent: number;
   unlocked_items: any[];
   created_at: string;
@@ -34,7 +31,6 @@ interface VaultTransactionRow {
   item_name: string | null;
   cycle_id: string | null;
   xp_spent: number;
-  keys_spent: number;
   cash_spent: number;
   stripe_payment_intent_id: string | null;
   shipping_address: any;
@@ -84,12 +80,9 @@ export async function getUserVaultProfile(userId: string): Promise<UserVaultProf
     return {
       userId: row.user_id,
       xpBalance: row.xp_balance,
-      keysBalance: row.keys_balance,
       vaultCashBalance: row.vault_cash_balance,
       totalXpEarned: row.total_xp_earned,
       totalXpSpent: row.total_xp_spent,
-      totalKeysEarned: row.total_keys_earned,
-      totalKeysSpent: row.total_keys_spent,
       totalCashSpent: row.total_cash_spent,
       unlockedItems: row.unlocked_items || [],
       createdAt: new Date(row.created_at),
@@ -114,12 +107,9 @@ export async function createUserVaultProfile(userId: string): Promise<UserVaultP
       .insert({
         user_id: userId,
         xp_balance: 0,
-        keys_balance: 0,
         vault_cash_balance: 0,
         total_xp_earned: 0,
         total_xp_spent: 0,
-        total_keys_earned: 0,
-        total_keys_spent: 0,
         total_cash_spent: 0,
         unlocked_items: [],
         created_at: now,
@@ -139,12 +129,9 @@ export async function createUserVaultProfile(userId: string): Promise<UserVaultP
     return {
       userId: row.user_id,
       xpBalance: row.xp_balance || 0,
-      keysBalance: row.keys_balance || 0,
       vaultCashBalance: row.vault_cash_balance || 0,
       totalXpEarned: row.total_xp_earned || 0,
       totalXpSpent: row.total_xp_spent || 0,
-      totalKeysEarned: row.total_keys_earned || 0,
-      totalKeysSpent: row.total_keys_spent || 0,
       totalCashSpent: row.total_cash_spent || 0,
       unlockedItems: row.unlocked_items || [],
       createdAt: new Date(row.created_at),
@@ -162,14 +149,13 @@ export async function createUserVaultProfile(userId: string): Promise<UserVaultP
 export async function updateVaultBalances(
   userId: string,
   xpDelta: number,
-  keysDelta: number,
   cashDelta: number
 ): Promise<void> {
   try {
     // Get current balances
     const { data: current } = await supabase
       .from('user_vault_profiles')
-      .select('xp_balance, keys_balance, vault_cash_balance, total_xp_spent, total_keys_spent, total_cash_spent')
+      .select('xp_balance, vault_cash_balance, total_xp_spent, total_cash_spent')
       .eq('user_id', userId)
       .single();
 
@@ -177,22 +163,18 @@ export async function updateVaultBalances(
 
     // Calculate new balances
     const newXP = current.xp_balance + xpDelta;
-    const newKeys = current.keys_balance + keysDelta;
     const newCash = current.vault_cash_balance + cashDelta;
 
     // Update totals if spending (negative deltas)
     const newTotalXPSpent = xpDelta < 0 ? current.total_xp_spent + Math.abs(xpDelta) : current.total_xp_spent;
-    const newTotalKeysSpent = keysDelta < 0 ? current.total_keys_spent + Math.abs(keysDelta) : current.total_keys_spent;
     const newTotalCashSpent = cashDelta < 0 ? current.total_cash_spent + Math.abs(cashDelta) : current.total_cash_spent;
 
     const { error } = await supabase
       .from('user_vault_profiles')
       .update({
         xp_balance: newXP,
-        keys_balance: newKeys,
         vault_cash_balance: newCash,
         total_xp_spent: newTotalXPSpent,
-        total_keys_spent: newTotalKeysSpent,
         total_cash_spent: newTotalCashSpent,
       })
       .eq('user_id', userId);
@@ -202,7 +184,6 @@ export async function updateVaultBalances(
     log.info('VaultTransactionRepo', 'Vault balances updated', {
       userId,
       xpDelta,
-      keysDelta,
       cashDelta,
     });
   } catch (error) {
@@ -251,12 +232,11 @@ export async function addUnlockedItem(userId: string, unlockedItem: UnlockedVaul
  */
 export async function logVaultTransaction(params: {
   userId: string;
-  transactionType?: 'unlock' | 'purchase_keys' | 'refund';
+  transactionType?: 'unlock' | 'refund';
   itemId: string;
   itemName?: string;
   cycleId?: string;
   xpCost?: number;
-  keysCost?: number;
   cashCost?: number;
   stripePaymentIntentId?: string;
   shippingAddress?: any;
@@ -271,7 +251,6 @@ export async function logVaultTransaction(params: {
         item_name: params.itemName || '',
         cycle_id: params.cycleId || null,
         xp_spent: params.xpCost || 0,
-        keys_spent: params.keysCost || 0,
         cash_spent: params.cashCost || 0,
         stripe_payment_intent_id: params.stripePaymentIntentId || null,
         shipping_address: params.shippingAddress || null,
@@ -416,95 +395,6 @@ export async function awardXP(
   } catch (error) {
     log.error('VaultTransactionRepo', 'Failed to award XP', error);
     throw new Error('Failed to award XP');
-  }
-}
-
-// ============================================
-// CART OPERATIONS
-// ============================================
-
-/**
- * Get active cart for user
- */
-export async function getActiveCart(userId: string): Promise<any | null> {
-  try {
-    const { data, error } = await supabase
-      .from('vault_carts')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('status', 'active')
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single();
-
-    if (error && error.code !== 'PGRST116') throw error;
-    return data;
-  } catch (error) {
-    log.error('VaultTransactionRepo', 'Failed to get active cart', error);
-    return null;
-  }
-}
-
-/**
- * Create or update cart
- */
-export async function upsertCart(
-  userId: string,
-  items: any[],
-  totals: { subtotal: number; tax: number; total: number }
-): Promise<string> {
-  try {
-    const existingCart = await getActiveCart(userId);
-
-    if (existingCart) {
-      // Update existing cart
-      await supabase
-        .from('vault_carts')
-        .update({
-          items,
-          subtotal: totals.subtotal,
-          tax: totals.tax,
-          total: totals.total,
-        })
-        .eq('id', existingCart.id);
-
-      return existingCart.id;
-    } else {
-      // Create new cart
-      const { data, error } = await supabase
-        .from('vault_carts')
-        .insert({
-          user_id: userId,
-          items,
-          subtotal: totals.subtotal,
-          tax: totals.tax,
-          total: totals.total,
-          status: 'active',
-        })
-        .select('id')
-        .single();
-
-      if (error) throw error;
-      return data.id;
-    }
-  } catch (error) {
-    log.error('VaultTransactionRepo', 'Failed to upsert cart', error);
-    throw new Error('Failed to upsert cart');
-  }
-}
-
-/**
- * Mark cart as completed
- */
-export async function completeCart(cartId: string): Promise<void> {
-  try {
-    await supabase
-      .from('vault_carts')
-      .update({ status: 'completed' })
-      .eq('id', cartId);
-  } catch (error) {
-    log.error('VaultTransactionRepo', 'Failed to complete cart', error);
-    throw new Error('Failed to complete cart');
   }
 }
 

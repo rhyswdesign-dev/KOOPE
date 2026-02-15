@@ -62,7 +62,7 @@ export const vaultItems: VaultItem[] = [
     type: 'digital',
     rarity: 'common',
     xpCost: 200,
-    keysCost: 0,
+
     totalStock: 999,
     currentStock: 999,
     cycleId: 'cycle_2025_01',
@@ -83,7 +83,7 @@ export const vaultItems: VaultItem[] = [
     type: 'digital',
     rarity: 'common',
     xpCost: 200,
-    keysCost: 0,
+
     totalStock: 999,
     currentStock: 999,
     cycleId: 'cycle_2025_01',
@@ -104,7 +104,7 @@ export const vaultItems: VaultItem[] = [
     type: 'digital',
     rarity: 'common',
     xpCost: 200,
-    keysCost: 0,
+
     totalStock: 999,
     currentStock: 999,
     cycleId: 'cycle_2025_01',
@@ -125,7 +125,7 @@ export const vaultItems: VaultItem[] = [
     type: 'digital',
     rarity: 'common',
     xpCost: 200,
-    keysCost: 0,
+
     totalStock: 999,
     currentStock: 999,
     cycleId: 'cycle_2025_01',
@@ -146,7 +146,7 @@ export const vaultItems: VaultItem[] = [
     type: 'digital',
     rarity: 'common',
     xpCost: 200,
-    keysCost: 0,
+
     totalStock: 999,
     currentStock: 999,
     cycleId: 'cycle_2025_01',
@@ -167,7 +167,7 @@ export const vaultItems: VaultItem[] = [
     type: 'digital',
     rarity: 'common',
     xpCost: 200,
-    keysCost: 0,
+
     totalStock: 999,
     currentStock: 999,
     cycleId: 'cycle_2025_01',
@@ -189,7 +189,7 @@ export const vaultItems: VaultItem[] = [
     type: 'digital',
     rarity: 'common',
     xpCost: 750,
-    keysCost: 1,
+
     totalStock: 100,
     currentStock: 73,
     cycleId: 'cycle_2025_01',
@@ -211,7 +211,7 @@ export const vaultItems: VaultItem[] = [
     type: 'digital',
     rarity: 'common',
     xpCost: 500,
-    keysCost: 1,
+
     // XP-as-discount option available
     discountOption: {
       reducedXP: 250,
@@ -239,7 +239,7 @@ export const vaultItems: VaultItem[] = [
     type: 'experience',
     rarity: 'limited',
     xpCost: 4000,
-    keysCost: 2,
+
     discountOption: {
       reducedXP: 2000,
       cashPrice: 19.99, // Significant cash option for classes
@@ -265,7 +265,7 @@ export const vaultItems: VaultItem[] = [
     type: 'physical',
     rarity: 'limited',
     xpCost: 3000,
-    keysCost: 2,
+
     totalStock: 100,
     currentStock: 47,
     cycleId: 'cycle_2025_01',
@@ -287,7 +287,7 @@ export const vaultItems: VaultItem[] = [
     type: 'physical',
     rarity: 'limited',
     xpCost: 4200,
-    keysCost: 2,
+
     totalStock: 30,
     currentStock: 8, // Very low stock
     cycleId: 'cycle_2025_03',
@@ -309,7 +309,7 @@ export const vaultItems: VaultItem[] = [
     type: 'physical',
     rarity: 'limited',
     xpCost: 12000, // User has 8450 XP - needs 3550 more
-    keysCost: 3, // User has exactly 3 keys
+
     totalStock: 20,
     currentStock: 8,
     cycleId: 'cycle_2025_09',
@@ -331,7 +331,7 @@ export const vaultItems: VaultItem[] = [
     type: 'experience',
     rarity: 'rare',
     xpCost: 15000,
-    keysCost: 4,
+
     requiresPro: true, // KOOPE PRO required
     discountOption: {
       reducedXP: 7500,
@@ -357,7 +357,7 @@ export const vaultItems: VaultItem[] = [
     type: 'physical',
     rarity: 'prestige',
     xpCost: 25000,
-    keysCost: 4,
+
     requiresPrestige: true, // Prestige subscription required
     totalStock: 3,
     currentStock: 1, // Almost gone
@@ -380,7 +380,7 @@ export const vaultItems: VaultItem[] = [
     type: 'mystery',
     rarity: 'mystery',
     xpCost: 1200,
-    keysCost: 1,
+
     discountOption: {
       reducedXP: 600,
       cashPrice: 4.99,
@@ -406,7 +406,7 @@ export const vaultItems: VaultItem[] = [
     type: 'mystery',
     rarity: 'mystery',
     xpCost: 6000,
-    keysCost: 3,
+
     discountOption: {
       reducedXP: 3000,
       cashPrice: 19.99,
@@ -433,7 +433,7 @@ export const vaultItems: VaultItem[] = [
     type: 'physical',
     rarity: 'limited',
     xpCost: 2800,
-    keysCost: 2,
+
     totalStock: 20,
     currentStock: 0, // SOLD OUT
     cycleId: 'cycle_2025_03',
@@ -446,81 +446,9 @@ export const vaultItems: VaultItem[] = [
   },
 ];
 
-// ================== MONETIZATION ITEMS (Keys/Boosters for Real Money) ==================
+// ================== MONETIZATION ITEMS (Boosters for Real Money) ==================
 
 export const monetizationItems: MonetizationItem[] = [
-  // KEY BUNDLES
-  {
-    id: 'keys_starter_pack',
-    type: 'keys',
-    name: 'Starter Key Pack',
-    description: 'Perfect for your first Vault unlocks',
-    image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?auto=format&fit=crop&w=400&q=60',
-    price: 299, // $2.99
-    keysGranted: 2,
-    isBundle: false,
-    inStock: true,
-    stripePriceId: 'price_keys_starter_pack',
-    stripeProductId: 'prod_keys_starter_pack',
-    createdAt: '2025-03-01T00:00:00Z',
-    updatedAt: '2025-03-01T00:00:00Z',
-  },
-
-  {
-    id: 'keys_value_pack',
-    name: 'Value Key Bundle',
-    type: 'keys',
-    description: '5 Keys + XP Booster - Best Value!',
-    image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?auto=format&fit=crop&w=400&q=60',
-    price: 699, // $6.99
-    originalPrice: 899, // Show 22% discount
-    keysGranted: 5,
-    isBundle: true,
-    bundleItems: [
-      { type: 'keys', quantity: 5, name: '5 Vault Keys' },
-      { type: 'booster', quantity: 1, name: '2x XP Booster (24h)' },
-    ],
-    boosterEffect: {
-      type: 'xp_multiplier',
-      multiplier: 2.0,
-      duration: 24,
-      description: 'Double XP for 24 hours',
-    },
-    inStock: true,
-    stripePriceId: 'price_keys_value_pack',
-    stripeProductId: 'prod_keys_value_pack',
-    createdAt: '2025-03-01T00:00:00Z',
-    updatedAt: '2025-03-01T00:00:00Z',
-  },
-
-  {
-    id: 'keys_ultimate_pack',
-    name: 'Ultimate Key Collection',
-    type: 'keys',
-    description: '12 Keys + Premium Boosters - For Vault Masters',
-    image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?auto=format&fit=crop&w=400&q=60',
-    price: 1499, // $14.99
-    originalPrice: 1999, // 25% discount
-    keysGranted: 12,
-    isBundle: true,
-    bundleItems: [
-      { type: 'keys', quantity: 12, name: '12 Vault Keys' },
-      { type: 'booster', quantity: 1, name: '3x XP Booster (48h)' },
-      { type: 'booster', quantity: 1, name: 'Mystery Luck Booster' },
-    ],
-    boosterEffect: {
-      type: 'xp_multiplier',
-      multiplier: 3.0,
-      duration: 48,
-      description: 'Triple XP for 48 hours + Mystery Luck',
-    },
-    inStock: true,
-    stripePriceId: 'price_keys_ultimate_pack',
-    stripeProductId: 'prod_keys_ultimate_pack',
-    createdAt: '2025-03-01T00:00:00Z',
-    updatedAt: '2025-03-01T00:00:00Z',
-  },
-
   // INDIVIDUAL BOOSTERS
   {
     id: 'booster_2x_xp',
@@ -585,12 +513,9 @@ export const monetizationItems: MonetizationItem[] = [
 
 export const mockUserVaultProfile: UserVaultProfile = {
   userId: 'user_12345',
-  xpBalance: 8450, // Current XP earned through lessons/challenges
-  keysBalance: 3, // Currently owned keys
+  xpBalance: 8450,
   totalXpEarned: 15200,
-  totalKeysEarned: 8,
   totalXpSpent: 6750,
-  totalKeysSpent: 5,
   unlockedItems: [
     {
       itemId: 'bar_untitled_champagne_lounge',
@@ -598,7 +523,7 @@ export const mockUserVaultProfile: UserVaultProfile = {
       unlockedAt: '2025-03-05T16:00:00Z',
       cycleId: 'cycle_2025_03',
       xpSpent: 1200,
-      keysSpent: 0,
+
       fulfillmentStatus: null, // Digital content, no physical fulfillment
     },
     {
@@ -607,7 +532,7 @@ export const mockUserVaultProfile: UserVaultProfile = {
       unlockedAt: '2025-03-08T14:30:00Z',
       cycleId: 'cycle_2025_03',
       xpSpent: 750,
-      keysSpent: 1,
+
       fulfillmentStatus: 'delivered',
       trackingNumber: 'UPS123456789',
     },
@@ -617,7 +542,7 @@ export const mockUserVaultProfile: UserVaultProfile = {
       unlockedAt: '2025-03-10T10:15:00Z',
       cycleId: 'cycle_2025_03',
       xpSpent: 600, // Used discount option
-      keysSpent: 1,
+
       cashSpent: 4.99, // Paid $4.99 to reduce XP cost
       fulfillmentStatus: 'shipped',
       trackingNumber: 'FEDEX987654321',
@@ -665,11 +590,6 @@ export const canUserUnlockItem = (item: VaultItem, userProfile: UserVaultProfile
   if (userProfile.xpBalance < item.xpCost) {
     const xpNeeded = item.xpCost - userProfile.xpBalance;
     return { canUnlock: false, reason: `Need ${xpNeeded} more XP` };
-  }
-  
-  if (userProfile.keysBalance < item.keysCost) {
-    const keysNeeded = item.keysCost - userProfile.keysBalance;
-    return { canUnlock: false, reason: `Need ${keysNeeded} more Keys` };
   }
   
   return { canUnlock: true };

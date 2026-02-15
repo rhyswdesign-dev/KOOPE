@@ -151,11 +151,8 @@ export class VaultRepository {
       .upsert({
         user_id: profile.userId,
         xp_balance: profile.xpBalance,
-        keys_balance: profile.keysBalance,
         total_xp_earned: profile.totalXpEarned,
-        total_keys_earned: profile.totalKeysEarned,
         total_xp_spent: profile.totalXpSpent,
-        total_keys_spent: profile.totalKeysSpent,
         booster_type: profile.activeBooster?.type || null,
         booster_multiplier: profile.activeBooster?.multiplier || null,
         booster_expires_at: profile.activeBooster?.expiresAt || null,
@@ -201,7 +198,6 @@ export class VaultRepository {
       type: data.type,
       rarity: data.rarity,
       xpCost: data.xp_cost,
-      keysCost: data.keys_cost,
       discountOption: data.discount_reduced_xp ? {
         reducedXP: data.discount_reduced_xp,
         cashPrice: data.discount_cash_price / 100 // Convert cents to dollars
@@ -234,7 +230,6 @@ export class VaultRepository {
       image: data.image,
       price: data.price, // Already in cents
       originalPrice: data.original_price,
-      keysGranted: data.keys_granted,
       boosterEffect: data.booster_type ? {
         type: data.booster_type,
         multiplier: data.booster_multiplier ? parseFloat(data.booster_multiplier) : undefined,
@@ -259,11 +254,8 @@ export class VaultRepository {
     return {
       userId: data.user_id,
       xpBalance: data.xp_balance,
-      keysBalance: data.keys_balance,
       totalXpEarned: data.total_xp_earned,
-      totalKeysEarned: data.total_keys_earned,
       totalXpSpent: data.total_xp_spent,
-      totalKeysSpent: data.total_keys_spent,
       unlockedItems: [], // Load separately if needed
       activeBooster: data.booster_type ? {
         type: data.booster_type,
@@ -288,9 +280,6 @@ export {
   updateTransactionFulfillment,
   logXPTransaction,
   awardXP,
-  getActiveCart,
-  upsertCart,
-  completeCart,
   activateBooster,
   checkBoosterExpiry,
   decrementBoosterUses,

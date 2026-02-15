@@ -603,8 +603,8 @@ export const LessonEngine: React.FC<LessonEngineProps> = ({ lessonId, onComplete
             <Pressable
               style={[styles.blockedButton, styles.buyHeartsButton]}
               onPress={() => {
-                // Navigate to VaultStore with hearts tab
-                navigation.navigate('VaultStore', { tab: 'hearts' });
+                // Navigate to Vault
+                navigation.navigate('Vault');
               }}
             >
               <Ionicons name="diamond" size={20} color={colors.white} />
