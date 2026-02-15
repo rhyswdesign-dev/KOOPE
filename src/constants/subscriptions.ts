@@ -51,16 +51,16 @@ export const SUBSCRIPTION_PRODUCTS = {
  */
 export const PRICING_DISPLAY = {
   PLUS: {
-    weekly: '$2.99',
     monthly: '$8.99',
-    yearly: '$59.99',
-    yearlySavings: '44%',
+    yearly: '$79',
+    yearlyPerMonth: '$6.58',
+    yearlySavings: '27%',
   },
   PRO: {
-    weekly: '$5.99',
-    monthly: '$17.99',
-    yearly: '$119.99',
-    yearlySavings: '44%',
+    monthly: '$12.99',
+    yearly: '$119',
+    yearlyPerMonth: '$9.92',
+    yearlySavings: '24%',
   },
 } as const;
 

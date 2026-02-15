@@ -61,128 +61,90 @@ interface FeatureBenefit {
 // Duration options for each tier
 const PLUS_DURATIONS: DurationOption[] = [
   {
-    id: 'plus_weekly',
-    label: 'New',
-    duration: '1 week',
-    pricePerWeek: '$2.99/wk',
-    totalPrice: '$2.99',
-    billingMode: 'weekly',
-    isNew: true,
-  },
-  {
     id: 'plus_monthly',
-    label: 'Save 25%',
+    label: 'Monthly',
     duration: '1 month',
     pricePerWeek: '$2.25/wk',
     totalPrice: '$8.99',
-    savings: '25%',
     billingMode: 'monthly',
   },
   {
-    id: 'plus_quarterly',
-    label: 'Save 44%',
-    duration: '3 months',
-    pricePerWeek: '$1.67/wk',
-    totalPrice: '$19.99',
-    savings: '44%',
-    billingMode: 'quarterly',
-    isPopular: true,
-  },
-  {
     id: 'plus_yearly',
-    label: 'Save 62%',
+    label: 'Save 27%',
     duration: '1 year',
-    pricePerWeek: '$1.15/wk',
-    totalPrice: '$59.99',
-    savings: '62%',
+    pricePerWeek: '$1.52/wk',
+    totalPrice: '$79',
+    savings: '27%',
     billingMode: 'yearly',
+    isPopular: true,
   },
 ];
 
 const PRO_DURATIONS: DurationOption[] = [
   {
-    id: 'pro_weekly',
-    label: 'New',
-    duration: '1 week',
-    pricePerWeek: '$5.99/wk',
-    totalPrice: '$5.99',
-    billingMode: 'weekly',
-    isNew: true,
-  },
-  {
     id: 'pro_monthly',
-    label: 'Save 25%',
+    label: 'Monthly',
     duration: '1 month',
-    pricePerWeek: '$4.50/wk',
-    totalPrice: '$17.99',
-    savings: '25%',
+    pricePerWeek: '$3.25/wk',
+    totalPrice: '$12.99',
     billingMode: 'monthly',
   },
   {
-    id: 'pro_quarterly',
-    label: 'Save 44%',
-    duration: '3 months',
-    pricePerWeek: '$3.33/wk',
-    totalPrice: '$39.99',
-    savings: '44%',
-    billingMode: 'quarterly',
-    isPopular: true,
-  },
-  {
     id: 'pro_yearly',
-    label: 'Save 62%',
+    label: 'Save 24%',
     duration: '1 year',
-    pricePerWeek: '$2.31/wk',
-    totalPrice: '$119.99',
-    savings: '62%',
+    pricePerWeek: '$2.29/wk',
+    totalPrice: '$119',
+    savings: '24%',
     billingMode: 'yearly',
+    isPopular: true,
   },
 ];
 
 // Feature benefits for each tier
 const PLUS_FEATURES: FeatureBenefit[] = [
   {
-    icon: 'book-outline',
-    title: 'Unlimited lessons',
-    description: 'Access the full cocktail curriculum',
+    icon: 'wine-outline',
+    title: 'Unlimited bottles & scans',
+    description: 'No limits on your home bar inventory',
   },
   {
-    icon: 'chatbubble-ellipses-outline',
-    title: 'Unlimited AI Coach',
-    description: 'Get personalized drink recommendations',
+    icon: 'search-outline',
+    title: 'Advanced filters & full library',
+    description: 'Filter by ingredient count, low sugar, spirit-forward',
   },
   {
-    icon: 'cloud-download-outline',
-    title: 'Offline mode',
-    description: 'Download recipes for anywhere access',
+    icon: 'analytics-outline',
+    title: 'Taste Match %',
+    description: 'See how well each cocktail matches your palate',
   },
   {
-    icon: 'bookmark-outline',
-    title: 'Unlimited saves',
-    description: 'Build your personal recipe collection',
+    icon: 'people-outline',
+    title: 'Party scaling calculator',
+    description: 'Scale recipes and export shopping lists',
   },
 ];
 
 const PRO_FEATURES: FeatureBenefit[] = [
   {
-    icon: 'star-outline',
-    title: 'Priority AI with memory',
-    description: 'AI that remembers your taste preferences',
+    icon: 'pulse-outline',
+    title: 'Full Taste Graph & Predictive Engine',
+    description: 'AI that learns and predicts what you want',
   },
   {
-    icon: 'trophy-outline',
-    title: 'VIP challenges',
-    description: 'Exclusive competitions and rewards',
+    icon: 'restaurant-outline',
+    title: 'Hosting planner & batch optimizer',
+    description: 'Guest menus, prep timelines, smart batching',
   },
   {
-    icon: 'create-outline',
-    title: 'Creator tools',
-    description: 'Export menus, upload recipes, custom themes',
+    icon: 'color-wand-outline',
+    title: 'Remix engine & flavor correction',
+    description: 'Ratio balancing and flavor adjustment AI',
   },
   {
-    icon: 'gift-outline',
-    title: 'Brand perks',
-    description: 'Exclusive tastings, events, and discounts',
+    icon: 'bar-chart-outline',
+    title: '"Optimize My Bar" analysis',
+    description: 'See what to buy next for maximum cocktail reach',
   },
 ];
 
@@ -192,7 +154,7 @@ export default function PaywallScreen({ route }: PaywallScreenProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [isPurchasing, setIsPurchasing] = useState(false);
   const [selectedTier, setSelectedTier] = useState<TierTab>('koope_plus');
-  const [selectedDuration, setSelectedDuration] = useState<DurationOption>(PLUS_DURATIONS[2]); // Default to 3 months (best value)
+  const [selectedDuration, setSelectedDuration] = useState<DurationOption>(PLUS_DURATIONS[1]); // Default to yearly (best value)
 
   const displayCloseButton = route?.params?.displayCloseButton !== false;
   const source = route?.params?.source || 'unknown';

@@ -5,7 +5,8 @@
  */
 
 import { EnhancedUserProfile, Spirit, FlavorProfile } from '../types/userProfile';
-import { Recipe, RecipeWithUserData, RecipeFilters } from '../types/recipe';
+import { Recipe, RecipeWithUserData, RecipeFilters, getIngredientCount } from '../types/recipe';
+import { calculateTasteMatchPercent } from './tasteMatchService';
 
 export interface RecommendationScore {
   recipeId: string;
@@ -347,6 +348,20 @@ export class RecommendationEngine {
           );
           if (!hasAllTools) return false;
         }
+
+        // KOOPE+ advanced filters
+        if (filters.maxIngredients) {
+          if (getIngredientCount(recipe) > filters.maxIngredients) return false;
+        }
+
+        if (filters.sugarLevel && filters.sugarLevel.length > 0) {
+          const recipeSugar = recipe.sugarLevel || 'medium';
+          if (!filters.sugarLevel.includes(recipeSugar as any)) return false;
+        }
+
+        if (filters.recipeType && filters.recipeType.length > 0) {
+          if (!filters.recipeType.includes(recipe.recipeType as any)) return false;
+        }
       }
 
       return true;
@@ -369,11 +384,18 @@ export class RecommendationEngine {
     const scoredRecipes = filteredRecipes.map((recipe) => {
       const scoreData = this.calculateScore(recipe, userProfile);
 
+      // Compute Taste Match % if user has a taste profile
+      let tasteMatchPercent: number | undefined;
+      if (userProfile.tasteProfile) {
+        tasteMatchPercent = calculateTasteMatchPercent(userProfile.tasteProfile, recipe);
+      }
+
       return {
         ...recipe,
         isSaved: userProfile.savedRecipes.includes(recipe.id),
         isFavorite: userProfile.favoriteRecipes.includes(recipe.id),
         recommendationScore: scoreData.score,
+        tasteMatchPercent,
         userRating: undefined,
         userFeedback: undefined,
       } as RecipeWithUserData;

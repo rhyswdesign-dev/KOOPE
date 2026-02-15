@@ -21,124 +21,206 @@ export const FREE_TIER_COCKTAILS = [
 ] as const;
 
 /**
+ * Tier limits — numeric caps for gating logic
+ */
+export const TIER_LIMITS = {
+  FREE: {
+    maxBottles: 15,
+    maxScansPerMonth: 15,
+    maxSavedCocktails: 5,
+    maxAIMessagesPerDay: 3,
+    maxBarProfiles: 1,
+  },
+  PLUS: {
+    maxBottles: Infinity,
+    maxScansPerMonth: Infinity,
+    maxSavedCocktails: Infinity,
+    maxAIMessagesPerDay: Infinity,
+    maxBarProfiles: 2,
+  },
+  PRO: {
+    maxBottles: Infinity,
+    maxScansPerMonth: Infinity,
+    maxSavedCocktails: Infinity,
+    maxAIMessagesPerDay: Infinity,
+    maxBarProfiles: Infinity,
+  },
+} as const;
+
+/**
  * Features accessible by tier
+ * Structured by the Lounge Model: FREE "Starter Bar", PLUS "Core Precision", PRO "Precision Mode"
  */
 export const TIER_FEATURES = {
   FREE: {
-    // Lessons
-    lessons: 'intro-only', // Limited to intro lessons
-
-    // Cocktails/Recipes
-    cocktails: FREE_TIER_COCKTAILS.length, // 9 classic cocktails
-    recipesFullAccess: FREE_TIER_COCKTAILS, // Full recipe cards for these 9
-    recipesLockedPreview: true, // See thumbnails of locked cocktails (no names)
-
-    // AI Coach
-    aiCoach: 'basic', // Basic token-limited
-
-    // Saves & Notes
-    savesAndNotes: 'limited', // Limited saves
-
     // Inventory
-    inventorySystem: 10, // 10-item cap
+    inventoryLimit: 15,
+    scansPerMonth: 15,
+    multiBarProfiles: 1,
 
-    // Vault
-    seasonalVaultAccess: 'earn-only', // Can earn XP, locked seasonal items
-    monthlyDrops: 'mini-drop', // Free mini-drop only
+    // Discovery
+    whatCanIMake: 'spirit-filter-only',
+    recipeFilters: 'basic', // Spirit filter only
+    cocktails: FREE_TIER_COCKTAILS.length,
+    recipesFullAccess: FREE_TIER_COCKTAILS,
+    recipesLockedPreview: true,
+    savedCocktails: 5,
 
-    // Challenges
+    // AI
+    aiCoach: 'basic', // No memory, no Taste Match %
+    tasteMatch: false,
+    flavorTagsVisible: false,
+    moodSuggestions: false,
+    predictiveEngine: false,
+    longMemory: false,
+
+    // Hosting
+    partyScaling: 'manual-only',
+    shoppingListExport: false,
+    hostingPlanner: false,
+    batchOptimizer: false,
+    guestMenuGenerator: false,
+    prepTimeline: false,
+
+    // Commerce
+    addMissingIngredients: false,
+    smartCartPreview: false,
+
+    // Pro Builder
+    remixEngine: false,
+    ratioBalancing: false,
+    flavorCorrectionAI: false,
+    templateBuilder: false,
+    optimizeMyBar: false,
+    flavorProfileDashboard: false,
+    adjustableFlavorControls: false,
+
+    // Education
+    education: false,
+
+    // Legacy features (kept for backward compatibility)
+    lessons: 'intro-only',
+    seasonalVaultAccess: 'earn-only',
+    monthlyDrops: 'mini-drop',
     challenges: 'limited',
-
-    // Brand Perks
     brandPerks: false,
-
-    // Other Features
     offlineMode: false,
     recipeBuilder: 'basic',
-    cocktailCards: 'limited-pack',
-    homeBarPlan: 'basic-tips',
-    eventDiscounts: false,
-    certificationTracks: false,
     creatorTools: false,
-    communityIdentity: 'general',
   },
 
   PLUS: {
-    // Lessons
-    lessons: 'unlimited',
-
-    // Cocktails/Recipes
-    cocktails: 'unlimited', // All cocktails
-    recipesFullAccess: 'all', // Full access to all recipe cards
-    recipesLockedPreview: false, // No locked content
-
-    // AI Coach
-    aiCoach: 'enhanced', // Enhanced taste + hosting intelligence
-
-    // Saves & Notes
-    savesAndNotes: 'unlimited',
-
     // Inventory
-    inventorySystem: 'unlimited',
+    inventoryLimit: Infinity,
+    scansPerMonth: Infinity,
+    multiBarProfiles: 2,
 
-    // Vault
-    seasonalVaultAccess: 'standard', // Standard seasonal access
+    // Discovery
+    whatCanIMake: 'advanced-filters',
+    recipeFilters: 'advanced', // ≤5 ingredients, low sugar, spirit-forward
+    cocktails: 'unlimited',
+    recipesFullAccess: 'all',
+    recipesLockedPreview: false,
+    savedCocktails: Infinity,
+
+    // AI
+    aiCoach: 'enhanced', // Taste Match (basic), mood-based suggestions
+    tasteMatch: 'basic',
+    flavorTagsVisible: true,
+    moodSuggestions: 'basic',
+    predictiveEngine: false,
+    longMemory: false,
+
+    // Hosting
+    partyScaling: 'calculator',
+    shoppingListExport: true,
+    hostingPlanner: false,
+    batchOptimizer: false,
+    guestMenuGenerator: false,
+    prepTimeline: false,
+
+    // Commerce
+    addMissingIngredients: true,
+    smartCartPreview: 'non-aggressive',
+
+    // Pro Builder
+    remixEngine: false,
+    ratioBalancing: false,
+    flavorCorrectionAI: false,
+    templateBuilder: false,
+    optimizeMyBar: false,
+    flavorProfileDashboard: false,
+    adjustableFlavorControls: false,
+
+    // Education
+    education: false,
+
+    // Legacy features
+    lessons: 'unlimited',
+    seasonalVaultAccess: 'standard',
     monthlyDrops: 'full-access',
-
-    // Challenges
     challenges: 'full-access',
-
-    // Brand Perks
     brandPerks: 'light',
-
-    // Other Features
     offlineMode: true,
     recipeBuilder: 'enhanced',
-    cocktailCards: 'full-library',
-    homeBarPlan: 'monthly-personalized',
-    eventDiscounts: 'light',
-    certificationTracks: 'basic',
     creatorTools: false,
-    communityIdentity: 'standard',
   },
 
   PRO: {
-    // Lessons
-    lessons: 'unlimited-plus-masterclasses',
-
-    // Cocktails/Recipes
-    cocktails: 'unlimited', // All cocktails
-    recipesFullAccess: 'all', // Full access to all recipe cards
-    recipesLockedPreview: false, // No locked content
-
-    // AI Coach
-    aiCoach: 'priority', // Priority AI with long memory, full context
-
-    // Saves & Notes
-    savesAndNotes: 'unlimited-plus-pro-tools',
-
     // Inventory
-    inventorySystem: 'unlimited-plus-smart-suggestions',
+    inventoryLimit: Infinity,
+    scansPerMonth: Infinity,
+    multiBarProfiles: Infinity,
 
-    // Vault
-    seasonalVaultAccess: 'early-access-plus-monthly-key', // Early access + free key
+    // Discovery
+    whatCanIMake: 'predictive',
+    recipeFilters: 'advanced-plus-predictive',
+    cocktails: 'unlimited',
+    recipesFullAccess: 'all',
+    recipesLockedPreview: false,
+    savedCocktails: Infinity,
+
+    // AI
+    aiCoach: 'priority', // Full Taste Graph, predictive engine, long memory
+    tasteMatch: 'full-graph',
+    flavorTagsVisible: true,
+    moodSuggestions: 'advanced',
+    predictiveEngine: true,
+    longMemory: true,
+
+    // Hosting
+    partyScaling: 'batch-optimizer',
+    shoppingListExport: true,
+    hostingPlanner: true,
+    batchOptimizer: true,
+    guestMenuGenerator: true,
+    prepTimeline: true,
+
+    // Commerce
+    addMissingIngredients: true,
+    smartCartPreview: true,
+
+    // Pro Builder
+    remixEngine: true,
+    ratioBalancing: true,
+    flavorCorrectionAI: true,
+    templateBuilder: true,
+    optimizeMyBar: true,
+    flavorProfileDashboard: true,
+    adjustableFlavorControls: true,
+
+    // Education
+    education: 'guides-techniques-video',
+
+    // Legacy features
+    lessons: 'unlimited-plus-masterclasses',
+    seasonalVaultAccess: 'early-access-plus-monthly-key',
     monthlyDrops: 'early-access-plus-exclusives',
-
-    // Challenges
     challenges: 'vip-only',
-
-    // Brand Perks
     brandPerks: 'exclusive-offers-tastings-early-event-access',
-
-    // Other Features
     offlineMode: true,
     recipeBuilder: 'pro-advanced-flavour-modelling',
-    cocktailCards: 'pro-only-plus-variations',
-    homeBarPlan: 'advanced-blueprint-plus-pdf',
-    eventDiscounts: 'priority-plus-bigger-discounts',
-    certificationTracks: 'verified-mixmind',
     creatorTools: 'menu-exporter-upload-recipes-private-themes',
-    communityIdentity: 'elite-flair-badge-seasonal-crown',
   },
 } as const;
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -22,6 +22,7 @@ import { useChallengeProgress } from '../hooks/useChallengeProgress';
 import { useUserTier } from '../store/useUserTier';
 import { canAccessContent } from '../utils/tierAccess';
 import { log } from '../lib/logger';
+import type { FlavorProfile } from '../types/userProfile';
 
 const { width } = Dimensions.get('window');
 
@@ -35,6 +36,16 @@ export default function RecipeDetailScreen() {
   const [batchMultiplier, setBatchMultiplier] = useState(1);
   const { tier } = useUserTier();
   const hasBatching = canAccessContent(tier, 'PLUS');
+  const showFlavorTags = canAccessContent(tier, 'PLUS');
+  const showTasteMatch = canAccessContent(tier, 'PLUS');
+
+  // Extract flavor tags and taste match from recipe data
+  const flavorTags: FlavorProfile[] = useMemo(() => {
+    if (!recipe) return [];
+    return recipe.flavorProfiles || recipe.flavorTags || [];
+  }, [recipe]);
+
+  const tasteMatchPercent: number | undefined = recipe?.tasteMatchPercent;
 
   // Serif font family helper
   const serifFont = Platform.select({ ios: 'Georgia', android: 'serif', default: 'serif' });
@@ -146,6 +157,48 @@ export default function RecipeDetailScreen() {
             <Text style={styles.secondaryButtonText}>I Made This</Text>
           </TouchableOpacity>
         </View>
+
+        {/* --- Taste Match & Flavor Tags (PLUS+ only) --- */}
+        {showTasteMatch && tasteMatchPercent !== undefined && (
+          <View style={styles.tasteMatchSection}>
+            <View style={styles.tasteMatchRow}>
+              <Ionicons name="heart" size={18} color={getTasteMatchColor(tasteMatchPercent)} />
+              <Text style={[styles.tasteMatchLabel, { color: getTasteMatchColor(tasteMatchPercent) }]}>
+                {tasteMatchPercent}% Taste Match
+              </Text>
+            </View>
+            <Text style={styles.tasteMatchDesc}>
+              {tasteMatchPercent >= 80
+                ? 'Great match for your palate'
+                : tasteMatchPercent >= 60
+                ? 'Good match — worth trying'
+                : 'Something different for you'}
+            </Text>
+          </View>
+        )}
+
+        {showFlavorTags && flavorTags.length > 0 && (
+          <View style={styles.flavorTagSection}>
+            {flavorTags.map((tag) => (
+              <View key={tag} style={styles.flavorTagChip}>
+                <Text style={styles.flavorTagChipText}>{tag}</Text>
+              </View>
+            ))}
+          </View>
+        )}
+
+        {!showFlavorTags && flavorTags.length > 0 && (
+          <TouchableOpacity
+            style={styles.flavorTagLockedRow}
+            activeOpacity={0.8}
+            onPress={() => nav.navigate('Paywall' as any, { source: 'flavor_tags' })}
+          >
+            <Ionicons name="pricetag-outline" size={16} color={colors.gold} />
+            <Text style={styles.flavorTagLockedText}>
+              {flavorTags.length} flavor tags — unlock with KOOPE+
+            </Text>
+          </TouchableOpacity>
+        )}
 
         {/* --- Ingredients --- */}
         <View style={styles.section}>
@@ -358,6 +411,12 @@ export default function RecipeDetailScreen() {
       )}
     </View>
   );
+}
+
+function getTasteMatchColor(percent: number): string {
+  if (percent >= 80) return '#4CAF50';
+  if (percent >= 60) return '#FFC107';
+  return '#FF9800';
 }
 
 const styles = StyleSheet.create({
@@ -713,5 +772,57 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.subtext,
     marginTop: 2,
+  },
+
+  // Taste Match
+  tasteMatchSection: {
+    paddingHorizontal: spacing(3),
+    marginTop: spacing(3),
+  },
+  tasteMatchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(1),
+  },
+  tasteMatchLabel: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  tasteMatchDesc: {
+    fontSize: 13,
+    color: colors.subtext,
+    marginTop: 4,
+  },
+
+  // Flavor Tags
+  flavorTagSection: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing(1),
+    paddingHorizontal: spacing(3),
+    marginTop: spacing(2),
+  },
+  flavorTagChip: {
+    backgroundColor: 'rgba(214, 138, 56, 0.15)',
+    paddingHorizontal: spacing(1.5),
+    paddingVertical: spacing(0.5),
+    borderRadius: radii.pill,
+  },
+  flavorTagChipText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.accent,
+    textTransform: 'capitalize',
+  },
+  flavorTagLockedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(1),
+    paddingHorizontal: spacing(3),
+    marginTop: spacing(2),
+  },
+  flavorTagLockedText: {
+    fontSize: 13,
+    color: colors.subtext,
   },
 });

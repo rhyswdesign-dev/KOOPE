@@ -2,9 +2,65 @@
  * Database types for Supabase tables
  */
 
+import { FlavorProfile } from './userProfile';
+
 export type ItemType = 'spirit' | 'ingredient';
 export type ScanType = 'bottle' | 'ingredient' | 'recipe';
+export type BottleCategory = 'spirit' | 'liqueur' | 'mixer' | 'bitters' | 'syrup' | 'garnish' | 'ingredient' | 'other';
+export type PriceRange = 'budget' | 'mid' | 'premium' | 'luxury';
+export type BottleQuantity = 'full' | 'half' | 'low' | 'empty';
 
+/**
+ * Canonical Bottle type — unified model for all bottle/ingredient data.
+ * Use this as the single source of truth for inventory items.
+ */
+export interface Bottle {
+  id: string;
+  userId: string;
+  name: string;
+  category: BottleCategory;
+  subcategory?: string; // e.g. 'bourbon', 'london dry', 'reposado'
+  brand?: string;
+  abv?: number; // Alcohol by volume percentage
+  volume?: number; // Volume in ml
+  priceRange?: PriceRange;
+  region?: string; // e.g. 'Kentucky', 'Jalisco', 'Scotland'
+  flavorTags: FlavorProfile[];
+  quantity: BottleQuantity;
+  imageUrl?: string;
+  addedAt: string;
+  lastUsedAt?: string;
+  expiryDate?: string;
+  scanCount: number;
+  lastScannedAt?: string;
+  isFavorite: boolean;
+  notes?: string;
+}
+
+/**
+ * Convert a UserInventoryItem (DB row) to a Bottle
+ */
+export function toBottle(item: UserInventoryItem, extra?: Partial<Bottle>): Bottle {
+  return {
+    id: item.id,
+    userId: item.user_id,
+    name: item.item_name,
+    category: (item.category as BottleCategory) || (item.item_type === 'spirit' ? 'spirit' : 'ingredient'),
+    flavorTags: [],
+    quantity: 'full',
+    imageUrl: item.image_url ?? undefined,
+    addedAt: item.added_at,
+    lastUsedAt: item.last_used_at ?? undefined,
+    lastScannedAt: item.scanned_at,
+    scanCount: 1,
+    isFavorite: false,
+    ...extra,
+  };
+}
+
+/**
+ * Legacy DB row type — kept for backward compatibility with existing queries
+ */
 export interface UserInventoryItem {
   id: string;
   user_id: string;
@@ -16,6 +72,19 @@ export interface UserInventoryItem {
   scanned_at: string;
   user_searched_nearby: boolean;
   last_used_at: string | null;
+  // New columns (nullable for backward compat with existing rows)
+  subcategory?: string | null;
+  brand?: string | null;
+  abv?: number | null;
+  volume?: number | null;
+  price_range?: string | null;
+  region?: string | null;
+  flavor_tags?: string[] | null;
+  quantity?: string | null;
+  scan_count?: number | null;
+  is_favorite?: boolean | null;
+  notes?: string | null;
+  expiry_date?: string | null;
 }
 
 export interface UserScan {
@@ -56,6 +125,10 @@ export interface Database {
     };
     Functions: {
       get_monthly_scan_count: {
+        Args: { p_user_id: string };
+        Returns: number;
+      };
+      get_inventory_count: {
         Args: { p_user_id: string };
         Returns: number;
       };

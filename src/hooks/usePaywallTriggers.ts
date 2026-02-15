@@ -14,6 +14,12 @@ interface PaywallTriggers {
   aiGate: (onSuccess?: () => void) => boolean;
   lessonGate: (lessonIndex: number, onSuccess?: () => void) => boolean;
   inventoryGate: (currentCount: number, onSuccess?: () => void) => boolean;
+  scanGate: (monthlyScans: number, onSuccess?: () => void) => boolean;
+  saveGate: (savedCount: number, onSuccess?: () => void) => boolean;
+  filterGate: (onSuccess?: () => void) => boolean;
+  tasteMatchGate: (onSuccess?: () => void) => boolean;
+  hostingGate: (onSuccess?: () => void) => boolean;
+  batchGate: (onSuccess?: () => void) => boolean;
   vaultGate: (isPro?: boolean, onSuccess?: () => void) => boolean;
   seasonalGate: (onSuccess?: () => void) => boolean;
   proGate: (featureName: string, onSuccess?: () => void) => boolean;
@@ -29,7 +35,9 @@ interface UserTierData {
 
 const XP_LEVEL_4_THRESHOLD = 1250;
 const FREE_AI_LIMIT = 3;
-const FREE_INVENTORY_LIMIT = 10;
+const FREE_INVENTORY_LIMIT = 15;
+const FREE_SCANS_PER_MONTH = 15;
+const FREE_SAVED_COCKTAILS_LIMIT = 5;
 const FREE_LESSON_LIMIT = 1; // Only Intro lesson (index 0, 1)
 
 /**
@@ -128,24 +136,159 @@ export function usePaywallTriggers(): PaywallTriggers {
 
   /**
    * 3. INVENTORY LIMIT TRIGGER
-   * FREE = 10 items max
+   * FREE = 15 bottles max
    * KOOPE+ = unlimited
-   * PRO = unlimited + smart suggestions
+   * PRO = unlimited
    */
   const inventoryGate = (currentCount: number, onSuccess?: () => void): boolean => {
     const tier = getUserTier();
 
-    // KOOPE+ and PRO have unlimited inventory
     if (tier !== 'free') {
       onSuccess?.();
       return true;
     }
 
-    // Check if FREE user hit limit
     if (currentCount >= FREE_INVENTORY_LIMIT) {
       showPaywall(
         'Inventory Full',
-        `Free tier is limited to ${FREE_INVENTORY_LIMIT} items. Upgrade to KOOPE+ for unlimited inventory.`
+        `Starter Bar is limited to ${FREE_INVENTORY_LIMIT} bottles. Upgrade to KOOPE+ for unlimited inventory.`
+      );
+      return false;
+    }
+
+    onSuccess?.();
+    return true;
+  };
+
+  /**
+   * 3b. SCAN LIMIT TRIGGER
+   * FREE = 15 scans/month
+   * KOOPE+ = unlimited
+   * PRO = unlimited
+   */
+  const scanGate = (monthlyScans: number, onSuccess?: () => void): boolean => {
+    const tier = getUserTier();
+
+    if (tier !== 'free') {
+      onSuccess?.();
+      return true;
+    }
+
+    if (monthlyScans >= FREE_SCANS_PER_MONTH) {
+      showPaywall(
+        'Scan Limit Reached',
+        `Starter Bar includes ${FREE_SCANS_PER_MONTH} scans per month. Upgrade to KOOPE+ for unlimited scanning.`
+      );
+      return false;
+    }
+
+    onSuccess?.();
+    return true;
+  };
+
+  /**
+   * 3c. SAVE LIMIT TRIGGER
+   * FREE = 5 saved cocktails
+   * KOOPE+ = unlimited
+   * PRO = unlimited
+   */
+  const saveGate = (savedCount: number, onSuccess?: () => void): boolean => {
+    const tier = getUserTier();
+
+    if (tier !== 'free') {
+      onSuccess?.();
+      return true;
+    }
+
+    if (savedCount >= FREE_SAVED_COCKTAILS_LIMIT) {
+      showPaywall(
+        'Save Limit Reached',
+        `Starter Bar allows ${FREE_SAVED_COCKTAILS_LIMIT} saved cocktails. Upgrade to KOOPE+ for unlimited saves.`
+      );
+      return false;
+    }
+
+    onSuccess?.();
+    return true;
+  };
+
+  /**
+   * 3d. ADVANCED FILTER GATE
+   * FREE = spirit filter only
+   * KOOPE+ = advanced filters (≤5 ingredients, low sugar, spirit-forward)
+   * PRO = advanced + predictive
+   */
+  const filterGate = (onSuccess?: () => void): boolean => {
+    const tier = getUserTier();
+
+    if (tier !== 'free') {
+      onSuccess?.();
+      return true;
+    }
+
+    showPaywall(
+      'Advanced Filters',
+      'Filter by ingredient count, low sugar, and spirit-forward. Upgrade to KOOPE+.'
+    );
+    return false;
+  };
+
+  /**
+   * 3e. TASTE MATCH GATE
+   * FREE = no Taste Match %
+   * KOOPE+ = basic Taste Match %
+   * PRO = full Taste Graph
+   */
+  const tasteMatchGate = (onSuccess?: () => void): boolean => {
+    const tier = getUserTier();
+
+    if (tier !== 'free') {
+      onSuccess?.();
+      return true;
+    }
+
+    showPaywall(
+      'Unlock Taste Match',
+      'See how well each cocktail matches your palate. Upgrade to KOOPE+.'
+    );
+    return false;
+  };
+
+  /**
+   * 3f. HOSTING GATE
+   * FREE = manual scaling only
+   * KOOPE+ = party scaling calculator
+   * PRO = full hosting planner
+   */
+  const hostingGate = (onSuccess?: () => void): boolean => {
+    const tier = getUserTier();
+
+    if (tier === 'free') {
+      showPaywall(
+        'Party Planning',
+        'Scale recipes for any crowd and export shopping lists. Upgrade to KOOPE+.'
+      );
+      return false;
+    }
+
+    onSuccess?.();
+    return true;
+  };
+
+  /**
+   * 3g. BATCH OPTIMIZER GATE (PRO only)
+   * FREE = no
+   * KOOPE+ = no
+   * PRO = batch optimizer, guest menu, prep timeline
+   */
+  const batchGate = (onSuccess?: () => void): boolean => {
+    const tier = getUserTier();
+
+    if (tier !== 'koope_pro') {
+      showPaywall(
+        'Hosting Intelligence',
+        'Smart batch optimization, guest-based menus, and prep timelines. Upgrade to KOOPE PRO.',
+        'koope_pro'
       );
       return false;
     }
@@ -272,6 +415,12 @@ export function usePaywallTriggers(): PaywallTriggers {
     aiGate,
     lessonGate,
     inventoryGate,
+    scanGate,
+    saveGate,
+    filterGate,
+    tasteMatchGate,
+    hostingGate,
+    batchGate,
     vaultGate,
     seasonalGate,
     proGate,
@@ -308,9 +457,31 @@ export function checkInventoryCapacity(inventoryCount: number, tier: 'free' | 'k
  * CONSTANTS EXPORT
  * Use these in your UI to show limits
  */
+/**
+ * HELPER: Check scan capacity
+ */
+export function checkScanCapacity(monthlyScans: number, tier: 'free' | 'koope_plus' | 'koope_pro'): boolean {
+  if (tier !== 'free') return true;
+  return monthlyScans < FREE_SCANS_PER_MONTH;
+}
+
+/**
+ * HELPER: Check save capacity
+ */
+export function checkSaveCapacity(savedCount: number, tier: 'free' | 'koope_plus' | 'koope_pro'): boolean {
+  if (tier !== 'free') return true;
+  return savedCount < FREE_SAVED_COCKTAILS_LIMIT;
+}
+
+/**
+ * CONSTANTS EXPORT
+ * Use these in your UI to show limits
+ */
 export const SUBSCRIPTION_LIMITS = {
   FREE_AI_LIMIT,
   FREE_INVENTORY_LIMIT,
+  FREE_SCANS_PER_MONTH,
+  FREE_SAVED_COCKTAILS_LIMIT,
   FREE_LESSON_LIMIT,
   XP_LEVEL_4_THRESHOLD,
 } as const;

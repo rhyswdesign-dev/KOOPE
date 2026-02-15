@@ -58,12 +58,29 @@ export interface Recipe {
   // Subscription Gating
   requiresPro?: boolean; // Requires KOOPE PRO subscription to view
 
+  // Batch & Scaling (KOOPE+ hosting features)
+  batchMultiplier?: number; // Default multiplier for batch mode (e.g., 4 for punch bowls)
+  batchInstructions?: string[]; // Batch-specific prep steps (differs from single-serve)
+  ratios?: RecipeRatio[]; // Structured ratios for scaling and remix engine
+
+  // Flavor Intelligence (KOOPE+ Taste Match, PRO Taste Graph)
+  flavorVector?: FlavorVector; // Numeric intensity per flavor (0-1 scale, computed)
+  ingredientCount?: number; // Total ingredient count (for KOOPE+ "5 or fewer" filter)
+  sugarLevel?: 'none' | 'low' | 'medium' | 'high'; // For KOOPE+ low-sugar filter
+
   // Nutrition (optional)
   nutrition?: NutritionInfo;
 
   // Historical Context (for classic cocktails)
   history?: CocktailHistory;
 }
+
+export interface RecipeRatio {
+  ingredientIndex: number; // Index into ingredients[]
+  parts: number; // Ratio in parts (e.g., 2 parts spirit, 1 part citrus)
+}
+
+export type FlavorVector = Record<FlavorProfile, number>; // 0-1 intensity per flavor
 
 // Supporting Types
 
@@ -165,6 +182,7 @@ export interface RecipeWithUserData extends Recipe {
   userRating?: number; // 1-5 stars
   userFeedback?: 'loved' | 'liked' | 'disliked' | 'skipped';
   recommendationScore?: number; // 0-100, calculated based on user preferences
+  tasteMatchPercent?: number; // 0-100, how well this recipe matches user's taste profile
 }
 
 // Recipe filters for personalized queries
@@ -180,6 +198,10 @@ export interface RecipeFilters {
   preparationTimeMax?: number; // minutes
   requiredTools?: BarTool[];
   excludeRecipeIds?: string[]; // For filtering out disliked recipes
+  // KOOPE+ advanced filters
+  maxIngredients?: number; // e.g., 5 for "5 or fewer" filter
+  sugarLevel?: ('none' | 'low')[]; // Low-sugar filter
+  recipeType?: ('spirit-forward' | 'cocktail' | 'mocktail' | 'highball' | 'sour' | 'other')[]; // Spirit-forward filter
 }
 
 // Helper function to calculate ABV for a recipe
@@ -316,4 +338,74 @@ export function extractFlavorProfiles(ingredients: Ingredient[]): FlavorProfile[
   }
 
   return Array.from(foundProfiles);
+}
+
+/**
+ * Compute a numeric flavor vector for a recipe.
+ * Each flavor gets an intensity score (0-1) based on how many
+ * matching ingredients appear relative to total ingredient count.
+ * Used for Taste Match % calculation in KOOPE+.
+ */
+export function computeFlavorVector(ingredients: Ingredient[]): FlavorVector {
+  const allFlavors: FlavorProfile[] = ['citrus', 'herbal', 'bitter', 'sweet', 'smoky', 'floral', 'spiced'];
+
+  const flavorKeywords: { [key in FlavorProfile]: string[] } = {
+    citrus: ['lemon', 'lime', 'orange', 'grapefruit', 'citrus', 'yuzu', 'kumquat'],
+    herbal: ['basil', 'mint', 'rosemary', 'thyme', 'sage', 'herbal', 'absinthe', 'chartreuse'],
+    bitter: ['campari', 'aperol', 'fernet', 'bitter', 'amaro', 'angostura', 'gentian'],
+    sweet: ['sugar', 'syrup', 'honey', 'sweet', 'liqueur', 'agave', 'grenadine', 'maraschino'],
+    smoky: ['mezcal', 'scotch', 'smoke', 'charred', 'lapsang', 'islay'],
+    floral: ['elderflower', 'lavender', 'rose', 'hibiscus', 'floral', 'violet', 'chamomile'],
+    spiced: ['cinnamon', 'ginger', 'nutmeg', 'clove', 'spice', 'allspice', 'cardamom', 'pepper'],
+  };
+
+  const vector = {} as FlavorVector;
+  const totalIngredients = Math.max(1, ingredients.length);
+
+  for (const flavor of allFlavors) {
+    const keywords = flavorKeywords[flavor];
+    let matchCount = 0;
+
+    for (const ingredient of ingredients) {
+      const name = ingredient.name.toLowerCase();
+      if (keywords.some(keyword => name.includes(keyword))) {
+        matchCount++;
+      }
+    }
+
+    // Intensity = ratio of matching ingredients, scaled so 1 match in 3-ingredient drink
+    // scores higher than 1 match in 10-ingredient drink
+    vector[flavor] = Math.min(1, (matchCount / totalIngredients) * 3);
+  }
+
+  return vector;
+}
+
+/**
+ * Compute ingredient count for a recipe.
+ * Used for the KOOPE+ "5 or fewer ingredients" filter.
+ */
+export function getIngredientCount(recipe: Recipe): number {
+  return recipe.ingredientCount ?? recipe.ingredients.length;
+}
+
+/**
+ * Estimate sugar level from ingredients.
+ * Used for the KOOPE+ low-sugar filter.
+ */
+export function estimateSugarLevel(ingredients: Ingredient[]): 'none' | 'low' | 'medium' | 'high' {
+  const sweetKeywords = ['sugar', 'syrup', 'honey', 'agave', 'grenadine', 'liqueur', 'sweet', 'juice', 'cola', 'soda'];
+
+  let sweetCount = 0;
+  for (const ingredient of ingredients) {
+    const name = ingredient.name.toLowerCase();
+    if (sweetKeywords.some(keyword => name.includes(keyword))) {
+      sweetCount++;
+    }
+  }
+
+  if (sweetCount === 0) return 'none';
+  if (sweetCount === 1) return 'low';
+  if (sweetCount === 2) return 'medium';
+  return 'high';
 }

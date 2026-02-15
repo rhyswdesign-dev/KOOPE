@@ -138,7 +138,7 @@ export const ANALYTICS_EVENTS = {
   ONBOARDING_STEP_COMPLETED: 'Onboarding Step Completed',
   ONBOARDING_COMPLETED: 'Onboarding Completed',
 
-  // Paywall
+  // Paywall & Monetization
   PAYWALL_VIEWED: 'Paywall Viewed',
   PAYWALL_CTA_CLICKED: 'Paywall CTA Clicked',
   PURCHASE_STARTED: 'Purchase Started',
@@ -148,6 +148,22 @@ export const ANALYTICS_EVENTS = {
   RESTORE_PURCHASES_TAPPED: 'Restore Purchases Tapped',
   RESTORE_PURCHASES_SUCCESS: 'Restore Purchases Success',
   RESTORE_PURCHASES_FAILED: 'Restore Purchases Failed',
+  UPGRADE_VIEWED: 'Upgrade Viewed', // In-context upgrade prompt (distinct from paywall)
+  UPGRADE_COMPLETED: 'Upgrade Completed', // Tier change event
+
+  // Feature Gating (universal gate tracking)
+  FEATURE_GATED: 'Feature Gated', // Fires on any gate block: { feature, required_tier, user_tier }
+
+  // Scanning
+  SCAN_ATTEMPT: 'Scan Attempt',
+  SCAN_SUCCESS: 'Scan Success',
+  SCAN_FAILED: 'Scan Failed',
+  SCAN_LIMIT_REACHED: 'Scan Limit Reached',
+
+  // Inventory
+  INVENTORY_ITEM_ADDED: 'Inventory Item Added',
+  INVENTORY_ITEM_REMOVED: 'Inventory Item Removed',
+  INVENTORY_LIMIT_REACHED: 'Inventory Limit Reached',
 
   // Lessons
   LESSON_STARTED: 'Lesson Started',
@@ -161,11 +177,41 @@ export const ANALYTICS_EVENTS = {
   RECIPE_UNSAVED: 'Recipe Unsaved',
   RECIPE_SAVE_LIMIT_REACHED: 'Recipe Save Limit Reached',
 
-  // Recipe Views
+  // Recipe Views & Engagement
   RECIPE_VIEWED: 'Recipe Viewed',
   RECIPE_ENGAGEMENT: 'Recipe Engagement',
   RECIPE_MADE: 'Recipe Made',
   RECIPE_SHARED: 'Recipe Shared',
+
+  // Taste Match & Intelligence
+  TASTE_MATCH_VIEWED: 'Taste Match Viewed',
+  TASTE_MATCH_CLICKED: 'Taste Match Clicked',
+  TASTE_PROFILE_INITIALIZED: 'Taste Profile Initialized',
+
+  // Filters & Discovery
+  FILTER_ADVANCED_ATTEMPTED: 'Filter Advanced Attempted', // FREE user tries advanced filter
+  WHAT_CAN_I_MAKE_SEARCHED: 'What Can I Make Searched',
+
+  // Hosting & Party
+  HOSTING_MODE_OPENED: 'Hosting Mode Opened',
+  PARTY_SCALED: 'Party Scaled',
+  BATCH_CALCULATED: 'Batch Calculated',
+
+  // Commerce & Shopping
+  CART_ITEM_ADDED: 'Cart Item Added',
+  SHOPPING_LIST_EXPORTED: 'Shopping List Exported',
+  MISSING_INGREDIENT_VIEWED: 'Missing Ingredient Viewed',
+  AFFILIATE_LINK_CLICKED: 'Affiliate Link Clicked',
+
+  // AI / Bartender
+  BARTENDER_MESSAGE_SENT: 'Bartender Message Sent',
+  BARTENDER_LIMIT_REACHED: 'Bartender Limit Reached',
+  AI_RECIPE_GENERATED: 'AI Recipe Generated',
+
+  // Pro Builder Features
+  PRO_BUILDER_ATTEMPT: 'Pro Builder Attempt', // User tries remix/flavor controls
+  REMIX_ENGINE_USED: 'Remix Engine Used',
+  OPTIMIZE_MY_BAR_VIEWED: 'Optimize My Bar Viewed',
 
   // Achievements
   ACHIEVEMENT_UNLOCKED: 'Achievement Unlocked',
@@ -189,12 +235,29 @@ export const ANALYTICS_PROPS = {
   STEP_NUMBER: 'step_number',
   STEP_NAME: 'step_name',
 
-  // Paywall
-  TIER: 'tier', // 'pro' | 'prestige'
+  // Paywall & Tiers
+  TIER: 'tier', // 'free' | 'plus' | 'pro'
   BILLING_MODE: 'billing_mode', // 'monthly' | 'yearly'
   PRODUCT_ID: 'product_id',
   PRICE: 'price',
   CURRENCY: 'currency',
+  PREVIOUS_TIER: 'previous_tier',
+  NEW_TIER: 'new_tier',
+
+  // Feature Gating
+  FEATURE: 'feature', // Which feature was gated
+  REQUIRED_TIER: 'required_tier', // Tier needed to access
+  USER_TIER: 'user_tier', // User's current tier
+
+  // Scanning
+  SCAN_TYPE: 'scan_type', // 'bottle' | 'ingredient' | 'recipe'
+  ITEM_NAME: 'item_name',
+  DETECTION_CONFIDENCE: 'detection_confidence',
+  MONTHLY_SCAN_COUNT: 'monthly_scan_count',
+
+  // Inventory
+  INVENTORY_COUNT: 'inventory_count',
+  INVENTORY_LIMIT: 'inventory_limit',
 
   // Lessons
   LESSON_ID: 'lesson_id',
@@ -214,6 +277,21 @@ export const ANALYTICS_PROPS = {
   SAVE_LIMIT: 'save_limit',
   VIEW_DURATION_SECONDS: 'view_duration_seconds',
   SHARE_METHOD: 'share_method',
+  TASTE_MATCH_PERCENT: 'taste_match_percent',
+
+  // Hosting
+  GUEST_COUNT: 'guest_count',
+  BATCH_SIZE: 'batch_size',
+  RECIPES_SELECTED: 'recipes_selected',
+
+  // Commerce
+  INGREDIENT_NAME: 'ingredient_name',
+  UNLOCK_COUNT: 'unlock_count', // How many cocktails unlocked by adding ingredient
+  AFFILIATE_PROVIDER: 'affiliate_provider',
+
+  // AI / Bartender
+  MESSAGE_COUNT: 'message_count',
+  AI_MODEL: 'ai_model',
 
   // Achievements
   ACHIEVEMENT_ID: 'achievement_id',

@@ -6,6 +6,7 @@
 import { getFirestore, doc, updateDoc, increment } from '@firebase/firestore';
 import { log } from '../lib/logger';
 import { Recipe } from '../types/recipe';
+import { EnhancedUserProfile, TasteProfile, FlavorProfile, Spirit, getABVRangeForPreference } from '../types/userProfile';
 import { loadUserProfile, saveUserProfile } from './userProfileService';
 
 const db = getFirestore();
@@ -360,4 +361,75 @@ export async function trackRecipeSkip(userId: string, recipe: Recipe) {
  */
 export async function trackRecipeSave(userId: string, recipe: Recipe) {
   await BehavioralLearning.trackInteraction(userId, recipe, 'save');
+}
+
+/**
+ * Initialize TasteProfile from onboarding survey answers.
+ * Converts explicit user preferences into weighted taste profile
+ * so recommendations are personalized from the very first session.
+ */
+export function initializeTasteProfileFromSurvey(profile: EnhancedUserProfile): TasteProfile {
+  const allFlavors: FlavorProfile[] = ['citrus', 'herbal', 'bitter', 'sweet', 'smoky', 'floral', 'spiced'];
+  const allSpirits: Spirit[] = ['tequila', 'whiskey', 'rum', 'gin', 'vodka', 'brandy', 'liqueurs', 'gin-alternative', 'rum-alternative', 'none'];
+
+  // Seed flavor weights from survey selections
+  const flavorWeights = {} as Record<FlavorProfile, number>;
+  for (const flavor of allFlavors) {
+    if (profile.flavorProfiles.includes(flavor)) {
+      flavorWeights[flavor] = 0.4; // Selected in survey
+    } else {
+      flavorWeights[flavor] = 0.1; // Not selected — low but nonzero baseline
+    }
+  }
+
+  // Seed spirit weights from survey selections
+  const spiritWeights = {} as Record<Spirit, number>;
+  for (const spirit of allSpirits) {
+    if (spirit === profile.favoriteSpirit) {
+      spiritWeights[spirit] = 0.5; // Favorite spirit — highest initial weight
+    } else if (profile.spiritPreferences.includes(spirit)) {
+      spiritWeights[spirit] = 0.3; // In preferences list
+    } else {
+      spiritWeights[spirit] = 0.1; // Not selected
+    }
+  }
+
+  // Derive complexity from skill level
+  const complexityMap: Record<string, number> = {
+    beginner: 0.2,
+    intermediate: 0.5,
+    advanced: 0.8,
+  };
+  const preferredComplexity = complexityMap[profile.skillLevel] ?? 0.5;
+
+  // Use existing ABV helper
+  const preferredABV = profile.preferredABVRange ?? getABVRangeForPreference(profile.alcoholPreference);
+
+  return {
+    flavorWeights,
+    spiritWeights,
+    preferredABV,
+    preferredComplexity,
+  };
+}
+
+/**
+ * Ensure a user's TasteProfile is initialized.
+ * Call after onboarding completes or on first app open.
+ */
+export async function ensureTasteProfileInitialized(userId: string): Promise<void> {
+  try {
+    const profile = await loadUserProfile(userId);
+    if (!profile) return;
+
+    // If already has a populated taste profile, skip
+    if (profile.tasteProfile) return;
+
+    profile.tasteProfile = initializeTasteProfileFromSurvey(profile);
+    await saveUserProfile(profile);
+
+    log.info('BehavioralLearning', 'Initialized TasteProfile from survey', { userId });
+  } catch (error) {
+    log.error('BehavioralLearning', 'Failed to initialize TasteProfile', error);
+  }
 }
