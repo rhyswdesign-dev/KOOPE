@@ -24,24 +24,24 @@ export const SUBSCRIPTION_ENTITLEMENTS = {
  * - RevenueCat dashboard
  */
 export const SUBSCRIPTION_PRODUCTS = {
-  // One-time purchases
+  // KOOPE+ tier subscriptions
+  PLUS_YEARLY: 'plus_yearly',
+  PLUS_MONTHLY: 'plus_monthly',
+
+  // KOOPE PRO tier subscriptions
+  PRO_YEARLY: 'pro_yearly',
+  PRO_MONTHLY: 'pro_monthly',
+
+  // Legacy (kept for migration / restore flows)
+  PLUS_QUARTERLY: 'plus_quarterly',
+  PRO_QUARTERLY: 'pro_quarterly',
+  PLUS_WEEKLY: 'plus_weekly',
+  PRO_WEEKLY: 'pro_weekly',
+  PRESTIGE_MONTHLY: 'prestige_monthly',
+  PRESTIGE_YEARLY: 'prestige_yearly',
   MONTHLY: 'monthly',
   YEARLY: 'yearly',
   LIFETIME: 'lifetime',
-
-  // KOOPE+ tier subscriptions
-  PLUS_WEEKLY: 'plus_weekly',
-  PLUS_MONTHLY: 'plus_monthly',
-  PLUS_YEARLY: 'plus_yearly',
-
-  // KOOPE PRO tier subscriptions
-  PRO_WEEKLY: 'pro_weekly',
-  PRO_MONTHLY: 'pro_monthly',
-  PRO_YEARLY: 'pro_yearly',
-
-  // Prestige tier subscriptions (legacy)
-  PRESTIGE_MONTHLY: 'prestige_monthly',
-  PRESTIGE_YEARLY: 'prestige_yearly',
 } as const;
 
 /**
@@ -51,17 +51,37 @@ export const SUBSCRIPTION_PRODUCTS = {
  */
 export const PRICING_DISPLAY = {
   PLUS: {
-    monthly: '$8.99',
-    yearly: '$79',
-    yearlyPerMonth: '$6.58',
-    yearlySavings: '27%',
+    yearly: '$49',
+    yearlyPerMonth: '$4.08',
+    yearlySavings: '42%',
+    monthly: '$6.99',
+    monthlyPerMonth: '$6.99',
   },
   PRO: {
-    monthly: '$12.99',
     yearly: '$119',
     yearlyPerMonth: '$9.92',
     yearlySavings: '24%',
+    monthly: '$14.99',
+    monthlyPerMonth: '$14.99',
   },
+  FOUNDERS: {
+    PLUS: { yearly: '$29', yearlyPerMonth: '$2.42' },
+    PRO: { yearly: '$79', yearlyPerMonth: '$6.58' },
+    label: 'Founders',
+  },
+} as const;
+
+/**
+ * Stripe Price IDs for web / Stripe Checkout flows
+ * These must match the price IDs configured in the Stripe dashboard
+ */
+export const STRIPE_PRICE_IDS = {
+  PLUS_YEARLY: process.env.EXPO_PUBLIC_STRIPE_PLUS_YEARLY || 'price_PLACEHOLDER_plus_yearly',
+  PLUS_MONTHLY: process.env.EXPO_PUBLIC_STRIPE_PLUS_MONTHLY || 'price_PLACEHOLDER_plus_monthly',
+  PLUS_FOUNDERS: process.env.EXPO_PUBLIC_STRIPE_PLUS_FOUNDERS || 'price_PLACEHOLDER_plus_founders',
+  PRO_YEARLY: process.env.EXPO_PUBLIC_STRIPE_PRO_YEARLY || 'price_PLACEHOLDER_pro_yearly',
+  PRO_MONTHLY: process.env.EXPO_PUBLIC_STRIPE_PRO_MONTHLY || 'price_PLACEHOLDER_pro_monthly',
+  PRO_FOUNDERS: process.env.EXPO_PUBLIC_STRIPE_PRO_FOUNDERS || 'price_PLACEHOLDER_pro_founders',
 } as const;
 
 /**

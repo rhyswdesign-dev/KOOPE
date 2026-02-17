@@ -6,17 +6,20 @@
 export interface TierBenefit {
   id: 'free' | 'koope_plus' | 'koope_pro';
   name: string;
-  priceLabel: string; // Default price label (backward compatibility)
-  monthlyPriceLabel: string; // Price when monthly billing selected
-  yearlyPriceLabel: string; // Price when yearly billing selected
-  monthlyPriceDetail?: string; // Additional detail for monthly
-  yearlyPriceDetail?: string; // Additional detail for yearly
+  /** Headline price (annual per-month equivalent) */
+  priceLabel: string;
+  /** Annual price */
+  yearlyPriceLabel: string;
+  yearlyPriceDetail?: string;
+  /** Monthly price */
+  monthlyPriceLabel: string;
+  monthlyPriceDetail?: string;
   tagline: string;
   bulletPoints: string[];
   recommended: boolean;
   badge?: string;
   color: string;
-  priceDetail?: string; // Legacy field for backward compatibility
+  priceDetail?: string;
 }
 
 /**
@@ -28,14 +31,14 @@ export const TIERS: TierBenefit[] = [
     id: 'free',
     name: 'FREE',
     priceLabel: 'Free',
-    monthlyPriceLabel: 'Free',
     yearlyPriceLabel: 'Free',
-    tagline: 'Hook into the bar. Feel the potential.',
+    monthlyPriceLabel: 'Free',
+    tagline: 'See what you can make with what you have.',
     bulletPoints: [
-      '15 Bottles Max',
-      '15 Scans/Month',
-      '5 Saved Cocktails',
+      '10 Bottles Max',
+      'Unlimited Scans',
       '"What Can I Make" (Spirit Filter)',
+      'Shopping Cart (Always Open)',
       'Basic AI (No Memory)',
     ],
     recommended: false,
@@ -43,43 +46,43 @@ export const TIERS: TierBenefit[] = [
   },
   {
     id: 'koope_plus',
-    name: 'KOOPE+',
-    priceLabel: '$6.58',
-    monthlyPriceLabel: '$8.99',
-    yearlyPriceLabel: '$79',
+    name: 'KŌOPE+',
+    priceLabel: '$4.08',
+    yearlyPriceLabel: '$49',
+    yearlyPriceDetail: '/year',
+    monthlyPriceLabel: '$6.99',
     monthlyPriceDetail: '/month',
-    yearlyPriceDetail: '/year (save 27%)',
     priceDetail: '/mo billed annually',
-    tagline: 'Core precision for your home bar.',
+    tagline: 'Build the most optimized bar for your taste and budget.',
     bulletPoints: [
       'Unlimited Bottles & Scans',
-      'Full Cocktail Library',
-      'Taste Match %',
-      'Advanced Filters',
-      'Party Scaling Calculator',
-      'Shopping List Export',
+      'Advanced Filters & Full Library',
+      'Save Favorites Unlimited',
+      'Smart Inventory & Bar Health',
+      '"Optimize My Bar" Analysis',
+      'Basic Hosting Tools',
     ],
     recommended: true,
-    badge: 'Most Popular',
+    badge: 'Founders',
     color: '#D4AF37',
   },
   {
     id: 'koope_pro',
-    name: 'KOOPE PRO',
+    name: 'KŌOPE PRO',
     priceLabel: '$9.92',
-    monthlyPriceLabel: '$12.99',
     yearlyPriceLabel: '$119',
+    yearlyPriceDetail: '/year',
+    monthlyPriceLabel: '$14.99',
     monthlyPriceDetail: '/month',
-    yearlyPriceDetail: '/year (save 24%)',
     priceDetail: '/mo billed annually',
-    tagline: 'Authority. Control. Precision Mode.',
+    tagline: 'Become a confident home bartender.',
     bulletPoints: [
-      'Everything in KOOPE+',
-      'Full Taste Graph & Predictive Engine',
-      'Hosting Planner & Batch Optimizer',
-      'Remix Engine & Flavor Correction AI',
-      '"Optimize My Bar" Analysis',
-      'Advanced Mixology Education',
+      'Everything in KŌOPE+',
+      'Mastery Lessons & XP Levels',
+      'Full Predictive Engine & Taste Graph',
+      'Advanced Hosting (5+ Guests)',
+      'Flavor Sliders & Brand Capture',
+      'Vault Pro Drops',
     ],
     recommended: false,
     badge: 'Elite',
@@ -101,27 +104,37 @@ export interface FeatureComparison {
 
 export const FEATURE_COMPARISON: FeatureComparison[] = [
   // Inventory
-  { label: 'Bottles', free: '15 Max', plus: 'Unlimited', pro: 'Unlimited' },
-  { label: 'Scans', free: '15/Month', plus: 'Unlimited', pro: 'Unlimited' },
+  { label: 'Bottles', free: '10 Max', plus: 'Unlimited', pro: 'Unlimited' },
+  { label: 'Scans', free: 'Unlimited', plus: 'Unlimited', pro: 'Unlimited' },
   { label: 'Multi-Bar Profiles', free: false, plus: '2 Bars', pro: 'Unlimited' },
+  { label: 'Smart Inventory', free: false, plus: 'Bar Health + Expiry Alerts', pro: 'Full (Dead Bottle, Usage, Cost)' },
+  { label: '"Optimize My Bar"', free: false, plus: 'Analysis + Suggestions', pro: 'Analysis + Suggestions' },
   // Discovery
   { label: 'Cocktail Library', free: 'Limited', plus: 'Full Library', pro: 'Full Library' },
-  { label: 'Saved Cocktails', free: '5 Max', plus: 'Unlimited', pro: 'Unlimited' },
+  { label: 'Saved Cocktails', free: false, plus: 'Unlimited', pro: 'Unlimited' },
   { label: 'Filters', free: 'Spirit Only', plus: 'Advanced (5-ingredient, low sugar, spirit-forward)', pro: 'Advanced + Predictive' },
   // AI
   { label: 'AI Suggestions', free: 'Basic (No Memory)', plus: 'Mood-Based + Taste Match %', pro: 'Full Predictive Engine + Long Memory' },
   { label: 'Taste Match %', free: false, plus: 'Basic', pro: 'Full Taste Graph' },
-  { label: 'Flavor Tags', free: false, plus: 'Visible', pro: 'Visible + Adjustable Controls' },
+  { label: 'Flavor Tags', free: false, plus: 'Visible', pro: 'Visible + Adjustable Sliders' },
   // Hosting
-  { label: 'Party Scaling', free: 'Manual Only', plus: 'Calculator', pro: 'Batch Optimizer + Timeline' },
+  { label: 'Hosting Tools', free: false, plus: 'Basic (1-4 Guests)', pro: 'Advanced (5+ Guests)' },
   { label: 'Shopping List', free: false, plus: 'Export + Add Missing', pro: 'Full Hosting Planner' },
-  { label: 'Guest Menu Generator', free: false, plus: false, pro: true },
+  { label: 'Bring to Party', free: false, plus: false, pro: true },
+  { label: 'Guest Preference Matching', free: false, plus: false, pro: true },
   // Pro Builder
   { label: 'Remix Engine', free: false, plus: false, pro: 'Ratio Balancing + Flavor Correction' },
-  { label: '"Optimize My Bar"', free: false, plus: false, pro: 'Analysis + Expansion Suggestions' },
+  { label: 'Brand Capture', free: false, plus: false, pro: true },
   { label: 'Flavor Profile Dashboard', free: false, plus: false, pro: true },
-  // Education
-  { label: 'Education', free: false, plus: false, pro: 'Guides + Technique Library' },
+  // Mastery & XP
+  { label: 'XP Earning', free: true, plus: true, pro: true },
+  { label: 'XP Levels & Dashboard', free: false, plus: false, pro: true },
+  { label: 'Mastery Lessons', free: false, plus: false, pro: true },
+  { label: 'Certifications', free: false, plus: false, pro: true },
   // Commerce
-  { label: 'Smart Cart Preview', free: false, plus: 'Non-Aggressive', pro: true },
+  { label: 'Shopping Cart', free: true, plus: true, pro: true },
+  { label: 'Smart Cart Intelligence', free: false, plus: 'Non-Aggressive', pro: true },
+  // Vault
+  { label: 'Vault Basic Drops', free: 'XP Spend', plus: 'XP Spend', pro: 'XP Spend' },
+  { label: 'Vault Pro Drops', free: false, plus: false, pro: true },
 ];

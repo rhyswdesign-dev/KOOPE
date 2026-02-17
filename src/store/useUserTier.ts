@@ -21,6 +21,10 @@ interface UserTierState {
   isTrialActive: boolean;
   trialEndDate: string | null;
 
+  // Founder status
+  isFounder: boolean;
+  founderLockedPriceCents: number | null;
+
   // Actions
   setTier: (tier: UserTier) => void;
   setSubscriptionStatus: (status: 'active' | 'canceled' | 'expired' | 'trial') => void;
@@ -28,6 +32,7 @@ interface UserTierState {
   startTrial: (tier: UserTier, durationDays: number) => void;
   cancelSubscription: () => void;
   endTrial: () => void;
+  setFounderStatus: (isFounder: boolean, priceCents?: number) => void;
 
   // Helpers
   isPremium: () => boolean;
@@ -43,6 +48,8 @@ export const useUserTier = create<UserTierState>()(
       subscriptionEndDate: null,
       isTrialActive: false,
       trialEndDate: null,
+      isFounder: false,
+      founderLockedPriceCents: null,
 
       // Actions
       setTier: (tier: UserTier) => set({ tier }),
@@ -73,6 +80,13 @@ export const useUserTier = create<UserTierState>()(
           isTrialActive: false,
           trialEndDate: null,
           subscriptionStatus: null,
+        });
+      },
+
+      setFounderStatus: (isFounder: boolean, priceCents?: number) => {
+        set({
+          isFounder,
+          founderLockedPriceCents: priceCents ?? null,
         });
       },
 

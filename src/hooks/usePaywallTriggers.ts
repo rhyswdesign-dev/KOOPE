@@ -35,9 +35,9 @@ interface UserTierData {
 
 const XP_LEVEL_4_THRESHOLD = 1250;
 const FREE_AI_LIMIT = 3;
-const FREE_INVENTORY_LIMIT = 15;
-const FREE_SCANS_PER_MONTH = 15;
-const FREE_SAVED_COCKTAILS_LIMIT = 5;
+const FREE_INVENTORY_LIMIT = 10;
+const FREE_SCANS_PER_MONTH = Infinity;
+const FREE_SAVED_COCKTAILS_LIMIT = 0;
 const FREE_LESSON_LIMIT = 1; // Only Intro lesson (index 0, 1)
 
 /**
@@ -151,7 +151,7 @@ export function usePaywallTriggers(): PaywallTriggers {
     if (currentCount >= FREE_INVENTORY_LIMIT) {
       showPaywall(
         'Inventory Full',
-        `Starter Bar is limited to ${FREE_INVENTORY_LIMIT} bottles. Upgrade to KOOPE+ for unlimited inventory.`
+        `You've hit your ${FREE_INVENTORY_LIMIT}-bottle limit. Upgrade to KŌOPE+ for unlimited inventory.`
       );
       return false;
     }
@@ -202,8 +202,8 @@ export function usePaywallTriggers(): PaywallTriggers {
 
     if (savedCount >= FREE_SAVED_COCKTAILS_LIMIT) {
       showPaywall(
-        'Save Limit Reached',
-        `Starter Bar allows ${FREE_SAVED_COCKTAILS_LIMIT} saved cocktails. Upgrade to KOOPE+ for unlimited saves.`
+        'Save Cocktails',
+        'Saving cocktails is a KŌOPE+ feature. Upgrade to save unlimited favorites.'
       );
       return false;
     }
