@@ -35,7 +35,8 @@ import { matchRecipe, sortByMatch, getMatchMessage } from '../utils/recipeMatchi
 import type { RecipeMatch } from '../utils/recipeMatching';
 import { RecipesRepository } from '../repos/supabase';
 import { useUserTier } from '../store/useUserTier';
-import { isCocktailAccessible } from '../config/tierAccess';
+import { isCocktailAccessible, TIER_LIMITS } from '../config/tierAccess';
+import { useFeatureAccess } from '../hooks/useFeatureAccess';
 
 type BottleDetailScreenNavigationProp = CompositeNavigationProp<
   NativeStackNavigationProp<CameraStackParamList, 'BottleDetail'>,
@@ -48,6 +49,7 @@ export default function BottleDetailScreen() {
   const { earnInventoryXP } = useXPSystem();
   const { user } = useUser();
   const { tier } = useUserTier();
+  const { gateWithTrigger: inventoryGate } = useFeatureAccess('inventory_unlimited');
   const { bottle, imageUri } = route.params;
   const [userCurrency, setUserCurrency] = useState<'USD' | 'CAD' | 'GBP'>('USD');
   const [userRegion, setUserRegion] = useState<string>('');
@@ -196,6 +198,15 @@ export default function BottleDetailScreen() {
         ]
       );
       return;
+    }
+
+    // T1: Check inventory limit for free users
+    if (tier === 'FREE') {
+      const count = await InventoryService.getInventoryCount(user.id);
+      if (count >= TIER_LIMITS.FREE.maxBottles) {
+        inventoryGate('T1');
+        return;
+      }
     }
 
     // Add bottle to Supabase inventory

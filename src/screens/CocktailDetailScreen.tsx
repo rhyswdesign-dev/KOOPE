@@ -23,6 +23,7 @@ import { useToast } from '../hooks/useToast';
 import CocktailDetailSkeleton from '../components/CocktailDetailSkeleton';
 import { achievementService } from '../services/achievementService';
 import { useSubscription } from '../contexts/SubscriptionContext';
+import { useFeatureAccess } from '../hooks/useFeatureAccess';
 import { log } from '../lib/logger';
 import { trackEvent, ANALYTICS_EVENTS, ANALYTICS_PROPS } from '../lib/analytics';
 import { useXPSystem } from '../store/useXPSystem';
@@ -849,6 +850,7 @@ export default function CocktailDetailScreen() {
   const { toggleSavedCocktail, isCocktailSaved } = useSavedItems();
   const { toast, showToast, hideToast } = useToast();
   const { isPro, isPrestige } = useSubscription();
+  const { gateWithTrigger: saveGate } = useFeatureAccess('saved_cocktails_unlimited');
   const { earnRecipeMadeXP } = useXPSystem();
   const { user } = useAuth();
   const serifFont = Platform.select({ ios: 'Georgia', android: 'serif', default: 'serif' });
@@ -1288,6 +1290,9 @@ export default function CocktailDetailScreen() {
     if (!cocktail) return;
 
     const wasSaved = isCocktailSaved(route.params.cocktailId);
+
+    // T3: Gate save attempts for free users (unsaving is always allowed)
+    if (!wasSaved && !saveGate('T3')) return;
 
     toggleSavedCocktail({
       id: route.params.cocktailId,

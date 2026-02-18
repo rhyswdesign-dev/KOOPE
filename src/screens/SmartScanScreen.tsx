@@ -301,8 +301,10 @@ export default function SmartScanScreen() {
         {
           text: 'Add Manually',
           onPress: () => {
-            // TODO: Navigate to manual bottle entry
-            navigation.goBack();
+            navigation.navigate('ManualBottleEntry', {
+              initialBrand: brandName !== 'Unknown Brand' ? brandName : undefined,
+              imageUri: imageUri ?? undefined,
+            });
           },
         },
         { text: 'Try Again', onPress: () => handleRetake() },

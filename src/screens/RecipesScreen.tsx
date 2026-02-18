@@ -54,6 +54,7 @@ import FilterModal from '../components/FilterModal';
 import ForYouFeed from '../components/ForYouFeed';
 import { useUserTier } from '../store/useUserTier';
 import { isCocktailAccessible, FREE_TIER_COCKTAILS, getUpgradeMessage } from '../config/tierAccess';
+import { useFeatureAccess } from '../hooks/useFeatureAccess';
 import LockedRecipeCard from '../components/LockedRecipeCard';
 import { useXPSystem } from '../store/useXPSystem';
 import CocktailUnlockSheet from '../components/CocktailUnlockSheet';
@@ -1574,6 +1575,7 @@ export default function RecipesScreen() {
 
   // Tier-based access control
   const tier = useUserTier((state) => state.tier);
+  const { gateWithTrigger: saveGate } = useFeatureAccess('saved_cocktails_unlimited');
 
   // XP System
   const {
@@ -1717,19 +1719,23 @@ export default function RecipesScreen() {
   }, [navigation]);
 
   const handleSaveRecipe = useCallback((cocktail: any) => {
+    const wasSaved = isCocktailSaved(cocktail.id);
+
+    // T3: Gate save attempts for free users (unsaving is always allowed)
+    if (!wasSaved && !saveGate('T3')) return;
+
     const cocktailData = {
       id: cocktail.id,
       name: cocktail.name || cocktail.title || 'Untitled Recipe',
       subtitle: cocktail.description || cocktail.subtitle || '',
       image: getCocktailImage(cocktail.id, cocktail.image),
     };
-    const wasSaved = isCocktailSaved(cocktail.id);
     toggleSavedCocktail(cocktailData);
     showToast(
       wasSaved ? 'Removed from saved' : 'Saved!',
       'success'
     );
-  }, [toggleSavedCocktail, isCocktailSaved, showToast]);
+  }, [toggleSavedCocktail, isCocktailSaved, showToast, saveGate]);
 
   const handleAddToGroceryList = useCallback((cocktail: any) => {
     setSelectedRecipe(cocktail);

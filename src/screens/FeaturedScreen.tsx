@@ -20,6 +20,7 @@ import { FEATURED_SPIRIT_IMAGES } from '../data/barImages';
 import { log } from '../lib/logger';
 import { useUserTier } from '../store/useUserTier';
 import { useSubscription } from '../contexts/SubscriptionContext';
+import { useFeatureAccess } from '../hooks/useFeatureAccess';
 import { getFeaturedVaultItems, getActiveVaultItems } from '../data/vaultData';
 
 // Get gold tier spirits from all categories but use uploaded images
@@ -84,6 +85,7 @@ export default function FeaturedScreen() {
   const mainScrollRef = useRef<ScrollView>(null);
   const { tier } = useUserTier();
   const { subscriptionTier } = useSubscription();
+  const { gateWithTrigger: filterGate, hasAccess: hasFilterAccess } = useFeatureAccess('advanced_filters');
 
   // FREE users see teaser but can't access full recipe
   const isPremiumUser = subscriptionTier === 'plus' || subscriptionTier === 'pro';
@@ -116,6 +118,20 @@ export default function FeaturedScreen() {
   };
 
   const handleFilterApply = (filters: Partial<FilterOptions>) => {
+    // T2: Gate advanced filters for free users (categories/spirit filter is always allowed)
+    const hasAdvancedFilters = (
+      (filters.difficulties && filters.difficulties.length > 0) ||
+      (filters.ingredients && filters.ingredients.length > 0) ||
+      (filters.equipment && filters.equipment.length > 0) ||
+      (filters.tags && filters.tags.length > 0) ||
+      filters.showOnlyFavorites ||
+      filters.showOnlyCompleted
+    );
+    if (hasAdvancedFilters && !hasFilterAccess) {
+      filterGate('T2');
+      return;
+    }
+
     setCurrentFilters(filters);
     setFilterDrawerVisible(false);
     log.info('FeaturedScreen', 'Applied filters', { filters });

@@ -99,6 +99,7 @@ import ProfileSavedItemsScreen from '../screens/ProfileSavedItemsScreen';
 import ManageSubscriptionScreen from '../screens/ManageSubscriptionScreen';
 import NotificationCenterScreen from '../screens/NotificationCenterScreen';
 import ReferralScreen from '../screens/ReferralScreen';
+import { useCartSync } from '../hooks/useCartSync';
 
 export type RootStackParamList = {
   Main: undefined;
@@ -204,6 +205,8 @@ interface RootNavigatorProps {
 }
 
 export default function RootNavigator({ initialRouteName = 'Main', onHiddenFlaskComplete }: RootNavigatorProps = {}) {
+  useCartSync();
+
   return (
     <View style={styles.container}>
       <OfflineBanner />

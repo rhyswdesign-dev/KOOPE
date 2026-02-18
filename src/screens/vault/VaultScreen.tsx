@@ -56,6 +56,7 @@ import { useSavedItems } from '../../hooks/useSavedItems';
 import GroceryListModal from '../../components/GroceryListModal';
 import { useUserTier } from '../../store/useUserTier';
 import { canAccessContent } from '../../utils/tierAccess';
+import { useFeatureAccess } from '../../hooks/useFeatureAccess';
 import TierBadge from '../../components/TierBadge';
 import LockedContentOverlay from '../../components/LockedContentOverlay';
 import { log } from '../../lib/logger';
@@ -67,6 +68,7 @@ export default function VaultScreen() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { state, dispatch } = useVault();
   const { tier, setTier } = useUserTier();
+  const { gateWithTrigger: vaultProGate } = useFeatureAccess('vault_pro_drops');
   const analytics = useAnalyticsContext();
   const { balance: xpBalance, spendXP, unlockVaultItem, isVaultItemUnlocked } = useXPSystem();
   const { credits, isPremium } = useAICredits();
@@ -748,27 +750,31 @@ export default function VaultScreen() {
           if (previewItem && typeof previewItem.xpCost === 'number') {
             const xpCost = previewItem.xpCost;
 
-            // Check tier access
+            // Check tier access — T11 gate for PRO-exclusive vault drops
             const tierAccess = !previewItem.requiredTier || canAccessContent(tier, previewItem.requiredTier);
             if (!tierAccess) {
-              Alert.alert(
-                'Subscription Required',
-                `This item requires ${previewItem.requiredTier}+ subscription to unlock.`,
-                [
-                  { text: 'Cancel', style: 'cancel' },
-                  {
-                    text: 'View Plans',
-                    style: 'default',
-                    onPress: () => {
-                      setPreviewModalVisible(false);
-                      nav.navigate('Paywall', {
-                        source: 'vault_tier_locked',
-                        offering: previewItem.requiredTier === 'PRO' ? 'pro' : null,
-                      });
+              if (previewItem.requiredTier === 'PRO') {
+                vaultProGate('T11');
+              } else {
+                Alert.alert(
+                  'Subscription Required',
+                  `This item requires ${previewItem.requiredTier}+ subscription to unlock.`,
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                      text: 'View Plans',
+                      style: 'default',
+                      onPress: () => {
+                        setPreviewModalVisible(false);
+                        nav.navigate('Paywall', {
+                          source: 'vault_tier_locked',
+                          offering: null,
+                        });
+                      },
                     },
-                  },
-                ]
-              );
+                  ]
+                );
+              }
               return;
             }
 
