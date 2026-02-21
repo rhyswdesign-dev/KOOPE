@@ -289,9 +289,9 @@ export default function SettingsScreen() {
             )}
           </View>
 
-          {/* Privacy & Security Section - Collapsible */}
+          {/* Data & Security Section - Collapsible */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Privacy & Security</Text>
+            <Text style={styles.sectionTitle}>Data & Security</Text>
 
             <TouchableOpacity
               style={styles.collapsibleHeader}
@@ -323,17 +323,6 @@ export default function SettingsScreen() {
                   <Ionicons name="chevron-forward" size={20} color={colors.subtext} />
                 </TouchableOpacity>
 
-                <TouchableOpacity
-                  style={styles.settingItem}
-                  onPress={() => log.info('SettingsScreen', 'Blocked Users pressed')}
-                  activeOpacity={0.7}
-                >
-                  <View style={styles.settingItemLeft}>
-                    <Ionicons name="ban-outline" size={22} color={colors.text} />
-                    <Text style={styles.settingItemText}>Blocked Users</Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={20} color={colors.subtext} />
-                </TouchableOpacity>
               </>
             )}
           </View>

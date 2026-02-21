@@ -1,16 +1,27 @@
 /**
  * REFERRAL SERVICE
- * Manages referral codes, tracking, and rewards
+ * Manages referral codes, tracking, and rewards.
+ *
+ * Backend strategy:
+ * - Prefer Supabase tables when available
+ * - Fall back to local storage if referral tables are not yet provisioned
  */
 
+import React from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Share, Platform } from 'react-native';
 import { log } from '../lib/logger';
+import { supabase } from '../lib/supabase';
 
 // Storage keys
 const STORAGE_KEYS = {
   REFERRAL_CODE: '@referral_code',
   REFERRAL_STATS: '@referral_stats',
+} as const;
+
+const REFERRAL_TABLES = {
+  CODES: 'referral_codes',
+  EVENTS: 'referrals',
 } as const;
 
 // Reward tier interface
@@ -84,6 +95,15 @@ const generateReferralCode = (): string => {
   return code;
 };
 
+function isTableMissingError(error: any): boolean {
+  const message = String(error?.message || '').toLowerCase();
+  return (
+    message.includes('does not exist') ||
+    message.includes('schema cache') ||
+    message.includes('relation')
+  );
+}
+
 /**
  * Main referral service class
  */
@@ -96,6 +116,7 @@ class ReferralService {
     confirmed: 0,
     referrals: [],
   };
+  private backendAvailable = true;
 
   private constructor() {
     this.loadData();
@@ -106,6 +127,12 @@ class ReferralService {
       ReferralService.instance = new ReferralService();
     }
     return ReferralService.instance;
+  }
+
+  private async getCurrentUserId(): Promise<string | null> {
+    const { data, error } = await supabase.auth.getUser();
+    if (error || !data?.user?.id) return null;
+    return data.user.id;
   }
 
   /**
@@ -141,6 +168,22 @@ class ReferralService {
     }
   }
 
+  private async saveCode(code: string): Promise<void> {
+    this.referralCode = code;
+    try {
+      await AsyncStorage.setItem(STORAGE_KEYS.REFERRAL_CODE, code);
+    } catch (error) {
+      log.error('ReferralService', 'Failed to persist referral code', { error });
+    }
+  }
+
+  private markBackendUnavailable(error: any) {
+    if (isTableMissingError(error)) {
+      this.backendAvailable = false;
+      log.warn('ReferralService', 'Referral tables unavailable; using local fallback');
+    }
+  }
+
   /**
    * Get or create a referral code
    */
@@ -149,25 +192,91 @@ class ReferralService {
       return this.referralCode;
     }
 
-    // Generate new code
-    this.referralCode = generateReferralCode();
+    const userId = await this.getCurrentUserId();
 
-    try {
-      await AsyncStorage.setItem(STORAGE_KEYS.REFERRAL_CODE, this.referralCode);
-      log.info('ReferralService', 'Generated new referral code', { code: this.referralCode });
-    } catch (error) {
-      log.error('ReferralService', 'Failed to save referral code', { error });
+    if (this.backendAvailable && userId) {
+      try {
+        const { data, error } = await supabase
+          .from(REFERRAL_TABLES.CODES)
+          .select('code')
+          .eq('user_id', userId)
+          .limit(1)
+          .maybeSingle();
+
+        if (error) throw error;
+
+        if (data?.code) {
+          await this.saveCode(data.code);
+          return data.code;
+        }
+
+        const generated = generateReferralCode();
+        const { error: insertError } = await supabase
+          .from(REFERRAL_TABLES.CODES)
+          .insert({
+            user_id: userId,
+            code: generated,
+            created_at: new Date().toISOString(),
+          });
+
+        if (insertError) throw insertError;
+
+        await this.saveCode(generated);
+        log.info('ReferralService', 'Created referral code in backend', { userId });
+        return generated;
+      } catch (error) {
+        this.markBackendUnavailable(error);
+        log.warn('ReferralService', 'Falling back to local referral code generation', { error });
+      }
     }
 
-    return this.referralCode;
+    const generated = generateReferralCode();
+    await this.saveCode(generated);
+    log.info('ReferralService', 'Generated local referral code', { code: generated });
+    return generated;
   }
 
   /**
    * Get current referral stats
    */
   async getReferralStats(): Promise<ReferralStats> {
-    // In a real app, you would fetch this from a server
-    // For now, return cached stats
+    const userId = await this.getCurrentUserId();
+
+    if (this.backendAvailable && userId) {
+      try {
+        const { data, error } = await supabase
+          .from(REFERRAL_TABLES.EVENTS)
+          .select('id,referred_username,status,created_at')
+          .eq('referrer_user_id', userId)
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        const referrals = (data || []).map((row: any) => ({
+          id: row.id,
+          username: row.referred_username || 'New User',
+          status: row.status === 'confirmed' ? 'confirmed' : 'pending',
+          date: row.created_at || new Date().toISOString(),
+        }));
+
+        const confirmed = referrals.filter((r) => r.status === 'confirmed').length;
+        const pending = referrals.filter((r) => r.status === 'pending').length;
+
+        this.stats = {
+          total: referrals.length,
+          pending,
+          confirmed,
+          referrals,
+        };
+
+        await this.saveStats();
+        return this.stats;
+      } catch (error) {
+        this.markBackendUnavailable(error);
+        log.warn('ReferralService', 'Falling back to local referral stats', { error });
+      }
+    }
+
     return this.stats;
   }
 
@@ -221,7 +330,6 @@ class ReferralService {
 
   /**
    * Record a new referral (called when someone uses your code)
-   * In a real app, this would be called from a server webhook
    */
   async recordReferral(userId: string, username: string): Promise<void> {
     const newReferral = {
@@ -234,14 +342,31 @@ class ReferralService {
     this.stats.referrals.push(newReferral);
     this.stats.total++;
     this.stats.pending++;
-
     await this.saveStats();
-    log.info('ReferralService', 'Recorded new referral', { userId, username });
+
+    const currentUserId = await this.getCurrentUserId();
+    if (this.backendAvailable && currentUserId) {
+      try {
+        const { error } = await supabase.from(REFERRAL_TABLES.EVENTS).insert({
+          referrer_user_id: currentUserId,
+          referred_user_id: userId,
+          referred_username: username,
+          status: 'pending',
+          created_at: new Date().toISOString(),
+        });
+
+        if (error) throw error;
+      } catch (error) {
+        this.markBackendUnavailable(error);
+        log.warn('ReferralService', 'Failed to persist referral event to backend', { error });
+      }
+    }
+
+    log.info('ReferralService', 'Recorded referral', { userId, username });
   }
 
   /**
    * Confirm a pending referral
-   * In a real app, this would be called from a server webhook
    */
   async confirmReferral(userId: string): Promise<void> {
     const referral = this.stats.referrals.find((r) => r.id === userId);
@@ -249,10 +374,25 @@ class ReferralService {
       referral.status = 'confirmed';
       this.stats.pending--;
       this.stats.confirmed++;
-
       await this.saveStats();
-      log.info('ReferralService', 'Confirmed referral', { userId });
     }
+
+    if (this.backendAvailable) {
+      try {
+        const { error } = await supabase
+          .from(REFERRAL_TABLES.EVENTS)
+          .update({ status: 'confirmed' })
+          .eq('referred_user_id', userId)
+          .eq('status', 'pending');
+
+        if (error) throw error;
+      } catch (error) {
+        this.markBackendUnavailable(error);
+        log.warn('ReferralService', 'Failed to confirm referral in backend', { error });
+      }
+    }
+
+    log.info('ReferralService', 'Confirmed referral', { userId });
   }
 
   /**
@@ -326,8 +466,5 @@ export function useReferrals() {
     refresh,
   };
 }
-
-// Need to import React for the hook
-import React from 'react';
 
 export default referralService;

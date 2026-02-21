@@ -1,16 +1,23 @@
 import React, { useState, useLayoutEffect } from 'react';
 import {
   View, Text, ScrollView, Pressable, StyleSheet, TouchableOpacity,
-  TextInput, Alert, KeyboardAvoidingView, Platform
+  TextInput, Alert, KeyboardAvoidingView, Platform, Linking
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, radii } from '../theme/tokens';
 import { log } from '../lib/logger';
+import { useAuth } from '../contexts/AuthContext';
+import { feedbackService } from '../lib/supabaseData';
 
 interface HelpSupportScreenProps {
   onBack?: () => void;
+  route?: {
+    params?: {
+      initialTab?: 'faq' | 'contact';
+    };
+  };
 }
 
 interface FAQItem {
@@ -18,6 +25,15 @@ interface FAQItem {
   question: string;
   answer: string;
   category: string;
+}
+
+interface LocalSupportResource {
+  city: string;
+  provider: string;
+  phone: string;
+  website: string;
+  latitude: number;
+  longitude: number;
 }
 
 const FAQ_DATA: FAQItem[] = [
@@ -85,12 +101,94 @@ const FAQ_DATA: FAQItem[] = [
 
 const CATEGORIES = ['All', 'Account', 'XP & Tiers', 'Events', 'Bars & Spirits', 'Profile', 'Privacy & Security'];
 
-export default function HelpSupportScreen({ onBack }: HelpSupportScreenProps) {
+const LOCAL_SUPPORT_RESOURCES: LocalSupportResource[] = [
+  {
+    city: 'National (US)',
+    provider: 'SAMHSA National Helpline',
+    phone: '1-800-662-4357',
+    website: 'https://www.samhsa.gov/find-help/national-helpline',
+    latitude: 39.8283,
+    longitude: -98.5795,
+  },
+  {
+    city: 'New York, NY',
+    provider: 'NYC Well',
+    phone: '1-888-692-9355',
+    website: 'https://www.nyc.gov/site/doh/health/health-topics/alcohol.page',
+    latitude: 40.7128,
+    longitude: -74.0060,
+  },
+  {
+    city: 'Los Angeles, CA',
+    provider: 'LA County Substance Abuse Service Helpline',
+    phone: '1-844-804-7500',
+    website: 'https://dmh.lacounty.gov/our-services/alcohol-and-drug-program/',
+    latitude: 34.0522,
+    longitude: -118.2437,
+  },
+  {
+    city: 'Chicago, IL',
+    provider: 'Illinois Helpline for Opioids and Other Substances',
+    phone: '1-833-234-6343',
+    website: 'https://helplineil.org/',
+    latitude: 41.8781,
+    longitude: -87.6298,
+  },
+  {
+    city: 'Houston, TX',
+    provider: 'Texas HHSC Mental Health and Substance Use',
+    phone: '1-877-541-7905',
+    website: 'https://www.hhs.texas.gov/services/mental-health-substance-use',
+    latitude: 29.7604,
+    longitude: -95.3698,
+  },
+  {
+    city: 'Phoenix, AZ',
+    provider: 'Arizona Substance Use Hotline',
+    phone: '1-800-631-1314',
+    website: 'https://www.azahcccs.gov/BehavioralHealth/OpioidUseDisorder.html',
+    latitude: 33.4484,
+    longitude: -112.0740,
+  },
+];
+
+function toRad(degrees: number) {
+  return (degrees * Math.PI) / 180;
+}
+
+function distanceMiles(
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number
+) {
+  const earthRadiusMiles = 3958.8;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return earthRadiusMiles * c;
+}
+
+export default function HelpSupportScreen({ onBack, route }: HelpSupportScreenProps) {
   const navigation = useNavigation();
-  const [activeTab, setActiveTab] = useState<'faq' | 'contact'>('faq');
+  const { user } = useAuth();
+  const initialTab = route?.params?.initialTab === 'contact' ? 'contact' : 'faq';
+  const [activeTab, setActiveTab] = useState<'faq' | 'contact'>(initialTab);
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState('');
+  const [isLocatingSupport, setIsLocatingSupport] = useState(false);
+  const [supportMatchDistance, setSupportMatchDistance] = useState<number | null>(null);
+  const [supportMatchLabel, setSupportMatchLabel] = useState('Using national support resource');
+  const [selectedSupportResource, setSelectedSupportResource] = useState<LocalSupportResource>(
+    LOCAL_SUPPORT_RESOURCES[0]
+  );
   
   // Contact form state
   const [contactForm, setContactForm] = useState({
@@ -100,6 +198,59 @@ export default function HelpSupportScreen({ onBack }: HelpSupportScreenProps) {
     message: '',
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const locateNearestSupport = () => {
+    if (!navigator?.geolocation) {
+      Alert.alert(
+        'Location unavailable',
+        'We could not access location services, so we are showing the national support line.'
+      );
+      setSelectedSupportResource(LOCAL_SUPPORT_RESOURCES[0]);
+      setSupportMatchDistance(null);
+      setSupportMatchLabel('Using national support resource');
+      return;
+    }
+
+    setIsLocatingSupport(true);
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+
+        let nearest = LOCAL_SUPPORT_RESOURCES[0];
+        let nearestDistance = Number.POSITIVE_INFINITY;
+
+        for (const resource of LOCAL_SUPPORT_RESOURCES.slice(1)) {
+          const miles = distanceMiles(latitude, longitude, resource.latitude, resource.longitude);
+          if (miles < nearestDistance) {
+            nearest = resource;
+            nearestDistance = miles;
+          }
+        }
+
+        const roundedDistance = Math.round(nearestDistance);
+        setSelectedSupportResource(nearest);
+        setSupportMatchDistance(roundedDistance);
+        setSupportMatchLabel(`Closest support match near ${nearest.city}`);
+        setIsLocatingSupport(false);
+      },
+      () => {
+        setSelectedSupportResource(LOCAL_SUPPORT_RESOURCES[0]);
+        setSupportMatchDistance(null);
+        setSupportMatchLabel('Using national support resource');
+        setIsLocatingSupport(false);
+        Alert.alert(
+          'Location permission needed',
+          'Please enable location permission to find the closest support resource.'
+        );
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 5 * 60 * 1000,
+      }
+    );
+  };
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -144,9 +295,30 @@ export default function HelpSupportScreen({ onBack }: HelpSupportScreenProps) {
     setIsSubmitting(true);
     
     try {
-      // TODO: Implement actual form submission
-      log.info('HelpSupportScreen', 'Contact form submitted', { contactForm });
-      await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate API call
+      const submitted = await feedbackService.submit({
+        user_id: user?.id || 'anonymous',
+        type: 'support',
+        category: 'support_center',
+        title: contactForm.subject.trim() || 'Support Request',
+        description: contactForm.message.trim(),
+        email: contactForm.email.trim(),
+        rating: 0,
+        device_info: {
+          platform: Platform.OS,
+          source: 'HelpSupportScreen',
+          requester_name: contactForm.name.trim(),
+        },
+        status: 'new',
+      });
+
+      if (!submitted) {
+        throw new Error('Support message insert failed');
+      }
+
+      log.info('HelpSupportScreen', 'Support request submitted', {
+        userId: user?.id || 'anonymous',
+        hasSubject: Boolean(contactForm.subject.trim()),
+      });
       
       Alert.alert(
         'Message Sent!',
@@ -161,6 +333,7 @@ export default function HelpSupportScreen({ onBack }: HelpSupportScreenProps) {
         ]
       );
     } catch (error) {
+      log.error('HelpSupportScreen', 'Support request failed', error);
       Alert.alert('Error', 'Failed to send message. Please try again.');
     } finally {
       setIsSubmitting(false);
@@ -169,6 +342,25 @@ export default function HelpSupportScreen({ onBack }: HelpSupportScreenProps) {
 
   const updateContactForm = (field: keyof typeof contactForm, value: string) => {
     setContactForm(prev => ({ ...prev, [field]: value }));
+  };
+
+  const callSupportNumber = async (phone: string) => {
+    const url = `tel:${phone.replace(/[^0-9+]/g, '')}`;
+    const canOpen = await Linking.canOpenURL(url);
+    if (!canOpen) {
+      Alert.alert('Unable to call', `Please dial ${phone} manually.`);
+      return;
+    }
+    await Linking.openURL(url);
+  };
+
+  const openSupportWebsite = async (website: string) => {
+    const canOpen = await Linking.canOpenURL(website);
+    if (!canOpen) {
+      Alert.alert('Unable to open link', website);
+      return;
+    }
+    await Linking.openURL(website);
   };
 
   return (
@@ -209,6 +401,19 @@ export default function HelpSupportScreen({ onBack }: HelpSupportScreenProps) {
 
         {activeTab === 'faq' ? (
           <ScrollView contentContainerStyle={styles.scrollContent}>
+            <View style={styles.quickHelpBanner}>
+              <View style={styles.quickHelpHeader}>
+                <Ionicons name="warning-outline" size={18} color="#EF4444" />
+                <Text style={styles.quickHelpTitle}>Need alcohol-use support now?</Text>
+              </View>
+              <Text style={styles.quickHelpText}>
+                Open local and national support resources with one tap.
+              </Text>
+              <Pressable style={styles.quickHelpButton} onPress={() => setActiveTab('contact')}>
+                <Text style={styles.quickHelpButtonText}>Open Support Resources</Text>
+              </Pressable>
+            </View>
+
             {/* Search */}
             <View style={styles.searchContainer}>
               <Ionicons name="search-outline" size={20} color={colors.subtext} style={styles.searchIcon} />
@@ -290,6 +495,55 @@ export default function HelpSupportScreen({ onBack }: HelpSupportScreenProps) {
           </ScrollView>
         ) : (
           <ScrollView contentContainerStyle={styles.scrollContent}>
+            <View style={styles.urgentCard}>
+              <Text style={styles.urgentTitle}>Alcohol Support Resources</Text>
+              <Text style={styles.urgentSubtitle}>
+                If you or someone you know needs help with alcohol use, contact a local resource now.
+              </Text>
+
+              <TouchableOpacity
+                style={[styles.locationButton, isLocatingSupport && styles.locationButtonDisabled]}
+                onPress={locateNearestSupport}
+                disabled={isLocatingSupport}
+              >
+                <Ionicons name="locate-outline" size={16} color={colors.goldText} />
+                <Text style={styles.locationButtonText}>
+                  {isLocatingSupport ? 'Finding closest support...' : 'Use my location to find closest support'}
+                </Text>
+              </TouchableOpacity>
+
+              <Text style={styles.matchLabel}>{supportMatchLabel}</Text>
+
+              <View style={styles.resourceCard}>
+                <Text style={styles.resourceProvider}>{selectedSupportResource.provider}</Text>
+                <Text style={styles.resourcePhone}>{selectedSupportResource.phone}</Text>
+                <Text style={styles.resourceLocation}>
+                  {selectedSupportResource.city}
+                  {supportMatchDistance !== null ? ` • ${supportMatchDistance} mi away` : ''}
+                </Text>
+                <View style={styles.resourceActions}>
+                  <TouchableOpacity
+                    style={styles.resourceActionButton}
+                    onPress={() => callSupportNumber(selectedSupportResource.phone)}
+                  >
+                    <Ionicons name="call-outline" size={16} color={colors.goldText} />
+                    <Text style={styles.resourceActionText}>Call</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.resourceActionButton}
+                    onPress={() => openSupportWebsite(selectedSupportResource.website)}
+                  >
+                    <Ionicons name="open-outline" size={16} color={colors.goldText} />
+                    <Text style={styles.resourceActionText}>Website</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              <Text style={styles.emergencyText}>
+                In immediate danger, call 911. For mental health crisis support, call or text 988.
+              </Text>
+            </View>
+
             {/* Contact Form */}
             <View style={styles.contactContainer}>
               <View style={styles.contactHeader}>
@@ -534,6 +788,139 @@ const styles = StyleSheet.create({
     color: colors.subtext,
     textAlign: 'center',
     marginTop: spacing(1),
+  },
+  quickHelpBanner: {
+    marginHorizontal: spacing(3),
+    marginTop: spacing(3),
+    marginBottom: spacing(1),
+    backgroundColor: colors.card,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.35)',
+    padding: spacing(2),
+  },
+  quickHelpHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(0.75),
+  },
+  quickHelpTitle: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  quickHelpText: {
+    color: colors.subtext,
+    fontSize: 13,
+    marginTop: spacing(0.75),
+    lineHeight: 18,
+  },
+  quickHelpButton: {
+    alignSelf: 'flex-start',
+    marginTop: spacing(1.5),
+    backgroundColor: '#EF4444',
+    borderRadius: radii.md,
+    paddingHorizontal: spacing(1.5),
+    paddingVertical: spacing(1),
+  },
+  quickHelpButtonText: {
+    color: colors.white,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  urgentCard: {
+    marginHorizontal: spacing(3),
+    marginTop: spacing(3),
+    marginBottom: spacing(3),
+    backgroundColor: colors.card,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(214, 138, 56, 0.4)',
+    padding: spacing(2.5),
+  },
+  urgentTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: colors.text,
+  },
+  urgentSubtitle: {
+    fontSize: 14,
+    color: colors.subtext,
+    marginTop: spacing(1),
+    lineHeight: 20,
+  },
+  locationButton: {
+    marginTop: spacing(2),
+    marginBottom: spacing(1),
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing(0.75),
+    backgroundColor: colors.accent,
+    borderRadius: radii.md,
+    paddingHorizontal: spacing(1.5),
+    paddingVertical: spacing(1.2),
+  },
+  locationButtonDisabled: {
+    opacity: 0.7,
+  },
+  locationButtonText: {
+    color: colors.goldText,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  matchLabel: {
+    color: colors.subtext,
+    fontSize: 12,
+    marginBottom: spacing(1.25),
+  },
+  resourceCard: {
+    backgroundColor: colors.bg,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: colors.line,
+    padding: spacing(2),
+  },
+  resourceProvider: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  resourcePhone: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: colors.accent,
+    marginTop: spacing(0.5),
+  },
+  resourceLocation: {
+    color: colors.subtext,
+    fontSize: 12,
+    marginTop: spacing(0.75),
+  },
+  resourceActions: {
+    flexDirection: 'row',
+    gap: spacing(1.5),
+    marginTop: spacing(1.5),
+  },
+  resourceActionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(0.75),
+    backgroundColor: colors.accent,
+    borderRadius: radii.md,
+    paddingHorizontal: spacing(1.5),
+    paddingVertical: spacing(1),
+  },
+  resourceActionText: {
+    color: colors.goldText,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  emergencyText: {
+    color: colors.subtext,
+    fontSize: 12,
+    marginTop: spacing(1.5),
+    lineHeight: 18,
   },
   contactContainer: {
     paddingHorizontal: spacing(3),

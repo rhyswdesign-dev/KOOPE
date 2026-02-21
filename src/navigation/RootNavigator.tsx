@@ -136,7 +136,7 @@ export type RootStackParamList = {
   FeaturedSpirit: { spiritId: string; tier: 'bronze' | 'silver' | 'gold' };
   XPTransaction: undefined;
   Settings: undefined;
-  HelpSupport: undefined;
+  HelpSupport: { initialTab?: 'faq' | 'contact' } | undefined;
   PrivacyPolicy: undefined;
   TermsOfService: undefined;
   Feedback: undefined;

@@ -1,268 +1,293 @@
-import React, { useState, useLayoutEffect } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  TextInput, PanGestureHandler, Animated, Alert
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  StyleSheet,
+  TextInput,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { colors, spacing, radii } from '../theme/tokens';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { log } from '../lib/logger';
 
-interface Badge {
-  id: string;
-  name: string;
-  description: string;
-  fullDescription: string;
-  icon: string;
-  earned: boolean;
-  category: 'lessons' | 'challenges' | 'recipes' | 'community';
-}
+type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
-const mockEarnedBadges: Badge[] = [
-  {
-    id: "1",
-    name: "Spirit Master",
-    description: "Completed 10 spirit lessons",
-    fullDescription: "You've successfully completed 10 comprehensive spirit education lessons, mastering the fundamentals of whiskey, gin, vodka, rum, and tequila.",
-    icon: "trophy",
-    earned: true,
-    category: "lessons"
-  },
-  {
-    id: "2", 
-    name: "Challenge Champion",
-    description: "Won 5 bartending challenges",
-    fullDescription: "Emerged victorious in 5 competitive bartending challenges, demonstrating exceptional skill and technique under pressure.",
-    icon: "medal",
-    earned: true,
-    category: "challenges"
-  },
-  {
-    id: "3",
-    name: "Cocktail Expert",
-    description: "Mastered 25 cocktail recipes",
-    fullDescription: "Successfully mastered and perfected 25 classic and modern cocktail recipes, showcasing your mixology expertise.",
-    icon: "glass-cocktail",
-    earned: true,
-    category: "recipes"
-  },
-  {
-    id: "4",
-    name: "Community Favorite",
-    description: "Recipe featured and voted by community",
-    fullDescription: "Your original cocktail recipe was featured on the platform and received over 100 votes from the community.",
-    icon: "heart",
-    earned: true,
-    category: "community"
-  },
-  {
-    id: "5",
-    name: "Master Mixologist",
-    description: "Completed advanced mixology course",
-    fullDescription: "Completed the comprehensive Master Mixology certification course with distinction.",
-    icon: "school",
-    earned: true,
-    category: "lessons"
-  },
-  {
-    id: "6",
-    name: "Speed Demon",
-    description: "Won speed bartending challenge",
-    fullDescription: "Set a new record in the speed bartending challenge, serving 5 perfect cocktails in under 3 minutes.",
-    icon: "speedometer",
-    earned: true,
-    category: "challenges"
-  },
-];
+type ExtraProfileData = {
+  username: string;
+  city: string;
+  favoriteSpirits: string[];
+};
+
+const DEFAULT_BIO =
+  'Home bartender building better drinks one bottle at a time.';
+
+const SPIRIT_OPTIONS = ['Whiskey', 'Gin', 'Tequila', 'Rum', 'Vodka', 'Brandy', 'Mezcal', 'Amaro'];
+
+const getExtraProfileStorageKey = (userId: string) => `profile_extra_${userId}`;
 
 export default function EditProfileScreen() {
-  const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const navigation = useNavigation<NavigationProp>();
   const { user } = useAuth();
-  const [reorderableBadges, setReorderableBadges] = useState<Badge[]>(mockEarnedBadges);
-  const [name, setName] = useState(user?.displayName || "");
-  const [bio, setBio] = useState("Whiskey enthusiast exploring the world of premium spirits. Love discovering hidden speakeasies and craft cocktails.");
+
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
+  const [name, setName] = useState(user?.displayName || '');
+  const [bio, setBio] = useState(DEFAULT_BIO);
+  const [username, setUsername] = useState('');
+  const [city, setCity] = useState('');
+  const [favoriteSpirits, setFavoriteSpirits] = useState<string[]>([]);
+
+  const initials = useMemo(() => {
+    const source = name.trim() || user?.email || 'K';
+    return source.substring(0, 1).toUpperCase();
+  }, [name, user?.email]);
+
   useLayoutEffect(() => {
-    nav.setOptions({
+    navigation.setOptions({
       title: 'Edit Profile',
       headerStyle: { backgroundColor: colors.bg },
       headerTintColor: colors.text,
-      headerTitleStyle: { color: colors.text, fontWeight: '900' },
+      headerTitleStyle: { color: colors.text, fontWeight: '800' },
       headerShadowVisible: false,
       headerRight: () => (
         <TouchableOpacity
           onPress={handleSave}
           style={styles.headerButton}
           activeOpacity={0.7}
-          disabled={saving}
+          disabled={saving || loading}
         >
-          <Text style={[styles.saveButton, saving && styles.saveButtonDisabled]}>
+          <Text style={[styles.headerButtonText, (saving || loading) && styles.headerButtonTextDisabled]}>
             {saving ? 'Saving...' : 'Save'}
           </Text>
         </TouchableOpacity>
       ),
     });
-  }, [nav, saving]);
+  }, [navigation, saving, loading, name, bio, username, city, favoriteSpirits]);
 
-  const moveBadge = (fromIndex: number, toIndex: number) => {
-    const newBadges = [...reorderableBadges];
-    const [removed] = newBadges.splice(fromIndex, 1);
-    newBadges.splice(toIndex, 0, removed);
-    setReorderableBadges(newBadges);
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadProfile = async () => {
+      if (!user) {
+        if (isMounted) setLoading(false);
+        return;
+      }
+
+      try {
+        const [{ data: profile }, storedExtra] = await Promise.all([
+          supabase.from('profiles').select('display_name, bio').eq('id', user.id).single(),
+          AsyncStorage.getItem(getExtraProfileStorageKey(user.id)),
+        ]);
+
+        if (!isMounted) return;
+
+        setName(profile?.display_name || user.displayName || '');
+        setBio(profile?.bio || DEFAULT_BIO);
+
+        if (storedExtra) {
+          const parsed = JSON.parse(storedExtra) as ExtraProfileData;
+          setUsername(parsed.username || '');
+          setCity(parsed.city || '');
+          setFavoriteSpirits(parsed.favoriteSpirits || []);
+        } else {
+          setUsername('');
+          setCity('');
+          setFavoriteSpirits([]);
+        }
+      } catch (error) {
+        log.warn('EditProfileScreen', 'Unable to fully load profile, using defaults', { error });
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+
+    loadProfile();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [user]);
+
+  const toggleSpirit = (spirit: string) => {
+    setFavoriteSpirits((prev) => {
+      if (prev.includes(spirit)) {
+        return prev.filter((item) => item !== spirit);
+      }
+      if (prev.length >= 5) {
+        Alert.alert('Limit reached', 'Pick up to 5 favorite spirits.');
+        return prev;
+      }
+      return [...prev, spirit];
+    });
   };
 
   const handleSave = async () => {
     if (!user) {
-      Alert.alert('Error', 'You must be signed in to edit your profile');
+      Alert.alert('Error', 'You must be signed in to edit your profile.');
       return;
     }
 
     if (!name.trim()) {
-      Alert.alert('Error', 'Name cannot be empty');
+      Alert.alert('Missing name', 'Please enter your display name.');
+      return;
+    }
+
+    if (username.trim() && !/^[a-z0-9_]{3,20}$/i.test(username.trim())) {
+      Alert.alert('Invalid username', 'Use 3-20 letters, numbers, or underscores.');
       return;
     }
 
     setSaving(true);
 
     try {
-      // Save profile to Supabase
       const { error } = await supabase
         .from('profiles')
         .upsert({
           id: user.id,
           display_name: name.trim(),
           bio: bio.trim(),
-          featured_badges: reorderableBadges.slice(0, 3).map(b => b.id),
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
         });
 
       if (error) throw error;
 
-      log.info('EditProfileScreen', 'Profile updated successfully');
-      Alert.alert('Success', 'Profile updated successfully', [
-        { text: 'OK', onPress: () => nav.goBack() }
+      const extraData: ExtraProfileData = {
+        username: username.trim(),
+        city: city.trim(),
+        favoriteSpirits,
+      };
+
+      await AsyncStorage.setItem(getExtraProfileStorageKey(user.id), JSON.stringify(extraData));
+
+      log.info('EditProfileScreen', 'Profile saved', {
+        userId: user.id,
+        hasUsername: Boolean(extraData.username),
+        favoriteSpiritCount: extraData.favoriteSpirits.length,
+      });
+
+      Alert.alert('Saved', 'Your profile has been updated.', [
+        { text: 'OK', onPress: () => navigation.goBack() },
       ]);
-    } catch (error: any) {
-      log.error('EditProfileScreen', 'Error saving profile', error);
-      Alert.alert('Error', 'Failed to save profile. Please try again.');
+    } catch (error) {
+      log.error('EditProfileScreen', 'Failed to save profile', error);
+      Alert.alert('Save failed', 'We could not save your profile. Please try again.');
     } finally {
       setSaving(false);
     }
   };
 
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container} edges={['left', 'right', 'bottom']}>
+        <View style={styles.loadingState}>
+          <ActivityIndicator color={colors.accent} />
+          <Text style={styles.loadingText}>Loading profile...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container} edges={['left', 'right', 'bottom']}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        
-        {/* Basic Info Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Basic Information</Text>
-          
-          <View style={styles.inputContainer}>
-            <Text style={styles.inputLabel}>Name</Text>
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <View style={styles.heroCard}>
+          <View style={styles.avatarCircle}>
+            <Text style={styles.avatarInitial}>{initials}</Text>
+          </View>
+          <Text style={styles.heroName}>{name.trim() || 'Your Name'}</Text>
+          <Text style={styles.heroEmail}>{user?.email || 'Signed in user'}</Text>
+        </View>
+
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Identity</Text>
+
+          <Text style={styles.inputLabel}>Display Name</Text>
+          <TextInput
+            value={name}
+            onChangeText={setName}
+            style={styles.input}
+            placeholder="Your name"
+            placeholderTextColor={colors.subtle}
+            maxLength={40}
+            keyboardAppearance="dark"
+          />
+
+          <Text style={styles.inputLabel}>Username</Text>
+          <View style={styles.handleInputWrap}>
+            <Text style={styles.handlePrefix}>@</Text>
             <TextInput
-              style={styles.textInput}
-              value={name}
-              onChangeText={setName}
-              placeholder="Enter your name"
-              placeholderTextColor={colors.subtext}
+              value={username}
+              onChangeText={setUsername}
+              style={styles.handleInput}
+              placeholder="mixmaster"
+              placeholderTextColor={colors.subtle}
+              autoCapitalize="none"
+              maxLength={20}
               keyboardAppearance="dark"
             />
           </View>
-          
-          <View style={styles.inputContainer}>
-            <Text style={styles.inputLabel}>Bio</Text>
-            <TextInput
-              style={[styles.textInput, styles.textAreaInput]}
-              value={bio}
-              onChangeText={setBio}
-              placeholder="Tell us about yourself"
-              placeholderTextColor={colors.subtext}
-              multiline
-              numberOfLines={3}
-              keyboardAppearance="dark"
-            />
+
+          <Text style={styles.inputLabel}>City</Text>
+          <TextInput
+            value={city}
+            onChangeText={setCity}
+            style={styles.input}
+            placeholder="City, State"
+            placeholderTextColor={colors.subtle}
+            maxLength={50}
+            keyboardAppearance="dark"
+          />
+
+          <Text style={styles.inputLabel}>Bio</Text>
+          <TextInput
+            value={bio}
+            onChangeText={setBio}
+            style={[styles.input, styles.bioInput]}
+            placeholder="Tell people what you like to make"
+            placeholderTextColor={colors.subtle}
+            multiline
+            maxLength={200}
+            textAlignVertical="top"
+            keyboardAppearance="dark"
+          />
+          <Text style={styles.helperText}>{bio.length}/200</Text>
+        </View>
+
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Taste Profile</Text>
+          <Text style={styles.helperText}>Choose up to 5 favorites.</Text>
+          <View style={styles.chipGrid}>
+            {SPIRIT_OPTIONS.map((spirit) => {
+              const selected = favoriteSpirits.includes(spirit);
+              return (
+                <TouchableOpacity
+                  key={spirit}
+                  style={[styles.chip, selected && styles.chipActive]}
+                  onPress={() => toggleSpirit(spirit)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.chipText, selected && styles.chipTextActive]}>{spirit}</Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
         </View>
 
-        {/* Badge Reordering Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Badge Display Order</Text>
-          <Text style={styles.sectionSubtitle}>
-            Use the arrows or long press and drag to reorder your badges
-          </Text>
-          
-          <FlatList
-            data={reorderableBadges}
-            keyExtractor={(item) => item.id}
-            scrollEnabled={false}
-            renderItem={({ item, index }) => (
-              <View style={styles.reorderableBadge}>
-                <View style={styles.reorderableBadgeContent}>
-                  <MaterialCommunityIcons 
-                    name={item.icon as any} 
-                    size={24} 
-                    color={colors.accent} 
-                  />
-                  <View style={styles.reorderableBadgeText}>
-                    <Text style={styles.reorderableBadgeName}>{item.name}</Text>
-                    <Text style={styles.reorderableBadgeDesc}>{item.description}</Text>
-                  </View>
-                </View>
-                <View style={styles.dragHandle}>
-                  <View style={styles.reorderControls}>
-                    <TouchableOpacity 
-                      onPress={() => {
-                        if (index > 0) moveBadge(index, index - 1);
-                      }}
-                      style={[styles.reorderButton, index === 0 && styles.disabledButton]}
-                      disabled={index === 0}
-                    >
-                      <Ionicons 
-                        name="chevron-up" 
-                        size={18} 
-                        color={index === 0 ? colors.muted : colors.text} 
-                      />
-                    </TouchableOpacity>
-                    <TouchableOpacity 
-                      onPress={() => {
-                        if (index < reorderableBadges.length - 1) moveBadge(index, index + 1);
-                      }}
-                      style={[styles.reorderButton, index === reorderableBadges.length - 1 && styles.disabledButton]}
-                      disabled={index === reorderableBadges.length - 1}
-                    >
-                      <Ionicons 
-                        name="chevron-down" 
-                        size={18} 
-                        color={index === reorderableBadges.length - 1 ? colors.muted : colors.text} 
-                      />
-                    </TouchableOpacity>
-                  </View>
-                  <TouchableOpacity
-                    style={styles.dragGrip}
-                    onLongPress={() => {
-                      log.debug('EditProfileScreen', 'Long press to initiate drag', { badgeName: item.name });
-                    }}
-                    activeOpacity={0.7}
-                  >
-                    <MaterialCommunityIcons 
-                      name="drag" 
-                      size={20} 
-                      color={colors.subtext} 
-                    />
-                  </TouchableOpacity>
-                </View>
-              </View>
-            )}
-          />
-        </View>
-        
+        <TouchableOpacity style={styles.saveButton} onPress={handleSave} disabled={saving} activeOpacity={0.8}>
+          <Ionicons name="checkmark-circle-outline" size={18} color={colors.goldText} />
+          <Text style={styles.saveButtonText}>{saving ? 'Saving...' : 'Save Profile'}</Text>
+        </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
   );
@@ -273,121 +298,167 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.bg,
   },
-  headerButton: {
-    padding: spacing(1),
-  },
-  saveButton: {
-    color: colors.accent,
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  scrollContent: {
-    paddingBottom: spacing(4),
-  },
-  section: {
-    paddingHorizontal: spacing(3),
-    paddingVertical: spacing(3),
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '900',
-    color: colors.text,
-    marginBottom: spacing(1),
-  },
-  sectionSubtitle: {
-    fontSize: 14,
-    color: colors.subtext,
-    marginBottom: spacing(3),
-  },
-  inputContainer: {
-    marginBottom: spacing(2),
-  },
-  inputLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: spacing(1),
-  },
-  textInput: {
-    backgroundColor: colors.card,
-    borderRadius: radii.md,
-    padding: spacing(2),
-    fontSize: 16,
-    color: colors.text,
-    borderWidth: 1,
-    borderColor: colors.line,
-  },
-  textAreaInput: {
-    minHeight: 80,
-    textAlignVertical: 'top',
-  },
-  reorderableBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.card,
-    borderRadius: radii.lg,
-    padding: spacing(2),
-    marginBottom: spacing(2),
-    borderWidth: 1,
-    borderColor: colors.line,
-  },
-  reorderableBadgeContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  loadingState: {
     flex: 1,
-    gap: spacing(2),
-  },
-  reorderableBadgeText: {
-    flex: 1,
-  },
-  reorderableBadgeName: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: spacing(0.5),
-  },
-  reorderableBadgeDesc: {
-    fontSize: 12,
-    color: colors.subtext,
-  },
-  dragHandle: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing(1),
-  },
-  reorderControls: {
-    flexDirection: 'column',
-    gap: spacing(1),
-  },
-  reorderButton: {
-    backgroundColor: colors.bg,
-    borderRadius: radii.sm,
-    padding: spacing(1),
-    borderWidth: 1,
-    borderColor: colors.line,
-  },
-  dragIndicator: {
-    flexDirection: 'column',
-    gap: 2,
-    paddingHorizontal: spacing(1),
-  },
-  dragLine: {
-    width: 12,
-    height: 2,
-    backgroundColor: colors.subtext,
-    borderRadius: 1,
-  },
-  disabledButton: {
-    opacity: 0.3,
-  },
-  dragGrip: {
-    backgroundColor: colors.card,
-    borderRadius: radii.sm,
-    padding: spacing(1),
-    borderWidth: 1,
-    borderColor: colors.line,
     alignItems: 'center',
     justifyContent: 'center',
-    marginLeft: spacing(1),
+    gap: spacing(1),
+  },
+  loadingText: {
+    color: colors.subtext,
+    fontSize: 14,
+  },
+  scrollContent: {
+    paddingHorizontal: spacing(3),
+    paddingTop: spacing(2),
+    paddingBottom: spacing(6),
+    gap: spacing(2),
+  },
+  headerButton: {
+    paddingHorizontal: spacing(1),
+  },
+  headerButtonText: {
+    color: colors.accent,
+    fontWeight: '700',
+    fontSize: 15,
+  },
+  headerButtonTextDisabled: {
+    color: colors.subtle,
+  },
+  heroCard: {
+    backgroundColor: colors.card,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.line,
+    padding: spacing(2.5),
+    alignItems: 'center',
+  },
+  avatarCircle: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: 'rgba(214, 138, 56, 0.18)',
+    borderWidth: 1,
+    borderColor: 'rgba(214, 138, 56, 0.35)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarInitial: {
+    color: colors.accent,
+    fontSize: 28,
+    fontWeight: '800',
+  },
+  heroName: {
+    color: colors.text,
+    fontSize: 22,
+    fontWeight: '800',
+    marginTop: spacing(1.5),
+  },
+  heroEmail: {
+    color: colors.subtext,
+    fontSize: 13,
+    marginTop: spacing(0.5),
+  },
+  card: {
+    backgroundColor: colors.card,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.line,
+    padding: spacing(2),
+  },
+  cardTitle: {
+    color: colors.text,
+    fontSize: 18,
+    fontWeight: '800',
+    marginBottom: spacing(1.5),
+  },
+  inputLabel: {
+    color: colors.subtext,
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    marginBottom: spacing(0.75),
+    marginTop: spacing(1),
+  },
+  input: {
+    backgroundColor: colors.bg,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: colors.line,
+    color: colors.text,
+    paddingHorizontal: spacing(1.5),
+    paddingVertical: spacing(1.5),
+    fontSize: 15,
+  },
+  handleInputWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.bg,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: colors.line,
+    paddingHorizontal: spacing(1.5),
+  },
+  handlePrefix: {
+    color: colors.subtext,
+    fontSize: 15,
+    fontWeight: '700',
+    marginRight: spacing(0.5),
+  },
+  handleInput: {
+    flex: 1,
+    color: colors.text,
+    paddingVertical: spacing(1.5),
+    fontSize: 15,
+  },
+  bioInput: {
+    minHeight: 90,
+  },
+  helperText: {
+    color: colors.subtext,
+    fontSize: 12,
+    marginTop: spacing(0.75),
+  },
+  chipGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing(1),
+    marginTop: spacing(1.5),
+  },
+  chip: {
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.bg,
+    paddingVertical: spacing(0.9),
+    paddingHorizontal: spacing(1.5),
+  },
+  chipActive: {
+    borderColor: colors.accent,
+    backgroundColor: 'rgba(214, 138, 56, 0.18)',
+  },
+  chipText: {
+    color: colors.subtext,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  chipTextActive: {
+    color: colors.text,
+  },
+  saveButton: {
+    marginTop: spacing(0.5),
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing(0.75),
+    backgroundColor: colors.accent,
+    borderRadius: radii.lg,
+    paddingVertical: spacing(2),
+  },
+  saveButtonText: {
+    color: colors.goldText,
+    fontSize: 16,
+    fontWeight: '800',
   },
 });

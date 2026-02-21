@@ -8,6 +8,7 @@ import { log } from '../lib/logger';
 import React from 'react';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
+import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import { useUser } from '../store/useUser';
@@ -73,6 +74,10 @@ const DEFAULT_PREFERENCES: NotificationPreferences = {
   },
 };
 
+function isValidProjectId(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+}
+
 /**
  * Main notification service class
  */
@@ -84,6 +89,18 @@ class NotificationService {
   private initialized = false;
 
   private constructor() {}
+
+  private getExpoProjectId(): string | null {
+    const possibleProjectId =
+      Constants.expoConfig?.extra?.eas?.projectId ||
+      Constants.easConfig?.projectId ||
+      process.env.EXPO_PUBLIC_EAS_PROJECT_ID ||
+      null;
+
+    if (!possibleProjectId) return null;
+    if (!isValidProjectId(possibleProjectId)) return null;
+    return possibleProjectId;
+  }
 
   public static getInstance(): NotificationService {
     if (!NotificationService.instance) {
@@ -160,10 +177,17 @@ class NotificationService {
         return null;
       }
 
+      const projectId = this.getExpoProjectId();
+      if (!projectId) {
+        log.warn(
+          'NotificationService',
+          'Skipping push token registration: missing or invalid EAS projectId'
+        );
+        return null;
+      }
+
       // Get push token
-      const token = await Notifications.getExpoPushTokenAsync({
-        projectId: '395da84f-715d-334e-8d41-a16cd93fc83c', // Replace with your project ID
-      });
+      const token = await Notifications.getExpoPushTokenAsync({ projectId });
 
       this.pushToken = token.data;
       await AsyncStorage.setItem(STORAGE_KEYS.PUSH_TOKEN, token.data);
@@ -172,7 +196,14 @@ class NotificationService {
       return token.data;
 
     } catch (error) {
-      log.error('NotificationService', 'Failed to register for push notifications', error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (errorMessage.toLowerCase().includes('projectid') || errorMessage.toLowerCase().includes('validation_error')) {
+        log.warn('NotificationService', 'Push registration skipped due to project configuration issue', {
+          error: errorMessage,
+        });
+      } else {
+        log.error('NotificationService', 'Failed to register for push notifications', error);
+      }
       return null;
     }
   }
