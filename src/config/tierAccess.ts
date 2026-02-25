@@ -26,6 +26,8 @@ export const FREE_TIER_COCKTAILS = [
 export const TIER_LIMITS = {
   FREE: {
     maxBottles: 10,
+    // Scans are unlimited in count — XP diminishing returns + 300 XP/day cap is the gate.
+    // First scan: 50 XP. Repeat: 5 XP × max 3. After ~6 new bottles the daily cap is hit.
     maxScansPerMonth: Infinity,
     maxSavedCocktails: 0,
     maxAIMessagesPerDay: 3,

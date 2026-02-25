@@ -689,6 +689,28 @@ export const drinkingGames: DrinkingGameContent[] = [
 ];
 
 // ============================================================================
+// PRO DISCOUNT
+// ============================================================================
+
+/**
+ * Pro users pay 25% less XP on all vault content.
+ * Basic Vault: 400–600 XP → Pro sees 300–450 XP
+ * Pro Vault:   700–1000 XP → Pro sees 525–750 XP
+ */
+export const PRO_XP_DISCOUNT = 0.75;
+
+/**
+ * Returns the XP cost a user actually pays, accounting for their tier.
+ * Pass this result to any unlock confirmation or affordability check.
+ */
+export function getEffectiveXPCost(xpCost: number, userTier: UserTier): number {
+  if (userTier === 'PRO') {
+    return Math.floor(xpCost * PRO_XP_DISCOUNT);
+  }
+  return xpCost;
+}
+
+// ============================================================================
 // HELPER FUNCTIONS FOR ORGANIZATION & NAVIGATION
 // ============================================================================
 
@@ -702,21 +724,24 @@ export function getVaultCategoryById(
 }
 
 /**
- * Get all cocktail variations for display (sorted by XP cost)
- * Can optionally filter by user tier to only show accessible content
+ * Get all cocktail variations for display (sorted by effective XP cost for the user's tier).
+ * When userTier is provided, Pro users see their discounted prices in the sort order.
  */
 export function getVariationsForDisplay(userTier?: UserTier): CocktailVariationContent[] {
   let variations = [...cocktailVariations];
 
-  // Filter by tier if provided
   if (userTier) {
     variations = variations.filter(v => {
-      if (!v.requiredTier) return true; // No tier requirement = accessible to all
+      if (!v.requiredTier) return true;
       return getTierLevel(userTier) >= getTierLevel(v.requiredTier);
     });
   }
 
-  return variations.sort((a, b) => a.xpCost - b.xpCost);
+  return variations.sort((a, b) => {
+    const costA = userTier ? getEffectiveXPCost(a.xpCost, userTier) : a.xpCost;
+    const costB = userTier ? getEffectiveXPCost(b.xpCost, userTier) : b.xpCost;
+    return costA - costB;
+  });
 }
 
 /**

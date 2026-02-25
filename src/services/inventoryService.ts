@@ -31,35 +31,21 @@ export class InventoryService {
   }
 
   /**
-   * Check if user has reached their monthly scan limit
-   * Free tier: 10 scans/month
-   * Paid tier: unlimited (checked via subscription status)
+   * Check if a user can scan.
+   * Scan count is no longer a hard gate — scan TYPE is the gate:
+   *   FREE tier  → barcode + manual only (no Google Vision API cost)
+   *   PLUS/PRO   → full AI waterfall (barcode → OCR → visual recognition → manual)
+   * This method now always returns canScan: true; the caller is responsible for
+   * checking tier to decide which scan path to offer.
+   * getMonthlyScanCount is preserved for analytics/brand-data purposes.
    */
-  static async canUserScan(userId: string | null, isPaidUser: boolean = false): Promise<{
+  static async canUserScan(_userId: string | null, _isPaidUser: boolean = false): Promise<{
     canScan: boolean;
     scansRemaining: number;
     isGuest: boolean;
   }> {
-    // Guest users can scan (will prompt to sign up later)
-    if (!userId) {
-      return { canScan: true, scansRemaining: 10, isGuest: true };
-    }
-
-    // Paid users have unlimited scans
-    if (isPaidUser) {
-      return { canScan: true, scansRemaining: -1, isGuest: false };
-    }
-
-    // Free tier users: check monthly limit
-    const scanCount = await this.getMonthlyScanCount(userId);
-    const limit = 10;
-    const remaining = Math.max(0, limit - scanCount);
-
-    return {
-      canScan: scanCount < limit,
-      scansRemaining: remaining,
-      isGuest: false,
-    };
+    const isGuest = !_userId;
+    return { canScan: true, scansRemaining: -1, isGuest };
   }
 
   /**

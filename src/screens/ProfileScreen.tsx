@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useLayoutEffect } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -21,8 +21,15 @@ import { useUserRecipes } from '../store/useUserRecipes';
 import RecipePreferencesModal from '../components/RecipePreferencesModal';
 import { achievementService, Achievement } from '../services/achievementService';
 import { streakService, StreakData } from '../services/streakService';
-import { useXPSystem } from '../store/useXPSystem';
+import { useXPSystem, FREE_DAILY_XP_CAP } from '../store/useXPSystem';
 import { useUser } from '../store/useUser';
+import { useUserTier } from '../store/useUserTier';
+import {
+  cocktailVariations,
+  techniquePlaybooks,
+  drinkingGames,
+  barFeatures,
+} from '../config/vaultContent';
 
 const serifFont = serif;
 
@@ -33,7 +40,8 @@ export default function ProfileScreen() {
   const [preferencesModalVisible, setPreferencesModalVisible] = useState(false);
   const { savedItems } = useSavedItems();
   const { recipes } = useUserRecipes();
-  const { balance: totalXP } = useXPSystem();
+  const { balance: totalXP, earnedToday } = useXPSystem();
+  const { tier } = useUserTier();
   const { completedLessons } = useUser();
   const [achievements, setAchievements] = useState<Achievement[]>([]);
   const [streakData, setStreakData] = useState<StreakData>(streakService.getStreakData());
@@ -41,6 +49,40 @@ export default function ProfileScreen() {
   const currentLevel = Math.floor(totalXP / 100) + 1;
   const xpInLevel = totalXP % 100;
   const xpForNextLevel = 100;
+
+  // Compute what vault content the user can currently afford with their XP.
+  // Only used in the free-user affordability card; shows XP as currency, not just a score.
+  const vaultAffordability = useMemo(() => {
+    const freeVariations = cocktailVariations.filter(v => !v.requiredTier);
+    const freePlaybooks = techniquePlaybooks.filter(p => !p.requiredTier);
+    const freeGames = drinkingGames.filter(g => !g.requiredTier);
+
+    const affordableVariations = freeVariations.filter(v => v.xpCost <= totalXP).length;
+    const affordablePlaybooks = freePlaybooks.filter(p => p.xpCost <= totalXP).length;
+    const affordableGames = freeGames.filter(g => g.xpCost <= totalXP).length;
+
+    const plusGatedCount = [
+      ...cocktailVariations.filter(v => v.requiredTier === 'PLUS'),
+      ...techniquePlaybooks.filter(p => p.requiredTier === 'PLUS'),
+      ...drinkingGames.filter(g => g.requiredTier === 'PLUS'),
+      ...barFeatures.filter(b => b.requiredTier === 'PLUS'),
+    ].length;
+
+    const cheapestFreeItem = Math.min(
+      ...freeVariations.map(v => v.xpCost),
+      ...freePlaybooks.map(p => p.xpCost),
+      ...freeGames.map(g => g.xpCost),
+    );
+
+    return {
+      affordableVariations,
+      affordablePlaybooks,
+      affordableGames,
+      plusGatedCount,
+      totalAffordable: affordableVariations + affordablePlaybooks + affordableGames,
+      cheapestFreeItem: isFinite(cheapestFreeItem) ? cheapestFreeItem : 200,
+    };
+  }, [totalXP]);
 
   // Debug: Log authentication state
   useEffect(() => {
@@ -63,9 +105,12 @@ export default function ProfileScreen() {
           onPress={() => nav.navigate('Settings')}
           accessible={true}
           accessibilityRole="button"
-          accessibilityLabel="Open settings"
+          accessibilityLabel="Open settings (new updates available)"
         >
-          <Ionicons name="settings-outline" size={24} color={colors.text} style={{ marginRight: 16 }} />
+          <View style={{ marginRight: 16 }}>
+            <Ionicons name="settings-outline" size={24} color={colors.text} />
+            <View style={styles.settingsAttentionDot} />
+          </View>
         </Pressable>
       ),
     });
@@ -134,6 +179,80 @@ export default function ProfileScreen() {
                 <View style={[styles.progressBarFill, { width: `${(xpInLevel / xpForNextLevel) * 100}%` }]} />
               </View>
             </View>
+
+            {/* XP Affordability Card — free users only.
+                Makes XP feel like currency ("you can unlock X items") rather than an abstract score. */}
+            {tier === 'FREE' && (
+              <View style={styles.xpCurrencyCard}>
+                <View style={styles.xpCurrencyHeader}>
+                  <Text style={styles.xpCurrencyTitle}>Your XP Can Unlock</Text>
+                  <Text style={styles.xpCurrencyBalance}>{totalXP.toLocaleString()} XP</Text>
+                </View>
+
+                {vaultAffordability.totalAffordable > 0 ? (
+                  <>
+                    {vaultAffordability.affordableVariations > 0 && (
+                      <View style={styles.xpCurrencyRow}>
+                        <Ionicons name="checkmark-circle" size={16} color={colors.accent} />
+                        <Text style={styles.xpCurrencyItem}>
+                          {vaultAffordability.affordableVariations} Cocktail Variation{vaultAffordability.affordableVariations !== 1 ? 's' : ''}{' '}
+                          <Text style={styles.xpCurrencyXP}>(300–950 XP)</Text>
+                        </Text>
+                      </View>
+                    )}
+                    {vaultAffordability.affordablePlaybooks > 0 && (
+                      <View style={styles.xpCurrencyRow}>
+                        <Ionicons name="checkmark-circle" size={16} color={colors.accent} />
+                        <Text style={styles.xpCurrencyItem}>
+                          {vaultAffordability.affordablePlaybooks} Technique Playbook{vaultAffordability.affordablePlaybooks !== 1 ? 's' : ''}{' '}
+                          <Text style={styles.xpCurrencyXP}>(400–550 XP)</Text>
+                        </Text>
+                      </View>
+                    )}
+                    {vaultAffordability.affordableGames > 0 && (
+                      <View style={styles.xpCurrencyRow}>
+                        <Ionicons name="checkmark-circle" size={16} color={colors.accent} />
+                        <Text style={styles.xpCurrencyItem}>
+                          {vaultAffordability.affordableGames} Party Game{vaultAffordability.affordableGames !== 1 ? 's' : ''}{' '}
+                          <Text style={styles.xpCurrencyXP}>(200–250 XP)</Text>
+                        </Text>
+                      </View>
+                    )}
+                    {vaultAffordability.plusGatedCount > 0 && (
+                      <View style={styles.xpCurrencyRow}>
+                        <Ionicons name="lock-closed-outline" size={16} color={colors.subtext} />
+                        <Text style={[styles.xpCurrencyItem, { color: colors.subtext }]}>
+                          {vaultAffordability.plusGatedCount}+ more with KŌOPE+
+                        </Text>
+                      </View>
+                    )}
+                  </>
+                ) : (
+                  <View style={styles.xpCurrencyRow}>
+                    <Ionicons name="time-outline" size={16} color={colors.subtext} />
+                    <Text style={[styles.xpCurrencyItem, { color: colors.subtext }]}>
+                      Earn {vaultAffordability.cheapestFreeItem - totalXP} more XP to unlock your first item
+                    </Text>
+                  </View>
+                )}
+
+                {/* Daily cap progress for free users */}
+                <View style={styles.xpDailyCapRow}>
+                  <Text style={styles.xpDailyCapLabel}>Today: {earnedToday} / {FREE_DAILY_XP_CAP} XP</Text>
+                  <View style={styles.xpDailyCapBar}>
+                    <View style={[styles.xpDailyCapFill, { width: `${Math.min((earnedToday / FREE_DAILY_XP_CAP) * 100, 100)}%` as any }]} />
+                  </View>
+                </View>
+
+                <TouchableOpacity
+                  style={styles.viewVaultButton}
+                  onPress={() => (nav as any).navigate('Vault')}
+                >
+                  <Text style={styles.viewVaultButtonText}>View Vault</Text>
+                  <Ionicons name="arrow-forward" size={14} color={colors.accent} />
+                </TouchableOpacity>
+              </View>
+            )}
 
             {/* Stats Overview - 2x2 Grid */}
             <View style={styles.section}>
@@ -786,5 +905,92 @@ const styles = StyleSheet.create({
   },
   collectionArrow: {
     paddingLeft: spacing(2),
+  },
+
+  // XP Affordability Card (free users)
+  xpCurrencyCard: {
+    backgroundColor: colors.card,
+    borderRadius: radii.lg,
+    padding: spacing(3),
+    marginBottom: spacing(3),
+    borderWidth: 1,
+    borderColor: colors.line,
+    gap: spacing(1.5),
+  },
+  xpCurrencyHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing(0.5),
+  },
+  xpCurrencyTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.text,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+  },
+  xpCurrencyBalance: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.accent,
+  },
+  xpCurrencyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(1),
+  },
+  xpCurrencyItem: {
+    fontSize: 14,
+    color: colors.text,
+    flex: 1,
+  },
+  xpCurrencyXP: {
+    color: colors.subtext,
+    fontSize: 13,
+  },
+  xpDailyCapRow: {
+    marginTop: spacing(0.5),
+    gap: spacing(0.75),
+  },
+  xpDailyCapLabel: {
+    fontSize: 11,
+    color: colors.subtext,
+  },
+  xpDailyCapBar: {
+    height: 4,
+    backgroundColor: colors.line,
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  xpDailyCapFill: {
+    height: '100%',
+    backgroundColor: colors.accent,
+    borderRadius: 2,
+    opacity: 0.6,
+  },
+  viewVaultButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: spacing(0.5),
+    paddingTop: spacing(1.5),
+    borderTopWidth: 1,
+    borderTopColor: colors.line,
+    gap: spacing(0.75),
+  },
+  viewVaultButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.accent,
+  },
+  settingsAttentionDot: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.accent,
   },
 });

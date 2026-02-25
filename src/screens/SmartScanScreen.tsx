@@ -1,9 +1,15 @@
 /**
  * Smart Scan Screen
- * Universal camera that AI-detects bottles, recipes, or ingredients
+ * Tier-gated scan waterfall:
+ *
+ *   FREE tier  — barcode (device-side, $0 cost) → manual search fallback
+ *   PLUS/PRO   — barcode first (fastest) → AI label OCR → visual recognition → manual
+ *
+ * Google Vision API is only called for PLUS/PRO users, keeping AI costs away
+ * from the majority free user base.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -20,37 +26,57 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, radii } from '../theme/tokens';
 import { GoogleVisionService } from '../services/googleVisionService';
+import { BarcodeService } from '../services/barcodeService';
 import CameraCapture from '../components/camera/CameraCapture';
 import type { CameraStackParamList } from '../navigation/CameraStack';
 import { log } from '../lib/logger';
 import { InventoryService } from '../services/inventoryService';
-import { useUser } from '../store/useUser';
+import { useAuth } from '../contexts/AuthContext';
 import { useSubscription } from '../contexts/SubscriptionContext';
+import { useUserTier } from '../store/useUserTier';
 import DataConsentDialog from '../components/modals/DataConsentDialog';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { SUBSCRIPTION_ENTITLEMENTS } from '../constants/subscriptions';
+
+function getManualPrefill(productName: string | null, productBrand: string | null): { brand?: string; name?: string } {
+  const cleanName = productName?.trim() || '';
+  const cleanBrand = productBrand?.trim() || '';
+
+  if (!cleanName && !cleanBrand) return {};
+  if (!cleanBrand) return { brand: cleanName };
+  if (!cleanName) return { brand: cleanBrand };
+
+  const normalizedName = cleanName.toLowerCase();
+  const normalizedBrand = cleanBrand.toLowerCase();
+  if (normalizedName.startsWith(normalizedBrand)) {
+    const trimmed = cleanName.slice(cleanBrand.length).trim();
+    return { brand: cleanBrand, name: trimmed || undefined };
+  }
+
+  return { brand: cleanBrand, name: cleanName };
+}
 
 export default function SmartScanScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<CameraStackParamList>>();
-  const { user } = useUser();
-  const { isPaidSubscriber } = useSubscription();
+  const { user } = useAuth();
+  const { isSubscriber, customerInfo } = useSubscription();
+  const { tier } = useUserTier();
+
   const [cameraVisible, setCameraVisible] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
+  const [scanMode, setScanMode] = useState<'barcode' | 'ai' | null>(null);
   const [imageUri, setImageUri] = useState<string | null>(null);
-  const [detectionResult, setDetectionResult] = useState<{
-    type: 'bottle' | 'recipe' | 'ingredient' | 'unknown';
-    data: any;
-  } | null>(null);
-  const [scansRemaining, setScansRemaining] = useState<number>(10);
-  const [canScan, setCanScan] = useState(true);
   const [showConsentDialog, setShowConsentDialog] = useState(false);
   const [hasGivenConsent, setHasGivenConsent] = useState(false);
+
+  const isFree = tier === 'FREE';
 
   // Check consent status on mount
   useEffect(() => {
     checkConsentStatus();
   }, []);
 
-  // Show camera on mount after checking consent
+  // Show camera once consent is confirmed
   useEffect(() => {
     if (hasGivenConsent) {
       setCameraVisible(true);
@@ -63,12 +89,10 @@ export default function SmartScanScreen() {
       if (consentGiven === 'true') {
         setHasGivenConsent(true);
       } else {
-        // Show consent dialog on first use
         setShowConsentDialog(true);
       }
     } catch (error) {
       log.error('SmartScanScreen', 'Error checking consent status', error);
-      // Default to showing consent dialog
       setShowConsentDialog(true);
     }
   };
@@ -84,23 +108,32 @@ export default function SmartScanScreen() {
     }
   };
 
+  const openPaywall = (source: string, offering: 'pro' | null = null) => {
+    const params = { source, offering, displayCloseButton: true };
+    const parentNavigation = navigation.getParent?.();
+    if (parentNavigation) {
+      (parentNavigation as any).navigate('Paywall', params);
+      return;
+    }
+    (navigation as any).navigate('Paywall', params);
+  };
+
   const handleConsentDecline = () => {
-    // For paid users who decline
-    if (isPaidSubscriber) {
+    if (isSubscriber) {
+      // Paid users may decline data sharing and still scan
       setShowConsentDialog(false);
-      setHasGivenConsent(true); // Allow them to proceed
+      setHasGivenConsent(true);
       setCameraVisible(true);
     } else {
-      // Free tier users must accept
       Alert.alert(
         'Data Sharing Required',
-        'Data sharing is required for free tier users. Upgrade to Premium for unlimited scans and optional data sharing.',
+        'Data sharing is required for free tier users. Upgrade to KŌOPE+ for optional data sharing.',
         [
           {
-            text: 'Upgrade to Premium',
+            text: 'Upgrade',
             onPress: () => {
-              // TODO: Navigate to subscription screen
-              navigation.goBack();
+              setShowConsentDialog(false);
+              openPaywall('smart_scan_consent_decline');
             },
           },
           {
@@ -113,130 +146,177 @@ export default function SmartScanScreen() {
     }
   };
 
-  // Check scan limits when component mounts or user changes
-  useEffect(() => {
-    checkScanLimits();
-  }, [user, isPaidSubscriber]);
-
-  const checkScanLimits = async () => {
-    const scanStatus = await InventoryService.canUserScan(user?.id || null, isPaidSubscriber);
-    setScansRemaining(scanStatus.scansRemaining);
-    setCanScan(scanStatus.canScan);
-
-    // If user has reached limit, show alert
-    if (!scanStatus.canScan && !scanStatus.isGuest) {
-      Alert.alert(
-        'Scan Limit Reached',
-        'You\'ve used all 10 free scans this month. Upgrade to Premium for unlimited scans!',
-        [
-          {
-            text: 'Upgrade to Premium',
-            onPress: () => {
-              // TODO: Navigate to subscription screen
-              navigation.goBack();
-            },
-          },
-          {
-            text: 'Maybe Later',
-            style: 'cancel',
-            onPress: () => navigation.goBack(),
-          },
-        ]
-      );
-    }
-  };
-
-  // Handle back button - go back to CameraHub
+  // Hardware back button — return to CameraHub
   useEffect(() => {
     const backAction = () => {
       if (cameraVisible) {
-        // If camera is visible, close it and go back to hub
         navigation.goBack();
         return true;
       }
-      return false; // Allow default back action
+      return false;
     };
 
-    const backHandler = BackHandler.addEventListener(
-      'hardwareBackPress',
-      backAction
-    );
-
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
     return () => backHandler.remove();
   }, [cameraVisible, navigation]);
 
+  // ─── Barcode scan handler (FREE + PLUS/PRO) ───────────────────────────────
+  const handleBarcodeScanned = useCallback(
+    async (result: { type: string; data: string }) => {
+      setCameraVisible(false);
+      setAnalyzing(true);
+      setScanMode('barcode');
+
+      try {
+        log.info('SmartScanScreen', 'Barcode detected', { barcode: result.data });
+
+        const { spirit, productName, productBrand, status, barcode } = await BarcodeService.lookupBarcode(result.data);
+
+        if (status === 'invalid_barcode') {
+          Alert.alert(
+            'Unsupported Barcode',
+            'This code format is not supported for bottle lookup yet. Try another angle or add the bottle manually.',
+            [
+              {
+                text: 'Add Manually',
+                onPress: () => navigation.navigate('ManualBottleEntry', {}),
+              },
+              {
+                text: 'Scan Again',
+                onPress: () => handleRetake(),
+              },
+            ]
+          );
+        } else if (status === 'network_error') {
+          Alert.alert(
+            'Lookup Service Unavailable',
+            'We could not reach barcode lookup services. Check your connection and try again, or add manually.',
+            [
+              { text: 'Add Manually', onPress: () => navigation.navigate('ManualBottleEntry', {}) },
+              { text: 'Try Again', onPress: () => handleRetake() },
+            ]
+          );
+        } else if (spirit) {
+          await InventoryService.recordScan({
+            userId: user?.id || null,
+            scanType: 'bottle',
+            itemName: spirit.name,
+            brandName: spirit.brand,
+            addedToInventory: false,
+          });
+
+          navigation.replace('BottleDetail', { bottle: spirit });
+        } else {
+          // Barcode found but not in our spirits DB — go to manual entry
+          const prefill = getManualPrefill(productName, productBrand);
+          const labelForAlert = productName ? `"${productName}"` : `barcode ${barcode || result.data}`;
+          Alert.alert(
+            'Bottle Not Found Yet',
+            `We found ${labelForAlert} but it is not in our database yet.\n\nTip: you can add it manually now with pre-filled fields, or try scanning the label/front of bottle.`,
+            [
+              {
+                text: 'Add Manually',
+                onPress: () =>
+                  navigation.navigate('ManualBottleEntry', {
+                    initialBrand: prefill.brand,
+                    initialName: prefill.name,
+                  }),
+              },
+              {
+                text: 'Scan Again',
+                onPress: () => handleRetake(),
+              },
+              {
+                text: 'Cancel',
+                style: 'cancel',
+                onPress: () => navigation.goBack(),
+              },
+            ]
+          );
+        }
+      } catch (error) {
+        log.error('SmartScanScreen', 'Error looking up barcode', error);
+        handleRetake();
+      } finally {
+        setAnalyzing(false);
+        setScanMode(null);
+      }
+    },
+    [user, navigation]
+  );
+
+  // ─── Photo capture handler ────────────────────────────────────────────────
   const handleImageCaptured = async (uri: string) => {
-    // Check scan limit before processing
-    if (!canScan && !isPaidSubscriber) {
+    setCameraVisible(false);
+
+    // FREE tier: AI scanning not included — redirect to manual.
+    // Do NOT store the image (it was never analyzed, don't show it).
+    if (isFree) {
       Alert.alert(
-        'Scan Limit Reached',
-        'You\'ve used all 10 free scans this month. Upgrade to Premium for unlimited scans!',
+        'AI Scan is KŌOPE+',
+        'Upgrade to unlock AI label recognition, visual bottle matching, and more. Or add your bottle manually.',
         [
-          { text: 'OK', onPress: () => setCameraVisible(true) },
+          {
+            text: 'Upgrade to PLUS',
+            onPress: () => openPaywall('smart_scan_ai_gate'),
+          },
+          {
+            text: 'Add Manually',
+            onPress: () => navigation.navigate('ManualBottleEntry', {}),
+          },
+          {
+            text: 'Cancel',
+            style: 'cancel',
+            onPress: () => {
+              setCameraVisible(true);
+            },
+          },
         ]
       );
       return;
     }
 
-    setCameraVisible(false);
+    // PLUS/PRO: run full AI waterfall — store the image for preview + BottleDetailScreen
     setImageUri(uri);
     setAnalyzing(true);
+    setScanMode('ai');
 
     try {
-      log.info('SmartScanScreen', 'Analyzing captured image');
+      log.info('SmartScanScreen', 'Running AI analysis on captured image');
 
-      // Analyze image with Google Vision
       const visionResult = await GoogleVisionService.analyzeImage(uri);
-
-      // Detect what type of item was scanned
       const scanType = GoogleVisionService.detectScanType(visionResult);
 
-      log.info('SmartScanScreen', 'Scan type detected', { scanType });
+      log.info('SmartScanScreen', 'AI scan type detected', { scanType });
 
-      // Process based on detected type
       switch (scanType) {
         case 'bottle': {
           const bottle = GoogleVisionService.matchBottle(visionResult);
 
-          // Record scan for brand data
           await InventoryService.recordScan({
             userId: user?.id || null,
             scanType: 'bottle',
             itemName: bottle?.name,
             brandName: bottle?.brand,
             imageUrl: uri,
-            addedToInventory: false, // Will be updated when user adds to inventory
+            addedToInventory: false,
           });
 
-          // Update scan count
-          await checkScanLimits();
-
           if (bottle) {
-            setDetectionResult({ type: 'bottle', data: bottle });
-            // Navigate to bottle detail screen with image for data collection
             navigation.replace('BottleDetail', { bottle, imageUri: uri });
           } else {
-            // Bottle detected but not in database
             handleUnknownBottle(visionResult);
           }
           break;
         }
 
         case 'recipe': {
-          // Recipe card detected - extract text
-          const recipeText = visionResult.text?.join(' ') || '';
-
-          // Record scan for brand data
           await InventoryService.recordScan({
             userId: user?.id || null,
             scanType: 'recipe',
             imageUrl: uri,
           });
 
-          // Update scan count
-          await checkScanLimits();
-
-          setDetectionResult({ type: 'recipe', data: { text: recipeText } });
           Alert.alert(
             'Recipe Detected!',
             'I found a recipe card. Recipe extraction coming soon!',
@@ -251,7 +331,6 @@ export default function SmartScanScreen() {
         case 'ingredient': {
           const ingredient = GoogleVisionService.matchIngredient(visionResult);
 
-          // Record scan for brand data
           await InventoryService.recordScan({
             userId: user?.id || null,
             scanType: 'ingredient',
@@ -261,12 +340,7 @@ export default function SmartScanScreen() {
             addedToInventory: false,
           });
 
-          // Update scan count
-          await checkScanLimits();
-
           if (ingredient) {
-            setDetectionResult({ type: 'ingredient', data: ingredient });
-            // Navigate to ingredient result
             navigation.replace('IngredientScan');
           } else {
             handleUnknownIngredient();
@@ -274,11 +348,8 @@ export default function SmartScanScreen() {
           break;
         }
 
-        case 'unknown':
-        default: {
+        default:
           handleUnknownItem();
-          break;
-        }
       }
     } catch (error) {
       log.error('SmartScanScreen', 'Error analyzing image', error);
@@ -289,6 +360,7 @@ export default function SmartScanScreen() {
       );
     } finally {
       setAnalyzing(false);
+      setScanMode(null);
     }
   };
 
@@ -296,16 +368,15 @@ export default function SmartScanScreen() {
     const brandName = visionResult.text?.[0] || 'Unknown Brand';
     Alert.alert(
       'Bottle Not Recognized',
-      `I detected a bottle (possibly ${brandName}), but it's not in my database yet. Would you like to add it manually?`,
+      `Detected a bottle (possibly ${brandName}), but it's not in our database. Add manually?`,
       [
         {
           text: 'Add Manually',
-          onPress: () => {
+          onPress: () =>
             navigation.navigate('ManualBottleEntry', {
               initialBrand: brandName !== 'Unknown Brand' ? brandName : undefined,
               imageUri: imageUri ?? undefined,
-            });
-          },
+            }),
         },
         { text: 'Try Again', onPress: () => handleRetake() },
         { text: 'Cancel', style: 'cancel', onPress: () => navigation.goBack() },
@@ -316,7 +387,7 @@ export default function SmartScanScreen() {
   const handleUnknownIngredient = () => {
     Alert.alert(
       'Ingredient Not Recognized',
-      'Could not identify the ingredient. Try taking a clearer photo with good lighting.',
+      'Could not identify the ingredient. Try a clearer photo with good lighting.',
       [
         { text: 'Try Again', onPress: () => handleRetake() },
         { text: 'Cancel', style: 'cancel', onPress: () => navigation.goBack() },
@@ -327,31 +398,19 @@ export default function SmartScanScreen() {
   const handleUnknownItem = () => {
     Alert.alert(
       "Can't Detect Item",
-      "I couldn't determine what this is. What are you trying to scan?",
+      "Couldn't determine what this is. What are you scanning?",
       [
         {
           text: 'Bottle',
-          onPress: () => {
-            // Retry as bottle
-            Alert.alert('Bottle Scan', 'Take a clear photo of the bottle label.');
-            handleRetake();
-          },
+          onPress: () => handleRetake(),
         },
         {
           text: 'Recipe',
-          onPress: () => {
-            // Retry as recipe
-            Alert.alert('Recipe Scan', 'Make sure the recipe text is clear and well-lit.');
-            handleRetake();
-          },
+          onPress: () => handleRetake(),
         },
         {
           text: 'Ingredient',
-          onPress: () => {
-            // Retry as ingredient
-            Alert.alert('Ingredient Scan', 'Focus on a single ingredient.');
-            handleRetake();
-          },
+          onPress: () => handleRetake(),
         },
         { text: 'Cancel', style: 'cancel', onPress: () => navigation.goBack() },
       ]
@@ -360,12 +419,11 @@ export default function SmartScanScreen() {
 
   const handleRetake = () => {
     setImageUri(null);
-    setDetectionResult(null);
+    setScanMode(null);
     setCameraVisible(true);
   };
 
   const handleCameraClose = () => {
-    // Navigate back to CameraHub
     navigation.goBack();
   };
 
@@ -374,33 +432,41 @@ export default function SmartScanScreen() {
     navigation.navigate('RecipeURLImport');
   };
 
+  const analyzingTitle = scanMode === 'barcode' ? 'Looking up barcode...' : 'Analyzing with AI...';
+  const analyzingSubtitle =
+    scanMode === 'barcode'
+      ? 'Searching spirits database'
+      : 'Detecting bottles, recipes, and ingredients';
+  const activeEntitlements = Object.keys(customerInfo?.entitlements.active || {});
+  const hasProEntitlement = activeEntitlements.includes(SUBSCRIPTION_ENTITLEMENTS.KOOPE_PRO)
+    || activeEntitlements.includes(SUBSCRIPTION_ENTITLEMENTS.KOOPE_PRO_ALT);
+  const hasPlusEntitlement = activeEntitlements.includes(SUBSCRIPTION_ENTITLEMENTS.KOOPE_PLUS);
+  const hasPrestigeEntitlement = activeEntitlements.includes(SUBSCRIPTION_ENTITLEMENTS.PRESTIGE);
+
   return (
     <>
       <DataConsentDialog
         visible={showConsentDialog}
         onAccept={handleConsentAccept}
         onDecline={handleConsentDecline}
-        isPaidUser={isPaidSubscriber}
+        isPaidUser={isSubscriber}
       />
 
       <CameraCapture
         visible={cameraVisible}
         onClose={handleCameraClose}
         onImageCaptured={handleImageCaptured}
+        onBarcodeScanned={handleBarcodeScanned}
+        barcodeOnly={isFree}
         title="Smart Scan"
-        allowGallery={true}
-        scansRemaining={scansRemaining}
-        isPaidUser={isPaidSubscriber}
+        isPaidUser={isSubscriber}
         isGuest={!user}
       />
 
-      {/* Import from URL button - shows when camera is visible */}
-      {cameraVisible && (
+      {/* URL import — only for paid users (recipe scanning is PLUS/PRO) */}
+      {cameraVisible && !isFree && (
         <View style={styles.urlButtonContainer}>
-          <TouchableOpacity
-            style={styles.urlButton}
-            onPress={handleImportFromURL}
-          >
+          <TouchableOpacity style={styles.urlButton} onPress={handleImportFromURL}>
             <Ionicons name="link" size={24} color={colors.white} />
             <Text style={styles.urlButtonText}>URL</Text>
           </TouchableOpacity>
@@ -408,12 +474,9 @@ export default function SmartScanScreen() {
       )}
 
       <SafeAreaView style={styles.container}>
-        {/* Header with Back Button */}
+        {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => navigation.goBack()}
-          >
+          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
             <Ionicons name="chevron-back" size={28} color={colors.text} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Smart Scan</Text>
@@ -421,50 +484,30 @@ export default function SmartScanScreen() {
         </View>
 
         <View style={styles.content}>
-          {/* Preview Image */}
+          <View style={styles.debugBanner}>
+            <Text style={styles.debugBannerText}>
+              Tier: {tier} | Sub: {isSubscriber ? 'yes' : 'no'}
+            </Text>
+            <Text style={styles.debugBannerSubtext}>
+              Entitlements: +:{hasPlusEntitlement ? 'Y' : 'N'} pro:{hasProEntitlement ? 'Y' : 'N'} prestige:{hasPrestigeEntitlement ? 'Y' : 'N'}
+            </Text>
+          </View>
+
+          {/* Preview image */}
           {imageUri && (
             <Image source={{ uri: imageUri }} style={styles.previewImage} />
           )}
 
-          {/* Analyzing State */}
+          {/* Analyzing state */}
           {analyzing && (
             <View style={styles.analyzingContainer}>
               <ActivityIndicator size="large" color={colors.gold} />
-              <Text style={styles.analyzingTitle}>Analyzing with AI...</Text>
-              <Text style={styles.analyzingSubtitle}>
-                Detecting bottles, recipes, and ingredients
-              </Text>
+              <Text style={styles.analyzingTitle}>{analyzingTitle}</Text>
+              <Text style={styles.analyzingSubtitle}>{analyzingSubtitle}</Text>
             </View>
           )}
 
-          {/* Detection Result */}
-          {detectionResult && !analyzing && (
-            <View style={styles.resultContainer}>
-              <View style={styles.resultBadge}>
-                <Ionicons
-                  name={
-                    detectionResult.type === 'bottle'
-                      ? 'wine'
-                      : detectionResult.type === 'recipe'
-                      ? 'document-text'
-                      : 'leaf'
-                  }
-                  size={40}
-                  color={colors.gold}
-                />
-              </View>
-              <Text style={styles.resultTitle}>
-                {detectionResult.type === 'bottle'
-                  ? 'Bottle Detected'
-                  : detectionResult.type === 'recipe'
-                  ? 'Recipe Detected'
-                  : 'Ingredient Detected'}
-              </Text>
-              <Text style={styles.resultSubtitle}>Processing...</Text>
-            </View>
-          )}
-
-          {/* Action Buttons */}
+          {/* Action buttons after analysis */}
           {!analyzing && imageUri && (
             <View style={styles.actions}>
               <TouchableOpacity style={styles.retakeButton} onPress={handleRetake}>
@@ -513,9 +556,29 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     alignItems: 'center',
     padding: spacing(3),
+  },
+  debugBanner: {
+    width: '100%',
+    backgroundColor: 'rgba(214,138,56,0.14)',
+    borderWidth: 1,
+    borderColor: 'rgba(214,138,56,0.3)',
+    borderRadius: radii.md,
+    paddingHorizontal: spacing(2),
+    paddingVertical: spacing(1.5),
+    marginBottom: spacing(2),
+  },
+  debugBannerText: {
+    color: colors.text,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  debugBannerSubtext: {
+    color: colors.subtext,
+    fontSize: 11,
+    marginTop: spacing(0.5),
   },
   previewImage: {
     width: '100%',
@@ -537,30 +600,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.subtext,
     textAlign: 'center',
-  },
-  resultContainer: {
-    alignItems: 'center',
-    gap: spacing(2),
-    marginTop: spacing(4),
-  },
-  resultBadge: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: `${colors.gold}20`,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: colors.gold,
-  },
-  resultTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  resultSubtitle: {
-    fontSize: 14,
-    color: colors.subtext,
   },
   actions: {
     position: 'absolute',

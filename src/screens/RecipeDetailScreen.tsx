@@ -10,6 +10,10 @@ import {
   Platform,
   Dimensions,
   StatusBar,
+  Modal,
+  TextInput,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors, spacing, radii, fonts } from '../theme/tokens';
@@ -20,24 +24,48 @@ import type { RootStackParamList } from '../navigation/RootNavigator';
 import GroceryListModal from '../components/GroceryListModal';
 import { useChallengeProgress } from '../hooks/useChallengeProgress';
 import { useUserTier } from '../store/useUserTier';
+import { useXPSystem } from '../store/useXPSystem';
 import { canAccessContent } from '../utils/tierAccess';
 import { log } from '../lib/logger';
 import type { FlavorProfile } from '../types/userProfile';
+import { useAuth } from '../contexts/AuthContext';
+import { InventoryService } from '../services/inventoryService';
+import { logRecipeCompletion, updateCompletionRating } from '../services/recipeCompletionService';
+import { loadUserProfile, updateUserProfileFields } from '../services/userProfileService';
+import type { RecipeCompletionDetails } from '../types/userProfile';
+import { useFeatureAccess } from '../hooks/useFeatureAccess';
 
 const { width } = Dimensions.get('window');
 
 export default function RecipeDetailScreen() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute();
+  const { user } = useAuth();
   const recipe = (route.params as any)?.recipe;
   const [groceryListVisible, setGroceryListVisible] = useState(false);
   const { trackRecipeViewed } = useChallengeProgress();
+  const { earnRecipeViewedXP, earnCocktailLoggedXP, earnRecipeRatingXP } = useXPSystem();
   const [proTipsOpen, setProTipsOpen] = useState(false);
   const [batchMultiplier, setBatchMultiplier] = useState(1);
   const { tier } = useUserTier();
+  const [makeFlowVisible, setMakeFlowVisible] = useState(false);
+  const [ratingFlowVisible, setRatingFlowVisible] = useState(false);
+  const [inventoryLoading, setInventoryLoading] = useState(false);
+  const [isSavingCompletion, setIsSavingCompletion] = useState(false);
+  const [inventoryOptions, setInventoryOptions] = useState<string[]>([]);
+  const [brandSelections, setBrandSelections] = useState<Record<string, string>>({});
+  const [substitutions, setSubstitutions] = useState('');
+  const [techniqueVariations, setTechniqueVariations] = useState('');
+  const [personalModifications, setPersonalModifications] = useState('');
+  const [completionNotes, setCompletionNotes] = useState('');
+  const [selectedRating, setSelectedRating] = useState(0);
+  const [lastCompletionId, setLastCompletionId] = useState<string | null>(null);
   const hasBatching = canAccessContent(tier, 'PLUS');
   const showFlavorTags = canAccessContent(tier, 'PLUS');
   const showTasteMatch = canAccessContent(tier, 'PLUS');
+  const { gate: flavorTagsGate } = useFeatureAccess('flavor_tags_visible');
+  const { gateWithTrigger: hostingBasicGate } = useFeatureAccess('party_scaling');
+  const { gateWithTrigger: hostingAdvancedGate } = useFeatureAccess('hosting_advanced');
 
   // Extract flavor tags and taste match from recipe data
   const flavorTags: FlavorProfile[] = useMemo(() => {
@@ -45,17 +73,32 @@ export default function RecipeDetailScreen() {
     return recipe.flavorProfiles || recipe.flavorTags || [];
   }, [recipe]);
 
+  const recipeIngredients = useMemo(
+    () =>
+      (recipe?.ingredients || recipe?.tags || []).map((item: any, index: number) => {
+        const ingredient = typeof item === 'string' ? item : (item.name || item);
+        const amount = typeof item === 'string' ? '' : (item.amount || '');
+        return {
+          key: `${index}_${String(ingredient).toLowerCase()}`,
+          name: String(ingredient),
+          amount: String(amount || ''),
+        };
+      }),
+    [recipe]
+  );
+
   const tasteMatchPercent: number | undefined = recipe?.tasteMatchPercent;
 
   // Serif font family helper
   const serifFont = Platform.select({ ios: 'Georgia', android: 'serif', default: 'serif' });
 
-  // Track recipe view for challenges
+  // Track recipe view for challenges + award XP (10 XP, capped at 5 views/day)
   useEffect(() => {
     if (recipe?.id) {
       trackRecipeViewed(recipe.id).catch(error => {
         log.error('RecipeDetailScreen', 'Error tracking recipe view', error);
       });
+      earnRecipeViewedXP();
     }
   }, [recipe?.id]);
 
@@ -85,6 +128,227 @@ export default function RecipeDetailScreen() {
       });
     } catch (error) {
       log.error('RecipeDetailScreen', 'Error sharing recipe', error, { recipeTitle: recipe.title });
+    }
+  };
+
+  const handleFlavorTagsLockedPress = () => {
+    flavorTagsGate();
+  };
+
+  const handleBatchMultiplierPress = (mult: number) => {
+    if (mult > 4) {
+      hostingAdvancedGate('T7', () => setBatchMultiplier(mult));
+      return;
+    }
+    setBatchMultiplier(mult);
+  };
+
+  const handleBatchLockedPress = () => {
+    hostingBasicGate('T6');
+  };
+
+  const normalizeText = (value: string): string =>
+    value.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+
+  const getSuggestionsForIngredient = (ingredientName: string): string[] => {
+    const needle = normalizeText(ingredientName);
+    if (!needle) return [];
+
+    const tokens = needle.split(' ').filter(Boolean);
+    return inventoryOptions
+      .filter((option) => {
+        const normalizedOption = normalizeText(option);
+        if (normalizedOption.includes(needle)) return true;
+        return tokens.some((token) => token.length >= 3 && normalizedOption.includes(token));
+      })
+      .slice(0, 5);
+  };
+
+  const syncRecipeCompletionToProfile = async (
+    rating?: number,
+    isRatingUpdate: boolean = false,
+    completionDetails?: RecipeCompletionDetails,
+    completionId?: string
+  ) => {
+    try {
+      if (!user?.id || !recipe?.id) return;
+
+      const profile = await loadUserProfile(user.id);
+      if (!profile) return;
+
+      const interactionHistory = profile.interactionHistory || {
+        viewedRecipes: [],
+        savedRecipes: [],
+        completedRecipes: [],
+        searchQueries: [],
+        lastUpdated: new Date(),
+      };
+
+      if (isRatingUpdate) {
+        const latestIdx = [...interactionHistory.completedRecipes]
+          .reverse()
+          .findIndex((entry) => entry.recipeId === recipe.id);
+
+        if (latestIdx >= 0) {
+          const actualIdx = interactionHistory.completedRecipes.length - 1 - latestIdx;
+          interactionHistory.completedRecipes[actualIdx] = {
+            ...interactionHistory.completedRecipes[actualIdx],
+            rating: rating || undefined,
+            feedback: rating ? (rating >= 4 ? 'loved' : rating >= 3 ? 'liked' : 'disliked') : undefined,
+            completionId: completionId || interactionHistory.completedRecipes[actualIdx].completionId,
+            completionDetails: completionDetails || interactionHistory.completedRecipes[actualIdx].completionDetails,
+            timestamp: new Date(),
+          };
+        } else {
+          interactionHistory.completedRecipes.push({
+            recipeId: recipe.id,
+            timestamp: new Date(),
+            rating: rating || undefined,
+            feedback: rating ? (rating >= 4 ? 'loved' : rating >= 3 ? 'liked' : 'disliked') : undefined,
+            completionId: completionId || undefined,
+            completionDetails: completionDetails || undefined,
+          });
+        }
+      } else {
+        interactionHistory.completedRecipes.push({
+          recipeId: recipe.id,
+          timestamp: new Date(),
+          rating: rating || undefined,
+          feedback: rating ? (rating >= 4 ? 'loved' : rating >= 3 ? 'liked' : 'disliked') : undefined,
+          completionId: completionId || undefined,
+          completionDetails: completionDetails || undefined,
+        });
+      }
+      interactionHistory.lastUpdated = new Date();
+
+      await updateUserProfileFields(user.id, { interactionHistory });
+    } catch (error) {
+      log.warn('RecipeDetailScreen', 'Failed to sync completion to profile (non-blocking)', error);
+    }
+  };
+
+  const loadInventoryOptions = async () => {
+    if (!user?.id) {
+      setInventoryOptions([]);
+      return;
+    }
+
+    try {
+      setInventoryLoading(true);
+      const inventory = await InventoryService.getUserInventory(user.id);
+      const options = Array.from(
+        new Set(
+          inventory
+            .map((item) => item.item_name)
+            .filter((name): name is string => Boolean(name))
+            .map((name) => name.trim())
+            .filter(Boolean)
+        )
+      );
+      setInventoryOptions(options);
+    } catch (error) {
+      log.error('RecipeDetailScreen', 'Failed to load inventory options', error);
+      setInventoryOptions([]);
+    } finally {
+      setInventoryLoading(false);
+    }
+  };
+
+  const openMakeFlow = async () => {
+    setBrandSelections({});
+    setSubstitutions('');
+    setTechniqueVariations('');
+    setPersonalModifications('');
+    setCompletionNotes('');
+    setSelectedRating(0);
+    setMakeFlowVisible(true);
+    await loadInventoryOptions();
+  };
+
+  const handleSelectSuggestion = (ingredientKey: string, suggestion: string) => {
+    setBrandSelections((prev) => ({ ...prev, [ingredientKey]: suggestion }));
+  };
+
+  const handleLogCompletion = async () => {
+    if (!recipe) return;
+
+    try {
+      setIsSavingCompletion(true);
+
+      const ingredientBrands = recipeIngredients.map((ingredient) => ({
+        ingredient: ingredient.name,
+        amount: ingredient.amount || undefined,
+        brandUsed: (brandSelections[ingredient.key] || '').trim() || 'Not specified',
+      }));
+
+      const completion = await logRecipeCompletion({
+        userId: user?.id,
+        recipeId: recipe.id,
+        recipeName: recipe.name || recipe.title || 'Recipe',
+        ingredientBrands,
+        substitutions: substitutions.trim() || undefined,
+        techniqueVariations: techniqueVariations.trim() || undefined,
+        personalModifications: personalModifications.trim() || undefined,
+      });
+      const completionDetails: RecipeCompletionDetails = {
+        ingredientBrands,
+        substitutions: substitutions.trim() || undefined,
+        techniqueVariations: techniqueVariations.trim() || undefined,
+        personalModifications: personalModifications.trim() || undefined,
+      };
+
+      setLastCompletionId(completion.id);
+
+      const isDetailed =
+        ingredientBrands.some((item) => item.brandUsed !== 'Not specified') ||
+        Boolean(substitutions.trim()) ||
+        Boolean(techniqueVariations.trim()) ||
+        Boolean(personalModifications.trim());
+
+      earnCocktailLoggedXP(isDetailed, recipe.name || recipe.title || 'Recipe');
+      await syncRecipeCompletionToProfile(undefined, false, completionDetails, completion.id);
+
+      setMakeFlowVisible(false);
+      Alert.alert(
+        'Logged',
+        `${recipe.name || recipe.title} added to your made drinks.`,
+        [
+          { text: 'Done', style: 'cancel' },
+          { text: 'How was it?', onPress: () => setRatingFlowVisible(true) },
+        ]
+      );
+    } catch (error) {
+      log.error('RecipeDetailScreen', 'Failed to log recipe completion', error);
+      Alert.alert('Error', 'Could not log this drink. Please try again.');
+    } finally {
+      setIsSavingCompletion(false);
+    }
+  };
+
+  const handleSaveRating = async () => {
+    if (!lastCompletionId || selectedRating <= 0) {
+      setRatingFlowVisible(false);
+      return;
+    }
+
+    try {
+      await updateCompletionRating(lastCompletionId, selectedRating, completionNotes.trim() || undefined);
+      earnRecipeRatingXP(recipe?.name || recipe?.title || 'Recipe');
+      await syncRecipeCompletionToProfile(
+        selectedRating,
+        true,
+        completionNotes.trim()
+          ? {
+              notes: completionNotes.trim(),
+            }
+          : undefined,
+        lastCompletionId
+      );
+      setRatingFlowVisible(false);
+      Alert.alert('Thanks', 'Your feedback was saved.');
+    } catch (error) {
+      log.error('RecipeDetailScreen', 'Failed to save completion rating', error);
+      Alert.alert('Error', 'Could not save rating. Please try again.');
     }
   };
 
@@ -149,11 +413,11 @@ export default function RecipeDetailScreen() {
 
         {/* --- Action Buttons --- */}
         <View style={styles.actionButtonsContainer}>
-          <TouchableOpacity style={styles.primaryButton}>
-            <Text style={styles.primaryButtonText}>Make This Now</Text>
+          <TouchableOpacity style={styles.primaryButton} onPress={openMakeFlow}>
+            <Text style={styles.primaryButtonText}>Make this drink</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.secondaryButton}>
+          <TouchableOpacity style={styles.secondaryButton} onPress={openMakeFlow}>
             <Text style={styles.secondaryButtonText}>I Made This</Text>
           </TouchableOpacity>
         </View>
@@ -191,7 +455,7 @@ export default function RecipeDetailScreen() {
           <TouchableOpacity
             style={styles.flavorTagLockedRow}
             activeOpacity={0.8}
-            onPress={() => nav.navigate('Paywall' as any, { source: 'flavor_tags' })}
+            onPress={handleFlavorTagsLockedPress}
           >
             <Ionicons name="pricetag-outline" size={16} color={colors.gold} />
             <Text style={styles.flavorTagLockedText}>
@@ -276,7 +540,7 @@ export default function RecipeDetailScreen() {
                     styles.batchChip,
                     batchMultiplier === mult && styles.batchChipActive,
                   ]}
-                  onPress={() => setBatchMultiplier(mult)}
+                  onPress={() => handleBatchMultiplierPress(mult)}
                 >
                   <Text style={[
                     styles.batchChipText,
@@ -336,7 +600,7 @@ export default function RecipeDetailScreen() {
           <TouchableOpacity
             style={styles.batchLockedSection}
             activeOpacity={0.8}
-            onPress={() => nav.navigate('Paywall' as any, { source: 'batch_calculator' })}
+            onPress={handleBatchLockedPress}
           >
             <MaterialCommunityIcons name="lock-outline" size={20} color={colors.gold} />
             <View style={{ flex: 1, marginLeft: spacing(1.5) }}>
@@ -409,6 +673,156 @@ export default function RecipeDetailScreen() {
           recipeId={recipe.id}
         />
       )}
+
+      <Modal visible={makeFlowVisible} animationType="slide" transparent onRequestClose={() => setMakeFlowVisible(false)}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>What brands did you use?</Text>
+              <TouchableOpacity onPress={() => setMakeFlowVisible(false)}>
+                <Ionicons name="close" size={24} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.modalScroll} showsVerticalScrollIndicator={false}>
+              {inventoryLoading && (
+                <View style={styles.inlineLoading}>
+                  <ActivityIndicator size="small" color={colors.accent} />
+                  <Text style={styles.inlineLoadingText}>Loading inventory brands...</Text>
+                </View>
+              )}
+
+              {recipeIngredients.map((ingredient) => {
+                const suggestions = getSuggestionsForIngredient(ingredient.name);
+                return (
+                  <View key={ingredient.key} style={styles.modalSection}>
+                    <Text style={styles.modalSectionTitle}>
+                      {ingredient.name}
+                      {ingredient.amount ? ` (${ingredient.amount})` : ''}
+                    </Text>
+
+                    <TextInput
+                      style={styles.modalInput}
+                      placeholder="Type brand used or choose below"
+                      placeholderTextColor={colors.subtext}
+                      value={brandSelections[ingredient.key] || ''}
+                      onChangeText={(value) =>
+                        setBrandSelections((prev) => ({ ...prev, [ingredient.key]: value }))
+                      }
+                    />
+
+                    {suggestions.length > 0 && (
+                      <View style={styles.suggestionRow}>
+                        {suggestions.map((suggestion) => (
+                          <TouchableOpacity
+                            key={`${ingredient.key}_${suggestion}`}
+                            style={styles.suggestionChip}
+                            onPress={() => handleSelectSuggestion(ingredient.key, suggestion)}
+                          >
+                            <Text style={styles.suggestionChipText}>{suggestion}</Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    )}
+                  </View>
+                );
+              })}
+
+              <View style={styles.modalSection}>
+                <Text style={styles.modalSectionTitle}>Substitutions made</Text>
+                <TextInput
+                  style={[styles.modalInput, styles.multilineInput]}
+                  placeholder="Any ingredient substitutions?"
+                  placeholderTextColor={colors.subtext}
+                  value={substitutions}
+                  onChangeText={setSubstitutions}
+                  multiline
+                />
+              </View>
+
+              <View style={styles.modalSection}>
+                <Text style={styles.modalSectionTitle}>Technique variations</Text>
+                <TextInput
+                  style={[styles.modalInput, styles.multilineInput]}
+                  placeholder="Shaken vs stirred, dilution, garnish technique..."
+                  placeholderTextColor={colors.subtext}
+                  value={techniqueVariations}
+                  onChangeText={setTechniqueVariations}
+                  multiline
+                />
+              </View>
+
+              <View style={styles.modalSection}>
+                <Text style={styles.modalSectionTitle}>Personal modifications</Text>
+                <TextInput
+                  style={[styles.modalInput, styles.multilineInput]}
+                  placeholder="Any tweaks to sweetness, bitter balance, ratios..."
+                  placeholderTextColor={colors.subtext}
+                  value={personalModifications}
+                  onChangeText={setPersonalModifications}
+                  multiline
+                />
+              </View>
+            </ScrollView>
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={styles.modalSecondaryButton} onPress={() => setMakeFlowVisible(false)}>
+                <Text style={styles.modalSecondaryButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalPrimaryButton, isSavingCompletion && styles.modalPrimaryButtonDisabled]}
+                onPress={handleLogCompletion}
+                disabled={isSavingCompletion}
+              >
+                {isSavingCompletion ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.modalPrimaryButtonText}>I made it!</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={ratingFlowVisible} animationType="fade" transparent onRequestClose={() => setRatingFlowVisible(false)}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.ratingCard}>
+            <Text style={styles.modalTitle}>How was it?</Text>
+            <Text style={styles.ratingSubtitle}>Optional rating to improve recommendations</Text>
+
+            <View style={styles.ratingRow}>
+              {[1, 2, 3, 4, 5].map((rating) => (
+                <TouchableOpacity key={rating} onPress={() => setSelectedRating(rating)}>
+                  <Ionicons
+                    name={rating <= selectedRating ? 'star' : 'star-outline'}
+                    size={32}
+                    color={rating <= selectedRating ? colors.gold : colors.subtext}
+                  />
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <TextInput
+              style={[styles.modalInput, styles.multilineInput]}
+              placeholder="Notes (optional)"
+              placeholderTextColor={colors.subtext}
+              value={completionNotes}
+              onChangeText={setCompletionNotes}
+              multiline
+            />
+
+            <View style={styles.ratingActions}>
+              <TouchableOpacity style={styles.modalSecondaryButton} onPress={() => setRatingFlowVisible(false)}>
+                <Text style={styles.modalSecondaryButtonText}>Skip</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.modalPrimaryButton} onPress={handleSaveRating}>
+                <Text style={styles.modalPrimaryButtonText}>Save Feedback</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -824,5 +1238,152 @@ const styles = StyleSheet.create({
   flavorTagLockedText: {
     fontSize: 13,
     color: colors.subtext,
+  },
+
+  // Make flow modal
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.72)',
+    justifyContent: 'center',
+    padding: spacing(2),
+  },
+  modalCard: {
+    maxHeight: '90%',
+    backgroundColor: colors.bg,
+    borderRadius: radii.xl,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    overflow: 'hidden',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: spacing(2.5),
+    paddingVertical: spacing(2),
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.08)',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  modalScroll: {
+    paddingHorizontal: spacing(2.5),
+    paddingTop: spacing(1),
+  },
+  inlineLoading: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(1),
+    paddingVertical: spacing(1),
+  },
+  inlineLoadingText: {
+    fontSize: 12,
+    color: colors.subtext,
+  },
+  modalSection: {
+    marginBottom: spacing(2),
+  },
+  modalSectionTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: spacing(1),
+  },
+  modalInput: {
+    backgroundColor: '#261C16',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    borderRadius: radii.md,
+    paddingHorizontal: spacing(1.5),
+    paddingVertical: spacing(1.25),
+    color: colors.text,
+    fontSize: 14,
+  },
+  multilineInput: {
+    minHeight: 74,
+    textAlignVertical: 'top',
+  },
+  suggestionRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing(0.75),
+    marginTop: spacing(1),
+  },
+  suggestionChip: {
+    paddingHorizontal: spacing(1.25),
+    paddingVertical: spacing(0.5),
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: 'rgba(255,255,255,0.04)',
+  },
+  suggestionChipText: {
+    fontSize: 12,
+    color: colors.text,
+  },
+  modalActions: {
+    padding: spacing(2.5),
+    gap: spacing(1),
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.08)',
+  },
+  modalPrimaryButton: {
+    backgroundColor: colors.accent,
+    borderRadius: radii.pill,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing(2),
+  },
+  modalPrimaryButtonDisabled: {
+    opacity: 0.7,
+  },
+  modalPrimaryButtonText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  modalSecondaryButton: {
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+    borderRadius: radii.pill,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing(2),
+  },
+  modalSecondaryButtonText: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+
+  // Rating modal
+  ratingCard: {
+    backgroundColor: colors.bg,
+    borderRadius: radii.xl,
+    padding: spacing(2.5),
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  ratingSubtitle: {
+    color: colors.subtext,
+    fontSize: 13,
+    marginTop: spacing(0.5),
+    marginBottom: spacing(2),
+  },
+  ratingRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: spacing(2),
+    paddingHorizontal: spacing(1),
+  },
+  ratingActions: {
+    flexDirection: 'row',
+    gap: spacing(1),
+    marginTop: spacing(1),
   },
 });

@@ -1,6 +1,8 @@
 /**
- * Scan Counter Component
- * Displays remaining scans for free tier users
+ * Scan Counter / Scan Mode Badge
+ * Shows the active scan mode for free vs paid users.
+ * Free:  "BARCODE · FREE" badge — barcode + manual only
+ * Paid:  hidden (unlimited AI scanning, no badge needed)
  */
 
 import React from 'react';
@@ -9,37 +11,25 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, radii } from '../../theme/tokens';
 
 interface ScanCounterProps {
-  scansRemaining: number;
+  scansRemaining?: number; // kept for API compat, unused
   isPaidUser?: boolean;
   isGuest?: boolean;
 }
 
-export default function ScanCounter({ scansRemaining, isPaidUser, isGuest }: ScanCounterProps) {
-  // Don't show counter for paid users (unlimited scans)
-  if (isPaidUser) {
-    return null;
-  }
-
-  // For guests, show default 10/10
-  const displayRemaining = isGuest ? 10 : scansRemaining;
-  const totalScans = 10;
-  const isLow = displayRemaining <= 3;
-  const isEmpty = displayRemaining === 0;
+export default function ScanCounter({ isPaidUser, isGuest }: ScanCounterProps) {
+  // Paid users: unlimited AI scanning — no badge shown
+  if (isPaidUser) return null;
 
   return (
-    <View style={[styles.container, isEmpty && styles.containerEmpty]}>
+    <View style={styles.container}>
       <View style={styles.content}>
-        <Ionicons
-          name={isEmpty ? 'alert-circle' : 'scan-outline'}
-          size={16}
-          color={isEmpty ? colors.white : isLow ? '#FFA500' : colors.gold}
-        />
-        <Text style={[styles.text, isEmpty && styles.textEmpty]}>
-          {isEmpty ? 'Limit reached' : `${displayRemaining}/${totalScans} scans left`}
+        <Ionicons name="barcode-outline" size={15} color={colors.gold} />
+        <Text style={styles.text}>
+          {isGuest ? 'BARCODE SCAN' : 'BARCODE · FREE'}
         </Text>
       </View>
       {isGuest && (
-        <Text style={styles.guestNote}>Sign in to track</Text>
+        <Text style={styles.guestNote}>Sign in to save</Text>
       )}
     </View>
   );
@@ -54,22 +44,16 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: `${colors.gold}40`,
   },
-  containerEmpty: {
-    backgroundColor: 'rgba(220, 53, 69, 0.9)',
-    borderColor: '#DC3545',
-  },
   content: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing(1),
   },
   text: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.white,
-  },
-  textEmpty: {
-    color: colors.white,
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.gold,
+    letterSpacing: 0.5,
   },
   guestNote: {
     fontSize: 10,

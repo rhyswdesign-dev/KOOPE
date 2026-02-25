@@ -12,6 +12,7 @@ import { PlacementResult } from '../../types/domain';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/tokens';
 import { usePersonalization } from '../../store/usePersonalization';
+import { useXPSystem } from '../../store/useXPSystem';
 import { log } from '../../lib/logger';
 
 type SurveyResultsScreenProps = {
@@ -23,6 +24,7 @@ export default function SurveyResultsScreen({ navigation, route }: SurveyResults
   const [placement, setPlacement] = useState<PlacementResult | null>(null);
   const { answers } = route.params;
   const { initializeFromSurvey } = usePersonalization();
+  const { markProfileComplete } = useXPSystem();
 
   useEffect(() => {
     // Calculate placement from survey answers
@@ -37,6 +39,8 @@ export default function SurveyResultsScreen({ navigation, route }: SurveyResults
 
   const handleStartLearning = () => {
     if (placement) {
+      // Award 100 XP one-time for completing the taste profile (hasCompletedProfile guards repeat)
+      markProfileComplete();
       // Navigate to the lessons tree where users can see their recommended starting point
       navigation.navigate('Lessons');
     }

@@ -43,7 +43,7 @@ export default function ManualBottleEntryScreen() {
   const navigation = useNavigation<ManualBottleEntryNav>();
   const route = useRoute<ManualBottleEntryRoute>();
   const { user } = useAuth();
-  const { earnInventoryXP } = useXPSystem();
+  const { earnBottleSubmittedXP } = useXPSystem();
   const { tier } = useUserTier();
   const { gateWithTrigger: inventoryGate } = useFeatureAccess('inventory_unlimited');
 
@@ -122,12 +122,12 @@ export default function ManualBottleEntryScreen() {
       return;
     }
 
-    // Award XP
-    earnInventoryXP(itemName);
+    // Award XP — 150 XP for manually submitting a new bottle to the database
+    earnBottleSubmittedXP();
 
     Alert.alert(
       'Added to Inventory!',
-      `${itemName} has been added to your inventory.\n\n+5 XP earned`,
+      `${itemName} has been added to your inventory.\n\n+150 XP earned`,
       [
         {
           text: 'View Inventory',
@@ -149,6 +149,15 @@ export default function ManualBottleEntryScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
+          {(route.params?.initialBrand || route.params?.initialName) && (
+            <View style={styles.prefillNotice}>
+              <Ionicons name="information-circle-outline" size={16} color={colors.gold} />
+              <Text style={styles.prefillNoticeText}>
+                We pre-filled fields from your barcode scan. Edit anything before saving.
+              </Text>
+            </View>
+          )}
+
           {/* Name */}
           <Text style={styles.label}>Bottle Name *</Text>
           <TextInput
@@ -239,6 +248,22 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: spacing(4),
     paddingBottom: spacing(8),
+  },
+  prefillNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(1),
+    backgroundColor: 'rgba(214,138,56,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(214,138,56,0.24)',
+    borderRadius: radii.md,
+    padding: spacing(1.5),
+  },
+  prefillNoticeText: {
+    color: colors.subtext,
+    fontSize: 12,
+    flex: 1,
+    lineHeight: 16,
   },
   label: {
     color: colors.text,

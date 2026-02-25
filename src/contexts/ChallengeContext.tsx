@@ -8,6 +8,7 @@ import { Challenge } from '../types/challenge';
 import { challengeService } from '../services/challengeService';
 import { challengeProgressService, ActionType, ActionMetadata } from '../services/challengeProgressService';
 import { useAuth } from './AuthContext';
+import { useXPSystem } from '../store/useXPSystem';
 import { log } from '../lib/logger';
 
 interface ChallengeContextType {
@@ -78,6 +79,12 @@ export const ChallengeProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       );
 
       if (completedChallenges.length > 0) {
+        // Award XP for each completed challenge (200 XP base per spec)
+        const { earnChallengeXP } = useXPSystem.getState();
+        for (const challenge of completedChallenges) {
+          earnChallengeXP(200, challenge.title);
+        }
+
         // Store completed challenges for notification
         setLastCompletedChallenges(prev => [...prev, ...completedChallenges]);
 

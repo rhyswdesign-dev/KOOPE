@@ -13,7 +13,6 @@ import {
   SafeAreaView,
   Alert,
   Linking,
-  Platform,
   Image,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -23,39 +22,51 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, radii } from '../theme/tokens';
 import type { CameraStackParamList } from '../navigation/CameraStack';
 import type { RootStackParamList } from '../navigation/RootNavigator';
-import type { Spirit } from '../data/spiritsDatabase';
 import { getPriceTierDisplay } from '../data/spiritsDatabase';
 import { useXPSystem } from '../store/useXPSystem';
 import * as Localization from 'expo-localization';
 import { supabase } from '../lib/supabase';
-import type { Cocktail } from '../types/supabase';
 import { InventoryService } from '../services/inventoryService';
-import { useUser } from '../store/useUser';
-import { matchRecipe, sortByMatch, getMatchMessage } from '../utils/recipeMatching';
+import { useAuth } from '../contexts/AuthContext';
+import { sortByMatch, getMatchMessage } from '../utils/recipeMatching';
 import type { RecipeMatch } from '../utils/recipeMatching';
 import { RecipesRepository } from '../repos/supabase';
 import { useUserTier } from '../store/useUserTier';
 import { isCocktailAccessible, TIER_LIMITS } from '../config/tierAccess';
 import { useFeatureAccess } from '../hooks/useFeatureAccess';
+import type { UserInventoryItem } from '../types/database';
 
 type BottleDetailScreenNavigationProp = CompositeNavigationProp<
   NativeStackNavigationProp<CameraStackParamList, 'BottleDetail'>,
   NativeStackNavigationProp<RootStackParamList>
 >;
 
+const SPIRIT_ALIAS_MAP: Record<string, string> = {
+  whisky: 'whiskey',
+  bourbon: 'whiskey',
+  scotch: 'whiskey',
+  rye: 'whiskey',
+  cognac: 'brandy',
+};
+
+function normalizeSpiritToken(value: string | undefined | null): string {
+  const token = (value || '').toLowerCase().trim();
+  if (!token) return '';
+  return SPIRIT_ALIAS_MAP[token] || token;
+}
+
 export default function BottleDetailScreen() {
   const navigation = useNavigation<BottleDetailScreenNavigationProp>();
   const route = useRoute<RouteProp<CameraStackParamList, 'BottleDetail'>>();
-  const { earnInventoryXP } = useXPSystem();
-  const { user } = useUser();
+  const { earnScanXP } = useXPSystem();
+  const { user } = useAuth();
   const { tier } = useUserTier();
   const { gateWithTrigger: inventoryGate } = useFeatureAccess('inventory_unlimited');
   const { bottle, imageUri } = route.params;
   const [userCurrency, setUserCurrency] = useState<'USD' | 'CAD' | 'GBP'>('USD');
   const [userRegion, setUserRegion] = useState<string>('');
-  const [suggestedCocktails, setSuggestedCocktails] = useState<Array<Cocktail & { match: RecipeMatch }>>([]);
+  const [suggestedCocktails, setSuggestedCocktails] = useState<Array<any & { match: RecipeMatch }>>([]);
   const [loadingCocktails, setLoadingCocktails] = useState(true);
-  const [scanId, setScanId] = useState<string | null>(null);
 
   useEffect(() => {
     // Detect user's currency based on locale
@@ -83,23 +94,28 @@ export default function BottleDetailScreen() {
 
         // 1.5. Create combined inventory including the scanned bottle
         // This allows match calculation to consider cocktails you can make WITH this bottle
-        const combinedInventory = [
+        const combinedInventory: UserInventoryItem[] = [
           ...userInventory,
           {
             id: 'temp-scanned-bottle',
             user_id: user?.id || '',
             item_name: bottle.name,
             item_type: 'spirit' as const,
-            category: bottle.category,
-            created_at: new Date().toISOString(),
+            category: bottle.type || null,
+            image_url: null,
+            added_at: new Date().toISOString(),
+            scanned_at: new Date().toISOString(),
+            user_searched_nearby: false,
+            last_used_at: null,
           },
         ];
 
-        // 2. Load recipes that match this spirit
-        const recipesData = await RecipesRepository.getInitialRecipes(150);
+        // 2. Load full recipes so ingredient-based match scoring is accurate.
+        // Using initial/lite recipes can produce empty-ingredient ties and poor ranking.
+        const recipesData = await RecipesRepository.getAllRecipes(0, 300);
 
-        // 3. Filter recipes by this spirit (using base_spirit or category)
-        let spiritName = bottle.category?.toLowerCase().trim() || '';
+        // 3. Resolve scanned spirit (canonical token)
+        let spiritName = normalizeSpiritToken((bottle as any).type || (bottle as any).category);
 
         // Fallback: Extract spirit type from bottle name if category is missing
         if (!spiritName && bottle.name) {
@@ -108,7 +124,7 @@ export default function BottleDetailScreen() {
 
           for (const spirit of spiritTypes) {
             if (bottleName.includes(spirit)) {
-              spiritName = spirit;
+              spiritName = normalizeSpiritToken(spirit);
               console.log(`BottleDetailScreen: Extracted spirit "${spiritName}" from bottle name "${bottle.name}"`);
               break;
             }
@@ -134,28 +150,23 @@ export default function BottleDetailScreen() {
           });
         }
 
-        let matchedData = recipesData.filter(recipe => {
-          // Check if recipe uses this spirit
-          const baseSpirit = recipe.baseSpirit?.toLowerCase() || '';
-          const category = recipe.category?.toLowerCase() || '';
-          const tags = Array.isArray(recipe.tags) ? recipe.tags.join(' ').toLowerCase() : '';
+        let matchedData = recipesData.filter((recipe) => {
+          const baseSpirit = normalizeSpiritToken(recipe.baseSpirit);
+          const spiritsUsed = (recipe.spiritsUsed || []).map((s) => normalizeSpiritToken(s));
 
-          // Escape special regex characters and use word boundary matching
-          // For example: "rum" should match "rum" or "white rum" but not "forum"
-          try {
-            const escapedSpiritName = spiritName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-            const spiritRegex = new RegExp(`\\b${escapedSpiritName}\\b`, 'i');
+          if (baseSpirit === spiritName) return true;
+          if (spiritsUsed.includes(spiritName)) return true;
 
-            return spiritRegex.test(baseSpirit) ||
-                   spiritRegex.test(category) ||
-                   spiritRegex.test(tags);
-          } catch (e) {
-            // Fallback to simple includes if regex fails
-            console.error('Regex error, using fallback:', e);
-            return baseSpirit.includes(spiritName) ||
-                   category.includes(spiritName) ||
-                   tags.includes(spiritName);
+          // Fallback only for legacy/incomplete rows where spirit fields are empty
+          if (!baseSpirit && spiritsUsed.length === 0) {
+            const tags = Array.isArray(recipe.tags)
+              ? recipe.tags.map((t) => normalizeSpiritToken(t))
+              : [];
+            const category = normalizeSpiritToken(recipe.category);
+            return tags.includes(spiritName) || category === spiritName;
           }
+
+          return false;
         });
 
         console.log(`BottleDetailScreen: Found ${matchedData.length} recipes matching "${spiritName}"`);
@@ -184,7 +195,7 @@ export default function BottleDetailScreen() {
     };
 
     fetchCocktails();
-  }, [bottle.category, user, tier]);
+  }, [bottle.type, bottle.name, user, tier]);
 
   const handleAddToInventory = async () => {
     // Check if user is signed in
@@ -214,7 +225,7 @@ export default function BottleDetailScreen() {
       userId: user.id,
       itemType: 'spirit',
       itemName: bottle.name,
-      category: bottle.category,
+      category: bottle.type,
       imageUrl: imageUri || undefined,
     });
 
@@ -236,12 +247,13 @@ export default function BottleDetailScreen() {
       return;
     }
 
-    // Award XP for adding to inventory
-    earnInventoryXP(bottle.name);
+    // Award XP for scanning/adding this bottle (50 XP first time, 5 XP repeats)
+    const { xpEarned } = earnScanXP(bottle.id);
+    const xpLine = xpEarned > 0 ? `\n\n+${xpEarned} XP earned` : '';
 
     Alert.alert(
       'Added to Inventory!',
-      `${bottle.name} has been added to your inventory.\n\n+5 XP earned`,
+      `${bottle.name} has been added to your inventory.${xpLine}`,
       [
         {
           text: 'View Inventory',

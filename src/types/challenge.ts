@@ -13,6 +13,10 @@ export interface Challenge {
   category: ChallengeCategory;
   frequency: ChallengeFrequency;
   difficulty: ChallengeDifficulty;
+
+  // Access gating — 'free' is open to all, 'pro' requires a PRO subscription
+  tier?: 'free' | 'pro';
+
   xpReward: number;
   keysReward?: number; // Optional vault keys
   badgeReward?: string; // Optional badge ID
@@ -32,6 +36,10 @@ export interface Challenge {
   color: string; // Hex color for the challenge card
   createdAt: string;
   updatedAt: string;
+
+  // Analytics — describes what behavior data completing this challenge captures.
+  // Used for brand partnership reporting and recommendation refinement.
+  dataCollected?: string[];
 }
 
 export interface UserChallengeProgress {

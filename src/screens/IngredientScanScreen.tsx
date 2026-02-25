@@ -40,9 +40,9 @@ const { width } = Dimensions.get('window');
 
 export default function IngredientScanScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { earnInventoryXP } = useXPSystem();
+  const { earnScanXP } = useXPSystem();
   const { user } = useUser();
-  const { isPaidSubscriber } = useSubscription();
+  const { isSubscriber } = useSubscription();
   const { tier } = useUserTier();
   const { toggleSavedCocktail, isCocktailSaved } = useSavedItems();
   const [cameraVisible, setCameraVisible] = useState(false);
@@ -89,7 +89,7 @@ export default function IngredientScanScreen() {
         });
 
         // Update scan count
-        const scanStatus = await InventoryService.canUserScan(user.id, isPaidSubscriber);
+        const scanStatus = await InventoryService.canUserScan(user.id, isSubscriber);
         setScansRemaining(scanStatus.scansRemaining);
       }
 
@@ -221,12 +221,12 @@ export default function IngredientScanScreen() {
       }))
     );
 
-    // Award XP for each successfully added ingredient
+    // Award XP for each successfully added ingredient (50 XP first time, 5 XP repeat)
+    let totalXP = 0;
     for (let i = 0; i < result.successCount; i++) {
-      earnInventoryXP(allIngredients[i].name);
+      const { xpEarned } = earnScanXP(allIngredients[i].name);
+      totalXP += xpEarned;
     }
-
-    const totalXP = result.successCount * 5;
     const successfulNames = allIngredients
       .filter((_, idx) => !result.duplicates.includes(allIngredients[idx].name))
       .map(i => i.name)
@@ -411,7 +411,13 @@ export default function IngredientScanScreen() {
                 {tier === 'FREE' && (
                   <TouchableOpacity
                     style={styles.upgradePrompt}
-                    onPress={() => navigation.navigate('Settings')}
+                    onPress={() =>
+                      navigation.navigate('Paywall', {
+                        source: 'ingredient_scan_suggestions',
+                        offering: null,
+                        displayCloseButton: true,
+                      })
+                    }
                   >
                     <Ionicons name="lock-closed" size={16} color={colors.gold} />
                     <Text style={styles.upgradeText}>
@@ -449,7 +455,7 @@ export default function IngredientScanScreen() {
         title="Scan Ingredient"
         allowGallery={true}
         scansRemaining={scansRemaining}
-        isPaidUser={isPaidSubscriber}
+        isPaidUser={isSubscriber}
         isGuest={!user}
       />
     </SafeAreaView>

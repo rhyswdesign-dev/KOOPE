@@ -1,7 +1,7 @@
 import React, { useState, useLayoutEffect, useEffect } from 'react';
 import {
   View, Text, ScrollView, Image, TouchableOpacity, StyleSheet, Share, Alert, Pressable, RefreshControl,
-  Platform, Dimensions, StatusBar
+  Platform, Dimensions, StatusBar, Modal, TextInput, ActivityIndicator
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -32,6 +32,9 @@ import { useAuth } from '../contexts/AuthContext';
 import { hasIngredient, parseIngredients } from '../utils/recipeMatching';
 import { getSpiritSubstitutions, getSubstitutionMessage } from '../utils/spiritSubstitutions';
 import type { UserInventoryItem } from '../types/database';
+import { logRecipeCompletion, updateCompletionRating } from '../services/recipeCompletionService';
+import { loadUserProfile, updateUserProfileFields } from '../services/userProfileService';
+import type { RecipeCompletionDetails } from '../types/userProfile';
 
 type CocktailDetailScreenRouteProp = {
   params: {
@@ -851,7 +854,7 @@ export default function CocktailDetailScreen() {
   const { toast, showToast, hideToast } = useToast();
   const { isPro, isPrestige } = useSubscription();
   const { gateWithTrigger: saveGate } = useFeatureAccess('saved_cocktails_unlimited');
-  const { earnRecipeMadeXP } = useXPSystem();
+  const { earnCocktailLoggedXP, earnRecipeRatingXP } = useXPSystem();
   const { user } = useAuth();
   const serifFont = Platform.select({ ios: 'Georgia', android: 'serif', default: 'serif' });
 
@@ -862,6 +865,16 @@ export default function CocktailDetailScreen() {
   const [hasMadeIt, setHasMadeIt] = useState(false);
   const [userInventory, setUserInventory] = useState<UserInventoryItem[]>([]);
   const [missingIngredientNames, setMissingIngredientNames] = useState<string[]>([]);
+  const [makeFlowVisible, setMakeFlowVisible] = useState(false);
+  const [ratingFlowVisible, setRatingFlowVisible] = useState(false);
+  const [brandSelections, setBrandSelections] = useState<Record<string, string>>({});
+  const [substitutions, setSubstitutions] = useState('');
+  const [techniqueVariations, setTechniqueVariations] = useState('');
+  const [personalModifications, setPersonalModifications] = useState('');
+  const [completionNotes, setCompletionNotes] = useState('');
+  const [selectedRating, setSelectedRating] = useState(0);
+  const [lastCompletionId, setLastCompletionId] = useState<string | null>(null);
+  const [isSavingCompletion, setIsSavingCompletion] = useState(false);
   const viewStartTime = React.useRef<number>(Date.now());
 
   // Fetch user inventory for substitution suggestions
@@ -1186,6 +1199,187 @@ export default function CocktailDetailScreen() {
     return [];
   }, [cocktail]);
 
+  const makeFlowIngredients = React.useMemo(
+    () =>
+      parsedIngredients.map((ingredient: any, index: number) => ({
+        key: `${index}_${String(ingredient.name || '').toLowerCase()}`,
+        name: String(ingredient.name || ''),
+        amount: String(ingredient.note || ''),
+      })),
+    [parsedIngredients]
+  );
+
+  const normalizeText = (value: string): string =>
+    value.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+
+  const getSuggestionsForIngredient = (ingredientName: string): string[] => {
+    const needle = normalizeText(ingredientName);
+    if (!needle) return [];
+    const tokens = needle.split(' ').filter(Boolean);
+
+    return userInventory
+      .map((item) => item.item_name)
+      .filter((name): name is string => Boolean(name))
+      .filter((name) => {
+        const normalizedName = normalizeText(name);
+        if (normalizedName.includes(needle)) return true;
+        return tokens.some((token) => token.length >= 3 && normalizedName.includes(token));
+      })
+      .slice(0, 5);
+  };
+
+  const syncRecipeCompletionToProfile = async (
+    rating?: number,
+    isRatingUpdate: boolean = false,
+    completionDetails?: RecipeCompletionDetails,
+    completionId?: string
+  ) => {
+    try {
+      if (!user?.id || !cocktail?.id) return;
+
+      const profile = await loadUserProfile(user.id);
+      if (!profile) return;
+
+      const interactionHistory = profile.interactionHistory || {
+        viewedRecipes: [],
+        savedRecipes: [],
+        completedRecipes: [],
+        searchQueries: [],
+        lastUpdated: new Date(),
+      };
+
+      if (isRatingUpdate) {
+        const latestIdx = [...interactionHistory.completedRecipes]
+          .reverse()
+          .findIndex((entry) => entry.recipeId === cocktail.id);
+
+        if (latestIdx >= 0) {
+          const actualIdx = interactionHistory.completedRecipes.length - 1 - latestIdx;
+          interactionHistory.completedRecipes[actualIdx] = {
+            ...interactionHistory.completedRecipes[actualIdx],
+            rating: rating || undefined,
+            feedback: rating ? (rating >= 4 ? 'loved' : rating >= 3 ? 'liked' : 'disliked') : undefined,
+            completionId: completionId || interactionHistory.completedRecipes[actualIdx].completionId,
+            completionDetails: completionDetails || interactionHistory.completedRecipes[actualIdx].completionDetails,
+            timestamp: new Date(),
+          };
+        }
+      } else {
+        interactionHistory.completedRecipes.push({
+          recipeId: cocktail.id,
+          timestamp: new Date(),
+          rating: rating || undefined,
+          feedback: rating ? (rating >= 4 ? 'loved' : rating >= 3 ? 'liked' : 'disliked') : undefined,
+          completionId: completionId || undefined,
+          completionDetails: completionDetails || undefined,
+        });
+      }
+
+      interactionHistory.lastUpdated = new Date();
+      await updateUserProfileFields(user.id, { interactionHistory });
+    } catch (error) {
+      log.warn('CocktailDetailScreen', 'Failed to sync completion to profile (non-blocking)', error);
+    }
+  };
+
+  const openMadeItFlow = () => {
+    if (!cocktail || hasMadeIt) return;
+    setBrandSelections({});
+    setSubstitutions('');
+    setTechniqueVariations('');
+    setPersonalModifications('');
+    setCompletionNotes('');
+    setSelectedRating(0);
+    setMakeFlowVisible(true);
+  };
+
+  const handleLogCompletion = async () => {
+    if (!cocktail) return;
+
+    try {
+      setIsSavingCompletion(true);
+      const ingredientBrands = makeFlowIngredients.map((ingredient) => ({
+        ingredient: ingredient.name,
+        amount: ingredient.amount || undefined,
+        brandUsed: (brandSelections[ingredient.key] || '').trim() || 'Not specified',
+      }));
+
+      const completion = await logRecipeCompletion({
+        userId: user?.id,
+        recipeId: cocktail.id,
+        recipeName: cocktail.title,
+        ingredientBrands,
+        substitutions: substitutions.trim() || undefined,
+        techniqueVariations: techniqueVariations.trim() || undefined,
+        personalModifications: personalModifications.trim() || undefined,
+      });
+      const completionDetails: RecipeCompletionDetails = {
+        ingredientBrands,
+        substitutions: substitutions.trim() || undefined,
+        techniqueVariations: techniqueVariations.trim() || undefined,
+        personalModifications: personalModifications.trim() || undefined,
+      };
+
+      setLastCompletionId(completion.id);
+      setHasMadeIt(true);
+      setMakeFlowVisible(false);
+
+      const isDetailed =
+        ingredientBrands.some((item) => item.brandUsed !== 'Not specified') ||
+        Boolean(substitutions.trim()) ||
+        Boolean(techniqueVariations.trim()) ||
+        Boolean(personalModifications.trim());
+
+      trackEvent(ANALYTICS_EVENTS.RECIPE_MADE, {
+        [ANALYTICS_PROPS.RECIPE_ID]: cocktail.id,
+        [ANALYTICS_PROPS.RECIPE_NAME]: cocktail.title,
+        [ANALYTICS_PROPS.RECIPE_CATEGORY]: cocktail.subtitle,
+      });
+
+      await achievementService.trackAction('cocktailsMade', 1);
+      earnCocktailLoggedXP(isDetailed, cocktail.title);
+      await syncRecipeCompletionToProfile(undefined, false, completionDetails, completion.id);
+
+      showToast(`Great job making ${cocktail.title}! +${isDetailed ? 75 : 50} XP`, 'success');
+      Alert.alert('Logged', `${cocktail.title} added to your made drinks.`, [
+        { text: 'Done', style: 'cancel' },
+        { text: 'How was it?', onPress: () => setRatingFlowVisible(true) },
+      ]);
+    } catch (error) {
+      log.error('CocktailDetailScreen', 'Failed to log completion', error);
+      Alert.alert('Error', 'Could not log this drink. Please try again.');
+    } finally {
+      setIsSavingCompletion(false);
+    }
+  };
+
+  const handleSaveRating = async () => {
+    if (!lastCompletionId || selectedRating <= 0 || !cocktail) {
+      setRatingFlowVisible(false);
+      return;
+    }
+
+    try {
+      await updateCompletionRating(lastCompletionId, selectedRating, completionNotes.trim() || undefined);
+      await syncRecipeCompletionToProfile(
+        selectedRating,
+        true,
+        completionNotes.trim()
+          ? {
+              notes: completionNotes.trim(),
+            }
+          : undefined,
+        lastCompletionId
+      );
+      earnRecipeRatingXP(cocktail.title);
+      setRatingFlowVisible(false);
+      showToast('Feedback saved. Thanks!', 'success');
+    } catch (error) {
+      log.error('CocktailDetailScreen', 'Failed to save completion rating', error);
+      Alert.alert('Error', 'Could not save rating. Please try again.');
+    }
+  };
+
   // Parse instructions into consistent format for rendering
   const parsedInstructions = React.useMemo(() => {
     if (!cocktail || !cocktail.instructions) return [];
@@ -1336,25 +1530,8 @@ export default function CocktailDetailScreen() {
     Alert.alert('Download Recipe', `${cocktail.title} recipe downloaded!`);
   };
 
-  const handleMadeIt = async () => {
-    if (!cocktail || hasMadeIt) return;
-
-    setHasMadeIt(true);
-
-    // Track "Made It" event
-    trackEvent(ANALYTICS_EVENTS.RECIPE_MADE, {
-      [ANALYTICS_PROPS.RECIPE_ID]: cocktail.id,
-      [ANALYTICS_PROPS.RECIPE_NAME]: cocktail.title,
-      [ANALYTICS_PROPS.RECIPE_CATEGORY]: cocktail.subtitle,
-    });
-
-    // Track for achievements
-    await achievementService.trackAction('cocktailsMade', 1);
-
-    // Award XP for making the recipe
-    earnRecipeMadeXP(cocktail.title);
-
-    showToast(`Great job making ${cocktail.title}! +10 XP`, 'success');
+  const handleMadeIt = () => {
+    openMadeItFlow();
   };
 
   useLayoutEffect(() => {
@@ -1482,13 +1659,13 @@ export default function CocktailDetailScreen() {
             </TouchableOpacity>
           ) : (
             <TouchableOpacity style={styles.primaryButton} onPress={handleMadeIt} disabled={hasMadeIt}>
-              <Text style={styles.primaryButtonText}>{hasMadeIt ? "You Made It!" : "I Made This"}</Text>
+              <Text style={styles.primaryButtonText}>{hasMadeIt ? "You Made It!" : "Make this drink"}</Text>
             </TouchableOpacity>
           )}
 
           {cocktail.kitAvailable && (
             <TouchableOpacity style={styles.secondaryButton} onPress={handleMadeIt} disabled={hasMadeIt}>
-              <Text style={styles.secondaryButtonText}>{hasMadeIt ? "You Made It!" : "I Made This"}</Text>
+              <Text style={styles.secondaryButtonText}>{hasMadeIt ? "You Made It!" : "How did you make it?"}</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -1611,6 +1788,149 @@ export default function CocktailDetailScreen() {
           preSelectedIngredients={missingIngredientNames}
         />
       )}
+
+      <Modal visible={makeFlowVisible} animationType="slide" transparent onRequestClose={() => setMakeFlowVisible(false)}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>What brands did you use?</Text>
+              <TouchableOpacity onPress={() => setMakeFlowVisible(false)}>
+                <Ionicons name="close" size={24} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.modalScroll} showsVerticalScrollIndicator={false}>
+              {makeFlowIngredients.map((ingredient) => {
+                const suggestions = getSuggestionsForIngredient(ingredient.name);
+                return (
+                  <View key={ingredient.key} style={styles.modalSection}>
+                    <Text style={styles.modalSectionTitle}>
+                      {ingredient.name}
+                      {ingredient.amount ? ` (${ingredient.amount})` : ''}
+                    </Text>
+
+                    <TextInput
+                      style={styles.modalInput}
+                      placeholder="Type brand used or choose below"
+                      placeholderTextColor={colors.subtext}
+                      value={brandSelections[ingredient.key] || ''}
+                      onChangeText={(value) =>
+                        setBrandSelections((prev) => ({ ...prev, [ingredient.key]: value }))
+                      }
+                    />
+
+                    {suggestions.length > 0 && (
+                      <View style={styles.suggestionRow}>
+                        {suggestions.map((suggestion) => (
+                          <TouchableOpacity
+                            key={`${ingredient.key}_${suggestion}`}
+                            style={styles.suggestionChip}
+                            onPress={() => setBrandSelections((prev) => ({ ...prev, [ingredient.key]: suggestion }))}
+                          >
+                            <Text style={styles.suggestionChipText}>{suggestion}</Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    )}
+                  </View>
+                );
+              })}
+
+              <View style={styles.modalSection}>
+                <Text style={styles.modalSectionTitle}>Substitutions made</Text>
+                <TextInput
+                  style={[styles.modalInput, styles.multilineInput]}
+                  placeholder="Any ingredient substitutions?"
+                  placeholderTextColor={colors.subtext}
+                  value={substitutions}
+                  onChangeText={setSubstitutions}
+                  multiline
+                />
+              </View>
+
+              <View style={styles.modalSection}>
+                <Text style={styles.modalSectionTitle}>Technique variations</Text>
+                <TextInput
+                  style={[styles.modalInput, styles.multilineInput]}
+                  placeholder="Shaken vs stirred, dilution, garnish technique..."
+                  placeholderTextColor={colors.subtext}
+                  value={techniqueVariations}
+                  onChangeText={setTechniqueVariations}
+                  multiline
+                />
+              </View>
+
+              <View style={styles.modalSection}>
+                <Text style={styles.modalSectionTitle}>Personal modifications</Text>
+                <TextInput
+                  style={[styles.modalInput, styles.multilineInput]}
+                  placeholder="Any tweaks to sweetness, bitter balance, ratios..."
+                  placeholderTextColor={colors.subtext}
+                  value={personalModifications}
+                  onChangeText={setPersonalModifications}
+                  multiline
+                />
+              </View>
+            </ScrollView>
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={styles.modalSecondaryButton} onPress={() => setMakeFlowVisible(false)}>
+                <Text style={styles.modalSecondaryButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalPrimaryButton, isSavingCompletion && styles.modalPrimaryButtonDisabled]}
+                onPress={handleLogCompletion}
+                disabled={isSavingCompletion}
+              >
+                {isSavingCompletion ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.modalPrimaryButtonText}>I made it!</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={ratingFlowVisible} animationType="fade" transparent onRequestClose={() => setRatingFlowVisible(false)}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.ratingCard}>
+            <Text style={styles.modalTitle}>How was it?</Text>
+            <Text style={styles.ratingSubtitle}>Optional rating to improve recommendations</Text>
+
+            <View style={styles.ratingRow}>
+              {[1, 2, 3, 4, 5].map((rating) => (
+                <TouchableOpacity key={rating} onPress={() => setSelectedRating(rating)}>
+                  <Ionicons
+                    name={rating <= selectedRating ? 'star' : 'star-outline'}
+                    size={32}
+                    color={rating <= selectedRating ? colors.gold : colors.subtext}
+                  />
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <TextInput
+              style={[styles.modalInput, styles.multilineInput]}
+              placeholder="Notes (optional)"
+              placeholderTextColor={colors.subtext}
+              value={completionNotes}
+              onChangeText={setCompletionNotes}
+              multiline
+            />
+
+            <View style={styles.ratingActions}>
+              <TouchableOpacity style={styles.modalSecondaryButton} onPress={() => setRatingFlowVisible(false)}>
+                <Text style={styles.modalSecondaryButtonText}>Skip</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.modalPrimaryButton} onPress={handleSaveRating}>
+                <Text style={styles.modalPrimaryButtonText}>Save Feedback</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* Toast Notification */}
       <Toast
@@ -1889,6 +2209,141 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: colors.text,
+    marginTop: spacing(1),
+  },
+
+  // Make flow modal
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.72)',
+    justifyContent: 'center',
+    padding: spacing(2),
+  },
+  modalCard: {
+    maxHeight: '90%',
+    backgroundColor: colors.bg,
+    borderRadius: radii.xl,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    overflow: 'hidden',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: spacing(2.5),
+    paddingVertical: spacing(2),
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.08)',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  modalScroll: {
+    paddingHorizontal: spacing(2.5),
+    paddingTop: spacing(1),
+  },
+  modalSection: {
+    marginBottom: spacing(2),
+  },
+  modalSectionTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: spacing(1),
+  },
+  modalInput: {
+    backgroundColor: '#261C16',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    borderRadius: radii.md,
+    paddingHorizontal: spacing(1.5),
+    paddingVertical: spacing(1.25),
+    color: colors.text,
+    fontSize: 14,
+  },
+  multilineInput: {
+    minHeight: 74,
+    textAlignVertical: 'top',
+  },
+  suggestionRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing(0.75),
+    marginTop: spacing(1),
+  },
+  suggestionChip: {
+    paddingHorizontal: spacing(1.25),
+    paddingVertical: spacing(0.5),
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: 'rgba(255,255,255,0.04)',
+  },
+  suggestionChipText: {
+    fontSize: 12,
+    color: colors.text,
+  },
+  modalActions: {
+    padding: spacing(2.5),
+    gap: spacing(1),
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.08)',
+  },
+  modalPrimaryButton: {
+    backgroundColor: colors.accent,
+    borderRadius: radii.pill,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing(2),
+  },
+  modalPrimaryButtonDisabled: {
+    opacity: 0.7,
+  },
+  modalPrimaryButtonText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  modalSecondaryButton: {
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+    borderRadius: radii.pill,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing(2),
+  },
+  modalSecondaryButtonText: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  ratingCard: {
+    backgroundColor: colors.bg,
+    borderRadius: radii.xl,
+    padding: spacing(2.5),
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  ratingSubtitle: {
+    color: colors.subtext,
+    fontSize: 13,
+    marginTop: spacing(0.5),
+    marginBottom: spacing(2),
+  },
+  ratingRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: spacing(2),
+    paddingHorizontal: spacing(1),
+  },
+  ratingActions: {
+    flexDirection: 'row',
+    gap: spacing(1),
     marginTop: spacing(1),
   },
 

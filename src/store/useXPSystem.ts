@@ -8,6 +8,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getCocktailXPCost as getDefaultCocktailXPCost } from '../config/cocktailXPCosts';
 import { achievementService } from '../services/achievementService';
+import { useUserTier } from './useUserTier';
 
 export type XPSource =
   | 'daily-login'
@@ -21,10 +22,21 @@ export type XPSource =
   | 'profile-complete'
   | 'invite-friend'
   | 'cocktail-unlock'
-  | 'inventory-add'
   | 'recipe-made'
   | 'recipe-rating'
   | 'streak-bonus'
+  // Scan & inventory (matches monetization spec)
+  | 'bottle-scanned-first'   // First time scanning a specific bottle — 50 XP
+  | 'bottle-scanned-repeat'  // Repeat scan of same bottle — 5 XP, max 3×/bottle
+  | 'bottle-submitted'       // User adds a NEW bottle to the global DB — 150 XP
+  | 'scan-corrected'         // User corrects a wrong scan result — 75 XP
+  // Discovery
+  | 'recipe-viewed'          // Browsing recipes — 10 XP, capped at 5 views/day
+  | 'taste-profile-completed' // One-time: filling out taste preferences — 100 XP
+  // Challenges & logging
+  | 'challenge-completed'    // Completing a challenge — 200–500 XP (set per challenge)
+  | 'cocktail-logged-quick'  // "I made it" quick log — 50 XP
+  | 'cocktail-logged-detailed' // Log with rating/notes — 75 XP
   | 'other';
 
 export interface XPTransaction {
@@ -55,8 +67,12 @@ export const DEFAULT_COCKTAIL_COSTS: { [tier: string]: number } = {
   signature: 400,
 };
 
-// XP earning rates
+// Daily XP cap for free users — prevents farming while allowing 3-4 meaningful actions/day
+export const FREE_DAILY_XP_CAP = 300;
+
+// XP earning rates — aligned with monetization spec
 export const XP_EARNING_RATES = {
+  // Engagement
   dailyLogin: 10,
   lessonComplete: 25,
   makeCocktail: 50,
@@ -65,29 +81,55 @@ export const XP_EARNING_RATES = {
   shareCocktail: 15,
   vaultDailyDrop: 20,
   vaultSeasonalItem: 30,
-  profileComplete: 50,
   inviteFriend: 100,
-  inventoryAdd: 5,
-  recipeMade: 10,
   recipeRating: 5,
   streakBonus: 25,
+
+  // Scanning & inventory (from monetization spec)
+  bottleScannedFirst: 50,     // First time scanning any bottle
+  bottleScannedRepeat: 5,     // Diminishing returns — max 3× per bottle
+  bottleSubmitted: 150,       // Adding a new bottle to the shared database
+  scanCorrected: 75,          // Correcting a wrong scan result
+
+  // Discovery
+  recipeViewed: 10,           // Browsing recipes — capped at 5 views/day (50 XP/day max)
+  tasteProfileCompleted: 100, // One-time: filling out taste preferences
+
+  // Challenges
+  challengeMin: 200,          // Minimum per challenge (set individually up to 500)
+
+  // Cocktail logging
+  cocktailLoggedQuick: 50,    // "I made it" quick log
+  cocktailLoggedDetailed: 75, // With rating/notes
 };
+
+// Per-bottle repeat scan limit (max times a single bottle awards repeat XP)
+export const MAX_REPEAT_SCANS_PER_BOTTLE = 3;
+
+// Daily recipe view cap for XP (after 5 views, no more XP awarded)
+export const MAX_RECIPE_VIEWS_XP_PER_DAY = 5;
 
 interface XPSystemState {
   // Core state
   balance: number;
   earnedToday: number;
   lastResetDate: string | null;
-  unlockedCocktails: string[]; // Array of cocktail IDs unlocked with XP
-  unlockedVaultItems: string[]; // Array of vault item IDs unlocked with XP
+  unlockedCocktails: string[];
+  unlockedVaultItems: string[];
   transactions: XPTransaction[];
   streaks: XPStreaks;
-  cocktailCosts: CocktailUnlockCost; // Custom costs per cocktail
+  cocktailCosts: CocktailUnlockCost;
+
+  // Scan tracking — maps bottleId → number of times scanned (for repeat XP logic)
+  scannedBottles: Record<string, number>;
+
+  // Recipe view cap — reset daily alongside earnedToday
+  recipesViewedToday: number;
 
   // One-time rewards tracking
   hasCompletedProfile: boolean;
 
-  // Actions
+  // Core XP actions
   earnXP: (amount: number, source: XPSource, description: string) => void;
   spendXP: (amount: number, cocktailId: string, description: string) => boolean;
   unlockCocktail: (cocktailId: string, cost: number) => boolean;
@@ -98,10 +140,20 @@ interface XPSystemState {
   canAffordCocktail: (cocktailId: string) => boolean;
   isCocktailUnlockedWithXP: (cocktailId: string) => boolean;
 
-  // Specific XP earning methods
-  earnInventoryXP: (ingredientName: string) => void;
-  earnRecipeMadeXP: (recipeName: string) => void;
+  // Scan & inventory XP (monetization spec)
+  earnScanXP: (bottleId: string) => { xpEarned: number; reason: string };
+  earnBottleSubmittedXP: () => void;
+  earnScanCorrectedXP: () => void;
+
+  // Discovery XP
+  earnRecipeViewedXP: () => void;
+
+  // Cocktail logging XP
+  earnCocktailLoggedXP: (isDetailed: boolean, recipeName: string) => void;
   earnRecipeRatingXP: (recipeName: string) => void;
+
+  // Challenge XP
+  earnChallengeXP: (amount: number, challengeTitle: string) => void;
 
   // Daily/Streak management
   checkDailyLogin: () => void;
@@ -112,7 +164,7 @@ interface XPSystemState {
   getTotalEarned: () => number;
   getTotalSpent: () => number;
 
-  // Profile completion
+  // Profile/taste completion
   markProfileComplete: () => void;
 
   // Reset (for testing)
@@ -136,25 +188,44 @@ export const useXPSystem = create<XPSystemState>()(
         lastUnlockDate: null,
       },
       cocktailCosts: {},
+      scannedBottles: {},
+      recipesViewedToday: 0,
       hasCompletedProfile: false,
 
       // Earn XP
       earnXP: (amount: number, source: XPSource, description: string) => {
         const state = get();
+
+        // Resolve earnedToday, auto-resetting if the calendar day has rolled over
+        const today = new Date().toISOString().split('T')[0];
+        const lastReset = state.lastResetDate?.split('T')[0];
+        const isNewDay = lastReset !== today;
+        const earnedToday = isNewDay ? 0 : state.earnedToday;
+
+        // Enforce daily cap for FREE tier users
+        const { tier } = useUserTier.getState();
+        let effectiveAmount = amount;
+        if (tier === 'FREE') {
+          const remaining = FREE_DAILY_XP_CAP - earnedToday;
+          effectiveAmount = Math.min(amount, Math.max(0, remaining));
+          if (effectiveAmount <= 0) return; // Cap already reached for today
+        }
+
         const transaction: XPTransaction = {
           id: `${Date.now()}-${Math.random()}`,
           type: 'earn',
-          amount,
+          amount: effectiveAmount,
           source,
           description,
           timestamp: new Date().toISOString(),
         };
 
-        const newBalance = state.balance + amount;
+        const newBalance = state.balance + effectiveAmount;
         set({
           balance: newBalance,
-          earnedToday: state.earnedToday + amount,
-          transactions: [transaction, ...state.transactions].slice(0, 100), // Keep last 100
+          earnedToday: earnedToday + effectiveAmount,
+          lastResetDate: isNewDay ? new Date().toISOString() : state.lastResetDate,
+          transactions: [transaction, ...state.transactions].slice(0, 100),
         });
 
         // Sync XP to achievement service so achievements screen stays in sync
@@ -332,6 +403,7 @@ export const useXPSystem = create<XPSystemState>()(
         if (lastReset !== now) {
           set({
             earnedToday: 0,
+            recipesViewedToday: 0,
             lastResetDate: new Date().toISOString(),
           });
         }
@@ -359,40 +431,87 @@ export const useXPSystem = create<XPSystemState>()(
           .reduce((sum, t) => sum + t.amount, 0);
       },
 
-      // Mark profile as complete
+      // One-time taste profile / profile completion bonus
       markProfileComplete: () => {
         const state = get();
         if (!state.hasCompletedProfile) {
-          get().earnXP(XP_EARNING_RATES.profileComplete, 'profile-complete', 'Profile completed!');
+          get().earnXP(XP_EARNING_RATES.tasteProfileCompleted, 'taste-profile-completed', 'Taste profile completed!');
           set({ hasCompletedProfile: true });
         }
       },
 
-      // Earn XP for adding ingredient to inventory
-      earnInventoryXP: (ingredientName: string) => {
-        get().earnXP(
-          XP_EARNING_RATES.inventoryAdd,
-          'inventory-add',
-          `Added ${ingredientName} to inventory`
-        );
+      // ── Scan & inventory XP ─────────────────────────────────────────────────
+
+      // Awards XP for scanning a bottle.
+      // First scan of a bottle: 50 XP. Repeat scans: 5 XP each, max 3 repeats.
+      // After 4 total scans of the same bottle, no more XP is awarded.
+      earnScanXP: (bottleId: string) => {
+        const state = get();
+        const scanCount = state.scannedBottles[bottleId] ?? 0;
+
+        let xpEarned = 0;
+        let reason = '';
+
+        if (scanCount === 0) {
+          xpEarned = XP_EARNING_RATES.bottleScannedFirst;
+          reason = 'First scan — new bottle discovered';
+        } else if (scanCount <= MAX_REPEAT_SCANS_PER_BOTTLE) {
+          xpEarned = XP_EARNING_RATES.bottleScannedRepeat;
+          reason = `Repeat scan (${scanCount}/${MAX_REPEAT_SCANS_PER_BOTTLE})`;
+        } else {
+          return { xpEarned: 0, reason: 'Max scans reached for this bottle' };
+        }
+
+        set({ scannedBottles: { ...state.scannedBottles, [bottleId]: scanCount + 1 } });
+        get().earnXP(xpEarned, scanCount === 0 ? 'bottle-scanned-first' : 'bottle-scanned-repeat', reason);
+        return { xpEarned, reason };
       },
 
-      // Earn XP for making a recipe
-      earnRecipeMadeXP: (recipeName: string) => {
-        get().earnXP(
-          XP_EARNING_RATES.recipeMade,
-          'recipe-made',
-          `Made ${recipeName}`
-        );
+      // User submits a bottle not yet in the shared database
+      earnBottleSubmittedXP: () => {
+        get().earnXP(XP_EARNING_RATES.bottleSubmitted, 'bottle-submitted', 'New bottle added to database');
       },
 
-      // Earn XP for rating a recipe
+      // User corrects a wrong scan result
+      earnScanCorrectedXP: () => {
+        get().earnXP(XP_EARNING_RATES.scanCorrected, 'scan-corrected', 'Scan result corrected');
+      },
+
+      // ── Discovery XP ────────────────────────────────────────────────────────
+
+      // Recipe view — 10 XP, capped at 5 views/day (50 XP/day max from browsing)
+      earnRecipeViewedXP: () => {
+        const state = get();
+
+        // Resolve today's view count, resetting if new day
+        const today = new Date().toISOString().split('T')[0];
+        const lastReset = state.lastResetDate?.split('T')[0];
+        const viewsToday = lastReset === today ? state.recipesViewedToday : 0;
+
+        if (viewsToday >= MAX_RECIPE_VIEWS_XP_PER_DAY) return;
+
+        set({ recipesViewedToday: viewsToday + 1 });
+        get().earnXP(XP_EARNING_RATES.recipeViewed, 'recipe-viewed', 'Recipe browsed');
+      },
+
+      // ── Cocktail logging XP ─────────────────────────────────────────────────
+
+      earnCocktailLoggedXP: (isDetailed: boolean, recipeName: string) => {
+        const amount = isDetailed
+          ? XP_EARNING_RATES.cocktailLoggedDetailed
+          : XP_EARNING_RATES.cocktailLoggedQuick;
+        const source = isDetailed ? 'cocktail-logged-detailed' : 'cocktail-logged-quick';
+        get().earnXP(amount, source, `Logged: ${recipeName}`);
+      },
+
       earnRecipeRatingXP: (recipeName: string) => {
-        get().earnXP(
-          XP_EARNING_RATES.recipeRating,
-          'recipe-rating',
-          `Rated ${recipeName}`
-        );
+        get().earnXP(XP_EARNING_RATES.recipeRating, 'recipe-rating', `Rated ${recipeName}`);
+      },
+
+      // ── Challenge XP ────────────────────────────────────────────────────────
+
+      earnChallengeXP: (amount: number, challengeTitle: string) => {
+        get().earnXP(amount, 'challenge-completed', `Challenge: ${challengeTitle}`);
       },
 
       // Reset XP system (for testing)
@@ -411,6 +530,8 @@ export const useXPSystem = create<XPSystemState>()(
             lastUnlockDate: null,
           },
           cocktailCosts: {},
+          scannedBottles: {},
+          recipesViewedToday: 0,
           hasCompletedProfile: false,
         });
       },

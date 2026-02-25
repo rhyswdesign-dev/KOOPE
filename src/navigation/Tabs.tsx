@@ -23,6 +23,7 @@ export default function Tabs() {
   return (
     <View style={{ flex: 1 }}>
       <Tab.Navigator
+        initialRouteName="Camera"
         screenOptions={({ route }) => ({
           headerShown: false,
           tabBarStyle: { backgroundColor: colors.card, borderTopColor: 'transparent' },
@@ -41,7 +42,7 @@ export default function Tabs() {
         })}
       >
         <Tab.Screen name="Lessons" component={LessonsStack} />
-        <Tab.Screen name="Recipes" component={RecipesStack} />
+        <Tab.Screen name="Recipes" component={RecipesStack} options={{ tabBarLabel: 'Discover' }} />
         <Tab.Screen name="Camera" component={CameraStack} />
         <Tab.Screen name="Inventory" component={InventoryStack} />
         <Tab.Screen name="Profile" component={ProfileStack} />
