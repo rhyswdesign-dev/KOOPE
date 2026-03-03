@@ -24,6 +24,7 @@ import EmptyState from '../components/EmptyState';
 import Toast from '../components/Toast';
 import { useToast } from '../hooks/useToast';
 import { log } from '../lib/logger';
+import InPageTabBar from '../components/ui/InPageTabBar';
 
 type ViewMode = 'cocktail' | 'ingredient';
 type CategoryFilter = 'all' | 'spirits' | 'mixers' | 'garnishes' | 'syrups';
@@ -454,23 +455,14 @@ export default function ShoppingCartScreen() {
       {/* View Mode Tabs */}
       <View style={styles.viewModeSection}>
         <View style={styles.viewModeTabs}>
-          <TouchableOpacity
-            style={[styles.viewModeTab, viewMode === 'cocktail' && styles.viewModeTabActive]}
-            onPress={() => setViewMode('cocktail')}
-          >
-            <Text style={[styles.viewModeTabText, viewMode === 'cocktail' && styles.viewModeTabTextActive]}>
-              Group by Cocktail
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.viewModeTab, viewMode === 'ingredient' && styles.viewModeTabActive]}
-            onPress={() => setViewMode('ingredient')}
-          >
-            <Text style={[styles.viewModeTabText, viewMode === 'ingredient' && styles.viewModeTabTextActive]}>
-              Group by Ingredient
-            </Text>
-          </TouchableOpacity>
+          <InPageTabBar
+            items={[
+              { key: 'cocktail', label: 'Group by Cocktail' },
+              { key: 'ingredient', label: 'Group by Ingredient' },
+            ]}
+            activeKey={viewMode}
+            onChange={(key) => setViewMode(key as ViewMode)}
+          />
 
           <TouchableOpacity
             style={styles.sortIconButton}
@@ -487,34 +479,18 @@ export default function ShoppingCartScreen() {
       {/* Category Filters (only show in ingredient view) */}
       {viewMode === 'ingredient' && (
         <View style={styles.categoryFilters}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.categoryFiltersContent}
-          >
-            {[
-              { key: 'all' as CategoryFilter, label: 'All', icon: 'apps' },
-              { key: 'spirits' as CategoryFilter, label: 'Spirits', icon: 'wine' },
-              { key: 'mixers' as CategoryFilter, label: 'Mixers', icon: 'water' },
-              { key: 'garnishes' as CategoryFilter, label: 'Garnishes', icon: 'leaf' },
-              { key: 'syrups' as CategoryFilter, label: 'Syrups', icon: 'water-outline' },
-            ].map((cat) => (
-              <TouchableOpacity
-                key={cat.key}
-                style={[styles.categoryChip, categoryFilter === cat.key && styles.categoryChipActive]}
-                onPress={() => setCategoryFilter(cat.key)}
-              >
-                <Ionicons
-                  name={cat.icon as any}
-                  size={14}
-                  color={categoryFilter === cat.key ? colors.bg : colors.gold}
-                />
-                <Text style={[styles.categoryChipText, categoryFilter === cat.key && styles.categoryChipTextActive]}>
-                  {cat.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
+          <InPageTabBar
+            scrollable
+            items={[
+              { key: 'all', label: 'All', icon: 'apps' },
+              { key: 'spirits', label: 'Spirits', icon: 'wine' },
+              { key: 'mixers', label: 'Mixers', icon: 'water' },
+              { key: 'garnishes', label: 'Garnishes', icon: 'leaf' },
+              { key: 'syrups', label: 'Syrups', icon: 'water-outline' },
+            ]}
+            activeKey={categoryFilter}
+            onChange={(key) => setCategoryFilter(key as CategoryFilter)}
+          />
         </View>
       )}
 

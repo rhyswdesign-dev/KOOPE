@@ -6,6 +6,14 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { ShoppingListStore } from '../shoppingListStore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+vi.mock('../../store/useXPSystem', () => ({
+  useXPSystem: {
+    getState: () => ({
+      earnXP: vi.fn(),
+    }),
+  },
+}));
+
 // Mock AsyncStorage
 vi.mock('@react-native-async-storage/async-storage', () => ({
   default: {

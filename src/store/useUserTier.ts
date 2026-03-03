@@ -24,6 +24,7 @@ interface UserTierState {
   // Founder status
   isFounder: boolean;
   founderLockedPriceCents: number | null;
+  founderNumber: number | null;
 
   // Actions
   setTier: (tier: UserTier) => void;
@@ -32,11 +33,12 @@ interface UserTierState {
   startTrial: (tier: UserTier, durationDays: number) => void;
   cancelSubscription: () => void;
   endTrial: () => void;
-  setFounderStatus: (isFounder: boolean, priceCents?: number) => void;
+  setFounderStatus: (isFounder: boolean, priceCents?: number, founderNumber?: number) => void;
 
   // Helpers
   isPremium: () => boolean;
   isProUser: () => boolean;
+  isInTrial: () => boolean;
 }
 
 export const useUserTier = create<UserTierState>()(
@@ -50,6 +52,7 @@ export const useUserTier = create<UserTierState>()(
       trialEndDate: null,
       isFounder: false,
       founderLockedPriceCents: null,
+      founderNumber: null,
 
       // Actions
       setTier: (tier: UserTier) => set({ tier }),
@@ -83,10 +86,11 @@ export const useUserTier = create<UserTierState>()(
         });
       },
 
-      setFounderStatus: (isFounder: boolean, priceCents?: number) => {
+      setFounderStatus: (isFounder: boolean, priceCents?: number, founderNumber?: number) => {
         set({
           isFounder,
           founderLockedPriceCents: priceCents ?? null,
+          founderNumber: founderNumber ?? null,
         });
       },
 
@@ -98,6 +102,13 @@ export const useUserTier = create<UserTierState>()(
 
       isProUser: () => {
         return get().tier === 'PRO';
+      },
+
+      isInTrial: () => {
+        const state = get();
+        if (!state.isTrialActive) return false;
+        if (!state.trialEndDate) return false;
+        return new Date(state.trialEndDate) > new Date();
       },
     }),
     {

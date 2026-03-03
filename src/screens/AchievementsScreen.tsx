@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, radii, serif } from '../theme/tokens';
@@ -15,6 +15,7 @@ import { useXPSystem } from '../store/useXPSystem';
 import AchievementCard from '../components/AchievementCard';
 import StreakCard from '../components/StreakCard';
 import AchievementUnlockModal from '../components/AchievementUnlockModal';
+import InPageTabBar from '../components/ui/InPageTabBar';
 
 type TabType = 'all' | 'recipe' | 'collection' | 'knowledge' | 'streak';
 
@@ -150,36 +151,12 @@ export default function AchievementsScreen() {
 
         {/* Category Tabs */}
         <View style={styles.tabsContainer}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.tabs}
-          >
-            {tabs.map(tab => (
-              <TouchableOpacity
-                key={tab.key}
-                style={[
-                  styles.tab,
-                  activeTab === tab.key && styles.tabActive,
-                ]}
-                onPress={() => setActiveTab(tab.key)}
-              >
-                <Ionicons
-                  name={tab.icon as any}
-                  size={18}
-                  color={activeTab === tab.key ? colors.accent : colors.subtext}
-                />
-                <Text
-                  style={[
-                    styles.tabText,
-                    activeTab === tab.key && styles.tabTextActive,
-                  ]}
-                >
-                  {tab.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
+          <InPageTabBar
+            items={tabs}
+            activeKey={activeTab}
+            onChange={(key) => setActiveTab(key as TabType)}
+            scrollable
+          />
         </View>
 
         {/* Achievements List */}

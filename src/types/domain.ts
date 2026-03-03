@@ -34,6 +34,7 @@ export interface Item {
   id: string;
   type: ExerciseType;
   prompt: string;
+  insight?: string;
   options?: string[]; // For MCQ and checkbox
   answerIndex?: number; // For MCQ
   orderTarget?: string[]; // For order exercises

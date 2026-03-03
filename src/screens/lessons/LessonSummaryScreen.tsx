@@ -22,7 +22,7 @@ import { LessonsStackParamList } from '../../navigation/LessonsStack';
 import { colors, spacing, radii } from '../../theme/tokens';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import curriculumData from '../../../curriculum-data.json';
+import { curriculumData } from '../../utils/curriculumAdapter';
 import { log } from '../../lib/logger';
 import { useUser } from '../../store/useUser';
 import { useXPSystem } from '../../store/useXPSystem';

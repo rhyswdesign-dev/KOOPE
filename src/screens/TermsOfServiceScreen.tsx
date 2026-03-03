@@ -42,15 +42,15 @@ export default function TermsOfServiceScreen({ onBack }: TermsOfServiceScreenPro
 
           <Section
             title="Description of Service"
-            content="Home Game Advantage is a mobile application that helps users discover bars, learn about spirits, participate in events, and connect with other enthusiasts in the spirits and bar community."
+            content="Home Game Advantage is a mobile application that helps users discover bars, learn about spirits, participate in events, and improve home bartending skills."
             subsections={[
               {
                 subtitle: "Core Features",
-                content: "• Bar discovery and recommendations\n• Spirit education and tasting notes\n• Event registration and participation\n• Social features and community interaction\n• XP and tier progression system"
+                content: "• Bar discovery and recommendations\n• Spirit education and tasting notes\n• Event registration and participation\n• Personalized recipe and inventory tools\n• XP and tier progression system"
               },
               {
                 subtitle: "User-Generated Content",
-                content: "• Reviews and ratings of bars and spirits\n• Comments and social interactions\n• Profile information and preferences\n• Event feedback and participation history"
+                content: "• Reviews and ratings of bars and spirits\n• Recipe logs, ratings, and notes\n• Profile information and preferences\n• Event feedback and participation history"
               }
             ]}
           />
@@ -100,7 +100,7 @@ export default function TermsOfServiceScreen({ onBack }: TermsOfServiceScreenPro
               },
               {
                 subtitle: "Third-Party Integrations",
-                content: "• We may integrate with social media platforms\n• Third-party services have their own terms and privacy policies\n• We are not responsible for third-party service availability or functionality\n• Your use of third-party services is at your own discretion"
+                content: "• We may integrate with payment, authentication, and support providers\n• Third-party services have their own terms and privacy policies\n• We are not responsible for third-party service availability or functionality\n• Your use of third-party services is at your own discretion"
               }
             ]}
           />

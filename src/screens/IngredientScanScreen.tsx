@@ -3,7 +3,7 @@
  * Uses camera to identify ingredients and add them to inventory
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -26,7 +26,6 @@ import type { RootStackParamList } from '../navigation/RootNavigator';
 import { log } from '../lib/logger';
 import { useXPSystem } from '../store/useXPSystem';
 import { InventoryService } from '../services/inventoryService';
-import { useUser } from '../store/useUser';
 import { useSubscription } from '../contexts/SubscriptionContext';
 import { RecipesRepository } from '../repos/supabase';
 import { sortByMatch } from '../utils/recipeMatching';
@@ -35,13 +34,14 @@ import { useUserTier } from '../store/useUserTier';
 import RecipeCard from '../components/RecipeCard';
 import { createRecipeCardProps } from '../utils/recipeActions';
 import { useSavedItems } from '../hooks/useSavedItems';
+import { useAuth } from '../contexts/AuthContext';
 
 const { width } = Dimensions.get('window');
 
 export default function IngredientScanScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { earnScanXP } = useXPSystem();
-  const { user } = useUser();
+  const { user } = useAuth();
   const { isSubscriber } = useSubscription();
   const { tier } = useUserTier();
   const { toggleSavedCocktail, isCocktailSaved } = useSavedItems();
@@ -54,11 +54,11 @@ export default function IngredientScanScreen() {
     confidence: number;
     imageUri: string;
   }>>([]);
-  const [currentIngredient, setCurrentIngredient] = useState<{
+  const [currentIngredients, setCurrentIngredients] = useState<Array<{
     name: string;
     category: string;
     confidence: number;
-  } | null>(null);
+  }>>([]);
   const [scansRemaining, setScansRemaining] = useState<number>(10);
   const [suggestedCocktails, setSuggestedCocktails] = useState<any[]>([]);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
@@ -74,17 +74,18 @@ export default function IngredientScanScreen() {
       // Analyze image with Google Vision
       const visionResult = await GoogleVisionService.analyzeImage(uri);
 
-      // Match ingredient from vision results
-      const ingredient = GoogleVisionService.matchIngredient(visionResult);
+      // Match all ingredients from this single photo (up to 6)
+      const detectedIngredients = GoogleVisionService.matchIngredients(visionResult, 6);
+      const primaryIngredient = detectedIngredients[0];
 
       // Record scan for brand data
       if (user) {
         await InventoryService.recordScan({
           userId: user.id,
           scanType: 'ingredient',
-          itemName: ingredient?.name,
+          itemName: primaryIngredient?.name,
           imageUrl: uri,
-          confidence: ingredient?.confidence,
+          confidence: primaryIngredient?.confidence,
           addedToInventory: false,
         });
 
@@ -93,11 +94,14 @@ export default function IngredientScanScreen() {
         setScansRemaining(scanStatus.scansRemaining);
       }
 
-      if (ingredient) {
-        setCurrentIngredient(ingredient);
-        log.info('IngredientScanScreen', 'Ingredient detected', ingredient);
+      if (detectedIngredients.length > 0) {
+        setCurrentIngredients(detectedIngredients);
+        log.info('IngredientScanScreen', 'Ingredients detected', {
+          count: detectedIngredients.length,
+          names: detectedIngredients.map((i) => i.name),
+        });
         // Fetch cocktail suggestions
-        await fetchCocktailSuggestions(ingredient.name);
+        await fetchCocktailSuggestions(detectedIngredients.map((i) => i.name));
       } else {
         Alert.alert(
           'No Ingredient Detected',
@@ -122,7 +126,7 @@ export default function IngredientScanScreen() {
     }
   };
 
-  const fetchCocktailSuggestions = async (scannedIngredientName: string) => {
+  const fetchCocktailSuggestions = async (scannedIngredientNames: string[]) => {
     if (!user) return;
 
     setLoadingSuggestions(true);
@@ -131,16 +135,22 @@ export default function IngredientScanScreen() {
       const userInventory = await InventoryService.getUserInventory(user.id);
 
       // Create a combined inventory including the newly scanned ingredient
+      const tempScannedItems = scannedIngredientNames.map((name, index) => ({
+        id: `temp-scanned-${index}`,
+        user_id: user.id,
+        item_name: name,
+        item_type: 'ingredient' as const,
+        category: 'ingredient',
+        image_url: null,
+        added_at: new Date().toISOString(),
+        scanned_at: new Date().toISOString(),
+        user_searched_nearby: false,
+        last_used_at: null,
+      }));
+
       const combinedInventory = [
         ...userInventory,
-        {
-          id: 'temp-scanned',
-          user_id: user.id,
-          item_name: scannedIngredientName,
-          item_type: 'ingredient' as const,
-          category: 'ingredient',
-          created_at: new Date().toISOString(),
-        },
+        ...tempScannedItems,
       ];
 
       // Load recipes
@@ -174,17 +184,17 @@ export default function IngredientScanScreen() {
   };
 
   const handleScanMore = () => {
-    // Add current ingredient to the list
-    if (currentIngredient && imageUri) {
-      setScannedIngredients(prev => [...prev, {
-        ...currentIngredient,
-        imageUri,
-      }]);
+    // Add all ingredients detected in current image to accumulated list
+    if (currentIngredients.length > 0 && imageUri) {
+      setScannedIngredients(prev => [
+        ...prev,
+        ...currentIngredients.map((ingredient) => ({ ...ingredient, imageUri })),
+      ]);
     }
 
     // Reset for next scan
     setImageUri(null);
-    setCurrentIngredient(null);
+    setCurrentIngredients([]);
     setSuggestedCocktails([]);
     setCameraVisible(true);
   };
@@ -204,16 +214,25 @@ export default function IngredientScanScreen() {
     }
 
     // Add current ingredient to list if exists
-    const allIngredients = currentIngredient && imageUri
-      ? [...scannedIngredients, { ...currentIngredient, imageUri }]
+    const allIngredients = currentIngredients.length > 0 && imageUri
+      ? [...scannedIngredients, ...currentIngredients.map((ingredient) => ({ ...ingredient, imageUri }))]
       : scannedIngredients;
 
     if (allIngredients.length === 0) return;
 
+    const dedupedIngredients = Array.from(
+      new Map(
+        allIngredients.map((ingredient) => [
+          `${ingredient.name.toLowerCase()}|${ingredient.category.toLowerCase()}`,
+          ingredient,
+        ])
+      ).values()
+    );
+
     // Add ingredients to Supabase inventory
     const result = await InventoryService.addMultipleToInventory(
       user.id,
-      allIngredients.map(ing => ({
+      dedupedIngredients.map(ing => ({
         itemType: 'ingredient' as const,
         itemName: ing.name,
         category: ing.category,
@@ -224,11 +243,11 @@ export default function IngredientScanScreen() {
     // Award XP for each successfully added ingredient (50 XP first time, 5 XP repeat)
     let totalXP = 0;
     for (let i = 0; i < result.successCount; i++) {
-      const { xpEarned } = earnScanXP(allIngredients[i].name);
+      const { xpEarned } = earnScanXP(dedupedIngredients[i].name);
       totalXP += xpEarned;
     }
-    const successfulNames = allIngredients
-      .filter((_, idx) => !result.duplicates.includes(allIngredients[idx].name))
+    const successfulNames = dedupedIngredients
+      .filter((_, idx) => !result.duplicates.includes(dedupedIngredients[idx].name))
       .map(i => i.name)
       .join(', ');
 
@@ -254,7 +273,7 @@ export default function IngredientScanScreen() {
           onPress: () => {
             setScannedIngredients([]);
             setImageUri(null);
-            setCurrentIngredient(null);
+            setCurrentIngredients([]);
             setSuggestedCocktails([]);
             setCameraVisible(true);
           },
@@ -309,7 +328,7 @@ export default function IngredientScanScreen() {
           </View>
         )}
 
-        {imageUri && currentIngredient && !analyzing && (
+        {imageUri && currentIngredients.length > 0 && !analyzing && (
           <View style={styles.resultContainer}>
             {/* Show previously scanned ingredients */}
             {scannedIngredients.length > 0 && (
@@ -333,24 +352,22 @@ export default function IngredientScanScreen() {
             <View style={styles.detectionCard}>
               <View style={styles.detectionHeader}>
                 <Ionicons name="checkmark-circle" size={32} color={colors.gold} />
-                <Text style={styles.detectionTitle}>Ingredient Detected!</Text>
+                <Text style={styles.detectionTitle}>
+                  {currentIngredients.length > 1 ? 'Ingredients Detected!' : 'Ingredient Detected!'}
+                </Text>
               </View>
 
               <View style={styles.detectionDetails}>
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Name:</Text>
-                  <Text style={styles.detailValue}>{currentIngredient.name}</Text>
-                </View>
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Category:</Text>
-                  <Text style={styles.detailValue}>{currentIngredient.category}</Text>
-                </View>
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Confidence:</Text>
-                  <Text style={styles.detailValue}>
-                    {Math.round(currentIngredient.confidence * 100)}%
-                  </Text>
-                </View>
+                {currentIngredients.map((ingredient, index) => (
+                  <View key={`${ingredient.name}-${index}`} style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>
+                      {ingredient.name} ({ingredient.category})
+                    </Text>
+                    <Text style={styles.detailValue}>
+                      {Math.round(ingredient.confidence * 100)}%
+                    </Text>
+                  </View>
+                ))}
               </View>
             </View>
 
@@ -372,8 +389,8 @@ export default function IngredientScanScreen() {
                 </View>
                 <Text style={styles.suggestionsSubtitle}>
                   {tier === 'FREE'
-                    ? `With ${currentIngredient?.name} + your inventory`
-                    : `Top suggestions with ${currentIngredient?.name}`}
+                    ? `With ${currentIngredients.map((ingredient) => ingredient.name).join(', ')} + your inventory`
+                    : `Top suggestions with ${currentIngredients.map((ingredient) => ingredient.name).join(', ')}`}
                 </Text>
 
                 <ScrollView
@@ -413,7 +430,6 @@ export default function IngredientScanScreen() {
                     style={styles.upgradePrompt}
                     onPress={() =>
                       navigation.navigate('Paywall', {
-                        source: 'ingredient_scan_suggestions',
                         offering: null,
                         displayCloseButton: true,
                       })
@@ -440,7 +456,7 @@ export default function IngredientScanScreen() {
               <TouchableOpacity style={styles.secondaryButton} onPress={handleAddToInventory}>
                 <Ionicons name="add-circle" size={20} color={colors.text} />
                 <Text style={styles.secondaryButtonText}>
-                  Add to Inventory ({scannedIngredients.length + 1})
+                  Add to Inventory ({scannedIngredients.length + currentIngredients.length})
                 </Text>
               </TouchableOpacity>
             </View>

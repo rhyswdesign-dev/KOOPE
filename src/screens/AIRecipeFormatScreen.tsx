@@ -20,6 +20,7 @@ import { RecipeIntelligenceService, RecipeIntelligence } from '../services/recip
 import { recipeService } from '../lib/supabaseData';
 import { useAuth } from '../contexts/AuthContext';
 import { log } from '../lib/logger';
+import InPageTabBar from '../components/ui/InPageTabBar';
 
 export default function AIRecipeFormatScreen() {
   const nav = useNavigation<NativeStackNavigationProp<any>>();
@@ -444,33 +445,14 @@ export default function AIRecipeFormatScreen() {
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Tab Selector */}
         <View style={styles.tabContainer}>
-          <TouchableOpacity
-            style={[styles.tab, activeTab === 'ai' && styles.activeTab]}
-            onPress={() => setActiveTab('ai')}
-          >
-            <Ionicons
-              name="sparkles"
-              size={16}
-              color={activeTab === 'ai' ? colors.white : colors.text}
-            />
-            <Text style={[styles.tabText, activeTab === 'ai' && styles.activeTabText]}>
-              AI Generated
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.tab, activeTab === 'manual' && styles.activeTab]}
-            onPress={() => setActiveTab('manual')}
-          >
-            <Ionicons
-              name="create-outline"
-              size={16}
-              color={activeTab === 'manual' ? colors.white : colors.text}
-            />
-            <Text style={[styles.tabText, activeTab === 'manual' && styles.activeTabText]}>
-              Manual Entry
-            </Text>
-          </TouchableOpacity>
+          <InPageTabBar
+            items={[
+              { key: 'ai', label: 'AI Generated', icon: 'sparkles' },
+              { key: 'manual', label: 'Manual Entry', icon: 'create-outline' },
+            ]}
+            activeKey={activeTab}
+            onChange={(key) => setActiveTab(key as 'ai' | 'manual')}
+          />
         </View>
 
         {/* Enhanced Header with Recipe Preview */}

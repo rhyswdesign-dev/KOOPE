@@ -1,11 +1,13 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import RecipesScreen from '../screens/RecipesScreen';
+import { withScreenTour } from '../components/tour/withScreenTour';
 
 export type RecipesStackParamList = {
   RecipesMain: undefined;
 };
 
 const Stack = createNativeStackNavigator<RecipesStackParamList>();
+const RecipesMainWithTour = withScreenTour(RecipesScreen, 'tab_discover');
 
 export default function RecipesStack() {
   return (
@@ -16,7 +18,7 @@ export default function RecipesStack() {
         headerBackButtonDisplayMode: 'minimal',
       }}
     >
-      <Stack.Screen name="RecipesMain" component={RecipesScreen} options={{ headerShown: true }} />
+      <Stack.Screen name="RecipesMain" component={RecipesMainWithTour} options={{ headerShown: true }} />
     </Stack.Navigator>
   );
 }

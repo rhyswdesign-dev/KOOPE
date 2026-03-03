@@ -15,6 +15,7 @@ import type { RootStackParamList } from '../../navigation/RootNavigator';
 import { colors, spacing, radii, fonts } from '../../theme/tokens';
 import { PricingPlan, Product } from '../../types/commerce';
 import { useCart } from '../../contexts/CartContext';
+import InPageTabBar from '../../components/ui/InPageTabBar';
 
 const pricingPlans: PricingPlan[] = [
   {
@@ -264,24 +265,14 @@ export default function PricingScreen() {
     <View style={styles.container}>
       {/* Tab Selector */}
       <View style={styles.tabContainer}>
-        <TouchableOpacity
-          style={[styles.tab, selectedTab === 'plans' && styles.activeTab]}
-          onPress={() => setSelectedTab('plans')}
-          activeOpacity={0.8}
-        >
-          <Text style={[styles.tabText, selectedTab === 'plans' && styles.activeTabText]}>
-            Subscription Plans
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tab, selectedTab === 'products' && styles.activeTab]}
-          onPress={() => setSelectedTab('products')}
-          activeOpacity={0.8}
-        >
-          <Text style={[styles.tabText, selectedTab === 'products' && styles.activeTabText]}>
-            Products
-          </Text>
-        </TouchableOpacity>
+        <InPageTabBar
+          items={[
+            { key: 'plans', label: 'Subscription Plans', icon: 'card-outline' },
+            { key: 'products', label: 'Products', icon: 'bag-outline' },
+          ]}
+          activeKey={selectedTab}
+          onChange={(key) => setSelectedTab(key as 'plans' | 'products')}
+        />
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>

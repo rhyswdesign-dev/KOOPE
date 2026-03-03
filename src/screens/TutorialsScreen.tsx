@@ -1,0 +1,218 @@
+import React, { useLayoutEffect, useMemo, useState } from 'react';
+import {
+  Alert,
+  Pressable,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { RootStackParamList } from '../navigation/RootNavigator';
+import { SCREEN_TOURS, ScreenTourId, ScreenTourSlide } from '../config/screenTours';
+import ScreenTourModal from '../components/tour/ScreenTourModal';
+import { colors, radii, spacing } from '../theme/tokens';
+import { log } from '../lib/logger';
+
+type Nav = NativeStackNavigationProp<RootStackParamList>;
+
+const TOUR_STORAGE_PREFIX = '@KOOPE:screen_tour_seen_';
+
+const TOUR_META: Record<ScreenTourId, { title: string; subtitle: string }> = {
+  tab_lessons: { title: 'Lessons Tab Tour', subtitle: 'Learn lessons, challenges, and progression' },
+  tab_discover: { title: 'Discover Tab Tour', subtitle: 'Explore recipes and recommendations' },
+  tab_camera: { title: 'Camera Tab Tour', subtitle: 'Understand scan flows and capture options' },
+  tab_inventory: { title: 'Inventory Tab Tour', subtitle: 'Manage your bar and restock workflow' },
+  tab_profile: { title: 'Profile Tab Tour', subtitle: 'Review progress, stats, and settings' },
+  feature_lesson_engine: { title: 'Lesson Engine Tour', subtitle: 'How lessons and summaries work' },
+  feature_smart_scan: { title: 'Smart Scan Tour', subtitle: 'Barcode + AI tier behavior explained' },
+  feature_recipe_detail: { title: 'Recipe Detail Tour', subtitle: 'Log brands, changes, and rating flow' },
+};
+
+interface ActiveTourState {
+  id: ScreenTourId;
+  slides: ScreenTourSlide[];
+  stepIndex: number;
+}
+
+export default function TutorialsScreen() {
+  const navigation = useNavigation<Nav>();
+  const [activeTour, setActiveTour] = useState<ActiveTourState | null>(null);
+
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      title: 'Tutorials',
+      headerStyle: { backgroundColor: colors.bg },
+      headerTintColor: colors.text,
+      headerTitleStyle: { color: colors.text, fontWeight: '900' },
+      headerShadowVisible: false,
+    });
+  }, [navigation]);
+
+  const tourIds = useMemo(() => Object.keys(SCREEN_TOURS) as ScreenTourId[], []);
+
+  const openTour = (id: ScreenTourId) => {
+    setActiveTour({
+      id,
+      slides: SCREEN_TOURS[id],
+      stepIndex: 0,
+    });
+  };
+
+  const closeTour = () => {
+    setActiveTour(null);
+  };
+
+  const nextStep = () => {
+    setActiveTour((prev) => {
+      if (!prev) return prev;
+      if (prev.stepIndex >= prev.slides.length - 1) return null;
+      return { ...prev, stepIndex: prev.stepIndex + 1 };
+    });
+  };
+
+  const previousStep = () => {
+    setActiveTour((prev) => {
+      if (!prev) return prev;
+      return { ...prev, stepIndex: Math.max(0, prev.stepIndex - 1) };
+    });
+  };
+
+  const handleResetAll = () => {
+    Alert.alert(
+      'Reset Tutorials',
+      'This will make all screen tours show again on next visit. Continue?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Reset',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const keys = await AsyncStorage.getAllKeys();
+              const tutorialKeys = keys.filter((k) => k.startsWith(TOUR_STORAGE_PREFIX));
+              if (tutorialKeys.length > 0) {
+                await AsyncStorage.multiRemove(tutorialKeys);
+              }
+              Alert.alert('Done', 'All tutorials were reset.');
+            } catch (error) {
+              log.error('TutorialsScreen', 'Failed to reset tutorial state', error);
+              Alert.alert('Error', 'Could not reset tutorials. Please try again.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <ScrollView contentContainerStyle={styles.content}>
+        <View style={styles.headerCard}>
+          <Text style={styles.headerTitle}>Feature Tours</Text>
+          <Text style={styles.headerBody}>
+            Replay any tutorial to understand where features live and how each major flow works.
+          </Text>
+          <Pressable style={styles.resetButton} onPress={handleResetAll}>
+            <Ionicons name="refresh-outline" size={16} color={colors.text} />
+            <Text style={styles.resetButtonText}>Reset all tutorials</Text>
+          </Pressable>
+        </View>
+
+        {tourIds.map((id) => (
+          <Pressable key={id} style={styles.itemCard} onPress={() => openTour(id)}>
+            <View style={styles.itemTextWrap}>
+              <Text style={styles.itemTitle}>{TOUR_META[id].title}</Text>
+              <Text style={styles.itemSubtitle}>{TOUR_META[id].subtitle}</Text>
+            </View>
+            <Ionicons name="play-circle-outline" size={22} color={colors.accent} />
+          </Pressable>
+        ))}
+      </ScrollView>
+
+      <ScreenTourModal
+        visible={Boolean(activeTour)}
+        slides={activeTour?.slides || []}
+        stepIndex={activeTour?.stepIndex || 0}
+        onClose={closeTour}
+        onNext={nextStep}
+        onPrevious={previousStep}
+        isFirstStep={(activeTour?.stepIndex || 0) === 0}
+        isLastStep={Boolean(activeTour && activeTour.stepIndex >= activeTour.slides.length - 1)}
+      />
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.bg,
+  },
+  content: {
+    padding: spacing(2),
+    gap: spacing(1.5),
+  },
+  headerCard: {
+    backgroundColor: colors.card,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.line,
+    padding: spacing(2),
+    gap: spacing(1),
+  },
+  headerTitle: {
+    color: colors.text,
+    fontSize: 20,
+    fontWeight: '800',
+  },
+  headerBody: {
+    color: colors.subtext,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  resetButton: {
+    marginTop: spacing(0.5),
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    gap: spacing(0.75),
+    alignItems: 'center',
+    backgroundColor: colors.chipBg,
+    borderRadius: radii.pill,
+    paddingHorizontal: spacing(1.5),
+    paddingVertical: spacing(0.75),
+  },
+  resetButtonText: {
+    color: colors.text,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  itemCard: {
+    backgroundColor: colors.card,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: colors.line,
+    padding: spacing(1.5),
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  itemTextWrap: {
+    flex: 1,
+    paddingRight: spacing(1),
+  },
+  itemTitle: {
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  itemSubtitle: {
+    color: colors.subtext,
+    fontSize: 12,
+    marginTop: 2,
+  },
+});

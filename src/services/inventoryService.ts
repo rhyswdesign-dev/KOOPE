@@ -4,10 +4,11 @@
  */
 
 import { supabase } from '../lib/supabase';
-import type { UserInventoryItem, UserScan, ItemType, ScanType } from '../types/database';
+import type { UserInventoryItem, ItemType, ScanType } from '../types/database';
 import * as Localization from 'expo-localization';
 import { log } from '../lib/logger';
 import { formatIngredientName } from '../utils/recipeMatching';
+import { submitWeightedCorrection, submitNewBottle } from './scanCorrectionService';
 
 export class InventoryService {
   /**
@@ -139,6 +140,9 @@ export class InventoryService {
     itemName: string;
     category?: string;
     imageUrl?: string;
+    subcategory?: string;
+    brand?: string;
+    notes?: string;
   }): Promise<{ success: boolean; duplicate: boolean }> {
     try {
       // Format ingredient name for consistency (Title Case)
@@ -159,6 +163,9 @@ export class InventoryService {
           item_name: formattedName, // Use formatted name
           category: params.category || null,
           image_url: params.imageUrl || null,
+          subcategory: params.subcategory || null,
+          brand: params.brand || null,
+          notes: params.notes || null,
         });
 
       if (error) {
@@ -183,6 +190,9 @@ export class InventoryService {
       itemName: string;
       category?: string;
       imageUrl?: string;
+      subcategory?: string;
+      brand?: string;
+      notes?: string;
     }>
   ): Promise<{ successCount: number; duplicates: string[] }> {
     let successCount = 0;
@@ -270,6 +280,32 @@ export class InventoryService {
       log.error('InventoryService', 'Exception removing from inventory', error);
       return false;
     }
+  }
+
+  /**
+   * Submit a scan correction using the weighted voting anti-fraud system.
+   * Routes through scanCorrectionService to ensure:
+   * - Votes are weighted by user accuracy score
+   * - New bottle submissions go through moderation for untrusted users
+   * - Trusted users (accuracy > 0.7) get auto-approved
+   */
+  static async submitScanCorrection(params: {
+    userId: string;
+    barcode: string;
+    correctBottleId: string | null;
+    newBottleData?: Record<string, unknown>;
+  }): Promise<'voted' | 'added' | 'queued'> {
+    const { userId, barcode, correctBottleId, newBottleData } = params;
+
+    if (correctBottleId) {
+      await submitWeightedCorrection({ userId, barcode, correctBottleId });
+      return 'voted';
+    } else if (newBottleData) {
+      const result = await submitNewBottle(newBottleData, userId, barcode);
+      return result;
+    }
+
+    return 'voted';
   }
 
   /**

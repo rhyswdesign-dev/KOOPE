@@ -16,6 +16,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { colors, spacing, radii, fonts } from '../theme/tokens';
 import { Ionicons } from '@expo/vector-icons';
 import { log } from '../lib/logger';
@@ -24,6 +25,7 @@ interface AICocktailPromptModalProps {
   visible: boolean;
   onClose: () => void;
   onSubmit: (prompt: string) => Promise<void>;
+  onUpgrade?: () => void;
   remainingPrompts: number;
   isPremium: boolean;
 }
@@ -41,9 +43,11 @@ export default function AICocktailPromptModal({
   visible,
   onClose,
   onSubmit,
+  onUpgrade,
   remainingPrompts,
   isPremium,
 }: AICocktailPromptModalProps) {
+  const navigation = useNavigation<any>();
   const [prompt, setPrompt] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -69,6 +73,21 @@ export default function AICocktailPromptModal({
 
   const handleQuickPrompt = (quickPrompt: string) => {
     setPrompt(quickPrompt);
+  };
+
+  const handleUpgrade = () => {
+    if (onUpgrade) {
+      onUpgrade();
+      return;
+    }
+    const params = { source: 'ai_prompt_modal', displayCloseButton: true };
+    const parentNavigation = navigation.getParent?.();
+    if (parentNavigation) {
+      parentNavigation.navigate('Paywall', params);
+    } else {
+      navigation.navigate('Paywall', params);
+    }
+    onClose();
   };
 
   const canSubmit = prompt.trim().length > 0 && !loading && (isPremium || remainingPrompts > 0);
@@ -140,7 +159,7 @@ export default function AICocktailPromptModal({
                     Get unlimited AI prompts with Premium
                   </Text>
                 </View>
-                <TouchableOpacity style={styles.upgradeButton}>
+                <TouchableOpacity style={styles.upgradeButton} onPress={handleUpgrade}>
                   <Text style={styles.upgradeButtonText}>Upgrade</Text>
                 </TouchableOpacity>
               </View>
@@ -175,8 +194,8 @@ export default function AICocktailPromptModal({
             {/* Submit Button */}
             <TouchableOpacity
               style={[styles.submitButton, !canSubmit && styles.submitButtonDisabled]}
-              onPress={handleSubmit}
-              disabled={!canSubmit}
+              onPress={canSubmit ? handleSubmit : handleUpgrade}
+              disabled={loading}
             >
               {loading ? (
                 <ActivityIndicator color={colors.goldText} />

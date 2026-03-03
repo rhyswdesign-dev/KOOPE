@@ -1,11 +1,13 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import ProfileScreen from '../screens/ProfileScreen';
+import { withScreenTour } from '../components/tour/withScreenTour';
 
 export type ProfileStackParamList = {
   ProfileMain: undefined;
 };
 
 const Stack = createNativeStackNavigator<ProfileStackParamList>();
+const ProfileMainWithTour = withScreenTour(ProfileScreen, 'tab_profile');
 
 export default function ProfileStack() {
   return (
@@ -20,7 +22,7 @@ export default function ProfileStack() {
         animationDuration: 200,
       }}
     >
-      <Stack.Screen name="ProfileMain" component={ProfileScreen} options={{ title: 'Profile' }} />
+      <Stack.Screen name="ProfileMain" component={ProfileMainWithTour} options={{ title: 'Profile' }} />
     </Stack.Navigator>
   );
 }

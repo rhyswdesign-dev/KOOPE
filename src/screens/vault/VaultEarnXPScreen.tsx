@@ -66,7 +66,7 @@ export default function VaultEarnXPScreen() {
       iconFamily: 'ionicons',
       color: '#9C27B0',
       estimatedTime: '3-5 min',
-      navigationTarget: 'Spirits',
+      navigationTarget: 'Recipes',
     },
     {
       id: 'small_challenge',
@@ -99,7 +99,6 @@ export default function VaultEarnXPScreen() {
       headerTintColor: colors.text,
       headerTitleStyle: { color: colors.text, fontWeight: '900' },
       headerShadowVisible: false,
-      headerLeft: () => null,
     });
   }, [nav]);
 

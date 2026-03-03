@@ -6,7 +6,7 @@
  * Handles initialization, user identification, and entitlement checking.
  */
 
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState, ReactNode } from 'react';
 import { Platform } from 'react-native';
 import Purchases, {
   CustomerInfo,
@@ -16,11 +16,18 @@ import Purchases, {
   LOG_LEVEL,
   PURCHASES_ERROR_CODE
 } from 'react-native-purchases';
-import { SUBSCRIPTION_ENTITLEMENTS, REVENUECAT_CONFIG, SUBSCRIPTION_PRODUCTS, PRICING_DISPLAY } from '../constants/subscriptions';
+import {
+  SUBSCRIPTION_ENTITLEMENTS,
+  REVENUECAT_CONFIG,
+  SUBSCRIPTION_PRODUCTS,
+  PRICING_DISPLAY,
+  getRevenueCatConfigValidation,
+} from '../constants/subscriptions';
 import { setUserId, setUserProperties } from '../lib/analytics';
 import { useUserTier } from '../store/useUserTier';
 import type { UserTier } from '../store/useUserTier';
 import { log } from '../lib/logger';
+import { supabase } from '../lib/supabase';
 
 /**
  * MANUAL TESTING GUIDE
@@ -106,6 +113,14 @@ interface SubscriptionState {
   purchaseProYearly: () => Promise<PurchaseResult>;
   purchasePrestigeMonthly: () => Promise<PurchaseResult>;
   purchasePrestigeYearly: () => Promise<PurchaseResult>;
+  /**
+   * Start a 7-day free trial for the given tier.
+   * Finds the yearly package (most likely to have a trial) and initiates purchase.
+   * After success, stores trial state in useUserTier.
+   */
+  startFreeTrial: (tier: 'plus' | 'pro') => Promise<PurchaseResult>;
+  /** Current total user count — used for founders urgency banner in PaywallScreen */
+  founderCount: number;
 }
 
 /**
@@ -133,6 +148,8 @@ const defaultState: SubscriptionState = {
   purchaseProYearly: async () => ({ success: false }),
   purchasePrestigeMonthly: async () => ({ success: false }),
   purchasePrestigeYearly: async () => ({ success: false }),
+  startFreeTrial: async () => ({ success: false }),
+  founderCount: 0,
 };
 
 /**
@@ -183,6 +200,10 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
   const [customerInfo, setCustomerInfo] = useState<CustomerInfo | null>(null);
   const [offerings, setOfferings] = useState<PurchasesOfferings | null>(null);
   const [isPurchasing, setIsPurchasing] = useState(false);
+  const [founderCount, setFounderCount] = useState(0);
+  const revenueCatConfiguredRef = useRef(false);
+
+  const FOUNDER_LIMIT = 300;
 
   /**
    * Check if an entitlement is active
@@ -256,6 +277,11 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
   const getOfferings = async (): Promise<PurchasesOfferings | null> => {
     log.fn('SubscriptionContext', 'getOfferings');
 
+    if (!revenueCatConfiguredRef.current) {
+      log.info('SubscriptionContext', 'Skipping getOfferings until RevenueCat is configured');
+      return null;
+    }
+
     try {
       const fetchedOfferings = await Purchases.getOfferings();
       setOfferings(fetchedOfferings);
@@ -265,6 +291,10 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
       return fetchedOfferings;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to fetch offerings';
+      if (errorMessage.toLowerCase().includes('no singleton instance')) {
+        log.warn('SubscriptionContext', 'getOfferings called before RevenueCat singleton was ready');
+        return null;
+      }
       log.error('SubscriptionContext', 'Error fetching offerings', err);
       setError(errorMessage);
       return null;
@@ -282,14 +312,25 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
       }
 
       if (!currentOfferings?.current) {
-        log.error('SubscriptionContext', 'No current offering available');
-        return null;
+        const fallbackOffering = currentOfferings ? Object.values(currentOfferings.all || {})[0] : undefined;
+        if (!fallbackOffering) {
+          log.warn('SubscriptionContext', 'No offering available in RevenueCat');
+          return null;
+        }
+        log.warn('SubscriptionContext', 'No current offering set, falling back to first available offering', {
+          fallbackIdentifier: fallbackOffering.identifier,
+        });
+        const pkg = fallbackOffering.availablePackages.find((p) => p.product?.identifier === productId);
+        if (!pkg) {
+          log.warn('SubscriptionContext', 'Package not found in fallback offering', { productId });
+          return null;
+        }
+        return pkg;
       }
 
-      const pkg = currentOfferings.current.availablePackages.find(p => {
-        const id = p.identifier.toLowerCase();
-        const searchId = productId.toLowerCase();
-        return id.includes(searchId) || id === searchId;
+      const pkg = currentOfferings.current.availablePackages.find((p) => {
+        if (p.product?.identifier === productId) return true;
+        return p.identifier === productId;
       });
 
       if (!pkg) {
@@ -308,6 +349,12 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
    * Supports plus, pro, and prestige tiers with weekly, monthly, and yearly billing
    */
   const purchaseTier = async (tier: 'plus' | 'pro' | 'prestige', billingMode: 'weekly' | 'monthly' | 'yearly'): Promise<PurchaseResult> => {
+    if (!revenueCatConfiguredRef.current) {
+      const errorMsg = 'Purchases are still initializing. Please try again in a moment.';
+      log.warn('SubscriptionContext', 'purchaseTier called before RevenueCat configuration', { tier, billingMode });
+      return { success: false, error: errorMsg };
+    }
+
     try {
       setIsPurchasing(true);
       setError(null);
@@ -335,7 +382,7 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
       const pkg = await findPackageByIdentifier(productId);
       if (!pkg) {
         const errorMsg = `Package not found for ${tier} ${billingMode}`;
-        log.error('SubscriptionContext', errorMsg, undefined, { tier, billingMode, productId });
+        log.warn('SubscriptionContext', errorMsg, { tier, billingMode, productId });
         setError(errorMsg);
         return { success: false, error: errorMsg };
       }
@@ -343,6 +390,10 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
       const { customerInfo: updatedInfo } = await Purchases.purchasePackage(pkg);
       updateSubscriptionState(updatedInfo);
       log.info('SubscriptionContext', 'Purchase successful', { tier, billingMode });
+
+      // Check and set founder status (first 300 users lock their price)
+      const priceCents = Math.round((pkg.product?.price ?? 0) * 100);
+      checkAndSetFounderStatus(priceCents);
 
       return { success: true, customerInfo: updatedInfo };
     } catch (err: any) {
@@ -380,6 +431,12 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
   const restorePurchases = async (): Promise<PurchaseResult> => {
     log.fn('SubscriptionContext', 'restorePurchases');
 
+    if (!revenueCatConfiguredRef.current) {
+      const errorMessage = 'RevenueCat is still initializing. Please try again in a moment.';
+      log.warn('SubscriptionContext', 'Restore attempted before RevenueCat configuration');
+      return { success: false, error: errorMessage };
+    }
+
     try {
       setIsPurchasing(true);
       setError(null); // Clear any previous errors
@@ -398,10 +455,89 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
   };
 
   /**
+   * Start a 7-day free trial.
+   * Finds the yearly package for the tier (most likely to have a trial offer) and
+   * initiates the purchase. RevenueCat handles the trial natively via introductoryDiscount.
+   * On success, persists trial state to useUserTier for local gating.
+   */
+  const startFreeTrial = async (tier: 'plus' | 'pro'): Promise<PurchaseResult> => {
+    const productId = tier === 'plus' ? SUBSCRIPTION_PRODUCTS.PLUS_YEARLY : SUBSCRIPTION_PRODUCTS.PRO_YEARLY;
+
+    try {
+      setIsPurchasing(true);
+      setError(null);
+
+      const pkg = await findPackageByIdentifier(productId);
+      if (!pkg) {
+        const errorMsg = `Trial package not found for tier: ${tier}`;
+        log.warn('SubscriptionContext', errorMsg);
+        return { success: false, error: errorMsg };
+      }
+
+      // RevenueCat automatically applies the introductory price/trial when purchasing
+      const { customerInfo: updatedInfo } = await Purchases.purchasePackage(pkg);
+      updateSubscriptionState(updatedInfo);
+
+      // Persist trial state locally so gating works immediately
+      const tierStore = useUserTier.getState();
+      const userTier: UserTier = tier === 'pro' ? 'PRO' : 'PLUS';
+      tierStore.startTrial(userTier, 7);
+
+      log.info('SubscriptionContext', 'Trial started', { tier });
+      return { success: true, customerInfo: updatedInfo };
+    } catch (err: any) {
+      if (err.code === PURCHASES_ERROR_CODE.PURCHASE_CANCELLED_ERROR || err.userCancelled) {
+        return { success: false, userCancelled: true };
+      }
+      const errorMessage = err.message || 'Failed to start trial';
+      log.error('SubscriptionContext', 'Trial start error', err);
+      setError(errorMessage);
+      return { success: false, error: errorMessage };
+    } finally {
+      setIsPurchasing(false);
+    }
+  };
+
+  /**
+   * Check founder status after a successful purchase.
+   * If total user count is ≤ FOUNDER_LIMIT, mark user as founder and lock their price.
+   */
+  const checkAndSetFounderStatus = async (priceCents: number) => {
+    try {
+      const { count, error } = await supabase
+        .from('auth.users')
+        .select('id', { count: 'exact', head: true });
+
+      if (error || count == null) return;
+
+      const userNumber = count;
+      setFounderCount(userNumber);
+
+      if (userNumber <= FOUNDER_LIMIT) {
+        const tierStore = useUserTier.getState();
+        tierStore.setFounderStatus(true, priceCents);
+        // Tag in RevenueCat so backend can validate
+        await Purchases.setAttributes({
+          is_founder: 'true',
+          founder_number: String(userNumber),
+        });
+        log.info('SubscriptionContext', 'Founder status set', { userNumber, priceCents });
+      }
+    } catch (err) {
+      log.error('SubscriptionContext', 'checkAndSetFounderStatus failed', err);
+    }
+  };
+
+  /**
    * Refresh subscription status from RevenueCat
    */
   const refreshSubscriptionStatus = async () => {
     log.fn('SubscriptionContext', 'refreshSubscriptionStatus');
+
+    if (!revenueCatConfiguredRef.current) {
+      log.warn('SubscriptionContext', 'Skipping refreshSubscriptionStatus until RevenueCat is configured');
+      return;
+    }
 
     try {
       setIsLoading(true);
@@ -436,8 +572,23 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
           ? REVENUECAT_CONFIG.IOS_API_KEY
           : REVENUECAT_CONFIG.ANDROID_API_KEY;
 
-        // Check for placeholder API key (not configured yet)
-        if (apiKey.includes('PLACEHOLDER') || apiKey.includes('appl_your') || apiKey.includes('goog_your')) {
+        const validation = getRevenueCatConfigValidation();
+        const platformValid = Platform.OS === 'ios' ? validation.iosValid : validation.androidValid;
+        const strictRevenueCatMode = !__DEV__ || process.env.EXPO_PUBLIC_REVENUECAT_STRICT_MODE === 'true';
+
+        // Prevent silent free-mode fallback in strict/release builds.
+        if (!platformValid) {
+          const errorMessage = `RevenueCat key invalid for ${Platform.OS}. Check EXPO_PUBLIC_REVENUECAT_${Platform.OS === 'ios' ? 'IOS' : 'ANDROID'}_KEY.`;
+          if (strictRevenueCatMode) {
+            log.error('SubscriptionContext', 'RevenueCat configuration invalid in strict mode', new Error(errorMessage), {
+              platform: Platform.OS,
+              strictRevenueCatMode,
+            });
+            setError(errorMessage);
+            setIsLoading(false);
+            return;
+          }
+
           log.info('SubscriptionContext', 'RevenueCat not configured - running in free mode');
           setIsLoading(false);
           return;
@@ -453,6 +604,7 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
           apiKey,
           appUserID: undefined, // Anonymous user for now
         });
+        revenueCatConfiguredRef.current = true;
 
         log.info('SubscriptionContext', 'RevenueCat initialized successfully', { platform: Platform.OS });
 
@@ -491,6 +643,7 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
 
         // Continue in free mode - don't block the app
         setError(null);
+        revenueCatConfiguredRef.current = false;
       } finally {
         setIsLoading(false);
       }
@@ -521,6 +674,8 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
     purchaseProYearly,
     purchasePrestigeMonthly,
     purchasePrestigeYearly,
+    startFreeTrial,
+    founderCount,
   };
 
   return (

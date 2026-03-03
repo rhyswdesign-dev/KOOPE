@@ -32,6 +32,7 @@ import { log } from '../lib/logger';
 import { usePaywallTriggers } from '../hooks/usePaywallTriggers';
 import { useSubscription } from '../contexts/SubscriptionContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useFeatureAccess } from '../hooks/useFeatureAccess';
 
 // Import images from assets
 import * as Images from '../../assets/images';
@@ -531,6 +532,8 @@ export default function HomeBarScreen() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { inventoryGate } = usePaywallTriggers();
   const { isKoopePlus, isKoopePro } = useSubscription();
+  const { gateWithTrigger: optimizeBarGate } = useFeatureAccess('optimize_my_bar');
+  const { gateWithTrigger: predictiveRestockGate } = useFeatureAccess('predictive_restock');
   const { user } = useAuth();
   const [showSearchModal, setShowSearchModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -720,6 +723,9 @@ export default function HomeBarScreen() {
     if (!selectedItem) return;
 
     try {
+      // T13: soft upsell for predictive restock while still allowing the action.
+      predictiveRestockGate('T13');
+
       // Map BarIngredient category to GroceryItem category
       const mapCategory = (barCategory: string): 'spirits_liquors' | 'mixers' | 'garnish' | 'bitters' | 'syrup' | 'other' => {
         switch (barCategory) {
@@ -929,7 +935,7 @@ export default function HomeBarScreen() {
             </View>
             <TouchableOpacity
               style={styles.aiInventoryActionCard}
-              onPress={() => (nav as any).navigate('Spirits')}
+              onPress={() => optimizeBarGate('T4', () => (nav as any).navigate('Recipes'))}
             >
               <View style={styles.aiInventoryActionContent}>
                 <Ionicons name="bulb-outline" size={22} color={colors.accent} />

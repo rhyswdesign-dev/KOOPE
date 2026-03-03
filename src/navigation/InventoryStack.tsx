@@ -1,6 +1,7 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import HomeBarScreen from '../screens/HomeBarScreen';
 import ShoppingCartScreen from '../screens/ShoppingCartScreen';
+import { withScreenTour } from '../components/tour/withScreenTour';
 
 export type InventoryStackParamList = {
   HomeBarMain: undefined;
@@ -8,6 +9,7 @@ export type InventoryStackParamList = {
 };
 
 const Stack = createNativeStackNavigator<InventoryStackParamList>();
+const HomeBarWithTour = withScreenTour(HomeBarScreen, 'tab_inventory');
 
 export default function InventoryStack() {
   return (
@@ -20,7 +22,7 @@ export default function InventoryStack() {
     >
       <Stack.Screen
         name="HomeBarMain"
-        component={HomeBarScreen}
+        component={HomeBarWithTour}
         options={{ headerShown: false }}
       />
       <Stack.Screen

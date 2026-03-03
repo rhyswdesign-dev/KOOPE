@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, radii, fonts } from '../theme/tokens';
+import { colors, spacing, radii } from '../theme/tokens';
 import { getCocktailImage } from '../../assets/images/cocktails';
 import { Heading } from './ui';
 
@@ -22,8 +22,8 @@ interface RecipeCardProps {
     description?: string;
     category?: string;
     image: string | number; // string for URI, number for require()
-    difficulty: string;
-    time: string;
+    difficulty?: string;
+    time?: string;
     rating?: number;
     ingredients?: any[];
     tags?: string[];
@@ -43,6 +43,8 @@ interface RecipeCardProps {
   showSaveButton?: boolean;
   showCartButton?: boolean;
   showDeleteButton?: boolean;
+  /** If set, shows a 'Featured' badge indicating a sponsored brand for this ingredient category */
+  featuredBrandLabel?: string;
   style?: any;
 }
 
@@ -57,6 +59,7 @@ const RecipeCard = React.memo(({
   showSaveButton = true,
   showCartButton = true,
   showDeleteButton = false,
+  featuredBrandLabel,
   style,
 }: RecipeCardProps) => {
   const scale = useSharedValue(1);
@@ -86,7 +89,10 @@ const RecipeCard = React.memo(({
 
   // GLOBAL IMAGE RESOLVER: Always use local images if available
   const resolvedImage = useMemo(() => {
-    return getCocktailImage(recipe.id, recipe.image);
+    if (typeof recipe.image === 'string') {
+      return getCocktailImage(recipe.id, recipe.image);
+    }
+    return recipe.image;
   }, [recipe.id, recipe.image]);
 
   return (
@@ -105,12 +111,17 @@ const RecipeCard = React.memo(({
           source={typeof resolvedImage === 'string' ? { uri: resolvedImage } : resolvedImage}
           style={styles.cocktailImage}
         />
+        {featuredBrandLabel && (
+          <View style={styles.featuredBadge}>
+            <Text style={styles.featuredBadgeText}>⭐ {featuredBrandLabel}</Text>
+          </View>
+        )}
         <View style={styles.cocktailInfo}>
           <Heading level={3} style={styles.cardTitle}>{recipe.name || recipe.title}</Heading>
           <Text style={styles.cardSub}>{displayText}</Text>
           <View style={styles.cocktailMeta}>
-            <Text style={styles.cocktailDifficulty}>{recipe.difficulty}</Text>
-            <Text style={styles.cocktailTime}>{recipe.time}</Text>
+            <Text style={styles.cocktailDifficulty}>{recipe.difficulty || 'Medium'}</Text>
+            <Text style={styles.cocktailTime}>{recipe.time || '5 min'}</Text>
           </View>
         </View>
 
@@ -188,6 +199,21 @@ const styles = StyleSheet.create({
     height: 180,
     resizeMode: 'cover',
     backgroundColor: colors.card,
+  },
+  featuredBadge: {
+    position: 'absolute',
+    bottom: 188,  // Sits just above the card info area, over the image
+    left: spacing(1.5),
+    backgroundColor: 'rgba(214, 138, 56, 0.92)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: radii.sm,
+  },
+  featuredBadgeText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.3,
   },
   cocktailInfo: {
     padding: spacing(2),

@@ -4,7 +4,7 @@
  * NO AI REQUIRED - Pure algorithm-based recommendations
  */
 
-import { EnhancedUserProfile, Spirit, FlavorProfile } from '../types/userProfile';
+import { EnhancedUserProfile, Spirit, FlavorProfile, RecipeInteraction } from '../types/userProfile';
 import { Recipe, RecipeWithUserData, RecipeFilters, getIngredientCount } from '../types/recipe';
 import { calculateTasteMatchPercent } from './tasteMatchService';
 
@@ -19,6 +19,7 @@ export interface RecommendationScore {
     abvMatch: number;
     toolsMatch: number;
     occasionMatch: number;
+    completionMatch: number;
   };
 }
 
@@ -38,6 +39,7 @@ export class RecommendationEngine {
       abvMatch: 0,
       toolsMatch: 0,
       occasionMatch: 0,
+      completionMatch: 0,
     };
 
     // 1. Spirit Match (weight: 30 points)
@@ -82,6 +84,13 @@ export class RecommendationEngine {
       reasons
     );
 
+    // 7. Completion behavior match (bonus: 10 points)
+    matchFactors.completionMatch = this.calculateCompletionMatch(
+      recipe,
+      userProfile,
+      reasons
+    );
+
     // Calculate total score
     const totalScore =
       matchFactors.spiritMatch +
@@ -89,7 +98,8 @@ export class RecommendationEngine {
       matchFactors.skillMatch +
       matchFactors.abvMatch +
       matchFactors.toolsMatch +
-      matchFactors.occasionMatch;
+      matchFactors.occasionMatch +
+      matchFactors.completionMatch;
 
     return {
       recipeId: recipe.id,
@@ -287,6 +297,100 @@ export class RecommendationEngine {
     // This could be enhanced with time-of-day, season, etc.
     // For now, just give neutral score
     return 3;
+  }
+
+  /**
+   * Completion behavior matching (10 points max)
+   * Learns from "how user actually made drinks" logs.
+   */
+  private static calculateCompletionMatch(
+    recipe: Recipe,
+    userProfile: EnhancedUserProfile,
+    reasons: string[]
+  ): number {
+    const completed = userProfile.interactionHistory?.completedRecipes || [];
+    if (completed.length === 0) return 0;
+
+    const recent = completed
+      .filter((entry) => this.isRecent(entry.timestamp, 90))
+      .slice(-30);
+    if (recent.length === 0) return 0;
+
+    let score = 0;
+
+    const sameRecipeCompletions = recent.filter((entry) => entry.recipeId === recipe.id);
+    if (sameRecipeCompletions.length > 0) {
+      score += Math.min(4, sameRecipeCompletions.length * 2);
+      reasons.push('You have made this recipe before');
+    }
+
+    const ratingMatches = recent.filter((entry) => {
+      const rating = entry.rating || 0;
+      return rating >= 4 && this.completionLooksLikeSpirit(recipe.baseSpirit, entry);
+    });
+    if (ratingMatches.length > 0) {
+      score += 3;
+      reasons.push('Based on your high ratings for similar builds');
+    }
+
+    const detailSignals = recent.filter((entry) => {
+      const details = entry.completionDetails;
+      if (!details) return false;
+      if (details.substitutions || details.techniqueVariations || details.personalModifications) {
+        return true;
+      }
+      return (details.ingredientBrands || []).some((brand) => {
+        const haystack = `${brand.ingredient} ${brand.brandUsed}`.toLowerCase();
+        return this.recipeIngredientKeywords(recipe).some((keyword) => haystack.includes(keyword));
+      });
+    });
+    if (detailSignals.length > 0) {
+      score += 3;
+      reasons.push('Adapted to your preferred brands and modifications');
+    }
+
+    return Math.min(10, score);
+  }
+
+  private static isRecent(value: Date, windowDays: number): boolean {
+    const date = value instanceof Date ? value : new Date(value as any);
+    if (Number.isNaN(date.getTime())) return false;
+    const ageMs = Date.now() - date.getTime();
+    return ageMs <= windowDays * 24 * 60 * 60 * 1000;
+  }
+
+  private static completionLooksLikeSpirit(baseSpirit: Recipe['baseSpirit'], entry: RecipeInteraction): boolean {
+    if (!baseSpirit) return false;
+    const details = entry.completionDetails;
+    if (!details) return false;
+
+    const spiritKeywords: Record<string, string[]> = {
+      whiskey: ['whiskey', 'whisky', 'bourbon', 'rye', 'scotch'],
+      gin: ['gin'],
+      vodka: ['vodka'],
+      rum: ['rum', 'rhum', 'cachaca'],
+      tequila: ['tequila', 'mezcal'],
+      brandy: ['brandy', 'cognac', 'armagnac'],
+      liqueurs: ['liqueur', 'amaro', 'aperitif'],
+      'gin-alternative': ['gin alternative', 'zero proof gin'],
+      'rum-alternative': ['rum alternative', 'zero proof rum'],
+      none: ['non-alcoholic', 'zero proof', '0.0'],
+    };
+
+    const keywords = spiritKeywords[baseSpirit] || [];
+    if (keywords.length === 0) return false;
+
+    return (details.ingredientBrands || []).some((brand) => {
+      const haystack = `${brand.ingredient} ${brand.brandUsed}`.toLowerCase();
+      return keywords.some((keyword) => haystack.includes(keyword));
+    });
+  }
+
+  private static recipeIngredientKeywords(recipe: Recipe): string[] {
+    const names = (recipe.ingredients || []).map((ingredient) => ingredient.name?.toLowerCase?.() || '');
+    return names
+      .flatMap((name) => name.split(/\s+/))
+      .filter((token) => token.length >= 3);
   }
 
   /**

@@ -22,6 +22,7 @@ export { default as EmptyState, SearchEmptyState, ErrorEmptyState, OfflineEmptyS
 export { default as LoadingOverlay, LoadingProvider, useLoading, useAsyncOperation, useProgressLoading } from './LoadingOverlay';
 export { default as AudioButton } from './AudioButton';
 export { default as Heading } from './Heading';
+export { default as InPageTabBar } from './InPageTabBar';
 
 // New components
 export { default as VideoPlayer, InlineVideoPlayer, CompactVideoPlayer } from './VideoPlayer';

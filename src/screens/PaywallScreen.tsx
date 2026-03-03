@@ -8,7 +8,7 @@
  *   - Feature benefits are tier-specific and benefit-focused
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -19,6 +19,7 @@ import {
   Alert,
   Platform,
   StatusBar,
+  ImageBackground,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -26,8 +27,35 @@ import { colors, spacing } from '../theme/tokens';
 import { useSubscription } from '../contexts/SubscriptionContext';
 import { trackEvent, ANALYTICS_EVENTS, ANALYTICS_PROPS } from '../lib/analytics';
 import { log } from '../lib/logger';
+import { PRICING_DISPLAY, SUBSCRIPTION_PRODUCTS } from '../constants/subscriptions';
 
 const getSafeAreaTop = () => Platform.OS === 'ios' ? 50 : (StatusBar.currentHeight || 24);
+const HERO_IMAGE = require('../../assets/images/branding/MMS Backsplash.png');
+
+const formatCurrency = (amount: number, currencyCode?: string): string => {
+  if (!Number.isFinite(amount)) return '$0';
+  try {
+    return new Intl.NumberFormat(undefined, {
+      style: 'currency',
+      currency: currencyCode || 'USD',
+      maximumFractionDigits: 2,
+    }).format(amount);
+  } catch {
+    return `$${amount.toFixed(2)}`;
+  }
+};
+
+const buildPerMonthLabel = (
+  price: number | undefined,
+  currencyCode: string | undefined,
+  billingPeriod: BillingPeriod,
+  fallback: string
+): string => {
+  if (!Number.isFinite(price)) return fallback;
+  if (billingPeriod === 'monthly') return `${formatCurrency(price as number, currencyCode)}/mo`;
+  const monthly = (price as number) / 12;
+  return `${formatCurrency(monthly, currencyCode)}/mo`;
+};
 
 interface PaywallScreenProps {
   route?: {
@@ -47,6 +75,7 @@ interface PlanOption {
   billingPeriod: BillingPeriod;
   price: string;
   perMonth: string;
+  packageCode?: string;
   badge?: string;
   badgeColor?: string;
   savings?: string;
@@ -153,27 +182,160 @@ const PRO_FEATURES: FeatureBenefit[] = [
   },
 ];
 
+const getAnnualSavingsPercent = (plans: PlanOption[]): number | null => {
+  const annual = plans.find((p) => p.billingPeriod === 'yearly');
+  const monthly = plans.find((p) => p.billingPeriod === 'monthly');
+  if (!annual || !monthly) return null;
+  const annualValue = Number(String(annual.price).replace(/[^\d.]/g, ''));
+  const monthlyValue = Number(String(monthly.price).replace(/[^\d.]/g, ''));
+  if (!Number.isFinite(annualValue) || !Number.isFinite(monthlyValue) || monthlyValue <= 0) return null;
+  const savings = 1 - (annualValue / (monthlyValue * 12));
+  const pct = Math.round(savings * 100);
+  return pct > 0 ? pct : null;
+};
+
 // ============================================================================
 // COMPONENT
 // ============================================================================
 
 export default function PaywallScreen({ route }: PaywallScreenProps) {
   const navigation = useNavigation();
-  const { offerings, restorePurchases, purchaseTier } = useSubscription();
-  const [isLoading, setIsLoading] = useState(true);
+  const {
+    offerings,
+    isLoading: subscriptionLoading,
+    restorePurchases,
+    purchaseTier,
+    startFreeTrial,
+    founderCount,
+  } = useSubscription();
   const [isPurchasing, setIsPurchasing] = useState(false);
   const [selectedTier, setSelectedTier] = useState<TierTab>(
     route?.params?.offering === 'pro' ? 'koope_pro' : 'koope_plus'
   );
-  const [selectedPlan, setSelectedPlan] = useState<PlanOption>(PLUS_PLANS[0]); // Annual pre-selected
+  const [selectedPlan, setSelectedPlan] = useState<PlanOption>(PLUS_PLANS[0]);
 
   const displayCloseButton = route?.params?.displayCloseButton !== false;
   const source = route?.params?.source || 'unknown';
 
-  const plans = selectedTier === 'koope_plus' ? PLUS_PLANS : PRO_PLANS;
+  const plansFromOfferings = useMemo(() => {
+    const packages = offerings?.current?.availablePackages || [];
+    const findPackage = (productId: string) =>
+      packages.find(
+        (pkg) =>
+          pkg.product?.identifier === productId ||
+          pkg.identifier === productId ||
+          pkg.identifier?.toLowerCase?.().includes(productId.toLowerCase())
+      );
+
+    const plusYearly = findPackage(SUBSCRIPTION_PRODUCTS.PLUS_YEARLY);
+    const plusMonthly = findPackage(SUBSCRIPTION_PRODUCTS.PLUS_MONTHLY);
+    const proYearly = findPackage(SUBSCRIPTION_PRODUCTS.PRO_YEARLY);
+    const proMonthly = findPackage(SUBSCRIPTION_PRODUCTS.PRO_MONTHLY);
+
+    const plusPlans: PlanOption[] =
+      plusYearly && plusMonthly
+        ? [
+            {
+              id: SUBSCRIPTION_PRODUCTS.PLUS_YEARLY,
+              billingPeriod: 'yearly',
+              price: plusYearly.product.priceString || PRICING_DISPLAY.PLUS.yearly,
+              perMonth: buildPerMonthLabel(
+                plusYearly.product.price,
+                plusYearly.product.currencyCode,
+                'yearly',
+                PRICING_DISPLAY.PLUS.yearlyPerMonth
+              ),
+              packageCode: plusYearly.identifier || plusYearly.product.identifier,
+              badge: 'Best Value',
+              badgeColor: '#D4AF37',
+              savings: 'Annual plan',
+              isRecommended: true,
+            },
+            {
+              id: SUBSCRIPTION_PRODUCTS.PLUS_MONTHLY,
+              billingPeriod: 'monthly',
+              price: plusMonthly.product.priceString || PRICING_DISPLAY.PLUS.monthly,
+              perMonth: buildPerMonthLabel(
+                plusMonthly.product.price,
+                plusMonthly.product.currencyCode,
+                'monthly',
+                PRICING_DISPLAY.PLUS.monthlyPerMonth
+              ),
+              packageCode: plusMonthly.identifier || plusMonthly.product.identifier,
+              isRecommended: false,
+            },
+          ]
+        : PLUS_PLANS;
+
+    const proPlans: PlanOption[] =
+      proYearly && proMonthly
+        ? [
+            {
+              id: SUBSCRIPTION_PRODUCTS.PRO_YEARLY,
+              billingPeriod: 'yearly',
+              price: proYearly.product.priceString || PRICING_DISPLAY.PRO.yearly,
+              perMonth: buildPerMonthLabel(
+                proYearly.product.price,
+                proYearly.product.currencyCode,
+                'yearly',
+                PRICING_DISPLAY.PRO.yearlyPerMonth
+              ),
+              packageCode: proYearly.identifier || proYearly.product.identifier,
+              badge: 'Best Value',
+              badgeColor: '#CD7F32',
+              savings: 'Annual plan',
+              isRecommended: true,
+            },
+            {
+              id: SUBSCRIPTION_PRODUCTS.PRO_MONTHLY,
+              billingPeriod: 'monthly',
+              price: proMonthly.product.priceString || PRICING_DISPLAY.PRO.monthly,
+              perMonth: buildPerMonthLabel(
+                proMonthly.product.price,
+                proMonthly.product.currencyCode,
+                'monthly',
+                PRICING_DISPLAY.PRO.monthlyPerMonth
+              ),
+              packageCode: proMonthly.identifier || proMonthly.product.identifier,
+              isRecommended: false,
+            },
+          ]
+        : PRO_PLANS;
+
+    return { plusPlans, proPlans };
+  }, [offerings]);
+
+  const plans = selectedTier === 'koope_plus' ? plansFromOfferings.plusPlans : plansFromOfferings.proPlans;
   const features = selectedTier === 'koope_plus' ? PLUS_FEATURES : PRO_FEATURES;
-  const tierColor = selectedTier === 'koope_plus' ? '#D4AF37' : '#CD7F32';
+  const tierColor = colors.gold;
   const tierName = selectedTier === 'koope_plus' ? 'KŌOPE+' : 'KŌOPE PRO';
+  const isLoading = subscriptionLoading && !offerings;
+  const annualSavingsPercent = useMemo(() => getAnnualSavingsPercent(plans), [plans]);
+  const usingLivePlans = useMemo(
+    () =>
+      plansFromOfferings.plusPlans.some((plan) => Boolean(plan.packageCode)) &&
+      plansFromOfferings.proPlans.some((plan) => Boolean(plan.packageCode)),
+    [plansFromOfferings.plusPlans, plansFromOfferings.proPlans]
+  );
+
+  // Detect if the annual plan has a RevenueCat introductory offer (7-day trial)
+  const hasTrialAvailable = useMemo(() => {
+    if (!offerings?.current) return false;
+    const packages = offerings.current.availablePackages || [];
+    const productId =
+      selectedTier === 'koope_plus'
+        ? SUBSCRIPTION_PRODUCTS.PLUS_YEARLY
+        : SUBSCRIPTION_PRODUCTS.PRO_YEARLY;
+    const yearlyPkg = packages.find(
+      (pkg) =>
+        pkg.product?.identifier === productId ||
+        pkg.identifier === productId ||
+        pkg.identifier?.toLowerCase?.().includes(productId.toLowerCase())
+    );
+    return Boolean(yearlyPkg?.product?.introductoryPrice);
+  }, [offerings, selectedTier]);
+
+  const isTrialEligible = hasTrialAvailable && selectedPlan.billingPeriod === 'yearly';
 
   // Track paywall view
   useEffect(() => {
@@ -183,23 +345,19 @@ export default function PaywallScreen({ route }: PaywallScreenProps) {
   }, [source]);
 
   useEffect(() => {
-    const loadPackages = async () => {
-      try {
-        setIsLoading(true);
-      } catch (error) {
-        log.error('PaywallScreen', 'Error loading packages', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    loadPackages();
-  }, [offerings]);
+    log.info('PaywallScreen', 'Plan source resolved', {
+      usingLivePlans,
+      hasCurrentOffering: Boolean(offerings?.current),
+      plusPlanIds: plansFromOfferings.plusPlans.map((plan) => plan.id),
+      proPlanIds: plansFromOfferings.proPlans.map((plan) => plan.id),
+    });
+  }, [usingLivePlans, offerings, plansFromOfferings.plusPlans, plansFromOfferings.proPlans]);
 
-  // Reset to annual (recommended) when tier changes
+  // Reset to annual/recommended plan when tier changes or offerings update
   useEffect(() => {
-    const newPlans = selectedTier === 'koope_plus' ? PLUS_PLANS : PRO_PLANS;
-    setSelectedPlan(newPlans[0]); // Always default to annual
-  }, [selectedTier]);
+    const newPlans = selectedTier === 'koope_plus' ? plansFromOfferings.plusPlans : plansFromOfferings.proPlans;
+    setSelectedPlan(newPlans[0]);
+  }, [selectedTier, plansFromOfferings.plusPlans, plansFromOfferings.proPlans]);
 
   // ========================================================================
   // HANDLERS
@@ -222,17 +380,22 @@ export default function PaywallScreen({ route }: PaywallScreenProps) {
 
       const tier: 'plus' | 'pro' = selectedTier === 'koope_plus' ? 'plus' : 'pro';
       const billingMode = selectedPlan.billingPeriod;
-      const result = await purchaseTier(tier, billingMode);
+      const result = isTrialEligible
+        ? await startFreeTrial(tier)
+        : await purchaseTier(tier, billingMode);
 
       if (result.success) {
         trackEvent(ANALYTICS_EVENTS.PURCHASE_COMPLETED, {
           [ANALYTICS_PROPS.TIER]: selectedTier,
           [ANALYTICS_PROPS.BILLING_MODE]: selectedPlan.billingPeriod,
           [ANALYTICS_PROPS.SOURCE]: source,
+          is_trial: isTrialEligible,
         });
         Alert.alert(
-          'Welcome!',
-          `You're now a ${tierName} member!`,
+          isTrialEligible ? 'Trial Started!' : 'Welcome!',
+          isTrialEligible
+            ? `Your 7-day free trial of ${tierName} has started!`
+            : `You're now a ${tierName} member!`,
           [{ text: 'Continue', onPress: () => navigation.goBack() }]
         );
       } else if (result.userCancelled) {
@@ -295,67 +458,32 @@ export default function PaywallScreen({ route }: PaywallScreenProps) {
   const renderPlanCard = (plan: PlanOption) => {
     const isSelected = selectedPlan.id === plan.id;
     const isAnnual = plan.billingPeriod === 'yearly';
+    const headerLabel = isAnnual && annualSavingsPercent
+      ? `Save ${annualSavingsPercent}%`
+      : isAnnual
+        ? 'Best Value'
+        : 'Monthly';
+    const durationLabel = isAnnual ? '12 months' : '1 month';
+    const chargeLabel = isAnnual ? `${plan.price}/year` : `${plan.price}/month`;
 
     return (
       <TouchableOpacity
         key={plan.id}
         style={[
           styles.planCard,
-          isAnnual ? styles.planCardAnnual : styles.planCardMonthly,
-          isSelected && { borderColor: tierColor, borderWidth: 2.5 },
+          isSelected && { borderColor: tierColor, borderWidth: 2 },
         ]}
         onPress={() => setSelectedPlan(plan)}
         activeOpacity={0.7}
       >
-        {/* Badge */}
-        {plan.badge && (
-          <View style={[styles.planBadge, { backgroundColor: plan.badgeColor || tierColor }]}>
-            <Text style={styles.planBadgeText}>{plan.badge}</Text>
-          </View>
-        )}
-
-        {/* Plan content */}
-        <View style={styles.planContent}>
-          {/* Price — large for annual, smaller for quarterly */}
-          <Text style={[
-            isAnnual ? styles.planPriceAnnual : styles.planPriceMonthly,
-            isSelected && { color: '#FFFFFF' },
-          ]}>
-            {plan.price}
-          </Text>
-
-          {/* Period label */}
-          <Text style={[
-            styles.planPeriod,
-            isSelected && { color: '#D1D5DB' },
-          ]}>
-            {isAnnual ? '/year' : '/month'}
-          </Text>
-
-          {/* Per-month breakdown */}
-          <Text style={[
-            styles.planPerMonth,
-            isSelected && { color: '#9CA3AF' },
-          ]}>
-            {plan.perMonth}
-          </Text>
-
-          {/* Savings callout — only on annual */}
-          {plan.savings && (
-            <View style={[styles.savingsBadge, { backgroundColor: `${tierColor}30` }]}>
-              <Text style={[styles.savingsText, { color: tierColor }]}>
-                {plan.savings}
-              </Text>
-            </View>
-          )}
+        <View style={[styles.planHeader, isSelected && { backgroundColor: tierColor }]}>
+          <Text style={[styles.planHeaderText, isSelected && { color: colors.bg }]}>{headerLabel}</Text>
         </View>
 
-        {/* Selection indicator */}
-        <View style={[
-          styles.planRadio,
-          isSelected && { borderColor: tierColor, backgroundColor: tierColor },
-        ]}>
-          {isSelected && <View style={styles.planRadioInner} />}
+        <View style={styles.planBody}>
+          <Text style={[styles.planDuration, isSelected && { color: colors.text }]}>{durationLabel}</Text>
+          <Text style={[styles.planPerMonth, isSelected && { color: colors.white }]}>{plan.perMonth}</Text>
+          <Text style={[styles.planCharge, isSelected && { color: colors.text }]}>{chargeLabel}</Text>
         </View>
       </TouchableOpacity>
     );
@@ -363,12 +491,12 @@ export default function PaywallScreen({ route }: PaywallScreenProps) {
 
   const renderFeature = (feature: FeatureBenefit, index: number) => (
     <View key={index} style={styles.featureRow}>
-      <View style={[styles.featureIcon, { backgroundColor: `${tierColor}20` }]}>
-        <Ionicons name={feature.icon} size={22} color={tierColor} />
+      <View style={styles.featureIconCircle}>
+        <Ionicons name={feature.icon} size={20} color={tierColor} />
       </View>
-      <View style={styles.featureContent}>
+      <View style={styles.featureTextWrap}>
         <Text style={styles.featureTitle}>{feature.title}</Text>
-        <Text style={styles.featureDesc}>{feature.description}</Text>
+        <Text style={styles.featureDescription}>{feature.description}</Text>
       </View>
     </View>
   );
@@ -406,18 +534,18 @@ export default function PaywallScreen({ route }: PaywallScreenProps) {
         >
           <Text style={[
             styles.tierTabText,
-            selectedTier === 'koope_plus' && { color: '#D4AF37' },
+            selectedTier === 'koope_plus' && { color: colors.gold },
           ]}>
             KŌOPE+
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.tierTab, selectedTier === 'koope_pro' && [styles.tierTabActive, { borderBottomColor: '#CD7F32' }]]}
+          style={[styles.tierTab, selectedTier === 'koope_pro' && [styles.tierTabActive, { borderBottomColor: colors.gold }]]}
           onPress={() => setSelectedTier('koope_pro')}
         >
           <Text style={[
             styles.tierTabText,
-            selectedTier === 'koope_pro' && { color: '#CD7F32' },
+            selectedTier === 'koope_pro' && { color: colors.gold },
           ]}>
             KŌOPE PRO
           </Text>
@@ -431,17 +559,30 @@ export default function PaywallScreen({ route }: PaywallScreenProps) {
       >
         {/* Hero */}
         <View style={styles.heroSection}>
-          <Text style={styles.heroTitle}>
-            {selectedTier === 'koope_plus'
-              ? 'Build a precision bar'
-              : 'Become a confident bartender'}
-          </Text>
-          <Text style={styles.heroSubtitle}>
-            {selectedTier === 'koope_plus'
-              ? 'Optimize your bar for taste and budget'
-              : 'Everything in KŌOPE+ plus mastery and hosting'}
-          </Text>
+          <ImageBackground source={HERO_IMAGE} style={styles.heroImageCard} imageStyle={styles.heroImage}>
+            <View style={styles.heroOverlay} />
+            <Text style={styles.heroTitle}>
+              {selectedTier === 'koope_plus'
+                ? 'Build your ideal home bar'
+                : 'Level up your bartending'}
+            </Text>
+            <Text style={styles.heroSubtitle}>
+              {selectedTier === 'koope_plus'
+                ? 'Scan, track, and get personalized cocktails instantly.'
+                : 'Master recipes, hosting, and advanced taste intelligence.'}
+            </Text>
+          </ImageBackground>
         </View>
+
+        {/* Founders Urgency Banner — shown when fewer than 300 founders have subscribed */}
+        {founderCount !== undefined && founderCount < 300 && (
+          <View style={styles.foundersBar}>
+            <Ionicons name="lock-closed" size={14} color={colors.gold} />
+            <Text style={styles.foundersText}>
+              {`You're Founder #${founderCount + 1} of 300 — lock in ${tierName} pricing forever`}
+            </Text>
+          </View>
+        )}
 
         {/* Plan Cards — Annual first (dominant), quarterly below (secondary) */}
         <View style={styles.plansContainer}>
@@ -487,9 +628,11 @@ export default function PaywallScreen({ route }: PaywallScreenProps) {
             <ActivityIndicator size="small" color="#000" />
           ) : (
             <Text style={styles.ctaText}>
-              {selectedPlan.billingPeriod === 'yearly'
-                ? `Get ${tierName} — ${selectedPlan.price}/year`
-                : `Get ${tierName} — ${selectedPlan.price}/month`}
+              {isTrialEligible
+                ? `Start 7-Day Free Trial — ${tierName}`
+                : selectedPlan.billingPeriod === 'yearly'
+                  ? `Get ${tierName} — ${selectedPlan.price}/year`
+                  : `Get ${tierName} — ${selectedPlan.price}/month`}
             </Text>
           )}
         </TouchableOpacity>
@@ -525,7 +668,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    backgroundColor: 'rgba(26,18,13,0.55)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -533,9 +676,9 @@ const styles = StyleSheet.create({
   // Tier Tabs
   tierTabs: {
     flexDirection: 'row',
-    paddingHorizontal: 16,
+    paddingHorizontal: 8,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+    borderBottomColor: 'rgba(242,229,213,0.12)',
   },
   tierTab: {
     flex: 1,
@@ -545,12 +688,12 @@ const styles = StyleSheet.create({
     borderBottomColor: 'transparent',
   },
   tierTabActive: {
-    borderBottomColor: '#D4AF37',
+    borderBottomColor: colors.gold,
   },
   tierTabText: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#6B7280',
+    color: 'rgba(242,229,213,0.55)',
     letterSpacing: 0.5,
   },
 
@@ -561,164 +704,164 @@ const styles = StyleSheet.create({
   // Hero
   heroSection: {
     paddingHorizontal: 20,
-    paddingTop: 28,
-    paddingBottom: 8,
+    paddingTop: 20,
+    paddingBottom: 4,
+  },
+  heroImageCard: {
+    minHeight: 190,
+    borderRadius: 22,
+    overflow: 'hidden',
+    justifyContent: 'flex-end',
+    paddingHorizontal: 20,
+    paddingBottom: 18,
+  },
+  heroImage: {
+    borderRadius: 22,
+  },
+  heroOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(20,13,9,0.38)',
   },
   heroTitle: {
-    fontSize: 26,
+    fontSize: 36,
     fontWeight: '800',
-    color: '#FFFFFF',
-    marginBottom: 6,
-    letterSpacing: -0.5,
+    color: colors.white,
+    marginBottom: 4,
+    letterSpacing: -0.8,
+    fontFamily: Platform.select({ ios: 'Georgia', android: 'serif', default: 'serif' }),
+    textAlign: 'center',
   },
   heroSubtitle: {
-    fontSize: 16,
-    color: '#9CA3AF',
-    lineHeight: 22,
+    fontSize: 15,
+    color: 'rgba(255,255,255,0.85)',
+    lineHeight: 21,
+    textAlign: 'center',
+  },
+
+  // Founders Banner
+  foundersBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginHorizontal: 20,
+    marginTop: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: 'rgba(214,138,56,0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(214,138,56,0.45)',
+  },
+  foundersText: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.gold,
+    lineHeight: 18,
   },
 
   // Plan Cards
   plansContainer: {
     paddingHorizontal: 20,
-    paddingTop: 24,
+    paddingTop: 18,
+    flexDirection: 'row',
     gap: 12,
   },
   planCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.card,
-    borderRadius: 16,
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-    overflow: 'hidden',
-  },
-  /** Annual card: taller, more prominent */
-  planCardAnnual: {
-    paddingVertical: 20,
-    paddingHorizontal: 20,
-  },
-  /** Monthly card: compact, muted */
-  planCardMonthly: {
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    opacity: 0.75,
-  },
-  planBadge: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderBottomLeftRadius: 8,
-  },
-  planBadgeText: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#000000',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  planContent: {
     flex: 1,
+    backgroundColor: colors.card,
+    borderRadius: 18,
+    borderWidth: 1.5,
+    borderColor: 'rgba(242,229,213,0.14)',
+    overflow: 'hidden',
+    minHeight: 156,
   },
-  planPriceAnnual: {
-    fontSize: 32,
-    fontWeight: '800',
-    color: '#E5E7EB',
-    letterSpacing: -1,
+  planHeader: {
+    backgroundColor: 'rgba(242,229,213,0.1)',
+    paddingVertical: 10,
+    alignItems: 'center',
   },
-  planPriceMonthly: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#9CA3AF',
-    letterSpacing: -0.5,
-  },
-  planPeriod: {
+  planHeaderText: {
     fontSize: 14,
-    fontWeight: '500',
-    color: '#6B7280',
-    marginTop: 2,
+    fontWeight: '800',
+    color: colors.text,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  planBody: {
+    paddingHorizontal: 14,
+    paddingTop: 14,
+    paddingBottom: 12,
+    gap: 6,
+  },
+  planDuration: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.textMuted,
   },
   planPerMonth: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: colors.gold,
+    letterSpacing: -0.8,
+  },
+  planCharge: {
     fontSize: 13,
+    color: colors.subtext,
     fontWeight: '500',
-    color: '#6B7280',
-    marginTop: 4,
-  },
-  savingsBadge: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-    marginTop: 8,
-  },
-  savingsText: {
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 0.3,
-  },
-  planRadio: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: '#4B5563',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: 16,
-  },
-  planRadioInner: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: '#000000',
   },
 
   // Features
   featuresSection: {
     paddingHorizontal: 20,
-    paddingTop: 32,
-    gap: 18,
+    paddingTop: 26,
+    gap: 16,
   },
   featuresSectionTitle: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '700',
-    color: '#6B7280',
+    color: colors.subtext,
     textTransform: 'uppercase',
     letterSpacing: 1,
     marginBottom: 4,
   },
   featureRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
+    alignItems: 'flex-start',
+    gap: 12,
   },
-  featureIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+  featureIconCircle: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: 'rgba(242,229,213,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(242,229,213,0.14)',
   },
-  featureContent: {
+  featureTextWrap: {
     flex: 1,
+    paddingTop: 2,
   },
   featureTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#FFFFFF',
-    marginBottom: 2,
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.text,
+    flex: 1,
   },
-  featureDesc: {
+  featureDescription: {
+    marginTop: 2,
     fontSize: 13,
-    color: '#9CA3AF',
+    color: colors.subtext,
     lineHeight: 18,
+    flex: 1,
   },
 
   // Legal
   legalText: {
     fontSize: 11,
-    color: '#6B7280',
+    color: colors.subtext,
     textAlign: 'center',
     paddingHorizontal: 24,
     paddingTop: 32,
@@ -738,7 +881,7 @@ const styles = StyleSheet.create({
   restoreText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#6B7280',
+    color: colors.subtext,
   },
 
   // CTA
@@ -751,7 +894,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 16,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.1)',
+    borderTopColor: 'rgba(242,229,213,0.14)',
   },
   ctaButton: {
     paddingVertical: 16,
@@ -765,7 +908,7 @@ const styles = StyleSheet.create({
   ctaText: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#000000',
+    color: colors.bg,
     letterSpacing: 0.3,
   },
 });

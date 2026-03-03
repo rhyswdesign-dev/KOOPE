@@ -10,6 +10,7 @@ import { colors, spacing, radii } from '../theme/tokens';
 import { log } from '../lib/logger';
 import { useAuth } from '../contexts/AuthContext';
 import { feedbackService } from '../lib/supabaseData';
+import InPageTabBar from '../components/ui/InPageTabBar';
 
 interface HelpSupportScreenProps {
   onBack?: () => void;
@@ -371,32 +372,14 @@ export default function HelpSupportScreen({ onBack, route }: HelpSupportScreenPr
       >
         {/* Tab Selector */}
         <View style={styles.tabContainer}>
-          <Pressable 
-            style={[styles.tab, activeTab === 'faq' && styles.activeTab]}
-            onPress={() => setActiveTab('faq')}
-          >
-            <Ionicons 
-              name="help-circle-outline" 
-              size={20} 
-              color={activeTab === 'faq' ? colors.goldText : colors.subtext} 
-            />
-            <Text style={[styles.tabText, activeTab === 'faq' && styles.activeTabText]}>
-              FAQ
-            </Text>
-          </Pressable>
-          <Pressable 
-            style={[styles.tab, activeTab === 'contact' && styles.activeTab]}
-            onPress={() => setActiveTab('contact')}
-          >
-            <Ionicons 
-              name="mail-outline" 
-              size={20} 
-              color={activeTab === 'contact' ? colors.goldText : colors.subtext} 
-            />
-            <Text style={[styles.tabText, activeTab === 'contact' && styles.activeTabText]}>
-              Contact Us
-            </Text>
-          </Pressable>
+          <InPageTabBar
+            items={[
+              { key: 'faq', label: 'FAQ', icon: 'help-circle-outline' },
+              { key: 'contact', label: 'Contact Us', icon: 'mail-outline' },
+            ]}
+            activeKey={activeTab}
+            onChange={(key) => setActiveTab(key as 'faq' | 'contact')}
+          />
         </View>
 
         {activeTab === 'faq' ? (

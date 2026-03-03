@@ -95,13 +95,13 @@ const styles = StyleSheet.create({
     ...fonts.title,
     fontSize: 24,
     fontWeight: '700',
-    color: colors.text.primary,
+    color: colors.textLight,
   },
 
   statLabel: {
     ...fonts.caption,
     fontSize: 12,
-    color: colors.text.secondary,
+    color: colors.textMuted,
     textAlign: 'center',
     textTransform: 'uppercase',
   },
@@ -109,7 +109,7 @@ const styles = StyleSheet.create({
   statSubtitle: {
     ...fonts.caption,
     fontSize: 10,
-    color: colors.text.disabled,
+    color: colors.muted,
     textAlign: 'center',
   },
 });

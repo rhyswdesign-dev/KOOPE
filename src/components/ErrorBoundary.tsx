@@ -123,7 +123,7 @@ const styles = StyleSheet.create({
     ...fonts.title,
     fontSize: 24,
     fontWeight: '700',
-    color: colors.text.primary,
+    color: colors.textLight,
     marginTop: spacing.lg,
     marginBottom: spacing.sm,
     textAlign: 'center',
@@ -132,7 +132,7 @@ const styles = StyleSheet.create({
   message: {
     ...fonts.body,
     fontSize: 16,
-    color: colors.text.secondary,
+    color: colors.textMuted,
     textAlign: 'center',
     marginBottom: spacing.xl,
     lineHeight: 24,
@@ -158,7 +158,7 @@ const styles = StyleSheet.create({
   errorText: {
     ...fonts.caption,
     fontSize: 12,
-    color: colors.text.secondary,
+    color: colors.textMuted,
     fontFamily: 'Courier',
     marginBottom: spacing.xs,
   },
@@ -166,7 +166,7 @@ const styles = StyleSheet.create({
   errorInfo: {
     ...fonts.caption,
     fontSize: 11,
-    color: colors.text.disabled,
+    color: colors.muted,
     fontFamily: 'Courier',
   },
 
@@ -191,7 +191,7 @@ const styles = StyleSheet.create({
   helpText: {
     ...fonts.caption,
     fontSize: 13,
-    color: colors.text.disabled,
+    color: colors.muted,
     textAlign: 'center',
   },
 });

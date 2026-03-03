@@ -1,6 +1,6 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import FeaturedScreen from '../screens/FeaturedScreen';
-import SpiritsScreen from '../screens/SpiritsScreen';
+import RecipesScreen from '../screens/RecipesScreen';
 
 export type FeaturedStackParamList = {
   FeaturedMain: undefined;
@@ -23,7 +23,7 @@ export default function FeaturedStack() {
       }}
     >
       <Stack.Screen name="FeaturedMain" component={FeaturedScreen} options={{ title: 'Featured' }} />
-      <Stack.Screen name="Spirits" component={SpiritsScreen} options={{ title: 'Featured Spirits' }} />
+      <Stack.Screen name="Spirits" component={RecipesScreen} options={{ title: 'Recipes' }} />
     </Stack.Navigator>
   );
 }

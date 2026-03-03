@@ -42,6 +42,24 @@ interface FeatureAccessResult {
   gateWithTrigger: (triggerId: string, onSuccess?: () => void) => boolean;
 }
 
+const DEFAULT_TRIGGER_BY_FEATURE: Partial<Record<FeatureKey, string>> = {
+  inventory_unlimited: 'T1',
+  advanced_filters: 'T2',
+  saved_cocktails_unlimited: 'T3',
+  optimize_my_bar: 'T4',
+  shopping_list_export: 'T5',
+  hosting_basic: 'T6',
+  party_scaling: 'T6',
+  hosting_advanced: 'T7',
+  batch_optimizer: 'T7',
+  bring_to_party: 'T8',
+  predictive_engine: 'T9',
+  mastery_lessons: 'T10',
+  vault_pro_drops: 'T11',
+  adjustable_flavor_controls: 'T12',
+  predictive_restock: 'T13',
+};
+
 /**
  * Hook for checking and gating feature access.
  * Reads user tier from Zustand store, looks up feature in the registry,
@@ -62,7 +80,8 @@ export function useFeatureAccess(featureKey: FeatureKey): FeatureAccessResult {
       }
 
       // Look up trigger for custom messaging
-      const trigger = triggerId ? PAYWALL_TRIGGERS[triggerId] : undefined;
+      const resolvedTriggerId = triggerId ?? DEFAULT_TRIGGER_BY_FEATURE[featureKey];
+      const trigger = resolvedTriggerId ? PAYWALL_TRIGGERS[resolvedTriggerId] : undefined;
       const wallMode: WallMode = trigger?.mode ?? 'hard';
 
       // Track the gate event
@@ -70,7 +89,7 @@ export function useFeatureAccess(featureKey: FeatureKey): FeatureAccessResult {
         [ANALYTICS_PROPS.FEATURE]: featureKey,
         [ANALYTICS_PROPS.REQUIRED_TIER]: feature.minTier,
         [ANALYTICS_PROPS.USER_TIER]: tier,
-        ...(triggerId ? { trigger_id: triggerId } : {}),
+        ...(resolvedTriggerId ? { trigger_id: resolvedTriggerId } : {}),
       });
 
       // Soft mode: show nudge but still allow the action

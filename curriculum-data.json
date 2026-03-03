@@ -1,2662 +1,1997 @@
 {
+  "app": "KOOPE",
+  "version": "1.0.0",
+  "exported_at": "2026-03-03T20:41:47",
+  "question_format": "enhanced_feedback",
   "modules": [
     {
-      "id": "ch1-basics",
+      "id": "ch1-bartending-basics",
       "title": "Bartending Basics",
-      "chapterIndex": 1,
-      "estimatedMinutes": 45,
-      "tags": [
-        "fundamentals",
-        "home-bar",
-        "mindset"
-      ]
-    },
-    {
-      "id": "ch2-tools-terms",
-      "title": "Tools & Terms",
-      "chapterIndex": 2,
-      "estimatedMinutes": 35,
-      "tags": [
-        "tools",
-        "terminology",
-        "setup"
+      "slug": "ch1-bartending-basics",
+      "lessons": [
+        {
+          "id": "ch1-bartending-basics.lesson01",
+          "title": "Great Bartender Traits",
+          "slug": "great-bartender-traits",
+          "question_count": 0,
+          "questions": [],
+          "notes": "Questions not yet authored in enhanced format."
+        },
+        {
+          "id": "ch1-bartending-basics.lesson02",
+          "title": "Core Spirits Setup",
+          "slug": "core-spirits-setup",
+          "question_count": 0,
+          "questions": [],
+          "notes": "Questions not yet authored in enhanced format."
+        },
+        {
+          "id": "ch1-bartending-basics.lesson03",
+          "title": "Glassware Essentials",
+          "slug": "glassware-essentials",
+          "question_count": 0,
+          "questions": [],
+          "notes": "Questions not yet authored in enhanced format."
+        },
+        {
+          "id": "ch1-bartending-basics.lesson04",
+          "title": "Bar Setup & Zones",
+          "slug": "bar-setup-zones",
+          "question_count": 0,
+          "questions": [],
+          "notes": "Questions not yet authored in enhanced format."
+        },
+        {
+          "id": "ch1-bartending-basics.lesson05",
+          "title": "Ice Strategy Pro",
+          "slug": "ice-strategy-pro",
+          "question_count": 0,
+          "questions": [],
+          "notes": "Questions not yet authored in enhanced format."
+        },
+        {
+          "id": "ch1-bartending-basics.lesson06",
+          "title": "Tasting Like a Pro",
+          "slug": "tasting-like-a-pro",
+          "question_count": 0,
+          "questions": [],
+          "notes": "Questions not yet authored in enhanced format."
+        },
+        {
+          "id": "ch1-bartending-basics.lesson07",
+          "title": "Safety & HomeGame Spirit",
+          "slug": "safety-homegame-spirit",
+          "question_count": 0,
+          "questions": [],
+          "notes": "Questions not yet authored in enhanced format."
+        },
+        {
+          "id": "ch1-bartending-basics.lesson08",
+          "title": "Fresh Goods & Citrus Game",
+          "slug": "fresh-goods-citrus-game",
+          "question_count": 0,
+          "questions": [],
+          "notes": "Questions not yet authored in enhanced format."
+        },
+        {
+          "id": "ch1-bartending-basics.lesson09",
+          "title": "Equipment Mastery",
+          "slug": "equipment-mastery",
+          "question_count": 0,
+          "questions": [],
+          "notes": "Questions not yet authored in enhanced format."
+        },
+        {
+          "id": "ch1-bartending-basics.lesson10",
+          "title": "Checkpoint: Basics Mix-Off",
+          "slug": "checkpoint-basics-mix-off",
+          "question_count": 0,
+          "questions": [],
+          "notes": "Questions not yet authored in enhanced format."
+        }
       ]
     },
     {
       "id": "ch3-techniques-prep",
       "title": "Techniques & Prep",
-      "chapterIndex": 3,
-      "estimatedMinutes": 40,
-      "tags": [
-        "techniques",
-        "syrups",
-        "prep"
+      "slug": "ch3-techniques-prep",
+      "lessons": [
+        {
+          "id": "ch3-techniques-prep.lesson01",
+          "title": "Shaking vs Stirring",
+          "slug": "shaking-vs-stirring",
+          "question_count": 0,
+          "questions": [],
+          "notes": "Questions not yet authored in enhanced format."
+        },
+        {
+          "id": "ch3-techniques-prep.lesson02",
+          "title": "Dilution & Temperature Control",
+          "slug": "dilution-temperature-control",
+          "question_count": 0,
+          "questions": [],
+          "notes": "Questions not yet authored in enhanced format."
+        },
+        {
+          "id": "ch3-techniques-prep.lesson03",
+          "title": "Measuring & Jigger Discipline",
+          "slug": "measuring-jigger-discipline",
+          "question_count": 0,
+          "questions": [],
+          "notes": "Questions not yet authored in enhanced format."
+        },
+        {
+          "id": "ch3-techniques-prep.lesson04",
+          "title": "Syrups 101",
+          "slug": "syrups-101",
+          "question_count": 0,
+          "questions": [],
+          "notes": "Questions not yet authored in enhanced format."
+        },
+        {
+          "id": "ch3-techniques-prep.lesson05",
+          "title": "Infusions & Flavor Extraction",
+          "slug": "infusions-flavor-extraction",
+          "question_count": 0,
+          "questions": [],
+          "notes": "Questions not yet authored in enhanced format."
+        },
+        {
+          "id": "ch3-techniques-prep.lesson06",
+          "title": "Bitters & Aromatics",
+          "slug": "bitters-aromatics",
+          "question_count": 0,
+          "questions": [],
+          "notes": "Questions not yet authored in enhanced format."
+        },
+        {
+          "id": "ch3-techniques-prep.lesson07",
+          "title": "Garnish Strategy & Visual Psychology",
+          "slug": "garnish-strategy-visual-psychology",
+          "question_count": 0,
+          "questions": [],
+          "notes": "Questions not yet authored in enhanced format."
+        },
+        {
+          "id": "ch3-techniques-prep.lesson08",
+          "title": "Double-Strain & Texture Control",
+          "slug": "double-strain-texture-control",
+          "question_count": 0,
+          "questions": [],
+          "notes": "Questions not yet authored in enhanced format."
+        },
+        {
+          "id": "ch3-techniques-prep.lesson09",
+          "title": "Ice Carving & Block Strategy",
+          "slug": "ice-carving-block-strategy",
+          "question_count": 0,
+          "questions": [],
+          "notes": "Questions not yet authored in enhanced format."
+        },
+        {
+          "id": "ch3-techniques-prep.lesson10",
+          "title": "Checkpoint: Technique Pressure Test",
+          "slug": "checkpoint-technique-pressure-test",
+          "question_count": 0,
+          "questions": [],
+          "notes": "Questions not yet authored in enhanced format."
+        }
       ]
     },
     {
       "id": "ch4-spirits-pairing",
       "title": "Spirits & Pairing",
-      "chapterIndex": 4,
-      "estimatedMinutes": 50,
-      "tags": [
-        "spirits",
-        "ingredients",
-        "pairing"
+      "slug": "ch4-spirits-pairing",
+      "lessons": [
+        {
+          "id": "ch4-spirits-pairing.lesson01",
+          "title": "Vodka: Neutral Doesn’t Mean Boring",
+          "slug": "vodka-neutral-doesnt-mean-boring",
+          "question_count": 10,
+          "questions": [
+            {
+              "id": "m3l1q1",
+              "type": "mcq",
+              "prompt": "What legally defines vodka?",
+              "options": [
+                "Juniper-forward spirit",
+                "Neutral distilled spirit around 40% ABV",
+                "Barrel-aged grain spirit",
+                "Fruit-based liqueur"
+              ],
+              "correct": 1,
+              "insight": "Vodka is defined by neutrality (minimal dominant aroma/flavor) and is typically bottled around 40% ABV. Juniper = gin; barrel-aged grain = whiskey; fruit liqueur = sweetened modifier."
+            },
+            {
+              "id": "m3l1q2",
+              "type": "mcq",
+              "prompt": "What is the most common base ingredient for vodka?",
+              "options": [
+                "Wheat",
+                "Agave",
+                "Molasses",
+                "Grapes"
+              ],
+              "correct": 0,
+              "insight": "Wheat is common and often yields a soft mouthfeel. Agave points to tequila; molasses to rum; grapes to brandy."
+            },
+            {
+              "id": "m3l1q3",
+              "type": "checkbox",
+              "prompt": "Select possible vodka base ingredients:",
+              "options": [
+                "Grain",
+                "Potato",
+                "Corn",
+                "Juniper"
+              ],
+              "correct": [
+                0,
+                1,
+                2
+              ],
+              "insight": "Vodka can be made from many fermentables (grain, potato, corn). Juniper is a botanical used to define gin, not a vodka base."
+            },
+            {
+              "id": "m3l1q4",
+              "type": "short",
+              "prompt": "Why is vodka considered “neutral”?",
+              "correct_text": "Because it is distilled and filtered to remove strong flavors and aromas.",
+              "insight": "Neutral means minimal dominant flavor—differences show up more in texture, mouthfeel, and finish than big aromas."
+            },
+            {
+              "id": "m3l1q5",
+              "type": "match",
+              "prompt": "Match the base to its typical texture:",
+              "pairs": [
+                {
+                  "left": "Wheat",
+                  "right": "Soft"
+                },
+                {
+                  "left": "Potato",
+                  "right": "Creamy"
+                },
+                {
+                  "left": "Corn",
+                  "right": "Slightly sweet"
+                }
+              ],
+              "insight": "Vodka differences are often felt more than tasted—base choice influences body and perceived smoothness."
+            },
+            {
+              "id": "m3l1q6",
+              "type": "roleplay",
+              "prompt": "A guest says, “Vodka all tastes the same.” What’s the best response?",
+              "options": [
+                "“Yeah, pretty much.”",
+                "“Actually, base ingredients affect texture and smoothness.”",
+                "“Only expensive vodka is different.”"
+              ],
+              "correct": 1,
+              "insight": "You keep rapport and educate without arguing. It reframes vodka as texture-driven rather than flavorless."
+            },
+            {
+              "id": "m3l1q7",
+              "type": "mcq",
+              "prompt": "Why is vodka ideal for infusions?",
+              "options": [
+                "It’s sweet",
+                "It’s barrel-aged",
+                "It’s neutral and highlights added flavors",
+                "It’s smoky"
+              ],
+              "correct": 2,
+              "insight": "Neutral base = the infused ingredient becomes the headline, not the spirit."
+            },
+            {
+              "id": "m3l1q8",
+              "type": "order",
+              "prompt": "Put vodka production steps in order:",
+              "items": [
+                "Fermentation",
+                "Distillation",
+                "Filtration",
+                "Bottling"
+              ],
+              "correct_order": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "insight": "Filtration/refining typically follows distillation; bottling comes last."
+            },
+            {
+              "id": "m3l1q9",
+              "type": "mcq",
+              "prompt": "What most impacts vodka smoothness?",
+              "options": [
+                "Bottle shape",
+                "Filtration and distillation quality",
+                "Color",
+                "Garnish"
+              ],
+              "correct": 1,
+              "insight": "Production quality drives smoothness—packaging doesn’t change the liquid."
+            },
+            {
+              "id": "m3l1q10",
+              "type": "short",
+              "prompt": "Name one cocktail where vodka structure matters.",
+              "acceptable_answers": [
+                "Martini",
+                "Espresso Martini",
+                "Moscow Mule"
+              ],
+              "insight": "In spirit-forward or lightly flavored builds, vodka’s texture and finish become more noticeable."
+            }
+          ],
+          "notes": "Enhanced feedback format: each question includes a corrective insight."
+        },
+        {
+          "id": "ch4-spirits-pairing.lesson02",
+          "title": "Gin & Botanicals Breakdown",
+          "slug": "gin-botanicals-breakdown",
+          "question_count": 10,
+          "questions": [
+            {
+              "id": "m3l2q1",
+              "type": "mcq",
+              "prompt": "What botanical must legally be present in gin?",
+              "options": [
+                "Coriander",
+                "Juniper",
+                "Citrus peel",
+                "Angelica"
+              ],
+              "correct": 1,
+              "insight": "Juniper defines gin. Without juniper, it isn’t gin—other botanicals are optional additions."
+            },
+            {
+              "id": "m3l2q2",
+              "type": "mcq",
+              "prompt": "What does “London Dry” indicate?",
+              "options": [
+                "Made in London",
+                "No added sugar after distillation",
+                "Aged in oak",
+                "Lower ABV"
+              ],
+              "correct": 1,
+              "insight": "London Dry is a production style, not a location. It restricts sweetening/flavor additions after distillation."
+            },
+            {
+              "id": "m3l2q3",
+              "type": "checkbox",
+              "prompt": "Select common gin botanicals:",
+              "options": [
+                "Coriander",
+                "Citrus peel",
+                "Angelica root",
+                "Molasses"
+              ],
+              "correct": [
+                0,
+                1,
+                2
+              ],
+              "insight": "Molasses is used to make rum; botanicals are aromatic plants used to flavor gin."
+            },
+            {
+              "id": "m3l2q4",
+              "type": "match",
+              "prompt": "Match gin styles to profile:",
+              "pairs": [
+                {
+                  "left": "London Dry",
+                  "right": "Crisp & juniper-forward"
+                },
+                {
+                  "left": "Old Tom",
+                  "right": "Slightly sweet"
+                },
+                {
+                  "left": "Navy Strength",
+                  "right": "Higher proof"
+                }
+              ],
+              "insight": "Navy Strength refers to ABV (~57%), not sweetness—style impacts how you build and dilute."
+            },
+            {
+              "id": "m3l2q5",
+              "type": "short",
+              "prompt": "Why does gin pair well with citrus?",
+              "correct_text": "Because citrus enhances and highlights botanical brightness.",
+              "insight": "Citrus oils amplify gin’s botanical lift and keep the drink tasting bright."
+            },
+            {
+              "id": "m3l2q6",
+              "type": "roleplay",
+              "prompt": "A guest says gin tastes “too piney.” What do you recommend?",
+              "options": [
+                "Add more tonic",
+                "Switch to a citrus-forward or floral gin",
+                "Tell them gin isn’t for them"
+              ],
+              "correct": 1,
+              "insight": "Not all gins are heavy juniper—modern gins lean citrus/floral, keeping the guest in the category."
+            },
+            {
+              "id": "m3l2q7",
+              "type": "mcq",
+              "prompt": "What mixer defines the most classic gin serve?",
+              "options": [
+                "Cola",
+                "Tonic",
+                "Soda water",
+                "Ginger beer"
+              ],
+              "correct": 1,
+              "insight": "Tonic’s quinine bitterness complements botanicals; soda is neutral and won’t ‘complete’ the same way."
+            },
+            {
+              "id": "m3l2q8",
+              "type": "order",
+              "prompt": "Put gin production in order:",
+              "items": [
+                "Neutral spirit",
+                "Add botanicals",
+                "Redistill",
+                "Dilute & bottle"
+              ],
+              "correct_order": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "insight": "Gin starts as neutral spirit—botanicals become the identity during redistillation."
+            },
+            {
+              "id": "m3l2q9",
+              "type": "mcq",
+              "prompt": "Typical ABV of Navy Strength gin?",
+              "options": [
+                "40%",
+                "45%",
+                "57%",
+                "60%"
+              ],
+              "correct": 2,
+              "insight": "Historically tied to gunpowder ignition tests—expect more intensity and adjust dilution accordingly."
+            },
+            {
+              "id": "m3l2q10",
+              "type": "short",
+              "prompt": "Name one herb that enhances gin cocktails.",
+              "acceptable_answers": [
+                "Basil",
+                "Rosemary",
+                "Thyme",
+                "Mint"
+              ],
+              "insight": "Fresh herbs mirror gin’s botanical complexity and add aromatic top notes."
+            }
+          ],
+          "notes": "Enhanced feedback format: each question includes a corrective insight."
+        },
+        {
+          "id": "ch4-spirits-pairing.lesson03",
+          "title": "Rum Styles",
+          "slug": "rum-styles",
+          "question_count": 10,
+          "questions": [
+            {
+              "id": "m3l3q1",
+              "type": "mcq",
+              "prompt": "Rum is produced from what base ingredient?",
+              "options": [
+                "Agave",
+                "Sugarcane or molasses",
+                "Barley",
+                "Grapes"
+              ],
+              "correct": 1,
+              "insight": "Rum comes from sugarcane. Agricole rum uses fresh cane juice; most rum uses molasses."
+            },
+            {
+              "id": "m3l3q2",
+              "type": "mcq",
+              "prompt": "Dark rum gets its color primarily from:",
+              "options": [
+                "Food coloring",
+                "Aging in oak barrels",
+                "Added caramel syrup",
+                "Molasses concentration"
+              ],
+              "correct": 1,
+              "insight": "Traditional color comes from barrel aging. Some producers add coloring, but aging is the core driver."
+            },
+            {
+              "id": "m3l3q3",
+              "type": "checkbox",
+              "prompt": "Select rum styles:",
+              "options": [
+                "White",
+                "Gold",
+                "Dark",
+                "Overproof"
+              ],
+              "correct": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "insight": "These are common style buckets—overproof refers to strength (usually 50%+ ABV)."
+            },
+            {
+              "id": "m3l3q4",
+              "type": "match",
+              "prompt": "Match region to common style:",
+              "pairs": [
+                {
+                  "left": "Jamaica",
+                  "right": "Funky, ester-heavy"
+                },
+                {
+                  "left": "Cuba",
+                  "right": "Light, clean"
+                },
+                {
+                  "left": "Barbados",
+                  "right": "Balanced"
+                }
+              ],
+              "insight": "Fermentation and blending traditions differ by region and strongly shape flavor."
+            },
+            {
+              "id": "m3l3q5",
+              "type": "short",
+              "prompt": "What does “funk” mean in rum?",
+              "correct_text": "High ester, bold fermented aroma.",
+              "insight": "Think overripe tropical fruit notes—powerful aroma that stands up in cocktails."
+            },
+            {
+              "id": "m3l3q6",
+              "type": "roleplay",
+              "prompt": "Guest wants tropical but not too sweet. What build works?",
+              "options": [
+                "Dark rum + cola",
+                "Light rum + soda + lime",
+                "Rum + syrup + juice"
+              ],
+              "correct": 1,
+              "insight": "A rum highball stays refreshing and avoids sugar overload while keeping flavor."
+            },
+            {
+              "id": "m3l3q7",
+              "type": "mcq",
+              "prompt": "Agricole rum is made from:",
+              "options": [
+                "Molasses",
+                "Corn",
+                "Fresh sugarcane juice",
+                "Wheat"
+              ],
+              "correct": 2,
+              "insight": "Agricole is grassy/vegetal compared with molasses-based rum’s deeper sweetness."
+            },
+            {
+              "id": "m3l3q8",
+              "type": "order",
+              "prompt": "Rum aging sequence:",
+              "items": [
+                "Distill",
+                "Barrel",
+                "Rest",
+                "Blend"
+              ],
+              "correct_order": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "insight": "Blending is common to maintain consistency and balance across barrels."
+            },
+            {
+              "id": "m3l3q9",
+              "type": "mcq",
+              "prompt": "Overproof rum usually exceeds:",
+              "options": [
+                "40%",
+                "45%",
+                "50%",
+                "55%"
+              ],
+              "correct": 2,
+              "insight": "Overproof needs dilution awareness—small changes in ice/time matter more."
+            },
+            {
+              "id": "m3l3q10",
+              "type": "short",
+              "prompt": "Name a classic rum cocktail ratio.",
+              "acceptable_answers": [
+                "2:1:1",
+                "2-1-1"
+              ],
+              "insight": "The Daiquiri is the template: spirit + sweet + acid in balance."
+            }
+          ],
+          "notes": "Enhanced feedback format: each question includes a corrective insight."
+        },
+        {
+          "id": "ch4-spirits-pairing.lesson04",
+          "title": "Tequila & Agave Spectrum",
+          "slug": "tequila-agave-spectrum",
+          "question_count": 10,
+          "questions": [
+            {
+              "id": "m3l4q1",
+              "type": "mcq",
+              "prompt": "Tequila must be made from which plant?",
+              "options": [
+                "Sugarcane",
+                "Blue Weber agave",
+                "Corn",
+                "Wheat"
+              ],
+              "correct": 1,
+              "insight": "Tequila is specifically Blue Weber agave; other agave spirits can use different varieties."
+            },
+            {
+              "id": "m3l4q2",
+              "type": "mcq",
+              "prompt": "Tequila is protected by region in:",
+              "options": [
+                "Spain",
+                "Jalisco, Mexico",
+                "Texas",
+                "Peru"
+              ],
+              "correct": 1,
+              "insight": "Protected designation of origin—like Champagne—anchors authenticity."
+            },
+            {
+              "id": "m3l4q3",
+              "type": "checkbox",
+              "prompt": "Select tequila categories:",
+              "options": [
+                "Blanco",
+                "Reposado",
+                "Añejo",
+                "London Dry"
+              ],
+              "correct": [
+                0,
+                1,
+                2
+              ],
+              "insight": "Tequila categories describe aging; London Dry is gin terminology."
+            },
+            {
+              "id": "m3l4q4",
+              "type": "match",
+              "prompt": "Match type to aging:",
+              "pairs": [
+                {
+                  "left": "Blanco",
+                  "right": "Unaged"
+                },
+                {
+                  "left": "Reposado",
+                  "right": "2–12 months"
+                },
+                {
+                  "left": "Añejo",
+                  "right": "1+ year"
+                }
+              ],
+              "insight": "Aging adds vanilla/spice and tends to smooth alcohol perception."
+            },
+            {
+              "id": "m3l4q5",
+              "type": "short",
+              "prompt": "What flavor does agave naturally contribute?",
+              "correct_text": "Earthy, vegetal sweetness.",
+              "insight": "Agave sweetness is distinct—more earthy than sugarcane."
+            },
+            {
+              "id": "m3l4q6",
+              "type": "roleplay",
+              "prompt": "Guest says tequila tastes harsh. Best move?",
+              "options": [
+                "Add sugar",
+                "Recommend Reposado",
+                "Switch to vodka"
+              ],
+              "correct": 1,
+              "insight": "Reposado’s barrel time softens edges and adds warmth, often winning skeptical guests."
+            },
+            {
+              "id": "m3l4q7",
+              "type": "mcq",
+              "prompt": "Mezcal differs from tequila primarily because:",
+              "options": [
+                "It’s sweeter",
+                "It’s made in Jalisco only",
+                "It can use different agave and is often smoked",
+                "It’s lower ABV"
+              ],
+              "correct": 2,
+              "insight": "Smoke often comes from underground roasting; agave variety and region can differ widely."
+            },
+            {
+              "id": "m3l4q8",
+              "type": "order",
+              "prompt": "Tequila production:",
+              "items": [
+                "Harvest agave",
+                "Cook",
+                "Crush",
+                "Ferment",
+                "Distill"
+              ],
+              "correct_order": [
+                0,
+                1,
+                2,
+                3,
+                4
+              ],
+              "insight": "Cooking converts starches to fermentable sugars—crucial for flavor and yield."
+            },
+            {
+              "id": "m3l4q9",
+              "type": "mcq",
+              "prompt": "“100% agave” on the label means:",
+              "options": [
+                "No added sugars",
+                "Double aged",
+                "Overproof",
+                "Organic"
+              ],
+              "correct": 0,
+              "insight": "Mixto tequila can include other sugars; 100% agave signals purity of fermentable source."
+            },
+            {
+              "id": "m3l4q10",
+              "type": "short",
+              "prompt": "Classic tequila cocktail ratio?",
+              "acceptable_answers": [
+                "2:1:1",
+                "2-1-1"
+              ],
+              "insight": "Margarita = sour template—tequila + sweet + acid."
+            }
+          ],
+          "notes": "Enhanced feedback format: each question includes a corrective insight."
+        },
+        {
+          "id": "ch4-spirits-pairing.lesson05",
+          "title": "Whiskey Families",
+          "slug": "whiskey-families",
+          "question_count": 10,
+          "questions": [
+            {
+              "id": "m3l5q1",
+              "type": "mcq",
+              "prompt": "Bourbon must contain at least how much corn?",
+              "options": [
+                "40%",
+                "49%",
+                "51%",
+                "60%"
+              ],
+              "correct": 2,
+              "insight": "51% corn minimum drives bourbon’s sweetness. Rye-heavy profiles indicate different styles."
+            },
+            {
+              "id": "m3l5q2",
+              "type": "mcq",
+              "prompt": "Rye whiskey is typically known for which flavor profile?",
+              "options": [
+                "Sweet & vanilla-heavy",
+                "Spicy & dry",
+                "Smoky & peated",
+                "Fruity & floral"
+              ],
+              "correct": 1,
+              "insight": "Rye’s spice is its calling card. Peat smoke is more associated with some Scotch."
+            },
+            {
+              "id": "m3l5q3",
+              "type": "checkbox",
+              "prompt": "Select recognized whiskey families:",
+              "options": [
+                "Bourbon",
+                "Scotch",
+                "Irish",
+                "Rye",
+                "Tequila"
+              ],
+              "correct": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "insight": "Tequila is agave-based, not a whiskey family."
+            },
+            {
+              "id": "m3l5q4",
+              "type": "match",
+              "prompt": "Match style to common trait:",
+              "pairs": [
+                {
+                  "left": "Bourbon",
+                  "right": "Sweet, vanilla"
+                },
+                {
+                  "left": "Scotch",
+                  "right": "Smoky or malty"
+                },
+                {
+                  "left": "Irish",
+                  "right": "Smooth, light"
+                },
+                {
+                  "left": "Rye",
+                  "right": "Spicy"
+                }
+              ],
+              "insight": "These are useful ‘default expectations’ to guide recommendations and pairings."
+            },
+            {
+              "id": "m3l5q5",
+              "type": "short",
+              "prompt": "What gives Scotch its smoky character?",
+              "correct_text": "Peated barley (peat smoke during malting).",
+              "insight": "The smoke comes from malting/drying, not barrel aging."
+            },
+            {
+              "id": "m3l5q6",
+              "type": "roleplay",
+              "prompt": "A guest wants bold and dry, not sweet. What do you recommend?",
+              "options": [
+                "Bourbon",
+                "Rye",
+                "Irish whiskey"
+              ],
+              "correct": 1,
+              "insight": "Rye’s spice feels drier and more assertive than bourbon’s sweet oak profile."
+            },
+            {
+              "id": "m3l5q7",
+              "type": "mcq",
+              "prompt": "Whiskey gets its color primarily from:",
+              "options": [
+                "Added caramel",
+                "Grain choice",
+                "Oak barrel aging",
+                "Filtration"
+              ],
+              "correct": 2,
+              "insight": "Distillate is clear before the barrel—wood contact creates color and flavor."
+            },
+            {
+              "id": "m3l5q8",
+              "type": "order",
+              "prompt": "Put whiskey maturation in order:",
+              "items": [
+                "Distill",
+                "Barrel",
+                "Age",
+                "Bottle"
+              ],
+              "correct_order": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "insight": "Aging integrates and softens spirit character; bottling comes last."
+            },
+            {
+              "id": "m3l5q9",
+              "type": "mcq",
+              "prompt": "What is the “angel’s share”?",
+              "options": [
+                "The bartender’s tasting portion",
+                "Evaporation during aging",
+                "Government tax",
+                "First pour from bottle"
+              ],
+              "correct": 1,
+              "insight": "A portion evaporates through the barrel during aging—this is the angel’s share."
+            },
+            {
+              "id": "m3l5q10",
+              "type": "short",
+              "prompt": "Name a classic spirit-forward whiskey cocktail.",
+              "acceptable_answers": [
+                "Old Fashioned",
+                "Manhattan"
+              ],
+              "insight": "Spirit-forward builds highlight barrel influence, texture, and finish."
+            }
+          ],
+          "notes": "Enhanced feedback format: each question includes a corrective insight."
+        },
+        {
+          "id": "ch4-spirits-pairing.lesson06",
+          "title": "Brandy & Fortified Wines",
+          "slug": "brandy-fortified-wines",
+          "question_count": 10,
+          "questions": [
+            {
+              "id": "m3l6q1",
+              "type": "mcq",
+              "prompt": "Brandy is distilled from:",
+              "options": [
+                "Grain",
+                "Wine (grapes)",
+                "Sugarcane",
+                "Agave"
+              ],
+              "correct": 1,
+              "insight": "Brandy is distilled wine—fruit origin shapes softness and aroma."
+            },
+            {
+              "id": "m3l6q2",
+              "type": "mcq",
+              "prompt": "Cognac must come from:",
+              "options": [
+                "Spain",
+                "France (Cognac region)",
+                "Italy",
+                "United States"
+              ],
+              "correct": 1,
+              "insight": "Cognac is geographically protected; not all brandy is Cognac."
+            },
+            {
+              "id": "m3l6q3",
+              "type": "checkbox",
+              "prompt": "Select fortified wines:",
+              "options": [
+                "Vermouth",
+                "Sherry",
+                "Port",
+                "Tequila"
+              ],
+              "correct": [
+                0,
+                1,
+                2
+              ],
+              "insight": "Fortified wines are wine strengthened with spirit—used as modifiers."
+            },
+            {
+              "id": "m3l6q4",
+              "type": "match",
+              "prompt": "Fortified wine to common use:",
+              "pairs": [
+                {
+                  "left": "Vermouth",
+                  "right": "Martini / Manhattan"
+                },
+                {
+                  "left": "Sherry",
+                  "right": "Low-ABV builds"
+                },
+                {
+                  "left": "Port",
+                  "right": "Dessert or rich cocktails"
+                }
+              ],
+              "insight": "Fortified wines bring flavor complexity without base-spirit strength."
+            },
+            {
+              "id": "m3l6q5",
+              "type": "short",
+              "prompt": "Why should vermouth be refrigerated after opening?",
+              "correct_text": "To prevent oxidation and spoilage.",
+              "insight": "Old vermouth is a top cause of flat, dull martinis."
+            },
+            {
+              "id": "m3l6q6",
+              "type": "roleplay",
+              "prompt": "A Martini tastes flat. What’s a likely cause?",
+              "options": [
+                "Too much gin",
+                "Old vermouth",
+                "Wrong glass"
+              ],
+              "correct": 1,
+              "insight": "Oxidized vermouth loses brightness and herbal lift, making the drink taste tired."
+            },
+            {
+              "id": "m3l6q7",
+              "type": "mcq",
+              "prompt": "Fortified wine differs from regular wine because:",
+              "options": [
+                "It is aged longer",
+                "It contains added distilled spirit",
+                "It has more sugar naturally",
+                "It is carbonated"
+              ],
+              "correct": 1,
+              "insight": "Fortification increases ABV and changes stability/structure."
+            },
+            {
+              "id": "m3l6q8",
+              "type": "order",
+              "prompt": "Fortification process:",
+              "items": [
+                "Ferment wine",
+                "Add spirit",
+                "Flavor / age",
+                "Bottle"
+              ],
+              "correct_order": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "insight": "Spirit is added after fermentation to fortify; flavoring/aging comes before bottling."
+            },
+            {
+              "id": "m3l6q9",
+              "type": "mcq",
+              "prompt": "Typical vermouth ABV is around:",
+              "options": [
+                "8%",
+                "12%",
+                "15–18%",
+                "30%"
+              ],
+              "correct": 2,
+              "insight": "Higher than wine, lower than spirits—perfect as a structural modifier."
+            },
+            {
+              "id": "m3l6q10",
+              "type": "short",
+              "prompt": "Why are fortified wines considered modifiers?",
+              "correct_text": "They adjust flavor and balance rather than act as the main alcohol.",
+              "insight": "They shape the profile (sweetness, bitterness, herbs) without dominating the drink."
+            }
+          ],
+          "notes": "Enhanced feedback format: each question includes a corrective insight."
+        },
+        {
+          "id": "ch4-spirits-pairing.lesson07",
+          "title": "Liqueurs & Modifiers Explained",
+          "slug": "liqueurs-modifiers-explained",
+          "question_count": 10,
+          "questions": [
+            {
+              "id": "m3l7q1",
+              "type": "mcq",
+              "prompt": "What defines a liqueur?",
+              "options": [
+                "Barrel aging",
+                "Added sugar",
+                "Juniper",
+                "40% ABV minimum"
+              ],
+              "correct": 1,
+              "insight": "Liqueurs are sweetened spirits—sugar is the defining feature."
+            },
+            {
+              "id": "m3l7q2",
+              "type": "mcq",
+              "prompt": "Typical liqueur ABV range?",
+              "options": [
+                "5–10%",
+                "15–30%",
+                "40%+",
+                "60%"
+              ],
+              "correct": 1,
+              "insight": "Most liqueurs sit below base spirits; they modify and sweeten."
+            },
+            {
+              "id": "m3l7q3",
+              "type": "checkbox",
+              "prompt": "Select liqueur categories:",
+              "options": [
+                "Herbal",
+                "Citrus",
+                "Coffee",
+                "Nut"
+              ],
+              "correct": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "insight": "Categories help you predict how the modifier will behave in balance."
+            },
+            {
+              "id": "m3l7q4",
+              "type": "match",
+              "prompt": "Match liqueur to cocktail:",
+              "pairs": [
+                {
+                  "left": "Triple Sec",
+                  "right": "Margarita"
+                },
+                {
+                  "left": "Campari",
+                  "right": "Negroni"
+                },
+                {
+                  "left": "Coffee Liqueur",
+                  "right": "Espresso Martini"
+                }
+              ],
+              "insight": "Classic specs rely on specific modifiers—swap carefully or you break the structure."
+            },
+            {
+              "id": "m3l7q5",
+              "type": "short",
+              "prompt": "Why can too much liqueur unbalance a drink?",
+              "correct_text": "It can over-sweeten and overpower structure.",
+              "insight": "Too much sugar dulls acidity and makes the drink feel heavy and flat."
+            },
+            {
+              "id": "m3l7q6",
+              "type": "roleplay",
+              "prompt": "Drink tastes flat and one-dimensional. What helps?",
+              "options": [
+                "More sugar",
+                "Add bitter modifier",
+                "Remove base"
+              ],
+              "correct": 1,
+              "insight": "Bitterness adds contrast and depth—often the missing layer."
+            },
+            {
+              "id": "m3l7q7",
+              "type": "mcq",
+              "prompt": "Amaro is typically:",
+              "options": [
+                "Clear and neutral",
+                "Bitter herbal",
+                "Cream-based",
+                "Smoky"
+              ],
+              "correct": 1,
+              "insight": "Amaro sits in the bitter-herbal family, adding complexity and length to finishes."
+            },
+            {
+              "id": "m3l7q8",
+              "type": "order",
+              "prompt": "Modifier logic sequence:",
+              "items": [
+                "Choose base",
+                "Add sweet",
+                "Add bitter",
+                "Adjust balance"
+              ],
+              "correct_order": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "insight": "Build structure first; final balance is where you fine-tune."
+            },
+            {
+              "id": "m3l7q9",
+              "type": "mcq",
+              "prompt": "Cream liqueurs should be stored:",
+              "options": [
+                "Room temperature",
+                "In freezer",
+                "Refrigerated after opening",
+                "In sunlight"
+              ],
+              "correct": 2,
+              "insight": "Cream-based products spoil faster—cold storage protects quality."
+            },
+            {
+              "id": "m3l7q10",
+              "type": "short",
+              "prompt": "Name one function of orange liqueur.",
+              "correct_text": "Adds citrus sweetness and bridges flavors.",
+              "insight": "It connects spirit, acid, and sweetness—especially in sour templates like Margaritas."
+            }
+          ],
+          "notes": "Enhanced feedback format: each question includes a corrective insight."
+        },
+        {
+          "id": "ch4-spirits-pairing.lesson08",
+          "title": "Understanding Oak & Aging",
+          "slug": "understanding-oak-aging",
+          "question_count": 10,
+          "questions": [
+            {
+              "id": "m3l8q1",
+              "type": "mcq",
+              "prompt": "Oak aging often adds which flavor?",
+              "options": [
+                "Mint",
+                "Vanilla",
+                "Citrus",
+                "Salt"
+              ],
+              "correct": 1,
+              "insight": "Vanillin and toasted wood compounds create the classic vanilla/spice profile."
+            },
+            {
+              "id": "m3l8q2",
+              "type": "mcq",
+              "prompt": "Charred barrels create:",
+              "options": [
+                "Smoke infusion",
+                "Caramelization compounds",
+                "Fruit notes",
+                "Neutralization"
+              ],
+              "correct": 1,
+              "insight": "Charring caramelizes wood sugars, contributing caramel/toffee notes."
+            },
+            {
+              "id": "m3l8q3",
+              "type": "checkbox",
+              "prompt": "Aging affects:",
+              "options": [
+                "Color",
+                "Aroma",
+                "Texture",
+                "ABV increase"
+              ],
+              "correct": [
+                0,
+                1,
+                2
+              ],
+              "insight": "ABV often drops slightly; aging mainly changes color, aroma, and mouthfeel."
+            },
+            {
+              "id": "m3l8q4",
+              "type": "match",
+              "prompt": "Aging duration to impact:",
+              "pairs": [
+                {
+                  "left": "Short",
+                  "right": "Light influence"
+                },
+                {
+                  "left": "Long",
+                  "right": "Deep complexity"
+                }
+              ],
+              "insight": "Longer aging increases integration and depth—but can also add dryness."
+            },
+            {
+              "id": "m3l8q5",
+              "type": "short",
+              "prompt": "Why do smaller barrels age faster?",
+              "correct_text": "More wood surface contact per volume.",
+              "insight": "More contact speeds extraction and oxidation effects."
+            },
+            {
+              "id": "m3l8q6",
+              "type": "roleplay",
+              "prompt": "Guest wants a smoother option. What helps?",
+              "options": [
+                "Unaged spirit",
+                "Aged expression"
+              ],
+              "correct": 1,
+              "insight": "Aging and oxidation typically soften harsh edges and add roundness."
+            },
+            {
+              "id": "m3l8q7",
+              "type": "mcq",
+              "prompt": "New oak barrels are required for:",
+              "options": [
+                "Scotch",
+                "Bourbon",
+                "Irish",
+                "Gin"
+              ],
+              "correct": 1,
+              "insight": "Bourbon regulations require new charred oak, creating its signature profile."
+            },
+            {
+              "id": "m3l8q8",
+              "type": "order",
+              "prompt": "Barrel influence flow:",
+              "items": [
+                "Wood contact",
+                "Extract compounds",
+                "Oxidation",
+                "Integration"
+              ],
+              "correct_order": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "insight": "Extraction + oxidation over time creates integrated flavor."
+            },
+            {
+              "id": "m3l8q9",
+              "type": "mcq",
+              "prompt": "Oxidation during aging generally:",
+              "options": [
+                "Makes spirit sharper",
+                "Softens spirit",
+                "Adds carbonation",
+                "Increases sugar"
+              ],
+              "correct": 1,
+              "insight": "Slow oxygen exposure mellows alcohol heat and rounds flavors."
+            },
+            {
+              "id": "m3l8q10",
+              "type": "short",
+              "prompt": "Why do aged spirits pair well with spice?",
+              "correct_text": "They share warm flavor compounds like vanilla and clove.",
+              "insight": "Pairing works when flavor families overlap—oak warmth + baking spice is a classic match."
+            }
+          ],
+          "notes": "Enhanced feedback format: each question includes a corrective insight."
+        },
+        {
+          "id": "ch4-spirits-pairing.lesson09",
+          "title": "Pairing Spirits with Ingredients",
+          "slug": "pairing-spirits-with-ingredients",
+          "question_count": 10,
+          "questions": [
+            {
+              "id": "m3l9q1",
+              "type": "mcq",
+              "prompt": "Tequila most naturally pairs with which ingredient?",
+              "options": [
+                "Maple syrup",
+                "Lime",
+                "Coffee",
+                "Cola"
+              ],
+              "correct": 1,
+              "insight": "Agave + citrus is a classic structural pairing—lime balances earthy sweetness."
+            },
+            {
+              "id": "m3l9q2",
+              "type": "mcq",
+              "prompt": "Bourbon complements which flavor best?",
+              "options": [
+                "Pineapple",
+                "Maple",
+                "Cucumber",
+                "Mint"
+              ],
+              "correct": 1,
+              "insight": "Maple amplifies bourbon’s vanilla/caramel notes; it’s harmony, not conflict."
+            },
+            {
+              "id": "m3l9q3",
+              "type": "checkbox",
+              "prompt": "Select ingredients that pair naturally with gin:",
+              "options": [
+                "Basil",
+                "Cucumber",
+                "Lemon",
+                "Chocolate"
+              ],
+              "correct": [
+                0,
+                1,
+                2
+              ],
+              "insight": "Gin likes bright/herbal pairings; chocolate is heavy and harder to balance."
+            },
+            {
+              "id": "m3l9q4",
+              "type": "match",
+              "prompt": "Match spirit to ideal pairing:",
+              "pairs": [
+                {
+                  "left": "Rum",
+                  "right": "Pineapple"
+                },
+                {
+                  "left": "Whiskey",
+                  "right": "Apple"
+                },
+                {
+                  "left": "Vodka",
+                  "right": "Coffee"
+                },
+                {
+                  "left": "Tequila",
+                  "right": "Chili"
+                }
+              ],
+              "insight": "Pairings work by complementing core notes or adding structured contrast."
+            },
+            {
+              "id": "m3l9q5",
+              "type": "short",
+              "prompt": "Why does acid balance sweetness in cocktails?",
+              "correct_text": "Acid cuts heaviness and prevents the drink from tasting flat.",
+              "insight": "Acid adds ‘life’—without it, sweet drinks become syrupy and dull."
+            },
+            {
+              "id": "m3l9q6",
+              "type": "roleplay",
+              "prompt": "A guest wants something refreshing but strong. What’s your move?",
+              "options": [
+                "Full sour",
+                "Highball (spirit + soda + citrus)",
+                "Straight spirit"
+              ],
+              "correct": 1,
+              "insight": "Highballs keep perceived strength while tasting lighter due to carbonation and controlled dilution."
+            },
+            {
+              "id": "m3l9q7",
+              "type": "mcq",
+              "prompt": "What ingredient adds contrast to sweet rum drinks?",
+              "options": [
+                "Sugar",
+                "Lime",
+                "Cream",
+                "Chocolate syrup"
+              ],
+              "correct": 1,
+              "insight": "Contrast prevents cloying sweetness—lime sharpens and rebalances."
+            },
+            {
+              "id": "m3l9q8",
+              "type": "order",
+              "prompt": "Put pairing logic in correct order:",
+              "items": [
+                "Identify base spirit",
+                "Choose complementary or contrasting ingredient",
+                "Adjust sweetness",
+                "Balance with acid or dilution"
+              ],
+              "correct_order": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "insight": "Start with base + pairing logic, then tune sweetness and balance at the end."
+            },
+            {
+              "id": "m3l9q9",
+              "type": "mcq",
+              "prompt": "Which pairing is structurally classic (not random)?",
+              "options": [
+                "Tequila + Cola",
+                "Vodka + Cream",
+                "Tequila + Lime",
+                "Gin + Chocolate"
+              ],
+              "correct": 2,
+              "insight": "Tequila + lime is classic sour structure; it’s a proven balance relationship."
+            },
+            {
+              "id": "m3l9q10",
+              "type": "short",
+              "prompt": "Name one herb that lifts whiskey cocktails.",
+              "acceptable_answers": [
+                "Mint",
+                "Thyme",
+                "Rosemary"
+              ],
+              "insight": "Herbs add aromatic lift that contrasts warm oak and spice."
+            }
+          ],
+          "notes": "Enhanced feedback format: each question includes a corrective insight."
+        },
+        {
+          "id": "ch4-spirits-pairing.lesson10",
+          "title": "Checkpoint: Build by Flavor",
+          "slug": "checkpoint-build-by-flavor",
+          "question_count": 10,
+          "questions": [
+            {
+              "id": "m3l10q1",
+              "type": "roleplay",
+              "prompt": "Guest loves smoky food and bold flavors. What spirit do you build with?",
+              "options": [
+                "Vodka",
+                "Mezcal",
+                "Irish whiskey"
+              ],
+              "correct": 1,
+              "insight": "Smoke mirrors smoke—use mezcal to match bold flavor expectations."
+            },
+            {
+              "id": "m3l10q2",
+              "type": "mcq",
+              "prompt": "If a cocktail tastes too bitter, you should adjust with:",
+              "options": [
+                "More bitters",
+                "Sweetener",
+                "Salt rim only",
+                "More ice"
+              ],
+              "correct": 1,
+              "insight": "Sweetness softens bitterness. Ice can help via dilution, but sweetness is the primary counterweight."
+            },
+            {
+              "id": "m3l10q3",
+              "type": "checkbox",
+              "prompt": "A balanced cocktail usually includes:",
+              "options": [
+                "Strong",
+                "Sweet",
+                "Sour",
+                "Only alcohol"
+              ],
+              "correct": [
+                0,
+                1,
+                2
+              ],
+              "insight": "Most classics rely on a strong/sweet/sour backbone—even when one element is subtle."
+            },
+            {
+              "id": "m3l10q4",
+              "type": "short",
+              "prompt": "Define “harmony” in cocktail building.",
+              "correct_text": "Flavors complement each other without one overpowering.",
+              "insight": "Harmony is controlled balance—everything is present, nothing dominates."
+            },
+            {
+              "id": "m3l10q5",
+              "type": "match",
+              "prompt": "Match flavor preference to spirit:",
+              "pairs": [
+                {
+                  "left": "Smoky",
+                  "right": "Mezcal"
+                },
+                {
+                  "left": "Light & Clean",
+                  "right": "Vodka"
+                },
+                {
+                  "left": "Bold & Spicy",
+                  "right": "Rye"
+                },
+                {
+                  "left": "Sweet & Smooth",
+                  "right": "Bourbon"
+                }
+              ],
+              "insight": "This is how you translate guest language into fast, confident recommendations."
+            },
+            {
+              "id": "m3l10q6",
+              "type": "order",
+              "prompt": "Put build sequence in order:",
+              "items": [
+                "Choose base",
+                "Add modifier",
+                "Balance with sweet/acid",
+                "Adjust dilution"
+              ],
+              "correct_order": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "insight": "Dilution is a finishing lever—use it to fine-tune after structure is set."
+            },
+            {
+              "id": "m3l10q7",
+              "type": "mcq",
+              "prompt": "What prevents a cocktail from tasting flat?",
+              "options": [
+                "Extra sugar",
+                "Acidity",
+                "Garnish",
+                "Color"
+              ],
+              "correct": 1,
+              "insight": "Acidity gives lift and definition—sweetness alone often tastes dull."
+            },
+            {
+              "id": "m3l10q8",
+              "type": "roleplay",
+              "prompt": "Judge says your cocktail feels “unbalanced.” First thing you check?",
+              "options": [
+                "Garnish",
+                "Glassware",
+                "Ratio",
+                "Music"
+              ],
+              "correct": 2,
+              "insight": "Check structure first. If ratio is wrong, everything else is cosmetic."
+            },
+            {
+              "id": "m3l10q9",
+              "type": "mcq",
+              "prompt": "Oak-aged spirits typically pair well with:",
+              "options": [
+                "Mint candy",
+                "Warm spices",
+                "Soda only",
+                "Milk"
+              ],
+              "correct": 1,
+              "insight": "Oak brings vanilla/clove/baking spice notes—warm spices reinforce that family."
+            },
+            {
+              "id": "m3l10q10",
+              "type": "short",
+              "prompt": "Name two signs a pairing succeeded.",
+              "acceptable_answers": [
+                "No single ingredient dominates",
+                "Finish feels smooth",
+                "No harsh aftertaste",
+                "Balanced aftertaste"
+              ],
+              "insight": "Success shows in the finish: integrated flavors, clean aftertaste, no sharp spikes."
+            }
+          ],
+          "notes": "Enhanced feedback format: each question includes a corrective insight."
+        }
       ]
     },
     {
       "id": "ch5-classics-remix",
       "title": "Classics & Remixes",
-      "chapterIndex": 5,
-      "estimatedMinutes": 55,
-      "tags": [
-        "recipes",
-        "classics",
-        "variations"
+      "slug": "ch5-classics-remix",
+      "lessons": [
+        {
+          "id": "ch5-classics-remix.lesson01",
+          "title": "The Golden Ratio",
+          "slug": "the-golden-ratio",
+          "question_count": 0,
+          "questions": [],
+          "notes": "Questions not yet authored in enhanced format."
+        },
+        {
+          "id": "ch5-classics-remix.lesson02",
+          "title": "The Negroni Family",
+          "slug": "the-negroni-family",
+          "question_count": 0,
+          "questions": [],
+          "notes": "Questions not yet authored in enhanced format."
+        },
+        {
+          "id": "ch5-classics-remix.lesson03",
+          "title": "Spirit-Forward Builds",
+          "slug": "spirit-forward-builds",
+          "question_count": 0,
+          "questions": [],
+          "notes": "Questions not yet authored in enhanced format."
+        },
+        {
+          "id": "ch5-classics-remix.lesson04",
+          "title": "Sours & Egg White Technique",
+          "slug": "sours-egg-white-technique",
+          "question_count": 0,
+          "questions": [],
+          "notes": "Questions not yet authored in enhanced format."
+        },
+        {
+          "id": "ch5-classics-remix.lesson05",
+          "title": "Highballs & Carbonation Science",
+          "slug": "highballs-carbonation-science",
+          "question_count": 0,
+          "questions": [],
+          "notes": "Questions not yet authored in enhanced format."
+        },
+        {
+          "id": "ch5-classics-remix.lesson06",
+          "title": "The Martini Framework",
+          "slug": "the-martini-framework",
+          "question_count": 0,
+          "questions": [],
+          "notes": "Questions not yet authored in enhanced format."
+        },
+        {
+          "id": "ch5-classics-remix.lesson07",
+          "title": "Riffing with Structure",
+          "slug": "riffing-with-structure",
+          "question_count": 0,
+          "questions": [],
+          "notes": "Questions not yet authored in enhanced format."
+        },
+        {
+          "id": "ch5-classics-remix.lesson08",
+          "title": "Seasonal Remixing",
+          "slug": "seasonal-remixing",
+          "question_count": 0,
+          "questions": [],
+          "notes": "Questions not yet authored in enhanced format."
+        },
+        {
+          "id": "ch5-classics-remix.lesson09",
+          "title": "Split Bases & Modern Twists",
+          "slug": "split-bases-modern-twists",
+          "question_count": 0,
+          "questions": [],
+          "notes": "Questions not yet authored in enhanced format."
+        },
+        {
+          "id": "ch5-classics-remix.lesson10",
+          "title": "Checkpoint: Reinvent a Classic",
+          "slug": "checkpoint-reinvent-a-classic",
+          "question_count": 0,
+          "questions": [],
+          "notes": "Questions not yet authored in enhanced format."
+        }
       ]
     },
     {
       "id": "ch5b-batching-punches",
       "title": "Batching & Punches",
-      "chapterIndex": 6,
-      "estimatedMinutes": 30,
-      "tags": [
-        "batching",
-        "parties",
-        "service"
+      "slug": "ch5b-batching-punches",
+      "lessons": [
+        {
+          "id": "ch5b-batching-punches.lesson01",
+          "title": "Batch Math & Scaling Logic",
+          "slug": "batch-math-scaling-logic",
+          "question_count": 0,
+          "questions": [],
+          "notes": "Questions not yet authored in enhanced format."
+        },
+        {
+          "id": "ch5b-batching-punches.lesson02",
+          "title": "Pre-Dilution Science",
+          "slug": "pre-dilution-science",
+          "question_count": 0,
+          "questions": [],
+          "notes": "Questions not yet authored in enhanced format."
+        },
+        {
+          "id": "ch5b-batching-punches.lesson03",
+          "title": "Storage, Labeling & Shelf Life",
+          "slug": "storage-labeling-shelf-life",
+          "question_count": 0,
+          "questions": [],
+          "notes": "Questions not yet authored in enhanced format."
+        },
+        {
+          "id": "ch5b-batching-punches.lesson04",
+          "title": "Building a Batched Fruit Punch",
+          "slug": "building-a-batched-fruit-punch",
+          "question_count": 0,
+          "questions": [],
+          "notes": "Questions not yet authored in enhanced format."
+        },
+        {
+          "id": "ch5b-batching-punches.lesson05",
+          "title": "Batched Sours & Espresso Martinis",
+          "slug": "batched-sours-espresso-martinis",
+          "question_count": 0,
+          "questions": [],
+          "notes": "Questions not yet authored in enhanced format."
+        },
+        {
+          "id": "ch5b-batching-punches.lesson06",
+          "title": "Punch Foundations",
+          "slug": "punch-foundations",
+          "question_count": 0,
+          "questions": [],
+          "notes": "Questions not yet authored in enhanced format."
+        },
+        {
+          "id": "ch5b-batching-punches.lesson07",
+          "title": "Low-ABV & Zero-Proof Punch",
+          "slug": "low-abv-zero-proof-punch",
+          "question_count": 0,
+          "questions": [],
+          "notes": "Questions not yet authored in enhanced format."
+        },
+        {
+          "id": "ch5b-batching-punches.lesson08",
+          "title": "Ice Blocks & Presentation Strategy",
+          "slug": "ice-blocks-presentation-strategy",
+          "question_count": 0,
+          "questions": [],
+          "notes": "Questions not yet authored in enhanced format."
+        },
+        {
+          "id": "ch5b-batching-punches.lesson09",
+          "title": "Speed Service Workflow",
+          "slug": "speed-service-workflow",
+          "question_count": 0,
+          "questions": [],
+          "notes": "Questions not yet authored in enhanced format."
+        },
+        {
+          "id": "ch5b-batching-punches.lesson10",
+          "title": "Checkpoint: Host a 10-Guest Event",
+          "slug": "checkpoint-host-a-10-guest-event",
+          "question_count": 0,
+          "questions": [],
+          "notes": "Questions not yet authored in enhanced format."
+        }
+      ]
+    },
+    {
+      "id": "ch7-mocktails-zero-proof",
+      "title": "Mocktails & Zero-Proof Craft",
+      "slug": "ch7-mocktails-zero-proof",
+      "lessons": [
+        {
+          "id": "ch7-mocktails-zero-proof.lesson01",
+          "title": "Zero-Proof Foundations",
+          "slug": "zero-proof-foundations",
+          "question_count": 0,
+          "questions": [],
+          "notes": "Questions not yet authored in enhanced format."
+        },
+        {
+          "id": "ch7-mocktails-zero-proof.lesson02",
+          "title": "Building Structure Without Alcohol",
+          "slug": "building-structure-without-alcohol",
+          "question_count": 0,
+          "questions": [],
+          "notes": "Questions not yet authored in enhanced format."
+        },
+        {
+          "id": "ch7-mocktails-zero-proof.lesson03",
+          "title": "Texture & Mouthfeel (Foams, Fizz, Weight)",
+          "slug": "texture-mouthfeel-foams-fizz-weight",
+          "question_count": 0,
+          "questions": [],
+          "notes": "Questions not yet authored in enhanced format."
+        },
+        {
+          "id": "ch7-mocktails-zero-proof.lesson04",
+          "title": "Zero-Proof Syrups & Cordials",
+          "slug": "zero-proof-syrups-cordials",
+          "question_count": 0,
+          "questions": [],
+          "notes": "Questions not yet authored in enhanced format."
+        },
+        {
+          "id": "ch7-mocktails-zero-proof.lesson05",
+          "title": "Low-ABV vs True Zero",
+          "slug": "low-abv-vs-true-zero",
+          "question_count": 0,
+          "questions": [],
+          "notes": "Questions not yet authored in enhanced format."
+        },
+        {
+          "id": "ch7-mocktails-zero-proof.lesson06",
+          "title": "Mocktail Classics Remixed",
+          "slug": "mocktail-classics-remixed",
+          "question_count": 0,
+          "questions": [],
+          "notes": "Questions not yet authored in enhanced format."
+        },
+        {
+          "id": "ch7-mocktails-zero-proof.lesson07",
+          "title": "Pairing Mocktails with Food",
+          "slug": "pairing-mocktails-with-food",
+          "question_count": 0,
+          "questions": [],
+          "notes": "Questions not yet authored in enhanced format."
+        },
+        {
+          "id": "ch7-mocktails-zero-proof.lesson08",
+          "title": "Visual & Premium Presentation",
+          "slug": "visual-premium-presentation",
+          "question_count": 0,
+          "questions": [],
+          "notes": "Questions not yet authored in enhanced format."
+        },
+        {
+          "id": "ch7-mocktails-zero-proof.lesson09",
+          "title": "Hosting Inclusive Events",
+          "slug": "hosting-inclusive-events",
+          "question_count": 0,
+          "questions": [],
+          "notes": "Questions not yet authored in enhanced format."
+        },
+        {
+          "id": "ch7-mocktails-zero-proof.lesson10",
+          "title": "Checkpoint: Design a Signature Mocktail",
+          "slug": "checkpoint-design-a-signature-mocktail",
+          "question_count": 0,
+          "questions": [],
+          "notes": "Questions not yet authored in enhanced format."
+        }
       ]
     },
     {
       "id": "ch6-hosting-vibes",
       "title": "Hosting & Vibes",
-      "chapterIndex": 7,
-      "estimatedMinutes": 25,
-      "tags": [
-        "hosting",
-        "atmosphere",
-        "service"
-      ]
-    },
-    {
-      "id": "sp101-gin",
-      "title": "Gin 101",
-      "chapterIndex": 8,
-      "estimatedMinutes": 15,
-      "tags": [
-        "gin",
-        "spirits",
-        "spirit-101"
-      ]
-    },
-    {
-      "id": "sp101-rum",
-      "title": "Rum 101",
-      "chapterIndex": 9,
-      "estimatedMinutes": 15,
-      "tags": [
-        "rum",
-        "spirits",
-        "spirit-101"
-      ]
-    },
-    {
-      "id": "sp101-tequila",
-      "title": "Tequila 101",
-      "chapterIndex": 10,
-      "estimatedMinutes": 15,
-      "tags": [
-        "tequila",
-        "spirits",
-        "spirit-101"
-      ]
-    },
-    {
-      "id": "sp101-whiskey",
-      "title": "Whiskey 101",
-      "chapterIndex": 11,
-      "estimatedMinutes": 15,
-      "tags": [
-        "whiskey",
-        "spirits",
-        "spirit-101"
-      ]
-    },
-    {
-      "id": "sp101-brandy-liqueurs",
-      "title": "Brandy & Liqueurs 101",
-      "chapterIndex": 12,
-      "estimatedMinutes": 15,
-      "tags": [
-        "brandy",
-        "liqueurs",
-        "spirits",
-        "spirit-101"
-      ]
-    }
-  ],
-  "lessons": [
-    {
-      "id": "great-bartender-traits",
-      "moduleId": "ch1-basics",
-      "title": "Great Bartender Traits",
-      "types": [
-        "mcq",
-        "checkbox",
-        "short",
-        "match"
-      ],
-      "itemIds": [
-        "ch1-001",
-        "ch1-002",
-        "ch1-003",
-        "ch1-004",
-        "ch1-005",
-        "ch1-006",
-        "ch1-007",
-        "ch1-008",
-        "ch1-009",
-        "ch1-010"
-      ],
-      "estimatedMinutes": 5,
-      "prereqs": []
-    },
-    {
-      "id": "core-spirits-setup",
-      "moduleId": "ch1-basics",
-      "title": "Core Spirits Setup",
-      "types": [
-        "mcq",
-        "match",
-        "checkbox",
-        "short",
-        "order"
-      ],
-      "itemIds": [
-        "ch1-011",
-        "ch1-012",
-        "ch1-013",
-        "ch1-014",
-        "ch1-015",
-        "ch1-016",
-        "ch1-017",
-        "ch1-018",
-        "ch1-019",
-        "ch1-020"
-      ],
-      "estimatedMinutes": 5,
-      "prereqs": []
-    },
-    {
-      "id": "glassware-essentials",
-      "moduleId": "ch1-basics",
-      "title": "Glassware Essentials",
-      "types": [
-        "mcq",
-        "match",
-        "checkbox",
-        "short",
-        "order"
-      ],
-      "itemIds": [
-        "ch1-021",
-        "ch1-022",
-        "ch1-023",
-        "ch1-024",
-        "ch1-025",
-        "ch1-026",
-        "ch1-027",
-        "ch1-028",
-        "ch1-029",
-        "ch1-030"
-      ],
-      "estimatedMinutes": 5,
-      "prereqs": []
-    },
-    {
-      "id": "bar-setup-zones",
-      "moduleId": "ch1-basics",
-      "title": "Bar Setup & Zones",
-      "types": [
-        "mcq",
-        "order",
-        "checkbox",
-        "match",
-        "short"
-      ],
-      "itemIds": [
-        "ch1-031",
-        "ch1-032",
-        "ch1-033",
-        "ch1-034",
-        "ch1-035",
-        "ch1-036",
-        "ch1-037",
-        "ch1-038",
-        "ch1-039",
-        "ch1-040"
-      ],
-      "estimatedMinutes": 5,
-      "prereqs": []
-    },
-    {
-      "id": "ice-strategy-pro",
-      "moduleId": "ch1-basics",
-      "title": "Ice Strategy Pro",
-      "types": [
-        "mcq",
-        "match",
-        "checkbox",
-        "short",
-        "order"
-      ],
-      "itemIds": [
-        "ch1-041",
-        "ch1-042",
-        "ch1-043",
-        "ch1-044",
-        "ch1-045",
-        "ch1-046",
-        "ch1-047",
-        "ch1-048",
-        "ch1-049",
-        "ch1-050"
-      ],
-      "estimatedMinutes": 5,
-      "prereqs": []
-    },
-    {
-      "id": "tasting-like-a-pro",
-      "moduleId": "ch1-basics",
-      "title": "Tasting Like a Pro",
-      "types": [
-        "order",
-        "mcq",
-        "match",
-        "checkbox",
-        "short"
-      ],
-      "itemIds": [
-        "ch1-051",
-        "ch1-052",
-        "ch1-053",
-        "ch1-054",
-        "ch1-055",
-        "ch1-056",
-        "ch1-057",
-        "ch1-058",
-        "ch1-059",
-        "ch1-060"
-      ],
-      "estimatedMinutes": 5,
-      "prereqs": []
-    },
-    {
-      "id": "safety-homegame-spirit",
-      "moduleId": "ch1-basics",
-      "title": "Safety & HomeGame Spirit",
-      "types": [
-        "checkbox",
-        "mcq",
-        "match",
-        "short"
-      ],
-      "itemIds": [
-        "ch1-061",
-        "ch1-062",
-        "ch1-063",
-        "ch1-064",
-        "ch1-065",
-        "ch1-066",
-        "ch1-067",
-        "ch1-068",
-        "ch1-069",
-        "ch1-070"
-      ],
-      "estimatedMinutes": 5,
-      "prereqs": []
-    },
-    {
-      "id": "fresh-goods-citrus-game",
-      "moduleId": "ch1-basics",
-      "title": "Fresh Goods & Citrus Game",
-      "types": [
-        "mcq",
-        "match",
-        "checkbox",
-        "short",
-        "order"
-      ],
-      "itemIds": [
-        "ch1-071",
-        "ch1-072",
-        "ch1-073",
-        "ch1-074",
-        "ch1-075",
-        "ch1-076",
-        "ch1-077",
-        "ch1-078",
-        "ch1-079",
-        "ch1-080"
-      ],
-      "estimatedMinutes": 5,
-      "prereqs": []
-    },
-    {
-      "id": "equipment-mastery",
-      "moduleId": "ch1-basics",
-      "title": "Equipment Mastery",
-      "types": [
-        "mcq",
-        "match",
-        "checkbox",
-        "short",
-        "order"
-      ],
-      "itemIds": [
-        "ch1-081",
-        "ch1-082",
-        "ch1-083",
-        "ch1-084",
-        "ch1-085",
-        "ch1-086",
-        "ch1-087",
-        "ch1-088",
-        "ch1-089",
-        "ch1-090"
-      ],
-      "estimatedMinutes": 5,
-      "prereqs": []
-    },
-    {
-      "id": "checkpoint-basics-mixoff",
-      "moduleId": "ch1-basics",
-      "title": "Checkpoint: Basics Mix-Off",
-      "types": [
-        "mcq",
-        "short",
-        "match",
-        "checkbox",
-        "order"
-      ],
-      "itemIds": [
-        "ch1-091",
-        "ch1-092",
-        "ch1-093",
-        "ch1-094",
-        "ch1-095",
-        "ch1-096",
-        "ch1-097",
-        "ch1-098",
-        "ch1-099",
-        "ch1-100"
-      ],
-      "estimatedMinutes": 5,
-      "prereqs": []
-    },
-    {
-      "id": "lesson-ch2-001",
-      "moduleId": "ch2-tools-terms",
-      "title": "Core 6 Tools",
-      "types": [
-        "mcq",
-        "match",
-        "short",
-        "checkbox"
-      ],
-      "itemIds": [
-        "item-071",
-        "item-072",
-        "item-073",
-        "item-074",
-        "item-075",
-        "item-076"
-      ],
-      "estimatedMinutes": 4,
-      "prereqs": []
-    },
-    {
-      "id": "lesson-ch2-002",
-      "moduleId": "ch2-tools-terms",
-      "title": "Bar Terms: Spec, Build, Float",
-      "types": [
-        "mcq",
-        "short",
-        "match",
-        "roleplay"
-      ],
-      "itemIds": [
-        "item-077",
-        "item-078",
-        "item-079",
-        "item-080",
-        "item-081",
-        "item-082"
-      ],
-      "estimatedMinutes": 4,
-      "prereqs": []
-    },
-    {
-      "id": "lesson-ch2-003",
-      "moduleId": "ch2-tools-terms",
-      "title": "Bar Slang Decoded",
-      "types": [
-        "match",
-        "mcq",
-        "checkbox",
-        "short"
-      ],
-      "itemIds": [
-        "item-083",
-        "item-084",
-        "item-085",
-        "item-086",
-        "item-087",
-        "item-088"
-      ],
-      "estimatedMinutes": 4,
-      "prereqs": []
-    },
-    {
-      "id": "lesson-ch2-004",
-      "moduleId": "ch2-tools-terms",
-      "title": "Tools by Cocktail Style",
-      "types": [
-        "match",
-        "mcq",
-        "short",
-        "roleplay"
-      ],
-      "itemIds": [
-        "item-089",
-        "item-090",
-        "item-091",
-        "item-092",
-        "item-093",
-        "item-094"
-      ],
-      "estimatedMinutes": 5,
-      "prereqs": []
-    },
-    {
-      "id": "lesson-ch2-005",
-      "moduleId": "ch2-tools-terms",
-      "title": "Triangle Workflow Magic",
-      "types": [
-        "order",
-        "roleplay",
-        "mcq",
-        "short"
-      ],
-      "itemIds": [
-        "item-095",
-        "item-096",
-        "item-097",
-        "item-098",
-        "item-099",
-        "item-100"
-      ],
-      "estimatedMinutes": 5,
-      "prereqs": []
-    },
-    {
-      "id": "lesson-ch2-checkpoint",
-      "moduleId": "ch2-tools-terms",
-      "title": "Checkpoint: Tool Mastery Mix-Off",
-      "types": [
-        "roleplay",
-        "short",
-        "match",
-        "mcq"
-      ],
-      "itemIds": [
-        "item-101",
-        "item-102",
-        "item-103",
-        "item-104",
-        "item-105"
-      ],
-      "estimatedMinutes": 5,
-      "prereqs": [
-        "lesson-ch2-001",
-        "lesson-ch2-002"
-      ]
-    }
-  ],
-  "items": [
-    {
-      "id": "ch1-001",
-      "type": "mcq",
-      "prompt": "What’s the most important skill of a great bartender?",
-      "tags": [
-        "great-bartender-traits",
-        "ch1-basics"
-      ],
-      "conceptId": "great_bartender_traits.1",
-      "difficulty": 0.1,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "options": [
-        "Speed",
-        "Listening to guests",
-        "Flair tricks",
-        "Memorizing recipes"
-      ],
-      "answerIndex": 1
-    },
-    {
-      "id": "ch1-002",
-      "type": "mcq",
-      "prompt": "Which quality builds long-term regulars?",
-      "tags": [
-        "great-bartender-traits",
-        "ch1-basics"
-      ],
-      "conceptId": "great_bartender_traits.2",
-      "difficulty": 0.11,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "options": [
-        "Consistency",
-        "Mystery",
-        "Strictness",
-        "Silence"
-      ],
-      "answerIndex": 0
-    },
-    {
-      "id": "ch1-003",
-      "type": "checkbox",
-      "prompt": "Select all that describe a pro bartender:",
-      "tags": [
-        "great-bartender-traits",
-        "ch1-basics"
-      ],
-      "conceptId": "great_bartender_traits.3",
-      "difficulty": 0.12000000000000001,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "options": [
-        "Clean workstation",
-        "Good memory",
-        "Positive energy",
-        "Shows off too much"
-      ],
-      "correct": [
-        "Clean workstation",
-        "Good memory",
-        "Positive energy"
-      ]
-    },
-    {
-      "id": "ch1-004",
-      "type": "mcq",
-      "prompt": "What's one way to make guests feel welcome in the first 30 seconds?",
-      "tags": [
-        "great-bartender-traits",
-        "ch1-basics"
-      ],
-      "conceptId": "great_bartender_traits.4",
-      "difficulty": 0.13,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "options": [
-        "Smile and greet with eye contact",
-        "Immediately ask for payment",
-        "Look at your phone",
-        "Turn your back to them"
-      ],
-      "answerIndex": 0
-    },
-    {
-      "id": "ch1-005",
-      "type": "mcq",
-      "prompt": "What does “situational awareness” mean behind the bar?",
-      "tags": [
-        "great-bartender-traits",
-        "ch1-basics"
-      ],
-      "conceptId": "great_bartender_traits.5",
-      "difficulty": 0.14,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "options": [
-        "Always looking busy",
-        "Knowing what’s happening with guests, orders, and your station",
-        "Memorizing all recipes",
-        "Watching the TV"
-      ],
-      "answerIndex": 1
-    },
-    {
-      "id": "ch1-006",
-      "type": "mcq",
-      "prompt": "A guest looks upset. What do you do?",
-      "tags": [
-        "great-bartender-traits",
-        "ch1-basics"
-      ],
-      "conceptId": "great_bartender_traits.6",
-      "difficulty": 0.15000000000000002,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "options": [
-        "Ignore them",
-        "Ask politely if everything’s okay",
-        "Offer a shot immediately",
-        "Tell them to relax"
-      ],
-      "answerIndex": 1
-    },
-    {
-      "id": "ch1-007",
-      "type": "match",
-      "prompt": "Match trait to why it matters.",
-      "tags": [
-        "great-bartender-traits",
-        "ch1-basics"
-      ],
-      "conceptId": "great_bartender_traits.7",
-      "difficulty": 0.16,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "pairs": [
+      "slug": "ch6-hosting-vibes",
+      "lessons": [
         {
-          "left": "Patience",
-          "right": "Keeps service calm"
+          "id": "ch6-hosting-vibes.lesson01",
+          "title": "Hosting Energy & First Impressions",
+          "slug": "hosting-energy-first-impressions",
+          "question_count": 0,
+          "questions": [],
+          "notes": "Questions not yet authored in enhanced format."
         },
         {
-          "left": "Curiosity",
-          "right": "Learns new recipes and stories"
+          "id": "ch6-hosting-vibes.lesson02",
+          "title": "Menu Curation Strategy",
+          "slug": "menu-curation-strategy",
+          "question_count": 0,
+          "questions": [],
+          "notes": "Questions not yet authored in enhanced format."
         },
         {
-          "left": "Cleanliness",
-          "right": "Ensures safety and trust"
+          "id": "ch6-hosting-vibes.lesson03",
+          "title": "Lighting, Music & Mood Control",
+          "slug": "lighting-music-mood-control",
+          "question_count": 0,
+          "questions": [],
+          "notes": "Questions not yet authored in enhanced format."
         },
         {
-          "left": "Confidence",
-          "right": "Builds guest trust"
+          "id": "ch6-hosting-vibes.lesson04",
+          "title": "Signature Drink Strategy",
+          "slug": "signature-drink-strategy",
+          "question_count": 0,
+          "questions": [],
+          "notes": "Questions not yet authored in enhanced format."
+        },
+        {
+          "id": "ch6-hosting-vibes.lesson05",
+          "title": "Flow of Service at Home",
+          "slug": "flow-of-service-at-home",
+          "question_count": 0,
+          "questions": [],
+          "notes": "Questions not yet authored in enhanced format."
+        },
+        {
+          "id": "ch6-hosting-vibes.lesson06",
+          "title": "Reading the Room",
+          "slug": "reading-the-room",
+          "question_count": 0,
+          "questions": [],
+          "notes": "Questions not yet authored in enhanced format."
+        },
+        {
+          "id": "ch6-hosting-vibes.lesson07",
+          "title": "Responsible Serving",
+          "slug": "responsible-serving",
+          "question_count": 0,
+          "questions": [],
+          "notes": "Questions not yet authored in enhanced format."
+        },
+        {
+          "id": "ch6-hosting-vibes.lesson08",
+          "title": "Premium Touches & Details",
+          "slug": "premium-touches-details",
+          "question_count": 0,
+          "questions": [],
+          "notes": "Questions not yet authored in enhanced format."
+        },
+        {
+          "id": "ch6-hosting-vibes.lesson09",
+          "title": "Creating “Moments” Guests Remember",
+          "slug": "creating-moments-guests-remember",
+          "question_count": 0,
+          "questions": [],
+          "notes": "Questions not yet authored in enhanced format."
+        },
+        {
+          "id": "ch6-hosting-vibes.lesson10",
+          "title": "Final Exam: HomeGame Host Certification",
+          "slug": "final-exam-homegame-host-certification",
+          "question_count": 0,
+          "questions": [],
+          "notes": "Questions not yet authored in enhanced format."
         }
       ]
-    },
-    {
-      "id": "ch1-008",
-      "type": "mcq",
-      "prompt": "What’s the quickest way to lose a guest’s trust?",
-      "tags": [
-        "great-bartender-traits",
-        "ch1-basics"
-      ],
-      "conceptId": "great_bartender_traits.8",
-      "difficulty": 0.17,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "options": [
-        "Over-explaining",
-        "Poor hygiene or sloppy service",
-        "Talking too quietly",
-        "Smiling"
-      ],
-      "answerIndex": 1
-    },
-    {
-      "id": "ch1-009",
-      "type": "checkbox",
-      "prompt": "Select the best communication habits:",
-      "tags": [
-        "great-bartender-traits",
-        "ch1-basics"
-      ],
-      "conceptId": "great_bartender_traits.9",
-      "difficulty": 0.18,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "options": [
-        "Repeat orders back",
-        "Use eye contact",
-        "Mumble quietly",
-        "Talk over guests"
-      ],
-      "correct": [
-        "Repeat orders back",
-        "Use eye contact"
-      ]
-    },
-    {
-      "id": "ch1-010",
-      "type": "mcq",
-      "prompt": "Finish the phrase: 'A bartender isn't just a server—they're a ____.'",
-      "tags": [
-        "great-bartender-traits",
-        "ch1-basics"
-      ],
-      "conceptId": "great_bartender_traits.10",
-      "difficulty": 0.19,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "options": [
-        "Host",
-        "Accountant",
-        "Security guard",
-        "Janitor"
-      ],
-      "answerIndex": 0
-    },
-    {
-      "id": "ch1-011",
-      "type": "mcq",
-      "prompt": "Which grain is most often used for vodka?",
-      "tags": [
-        "core-spirits-setup",
-        "ch1-basics"
-      ],
-      "conceptId": "core_spirits_setup.1",
-      "difficulty": 0.1,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "options": [
-        "Wheat",
-        "Barley",
-        "Corn",
-        "Rye"
-      ],
-      "answerIndex": 0
-    },
-    {
-      "id": "ch1-012",
-      "type": "mcq",
-      "prompt": "Which spirit must legally age in oak barrels?",
-      "tags": [
-        "core-spirits-setup",
-        "ch1-basics"
-      ],
-      "conceptId": "core_spirits_setup.2",
-      "difficulty": 0.11,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "options": [
-        "Vodka",
-        "Whiskey",
-        "Gin",
-        "Tequila"
-      ],
-      "answerIndex": 1
-    },
-    {
-      "id": "ch1-013",
-      "type": "mcq",
-      "prompt": "Which base defines rum?",
-      "tags": [
-        "core-spirits-setup",
-        "ch1-basics"
-      ],
-      "conceptId": "core_spirits_setup.3",
-      "difficulty": 0.12000000000000001,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "options": [
-        "Grain mash",
-        "Potato",
-        "Sugarcane molasses",
-        "Grape must"
-      ],
-      "answerIndex": 2
-    },
-    {
-      "id": "ch1-014",
-      "type": "mcq",
-      "prompt": "Which region protects the name 'Tequila'?",
-      "tags": [
-        "core-spirits-setup",
-        "ch1-basics"
-      ],
-      "conceptId": "core_spirits_setup.4",
-      "difficulty": 0.13,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "options": [
-        "Scotland",
-        "Jalisco, Mexico",
-        "Tuscany",
-        "Bavaria"
-      ],
-      "answerIndex": 1
-    },
-    {
-      "id": "ch1-015",
-      "type": "match",
-      "prompt": "Match spirit to primary ingredient.",
-      "tags": [
-        "core-spirits-setup",
-        "ch1-basics"
-      ],
-      "conceptId": "core_spirits_setup.5",
-      "difficulty": 0.14,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "pairs": [
-        {
-          "left": "Vodka",
-          "right": "Neutral grains or potatoes"
-        },
-        {
-          "left": "Gin",
-          "right": "Botanicals (juniper-led)"
-        },
-        {
-          "left": "Rum",
-          "right": "Sugarcane or molasses"
-        },
-        {
-          "left": "Tequila",
-          "right": "Blue Weber agave"
-        },
-        {
-          "left": "Brandy",
-          "right": "Grapes (distilled wine)"
-        }
-      ]
-    },
-    {
-      "id": "ch1-016",
-      "type": "checkbox",
-      "prompt": "Select all clear spirits.",
-      "tags": [
-        "core-spirits-setup",
-        "ch1-basics"
-      ],
-      "conceptId": "core_spirits_setup.6",
-      "difficulty": 0.15000000000000002,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "options": [
-        "Vodka",
-        "Gin",
-        "Whiskey",
-        "Brandy"
-      ],
-      "correct": [
-        "Vodka",
-        "Gin"
-      ]
-    },
-    {
-      "id": "ch1-017",
-      "type": "mcq",
-      "prompt": "Which of these is an agave spirit other than tequila?",
-      "tags": [
-        "core-spirits-setup",
-        "ch1-basics"
-      ],
-      "conceptId": "core_spirits_setup.7",
-      "difficulty": 0.16,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "options": [
-        "Mezcal",
-        "Rum",
-        "Vodka",
-        "Gin"
-      ],
-      "answerIndex": 0
-    },
-    {
-      "id": "ch1-018",
-      "type": "order",
-      "prompt": "Put production stages in order.",
-      "tags": [
-        "core-spirits-setup",
-        "ch1-basics"
-      ],
-      "conceptId": "core_spirits_setup.8",
-      "difficulty": 0.17,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "orderTarget": [
-        "Fermentation",
-        "Distillation",
-        "Maturation",
-        "Bottling"
-      ]
-    },
-    {
-      "id": "ch1-019",
-      "type": "mcq",
-      "prompt": "A guest asks why their whiskey is darker than vodka—respond in one line.",
-      "tags": [
-        "core-spirits-setup",
-        "ch1-basics"
-      ],
-      "conceptId": "core_spirits_setup.9",
-      "difficulty": 0.18,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "options": [
-        "Because whiskey ages in oak; vodka does not",
-        "Because of food coloring",
-        "Because whiskey has more sugar",
-        "Because vodka is filtered with charcoal"
-      ],
-      "answerIndex": 0
-    },
-    {
-      "id": "ch1-020",
-      "type": "mcq",
-      "prompt": "Typical ABV of base spirits is approximately:",
-      "tags": [
-        "core-spirits-setup",
-        "ch1-basics"
-      ],
-      "conceptId": "core_spirits_setup.10",
-      "difficulty": 0.19,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "options": [
-        "20%",
-        "30%",
-        "40%",
-        "55%"
-      ],
-      "answerIndex": 2
-    },
-    {
-      "id": "ch1-021",
-      "type": "mcq",
-      "prompt": "Which drink commonly uses a coupe glass?",
-      "tags": [
-        "glassware-essentials",
-        "ch1-basics"
-      ],
-      "conceptId": "glassware_essentials.1",
-      "difficulty": 0.1,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "options": [
-        "Martini",
-        "Highball",
-        "Negroni",
-        "Paloma"
-      ],
-      "answerIndex": 0
-    },
-    {
-      "id": "ch1-022",
-      "type": "mcq",
-      "prompt": "What defines a Collins glass?",
-      "tags": [
-        "glassware-essentials",
-        "ch1-basics"
-      ],
-      "conceptId": "glassware_essentials.2",
-      "difficulty": 0.11,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "options": [
-        "Short and wide",
-        "Tall and narrow",
-        "Stemmed and shallow",
-        "Handled"
-      ],
-      "answerIndex": 1
-    },
-    {
-      "id": "ch1-023",
-      "type": "match",
-      "prompt": "Match cocktail to glass type.",
-      "tags": [
-        "glassware-essentials",
-        "ch1-basics"
-      ],
-      "conceptId": "glassware_essentials.3",
-      "difficulty": 0.12000000000000001,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "pairs": [
-        {
-          "left": "Margarita",
-          "right": "Coupe or Margarita glass"
-        },
-        {
-          "left": "Negroni",
-          "right": "Rocks glass"
-        },
-        {
-          "left": "Mojito",
-          "right": "Highball glass"
-        },
-        {
-          "left": "Champagne",
-          "right": "Flute"
-        }
-      ]
-    },
-    {
-      "id": "ch1-024",
-      "type": "mcq",
-      "prompt": "Which glass best preserves carbonation?",
-      "tags": [
-        "glassware-essentials",
-        "ch1-basics"
-      ],
-      "conceptId": "glassware_essentials.4",
-      "difficulty": 0.13,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "options": [
-        "Flute",
-        "Coupe",
-        "Rocks",
-        "Nick & Nora"
-      ],
-      "answerIndex": 0
-    },
-    {
-      "id": "ch1-025",
-      "type": "checkbox",
-      "prompt": "Select proper stemmed glasses.",
-      "tags": [
-        "glassware-essentials",
-        "ch1-basics"
-      ],
-      "conceptId": "glassware_essentials.5",
-      "difficulty": 0.14,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "options": [
-        "Coupe",
-        "Flute",
-        "Rocks",
-        "Highball"
-      ],
-      "correct": [
-        "Coupe",
-        "Flute"
-      ]
-    },
-    {
-      "id": "ch1-026",
-      "type": "mcq",
-      "prompt": "Why chill glassware before stirred cocktails?",
-      "tags": [
-        "glassware-essentials",
-        "ch1-basics"
-      ],
-      "conceptId": "glassware_essentials.6",
-      "difficulty": 0.15000000000000002,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "options": [
-        "To reduce dilution and maintain temperature",
-        "To make the glass look frosty",
-        "To add water to the drink",
-        "To save money on ice"
-      ],
-      "answerIndex": 0
-    },
-    {
-      "id": "ch1-027",
-      "type": "order",
-      "prompt": "Arrange from smallest to largest typical volume.",
-      "tags": [
-        "glassware-essentials",
-        "ch1-basics"
-      ],
-      "conceptId": "glassware_essentials.7",
-      "difficulty": 0.16,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "orderTarget": [
-        "Nick & Nora",
-        "Rocks",
-        "Coupe",
-        "Highball"
-      ]
-    },
-    {
-      "id": "ch1-028",
-      "type": "mcq",
-      "prompt": "Customer requests a Whiskey Sour served 'up'. Which glass do you choose?",
-      "tags": [
-        "glassware-essentials",
-        "ch1-basics"
-      ],
-      "conceptId": "glassware_essentials.8",
-      "difficulty": 0.17,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "options": [
-        "Coupe",
-        "Rocks",
-        "Highball",
-        "Flute"
-      ],
-      "answerIndex": 0
-    },
-    {
-      "id": "ch1-029",
-      "type": "mcq",
-      "prompt": "Which vessel signals a tropical theme?",
-      "tags": [
-        "glassware-essentials",
-        "ch1-basics"
-      ],
-      "conceptId": "glassware_essentials.9",
-      "difficulty": 0.18,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "options": [
-        "Tiki mug",
-        "Rocks",
-        "Flute",
-        "Nick & Nora"
-      ],
-      "answerIndex": 0
-    },
-    {
-      "id": "ch1-030",
-      "type": "mcq",
-      "prompt": "What's a visual benefit of polished, clear glassware?",
-      "tags": [
-        "glassware-essentials",
-        "ch1-basics"
-      ],
-      "conceptId": "glassware_essentials.10",
-      "difficulty": 0.19,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "options": [
-        "Shows color and clarity of the drink",
-        "Hides imperfections in the drink",
-        "Makes drinks look darker",
-        "Increases alcohol content"
-      ],
-      "answerIndex": 0
-    },
-    {
-      "id": "ch1-031",
-      "type": "mcq",
-      "prompt": "What is the speed rail used for?",
-      "tags": [
-        "bar-setup-zones",
-        "ch1-basics"
-      ],
-      "conceptId": "bar_setup_zones.1",
-      "difficulty": 0.1,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "options": [
-        "Holding ice",
-        "Holding frequently used liquors",
-        "Holding garnishes",
-        "Drying glassware"
-      ],
-      "answerIndex": 1
-    },
-    {
-      "id": "ch1-032",
-      "type": "order",
-      "prompt": "Put opening setup steps in order.",
-      "tags": [
-        "bar-setup-zones",
-        "ch1-basics"
-      ],
-      "conceptId": "bar_setup_zones.2",
-      "difficulty": 0.11,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "orderTarget": [
-        "Sanitize surfaces",
-        "Restock liquor shelves",
-        "Fill ice bins",
-        "Cut garnishes"
-      ]
-    },
-    {
-      "id": "ch1-033",
-      "type": "mcq",
-      "prompt": "What belongs in the garnish zone?",
-      "tags": [
-        "bar-setup-zones",
-        "ch1-basics"
-      ],
-      "conceptId": "bar_setup_zones.3",
-      "difficulty": 0.12000000000000001,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "options": [
-        "Citrus and herbs with tools",
-        "Only bottles",
-        "Only napkins",
-        "Cleaning chemicals"
-      ],
-      "answerIndex": 0
-    },
-    {
-      "id": "ch1-034",
-      "type": "checkbox",
-      "prompt": "Select items for cold storage.",
-      "tags": [
-        "bar-setup-zones",
-        "ch1-basics"
-      ],
-      "conceptId": "bar_setup_zones.4",
-      "difficulty": 0.13,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "options": [
-        "Fresh juices",
-        "Vermouth",
-        "Bitters",
-        "Dry goods"
-      ],
-      "correct": [
-        "Fresh juices",
-        "Vermouth"
-      ]
-    },
-    {
-      "id": "ch1-035",
-      "type": "match",
-      "prompt": "Match zone to purpose.",
-      "tags": [
-        "bar-setup-zones",
-        "ch1-basics"
-      ],
-      "conceptId": "bar_setup_zones.5",
-      "difficulty": 0.14,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "pairs": [
-        {
-          "left": "Prep zone",
-          "right": "Cutting and juicing"
-        },
-        {
-          "left": "Service zone",
-          "right": "Mixing and building drinks"
-        },
-        {
-          "left": "Back bar",
-          "right": "Display and storage"
-        }
-      ]
-    },
-    {
-      "id": "ch1-036",
-      "type": "mcq",
-      "prompt": "First task after closing?",
-      "tags": [
-        "bar-setup-zones",
-        "ch1-basics"
-      ],
-      "conceptId": "bar_setup_zones.6",
-      "difficulty": 0.15000000000000002,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "options": [
-        "Leave immediately",
-        "Clean and sanitize station",
-        "Restock liquor shelves",
-        "Count cash"
-      ],
-      "answerIndex": 1
-    },
-    {
-      "id": "ch1-037",
-      "type": "mcq",
-      "prompt": "Ice bin is leaking mid-shift. Immediate action?",
-      "tags": [
-        "bar-setup-zones",
-        "ch1-basics"
-      ],
-      "conceptId": "bar_setup_zones.7",
-      "difficulty": 0.16,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "options": [
-        "Replace bin liner and mop area",
-        "Ignore it",
-        "Serve slower",
-        "Close the bar"
-      ],
-      "answerIndex": 0
-    },
-    {
-      "id": "ch1-038",
-      "type": "mcq",
-      "prompt": "What does 'mise en place' mean?",
-      "tags": [
-        "bar-setup-zones",
-        "ch1-basics"
-      ],
-      "conceptId": "bar_setup_zones.8",
-      "difficulty": 0.17,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "options": [
-        "Everything in its place",
-        "First come, first served",
-        "Working quickly",
-        "Cleaning as you go"
-      ],
-      "answerIndex": 0
-    },
-    {
-      "id": "ch1-039",
-      "type": "mcq",
-      "prompt": "What does FIFO stand for?",
-      "tags": [
-        "bar-setup-zones",
-        "ch1-basics"
-      ],
-      "conceptId": "bar_setup_zones.9",
-      "difficulty": 0.18,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "options": [
-        "Fast In Fast Out",
-        "First In First Out",
-        "First In Fast Out",
-        "Full Inventory Fast Out"
-      ],
-      "answerIndex": 1
-    },
-    {
-      "id": "ch1-040",
-      "type": "mcq",
-      "prompt": "Why is a dry floor critical behind the bar?",
-      "tags": [
-        "bar-setup-zones",
-        "ch1-basics"
-      ],
-      "conceptId": "bar_setup_zones.10",
-      "difficulty": 0.19,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "options": [
-        "To prevent slips and injuries",
-        "To keep shoes clean",
-        "To save water",
-        "To look professional"
-      ],
-      "answerIndex": 0
-    },
-    {
-      "id": "ch1-041",
-      "type": "mcq",
-      "prompt": "Which ice melts slowest?",
-      "tags": [
-        "ice-strategy-pro",
-        "ch1-basics"
-      ],
-      "conceptId": "ice_strategy_pro.1",
-      "difficulty": 0.1,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "options": [
-        "Crushed",
-        "Cubed",
-        "Large block",
-        "Pebble"
-      ],
-      "answerIndex": 2
-    },
-    {
-      "id": "ch1-042",
-      "type": "mcq",
-      "prompt": "Primary benefit of clear ice?",
-      "tags": [
-        "ice-strategy-pro",
-        "ch1-basics"
-      ],
-      "conceptId": "ice_strategy_pro.2",
-      "difficulty": 0.11,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "options": [
-        "Only looks better",
-        "Melts slower and keeps flavor pure",
-        "Cheaper to make",
-        "Easier to scoop"
-      ],
-      "answerIndex": 1
-    },
-    {
-      "id": "ch1-043",
-      "type": "match",
-      "prompt": "Match drink to ideal ice.",
-      "tags": [
-        "ice-strategy-pro",
-        "ch1-basics"
-      ],
-      "conceptId": "ice_strategy_pro.3",
-      "difficulty": 0.12000000000000001,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "pairs": [
-        {
-          "left": "Old Fashioned",
-          "right": "Large cube"
-        },
-        {
-          "left": "Mojito",
-          "right": "Crushed ice"
-        },
-        {
-          "left": "Tom Collins",
-          "right": "Cubed ice"
-        },
-        {
-          "left": "Tiki punch",
-          "right": "Pebble ice"
-        }
-      ]
-    },
-    {
-      "id": "ch1-044",
-      "type": "checkbox",
-      "prompt": "Select causes of cloudy ice.",
-      "tags": [
-        "ice-strategy-pro",
-        "ch1-basics"
-      ],
-      "conceptId": "ice_strategy_pro.4",
-      "difficulty": 0.13,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "options": [
-        "Impure water",
-        "Fast freezing",
-        "Directional freezing",
-        "Warm freezer"
-      ],
-      "correct": [
-        "Impure water",
-        "Fast freezing"
-      ]
-    },
-    {
-      "id": "ch1-045",
-      "type": "mcq",
-      "prompt": "What is 'cracked ice'?",
-      "tags": [
-        "ice-strategy-pro",
-        "ch1-basics"
-      ],
-      "conceptId": "ice_strategy_pro.5",
-      "difficulty": 0.14,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "options": [
-        "Large cube intentionally broken to speed chilling",
-        "Ice with cracks from the freezer",
-        "Crushed ice from a machine",
-        "Ice that's melting too fast"
-      ],
-      "answerIndex": 0
-    },
-    {
-      "id": "ch1-046",
-      "type": "mcq",
-      "prompt": "Guest asks for 'less ice' but drink requires dilution. Best response?",
-      "tags": [
-        "ice-strategy-pro",
-        "ch1-basics"
-      ],
-      "conceptId": "ice_strategy_pro.6",
-      "difficulty": 0.15000000000000002,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "options": [
-        "Offer a chilled glass and explain balance",
-        "Say no",
-        "Add more juice",
-        "Ignore request"
-      ],
-      "answerIndex": 0
-    },
-    {
-      "id": "ch1-047",
-      "type": "mcq",
-      "prompt": "Best ice for shaking?",
-      "tags": [
-        "ice-strategy-pro",
-        "ch1-basics"
-      ],
-      "conceptId": "ice_strategy_pro.7",
-      "difficulty": 0.16,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "options": [
-        "Wet crushed",
-        "Hard solid cubes",
-        "Pebble ice",
-        "Flake ice"
-      ],
-      "answerIndex": 1
-    },
-    {
-      "id": "ch1-048",
-      "type": "order",
-      "prompt": "Steps for clear ice at home.",
-      "tags": [
-        "ice-strategy-pro",
-        "ch1-basics"
-      ],
-      "conceptId": "ice_strategy_pro.8",
-      "difficulty": 0.17,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "orderTarget": [
-        "Boil water",
-        "Let water cool",
-        "Freeze slowly/directionally",
-        "Cut blocks"
-      ]
-    },
-    {
-      "id": "ch1-049",
-      "type": "mcq",
-      "prompt": "What happens if the ice bin is left open?",
-      "tags": [
-        "ice-strategy-pro",
-        "ch1-basics"
-      ],
-      "conceptId": "ice_strategy_pro.9",
-      "difficulty": 0.18,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "options": [
-        "It cools faster",
-        "Risk of contamination",
-        "Ice becomes clearer",
-        "Nothing"
-      ],
-      "answerIndex": 1
-    },
-    {
-      "id": "ch1-050",
-      "type": "mcq",
-      "prompt": "What's an effect of excess melt on a drink?",
-      "tags": [
-        "ice-strategy-pro",
-        "ch1-basics"
-      ],
-      "conceptId": "ice_strategy_pro.10",
-      "difficulty": 0.19,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "options": [
-        "Over-dilution and flavor loss",
-        "Stronger alcohol taste",
-        "Better flavor",
-        "Increased viscosity"
-      ],
-      "answerIndex": 0
-    },
-    {
-      "id": "ch1-051",
-      "type": "order",
-      "prompt": "Put tasting steps in order.",
-      "tags": [
-        "tasting-like-a-pro",
-        "ch1-basics"
-      ],
-      "conceptId": "tasting_like_a_pro.1",
-      "difficulty": 0.1,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "orderTarget": [
-        "Look",
-        "Smell",
-        "Sip",
-        "Reflect"
-      ]
-    },
-    {
-      "id": "ch1-052",
-      "type": "mcq",
-      "prompt": "Which sense contributes most to flavor perception?",
-      "tags": [
-        "tasting-like-a-pro",
-        "ch1-basics"
-      ],
-      "conceptId": "tasting_like_a_pro.2",
-      "difficulty": 0.11,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "options": [
-        "Hearing",
-        "Sight",
-        "Smell",
-        "Touch"
-      ],
-      "answerIndex": 2
-    },
-    {
-      "id": "ch1-053",
-      "type": "mcq",
-      "prompt": "Best palate cleanser between tastings?",
-      "tags": [
-        "tasting-like-a-pro",
-        "ch1-basics"
-      ],
-      "conceptId": "tasting_like_a_pro.3",
-      "difficulty": 0.12000000000000001,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "options": [
-        "Milk",
-        "Water and crackers",
-        "Coffee",
-        "Soda"
-      ],
-      "answerIndex": 1
-    },
-    {
-      "id": "ch1-054",
-      "type": "match",
-      "prompt": "Match spirit to a typical note.",
-      "tags": [
-        "tasting-like-a-pro",
-        "ch1-basics"
-      ],
-      "conceptId": "tasting_like_a_pro.4",
-      "difficulty": 0.13,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "pairs": [
-        {
-          "left": "Rum (aged)",
-          "right": "Molasses/vanilla"
-        },
-        {
-          "left": "Gin",
-          "right": "Juniper/citrus"
-        },
-        {
-          "left": "Tequila (blanco)",
-          "right": "Agave/pepper"
-        }
-      ]
-    },
-    {
-      "id": "ch1-055",
-      "type": "checkbox",
-      "prompt": "Select warm-spice notes.",
-      "tags": [
-        "tasting-like-a-pro",
-        "ch1-basics"
-      ],
-      "conceptId": "tasting_like_a_pro.5",
-      "difficulty": 0.14,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "options": [
-        "Cinnamon",
-        "Nutmeg",
-        "Lemon",
-        "Mint"
-      ],
-      "correct": [
-        "Cinnamon",
-        "Nutmeg"
-      ]
-    },
-    {
-      "id": "ch1-056",
-      "type": "mcq",
-      "prompt": "What is 'mouthfeel'?",
-      "tags": [
-        "tasting-like-a-pro",
-        "ch1-basics"
-      ],
-      "conceptId": "tasting_like_a_pro.6",
-      "difficulty": 0.15000000000000002,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "options": [
-        "The texture and weight of the liquid in the mouth",
-        "How the drink smells",
-        "The color of the drink",
-        "The temperature of the drink"
-      ],
-      "answerIndex": 0
-    },
-    {
-      "id": "ch1-057",
-      "type": "mcq",
-      "prompt": "Why swirl a spirit in the glass before smelling?",
-      "tags": [
-        "tasting-like-a-pro",
-        "ch1-basics"
-      ],
-      "conceptId": "tasting_like_a_pro.7",
-      "difficulty": 0.16,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "options": [
-        "To warm your hand",
-        "To release aromatic compounds",
-        "To show off",
-        "To make legs"
-      ],
-      "answerIndex": 1
-    },
-    {
-      "id": "ch1-058",
-      "type": "mcq",
-      "prompt": "Guest says the drink is 'too boozy.' Adjustment?",
-      "tags": [
-        "tasting-like-a-pro",
-        "ch1-basics"
-      ],
-      "conceptId": "tasting_like_a_pro.8",
-      "difficulty": 0.17,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "options": [
-        "Add ice or stir longer for dilution",
-        "More sugar",
-        "Add bitters",
-        "Add water only"
-      ],
-      "answerIndex": 0
-    },
-    {
-      "id": "ch1-059",
-      "type": "mcq",
-      "prompt": "Common flavor from oak aging?",
-      "tags": [
-        "tasting-like-a-pro",
-        "ch1-basics"
-      ],
-      "conceptId": "tasting_like_a_pro.9",
-      "difficulty": 0.18,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "options": [
-        "Vanilla",
-        "Cucumber",
-        "Lime",
-        "Anise"
-      ],
-      "answerIndex": 0
-    },
-    {
-      "id": "ch1-060",
-      "type": "mcq",
-      "prompt": "Which is a basic taste relevant to cocktails?",
-      "tags": [
-        "tasting-like-a-pro",
-        "ch1-basics"
-      ],
-      "conceptId": "tasting_like_a_pro.10",
-      "difficulty": 0.19,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "options": [
-        "Sweet",
-        "Spicy",
-        "Crispy",
-        "Smokey"
-      ],
-      "answerIndex": 0
-    },
-    {
-      "id": "ch1-061",
-      "type": "checkbox",
-      "prompt": "Select safe bar practices.",
-      "tags": [
-        "safety-homegame-spirit",
-        "ch1-basics"
-      ],
-      "conceptId": "safety_homegame_spirit.1",
-      "difficulty": 0.1,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "options": [
-        "No glass in ice",
-        "Clean spills quickly",
-        "Label bottles",
-        "Bare-hand garnishing"
-      ],
-      "correct": [
-        "No glass in ice",
-        "Clean spills quickly",
-        "Label bottles"
-      ]
-    },
-    {
-      "id": "ch1-062",
-      "type": "mcq",
-      "prompt": "Legal serving age across Canadian provinces/territories?",
-      "tags": [
-        "safety-homegame-spirit",
-        "ch1-basics"
-      ],
-      "conceptId": "safety_homegame_spirit.2",
-      "difficulty": 0.11,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "options": [
-        "16",
-        "18–19 depending on province/territory",
-        "21",
-        "20"
-      ],
-      "answerIndex": 1
-    },
-    {
-      "id": "ch1-063",
-      "type": "mcq",
-      "prompt": "Which PPE is appropriate when handling cleaning chemicals?",
-      "tags": [
-        "safety-homegame-spirit",
-        "ch1-basics"
-      ],
-      "conceptId": "safety_homegame_spirit.3",
-      "difficulty": 0.12000000000000001,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "options": [
-        "Gloves",
-        "Sunglasses",
-        "Apron only",
-        "None"
-      ],
-      "answerIndex": 0
-    },
-    {
-      "id": "ch1-064",
-      "type": "match",
-      "prompt": "Match hazard to response.",
-      "tags": [
-        "safety-homegame-spirit",
-        "ch1-basics"
-      ],
-      "conceptId": "safety_homegame_spirit.4",
-      "difficulty": 0.13,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "pairs": [
-        {
-          "left": "Broken glass",
-          "right": "Sweep and dispose in sharps bin"
-        },
-        {
-          "left": "Floor spill",
-          "right": "Mop and display wet floor sign"
-        },
-        {
-          "left": "Small fire",
-          "right": "Use appropriate extinguisher"
-        }
-      ]
-    },
-    {
-      "id": "ch1-065",
-      "type": "mcq",
-      "prompt": "Why is proper handwashing non-negotiable?",
-      "tags": [
-        "safety-homegame-spirit",
-        "ch1-basics"
-      ],
-      "conceptId": "safety_homegame_spirit.5",
-      "difficulty": 0.14,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "options": [
-        "Prevents cross-contamination and illness",
-        "Makes hands smell better",
-        "Required by law only",
-        "Saves water"
-      ],
-      "answerIndex": 0
-    },
-    {
-      "id": "ch1-066",
-      "type": "mcq",
-      "prompt": "Visibly intoxicated guest orders another round. Best action?",
-      "tags": [
-        "safety-homegame-spirit",
-        "ch1-basics"
-      ],
-      "conceptId": "safety_homegame_spirit.6",
-      "difficulty": 0.15000000000000002,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "options": [
-        "Serve smaller drink",
-        "Refuse service and offer water/food",
-        "Ignore",
-        "Call police immediately"
-      ],
-      "answerIndex": 1
-    },
-    {
-      "id": "ch1-067",
-      "type": "mcq",
-      "prompt": "Why are closed-toe shoes recommended?",
-      "tags": [
-        "safety-homegame-spirit",
-        "ch1-basics"
-      ],
-      "conceptId": "safety_homegame_spirit.7",
-      "difficulty": 0.16,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "options": [
-        "Fashion",
-        "Safety from drops/spills",
-        "Comfort only",
-        "Policy only"
-      ],
-      "answerIndex": 1
-    },
-    {
-      "id": "ch1-068",
-      "type": "checkbox",
-      "prompt": "Select good non-alcohol alternatives to offer.",
-      "tags": [
-        "safety-homegame-spirit",
-        "ch1-basics"
-      ],
-      "conceptId": "safety_homegame_spirit.8",
-      "difficulty": 0.17,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "options": [
-        "Zero-proof cocktails",
-        "Sparkling water",
-        "Nothing",
-        "Tap water"
-      ],
-      "correct": [
-        "Zero-proof cocktails",
-        "Sparkling water",
-        "Tap water"
-      ]
-    },
-    {
-      "id": "ch1-069",
-      "type": "mcq",
-      "prompt": "What's a way to reduce bar waste?",
-      "tags": [
-        "safety-homegame-spirit",
-        "ch1-basics"
-      ],
-      "conceptId": "safety_homegame_spirit.9",
-      "difficulty": 0.18,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "options": [
-        "Batching where appropriate",
-        "Using more ice",
-        "Making larger drinks",
-        "Throwing everything away"
-      ],
-      "answerIndex": 0
-    },
-    {
-      "id": "ch1-070",
-      "type": "mcq",
-      "prompt": "MSDS stands for:",
-      "tags": [
-        "safety-homegame-spirit",
-        "ch1-basics"
-      ],
-      "conceptId": "safety_homegame_spirit.10",
-      "difficulty": 0.19,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "options": [
-        "Material Safety Data Sheet",
-        "Managed Service Drink Sheet",
-        "Manual Safety Drink Sheet",
-        "Material Supply Data Stat"
-      ],
-      "answerIndex": 0
-    },
-    {
-      "id": "ch1-071",
-      "type": "mcq",
-      "prompt": "Lime juice safe lifespan when refrigerated (best practice)?",
-      "tags": [
-        "fresh-goods-citrus-game",
-        "ch1-basics"
-      ],
-      "conceptId": "fresh_goods_citrus_game.1",
-      "difficulty": 0.1,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "options": [
-        "6–8 hours",
-        "24–48 hours",
-        "3–5 days",
-        "1 week"
-      ],
-      "answerIndex": 1
-    },
-    {
-      "id": "ch1-072",
-      "type": "match",
-      "prompt": "Match fruit to classic cocktail.",
-      "tags": [
-        "fresh-goods-citrus-game",
-        "ch1-basics"
-      ],
-      "conceptId": "fresh_goods_citrus_game.2",
-      "difficulty": 0.11,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "pairs": [
-        {
-          "left": "Lime",
-          "right": "Margarita or Daiquiri"
-        },
-        {
-          "left": "Lemon",
-          "right": "Whiskey Sour"
-        },
-        {
-          "left": "Orange",
-          "right": "Old Fashioned (twist)"
-        },
-        {
-          "left": "Grapefruit",
-          "right": "Paloma"
-        }
-      ]
-    },
-    {
-      "id": "ch1-073",
-      "type": "mcq",
-      "prompt": "Best way to store tender herbs for service?",
-      "tags": [
-        "fresh-goods-citrus-game",
-        "ch1-basics"
-      ],
-      "conceptId": "fresh_goods_citrus_game.3",
-      "difficulty": 0.12000000000000001,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "options": [
-        "Wrapped warm",
-        "Upright in cold water, loosely covered",
-        "In sealed hot bag",
-        "On cutting board"
-      ],
-      "answerIndex": 1
-    },
-    {
-      "id": "ch1-074",
-      "type": "checkbox",
-      "prompt": "Select citrus tools.",
-      "tags": [
-        "fresh-goods-citrus-game",
-        "ch1-basics"
-      ],
-      "conceptId": "fresh_goods_citrus_game.4",
-      "difficulty": 0.13,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "options": [
-        "Channel knife/peeler",
-        "Microplane/zester",
-        "Hand juicer",
-        "Paring knife"
-      ],
-      "correct": [
-        "Channel knife/peeler",
-        "Microplane/zester",
-        "Hand juicer",
-        "Paring knife"
-      ]
-    },
-    {
-      "id": "ch1-075",
-      "type": "mcq",
-      "prompt": "Why double-strain fresh-juice cocktails?",
-      "tags": [
-        "fresh-goods-citrus-game",
-        "ch1-basics"
-      ],
-      "conceptId": "fresh_goods_citrus_game.5",
-      "difficulty": 0.14,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "options": [
-        "Remove pulp/ice chips for smoother texture",
-        "Add more alcohol",
-        "Make it colder",
-        "Change the color"
-      ],
-      "answerIndex": 0
-    },
-    {
-      "id": "ch1-076",
-      "type": "mcq",
-      "prompt": "You spot oxidized (browned) lime juice in prep. Action?",
-      "tags": [
-        "fresh-goods-citrus-game",
-        "ch1-basics"
-      ],
-      "conceptId": "fresh_goods_citrus_game.6",
-      "difficulty": 0.15000000000000002,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "options": [
-        "Use it quickly",
-        "Discard and re-juice",
-        "Add sugar",
-        "Mask with bitters"
-      ],
-      "answerIndex": 1
-    },
-    {
-      "id": "ch1-077",
-      "type": "mcq",
-      "prompt": "Which component adds aroma more than juice?",
-      "tags": [
-        "fresh-goods-citrus-game",
-        "ch1-basics"
-      ],
-      "conceptId": "fresh_goods_citrus_game.7",
-      "difficulty": 0.16,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "options": [
-        "Citrus zest",
-        "Citrus wedges",
-        "Simple syrup",
-        "Soda"
-      ],
-      "answerIndex": 0
-    },
-    {
-      "id": "ch1-078",
-      "type": "order",
-      "prompt": "Put prep steps in order.",
-      "tags": [
-        "fresh-goods-citrus-game",
-        "ch1-basics"
-      ],
-      "conceptId": "fresh_goods_citrus_game.8",
-      "difficulty": 0.17,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "orderTarget": [
-        "Wash fruit",
-        "Cut",
-        "Juice",
-        "Label and date"
-      ]
-    },
-    {
-      "id": "ch1-079",
-      "type": "mcq",
-      "prompt": "What does acidity do in a cocktail?",
-      "tags": [
-        "fresh-goods-citrus-game",
-        "ch1-basics"
-      ],
-      "conceptId": "fresh_goods_citrus_game.9",
-      "difficulty": 0.18,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "options": [
-        "Overpowers alcohol",
-        "Balances sweetness and brightens flavors",
-        "Adds bitterness",
-        "Adds body"
-      ],
-      "answerIndex": 1
-    },
-    {
-      "id": "ch1-080",
-      "type": "mcq",
-      "prompt": "What's a sign that fruit is spoiled?",
-      "tags": [
-        "fresh-goods-citrus-game",
-        "ch1-basics"
-      ],
-      "conceptId": "fresh_goods_citrus_game.10",
-      "difficulty": 0.19,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "options": [
-        "Soft/mushy spots or mold",
-        "Bright color",
-        "Firm texture",
-        "Fresh smell"
-      ],
-      "answerIndex": 0
-    },
-    {
-      "id": "ch1-081",
-      "type": "mcq",
-      "prompt": "Tool for straining a shaken cocktail?",
-      "tags": [
-        "equipment-mastery",
-        "ch1-basics"
-      ],
-      "conceptId": "equipment_mastery.1",
-      "difficulty": 0.1,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "options": [
-        "Julep strainer",
-        "Hawthorne strainer",
-        "Fine chinois only",
-        "No strainer"
-      ],
-      "answerIndex": 1
-    },
-    {
-      "id": "ch1-082",
-      "type": "mcq",
-      "prompt": "Purpose of a bar spoon?",
-      "tags": [
-        "equipment-mastery",
-        "ch1-basics"
-      ],
-      "conceptId": "equipment_mastery.2",
-      "difficulty": 0.11,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "options": [
-        "Stir mixed drinks and layer",
-        "Crush herbs",
-        "Measure",
-        "Zest citrus"
-      ],
-      "answerIndex": 0
-    },
-    {
-      "id": "ch1-083",
-      "type": "match",
-      "prompt": "Match tool to function.",
-      "tags": [
-        "equipment-mastery",
-        "ch1-basics"
-      ],
-      "conceptId": "equipment_mastery.3",
-      "difficulty": 0.12000000000000001,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "pairs": [
-        {
-          "left": "Jigger",
-          "right": "Measure spirits accurately"
-        },
-        {
-          "left": "Muddler",
-          "right": "Crush fruit/herbs"
-        },
-        {
-          "left": "Tongs",
-          "right": "Handle ice hygienically"
-        },
-        {
-          "left": "Shaker (tin-on-tin)",
-          "right": "Mix and chill quickly"
-        }
-      ]
-    },
-    {
-      "id": "ch1-084",
-      "type": "checkbox",
-      "prompt": "Select shaking setup components.",
-      "tags": [
-        "equipment-mastery",
-        "ch1-basics"
-      ],
-      "conceptId": "equipment_mastery.4",
-      "difficulty": 0.13,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "options": [
-        "Tin",
-        "Strainer",
-        "Jigger",
-        "Mixing glass"
-      ],
-      "correct": [
-        "Tin",
-        "Strainer",
-        "Jigger"
-      ]
-    },
-    {
-      "id": "ch1-085",
-      "type": "mcq",
-      "prompt": "Why do many pros prefer double-tin shakers?",
-      "tags": [
-        "equipment-mastery",
-        "ch1-basics"
-      ],
-      "conceptId": "equipment_mastery.5",
-      "difficulty": 0.14,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "options": [
-        "Secure seal and fast chilling with large surface area",
-        "They're cheaper",
-        "They look better",
-        "They're easier to clean"
-      ],
-      "answerIndex": 0
-    },
-    {
-      "id": "ch1-086",
-      "type": "mcq",
-      "prompt": "Your Hawthorne spring pops off mid-shift. Immediate solution?",
-      "tags": [
-        "equipment-mastery",
-        "ch1-basics"
-      ],
-      "conceptId": "equipment_mastery.6",
-      "difficulty": 0.15000000000000002,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "options": [
-        "Use fine strainer as backup",
-        "Stop service",
-        "Shake without straining",
-        "Serve unstrained"
-      ],
-      "answerIndex": 0
-    },
-    {
-      "id": "ch1-087",
-      "type": "mcq",
-      "prompt": "Which tool helps layer a float neatly?",
-      "tags": [
-        "equipment-mastery",
-        "ch1-basics"
-      ],
-      "conceptId": "equipment_mastery.7",
-      "difficulty": 0.16,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "options": [
-        "Paring knife",
-        "Bar spoon",
-        "Peeler",
-        "Muddler"
-      ],
-      "answerIndex": 1
-    },
-    {
-      "id": "ch1-088",
-      "type": "order",
-      "prompt": "Steps to shake a cocktail properly.",
-      "tags": [
-        "equipment-mastery",
-        "ch1-basics"
-      ],
-      "conceptId": "equipment_mastery.8",
-      "difficulty": 0.17,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "orderTarget": [
-        "Add ice",
-        "Seal tins",
-        "Shake vigorously 8–12 seconds",
-        "Unseal",
-        "Strain"
-      ]
-    },
-    {
-      "id": "ch1-089",
-      "type": "mcq",
-      "prompt": "Safest knife grip for garnish prep?",
-      "tags": [
-        "equipment-mastery",
-        "ch1-basics"
-      ],
-      "conceptId": "equipment_mastery.9",
-      "difficulty": 0.18,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "options": [
-        "Pinch grip",
-        "Hammer grip",
-        "Tip grip",
-        "Loose grip"
-      ],
-      "answerIndex": 0
-    },
-    {
-      "id": "ch1-090",
-      "type": "mcq",
-      "prompt": "What's a non-negotiable tool for speed bartending?",
-      "tags": [
-        "equipment-mastery",
-        "ch1-basics"
-      ],
-      "conceptId": "equipment_mastery.10",
-      "difficulty": 0.19,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "options": [
-        "Jigger",
-        "Blender",
-        "Muddler",
-        "Channel knife"
-      ],
-      "answerIndex": 0
-    },
-    {
-      "id": "ch1-091",
-      "type": "mcq",
-      "prompt": "Guest wants a low-sugar, refreshing option.",
-      "tags": [
-        "checkpoint-basics-mixoff",
-        "ch1-basics"
-      ],
-      "conceptId": "checkpoint_basics_mixoff.1",
-      "difficulty": 0.1,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "options": [
-        "Skinny Margarita",
-        "Mojito highball with soda",
-        "Espresso Martini",
-        "White Russian"
-      ],
-      "answerIndex": 1
-    },
-    {
-      "id": "ch1-092",
-      "type": "mcq",
-      "prompt": "Which ingredient should you pour first in a new build?",
-      "tags": [
-        "checkpoint-basics-mixoff",
-        "ch1-basics"
-      ],
-      "conceptId": "checkpoint_basics_mixoff.2",
-      "difficulty": 0.11,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "options": [
-        "Base spirit",
-        "Cheapest ingredient",
-        "Bitters",
-        "Ice"
-      ],
-      "answerIndex": 1
-    },
-    {
-      "id": "ch1-093",
-      "type": "mcq",
-      "prompt": "What's the golden ratio for many sour-style cocktails?",
-      "tags": [
-        "checkpoint-basics-mixoff",
-        "ch1-basics"
-      ],
-      "conceptId": "checkpoint_basics_mixoff.3",
-      "difficulty": 0.12000000000000001,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "options": [
-        "2:1:1 (Spirit:Citrus:Sweet)",
-        "1:1:1",
-        "3:1:1",
-        "1:2:1"
-      ],
-      "answerIndex": 0
-    },
-    {
-      "id": "ch1-094",
-      "type": "mcq",
-      "prompt": "What indicates a balanced cocktail?",
-      "tags": [
-        "checkpoint-basics-mixoff",
-        "ch1-basics"
-      ],
-      "conceptId": "checkpoint_basics_mixoff.4",
-      "difficulty": 0.13,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "options": [
-        "Dominant sweetness",
-        "No element dominates; sweet, sour, strong in harmony",
-        "Only alcohol taste",
-        "Only citrus taste"
-      ],
-      "answerIndex": 1
-    },
-    {
-      "id": "ch1-095",
-      "type": "match",
-      "prompt": "Match style to example.",
-      "tags": [
-        "checkpoint-basics-mixoff",
-        "ch1-basics"
-      ],
-      "conceptId": "checkpoint_basics_mixoff.5",
-      "difficulty": 0.14,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "pairs": [
-        {
-          "left": "Sour",
-          "right": "Daiquiri"
-        },
-        {
-          "left": "Spirit-forward",
-          "right": "Negroni"
-        },
-        {
-          "left": "Fizz/Collins",
-          "right": "Tom Collins"
-        }
-      ]
-    },
-    {
-      "id": "ch1-096",
-      "type": "checkbox",
-      "prompt": "Select stirred classics.",
-      "tags": [
-        "checkpoint-basics-mixoff",
-        "ch1-basics"
-      ],
-      "conceptId": "checkpoint_basics_mixoff.6",
-      "difficulty": 0.15000000000000002,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "options": [
-        "Negroni",
-        "Old Fashioned",
-        "Daiquiri",
-        "Whiskey Sour"
-      ],
-      "correct": [
-        "Negroni",
-        "Old Fashioned"
-      ]
-    },
-    {
-      "id": "ch1-097",
-      "type": "order",
-      "prompt": "Typical build sequence for a shaken sour.",
-      "tags": [
-        "checkpoint-basics-mixoff",
-        "ch1-basics"
-      ],
-      "conceptId": "checkpoint_basics_mixoff.7",
-      "difficulty": 0.16,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "orderTarget": [
-        "Base spirit",
-        "Modifier/liqueur",
-        "Sweetener",
-        "Citrus",
-        "Ice",
-        "Shake"
-      ]
-    },
-    {
-      "id": "ch1-098",
-      "type": "mcq",
-      "prompt": "Ideal shake time for a standard sour?",
-      "tags": [
-        "checkpoint-basics-mixoff",
-        "ch1-basics"
-      ],
-      "conceptId": "checkpoint_basics_mixoff.8",
-      "difficulty": 0.17,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "options": [
-        "3–5 seconds",
-        "8–12 seconds",
-        "20 seconds",
-        "30+ seconds"
-      ],
-      "answerIndex": 1
-    },
-    {
-      "id": "ch1-099",
-      "type": "mcq",
-      "prompt": "Judge asks for one presentation tip.",
-      "tags": [
-        "checkpoint-basics-mixoff",
-        "ch1-basics"
-      ],
-      "conceptId": "checkpoint_basics_mixoff.9",
-      "difficulty": 0.18,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "options": [
-        "Keep glassware pristine; garnish intentional",
-        "Add more syrup",
-        "Oversized garnish",
-        "Serve warmer"
-      ],
-      "answerIndex": 0
-    },
-    {
-      "id": "ch1-100",
-      "type": "mcq",
-      "prompt": "What's a sign a drink is perfectly balanced?",
-      "tags": [
-        "checkpoint-basics-mixoff",
-        "ch1-basics"
-      ],
-      "conceptId": "checkpoint_basics_mixoff.10",
-      "difficulty": 0.19,
-      "xpAward": 10,
-      "reviewWeight": 0.7,
-      "options": [
-        "No harsh burn and clean finish",
-        "Very strong alcohol taste",
-        "Overly sweet",
-        "Sour and bitter"
-      ],
-      "answerIndex": 0
     }
   ]
 }

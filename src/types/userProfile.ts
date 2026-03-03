@@ -156,6 +156,20 @@ export interface RecipeInteraction {
   timestamp: Date;
   rating?: number; // 1-5 stars
   feedback?: 'loved' | 'liked' | 'disliked' | 'skipped';
+  completionId?: string;
+  completionDetails?: RecipeCompletionDetails;
+}
+
+export interface RecipeCompletionDetails {
+  ingredientBrands?: Array<{
+    ingredient: string;
+    amount?: string;
+    brandUsed: string;
+  }>;
+  substitutions?: string;
+  techniqueVariations?: string;
+  personalModifications?: string;
+  notes?: string;
 }
 
 // Helper function to calculate ABV range from alcohol preference

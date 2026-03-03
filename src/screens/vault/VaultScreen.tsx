@@ -26,7 +26,7 @@ import { useAICredits } from '../../store/useAICredits';
 import { useXPSystem } from '../../store/useXPSystem';
 import { currentVaultCycle, getVaultCountdown } from '../../data/vaultData';
 import XPBalanceModal from '../../components/XPBalanceModal';
-import PillButton from '../../components/PillButton';
+import InPageTabBar from '../../components/ui/InPageTabBar';
 import VaultUnlockModal from './components/VaultUnlockModal';
 import VaultItemCard from './components/VaultItemCard';
 import VaultItemPreviewModal from './components/VaultItemPreviewModal';
@@ -262,25 +262,14 @@ export default function VaultScreen() {
       </View>
 
       {/* Filter Tabs */}
-      <ScrollView 
-        horizontal 
-        showsHorizontalScrollIndicator={false}
-        style={styles.tabsScrollView}
-        contentContainerStyle={styles.tabsContainer}
-      >
-        {tabs.map((tab) => {
-          const isActive = selectedTab === tab.key;
-          return (
-            <PillButton
-              key={tab.key}
-              title={tab.label}
-              onPress={() => setSelectedTab(tab.key)}
-              style={!isActive ? { backgroundColor: 'transparent', borderWidth: 1, borderColor: colors.line } : undefined}
-              textStyle={{ color: isActive ? colors.pillTextOnLight : colors.text }}
-            />
-          );
-        })}
-      </ScrollView>
+      <View style={styles.tabsContainer}>
+        <InPageTabBar
+          items={tabs}
+          activeKey={selectedTab}
+          onChange={setSelectedTab}
+          scrollable
+        />
+      </View>
     </View>
   );
 

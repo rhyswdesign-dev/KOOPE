@@ -110,7 +110,7 @@ export class GoogleVisionService {
   private static async convertImageToBase64(imageUri: string): Promise<string> {
     try {
       const base64 = await FileSystem.readAsStringAsync(imageUri, {
-        encoding: FileSystem.EncodingType.Base64,
+        encoding: 'base64' as any,
       });
       return base64;
     } catch (error) {
@@ -288,70 +288,88 @@ export class GoogleVisionService {
     category: string;
     confidence: number;
   } | null {
-    const allText = (result.text || []).join(' ').toUpperCase();
+    const matches = this.matchIngredients(result, 1);
+    return matches.length > 0 ? matches[0] : null;
+  }
+
+  /**
+   * Match multiple ingredients from vision results.
+   * Useful when one photo contains several items (e.g. lemon + mint + cucumber).
+   */
+  static matchIngredients(
+    result: VisionResult,
+    maxResults: number = 6
+  ): Array<{
+    name: string;
+    category: string;
+    confidence: number;
+  }> {
+    const allText = (result.text || []).join(' ').toLowerCase();
     const allLabels = result.labels.join(' ').toLowerCase();
 
-    log.info('GoogleVisionService', 'Matching ingredient', {
+    log.info('GoogleVisionService', 'Matching multiple ingredients', {
       textLength: allText.length,
       labelsCount: result.labels.length,
       confidence: result.confidence,
+      maxResults,
     });
 
-    // Low confidence check
     if (result.confidence < 0.3) {
       log.warn('GoogleVisionService', 'Confidence too low for ingredient matching', {
         confidence: result.confidence,
       });
-      return null;
+      return [];
     }
 
-    // Common cocktail ingredients by category
-    const ingredients = {
+    const ingredients: Record<string, string[]> = {
       citrus: ['lemon', 'lime', 'orange', 'grapefruit', 'yuzu', 'bergamot'],
       herbs: ['mint', 'basil', 'rosemary', 'thyme', 'sage', 'cilantro', 'parsley'],
       fruits: ['strawberry', 'raspberry', 'blackberry', 'blueberry', 'cherry', 'pineapple', 'mango', 'watermelon', 'apple', 'pear', 'peach'],
       vegetables: ['cucumber', 'celery', 'tomato', 'pepper', 'jalapeño', 'ginger'],
-      garnishes: ['olive', 'cherry', 'orange peel', 'lemon peel', 'lime wheel', 'mint sprig'],
-      spices: ['cinnamon', 'nutmeg', 'clove', 'cardamom', 'vanilla', 'pepper'],
+      garnishes: ['olive', 'orange peel', 'lemon peel', 'lime wheel', 'mint sprig'],
+      spices: ['cinnamon', 'nutmeg', 'clove', 'cardamom', 'vanilla'],
       sweeteners: ['sugar', 'honey', 'agave', 'syrup', 'simple syrup'],
     };
 
-    // Try to identify ingredient from labels
+    const scoredMatches: Array<{ name: string; category: string; score: number }> = [];
     for (const [category, ingredientList] of Object.entries(ingredients)) {
       for (const ingredient of ingredientList) {
-        // Check both labels and text
-        if (allLabels.includes(ingredient) || allText.includes(ingredient.toUpperCase())) {
-          log.info('GoogleVisionService', 'Ingredient matched', {
-            name: ingredient,
-            category,
-            confidence: result.confidence,
-          });
-
-          return {
-            name: ingredient.charAt(0).toUpperCase() + ingredient.slice(1),
-            category: category.charAt(0).toUpperCase() + category.slice(1),
-            confidence: result.confidence,
-          };
+        let score = 0;
+        if (allLabels.includes(ingredient)) score += 2;
+        if (allText.includes(ingredient)) score += 1;
+        if (score > 0) {
+          scoredMatches.push({ name: ingredient, category, score });
         }
       }
     }
 
-    // If no specific ingredient matched, try generic categories from labels
-    if (allLabels.includes('fruit')) {
-      return { name: 'Fruit', category: 'Fruits', confidence: result.confidence };
-    }
-    if (allLabels.includes('herb') || allLabels.includes('plant')) {
-      return { name: 'Herb', category: 'Herbs', confidence: result.confidence };
-    }
-    if (allLabels.includes('vegetable')) {
-      return { name: 'Vegetable', category: 'Vegetables', confidence: result.confidence };
-    }
-    if (allLabels.includes('citrus')) {
-      return { name: 'Citrus', category: 'Citrus', confidence: result.confidence };
+    const deduped = new Map<string, { name: string; category: string; score: number }>();
+    for (const match of scoredMatches) {
+      const key = match.name.toLowerCase();
+      const existing = deduped.get(key);
+      if (!existing || match.score > existing.score) {
+        deduped.set(key, match);
+      }
     }
 
-    log.warn('GoogleVisionService', 'Could not match ingredient from results');
-    return null;
+    const topMatches = Array.from(deduped.values())
+      .sort((a, b) => b.score - a.score)
+      .slice(0, Math.max(1, maxResults));
+
+    if (topMatches.length === 0) {
+      if (allLabels.includes('fruit')) return [{ name: 'Fruit', category: 'Fruits', confidence: result.confidence }];
+      if (allLabels.includes('herb') || allLabels.includes('plant')) return [{ name: 'Herb', category: 'Herbs', confidence: result.confidence }];
+      if (allLabels.includes('vegetable')) return [{ name: 'Vegetable', category: 'Vegetables', confidence: result.confidence }];
+      if (allLabels.includes('citrus')) return [{ name: 'Citrus', category: 'Citrus', confidence: result.confidence }];
+      log.warn('GoogleVisionService', 'Could not match ingredients from results');
+      return [];
+    }
+
+    return topMatches.map((match) => ({
+      name: match.name.charAt(0).toUpperCase() + match.name.slice(1),
+      category: match.category.charAt(0).toUpperCase() + match.category.slice(1),
+      confidence: Math.min(0.99, result.confidence * (0.75 + 0.1 * match.score)),
+    }));
   }
 
   /**

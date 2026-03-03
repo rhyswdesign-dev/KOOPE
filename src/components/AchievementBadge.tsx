@@ -8,7 +8,7 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, radii, fonts } from '../theme/tokens';
+import { colors, spacing, radii, textStyles } from '../theme/tokens';
 import { Achievement } from '../services/achievementServiceSupabase';
 
 interface AchievementBadgeProps {
@@ -36,7 +36,7 @@ export const AchievementBadge: React.FC<AchievementBadgeProps> = React.memo(({
   const rarityColor = useMemo(() => {
     switch (achievement.rarity) {
       case 'common':
-        return colors.text.secondary;
+        return colors.subtext;
       case 'rare':
         return '#3B82F6'; // Blue
       case 'epic':
@@ -44,7 +44,7 @@ export const AchievementBadge: React.FC<AchievementBadgeProps> = React.memo(({
       case 'legendary':
         return '#F59E0B'; // Gold
       default:
-        return colors.text.secondary;
+        return colors.subtext;
     }
   }, [achievement.rarity]);
 
@@ -97,7 +97,7 @@ export const AchievementBadge: React.FC<AchievementBadgeProps> = React.memo(({
         <Ionicons
           name={achievement.badgeIcon as any || achievement.icon as any}
           size={sizeStyles.icon}
-          color={isCompleted ? rarityColor : colors.text.disabled}
+          color={isCompleted ? rarityColor : colors.muted}
         />
       </View>
 
@@ -175,18 +175,18 @@ const styles = StyleSheet.create({
   containerSmall: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: spacing.sm,
-    gap: spacing.sm,
+    padding: spacing(1),
+    gap: spacing(1),
   },
 
   containerMedium: {
-    padding: spacing.md,
-    gap: spacing.md,
+    padding: spacing(2),
+    gap: spacing(2),
   },
 
   containerLarge: {
-    padding: spacing.lg,
-    gap: spacing.lg,
+    padding: spacing(3),
+    gap: spacing(3),
   },
 
   containerCompleted: {
@@ -201,8 +201,8 @@ const styles = StyleSheet.create({
   iconContainer: {
     alignSelf: 'center',
     borderRadius: radii.full,
-    padding: spacing.md,
-    backgroundColor: colors.background.default,
+    padding: spacing(2),
+    backgroundColor: colors.card,
   },
 
   iconContainerLocked: {
@@ -211,13 +211,13 @@ const styles = StyleSheet.create({
 
   info: {
     flex: 1,
-    gap: spacing.xs,
+    gap: spacing(0.5),
   },
 
   title: {
-    ...fonts.body,
+    ...textStyles.body,
     fontWeight: '700',
-    color: colors.text.primary,
+    color: colors.text,
   },
 
   titleSmall: {
@@ -233,12 +233,12 @@ const styles = StyleSheet.create({
   },
 
   titleLocked: {
-    color: colors.text.disabled,
+    color: colors.muted,
   },
 
   description: {
-    ...fonts.body,
-    color: colors.text.secondary,
+    ...textStyles.body,
+    color: colors.subtext,
   },
 
   descriptionSmall: {
@@ -254,20 +254,20 @@ const styles = StyleSheet.create({
   },
 
   descriptionLocked: {
-    color: colors.text.disabled,
+    color: colors.muted,
   },
 
   progressContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
-    marginTop: spacing.xs,
+    gap: spacing(1),
+    marginTop: spacing(0.5),
   },
 
   progressBar: {
     flex: 1,
     height: 6,
-    backgroundColor: colors.background.default,
+    backgroundColor: colors.card,
     borderRadius: radii.sm,
     overflow: 'hidden',
   },
@@ -279,21 +279,21 @@ const styles = StyleSheet.create({
   },
 
   progressText: {
-    ...fonts.caption,
+    ...textStyles.caption,
     fontSize: 11,
-    color: colors.text.secondary,
+    color: colors.subtext,
     fontWeight: '600',
   },
 
   rewardContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xs,
-    marginTop: spacing.xs,
+    gap: spacing(0.5),
+    marginTop: spacing(0.5),
   },
 
   rewardText: {
-    ...fonts.caption,
+    ...textStyles.caption,
     fontSize: 12,
     color: colors.accent,
     fontWeight: '700',
@@ -301,8 +301,8 @@ const styles = StyleSheet.create({
 
   completedBadge: {
     position: 'absolute',
-    top: spacing.sm,
-    right: spacing.sm,
+    top: spacing(1),
+    right: spacing(1),
     width: 28,
     height: 28,
     borderRadius: radii.full,

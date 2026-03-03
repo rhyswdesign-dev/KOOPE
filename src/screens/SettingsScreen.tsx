@@ -1,7 +1,7 @@
 import React, { useState, useLayoutEffect } from 'react';
 import {
   View, Text, ScrollView, Pressable, StyleSheet, Alert,
-  TouchableOpacity, Switch, Platform
+  TouchableOpacity, Switch, Platform, Linking
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -47,7 +47,6 @@ export default function SettingsScreen() {
       headerTintColor: colors.text,
       headerTitleStyle: { color: colors.text, fontWeight: '900' },
       headerShadowVisible: false,
-      headerLeft: () => null,
     });
   }, [nav]);
 
@@ -57,10 +56,6 @@ export default function SettingsScreen() {
 
   const handleHelpSupport = () => {
     nav.navigate('HelpSupport');
-  };
-
-  const handleMapsDemo = () => {
-    nav.navigate('MapsDemo');
   };
 
   const handleAccountInfo = () => {
@@ -128,6 +123,28 @@ export default function SettingsScreen() {
         },
       ]
     );
+  };
+
+  const handlePrivacySettings = () => {
+    nav.navigate('PrivacyPolicy');
+  };
+
+  const handleRateApp = async () => {
+    const reviewUrl = Platform.select({
+      ios: process.env.EXPO_PUBLIC_APP_STORE_REVIEW_URL || '',
+      android: process.env.EXPO_PUBLIC_PLAY_STORE_REVIEW_URL || '',
+      default: '',
+    });
+
+    if (reviewUrl) {
+      const canOpen = await Linking.canOpenURL(reviewUrl);
+      if (canOpen) {
+        await Linking.openURL(reviewUrl);
+        return;
+      }
+    }
+
+    nav.navigate('Feedback');
   };
 
   return (
@@ -226,6 +243,21 @@ export default function SettingsScreen() {
 
             <TouchableOpacity
               style={styles.settingItem}
+              onPress={() => nav.navigate('Tutorials')}
+              activeOpacity={0.7}
+            >
+              <View style={styles.settingItemLeft}>
+                <Ionicons name="play-circle-outline" size={22} color={colors.accent} />
+                <Text style={styles.settingItemText}>Tutorials</Text>
+              </View>
+              <View style={styles.settingItemRight}>
+                <Text style={styles.settingItemBadge}>Replay App Tours</Text>
+                <Ionicons name="chevron-forward" size={20} color={colors.subtext} />
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.settingItem}
               onPress={() => nav.navigate('NotificationCenter')}
               activeOpacity={0.7}
             >
@@ -313,7 +345,7 @@ export default function SettingsScreen() {
               <>
                 <TouchableOpacity
                   style={styles.settingItem}
-                  onPress={() => log.info('SettingsScreen', 'Privacy Settings pressed')}
+                  onPress={handlePrivacySettings}
                   activeOpacity={0.7}
                 >
                   <View style={styles.settingItemLeft}>
@@ -378,7 +410,7 @@ export default function SettingsScreen() {
 
                 <TouchableOpacity
                   style={styles.settingItem}
-                  onPress={() => log.info('SettingsScreen', 'Rate App pressed')}
+                  onPress={handleRateApp}
                   activeOpacity={0.7}
                 >
                   <View style={styles.settingItemLeft}>

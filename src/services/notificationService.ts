@@ -19,8 +19,6 @@ export type NotificationType =
   | 'vault_item_available'
   | 'xp_milestone'
   | 'streak_reminder'
-  | 'social_follow'
-  | 'social_like'
   | 'event_reminder'
   | 'daily_challenge'
   | 'hearts_refilled';
@@ -42,7 +40,6 @@ export interface NotificationPreferences {
   enabled: boolean;
   lessons: boolean;
   vault: boolean;
-  social: boolean;
   events: boolean;
   marketing: boolean;
   quietHours: {
@@ -64,7 +61,6 @@ const DEFAULT_PREFERENCES: NotificationPreferences = {
   enabled: true,
   lessons: true,
   vault: true,
-  social: true,
   events: true,
   marketing: false,
   quietHours: {

@@ -9,13 +9,20 @@ const openai = new OpenAI({
 // Vision model configuration
 const VISION_MODEL = 'gpt-4-vision-preview';
 
-// Development mode check - improved validation
-const isDevelopmentMode = () => {
+const hasValidOpenAIKey = () => {
   const apiKey = process.env.EXPO_PUBLIC_OPENAI_API_KEY;
-  return !apiKey ||
-         apiKey === 'your-openai-api-key-here' ||
-         apiKey === 'dev-key' ||
-         !isValidApiKey(apiKey);
+  return !!apiKey &&
+    apiKey !== 'your-openai-api-key-here' &&
+    apiKey !== 'dev-key' &&
+    isValidApiKey(apiKey);
+};
+
+// Mock mode is allowed only in non-production by default, or via explicit env override.
+const shouldUseMockAI = () => {
+  const override = process.env.EXPO_PUBLIC_AI_ALLOW_MOCKS;
+  if (override === 'true') return true;
+  if (override === 'false') return false;
+  return process.env.NODE_ENV !== 'production';
 };
 
 // Validate API key format
@@ -80,9 +87,9 @@ export class AIRecipeFormatter {
     const openAIKey = process.env.EXPO_PUBLIC_OPENAI_API_KEY;
     const googleCloudKey = process.env.EXPO_PUBLIC_GOOGLE_CLOUD_API_KEY;
 
-    const openAIValid = openAIKey && isValidApiKey(openAIKey);
+    const openAIValid = hasValidOpenAIKey();
     const googleCloudValid = googleCloudKey && googleCloudKey !== 'your-google-cloud-api-key-here';
-    const inDevelopmentMode = isDevelopmentMode();
+    const inDevelopmentMode = shouldUseMockAI();
 
     return {
       openAI: !!openAIValid,
@@ -137,7 +144,11 @@ export class AIRecipeFormatter {
       log.info('AIRecipeFormatter', 'Auto-detected recipe type', { detectedType });
 
       // Check if we're in development mode
-      if (isDevelopmentMode()) {
+      if (!hasValidOpenAIKey()) {
+        if (!shouldUseMockAI()) {
+          throw new Error('AI recipe extraction is not configured for production. Set EXPO_PUBLIC_OPENAI_API_KEY.');
+        }
+
         log.debug('AIRecipeFormatter', 'Development mode: Using mock AI response');
         log.debug('AIRecipeFormatter', 'Setup instructions', { instructions: getSetupInstructions() });
         await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate API delay
@@ -205,7 +216,11 @@ export class AIRecipeFormatter {
       log.info('AIRecipeFormatter', 'Starting recipe image analysis', { imageUrl });
 
       // Check if we're in development mode
-      if (isDevelopmentMode()) {
+      if (!hasValidOpenAIKey()) {
+        if (!shouldUseMockAI()) {
+          throw new Error('AI image analysis is not configured for production. Set EXPO_PUBLIC_OPENAI_API_KEY.');
+        }
+
         log.debug('AIRecipeFormatter', 'Development mode: Using mock vision analysis');
         log.debug('AIRecipeFormatter', 'Setup instructions', { instructions: getSetupInstructions() });
         await new Promise(resolve => setTimeout(resolve, 3000)); // Simulate processing delay
@@ -314,7 +329,11 @@ Please extract all visible recipe information from the image. If you can see mul
       const { OCRService } = await import('./ocrService');
 
       // For development mode, return mock response
-      if (isDevelopmentMode()) {
+      if (!hasValidOpenAIKey()) {
+        if (!shouldUseMockAI()) {
+          throw new Error('AI OCR fallback is not configured for production. Set EXPO_PUBLIC_OPENAI_API_KEY.');
+        }
+
         log.debug('AIRecipeFormatter', 'Development mode: Using mock OCR response');
         await new Promise(resolve => setTimeout(resolve, 1500));
         return "2 oz gin, 1 oz fresh lime juice, 3/4 oz simple syrup, mint leaves. Muddle mint, add other ingredients, shake with ice, strain over crushed ice.";

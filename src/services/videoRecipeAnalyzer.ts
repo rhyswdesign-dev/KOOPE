@@ -7,13 +7,19 @@ const openai = new OpenAI({
   apiKey: process.env.EXPO_PUBLIC_OPENAI_API_KEY || 'dev-key',
 });
 
-// Development mode check
-const isDevelopmentMode = () => {
+const hasValidOpenAIKey = () => {
   const apiKey = process.env.EXPO_PUBLIC_OPENAI_API_KEY;
-  return !apiKey ||
-         apiKey === 'your-openai-api-key' ||
-         apiKey === 'dev-key' ||
-         !apiKey.startsWith('sk-');
+  return !!apiKey &&
+    apiKey !== 'your-openai-api-key' &&
+    apiKey !== 'dev-key' &&
+    apiKey.startsWith('sk-');
+};
+
+const shouldUseMockAI = () => {
+  const override = process.env.EXPO_PUBLIC_AI_ALLOW_MOCKS;
+  if (override === 'true') return true;
+  if (override === 'false') return false;
+  return process.env.NODE_ENV !== 'production';
 };
 
 export interface VideoAnalysisResult {
@@ -43,7 +49,11 @@ export class VideoRecipeAnalyzer {
     try {
       log.info('VideoRecipeAnalyzer', 'Starting video recipe analysis', { title: input.title });
 
-      if (isDevelopmentMode()) {
+      if (!hasValidOpenAIKey()) {
+        if (!shouldUseMockAI()) {
+          throw new Error('Video recipe analysis is not configured for production. Set EXPO_PUBLIC_OPENAI_API_KEY.');
+        }
+
         log.debug('VideoRecipeAnalyzer', 'Development mode: Using mock video analysis', { input });
         await new Promise(resolve => setTimeout(resolve, 3000)); // Simulate processing
         return this.getMockVideoRecipeAnalysis(input);
@@ -84,7 +94,11 @@ export class VideoRecipeAnalyzer {
     try {
       log.debug('VideoRecipeAnalyzer', 'Extracting key frames from video', { duration: input.duration });
 
-      if (isDevelopmentMode()) {
+      if (!hasValidOpenAIKey()) {
+        if (!shouldUseMockAI()) {
+          throw new Error('Video transcription is not configured for production. Set EXPO_PUBLIC_OPENAI_API_KEY.');
+        }
+
         // Return mock base64 image data
         return [
           'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj...',
@@ -109,7 +123,11 @@ export class VideoRecipeAnalyzer {
     try {
       log.debug('VideoRecipeAnalyzer', 'Extracting audio transcript', { hasVideoFile: !!input.videoFile });
 
-      if (isDevelopmentMode()) {
+      if (!hasValidOpenAIKey()) {
+        if (!shouldUseMockAI()) {
+          throw new Error('Video transcription is not configured for production. Set EXPO_PUBLIC_OPENAI_API_KEY.');
+        }
+
         // Return mock transcript based on video type
         if (input.title?.toLowerCase().includes('margarita')) {
           return `Alright, so today I'm making my famous mango passion margarita. First, you want to start with 2 ounces of high-quality tequila blanco. Then we're going to add one ounce of fresh lime juice - and I really stress fresh here, none of that bottled stuff. Next, we're adding half an ounce of passion fruit puree and about an ounce of fresh mango juice. I like to muddle some fresh mango chunks right in the shaker. Add half an ounce of agave nectar to sweeten it up. Shake it really well with ice, and then double strain it over fresh ice. Garnish with a mango slice and a lime wheel. This drink is absolutely perfect for summer parties!`;
@@ -149,7 +167,11 @@ export class VideoRecipeAnalyzer {
 
       log.debug('VideoRecipeAnalyzer', 'Analyzing video frames for recipe content', { frameCount: frames.length });
 
-      if (isDevelopmentMode()) {
+      if (!hasValidOpenAIKey()) {
+        if (!shouldUseMockAI()) {
+          throw new Error('Video frame analysis is not configured for production. Set EXPO_PUBLIC_OPENAI_API_KEY.');
+        }
+
         return {
           ingredients: ['Tequila', 'Lime juice', 'Mango puree', 'Agave nectar'],
           steps: ['Add ingredients to shaker', 'Shake with ice', 'Strain over ice', 'Garnish with fruit'],
@@ -240,7 +262,11 @@ export class VideoRecipeAnalyzer {
         visualConfidence: visualAnalysis.confidence
       });
 
-      if (isDevelopmentMode()) {
+      if (!hasValidOpenAIKey()) {
+        if (!shouldUseMockAI()) {
+          throw new Error('Video analysis combine step is not configured for production. Set EXPO_PUBLIC_OPENAI_API_KEY.');
+        }
+
         const mockTitle = transcript.includes('margarita') ? 'Mango Passion Margarita' : 'Classic Cocktail Recipe';
         return {
           title: mockTitle,

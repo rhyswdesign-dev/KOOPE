@@ -25,8 +25,6 @@ const NOTIFICATION_ICONS: Record<NotificationType, keyof typeof Ionicons.glyphMa
   vault_item_available: 'gift-outline',
   xp_milestone: 'trophy-outline',
   streak_reminder: 'flame-outline',
-  social_follow: 'person-add-outline',
-  social_like: 'heart-outline',
   event_reminder: 'calendar-outline',
   daily_challenge: 'ribbon-outline',
   hearts_refilled: 'heart',

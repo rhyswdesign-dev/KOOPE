@@ -20,6 +20,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useSession } from '../../store/useSession';
 import { useUser } from '../../store/useUser';
 import { SupabaseContentRepository } from '../../repos/supabase/contentRepository';
+import { MemoryContentRepository } from '../../repos/memory/contentRepository';
 import Heading from '../ui/Heading';
 import { MCQExercise } from './MCQExercise';
 import OrderExercise from './OrderExercise';
@@ -47,7 +48,8 @@ interface LessonEngineProps {
   onExit?: () => void;
 }
 
-const contentRepo = new SupabaseContentRepository();
+const supabaseContentRepo = new SupabaseContentRepository();
+const memoryContentRepo = new MemoryContentRepository();
 
 export const LessonEngine: React.FC<LessonEngineProps> = ({ lessonId, onComplete, onExit }) => {
   const navigation = useNavigation();
@@ -55,6 +57,7 @@ export const LessonEngine: React.FC<LessonEngineProps> = ({ lessonId, onComplete
   const [error, setError] = useState<string | null>(null);
   const [showFeedback, setShowFeedback] = useState(false);
   const [lastResult, setLastResult] = useState<{ correct: boolean; msToAnswer: number } | null>(null);
+  const [feedbackInsight, setFeedbackInsight] = useState<string | null>(null);
   const [showQuickFeedback, setShowQuickFeedback] = useState(false);
   const [quickFeedbackType, setQuickFeedbackType] = useState<'correct' | 'incorrect' | 'streak'>('correct');
   // const completionAnimation = useCompletionAnimation();
@@ -162,14 +165,18 @@ export const LessonEngine: React.FC<LessonEngineProps> = ({ lessonId, onComplete
         return;
       }
 
-      const lesson = await contentRepo.getLesson(lessonId);
+      let lesson = await supabaseContentRepo.getLesson(lessonId);
+      let lessonItems = lesson ? await supabaseContentRepo.getItemsForLesson(lessonId) : [];
+
+      if (!lesson || lessonItems.length === 0) {
+        lesson = await memoryContentRepo.getLesson(lessonId);
+        lessonItems = lesson ? await memoryContentRepo.getItemsForLesson(lessonId) : [];
+      }
 
       if (!lesson) {
         setError(`Lesson not found: ${lessonId}`);
         return;
       }
-
-      const lessonItems = await contentRepo.getItemsForLesson(lessonId);
 
       if (lessonItems.length === 0) {
         setError('No items found for this lesson');
@@ -191,6 +198,26 @@ export const LessonEngine: React.FC<LessonEngineProps> = ({ lessonId, onComplete
     }
   };
 
+  const buildFeedbackInsight = (item: Item): string | null => {
+    if (item.insight && item.insight.trim()) {
+      return item.insight.trim();
+    }
+
+    if (typeof item.answerIndex === 'number' && item.options?.[item.answerIndex]) {
+      return `Correct answer: ${item.options[item.answerIndex]}`;
+    }
+
+    if (item.answerText) {
+      return `Correct answer: ${item.answerText}`;
+    }
+
+    if (Array.isArray(item.correct) && item.correct.length > 0) {
+      return `Correct answer: ${item.correct.join(', ')}`;
+    }
+
+    return null;
+  };
+
   const handleAnswer = (result: { correct: boolean; msToAnswer: number }) => {
     if (!currentItem) return;
 
@@ -205,6 +232,7 @@ export const LessonEngine: React.FC<LessonEngineProps> = ({ lessonId, onComplete
     };
 
     setLastResult(result);
+    setFeedbackInsight(buildFeedbackInsight(currentItem));
     setShowFeedback(true);
     submitAnswer(attempt);
 
@@ -246,63 +274,13 @@ export const LessonEngine: React.FC<LessonEngineProps> = ({ lessonId, onComplete
       setShowQuickFeedback(false);
     }, 400);
 
-    // Ultra-fast feedback animation
-    Animated.sequence([
-      Animated.spring(feedbackAnim, {
-        toValue: 1,
-        tension: 140,
-        friction: 7,
-        useNativeDriver: true,
-      }),
-      Animated.timing(feedbackAnim, {
-        toValue: 0,
-        duration: 150,
-        delay: 350, // Reduced to 350ms for ultra-fast transitions
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      setShowFeedback(false);
-      setLastResult(null);
-
-      // Ultra-fast transition with parallel fade + slide
-      Animated.parallel([
-        Animated.timing(fadeAnim, {
-          toValue: 0,
-          duration: 100, // Very quick fade out
-          useNativeDriver: true,
-        }),
-        Animated.timing(slideAnim, {
-          toValue: 0,
-          duration: 100, // Very quick slide out
-          useNativeDriver: true,
-        })
-      ]).start(() => {
-        if (isLastItem) {
-          completeLesson();
-        } else {
-          nextItem();
-
-          // Reset values for incoming animation
-          fadeAnim.setValue(0);
-          slideAnim.setValue(0);
-
-          // Instant entrance with parallel fade + slide
-          Animated.parallel([
-            Animated.timing(fadeAnim, {
-              toValue: 1,
-              duration: 200, // Reduced from 250ms
-              useNativeDriver: true,
-            }),
-            Animated.spring(slideAnim, {
-              toValue: 1,
-              tension: 120,
-              friction: 8,
-              useNativeDriver: true,
-            }),
-          ]).start();
-        }
-      });
-    });
+    // Keep feedback visible until user taps Continue.
+    Animated.spring(feedbackAnim, {
+      toValue: 1,
+      tension: 140,
+      friction: 7,
+      useNativeDriver: true,
+    }).start();
   };
 
   const completeLesson = async () => {
@@ -782,6 +760,12 @@ export const LessonEngine: React.FC<LessonEngineProps> = ({ lessonId, onComplete
                 ? ['Perfect!', 'Excellent!', 'Nailed it!'][Math.floor(Math.random() * 3)]
                 : ['Not quite', 'Try again', 'Almost!'][Math.floor(Math.random() * 3)]}
             </Heading>
+            {!!feedbackInsight && (
+              <View style={styles.insightCard}>
+                <Text style={styles.insightLabel}>Insight</Text>
+                <Text style={styles.insightText}>{feedbackInsight}</Text>
+              </View>
+            )}
           </View>
 
           {/* Continue Button */}
@@ -790,6 +774,7 @@ export const LessonEngine: React.FC<LessonEngineProps> = ({ lessonId, onComplete
             onPress={() => {
               setShowFeedback(false);
               setLastResult(null);
+              setFeedbackInsight(null);
               feedbackAnim.setValue(0);
 
               if (isLastItem) {
@@ -808,7 +793,7 @@ export const LessonEngine: React.FC<LessonEngineProps> = ({ lessonId, onComplete
                     useNativeDriver: true,
                   })
                 ]).start(() => {
-                  setCurrentItemIndex(prev => prev + 1);
+                  nextItem();
                   fadeAnim.setValue(1);
                   slideAnim.setValue(1);
                 });
@@ -981,6 +966,30 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.white,
     textAlign: 'center',
+  },
+  insightCard: {
+    marginTop: spacing(3),
+    marginHorizontal: spacing(3),
+    padding: spacing(2),
+    borderRadius: radii.lg,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+    maxWidth: 340,
+  },
+  insightLabel: {
+    color: colors.gold,
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    marginBottom: spacing(0.5),
+  },
+  insightText: {
+    color: colors.white,
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: 'left',
   },
   continueButton: {
     position: 'absolute',

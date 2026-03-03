@@ -5,29 +5,15 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, components } from '../theme/tokens';
 import { OfflineBanner } from '../components/OfflineBanner';
 import Tabs from './Tabs';
-import BarsScreen from '../screens/BarsScreen';
 import AccountSetupScreen from '../screens/AccountSetupScreen';
-import SpiritsScreen from '../screens/SpiritsScreen';
 import EventsScreen from '../screens/EventsScreen';
 import GamesScreen from '../screens/GamesScreen';
 import BrandScreen from '../screens/BrandScreen';
 import BarThemeScreen from '../screens/BarThemeScreen';
 import BarDetailsScreen from '../screens/BarDetailsScreen';
-import UntitledLoungeScreen from '../screens/bars/UntitledLoungeScreen';
-import TheAlchemistScreen from '../screens/bars/TheAlchemistScreen';
-import TheVelvetCurtainScreen from '../screens/bars/TheVelvetCurtainScreen';
-import TheGildedLilyScreen from '../screens/bars/TheGildedLilyScreen';
-import TheIronFlaskScreen from '../screens/bars/TheIronFlaskScreen';
-import TheVelvetNoteScreen from '../screens/bars/TheVelvetNoteScreen';
-import SkylineLoungeScreen from '../screens/bars/SkylineLoungeScreen';
-import TheTikiHutScreen from '../screens/bars/TheTikiHutScreen';
-import TheWineCellarScreen from '../screens/bars/TheWineCellarScreen';
-import TheHiddenFlaskScreen from '../screens/bars/TheHiddenFlaskScreen';
 import KingsCupScreen from '../screens/KingsCupScreen';
 import GameDetailsScreen from '../screens/GameDetailsScreen';
 import MixologyMasterClassScreen from '../screens/MixologyMasterClassScreen';
-import BrandDetailScreen from '../screens/BrandDetailScreen';
-import FeaturedSpiritScreen from '../screens/FeaturedSpiritScreen';
 import XPTransactionScreen from '../screens/XPTransactionScreen';
 import XPReminderScreen from '../screens/XPReminderScreen';
 import SettingsScreen from '../screens/SettingsScreen';
@@ -49,15 +35,6 @@ import VaultEarnXPScreen from '../screens/vault/VaultEarnXPScreen';
 import VaultCategoryScreen from '../screens/vault/VaultCategoryScreen';
 import CategoriesListScreen from '../screens/CategoriesListScreen';
 import CategoryDetailScreen from '../screens/CategoryDetailScreen';
-import FeaturedBarsScreen from '../screens/FeaturedBarsScreen';
-import MapsDemo from '../screens/MapsDemo';
-import CopperMoonScreen from '../screens/CopperMoonScreen';
-import NeonNightsScreen from '../screens/NeonNightsScreen';
-import WhiskeyDenScreen from '../screens/WhiskeyDenScreen';
-import CrystalPalaceScreen from '../screens/CrystalPalaceScreen';
-import SunsetTerraceScreen from '../screens/SunsetTerraceScreen';
-import MidnightLoungeScreen from '../screens/MidnightLoungeScreen';
-import GoldenEraScreen from '../screens/GoldenEraScreen';
 // Onboarding screens
 import WelcomeScreen from '../screens/onboarding/WelcomeScreen';
 import ConsentScreen from '../screens/onboarding/ConsentScreen';
@@ -73,6 +50,7 @@ import PricingScreen from '../screens/commerce/PricingScreen';
 import OAuthSignInScreen from '../screens/OAuthSignInScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import RecipeDetailScreen from '../screens/RecipeDetailScreen';
+import { withScreenTour } from '../components/tour/withScreenTour';
 import RecipeEditorScreen from '../screens/RecipeEditorScreen';
 import AIRecipeGeneratorScreen from '../screens/AIRecipeGeneratorScreen';
 import CartScreen from '../screens/commerce/CartScreen';
@@ -86,6 +64,7 @@ import OCRCaptureScreen from '../screens/OCRCaptureScreen';
 import URLRecipeInputScreen from '../screens/URLRecipeInputScreen';
 import VoiceRecipeScreen from '../screens/VoiceRecipeScreen';
 import HomeBarScreen from '../screens/HomeBarScreen';
+import RecipesScreen from '../screens/RecipesScreen';
 import SpiritRecognitionScreen from '../screens/SpiritRecognitionScreen';
 import ShoppingCartScreen from '../screens/ShoppingCartScreen';
 import AchievementsScreen from '../screens/AchievementsScreen';
@@ -99,7 +78,9 @@ import ProfileSavedItemsScreen from '../screens/ProfileSavedItemsScreen';
 import ManageSubscriptionScreen from '../screens/ManageSubscriptionScreen';
 import NotificationCenterScreen from '../screens/NotificationCenterScreen';
 import ReferralScreen from '../screens/ReferralScreen';
+import TutorialsScreen from '../screens/TutorialsScreen';
 import { useCartSync } from '../hooks/useCartSync';
+import TutorialIconButton from '../components/tour/TutorialIconButton';
 
 export type RootStackParamList = {
   Main: undefined;
@@ -156,7 +137,6 @@ export type RootStackParamList = {
   CategoriesList: undefined;
   CategoryDetail: { categoryId: string; categoryName: string };
   FeaturedBar: { barId: string };
-  MapsDemo: undefined;
   // Onboarding screens
   Welcome: undefined;
   Consent: undefined;
@@ -195,9 +175,11 @@ export type RootStackParamList = {
   ManageSubscription: undefined;
   NotificationCenter: undefined;
   Referral: undefined;
+  Tutorials: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
+const RecipeDetailWithTour = withScreenTour(RecipeDetailScreen, 'feature_recipe_detail');
 
 interface RootNavigatorProps {
   initialRouteName?: keyof RootStackParamList;
@@ -206,13 +188,14 @@ interface RootNavigatorProps {
 
 export default function RootNavigator({ initialRouteName = 'Main', onHiddenFlaskComplete }: RootNavigatorProps = {}) {
   useCartSync();
+  const LegacyRemovedContentScreen = RecipesScreen;
 
   return (
     <View style={styles.container}>
       <OfflineBanner />
       <Stack.Navigator
       initialRouteName={initialRouteName}
-      screenOptions={{
+      screenOptions={({ navigation }) => ({
         headerShown: false,
         headerStyle: components.header,
         headerTintColor: colors.headerText,
@@ -221,141 +204,134 @@ export default function RootNavigator({ initialRouteName = 'Main', onHiddenFlask
         headerBackButtonDisplayMode: 'minimal',
         animation: 'fade',
         animationDuration: 200,
-      }}
+        headerLeft: () => (
+          <View style={styles.headerLeftWrap}>
+            <TutorialIconButton onPress={() => navigation.navigate('Tutorials')} />
+          </View>
+        ),
+      })}
     >
       <Stack.Screen name="Main" component={Tabs} />
-      <Stack.Screen name="Bars" component={BarsScreen} options={{ headerShown: true, title: 'Featured Bars' }} />
+      <Stack.Screen name="Bars" component={LegacyRemovedContentScreen} options={{ headerShown: true, title: 'Recipes' }} />
       <Stack.Screen name="Events" component={EventsScreen} options={{ headerShown: true, title: 'Events' }} />
       <Stack.Screen name="Games" component={GamesScreen} options={{ headerShown: true, title: 'Games' }} />
       <Stack.Screen name="Brand" component={BrandScreen} options={({ route }) => ({ headerShown: true, title: route.params.brand })} />
       <Stack.Screen name="BarTheme" component={BarThemeScreen} options={({ route }) => ({ headerShown: true, title: route.params.theme })} />
       <Stack.Screen name="BarDetails" component={BarDetailsScreen} options={({ route }) => ({ headerShown: true, title: route.params.name })} />
-      <Stack.Screen name="UntitledLounge" component={UntitledLoungeScreen} options={({ navigation }) => ({ 
+      <Stack.Screen name="UntitledLounge" component={LegacyRemovedContentScreen} options={() => ({ 
         headerShown: true, 
         title: 'Untitled Champagne Lounge',
         headerStyle: components.header,
         headerTintColor: colors.headerText,
         headerTitleStyle: components.headerText,
         headerShadowVisible: false,
-        headerLeft: () => null,
         headerRight: () => (
           <Pressable hitSlop={12} onPress={() => { /* Save bar functionality will be handled in screen */ }}>
             <Ionicons name="bookmark-outline" size={24} color={colors.headerText} />
           </Pressable>
         ),
       })} />
-      <Stack.Screen name="TheAlchemist" component={TheAlchemistScreen} options={({ navigation }) => ({ 
+      <Stack.Screen name="TheAlchemist" component={LegacyRemovedContentScreen} options={() => ({ 
         headerShown: true, 
         title: 'The Alchemist',
         headerStyle: components.header,
         headerTintColor: colors.headerText,
         headerTitleStyle: components.headerText,
         headerShadowVisible: false,
-        headerLeft: () => null,
       })} />
-      <Stack.Screen name="TheVelvetCurtain" component={TheVelvetCurtainScreen} options={({ navigation }) => ({ 
+      <Stack.Screen name="TheVelvetCurtain" component={LegacyRemovedContentScreen} options={() => ({ 
         headerShown: true, 
         title: 'The Velvet Curtain',
         headerStyle: components.header,
         headerTintColor: colors.headerText,
         headerTitleStyle: components.headerText,
         headerShadowVisible: false,
-        headerLeft: () => null,
       })} />
-      <Stack.Screen name="TheGildedLily" component={TheGildedLilyScreen} options={({ navigation }) => ({ 
+      <Stack.Screen name="TheGildedLily" component={LegacyRemovedContentScreen} options={() => ({ 
         headerShown: true, 
         title: 'The Gilded Lily',
         headerStyle: components.header,
         headerTintColor: colors.headerText,
         headerTitleStyle: components.headerText,
         headerShadowVisible: false,
-        headerLeft: () => null,
       })} />
-      <Stack.Screen name="TheIronFlask" component={TheIronFlaskScreen} options={({ navigation }) => ({ 
+      <Stack.Screen name="TheIronFlask" component={LegacyRemovedContentScreen} options={() => ({ 
         headerShown: true, 
         title: 'The Iron Flask',
         headerStyle: components.header,
         headerTintColor: colors.headerText,
         headerTitleStyle: components.headerText,
         headerShadowVisible: false,
-        headerLeft: () => null,
       })} />
-      <Stack.Screen name="TheVelvetNote" component={TheVelvetNoteScreen} options={({ navigation }) => ({ 
+      <Stack.Screen name="TheVelvetNote" component={LegacyRemovedContentScreen} options={() => ({ 
         headerShown: true, 
         title: 'The Velvet Note',
         headerStyle: components.header,
         headerTintColor: colors.headerText,
         headerTitleStyle: components.headerText,
         headerShadowVisible: false,
-        headerLeft: () => null,
       })} />
-      <Stack.Screen name="SkylineLounge" component={SkylineLoungeScreen} options={({ navigation }) => ({ 
+      <Stack.Screen name="SkylineLounge" component={LegacyRemovedContentScreen} options={() => ({ 
         headerShown: true, 
         title: 'Skyline Lounge',
         headerStyle: components.header,
         headerTintColor: colors.headerText,
         headerTitleStyle: components.headerText,
         headerShadowVisible: false,
-        headerLeft: () => null,
       })} />
-      <Stack.Screen name="TheTikiHut" component={TheTikiHutScreen} options={({ navigation }) => ({ 
+      <Stack.Screen name="TheTikiHut" component={LegacyRemovedContentScreen} options={() => ({ 
         headerShown: true, 
         title: 'The Tiki Hut',
         headerStyle: components.header,
         headerTintColor: colors.headerText,
         headerTitleStyle: components.headerText,
         headerShadowVisible: false,
-        headerLeft: () => null,
       })} />
-      <Stack.Screen name="TheWineCellar" component={TheWineCellarScreen} options={({ navigation }) => ({ 
+      <Stack.Screen name="TheWineCellar" component={LegacyRemovedContentScreen} options={() => ({ 
         headerShown: true, 
         title: 'The Wine Cellar',
         headerStyle: components.header,
         headerTintColor: colors.headerText,
         headerTitleStyle: components.headerText,
         headerShadowVisible: false,
-        headerLeft: () => null,
       })} />
-      <Stack.Screen name="TheHiddenFlask" options={({ navigation }) => ({
+      <Stack.Screen name="TheHiddenFlask" options={() => ({
         headerShown: true,
         title: 'The Hidden Flask',
         headerStyle: components.header,
         headerTintColor: colors.headerText,
         headerTitleStyle: components.headerText,
         headerShadowVisible: false,
-        headerLeft: () => null,
       })}>
-        {(props) => <TheHiddenFlaskScreen {...props} onComplete={onHiddenFlaskComplete} />}
+        {() => <LegacyRemovedContentScreen />}
       </Stack.Screen>
-      <Stack.Screen name="CopperMoon" component={CopperMoonScreen} options={{ headerShown: false }} />
-      <Stack.Screen name="NeonNights" component={NeonNightsScreen} options={{ headerShown: false }} />
-      <Stack.Screen name="WhiskeyDen" component={WhiskeyDenScreen} options={{ headerShown: false }} />
-      <Stack.Screen name="CrystalPalace" component={CrystalPalaceScreen} options={{ headerShown: false }} />
-      <Stack.Screen name="SunsetTerrace" component={SunsetTerraceScreen} options={{ headerShown: false }} />
-      <Stack.Screen name="MidnightLounge" component={MidnightLoungeScreen} options={{ headerShown: false }} />
-      <Stack.Screen name="GoldenEra" component={GoldenEraScreen} options={{ headerShown: false }} />
-      <Stack.Screen name="KingsCup" component={KingsCupScreen} options={({ navigation }) => ({ 
+      <Stack.Screen name="CopperMoon" component={LegacyRemovedContentScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="NeonNights" component={LegacyRemovedContentScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="WhiskeyDen" component={LegacyRemovedContentScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="CrystalPalace" component={LegacyRemovedContentScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="SunsetTerrace" component={LegacyRemovedContentScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="MidnightLounge" component={LegacyRemovedContentScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="GoldenEra" component={LegacyRemovedContentScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="KingsCup" component={KingsCupScreen} options={() => ({ 
         headerShown: true, 
         title: "King's Cup",
         headerStyle: components.header,
         headerTintColor: colors.headerText,
         headerTitleStyle: components.headerText,
         headerShadowVisible: false,
-        headerLeft: () => null,
         headerRight: () => (
           <Pressable hitSlop={12} onPress={() => { /* Save game */ }}>
             <Ionicons name="bookmark-outline" size={24} color={colors.headerText} />
           </Pressable>
         ),
       })} />
-      <Stack.Screen name="GameDetails" component={GameDetailsScreen} options={({ route, navigation }) => ({ 
+      <Stack.Screen name="GameDetails" component={GameDetailsScreen} options={() => ({ 
         headerShown: true, 
         title: 'Game Details',
         headerStyle: components.header,
         headerTintColor: colors.headerText,
         headerTitleStyle: components.headerText,
         headerShadowVisible: false,
-        headerLeft: () => null,
         headerRight: () => (
           <Pressable hitSlop={12} onPress={() => { /* Save game */ }}>
             <Ionicons name="bookmark-outline" size={24} color={colors.headerText} />
@@ -367,7 +343,7 @@ export default function RootNavigator({ initialRouteName = 'Main', onHiddenFlask
       <Stack.Screen name="MixologyMasterClass" component={MixologyMasterClassScreen} options={{ headerShown: false }} />
       <Stack.Screen
         name="BrandDetail"
-        component={BrandDetailScreen}
+        component={LegacyRemovedContentScreen}
         options={{
           headerShown: true,
           headerTransparent: true,
@@ -380,7 +356,7 @@ export default function RootNavigator({ initialRouteName = 'Main', onHiddenFlask
       />
       <Stack.Screen
         name="FeaturedSpirit"
-        component={FeaturedSpiritScreen}
+        component={LegacyRemovedContentScreen}
         options={{
           headerShown: true,
           headerTransparent: true,
@@ -413,8 +389,7 @@ export default function RootNavigator({ initialRouteName = 'Main', onHiddenFlask
     <Stack.Screen name="VaultCategory" component={VaultCategoryScreen} options={{ headerShown: false }} />
     <Stack.Screen name="CategoriesList" component={CategoriesListScreen} options={{ headerShown: true, title: 'Categories' }} />
     <Stack.Screen name="CategoryDetail" component={CategoryDetailScreen} options={{ headerShown: true, title: 'Category' }} />
-    <Stack.Screen name="FeaturedBar" component={FeaturedBarsScreen} options={{ headerShown: true, title: 'Featured Bar' }} />
-    <Stack.Screen name="MapsDemo" component={MapsDemo} options={{ headerShown: true, title: 'Maps Demo' }} />
+    <Stack.Screen name="FeaturedBar" component={LegacyRemovedContentScreen} options={{ headerShown: true, title: 'Featured Bar' }} />
     {/* Onboarding screens */}
     <Stack.Screen name="Welcome" component={WelcomeScreen} options={{ headerShown: false }} />
     <Stack.Screen name="Consent" component={ConsentScreen} options={{ headerShown: false }} />
@@ -430,7 +405,7 @@ export default function RootNavigator({ initialRouteName = 'Main', onHiddenFlask
     <Stack.Screen name="OrderHistory" component={OrderHistoryScreen} options={{ headerShown: true, title: 'Order History' }} />
     <Stack.Screen name="AddRecipe" component={AddRecipeScreen} options={{ headerShown: true, title: 'Add Recipe' }} />
 
-    <Stack.Screen name="RecipeDetail" component={RecipeDetailScreen} options={{ headerShown: true, title: 'Recipe' }} />
+    <Stack.Screen name="RecipeDetail" component={RecipeDetailWithTour} options={{ headerShown: true, title: 'Recipe' }} />
     <Stack.Screen name="RecipeEditor" component={RecipeEditorScreen} options={{ headerShown: false, presentation: 'modal' }} />
     <Stack.Screen name="AIRecipeGenerator" component={AIRecipeGeneratorScreen} options={{ headerShown: false }} />
     <Stack.Screen name="AIRecipeFormat" options={{ headerShown: true, title: 'AI Recipe Formatting' }}>
@@ -455,6 +430,7 @@ export default function RootNavigator({ initialRouteName = 'Main', onHiddenFlask
       <Stack.Screen name="ManageSubscription" component={ManageSubscriptionScreen} options={{ headerShown: true, title: 'Subscription' }} />
       <Stack.Screen name="NotificationCenter" component={NotificationCenterScreen} options={{ headerShown: true, title: 'Notifications' }} />
       <Stack.Screen name="Referral" component={ReferralScreen} options={{ headerShown: true, title: 'Invite Friends' }} />
+      <Stack.Screen name="Tutorials" component={TutorialsScreen} options={{ headerShown: true, title: 'Tutorials' }} />
     </Stack.Navigator>
     </View>
   );
@@ -463,5 +439,8 @@ export default function RootNavigator({ initialRouteName = 'Main', onHiddenFlask
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  headerLeftWrap: {
+    paddingLeft: 4,
   },
 });

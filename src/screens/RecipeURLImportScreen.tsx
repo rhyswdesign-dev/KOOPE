@@ -21,17 +21,15 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
+import * as Clipboard from 'expo-clipboard';
 import { colors, spacing, radii } from '../theme/tokens';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { log } from '../lib/logger';
-import { useXPSystem } from '../store/useXPSystem';
-import { useUserRecipes } from '../store/useUserRecipes';
 
 export default function RecipeURLImportScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute();
-  const { earnXP } = useXPSystem();
-  const { addRecipe } = useUserRecipes();
+  const [hasAutoHandledSharedUrl, setHasAutoHandledSharedUrl] = useState(false);
 
   const [url, setUrl] = useState('');
   const [loading, setLoading] = useState(false);
@@ -56,8 +54,12 @@ export default function RecipeURLImportScreen() {
     const params = route.params as any;
     if (params?.url) {
       setUrl(params.url);
+      if (!hasAutoHandledSharedUrl) {
+        setHasAutoHandledSharedUrl(true);
+        navigation.navigate('AIRecipeFormat', { recipeUrl: params.url });
+      }
     }
-  }, [route.params]);
+  }, [route.params, navigation, hasAutoHandledSharedUrl]);
 
   const handleImport = async () => {
     if (!url.trim()) {
@@ -89,42 +91,14 @@ export default function RecipeURLImportScreen() {
     setLoading(true);
 
     try {
-      log.info('RecipeURLImportScreen', 'Importing recipe from URL', { url });
-
-      // TODO: Implement actual URL scraping/AI extraction
-      // For now, simulate the process
-      await new Promise(resolve => setTimeout(resolve, 2000));
-
-      // Extract domain name for display
-      const domain = new URL(url).hostname.replace('www.', '');
-
-      // Save imported recipe to store
-      await addRecipe({
-        name: `Imported from ${domain}`,
-        type: 'imported',
-        ingredients: [],
-        instructions: ['Imported from URL — tap Edit to add details'],
-        notes: url,
-      });
-
-      // Award XP for importing recipe
-      earnXP(10, 'other', 'Imported recipe from URL');
-
-      showAlert({
-        title: 'Recipe Imported!',
-        message: 'The recipe has been saved to your collection.',
-        icon: 'checkmark-circle',
-        iconColor: colors.success,
-        actions: [
-          { label: 'View Recipe', onPress: () => navigation.navigate('ProfileSavedItems' as any), style: 'primary' },
-          { label: 'Import Another', onPress: () => setUrl(''), style: 'secondary' },
-        ],
-      });
+      const normalizedUrl = url.trim();
+      log.info('RecipeURLImportScreen', 'Routing URL to AI recipe formatting', { url: normalizedUrl });
+      navigation.navigate('AIRecipeFormat', { recipeUrl: normalizedUrl });
     } catch (error) {
       log.error('RecipeURLImportScreen', 'Error importing recipe', error);
       showAlert({
-        title: 'Import Failed',
-        message: 'Could not import the recipe. Make sure the URL contains a valid recipe.',
+        title: 'Could Not Start Import',
+        message: 'We could not open recipe formatting for this URL. Please try again.',
         icon: 'close-circle',
         iconColor: colors.error,
         actions: [{ label: 'OK', style: 'primary' }],
@@ -135,15 +109,30 @@ export default function RecipeURLImportScreen() {
   };
 
   const handlePasteFromClipboard = async () => {
-    // Note: Clipboard API requires expo-clipboard
-    // For now, show a message to paste manually
-    showAlert({
-      title: 'Paste URL',
-      message: 'Tap the URL field and paste the recipe link from your clipboard.',
-      icon: 'clipboard',
-      iconColor: colors.accent,
-      actions: [{ label: 'Got It', style: 'primary' }],
-    });
+    try {
+      const clipboardText = await Clipboard.getStringAsync();
+      if (!clipboardText?.trim()) {
+        showAlert({
+          title: 'Clipboard Empty',
+          message: 'No URL found in your clipboard.',
+          icon: 'alert-circle',
+          iconColor: colors.warning,
+          actions: [{ label: 'OK', style: 'primary' }],
+        });
+        return;
+      }
+
+      setUrl(clipboardText.trim());
+    } catch (error) {
+      log.error('RecipeURLImportScreen', 'Clipboard paste failed', error);
+      showAlert({
+        title: 'Paste Failed',
+        message: 'Could not read clipboard content.',
+        icon: 'close-circle',
+        iconColor: colors.error,
+        actions: [{ label: 'OK', style: 'primary' }],
+      });
+    }
   };
 
   const popularSources = [

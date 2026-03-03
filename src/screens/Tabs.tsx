@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/tokens';
 
 import FeaturedScreen from './FeaturedScreen';
-import BarsScreen from './BarsScreen';
+import HomeBarScreen from './HomeBarScreen';
 import CommunityScreen from './CommunityScreen';
 import ProfileScreen from './ProfileScreen';
 
@@ -38,7 +38,7 @@ export default function Tabs() {
       })}
     >
       <Tab.Screen name="Featured" component={FeaturedScreen} />
-      <Tab.Screen name="Bars" component={BarsScreen} />
+      <Tab.Screen name="Bars" component={HomeBarScreen} />
       <Tab.Screen name="Community" component={CommunityScreen} />
       <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>

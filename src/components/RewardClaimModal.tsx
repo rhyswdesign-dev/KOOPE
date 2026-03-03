@@ -182,7 +182,7 @@ export const RewardClaimModal: React.FC<RewardClaimModalProps> = ({
 
             {/* Close Button */}
             <Pressable style={styles.closeButton} onPress={onClose}>
-              <Ionicons name="close" size={24} color={colors.text.secondary} />
+              <Ionicons name="close" size={24} color={colors.textMuted} />
             </Pressable>
           </Pressable>
         </Animated.View>
@@ -216,14 +216,14 @@ const styles = StyleSheet.create({
   title: {
     ...fonts.title,
     fontSize: 28,
-    color: colors.text.primary,
+    color: colors.textLight,
     marginBottom: spacing.xs,
     textAlign: 'center',
   },
   subtitle: {
     ...fonts.body,
     fontSize: 16,
-    color: colors.text.secondary,
+    color: colors.textMuted,
     marginBottom: spacing.xl,
     textAlign: 'center',
   },
@@ -258,13 +258,13 @@ const styles = StyleSheet.create({
   rewardAmount: {
     ...fonts.title,
     fontSize: 24,
-    color: colors.text.primary,
+    color: colors.textLight,
     marginBottom: spacing.xs,
   },
   rewardLabel: {
     ...fonts.caption,
     fontSize: 12,
-    color: colors.text.secondary,
+    color: colors.textMuted,
     textTransform: 'uppercase',
   },
   claimButton: {
@@ -280,7 +280,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   claimButtonDisabled: {
-    backgroundColor: colors.text.disabled,
+    backgroundColor: colors.muted,
   },
   claimButtonText: {
     ...fonts.button,

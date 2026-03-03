@@ -9,6 +9,7 @@
 
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ViewStyle } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, radii } from '../theme/tokens';
 import type { UserTier } from '../config/tierAccess';
@@ -36,9 +37,24 @@ export default function MissingIngredientsBanner({
   onUpgrade,
   style,
 }: MissingIngredientsBannerProps) {
+  const navigation = useNavigation<any>();
   if (missingIngredients.length === 0) return null;
 
   const canAddToList = tier !== 'FREE';
+  const handleUpgrade = () => {
+    if (onUpgrade) {
+      onUpgrade();
+      return;
+    }
+
+    const params = { source: 'missing_ingredients_banner', displayCloseButton: true };
+    const parentNavigation = navigation.getParent?.();
+    if (parentNavigation) {
+      parentNavigation.navigate('Paywall', params);
+    } else {
+      navigation.navigate('Paywall', params);
+    }
+  };
 
   // FREE users see a teaser
   if (!canAddToList) {
@@ -46,7 +62,7 @@ export default function MissingIngredientsBanner({
       <TouchableOpacity
         style={[styles.lockedBanner, style]}
         activeOpacity={0.8}
-        onPress={onUpgrade}
+        onPress={handleUpgrade}
         accessible
         accessibilityRole="button"
         accessibilityLabel={`Missing ${missingIngredients.length} ingredients. Upgrade to add them to your shopping list.`}

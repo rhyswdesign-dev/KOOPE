@@ -114,6 +114,41 @@ export const REVENUECAT_CONFIG = {
 } as const;
 
 /**
+ * Check if a RevenueCat key is clearly a placeholder or invalid.
+ */
+function isInvalidRevenueCatKey(key: string | undefined, platform: 'ios' | 'android'): boolean {
+  if (!key) return true;
+
+  const normalized = key.trim();
+  const requiredPrefix = platform === 'ios' ? 'appl_' : 'goog_';
+
+  if (!normalized.startsWith(requiredPrefix)) return true;
+
+  const blockedFragments = [
+    'PLACEHOLDER',
+    'REPLACE_ME',
+    'appl_your',
+    'goog_your',
+  ];
+
+  return blockedFragments.some((fragment) => normalized.includes(fragment));
+}
+
+/**
+ * Validate RevenueCat config for runtime guards and CI checks.
+ */
+export function getRevenueCatConfigValidation() {
+  const iosValid = !isInvalidRevenueCatKey(REVENUECAT_CONFIG.IOS_API_KEY, 'ios');
+  const androidValid = !isInvalidRevenueCatKey(REVENUECAT_CONFIG.ANDROID_API_KEY, 'android');
+
+  return {
+    iosValid,
+    androidValid,
+    allValid: iosValid && androidValid,
+  };
+}
+
+/**
  * Type definitions for type-safe subscription handling
  */
 export type SubscriptionEntitlement = typeof SUBSCRIPTION_ENTITLEMENTS[keyof typeof SUBSCRIPTION_ENTITLEMENTS];

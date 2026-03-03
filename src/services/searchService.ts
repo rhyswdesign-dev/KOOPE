@@ -19,13 +19,17 @@ export interface SearchableItem {
 export interface FilterOptions {
   categories: string[];
   difficulties: string[];
+  // Legacy aliases used by some screens
+  category?: string[];
+  difficulty?: string[];
+  mood?: string[];
   abvRange: [number, number];
   timeRange: [number, number];
   ingredients: string[];
   equipment: string[];
   tags: string[];
   sortBy: 'relevance' | 'popularity' | 'recent' | 'difficulty' | 'time' | 'abv';
-  sortOrder: 'asc' | 'desc';
+  sortOrder: 'asc' | 'desc' | 'alphabetical-asc' | 'alphabetical-desc' | 'rating-asc' | 'rating-desc';
   showOnlyFavorites: boolean;
   showOnlyCompleted: boolean;
 }
@@ -889,14 +893,16 @@ class SearchService {
 
   private applyFilters(items: SearchableItem[], filters: Partial<FilterOptions>): SearchableItem[] {
     let filtered = items;
+    const categoryFilters = filters.categories || filters.category;
+    const difficultyFilters = filters.difficulties || filters.difficulty;
 
-    if (filters.categories && filters.categories.length > 0) {
-      filtered = filtered.filter(item => filters.categories!.includes(item.category));
+    if (categoryFilters && categoryFilters.length > 0) {
+      filtered = filtered.filter(item => categoryFilters.includes(item.category));
     }
 
-    if (filters.difficulties && filters.difficulties.length > 0) {
+    if (difficultyFilters && difficultyFilters.length > 0) {
       filtered = filtered.filter(item =>
-        item.difficulty && filters.difficulties!.includes(item.difficulty)
+        item.difficulty && difficultyFilters.includes(item.difficulty)
       );
     }
 

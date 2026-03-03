@@ -4,70 +4,70 @@
  */
 
 export const BAR_IMAGES = {
-  aqua_lounge: require('../../assets/images/thumbnails/bars/aqua-lounge.jpg'),
-  the_alchemist: require('../../assets/images/thumbnails/bars/the-alchemist.jpg'),
-  the_velvet_curtain: require('../../assets/images/thumbnails/bars/the-velvet-curtain.jpg'),
-  the_gilded_lily: require('../../assets/images/thumbnails/bars/the-gilded-lily.jpg'),
-  the_iron_flask: require('../../assets/images/thumbnails/bars/the-iron-flask.jpg'),
+  aqua_lounge: null,
+  the_alchemist: null,
+  the_velvet_curtain: null,
+  the_gilded_lily: null,
+  the_iron_flask: null,
 };
 
 // Header Images
 export const HEADER_IMAGES = {
-  bar_header: require('../../assets/images/headers/Bar Header.png'),
-  bar_header_1: require('../../assets/images/headers/Bar Header 1.png'),
+  bar_header: null,
+  bar_header_1: null,
 };
 
 // Mood Slide Images
 export const MOOD_IMAGES = {
-  speakeasy: require('../../assets/images/bar-headers/Mood Slide - Speakeasy.png'),
-  tiki: require('../../assets/images/bar-headers/Mood Slide - Tiki.png'),
-  vibrant_lively: require('../../assets/images/bar-headers/Mood Slide Vibrant & Lively.png'),
-  mood_slide_1: require('../../assets/images/bar-headers/Mood slide 1.png'),
-  mood_slide_2: require('../../assets/images/bar-headers/Mood Slide 2.png'),
-  mood_slide_4: require('../../assets/images/bar-headers/Mood Slide 4.png'),
-  mood_slide: require('../../assets/images/bar-headers/Mood slide.png'),
+  speakeasy: null,
+  tiki: null,
+  vibrant_lively: null,
+  mood_slide_1: null,
+  mood_slide_2: null,
+  mood_slide_4: null,
+  mood_slide: null,
 };
 
 // Extended Bar Thumbnails
 export const EXTENDED_BAR_IMAGES = {
-  bar_page_header: require('../../assets/images/thumbnails/bars-extended/Bar Page Header.png'),
-  bar_header: require('../../assets/images/thumbnails/bars-extended/Bar header.png'),
-  depth_frame_0: require('../../assets/images/thumbnails/bars-extended/Depth 5, Frame 0.png'),
-  depth_frame_2: require('../../assets/images/thumbnails/bars-extended/Depth 5, Frame 0-2.png'),
-  depth_frame_4: require('../../assets/images/thumbnails/bars-extended/Depth 5, Frame 0-4.png'),
-  depth_frame_5: require('../../assets/images/thumbnails/bars-extended/Depth 5, Frame 0-5.png'),
-  depth_frame_6: require('../../assets/images/thumbnails/bars-extended/Depth 5, Frame 0-6.png'),
-  depth_frame_7: require('../../assets/images/thumbnails/bars-extended/Depth 5, Frame 0-7.png'),
-  depth_frame_8: require('../../assets/images/thumbnails/bars-extended/Depth 5, Frame 0-8.png'),
-  depth_frame_9: require('../../assets/images/thumbnails/bars-extended/Depth 5, Frame 0-9.png'),
-  depth_frame_10: require('../../assets/images/thumbnails/bars-extended/Depth 5, Frame 0-10.png'),
-  depth_frame_11: require('../../assets/images/thumbnails/bars-extended/Depth 5, Frame 0-11.png'),
-  depth_frame_12: require('../../assets/images/thumbnails/bars-extended/Depth 5, Frame 0-12.png'),
-  depth_frame_13: require('../../assets/images/thumbnails/bars-extended/Depth 5, Frame 0-13.png'),
-  depth_frame_14: require('../../assets/images/thumbnails/bars-extended/Depth 5, Frame 0-14.png'),
-  depth_frame_15: require('../../assets/images/thumbnails/bars-extended/Depth 5, Frame 0-15.png'),
+  bar_page_header: null,
+  bar_header: null,
+  depth_frame_0: null,
+  depth_frame_2: null,
+  depth_frame_4: null,
+  depth_frame_5: null,
+  depth_frame_6: null,
+  depth_frame_7: null,
+  depth_frame_8: null,
+  depth_frame_9: null,
+  depth_frame_10: null,
+  depth_frame_11: null,
+  depth_frame_12: null,
+  depth_frame_13: null,
+  depth_frame_14: null,
+  depth_frame_15: null,
 };
 
 // Bar Page Headers
 export const BAR_PAGE_HEADERS = {
-  depth_frame_header_1: require('../../assets/images/bar-headers/Depth 4, Frame 0-1.png'),
-  depth_frame_header_2: require('../../assets/images/bar-headers/Depth 5, Frame 0-1.png'),
-  depth_frame_header_3: require('../../assets/images/bar-headers/Depth 5, Frame 0-3.png'),
-  depth_frame_header_4: require('../../assets/images/bar-headers/Depth 5, Frame 0-4.png'),
-  depth_frame_header_5: require('../../assets/images/bar-headers/Depth 5, Frame 0-5.png'),
-  depth_frame_header_6: require('../../assets/images/bar-headers/Depth 5, Frame 0-6.png'),
-  depth_frame_header_15: require('../../assets/images/bar-headers/Depth 5, Frame 0-15.png'),
-  depth_frame_header_16: require('../../assets/images/bar-headers/Depth 5, Frame 0-16.png'),
-  depth_frame_header_21: require('../../assets/images/bar-headers/Depth 5, Frame 0-21.png'),
-  depth_frame_header_22: require('../../assets/images/bar-headers/Depth 5, Frame 0-22.png'),
-  depth_frame_header_23: require('../../assets/images/bar-headers/Depth 5, Frame 0-23.png'),
-  depth_frame_header_24: require('../../assets/images/bar-headers/Depth 5, Frame 0-24.png'),
-  depth_frame_header_25: require('../../assets/images/bar-headers/Depth 5, Frame 0-25.png'),
-  depth_frame_header_26: require('../../assets/images/bar-headers/Depth 5, Frame 0-26.png'),
-  depth_frame_header_27: require('../../assets/images/bar-headers/Depth 5, Frame 0-27.png'),
-  frame: require('../../assets/images/bar-headers/Frame.png'),
-  proof: require('../../assets/images/bar-headers/Proof.png'),
-  untitled: require('../../assets/images/bar-headers/Untitled .png'),
+  depth_frame_header_1: null,
+  depth_frame_header_2: null,
+  depth_frame_header_3: null,
+  depth_frame_header_4: null,
+  depth_frame_header_5: null,
+  depth_frame_header_6: null,
+  depth_frame_header_15: null,
+  depth_frame_header_16: null,
+  depth_frame_header_21: null,
+  depth_frame_header_22: null,
+  depth_frame_header_23: null,
+  depth_frame_header_24: null,
+  depth_frame_header_25: null,
+  depth_frame_header_26: null,
+  depth_frame_header_27: null,
+  frame: null,
+  proof: null,
+  untitled: null,
 };
 
 // Spirit Images

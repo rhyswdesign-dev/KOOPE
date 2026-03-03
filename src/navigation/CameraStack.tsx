@@ -7,6 +7,7 @@ import SmartScanScreen from '../screens/SmartScanScreen';
 import BottleDetailScreen from '../screens/BottleDetailScreen';
 import ManualBottleEntryScreen from '../screens/ManualBottleEntryScreen';
 import type { Spirit } from '../data/spiritsDatabase';
+import { withScreenTour } from '../components/tour/withScreenTour';
 
 export type CameraStackParamList = {
   CameraHub: undefined;
@@ -19,6 +20,8 @@ export type CameraStackParamList = {
 };
 
 const Stack = createNativeStackNavigator<CameraStackParamList>();
+const CameraHubWithTour = withScreenTour(CameraHubScreen, 'tab_camera');
+const SmartScanWithTour = withScreenTour(SmartScanScreen, 'feature_smart_scan');
 
 export default function CameraStack() {
   return (
@@ -32,12 +35,12 @@ export default function CameraStack() {
     >
       <Stack.Screen
         name="CameraHub"
-        component={CameraHubScreen}
+        component={CameraHubWithTour}
         options={{ headerShown: false }}
       />
       <Stack.Screen
         name="SmartScan"
-        component={SmartScanScreen}
+        component={SmartScanWithTour}
         options={{ headerShown: false }}
       />
       <Stack.Screen

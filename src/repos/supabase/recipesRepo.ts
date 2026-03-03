@@ -69,7 +69,7 @@ export class RecipesRepository {
             // Restore local image reference using getCocktailImage
             image: getCocktailImage(recipe.id, recipe.imageUrl || recipe.image as any),
           }));
-          log.info('RecipesRepo', 'Loaded recipes from cache with images restored', { count: this.persistentCache.length });
+          log.info('RecipesRepo', 'Loaded recipes from cache with images restored', { count: cachedRecipes.length });
         } else {
           log.info('RecipesRepo', 'Cache expired, will fetch fresh data');
           await this.clearPersistentCache();

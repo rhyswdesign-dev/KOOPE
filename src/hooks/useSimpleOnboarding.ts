@@ -22,9 +22,19 @@ import { trackEvent, ANALYTICS_EVENTS, ANALYTICS_PROPS } from '../lib/analytics'
 import { log } from '../lib/logger';
 import { supabase } from '../lib/supabase';
 
-type AppState = 'loading' | 'splash' | 'bartending_welcome' | 'welcome' | 'onboarding' | 'survey' | 'xp_reminder' | 'main';
+type AppState =
+  | 'loading'
+  | 'splash'
+  | 'age_gate'
+  | 'bartending_welcome'
+  | 'welcome'
+  | 'onboarding'
+  | 'survey'
+  | 'xp_reminder'
+  | 'main';
 
 const ONBOARDING_COMPLETED_KEY = '@KOOPE:onboarding_completed';
+const AGE_VERIFIED_KEY = '@KOOPE:age_verified';
 
 export function useSimpleOnboarding() {
   const [appState, setAppState] = useState<AppState>('loading');
@@ -63,6 +73,13 @@ export function useSimpleOnboarding() {
 
   const handleSplashFinish = async () => {
     try {
+      const ageVerified = await AsyncStorage.getItem(AGE_VERIFIED_KEY);
+      if (ageVerified !== 'true') {
+        log.info('useSimpleOnboarding', 'Age gate required before onboarding');
+        setAppState('age_gate');
+        return;
+      }
+
       // Check if user has completed onboarding before
       const onboardingCompleted = await AsyncStorage.getItem(ONBOARDING_COMPLETED_KEY);
 
@@ -90,6 +107,21 @@ export function useSimpleOnboarding() {
       [ANALYTICS_PROPS.STEP_NAME]: 'welcome_carousel',
     });
     setAppState('onboarding');
+  };
+
+  const completeAgeGate = async () => {
+    try {
+      await AsyncStorage.setItem(AGE_VERIFIED_KEY, 'true');
+      log.info('useSimpleOnboarding', 'Age gate completed');
+      trackEvent(ANALYTICS_EVENTS.ONBOARDING_STEP_COMPLETED, {
+        [ANALYTICS_PROPS.STEP_NUMBER]: 0,
+        [ANALYTICS_PROPS.STEP_NAME]: 'age_gate',
+      });
+      setAppState('welcome');
+    } catch (error) {
+      log.warn('useSimpleOnboarding', 'Error saving age gate status', { error });
+      setAppState('welcome');
+    }
   };
 
   const completeOnboarding = () => {
@@ -165,6 +197,7 @@ export function useSimpleOnboarding() {
     try {
       // Clear onboarding completion status
       await AsyncStorage.removeItem(ONBOARDING_COMPLETED_KEY);
+      await AsyncStorage.removeItem(AGE_VERIFIED_KEY);
       log.info('useSimpleOnboarding', 'Onboarding status reset');
     } catch (error) {
       log.warn('useSimpleOnboarding', 'Error resetting onboarding status', { error });
@@ -177,6 +210,7 @@ export function useSimpleOnboarding() {
   return {
     appState,
     handleSplashFinish,
+    completeAgeGate,
     completeBartendingWelcome,
     completeWelcome,
     completeOnboarding,

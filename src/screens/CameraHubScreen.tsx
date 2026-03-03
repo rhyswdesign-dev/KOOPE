@@ -15,6 +15,7 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Keyboard,
+  ImageSourcePropType,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -25,10 +26,32 @@ import type { CameraStackParamList } from '../navigation/CameraStack';
 
 const serifFont = Platform.select({ ios: 'Georgia', android: 'serif', default: 'serif' });
 
-const BACKGROUNDS = [
-  'https://images.unsplash.com/photo-1470337458703-46ad1756a187?auto=format&fit=crop&q=80', // Bar
-  'https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?auto=format&fit=crop&q=80', // Cocktail
-  'https://images.unsplash.com/photo-1597075687490-8f673c6c17f6?auto=format&fit=crop&q=80', // Bottles
+const BACKGROUNDS: ImageSourcePropType[] = [
+  require('../../assets/images/backgrounds/camera/bg-01.png'),
+  require('../../assets/images/backgrounds/camera/bg-02.png'),
+  require('../../assets/images/backgrounds/camera/bg-03.png'),
+  require('../../assets/images/backgrounds/camera/bg-04.png'),
+  require('../../assets/images/backgrounds/camera/bg-05.png'),
+  require('../../assets/images/backgrounds/camera/bg-06.png'),
+  require('../../assets/images/backgrounds/camera/bg-07.png'),
+  require('../../assets/images/backgrounds/camera/bg-08.png'),
+  require('../../assets/images/backgrounds/camera/bg-09.png'),
+  require('../../assets/images/backgrounds/camera/bg-10.png'),
+  require('../../assets/images/backgrounds/camera/bg-11.png'),
+  require('../../assets/images/backgrounds/camera/bg-12.png'),
+  require('../../assets/images/backgrounds/camera/bg-13.png'),
+  require('../../assets/images/backgrounds/camera/bg-14.png'),
+  require('../../assets/images/backgrounds/camera/bg-15.png'),
+  require('../../assets/images/backgrounds/camera/bg-16.png'),
+  require('../../assets/images/backgrounds/camera/bg-17.png'),
+  require('../../assets/images/backgrounds/camera/bg-18.png'),
+  require('../../assets/images/backgrounds/camera/bg-19.png'),
+  require('../../assets/images/backgrounds/camera/bg-20.png'),
+  require('../../assets/images/backgrounds/camera/bg-21.png'),
+  require('../../assets/images/backgrounds/camera/bg-22.png'),
+  require('../../assets/images/backgrounds/camera/bg-23.png'),
+  require('../../assets/images/backgrounds/camera/bg-24.png'),
+  require('../../assets/images/backgrounds/camera/bg-25.png'),
 ];
 
 export default function CameraHubScreen() {
@@ -108,16 +131,14 @@ export default function CameraHubScreen() {
     >
       {/* Animated Background Layer */}
       <Animated.Image
-        source={{ uri: BACKGROUNDS[currentBgIndex] }}
-        style={[
-          styles.backgroundImage,
-          { opacity: fadeAnim },
-        ]}
-        blurRadius={Platform.OS === 'ios' ? 10 : 5}
+        source={BACKGROUNDS[currentBgIndex]}
+        resizeMode="cover"
+        style={[styles.backgroundImage, { opacity: fadeAnim }]}
+        blurRadius={0}
       />
 
       <LinearGradient
-        colors={['rgba(26,18,13,0.7)', 'rgba(26,18,13,0.95)']}
+        colors={['rgba(18,12,9,0.16)', 'rgba(18,12,9,0.08)', 'rgba(18,12,9,0.24)']}
         style={styles.gradientOverlay}
       />
 

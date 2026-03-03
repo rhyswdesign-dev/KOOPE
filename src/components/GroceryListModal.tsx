@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Modal,
   View,
@@ -13,6 +13,16 @@ import { Ionicons } from '@expo/vector-icons';
 import { GroceryListService, GroceryList, GroceryItem } from '../services/groceryListService';
 import { ShoppingListStore } from '../services/shoppingListStore';
 import { useAuth } from '../contexts/AuthContext';
+import { useFeatureAccess } from '../hooks/useFeatureAccess';
+import { useUserTier } from '../store/useUserTier';
+import { tierToCompletionPlan } from '../lib/completions/brandCapture';
+import {
+  getFeaturedBrandForCategory,
+  inferCategoryFromIngredient,
+  recordBrandImpression,
+  recordBrandCartAdd,
+  type FeaturedBrand,
+} from '../services/brandPartnershipService';
 
 interface GroceryListModalProps {
   visible: boolean;
@@ -32,6 +42,47 @@ export default function GroceryListModal({
   preSelectedIngredients = [],
 }: GroceryListModalProps) {
   const { user } = useAuth();
+  const { tier } = useUserTier();
+  const { gateWithTrigger: exportGate } = useFeatureAccess('shopping_list_export');
+
+  // Featured brands map: ingredient name → FeaturedBrand
+  const [featuredBrandsMap, setFeaturedBrandsMap] = useState<Record<string, FeaturedBrand>>({});
+
+  // Resolve featured brands for each ingredient when modal opens
+  useEffect(() => {
+    if (!visible) return;
+
+    const resolve = async () => {
+      const map: Record<string, FeaturedBrand> = {};
+      const ingredientNames = ingredients.map((i) =>
+        typeof i === 'string' ? i : i.name
+      );
+
+      await Promise.all(
+        ingredientNames.map(async (name) => {
+          const category = inferCategoryFromIngredient(name);
+          if (!category) return;
+          const brand = await getFeaturedBrandForCategory(category);
+          if (brand) {
+            map[name] = brand;
+            // Record impression for each featured brand shown
+            recordBrandImpression({
+              userId: user?.id,
+              brandId: brand.id,
+              brandName: brand.brandName,
+              context: 'ingredient_list',
+              recipeId,
+              userTier: tierToCompletionPlan(tier),
+            });
+          }
+        })
+      );
+
+      setFeaturedBrandsMap(map);
+    };
+
+    resolve();
+  }, [visible]);
   const [groceryList] = useState<Omit<GroceryList, 'id' | 'createdAt' | 'updatedAt' | 'userId'>>(() =>
     GroceryListService.generateGroceryList(recipeName, ingredients, recipeId)
   );
@@ -101,6 +152,9 @@ export default function GroceryListModal({
   };
 
   const handleShare = async () => {
+    const hasExportAccess = exportGate('T5');
+    if (!hasExportAccess) return;
+
     try {
       const checkedCount = checkedItems.size;
       const totalItems = groceryList.items.length;
@@ -144,6 +198,19 @@ export default function GroceryListModal({
         Alert.alert('No Items Selected', 'Please select at least one item to add to your cart.');
         return;
       }
+
+      // Record brand cart-add events for the brand partnership data pipeline
+      selectedItems.forEach((item) => {
+        const featuredBrand = featuredBrandsMap[item.name];
+        recordBrandCartAdd({
+          userId: user?.id,
+          brandName: featuredBrand?.brandName,
+          ingredientName: item.name,
+          recipeContext: recipeName,
+          userTier: tierToCompletionPlan(tier),
+          isFeaturedBrand: Boolean(featuredBrand),
+        });
+      });
 
       const selectedGroceryList = {
         ...groceryList,
@@ -259,9 +326,23 @@ export default function GroceryListModal({
                       </View>
 
                       <View style={styles.itemDetails}>
-                        <Text style={[styles.itemName, isChecked && styles.itemNameChecked]}>
-                          {item.name}
-                        </Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                          <Text style={[styles.itemName, isChecked && styles.itemNameChecked]}>
+                            {item.name}
+                          </Text>
+                          {featuredBrandsMap[item.name] && (
+                            <View style={styles.featuredBadge}>
+                              <Text style={styles.featuredBadgeText}>
+                                ⭐ {featuredBrandsMap[item.name].badgeLabel}
+                              </Text>
+                            </View>
+                          )}
+                        </View>
+                        {featuredBrandsMap[item.name] && (
+                          <Text style={styles.featuredBrandSuggestion}>
+                            Try: {featuredBrandsMap[item.name].brandName}
+                          </Text>
+                        )}
                         <Text style={styles.itemSubcategory}>{subcategoryDisplay}</Text>
                         {liqueurDescription && (
                           <Text style={styles.itemDescription}>{liqueurDescription}</Text>
@@ -443,6 +524,23 @@ const styles = StyleSheet.create({
     marginTop: 4,
     lineHeight: 16,
     fontStyle: 'italic',
+  },
+  featuredBadge: {
+    backgroundColor: 'rgba(214, 138, 56, 0.85)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  featuredBadgeText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  featuredBrandSuggestion: {
+    fontSize: 12,
+    color: '#D7A15E',
+    fontWeight: '500',
+    marginBottom: 2,
   },
   itemPrice: {
     fontSize: 15,

@@ -17,12 +17,14 @@
       "statusBarStyle": "light",
       "bundleIdentifier": "com.koope.app",
       "infoPlist": {
-        "LSApplicationQueriesSchemes": ["instagram", "pinterest", "twitter"],
-        "NSAppTransportSecurity": {
-          "NSAllowsArbitraryLoads": true
-        }
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSCameraUsageDescription": "KOOPE uses your camera to scan bottles, capture recipe cards, and detect ingredients.",
+        "NSPhotoLibraryUsageDescription": "KOOPE needs photo library access so you can import recipe and ingredient photos.",
+        "NSPhotoLibraryAddUsageDescription": "KOOPE saves edited photos and recipe images to your library when you choose to export them."
       },
-      "associatedDomains": ["applinks:koope.app"]
+      "associatedDomains": [
+        "applinks:koope.app"
+      ]
     },
     "android": {
       "adaptiveIcon": {
@@ -31,16 +33,7 @@
       },
       "statusBarStyle": "light",
       "edgeToEdgeEnabled": true,
-      "package": "com.koope.app",
-      "intentFilters": [
-        {
-          "action": "android.intent.action.SEND",
-          "category": ["android.intent.category.DEFAULT"],
-          "data": {
-            "mimeType": "text/plain"
-          }
-        }
-      ]
+      "package": "com.koope.app"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -49,7 +42,31 @@
       "expo-web-browser",
       "react-native-iap",
       "expo-video",
-      "expo-apple-authentication"
-    ]
+      "expo-apple-authentication",
+      [
+        "expo-share-intent",
+        {
+          "iosActivationRules": {
+            "NSExtensionActivationSupportsText": true,
+            "NSExtensionActivationSupportsWebURLWithMaxCount": 1,
+            "NSExtensionActivationSupportsWebPageWithMaxCount": 1,
+            "NSExtensionActivationSupportsImageWithMaxCount": 1
+          },
+          "androidIntentFilters": [
+            "text/*",
+            "image/*"
+          ],
+          "androidMultiIntentFilters": [
+            "image/*"
+          ]
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "89eb7254-f763-4d2b-a5d6-27d90b91c908"
+      }
+    },
+    "owner": "frodobagginz"
   }
 }

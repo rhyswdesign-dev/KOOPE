@@ -93,8 +93,8 @@ export default function ExploreScreen() {
     <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: spacing(6) }}>
       {/* Top chips */}
       <View style={styles.chipsRow}>
-        <NavChip label="Spirits" onPress={() => nav.navigate('Spirits')} />
-        <NavChip label="Bars" onPress={() => nav.navigate('Bars')} />
+        <NavChip label="Spirits" onPress={() => nav.navigate('Recipes')} />
+        <NavChip label="Bars" onPress={() => nav.navigate('HomeBar')} />
         <NavChip label="Events" onPress={() => nav.navigate('Events')} />
         <NavChip label="Games" onPress={() => nav.navigate('Games')} />
       </View>

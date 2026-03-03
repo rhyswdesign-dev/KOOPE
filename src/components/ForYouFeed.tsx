@@ -9,7 +9,6 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   TouchableOpacity,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -26,6 +25,7 @@ import {
 import { log } from '../lib/logger';
 import { getTrendingCocktails, getCurrentSeason, getSeasonDisplayName, getSeasonEmoji } from '../services/seasonalTrendingService';
 import { useUserTier } from '../store/useUserTier';
+import InPageTabBar from './ui/InPageTabBar';
 
 interface ForYouFeedProps {
   onCocktailPress: (cocktail: any) => void;
@@ -322,74 +322,21 @@ export default function ForYouFeed({
           )}
 
           {/* Tab Bar */}
-          <ScrollView
-            horizontal
-            nestedScrollEnabled
-            showsHorizontalScrollIndicator={false}
-            style={styles.tabBar}
-            contentContainerStyle={styles.tabBarContent}
-          >
-            <TouchableOpacity
-              style={[
-                styles.tab,
-                selectedRecommendTab === 'matched' && styles.tabActive,
+          <View style={styles.tabBar}>
+            <InPageTabBar
+              scrollable
+              items={[
+                { key: 'matched', label: hasProfile ? '⭐ Matched for You' : '⭐ Popular' },
+                { key: 'beginner', label: '🌱 Beginner Friendly' },
+                { key: 'challenge', label: '🌶️ Flavor Challenges' },
+                { key: 'trending', label: `${seasonEmoji} Trending ${seasonName}` },
               ]}
-              onPress={() => setSelectedRecommendTab('matched')}
-              activeOpacity={0.7}
-            >
-              <Text style={[
-                styles.tabText,
-                selectedRecommendTab === 'matched' && styles.tabTextActive,
-              ]}>
-                {hasProfile ? '⭐ Matched for You' : '⭐ Popular'}
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.tab,
-                selectedRecommendTab === 'beginner' && styles.tabActive,
-              ]}
-              onPress={() => setSelectedRecommendTab('beginner')}
-              activeOpacity={0.7}
-            >
-              <Text style={[
-                styles.tabText,
-                selectedRecommendTab === 'beginner' && styles.tabTextActive,
-              ]}>
-                🌱 Beginner Friendly
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.tab,
-                selectedRecommendTab === 'challenge' && styles.tabActive,
-              ]}
-              onPress={() => setSelectedRecommendTab('challenge')}
-              activeOpacity={0.7}
-            >
-              <Text style={[
-                styles.tabText,
-                selectedRecommendTab === 'challenge' && styles.tabTextActive,
-              ]}>
-                🌶️ Flavor Challenges
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.tab,
-                selectedRecommendTab === 'trending' && styles.tabActive,
-              ]}
-              onPress={() => setSelectedRecommendTab('trending')}
-              activeOpacity={0.7}
-            >
-              <Text style={[
-                styles.tabText,
-                selectedRecommendTab === 'trending' && styles.tabTextActive,
-              ]}>
-                {seasonEmoji} Trending {seasonName}
-              </Text>
-            </TouchableOpacity>
-          </ScrollView>
+              activeKey={selectedRecommendTab}
+              onChange={(key) =>
+                setSelectedRecommendTab(key as 'matched' | 'beginner' | 'challenge' | 'trending')
+              }
+            />
+          </View>
 
           {/* Horizontal Cocktail Cards */}
           <FlatList
@@ -542,31 +489,8 @@ const styles = StyleSheet.create({
     marginBottom: spacing(2),
   },
   tabBar: {
+    marginHorizontal: spacing(3),
     marginBottom: spacing(2),
-  },
-  tabBarContent: {
-    paddingHorizontal: spacing(3),
-  },
-  tab: {
-    paddingHorizontal: spacing(2),
-    paddingVertical: spacing(1.5),
-    borderRadius: 20,
-    backgroundColor: colors.card,
-    marginRight: spacing(1.5),
-    borderWidth: 1,
-    borderColor: colors.line,
-  },
-  tabActive: {
-    backgroundColor: colors.accent,
-    borderColor: colors.accent,
-  },
-  tabText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.subtext,
-  },
-  tabTextActive: {
-    color: colors.white,
   },
   cocktailList: {
     gap: spacing(2),

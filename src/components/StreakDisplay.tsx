@@ -9,18 +9,15 @@ import {
   Text,
   StyleSheet,
   Animated,
-  Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, radii, fonts } from '../theme/tokens';
+import { colors, spacing, radii, textStyles } from '../theme/tokens';
 import { StreakData } from '../services/streakService';
 
 interface StreakDisplayProps {
   streakData: StreakData;
   compact?: boolean;
 }
-
-const { width } = Dimensions.get('window');
 
 export const StreakDisplay: React.FC<StreakDisplayProps> = ({
   streakData,
@@ -86,7 +83,7 @@ export const StreakDisplay: React.FC<StreakDisplayProps> = ({
           <Ionicons
             name="flame"
             size={24}
-            color={streakData.currentStreak > 0 ? colors.warning : colors.text.disabled}
+            color={streakData.currentStreak > 0 ? colors.warning : colors.muted}
           />
         </Animated.View>
         <View>
@@ -113,7 +110,7 @@ export const StreakDisplay: React.FC<StreakDisplayProps> = ({
           <Ionicons
             name="flame"
             size={64}
-            color={streakData.currentStreak > 0 ? colors.warning : colors.text.disabled}
+            color={streakData.currentStreak > 0 ? colors.warning : colors.muted}
           />
         </Animated.View>
 
@@ -155,7 +152,7 @@ export const StreakDisplay: React.FC<StreakDisplayProps> = ({
             const dayOfWeek = (index + 1) % 7; // Monday = 1, Sunday = 0
             const today = new Date().getDay();
             const isToday = dayOfWeek === today;
-            const hasActivity = streakData.isActiveToday && isToday;
+            const hasActivity = streakData.lastActivityDate === new Date().toISOString().split('T')[0] && isToday;
 
             return (
               <View key={index} style={styles.calendarDay}>
@@ -200,25 +197,25 @@ const styles = StyleSheet.create({
   container: {
     backgroundColor: colors.background.elevated,
     borderRadius: radii.xl,
-    padding: spacing.xl,
-    marginVertical: spacing.md,
+    padding: spacing(4),
+    marginVertical: spacing(2),
   },
 
   compactContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
+    gap: spacing(1),
   },
 
   mainDisplay: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing.xl,
+    marginBottom: spacing(4),
   },
 
   flameIcon: {
-    marginRight: spacing.lg,
+    marginRight: spacing(3),
   },
 
   flameIconCompact: {
@@ -230,40 +227,40 @@ const styles = StyleSheet.create({
   },
 
   streakNumber: {
-    ...fonts.title,
+    ...textStyles.h2,
     fontSize: 48,
     fontWeight: '700',
-    color: colors.text.primary,
+    color: colors.text,
     lineHeight: 52,
   },
 
   streakNumberCompact: {
-    ...fonts.title,
+    ...textStyles.h3,
     fontSize: 20,
     fontWeight: '700',
-    color: colors.text.primary,
+    color: colors.text,
   },
 
   streakLabel: {
-    ...fonts.body,
+    ...textStyles.body,
     fontSize: 16,
-    color: colors.text.secondary,
+    color: colors.subtext,
     textTransform: 'uppercase',
     letterSpacing: 1,
   },
 
   streakLabelCompact: {
-    ...fonts.caption,
+    ...textStyles.caption,
     fontSize: 12,
-    color: colors.text.secondary,
+    color: colors.subtext,
   },
 
   statsRow: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    marginBottom: spacing.xl,
-    paddingVertical: spacing.md,
-    backgroundColor: colors.background.default,
+    marginBottom: spacing(4),
+    paddingVertical: spacing(2),
+    backgroundColor: colors.card,
     borderRadius: radii.lg,
   },
 
@@ -273,17 +270,17 @@ const styles = StyleSheet.create({
   },
 
   statValue: {
-    ...fonts.title,
+    ...textStyles.h3,
     fontSize: 24,
     fontWeight: '700',
-    color: colors.text.primary,
-    marginBottom: spacing.xs,
+    color: colors.text,
+    marginBottom: spacing(0.5),
   },
 
   statLabel: {
-    ...fonts.caption,
+    ...textStyles.caption,
     fontSize: 12,
-    color: colors.text.secondary,
+    color: colors.subtext,
     textTransform: 'uppercase',
   },
 
@@ -294,15 +291,15 @@ const styles = StyleSheet.create({
   },
 
   calendar: {
-    marginBottom: spacing.md,
+    marginBottom: spacing(2),
   },
 
   calendarTitle: {
-    ...fonts.body,
+    ...textStyles.body,
     fontSize: 14,
     fontWeight: '600',
-    color: colors.text.secondary,
-    marginBottom: spacing.md,
+    color: colors.subtext,
+    marginBottom: spacing(2),
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
@@ -314,13 +311,13 @@ const styles = StyleSheet.create({
 
   calendarDay: {
     alignItems: 'center',
-    gap: spacing.xs,
+    gap: spacing(0.5),
   },
 
   dayLabel: {
-    ...fonts.caption,
+    ...textStyles.caption,
     fontSize: 12,
-    color: colors.text.secondary,
+    color: colors.subtext,
     fontWeight: '600',
   },
 
@@ -332,7 +329,7 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: colors.background.default,
+    backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: colors.border,
   },
@@ -351,17 +348,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: spacing.sm,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-    backgroundColor: colors.background.default,
+    gap: spacing(1),
+    paddingVertical: spacing(2),
+    paddingHorizontal: spacing(3),
+    backgroundColor: colors.card,
     borderRadius: radii.lg,
   },
 
   motivationText: {
-    ...fonts.body,
+    ...textStyles.body,
     fontSize: 14,
-    color: colors.text.secondary,
+    color: colors.subtext,
     textAlign: 'center',
   },
 });

@@ -19,6 +19,7 @@ import { colors, spacing, radii } from '../theme/tokens';
 import { useXPSystem } from '../store/useXPSystem';
 import { useVault } from '../contexts/VaultContext';
 import type { RootStackParamList } from '../navigation/RootNavigator';
+import InPageTabBar from './ui/InPageTabBar';
 
 export default function VaultTabView() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -119,36 +120,18 @@ export default function VaultTabView() {
       </View>
 
       {/* Category Filter */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.categoriesContainer}
-      >
-        {categories.map((category) => (
-          <TouchableOpacity
-            key={category.id}
-            style={[
-              styles.categoryChip,
-              selectedCategory === category.id && styles.categoryChipActive,
-            ]}
-            onPress={() => setSelectedCategory(category.id)}
-          >
-            <Ionicons
-              name={category.icon as any}
-              size={18}
-              color={selectedCategory === category.id ? colors.goldText : colors.text}
-            />
-            <Text
-              style={[
-                styles.categoryLabel,
-                selectedCategory === category.id && styles.categoryLabelActive,
-              ]}
-            >
-              {category.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+      <View style={styles.categoriesContainer}>
+        <InPageTabBar
+          items={categories.map((category) => ({
+            key: category.id,
+            label: category.label,
+            icon: category.icon,
+          }))}
+          activeKey={selectedCategory}
+          onChange={setSelectedCategory}
+          scrollable
+        />
+      </View>
 
       {/* Vault Items Grid */}
       <ScrollView contentContainerStyle={styles.scrollContent}>

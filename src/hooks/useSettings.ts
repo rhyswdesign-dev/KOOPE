@@ -4,7 +4,6 @@ export interface SettingsState {
   showPrizes: boolean;
   notifications: {
     events: boolean;
-    social: boolean;
     marketing: boolean;
     updates: boolean;
   };
@@ -15,7 +14,6 @@ export function useSettings() {
     showPrizes: true,
     notifications: {
       events: true,
-      social: true,
       marketing: false,
       updates: true,
     },

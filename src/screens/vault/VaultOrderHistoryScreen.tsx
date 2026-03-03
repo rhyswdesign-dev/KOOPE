@@ -101,7 +101,6 @@ export default function VaultOrderHistoryScreen() {
       headerTintColor: colors.text,
       headerTitleStyle: { color: colors.text, fontWeight: '900' },
       headerShadowVisible: false,
-      headerLeft: () => null,
     });
   }, [nav]);
 

@@ -34,10 +34,24 @@ type ManualBottleEntryNav = NativeStackNavigationProp<CameraStackParamList, 'Man
 type ManualBottleEntryRoute = RouteProp<CameraStackParamList, 'ManualBottleEntry'>;
 
 const CATEGORIES = ['Spirit', 'Liqueur', 'Mixer', 'Bitters', 'Syrup', 'Other'] as const;
-const SUBCATEGORIES = ['Gin', 'Vodka', 'Rum', 'Whiskey', 'Tequila', 'Mezcal', 'Brandy', 'Other'] as const;
+const SPIRIT_TYPES = ['Gin', 'Vodka', 'Rum', 'Whiskey', 'Tequila', 'Mezcal', 'Brandy', 'Other'] as const;
+const NON_SPIRIT_TYPES: Record<string, readonly string[]> = {
+  Liqueur: ['Orange Liqueur', 'Coffee Liqueur', 'Herbal Liqueur', 'Fruit Liqueur', 'Other'],
+  Mixer: ['Tonic Water', 'Soda Water', 'Ginger Beer', 'Ginger Ale', 'Cola', 'Juice', 'Other'],
+  Bitters: ['Aromatic Bitters', 'Orange Bitters', 'Chocolate Bitters', 'Other'],
+  Syrup: ['Simple Syrup', 'Demerara Syrup', 'Honey Syrup', 'Agave Syrup', 'Grenadine', 'Other'],
+  Other: ['Citrus', 'Herb', 'Fruit', 'Garnish', 'Other'],
+};
+const MATCH_ALIASES: Record<string, readonly string[]> = {
+  Spirit: ['gin', 'vodka', 'rum', 'whiskey', 'tequila', 'mezcal', 'brandy'],
+  Liqueur: ['triple sec', 'campari', 'aperol', 'vermouth'],
+  Mixer: ['soda water', 'tonic water', 'ginger beer', 'ginger ale', 'cola', 'orange juice', 'pineapple juice'],
+  Bitters: ['angostura bitters', 'orange bitters'],
+  Syrup: ['simple syrup', 'demerara syrup', 'honey syrup', 'agave syrup', 'grenadine'],
+  Other: ['lime juice', 'lemon juice', 'orange juice', 'mint', 'cucumber'],
+};
 
 type Category = typeof CATEGORIES[number];
-type Subcategory = typeof SUBCATEGORIES[number];
 
 export default function ManualBottleEntryScreen() {
   const navigation = useNavigation<ManualBottleEntryNav>();
@@ -50,8 +64,13 @@ export default function ManualBottleEntryScreen() {
   const [name, setName] = useState(route.params?.initialName ?? '');
   const [brand, setBrand] = useState(route.params?.initialBrand ?? '');
   const [category, setCategory] = useState<Category>('Spirit');
-  const [subcategory, setSubcategory] = useState<Subcategory | null>(null);
+  const [subcategory, setSubcategory] = useState<string | null>(null);
+  const [matchAs, setMatchAs] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const typeOptions: readonly string[] = category === 'Spirit'
+    ? SPIRIT_TYPES
+    : (NON_SPIRIT_TYPES[category] || NON_SPIRIT_TYPES.Other);
+  const matchAliasOptions = MATCH_ALIASES[category] || MATCH_ALIASES.Other;
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -67,6 +86,10 @@ export default function ManualBottleEntryScreen() {
   const handleSubmit = async () => {
     if (!name.trim()) {
       Alert.alert('Name Required', 'Please enter a bottle name.');
+      return;
+    }
+    if (category === 'Spirit' && !subcategory) {
+      Alert.alert('Spirit Type Required', 'Please choose a spirit type for better matching.');
       return;
     }
 
@@ -94,15 +117,17 @@ export default function ManualBottleEntryScreen() {
     setSubmitting(true);
 
     const itemName = brand.trim() ? `${brand.trim()} ${name.trim()}` : name.trim();
-    const itemCategory = category === 'Spirit' && subcategory
-      ? subcategory.toLowerCase()
-      : category.toLowerCase();
+    const derivedMatchAs = (matchAs || (category === 'Spirit' ? subcategory : null) || '').toLowerCase().trim();
+    const notes = derivedMatchAs ? `match_as=${derivedMatchAs}` : undefined;
 
     const result = await InventoryService.addToInventory({
       userId: user.id,
       itemType: category === 'Spirit' ? 'spirit' : 'ingredient',
       itemName,
-      category: itemCategory,
+      category: category.toLowerCase(),
+      subcategory: subcategory?.toLowerCase(),
+      brand: brand.trim() || undefined,
+      notes,
       imageUrl: route.params?.imageUri ?? undefined,
     });
 
@@ -188,7 +213,8 @@ export default function ManualBottleEntryScreen() {
                 style={[styles.chip, category === cat && styles.chipSelected]}
                 onPress={() => {
                   setCategory(cat);
-                  if (cat !== 'Spirit') setSubcategory(null);
+                  setSubcategory(null);
+                  setMatchAs(null);
                 }}
               >
                 <Text style={[styles.chipText, category === cat && styles.chipTextSelected]}>
@@ -198,25 +224,44 @@ export default function ManualBottleEntryScreen() {
             ))}
           </View>
 
-          {/* Subcategory (spirits only) */}
-          {category === 'Spirit' && (
-            <>
-              <Text style={styles.label}>Spirit Type</Text>
-              <View style={styles.chipRow}>
-                {SUBCATEGORIES.map((sub) => (
-                  <TouchableOpacity
-                    key={sub}
-                    style={[styles.chip, subcategory === sub && styles.chipSelected]}
-                    onPress={() => setSubcategory(sub)}
-                  >
-                    <Text style={[styles.chipText, subcategory === sub && styles.chipTextSelected]}>
-                      {sub}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </>
-          )}
+          <Text style={styles.label}>{category === 'Spirit' ? 'Spirit Type *' : 'Type'}</Text>
+          <View style={styles.chipRow}>
+            {typeOptions.map((sub) => (
+              <TouchableOpacity
+                key={sub}
+                style={[styles.chip, subcategory === sub && styles.chipSelected]}
+                onPress={() => {
+                  setSubcategory(sub);
+                  if (category === 'Spirit' && !matchAs && sub !== 'Other') {
+                    setMatchAs(sub.toLowerCase());
+                  }
+                }}
+              >
+                <Text style={[styles.chipText, subcategory === sub && styles.chipTextSelected]}>
+                  {sub}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <Text style={styles.label}>Cocktail Match Alias</Text>
+          <Text style={styles.helperText}>
+            Optional. Helps map this entry to recipe ingredient names.
+          </Text>
+          <View style={styles.chipRow}>
+            {matchAliasOptions.map((alias) => (
+              <TouchableOpacity
+                key={alias}
+                style={[styles.chip, matchAs === alias && styles.chipSelected]}
+                onPress={() => setMatchAs(alias)}
+              >
+                <Text style={[styles.chipText, matchAs === alias && styles.chipTextSelected]}>
+                  {alias}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          {matchAs && <Text style={styles.matchAsPreview}>Will match as: {matchAs}</Text>}
         </ScrollView>
 
         {/* Submit Button */}
@@ -307,6 +352,17 @@ const styles = StyleSheet.create({
   chipTextSelected: {
     color: colors.bg,
     fontWeight: '700',
+  },
+  helperText: {
+    color: colors.subtext,
+    fontSize: 12,
+    marginBottom: spacing(1),
+  },
+  matchAsPreview: {
+    color: colors.gold,
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: spacing(1),
   },
   footer: {
     padding: spacing(4),

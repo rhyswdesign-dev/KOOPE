@@ -46,11 +46,15 @@ export const colors = {
   accentDark: '#E89C40', // glowing gold for gradients
   accentText: '#D68A38', // accent text color
   accentLight: '#E89C40', // highlighted icons
+  primary: '#D68A38', // legacy alias
 
   // System Colors
   white: '#FFFFFF',
   line: 'rgba(255,255,255,0.08)', // borders/dividers
   border: 'rgba(255,255,255,0.08)', // border color alias
+  surface: '#2B1F17', // legacy alias
+  disabled: 'rgba(242,229,213,0.35)', // legacy alias
+  textSecondary: '#C7B8A5', // legacy alias
   shadow: 'rgba(0,0,0,0.35)',
   error: '#F44336', // error/danger color
   success: '#4CAF50', // success color
@@ -89,10 +93,28 @@ export const colors = {
     elevated: '#2B1F17', // same as card background
     primary: '#1A120D',  // same as bg
     secondary: '#2B1F17', // same as card
+    default: '#2B1F17', // legacy alias
   },
 };
 
-export const spacing = (n: number) => 8 * n;
+type SpacingFn = ((n: number) => number) & {
+  xs: number;
+  sm: number;
+  md: number;
+  lg: number;
+  xl: number;
+};
+
+export const spacing = Object.assign(
+  (n: number) => 8 * n,
+  {
+    xs: 4,
+    sm: 8,
+    md: 16,
+    lg: 24,
+    xl: 32,
+  }
+) as SpacingFn;
 
 export const radii = {
   sm: 10,    // small elements
@@ -103,7 +125,7 @@ export const radii = {
   full: 9999, // alias for pill (full rounded)
 };
 
-export const fonts = {
+export const fonts: any = {
   h1: 28,
   h2: 22,
   h3: 18,
@@ -111,6 +133,19 @@ export const fonts = {
   small: 13,
   caption: 12,
   micro: 10,
+  title: {
+    fontSize: 20,
+    fontWeight: '700' as const,
+    color: colors.text as any,
+    lineHeight: 24,
+  },
+  button: {
+    fontSize: 16,
+    fontWeight: '700' as const,
+    color: colors.white,
+    lineHeight: 20,
+  },
+  heading: Platform.select({ ios: 'Georgia', android: 'serif', default: 'serif' }),
 };
 
 // Global Text Styles

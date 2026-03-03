@@ -41,7 +41,6 @@ export default function OrderConfirmationScreen() {
       headerTintColor: colors.text,
       headerTitleStyle: { color: colors.text, fontWeight: '900' },
       headerShadowVisible: false,
-      headerLeft: () => null, // Remove back button
     });
   }, [nav]);
 

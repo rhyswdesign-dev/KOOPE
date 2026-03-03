@@ -9,6 +9,8 @@ import ProfileStack from './ProfileStack';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/tokens';
 import OfflineIndicator from '../components/OfflineIndicator';
+import { useNavigation } from '@react-navigation/native';
+import TutorialIconButton from '../components/tour/TutorialIconButton';
 
 type TabsParamList = {
   Lessons: undefined;
@@ -20,6 +22,8 @@ type TabsParamList = {
 const Tab = createBottomTabNavigator<TabsParamList>();
 
 export default function Tabs() {
+  const navigation = useNavigation();
+
   return (
     <View style={{ flex: 1 }}>
       <Tab.Navigator
@@ -47,6 +51,13 @@ export default function Tabs() {
         <Tab.Screen name="Inventory" component={InventoryStack} />
         <Tab.Screen name="Profile" component={ProfileStack} />
       </Tab.Navigator>
+      <SafeAreaView
+        edges={['top']}
+        style={{ position: 'absolute', top: 0, left: 0, zIndex: 1001, paddingTop: 8, paddingLeft: 10 }}
+        pointerEvents="box-none"
+      >
+        <TutorialIconButton onPress={() => (navigation as any).navigate('Tutorials')} />
+      </SafeAreaView>
       <SafeAreaView edges={['top']} style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 1000 }}>
         <OfflineIndicator />
       </SafeAreaView>

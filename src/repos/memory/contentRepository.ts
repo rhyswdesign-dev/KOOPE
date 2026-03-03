@@ -5,7 +5,7 @@
 
 import { ContentRepository } from '../interfaces';
 import { Module, Lesson, Item, ExerciseType } from '../../types/domain';
-import curriculumData from '../../../curriculum-data.json';
+import { curriculumData } from '../../utils/curriculumAdapter';
 import { log } from '../../lib/logger';
 
 export class MemoryContentRepository implements ContentRepository {
@@ -53,6 +53,7 @@ export class MemoryContentRepository implements ContentRepository {
         id: item.id,
         type: item.type as ExerciseType,
         prompt: item.prompt,
+        insight: item.insight,
         options: item.options || [],
         answerIndex: item.answerIndex,
         orderTarget: item.orderTarget,

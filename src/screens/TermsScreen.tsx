@@ -80,7 +80,7 @@ Home Game Advantage is a bartending education mobile application that provides:
 
 ## Eligibility
 
-You must be at least 18 years old to use this App. By using our App, you represent and warrant that you meet this age requirement and have the legal capacity to enter into these Terms.
+You must be of legal drinking age in your jurisdiction to use this App. In the United States, this means you must be at least 21 years old. By using our App, you represent and warrant that you meet this requirement and have the legal capacity to enter into these Terms.
 
 ## User Accounts
 

@@ -192,7 +192,18 @@ export default function WhatCanIMakeScreen() {
       Alert.alert(
         'Daily Limit Reached',
         'Free users can generate 1 recipe per day. Upgrade to premium for unlimited AI recipes!',
-        [{ text: 'OK' }]
+        [
+          { text: 'Not Now', style: 'cancel' },
+          {
+            text: 'Upgrade',
+            onPress: () =>
+              navigation.navigate('Paywall', {
+                source: 'what_can_i_make_ai_limit',
+                offering: null,
+                displayCloseButton: true,
+              }),
+          },
+        ]
       );
       return;
     }

@@ -17,6 +17,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, radii, fonts } from '../theme/tokens';
 import { useXPSystem, XP_EARNING_RATES } from '../store/useXPSystem';
+import InPageTabBar from './ui/InPageTabBar';
 
 interface XPBalanceModalProps {
   visible: boolean;
@@ -134,30 +135,15 @@ export default function XPBalanceModal({ visible, onClose }: XPBalanceModalProps
 
           {/* Tabs */}
           <View style={styles.tabs}>
-            <TouchableOpacity
-              style={[styles.tab, activeTab === 'overview' && styles.tabActive]}
-              onPress={() => setActiveTab('overview')}
-            >
-              <Text style={[styles.tabText, activeTab === 'overview' && styles.tabTextActive]}>
-                Overview
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.tab, activeTab === 'history' && styles.tabActive]}
-              onPress={() => setActiveTab('history')}
-            >
-              <Text style={[styles.tabText, activeTab === 'history' && styles.tabTextActive]}>
-                History
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.tab, activeTab === 'earn' && styles.tabActive]}
-              onPress={() => setActiveTab('earn')}
-            >
-              <Text style={[styles.tabText, activeTab === 'earn' && styles.tabTextActive]}>
-                Earn More
-              </Text>
-            </TouchableOpacity>
+            <InPageTabBar
+              items={[
+                { key: 'overview', label: 'Overview', icon: 'speedometer-outline' },
+                { key: 'history', label: 'History', icon: 'time-outline' },
+                { key: 'earn', label: 'Earn More', icon: 'sparkles-outline' },
+              ]}
+              activeKey={activeTab}
+              onChange={(key) => setActiveTab(key as 'overview' | 'history' | 'earn')}
+            />
           </View>
 
           {/* Content */}

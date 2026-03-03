@@ -37,6 +37,7 @@ import { useUserTier } from '../store/useUserTier';
 import DataConsentDialog from '../components/modals/DataConsentDialog';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SUBSCRIPTION_ENTITLEMENTS } from '../constants/subscriptions';
+import { getScannerTierAccess } from '../config/scannerAccess';
 
 function getManualPrefill(productName: string | null, productBrand: string | null): { brand?: string; name?: string } {
   const cleanName = productName?.trim() || '';
@@ -442,6 +443,7 @@ export default function SmartScanScreen() {
     || activeEntitlements.includes(SUBSCRIPTION_ENTITLEMENTS.KOOPE_PRO_ALT);
   const hasPlusEntitlement = activeEntitlements.includes(SUBSCRIPTION_ENTITLEMENTS.KOOPE_PLUS);
   const hasPrestigeEntitlement = activeEntitlements.includes(SUBSCRIPTION_ENTITLEMENTS.PRESTIGE);
+  const scannerAccess = getScannerTierAccess(tier, hasPrestigeEntitlement);
 
   return (
     <>
@@ -490,6 +492,12 @@ export default function SmartScanScreen() {
             </Text>
             <Text style={styles.debugBannerSubtext}>
               Entitlements: +:{hasPlusEntitlement ? 'Y' : 'N'} pro:{hasProEntitlement ? 'Y' : 'N'} prestige:{hasPrestigeEntitlement ? 'Y' : 'N'}
+            </Text>
+            <Text style={styles.debugBannerSubtext}>
+              Scanner: {scannerAccess.scannerStack}
+            </Text>
+            <Text style={styles.debugBannerSubtext}>
+              Multi-ingredient photo scan: {scannerAccess.supportsMultiIngredientDetection ? 'enabled' : 'not available'}
             </Text>
           </View>
 

@@ -14,11 +14,12 @@ interface ScanCounterProps {
   scansRemaining?: number; // kept for API compat, unused
   isPaidUser?: boolean;
   isGuest?: boolean;
+  barcodeOnly?: boolean;
 }
 
-export default function ScanCounter({ isPaidUser, isGuest }: ScanCounterProps) {
-  // Paid users: unlimited AI scanning — no badge shown
-  if (isPaidUser) return null;
+export default function ScanCounter({ isPaidUser, isGuest, barcodeOnly }: ScanCounterProps) {
+  // Only show badge when in barcode-only (FREE) mode
+  if (!barcodeOnly) return null;
 
   return (
     <View style={styles.container}>

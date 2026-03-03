@@ -28,9 +28,8 @@ import { useSavedItems } from '../hooks/useSavedItems';
 import { recipeService } from '../lib/supabaseData';
 import { useAuth } from '../contexts/AuthContext';
 import GroceryListModal from '../components/GroceryListModal';
-import { getPersonalizedFeed, RecommendationEngine } from '../services/recommendationEngine';
 import { AIRecipeFormatter, FormattedRecipe } from '../services/aiRecipeFormatter';
-import { searchService, type SearchableItem, FilterOptions } from '../services/searchService';
+import { searchService, type FilterOptions } from '../services/searchService';
 import AIRecipeSearch from '../components/AIRecipeSearch';
 import AIRecipeModal from '../components/AIRecipeModal';
 import AICreditsPurchaseModal from '../components/AICreditsPurchaseModal';
@@ -1541,11 +1540,15 @@ function HeroCard({ cocktail, onPress }: { cocktail: typeof COCKTAIL_OF_THE_WEEK
   const cardW = width - spacing(2) * 2;
   const cardH = Math.round(cardW * 0.56);
 
+  const resolvedImage = typeof cocktail.image === 'string' 
+    ? getCocktailImage(cocktail.id, cocktail.image) 
+    : cocktail.image;
+
   return (
     <Animated.View entering={FadeIn.duration(600)} style={{ marginHorizontal: spacing(2), borderRadius: radii.xl, overflow: 'hidden', backgroundColor: colors.card, marginBottom: spacing(1.5) }}>
       <Pressable onPress={onPress} style={{ width: cardW, height: cardH }}>
         <Image
-          source={typeof cocktail.image === 'string' ? { uri: cocktail.image } : cocktail.image}
+          source={typeof resolvedImage === 'string' ? { uri: resolvedImage } : resolvedImage}
           style={{ width: '100%', height: '100%' }}
         />
       </Pressable>
@@ -1576,6 +1579,9 @@ export default function RecipesScreen() {
   // Tier-based access control
   const tier = useUserTier((state) => state.tier);
   const { gateWithTrigger: saveGate } = useFeatureAccess('saved_cocktails_unlimited');
+  const { gateWithTrigger: bringToPartyGate } = useFeatureAccess('bring_to_party');
+  const { gateWithTrigger: predictiveEngineGate } = useFeatureAccess('predictive_engine');
+  const { gateWithTrigger: flavorControlsGate } = useFeatureAccess('adjustable_flavor_controls');
 
   // XP System
   const {
@@ -1694,7 +1700,7 @@ export default function RecipesScreen() {
         description: recipe.description || 'AI-generated cocktail recipe',
         ingredients: recipe.ingredients || [],
         instructions: recipe.instructions || [],
-        image: recipe.image || 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=240&h=160&fit=crop',
+        image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=240&h=160&fit=crop',
         tags: recipe.tags || [],
       });
 
@@ -1793,31 +1799,6 @@ export default function RecipesScreen() {
               // PLUS and PRO users can see all results
               return true;
             });
-
-          // AI Enhancement: Get personalized recommendations to boost relevant results
-          try {
-            const context = {
-              timeOfDay: new Date().getHours() < 12 ? 'morning' as const :
-                new Date().getHours() < 17 ? 'afternoon' as const :
-                  new Date().getHours() < 22 ? 'evening' as const : 'night' as const,
-              dayOfWeek: new Date().getDay(),
-              recentActivity: [query] // Include current search as recent activity
-            };
-
-            const recommendations = await recommendationEngine.getRecommendations(context);
-
-            // Boost search results that align with AI recommendations
-            if (recommendations.personalized.length > 0) {
-              const recommendedIds = new Set(recommendations.personalized.map(r => r.item.id));
-              recipeResults = recipeResults.sort((a, b) => {
-                const aRecommended = recommendedIds.has(a.id) ? 1 : 0;
-                const bRecommended = recommendedIds.has(b.id) ? 1 : 0;
-                return bRecommended - aRecommended; // Recommended items first
-              });
-            }
-          } catch (aiError) {
-            log.warn('RecipesScreen', 'AI enhancement failed, continuing with basic search', { query });
-          }
 
           setSearchResults(recipeResults);
         } catch (searchError) {
@@ -1937,31 +1918,34 @@ export default function RecipesScreen() {
     let recipes = [...ALL_COCKTAILS];
 
     // Filter by ingredients/spirits
-    if (currentFilters.ingredients && currentFilters.ingredients.length > 0) {
+    const selectedIngredients = currentFilters.ingredients ?? [];
+    if (selectedIngredients.length > 0) {
       recipes = recipes.filter(recipe => {
         const recipeText = `${recipe.name} ${recipe.subtitle || ''} ${recipe.description || ''} ${(recipe.ingredients || []).join(' ')}`.toLowerCase();
-        return currentFilters.ingredients.some(ingredient =>
+        return selectedIngredients.some(ingredient =>
           recipeText.includes(ingredient.toLowerCase())
         );
       });
     }
 
     // Filter by difficulty
-    if (currentFilters.difficulty && currentFilters.difficulty.length > 0) {
+    const selectedDifficulties = currentFilters.difficulty ?? [];
+    if (selectedDifficulties.length > 0) {
       recipes = recipes.filter(recipe => {
         const recipeDifficulty = recipe.difficulty?.toLowerCase();
-        return currentFilters.difficulty.some(diff => diff === recipeDifficulty);
+        return selectedDifficulties.some(diff => diff === recipeDifficulty);
       });
     }
 
     // Filter by category
-    if (currentFilters.category && currentFilters.category.length > 0) {
+    const selectedCategories = currentFilters.category ?? [];
+    if (selectedCategories.length > 0) {
       recipes = recipes.filter(recipe => {
         const recipeCategory = recipe.category?.toLowerCase();
         const recipeSubtitle = recipe.subtitle?.toLowerCase() || '';
         const recipeDescription = recipe.description?.toLowerCase() || '';
 
-        return currentFilters.category.some(cat => {
+        return selectedCategories.some(cat => {
           const categoryLower = cat.toLowerCase();
           // Check if category matches the recipe's category field or appears in subtitle/description
           return recipeCategory === categoryLower ||
@@ -1972,7 +1956,8 @@ export default function RecipesScreen() {
     }
 
     // Filter by mood
-    if (currentFilters.mood && currentFilters.mood.length > 0) {
+    const selectedMoods = currentFilters.mood ?? [];
+    if (selectedMoods.length > 0) {
       recipes = recipes.filter(recipe => {
         // Find which moods this recipe belongs to
         const recipeMoods = COCKTAIL_MOODS.filter(moodCategory =>
@@ -1980,7 +1965,7 @@ export default function RecipesScreen() {
         ).map(m => m.title);
 
         // Check if recipe belongs to any of the selected moods
-        return currentFilters.mood.some(selectedMood =>
+        return selectedMoods.some(selectedMood =>
           recipeMoods.includes(selectedMood)
         );
       });
@@ -2247,7 +2232,7 @@ export default function RecipesScreen() {
                   </Text>
                 </Pressable>
                 <Pressable
-                  onPress={() => setViewMode('personalized')}
+                  onPress={() => predictiveEngineGate('T9', () => setViewMode('personalized'))}
                   style={{
                     flex: 1,
                     paddingVertical: spacing(1),
@@ -2289,10 +2274,12 @@ export default function RecipesScreen() {
                       onPress={() => {
                         // Ensure we only pass string IDs
                         const shotIds = ALL_SHOTS.map(shot => shot.id).filter(id => typeof id === 'string');
-                        navigation.navigate('CocktailList', {
-                          title: 'Shots',
-                          cocktailIds: shotIds,
-                          category: 'shots'
+                        bringToPartyGate('T8', () => {
+                          navigation.navigate('CocktailList', {
+                            title: 'Shots',
+                            cocktailIds: shotIds,
+                            category: 'shots'
+                          });
                         });
                       }}
                     />
@@ -2323,7 +2310,7 @@ export default function RecipesScreen() {
                         // Pass the actual mocktail recipes
                         navigation.navigate('CocktailList', {
                           title: 'Mocktails',
-                          cocktails: sampleRecipes,
+                          cocktailIds: sampleRecipes.map(recipe => recipe.id),
                           category: 'mocktails'
                         });
                       }}
@@ -2463,7 +2450,7 @@ export default function RecipesScreen() {
                 onSaveCocktail={handleSaveRecipe}
                 onAddToCart={handleAddToGroceryList}
                 savedRecipeIds={savedRecipeIds}
-                onRefineProfile={() => navigation.navigate('RefineYourTaste')}
+                onRefineProfile={() => flavorControlsGate('T12', () => navigation.navigate('RefineYourTaste'))}
               />
             )}
 
@@ -2854,7 +2841,7 @@ export default function RecipesScreen() {
                               onPress={() => {
                                 setCurrentFilters({
                                   ...currentFilters,
-                                  sortOrder: isSelected ? undefined : sortOption.value
+                                  sortOrder: isSelected ? undefined : (sortOption.value as FilterOptions['sortOrder'])
                                 });
                               }}
                               style={{

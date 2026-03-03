@@ -30,7 +30,8 @@ import { log } from '../lib/logger';
 import type { FlavorProfile } from '../types/userProfile';
 import { useAuth } from '../contexts/AuthContext';
 import { InventoryService } from '../services/inventoryService';
-import { logRecipeCompletion, updateCompletionRating } from '../services/recipeCompletionService';
+import { logRecipeCompletion, updateCompletionRating, syncCompletionToSupabase } from '../services/recipeCompletionService';
+import { getCompletionPromptConfig, tierToCompletionPlan } from '../lib/completions/brandCapture';
 import { loadUserProfile, updateUserProfileFields } from '../services/userProfileService';
 import type { RecipeCompletionDetails } from '../types/userProfile';
 import { useFeatureAccess } from '../hooks/useFeatureAccess';
@@ -60,6 +61,7 @@ export default function RecipeDetailScreen() {
   const [completionNotes, setCompletionNotes] = useState('');
   const [selectedRating, setSelectedRating] = useState(0);
   const [lastCompletionId, setLastCompletionId] = useState<string | null>(null);
+  const completionConfig = getCompletionPromptConfig(tierToCompletionPlan(tier));
   const hasBatching = canAccessContent(tier, 'PLUS');
   const showFlavorTags = canAccessContent(tier, 'PLUS');
   const showTasteMatch = canAccessContent(tier, 'PLUS');
@@ -285,11 +287,15 @@ export default function RecipeDetailScreen() {
         userId: user?.id,
         recipeId: recipe.id,
         recipeName: recipe.name || recipe.title || 'Recipe',
+        userTier: tierToCompletionPlan(tier),
         ingredientBrands,
         substitutions: substitutions.trim() || undefined,
         techniqueVariations: techniqueVariations.trim() || undefined,
         personalModifications: personalModifications.trim() || undefined,
       });
+
+      // Sync brand data to Supabase for all tiers (feeds the brand partnership pipeline)
+      syncCompletionToSupabase(completion);
       const completionDetails: RecipeCompletionDetails = {
         ingredientBrands,
         substitutions: substitutions.trim() || undefined,
@@ -678,10 +684,13 @@ export default function RecipeDetailScreen() {
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>What brands did you use?</Text>
-              <TouchableOpacity onPress={() => setMakeFlowVisible(false)}>
-                <Ionicons name="close" size={24} color={colors.text} />
-              </TouchableOpacity>
+              <Text style={styles.modalTitle}>{completionConfig.promptText}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Text style={{ color: colors.accent, fontSize: 13, fontWeight: '600' }}>+{completionConfig.xpReward} XP</Text>
+                <TouchableOpacity onPress={() => setMakeFlowVisible(false)}>
+                  <Ionicons name="close" size={24} color={colors.text} />
+                </TouchableOpacity>
+              </View>
             </View>
 
             <ScrollView style={styles.modalScroll} showsVerticalScrollIndicator={false}>
@@ -729,40 +738,47 @@ export default function RecipeDetailScreen() {
               })}
 
               <View style={styles.modalSection}>
-                <Text style={styles.modalSectionTitle}>Substitutions made</Text>
+                <Text style={styles.modalSectionTitle}>
+                  Quick note{completionConfig.showDetailedNotes ? '' : ' (50 chars)'}
+                </Text>
                 <TextInput
                   style={[styles.modalInput, styles.multilineInput]}
-                  placeholder="Any ingredient substitutions?"
+                  placeholder={completionConfig.notesPlaceholder}
                   placeholderTextColor={colors.subtext}
                   value={substitutions}
-                  onChangeText={setSubstitutions}
+                  onChangeText={(v) => setSubstitutions(v.slice(0, completionConfig.notesCharLimit))}
                   multiline
+                  maxLength={completionConfig.notesCharLimit}
                 />
               </View>
 
-              <View style={styles.modalSection}>
-                <Text style={styles.modalSectionTitle}>Technique variations</Text>
-                <TextInput
-                  style={[styles.modalInput, styles.multilineInput]}
-                  placeholder="Shaken vs stirred, dilution, garnish technique..."
-                  placeholderTextColor={colors.subtext}
-                  value={techniqueVariations}
-                  onChangeText={setTechniqueVariations}
-                  multiline
-                />
-              </View>
+              {completionConfig.showDetailedNotes && (
+                <View style={styles.modalSection}>
+                  <Text style={styles.modalSectionTitle}>Technique variations</Text>
+                  <TextInput
+                    style={[styles.modalInput, styles.multilineInput]}
+                    placeholder="Shaken vs stirred, dilution, garnish technique..."
+                    placeholderTextColor={colors.subtext}
+                    value={techniqueVariations}
+                    onChangeText={setTechniqueVariations}
+                    multiline
+                  />
+                </View>
+              )}
 
-              <View style={styles.modalSection}>
-                <Text style={styles.modalSectionTitle}>Personal modifications</Text>
-                <TextInput
-                  style={[styles.modalInput, styles.multilineInput]}
-                  placeholder="Any tweaks to sweetness, bitter balance, ratios..."
-                  placeholderTextColor={colors.subtext}
-                  value={personalModifications}
-                  onChangeText={setPersonalModifications}
-                  multiline
-                />
-              </View>
+              {completionConfig.showDetailedNotes && (
+                <View style={styles.modalSection}>
+                  <Text style={styles.modalSectionTitle}>Personal modifications</Text>
+                  <TextInput
+                    style={[styles.modalInput, styles.multilineInput]}
+                    placeholder="Any tweaks to sweetness, bitter balance, ratios..."
+                    placeholderTextColor={colors.subtext}
+                    value={personalModifications}
+                    onChangeText={setPersonalModifications}
+                    multiline
+                  />
+                </View>
+              )}
             </ScrollView>
 
             <View style={styles.modalActions}>

@@ -8,7 +8,6 @@
 import { Linking } from 'react-native';
 import type { PolicyDeepLink } from '../types/consent';
 import { log } from './logger';
-import { detectPlatform } from '../services/recipeImportService';
 
 /**
  * Deep link URL patterns
@@ -33,6 +32,43 @@ const SOCIAL_MEDIA_PATTERNS = [
   /youtube\.com/i,
   /youtu\.be/i,
 ];
+const HTTP_URL_PATTERN = /(https?:\/\/[^\s"'<>]+)/i;
+
+function detectSocialPlatform(url: string): string {
+  if (/instagram\.com|instagr\.am/i.test(url)) return 'instagram';
+  if (/pinterest\.com|pin\.it/i.test(url)) return 'pinterest';
+  if (/twitter\.com|x\.com/i.test(url)) return 'twitter';
+  if (/tiktok\.com|vm\.tiktok\.com/i.test(url)) return 'tiktok';
+  if (/youtube\.com|youtu\.be/i.test(url)) return 'youtube';
+  return 'other';
+}
+
+function extractRecipeUrlFromPayload(raw: string): string | null {
+  if (!raw) return null;
+
+  if (raw.startsWith('http://') || raw.startsWith('https://')) {
+    return raw;
+  }
+
+  try {
+    const parsed = new URL(raw);
+    const explicitUrl = parsed.searchParams.get('url') || parsed.searchParams.get('link');
+    if (explicitUrl && (explicitUrl.startsWith('http://') || explicitUrl.startsWith('https://'))) {
+      return decodeURIComponent(explicitUrl);
+    }
+
+    const text = parsed.searchParams.get('text') || parsed.searchParams.get('message') || '';
+    const textMatch = text.match(HTTP_URL_PATTERN);
+    if (textMatch?.[1]) return textMatch[1];
+  } catch {
+    // Ignore malformed URL payload and try generic text extraction below
+  }
+
+  const directMatch = raw.match(HTTP_URL_PATTERN);
+  if (directMatch?.[1]) return directMatch[1];
+
+  return null;
+}
 
 /**
  * Parse policy deep link URL
@@ -108,7 +144,7 @@ export function handleDeepLink(url: string, navigation: any): boolean {
         });
         return true;
       } else if (policyLink.doc === 'terms') {
-        navigation.navigate('Terms', {
+        navigation.navigate('TermsOfService', {
           anchor: policyLink.anchor,
           lang: policyLink.lang,
         });
@@ -116,21 +152,23 @@ export function handleDeepLink(url: string, navigation: any): boolean {
       }
     }
 
-    // Check for social media URLs (recipe import)
-    if (isSocialMediaUrl(url)) {
-      const platform = detectPlatform(url);
-      log.info('DeepLinking', 'Social media URL detected for recipe import', { url, platform });
+    // Handle shared payloads and recipe links.
+    const extractedRecipeUrl = extractRecipeUrlFromPayload(url);
+    if (extractedRecipeUrl) {
+      const platform = isSocialMediaUrl(extractedRecipeUrl)
+        ? detectSocialPlatform(extractedRecipeUrl)
+        : 'web';
 
-      // Navigate to RecipeURLImport screen in Camera tab with the URL
-      navigation.navigate('Main', { screen: 'Camera', params: { screen: 'RecipeURLImport', params: { url } } });
-      return true;
-    }
+      log.info('DeepLinking', 'Shared URL detected for recipe import', {
+        inbound: url,
+        extractedRecipeUrl,
+        platform,
+      });
 
-    // Check if it's a generic URL that might be a recipe
-    // (user might share from a cocktail website)
-    if (url.startsWith('http://') || url.startsWith('https://')) {
-      log.info('DeepLinking', 'Generic URL shared, attempting recipe import', { url });
-      navigation.navigate('Main', { screen: 'Camera', params: { screen: 'RecipeURLImport', params: { url } } });
+      navigation.navigate('Main', {
+        screen: 'Camera',
+        params: { screen: 'RecipeURLImport', params: { url: extractedRecipeUrl } },
+      });
       return true;
     }
 

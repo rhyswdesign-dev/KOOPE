@@ -3,7 +3,7 @@
  * Zero Proof, Full Flavor - Premium non-alcoholic beverage discovery
  */
 
-import React, { useLayoutEffect, useState, useEffect, useRef, useMemo } from 'react';
+import React, { useLayoutEffect, useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -21,6 +21,7 @@ import type { RootStackParamList } from '../navigation/RootNavigator';
 import { colors, spacing, radii } from '../theme/tokens';
 import PillButton from '../components/PillButton';
 import { useSavedItems } from '../hooks/useSavedItems';
+import InPageTabBar from '../components/ui/InPageTabBar';
 
 const { width } = Dimensions.get('window');
 
@@ -528,7 +529,6 @@ export default function NonAlcoholicScreen() {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
   const { toggleSavedDrink, isDrinkSaved } = useSavedItems();
-  const tabsScrollViewRef = useRef<ScrollView>(null);
 
   // Auto-rotate hero banners
   useEffect(() => {
@@ -548,7 +548,6 @@ export default function NonAlcoholicScreen() {
       headerTintColor: colors.text,
       headerTitleStyle: { color: colors.text, fontWeight: '900' },
       headerShadowVisible: false,
-      headerLeft: () => null, // Remove back arrow
     });
   }, [nav]);
 
@@ -685,28 +684,14 @@ export default function NonAlcoholicScreen() {
 
   // Memoize the category tabs to prevent re-render when banner changes
   const categoryTabs = useMemo(() => (
-    <ScrollView 
-      ref={tabsScrollViewRef}
-      horizontal 
-      showsHorizontalScrollIndicator={false}
-      style={styles.tabsScrollView}
-      contentContainerStyle={styles.tabsContainer}
-    >
-      {categories.map((category) => {
-        const isActive = selectedCategory === category.key;
-        return (
-          <PillButton
-            key={category.key}
-            title={category.label}
-            onPress={() => setSelectedCategory(category.key)}
-            style={!isActive ? { backgroundColor: 'transparent', borderWidth: 1, borderColor: colors.line } : undefined}
-            textStyle={[
-              { color: isActive ? colors.pillTextOnLight : colors.text }
-            ]}
-          />
-        );
-      })}
-    </ScrollView>
+    <View style={styles.tabsContainer}>
+      <InPageTabBar
+        items={categories}
+        activeKey={selectedCategory}
+        onChange={setSelectedCategory}
+        scrollable
+      />
+    </View>
   ), [selectedCategory]);
 
   const renderHeader = () => (
@@ -850,8 +835,8 @@ export default function NonAlcoholicScreen() {
                 title={chip.label}
                 onPress={() => {
                   if (chip.key === 'Home') nav.navigate('Main', { screen: 'Featured' });
-                  else if (chip.key === 'Spirits') nav.navigate('Spirits');
-                  else if (chip.key === 'Bars') nav.navigate('Bars');
+                  else if (chip.key === 'Spirits') nav.navigate('Recipes');
+                  else if (chip.key === 'Bars') nav.navigate('HomeBar');
                   else if (chip.key === 'Events') nav.navigate('Events');
                   else if (chip.key === 'Games') nav.navigate('Games');
                   else if (chip.key === 'Vault') nav.navigate('Vault');

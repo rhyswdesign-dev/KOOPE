@@ -7,63 +7,17 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, radii, fonts, standardText, buttons } from '../theme/tokens';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/RootNavigator';
-import { getBrandsByTier, getRandomizedBrandsByCategory } from '../data/brands';
-import { getBar } from '../data/bars';
 import { useSavedItems } from '../hooks/useSavedItems';
-import { useSocialData } from '../hooks/useSocialData';
 import { SearchableItem, FilterOptions } from '../services/searchService';
 import SearchModal from '../components/SearchModal';
 import FilterDrawer from '../components/FilterDrawer';
 import CreateRecipeModal from '../components/CreateRecipeModal';
 import { useScreenTracking } from '../context/AnalyticsContext';
-import { FEATURED_SPIRIT_IMAGES } from '../data/barImages';
 import { log } from '../lib/logger';
 import { useUserTier } from '../store/useUserTier';
 import { useSubscription } from '../contexts/SubscriptionContext';
 import { useFeatureAccess } from '../hooks/useFeatureAccess';
 import { getFeaturedVaultItems, getActiveVaultItems } from '../data/vaultData';
-
-// Get gold tier spirits from all categories but use uploaded images
-const goldSpirits = [
-  ...getRandomizedBrandsByCategory('Whiskey').filter(brand => brand.tier === 'gold'),
-  ...getRandomizedBrandsByCategory('Gin').filter(brand => brand.tier === 'gold'),
-  ...getRandomizedBrandsByCategory('Vodka').filter(brand => brand.tier === 'gold'),
-  ...getRandomizedBrandsByCategory('Tequila').filter(brand => brand.tier === 'gold'),
-  ...getRandomizedBrandsByCategory('Rum').filter(brand => brand.tier === 'gold')
-].map(brand => {
-  // Map brand categories to uploaded images
-  let featuredImage = brand.hero?.image;
-
-  if (brand.category === 'Whiskey') {
-    featuredImage = FEATURED_SPIRIT_IMAGES.whiskey;
-  } else if (brand.category === 'Gin') {
-    featuredImage = FEATURED_SPIRIT_IMAGES.gin;
-  } else if (brand.category === 'Vodka') {
-    featuredImage = FEATURED_SPIRIT_IMAGES.vodka;
-  } else if (brand.category === 'Tequila') {
-    featuredImage = FEATURED_SPIRIT_IMAGES.tequila;
-  } else if (brand.category === 'Rum') {
-    featuredImage = FEATURED_SPIRIT_IMAGES.rum;
-  }
-
-  return {
-    id: brand.id,
-    title: brand.name,
-    subtitle: brand.hero?.tagline || `${brand.quickInfo?.style || ''} • ${brand.quickInfo?.origin || ''}`,
-    img: featuredImage,
-    tier: brand.tier
-  };
-});
-
-// Hardcode only gold tier bars (Untitled Champagne Lounge is currently the only gold tier bar)
-const goldBars = [
-  {
-    id: 'untitled-champagne-lounge',
-    title: 'Untitled Champagne Lounge',
-    subtitle: 'Premium Champagne & Elegant Atmosphere',
-    img: 'https://images.unsplash.com/photo-1470337458703-46ad1756a187?auto=format&fit=crop&w=1200&q=60'
-  }
-];
 
 // Drinking games moved to Vault
 
@@ -81,7 +35,6 @@ const videos = [
 export default function FeaturedScreen() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { toggleSavedCocktail, isCocktailSaved } = useSavedItems();
-  const { toggleFollow, isFollowing } = useSocialData();
   const mainScrollRef = useRef<ScrollView>(null);
   const { tier } = useUserTier();
   const { subscriptionTier } = useSubscription();
@@ -98,18 +51,6 @@ export default function FeaturedScreen() {
   const [filterDrawerVisible, setFilterDrawerVisible] = useState(false);
   const [createRecipeModalVisible, setCreateRecipeModalVisible] = useState(false);
   const [currentFilters, setCurrentFilters] = useState<Partial<FilterOptions>>({});
-
-  // Ava Sterling user object for the spotlight section
-  const avaSterlingSportlight = {
-    id: 'ava-sterling-spotlight',
-    name: 'Ava Sterling',
-    username: 'ava_sterling',
-    avatar: 'https://images.unsplash.com/illustration-female-avatar.png?auto=format&fit=crop&w=300&q=60',
-    bio: 'London mixologist specializing in classic cocktails with modern twists',
-    joinDate: '2023-01-15',
-    stats: { followers: 2456, following: 892, posts: 234, recipes: 87, achievements: 15 },
-    isVerified: true
-  };
 
   const handleSearch = (query: string) => {
     // Handle search - could navigate to search results screen
@@ -156,7 +97,6 @@ export default function FeaturedScreen() {
       headerTintColor: colors.text,
       headerTitleStyle: { color: colors.text, fontWeight: '900' },
       headerShadowVisible: false,
-      headerLeft: () => null,
       headerRight: () => null,
     });
   }, [nav]);

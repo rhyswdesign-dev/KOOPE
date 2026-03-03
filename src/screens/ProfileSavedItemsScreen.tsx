@@ -8,7 +8,6 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   TouchableOpacity,
   FlatList,
   RefreshControl,
@@ -25,6 +24,7 @@ import { useUserRecipes, UserRecipe } from '../store/useUserRecipes';
 import RecipeCard from '../components/RecipeCard';
 import { handleRecipeView } from '../utils/recipeActions';
 import { log } from '../lib/logger';
+import InPageTabBar from '../components/ui/InPageTabBar';
 
 type TabType = 'saved' | 'created' | 'imported' | 'games' | 'vault';
 
@@ -295,40 +295,15 @@ export default function ProfileSavedItemsScreen() {
 
       {/* Tabs */}
       <View style={styles.tabsContainer}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.tabs}
-        >
-          {TABS.map((tab) => {
-            const count = getTabCount(tab.key);
-            const isActive = activeTab === tab.key;
-
-            return (
-              <TouchableOpacity
-                key={tab.key}
-                style={[styles.tab, isActive && styles.tabActive]}
-                onPress={() => setActiveTab(tab.key)}
-              >
-                <Ionicons
-                  name={tab.icon as any}
-                  size={18}
-                  color={isActive ? colors.accent : colors.subtext}
-                />
-                <Text style={[styles.tabText, isActive && styles.tabTextActive]}>
-                  {tab.label}
-                </Text>
-                {count > 0 && (
-                  <View style={[styles.tabBadge, isActive && styles.tabBadgeActive]}>
-                    <Text style={[styles.tabBadgeText, isActive && styles.tabBadgeTextActive]}>
-                      {count}
-                    </Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
+        <InPageTabBar
+          items={TABS.map((tab) => ({
+            ...tab,
+            badge: getTabCount(tab.key),
+          }))}
+          activeKey={activeTab}
+          onChange={(key) => setActiveTab(key as TabType)}
+          scrollable
+        />
       </View>
 
       {/* Content */}

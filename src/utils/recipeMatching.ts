@@ -95,8 +95,17 @@ export function hasIngredient(
 ): boolean {
   const normalizedRecipe = normalizeIngredient(recipeIngredient);
 
+  const extractMatchAlias = (notes?: string | null): string => {
+    if (!notes) return '';
+    const match = notes.match(/match_as=([^\n;]+)/i);
+    return normalizeIngredient(match?.[1] || '');
+  };
+
   const hasIt = userInventory.some(item => {
     const normalizedItem = normalizeIngredient(item.item_name);
+    const normalizedSubcategory = normalizeIngredient(item.subcategory || '');
+    const normalizedCategory = normalizeIngredient(item.category || '');
+    const normalizedAlias = extractMatchAlias(item.notes);
 
     // Exact match
     if (normalizedItem === normalizedRecipe) {
@@ -116,6 +125,18 @@ export function hasIngredient(
     if (normalizedRecipe.includes(normalizedItem)) {
       if (__DEV__) {
         console.log(`✓ PARTIAL MATCH: "${recipeIngredient}" includes "${item.item_name}"`);
+      }
+      return true;
+    }
+
+    // Match against structured manual-entry metadata
+    if (
+      normalizedSubcategory === normalizedRecipe ||
+      normalizedCategory === normalizedRecipe ||
+      normalizedAlias === normalizedRecipe
+    ) {
+      if (__DEV__) {
+        console.log(`✓ META MATCH: "${recipeIngredient}" matched by category/subcategory/alias`);
       }
       return true;
     }

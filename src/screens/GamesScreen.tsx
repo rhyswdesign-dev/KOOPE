@@ -85,7 +85,6 @@ export default function GamesScreen() {
       headerTintColor: colors.text,
       headerTitleStyle: { color: colors.text, fontWeight: '900' },
       headerShadowVisible: false,
-      headerLeft: () => null,
     });
   }, [nav]);
 
@@ -94,9 +93,9 @@ export default function GamesScreen() {
       if (section === 'Home') {
         nav.navigate('Main', { screen: 'Featured' });
       } else if (section === 'Spirits') {
-        nav.navigate('Spirits' as never);
+        nav.navigate('Recipes' as never);
       } else if (section === 'Bars') {
-        nav.navigate('Bars' as never);
+        nav.navigate('HomeBar' as never);
       } else if (section === 'Events') {
         nav.navigate('Events' as never);
       } else if (section === 'NonAlcoholic') {

@@ -4,6 +4,7 @@ import { usePersonalization } from '../store/usePersonalization';
 import { log } from '../lib/logger';
 import { trackEvent, ANALYTICS_EVENTS, ANALYTICS_PROPS } from '../lib/analytics';
 import { getCocktailImage } from '../../assets/images/cocktails';
+import type { DetailedCocktail } from './cocktailDataTransformer';
 
 /**
  * Global Recipe Action Utilities
@@ -30,6 +31,7 @@ export type RecipeViewSource =
   | 'vault'
   | 'saved'
   | 'category'
+  | 'ingredient_scan'
   | 'related'
   | 'onboarding'
   | 'deep_link'
@@ -75,7 +77,7 @@ export const handleRecipeView = (
  */
 export const handleCreateShoppingList = (
   recipe: Recipe,
-  setSelectedRecipe: (recipe: Recipe) => void,
+  setSelectedRecipe: (recipe: Recipe | DetailedCocktail) => void,
   setGroceryListVisible: (visible: boolean) => void
 ) => {
   // Try to get transformed recipe data with detailed ingredients
@@ -87,13 +89,13 @@ export const handleCreateShoppingList = (
   setSelectedRecipe(recipeToUse);
   setGroceryListVisible(true);
 
-  // Record user behavior for AI learning
-  recommendationEngine.recordBehavior({
-    type: 'searched',
-    query: `shopping_list_${recipe.name || recipe.title}`,
-  }).catch(error => {
+  // Record behavior for personalization profile
+  try {
+    const { recordInteraction } = usePersonalization.getState();
+    recordInteraction('shopping_list_opened', recipe.id, { recipe });
+  } catch (error) {
     log.warn('recipeActions', 'Failed to record shopping list behavior', { error, recipeId: recipe.id });
-  });
+  }
 };
 
 /**
@@ -139,13 +141,6 @@ export const handleSaveRecipe = (
 
   // Record user behavior for AI learning (only when saving, not unsaving)
   if (!wasSaved && result === 'success') {
-    recommendationEngine.recordBehavior({
-      type: 'favorited',
-      itemId: recipe.id,
-    }).catch(error => {
-      log.warn('recipeActions', 'Failed to record recipe save behavior', { error, recipeId: recipe.id });
-    });
-
     // Also record for personalization profile with spirit and flavor context
     try {
       const { recordInteraction } = usePersonalization.getState();
@@ -211,9 +206,9 @@ export const createRecipeCardProps = (
   recipe: Recipe,
   navigation: any,
   options: {
-    toggleSavedCocktail?: (cocktail: any) => void;
+    toggleSavedCocktail?: (cocktail: any) => 'success' | 'limit_reached' | 'removed';
     isCocktailSaved?: (id: string) => boolean;
-    setSelectedRecipe?: (recipe: Recipe) => void;
+    setSelectedRecipe?: (recipe: Recipe | DetailedCocktail) => void;
     setGroceryListVisible?: (visible: boolean) => void;
     deleteRecipe?: (id: string) => Promise<void>;
     refreshCallback?: () => Promise<void>;

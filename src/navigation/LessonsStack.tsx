@@ -2,7 +2,8 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import LessonsScreen from '../screens/LessonsScreen';
 import LessonEngineScreen from '../screens/lessons/LessonEngineScreen';
 import LessonSummaryScreen from '../screens/lessons/LessonSummaryScreen';
-import SpiritsScreen from '../screens/SpiritsScreen';
+import RecipesScreen from '../screens/RecipesScreen';
+import { withScreenTour } from '../components/tour/withScreenTour';
 
 export type LessonsStackParamList = {
   LessonsMain: undefined;
@@ -12,6 +13,8 @@ export type LessonsStackParamList = {
 };
 
 const Stack = createNativeStackNavigator<LessonsStackParamList>();
+const LessonsMainWithTour = withScreenTour(LessonsScreen, 'tab_lessons');
+const LessonEngineWithTour = withScreenTour(LessonEngineScreen, 'feature_lesson_engine');
 
 export default function LessonsStack() {
   return (
@@ -23,10 +26,10 @@ export default function LessonsStack() {
         animationDuration: 200,
       }}
     >
-      <Stack.Screen name="LessonsMain" component={LessonsScreen} />
-      <Stack.Screen name="LessonEngine" component={LessonEngineScreen} />
+      <Stack.Screen name="LessonsMain" component={LessonsMainWithTour} />
+      <Stack.Screen name="LessonEngine" component={LessonEngineWithTour} />
       <Stack.Screen name="LessonSummary" component={LessonSummaryScreen} />
-      <Stack.Screen name="Spirits" component={SpiritsScreen} />
+      <Stack.Screen name="Spirits" component={RecipesScreen} />
     </Stack.Navigator>
   );
 }

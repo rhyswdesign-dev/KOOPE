@@ -45,7 +45,7 @@ export default function LegalHubScreen() {
       subtitle: 'Rules and agreements for using our app',
       icon: 'document-text-outline' as const,
       badge: !hasAcceptedCurrentTerms ? 'Action Required' : null,
-      onPress: () => navigation.navigate('Terms' as never),
+      onPress: () => navigation.navigate('TermsOfService' as never),
     },
     {
       id: 'consent',

@@ -43,7 +43,7 @@ export interface CameraCaptureProps {
   barcodeOnly?: boolean; // FREE tier: barcode + manual only, no AI photo capture
   title?: string;
   allowGallery?: boolean;
-  mode?: 'bottle' | 'recipe' | 'identify';
+  mode?: 'bottle' | 'recipe' | 'ingredients';
   scansRemaining?: number;
   isPaidUser?: boolean;
   isGuest?: boolean;
@@ -51,8 +51,8 @@ export interface CameraCaptureProps {
 
 const MODES = [
   { id: 'bottle', label: 'Bottle', icon: 'wine' },
-  { id: 'identify', label: 'Identify', icon: 'search' },
   { id: 'recipe', label: 'Recipe', icon: 'document-text' },
+  { id: 'ingredients', label: 'Ingredients', icon: 'leaf' },
 ];
 
 export default function CameraCapture({
@@ -62,7 +62,7 @@ export default function CameraCapture({
   onBarcodeScanned,
   barcodeOnly = false,
   allowGallery = true,
-  mode: initialMode = 'bottle',
+  mode: initialMode = 'bottle' as 'bottle' | 'recipe' | 'ingredients',
   scansRemaining,
   isPaidUser = false,
   isGuest = false,
@@ -190,9 +190,14 @@ export default function CameraCapture({
     );
   }
 
+  const modeInstructions: Record<string, string> = {
+    bottle: 'Point camera at the bottle label\nand tap to identify the spirit',
+    recipe: 'Point camera at a recipe card\nor written recipe to capture it',
+    ingredients: 'Point camera at your ingredients\nor a shopping list to scan them',
+  };
   const instructionText = barcodeOnly
     ? 'Point camera at the bottle\'s barcode\nor tap below to add manually'
-    : 'Position the spirit bottle in the frame and\ntap to capture';
+    : modeInstructions[currentMode] ?? modeInstructions.bottle;
 
   return (
     <Modal visible={visible} animationType="slide" transparent={false}>
@@ -223,6 +228,7 @@ export default function CameraCapture({
                 scansRemaining={scansRemaining}
                 isPaidUser={isPaidUser}
                 isGuest={isGuest}
+                barcodeOnly={barcodeOnly}
               />
 
               <TouchableOpacity onPress={() => setFlashMode(f => f === 'off' ? 'on' : 'off')} style={styles.iconButton}>

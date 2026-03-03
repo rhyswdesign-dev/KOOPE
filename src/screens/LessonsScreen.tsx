@@ -11,7 +11,7 @@ import { colors, spacing, radii, serif } from '../theme/tokens';
 import { Heading } from '../components/ui';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { TabView, SceneMap, TabBar } from 'react-native-tab-view';
-import curriculumData from '../../curriculum-data.json';
+import { curriculumData } from '../utils/curriculumAdapter';
 import { useUser } from '../store/useUser';
 import { useXPSystem } from '../store/useXPSystem';
 import { useEngagement } from '../store/useEngagement';
@@ -27,6 +27,7 @@ import { EARNABLE_RECIPES } from '../config/recipeUnlocks';
 import FeatureTooltipOverlay from '../components/FeatureTooltipOverlay';
 import { useFeatureTooltip } from '../hooks/useFeatureTooltip';
 import { TOOLTIP_CONFIGS } from '../config/tooltipContent';
+import { useFeatureAccess } from '../hooks/useFeatureAccess';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -628,7 +629,7 @@ function Challenges2View() {
 
         {challenges.length === 0 && (
           <View style={[styles.section, styles.centered]}>
-            <MaterialCommunityIcons name="trophy-outline" size={64} color={colors.text.secondary} />
+            <MaterialCommunityIcons name="trophy-outline" size={64} color={colors.textMuted} />
             <Heading level={2} style={styles.sectionTitle}>No Active Challenges</Heading>
             <Text style={styles.sectionSubtitle}>Check back soon for new challenges!</Text>
           </View>
@@ -656,6 +657,7 @@ function LessonsView() {
   const navigation = useNavigation<NavigationProp>();
   const { lives, completedLessons, checkLifeRefresh } = useUser();
   const { balance: xpBalance } = useXPSystem();
+  const { gateWithTrigger: masteryGate } = useFeatureAccess('mastery_lessons');
   const [modules, setModules] = useState<any[]>([]);
   const [selectedModule, setSelectedModule] = useState<any | null>(null);
   const [moduleLessons, setModuleLessons] = useState<any[]>([]);
@@ -683,8 +685,9 @@ function LessonsView() {
 
     // Load lessons for selected module
     const lessons = curriculumData.lessons.filter(lesson => lesson.moduleId === module.id);
+    const availableLessons = lessons.filter(lesson => (lesson.itemIds?.length || 0) > 0);
     setSelectedModule(module);
-    setModuleLessons(lessons);
+    setModuleLessons(availableLessons.length > 0 ? availableLessons : lessons);
   };
 
   const handleBackToModules = () => {
@@ -706,10 +709,12 @@ function LessonsView() {
 
 
   const handleLessonPress = (lesson: any) => {
-    log.nav('LessonsScreen', 'LessonEngine', { lessonId: lesson.id, title: lesson.title });
-    navigation.navigate('LessonEngine', {
-      lessonId: lesson.id,
-      isFirstLesson: false
+    masteryGate('T10', () => {
+      log.nav('LessonsScreen', 'LessonEngine', { lessonId: lesson.id, title: lesson.title });
+      navigation.navigate('LessonEngine', {
+        lessonId: lesson.id,
+        isFirstLesson: false
+      });
     });
   };
 
@@ -759,16 +764,21 @@ function LessonsView() {
   };
 
   const renderLesson = (lesson: any, index: number) => {
+    const hasContent = (lesson.itemIds?.length || 0) > 0;
     const isCompleted = completedLessons.includes(lesson.id);
-    const isLocked = index > 0 && !completedLessons.includes(moduleLessons[index - 1]?.id);
+    const isLocked = !hasContent || (index > 0 && !completedLessons.includes(moduleLessons[index - 1]?.id));
     const outOfLives = lives <= 0;
     const isNext = !isCompleted && !isLocked;
     const isLast = index === moduleLessons.length - 1;
 
     // Determine status text and style
     let statusText = 'Locked';
-    let subtitleStyle = styles.subtitleLocked;
+    let subtitleStyle: any = styles.subtitleLocked;
 
+    if (!hasContent) {
+      statusText = 'Coming Soon';
+      subtitleStyle = styles.subtitleLocked;
+    } else
     if (isCompleted) {
       statusText = 'Completed';
       subtitleStyle = styles.subtitleCompleted;
@@ -799,7 +809,7 @@ function LessonsView() {
         {/* Content Container */}
         <Pressable
           style={styles.timelineContent}
-          disabled={isLocked || (isNext && outOfLives)}
+          disabled={!hasContent || isLocked || (isNext && outOfLives)}
           onPress={() => handleLessonPress(lesson)}
         >
           <Text style={[styles.timelineTitle, isLocked && styles.timelineTitleLocked]}>
@@ -923,11 +933,31 @@ export default function LessonsScreen() {
   const renderTabBar = (props: any) => (
     <TabBar
       {...props}
-      indicatorStyle={{ backgroundColor: colors.accent }}
-      style={{ backgroundColor: colors.bg }}
-      labelStyle={{ color: colors.text, fontWeight: '600' }}
-      activeColor={colors.accent}
-      inactiveColor={colors.subtext}
+      indicatorStyle={{
+        backgroundColor: colors.gold,
+        borderRadius: 999,
+        borderWidth: 1,
+        borderColor: colors.gold,
+        marginVertical: 4,
+        marginHorizontal: 4,
+      }}
+      style={{
+        backgroundColor: 'transparent',
+        marginHorizontal: spacing(2.5),
+        marginTop: spacing(1),
+        borderRadius: radii.pill,
+        borderWidth: 1,
+        borderColor: colors.line,
+      }}
+      tabStyle={{
+        minHeight: 40,
+      }}
+      labelStyle={{
+        fontWeight: '700',
+        fontSize: 13,
+      }}
+      activeColor={colors.goldText}
+      inactiveColor={colors.textMuted}
     />
   );
 
