@@ -117,6 +117,7 @@ export const COCKTAIL_IMAGES: Record<string, any> = {
   'whiskey-smash': require('./cocktails/Whiskey Smash.png'),
   'gin-fizz': require('./cocktails/Gin Fizz.png'),
   'planters-punch': require("./cocktails/Planter's Punch.png"),
+  'rum-punch': require("./cocktails/Planter's Punch.png"),
   'screwdriver': require('./cocktails/Screwdriver.png'),
   'sea-breeze': require('./cocktails/Sea Breeze.png'),
   'sex-on-the-beach': require('./cocktails/Sex on the Beach.png'),

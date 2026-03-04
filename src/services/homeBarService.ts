@@ -473,6 +473,12 @@ export class HomeBarService {
         category: 'Rum Cocktails'
       },
       {
+        name: 'Rum Punch',
+        ingredients: ['white rum', 'dark rum', 'pineapple juice', 'orange juice', 'fresh lime juice', 'grenadine'],
+        difficulty: 'easy' as const,
+        category: 'Rum Cocktails'
+      },
+      {
         name: 'Margarita',
         ingredients: ['tequila blanco', 'orange liqueur', 'fresh lime juice', 'salt'],
         difficulty: 'easy' as const,
