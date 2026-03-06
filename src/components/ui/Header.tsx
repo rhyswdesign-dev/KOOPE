@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { colors, spacing, fonts, radii } from '../../theme/tokens';
+import { withHaptic } from '../../lib/haptics';
 
 export interface HeaderAction {
   icon: keyof typeof Ionicons.glyphMap;
@@ -66,7 +67,7 @@ export default function Header({
     
     if (showBackButton) {
       return (
-        <Pressable hitSlop={12} onPress={handleBack} style={styles.iconButton}>
+        <Pressable hitSlop={12} onPress={withHaptic(handleBack)} style={styles.iconButton}>
           <Ionicons name="arrow-back" size={24} color={colors.text} />
         </Pressable>
       );
@@ -82,7 +83,7 @@ export default function Header({
 
     if (showSearch) {
       icons.push(
-        <Pressable key="search" hitSlop={10} onPress={onSearch} style={styles.iconButton}>
+        <Pressable key="search" hitSlop={10} onPress={withHaptic(onSearch)} style={styles.iconButton}>
           <Ionicons name="search-outline" size={20} color={colors.text} />
         </Pressable>
       );
@@ -90,7 +91,7 @@ export default function Header({
 
     if (showFilter) {
       icons.push(
-        <Pressable key="filter" hitSlop={10} onPress={onFilter} style={styles.iconButton}>
+        <Pressable key="filter" hitSlop={10} onPress={withHaptic(onFilter)} style={styles.iconButton}>
           <Ionicons name="funnel-outline" size={20} color={colors.text} />
         </Pressable>
       );
@@ -98,7 +99,7 @@ export default function Header({
 
     if (showMenu) {
       icons.push(
-        <Pressable key="menu" hitSlop={10} onPress={onMenu} style={styles.iconButton}>
+        <Pressable key="menu" hitSlop={10} onPress={withHaptic(onMenu)} style={styles.iconButton}>
           <Ionicons name="ellipsis-horizontal" size={20} color={colors.text} />
         </Pressable>
       );
@@ -110,7 +111,7 @@ export default function Header({
         <TouchableOpacity
           key={`action-${index}`}
           style={styles.actionButton}
-          onPress={action.onPress}
+          onPress={withHaptic(action.onPress)}
           activeOpacity={0.7}
           accessibilityRole="button"
           accessibilityLabel={action.accessibilityLabel || action.icon}
@@ -155,7 +156,7 @@ export default function Header({
               styles.filterChip,
               filter.active && styles.filterChipActive,
             ]}
-            onPress={() => onFilterChange?.(filter.key)}
+            onPress={withHaptic(() => onFilterChange?.(filter.key))}
             activeOpacity={0.7}
           >
             {filter.icon && (

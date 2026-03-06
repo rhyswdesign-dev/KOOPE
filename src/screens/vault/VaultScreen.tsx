@@ -18,7 +18,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/RootNavigator';
-import { colors, spacing, radii } from '../../theme/tokens';
+import { colors, spacing, radii, serif } from '../../theme/tokens';
 import { VaultItem } from '../../types/vault';
 import { useVault } from '../../contexts/VaultContext';
 import { useUser } from '../../store/useUser';
@@ -62,6 +62,14 @@ import LockedContentOverlay from '../../components/LockedContentOverlay';
 import { log } from '../../lib/logger';
 import { BAR_PAGE_HEADERS, BAR_IMAGES } from '../../data/barImages';
 import UnlockCelebration from '../../components/UnlockCelebration';
+import {
+  getVaultPlaybookHeader,
+  getVaultPlaybookThumbnail,
+  getVaultSeasonalHeader,
+  getVaultSeasonalThumbnail,
+  getVaultVariationHeader,
+  getVaultVariationThumbnail,
+} from '../../data/vaultImages';
 
 
 export default function VaultScreen() {
@@ -105,7 +113,7 @@ export default function VaultScreen() {
       title: 'Vault',
       headerStyle: { backgroundColor: colors.bg },
       headerTintColor: colors.text,
-      headerTitleStyle: { color: colors.text, fontWeight: '900' },
+      headerTitleStyle: { color: colors.text, fontWeight: '700', fontSize: 22, fontFamily: serif },
       headerShadowVisible: false,
       headerLeft: () => (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginLeft: 16 }}>
@@ -167,12 +175,6 @@ export default function VaultScreen() {
             </Text>
           </Pressable>
 
-          <Pressable
-            hitSlop={12}
-            onPress={() => nav.navigate('VaultOrderHistory')}
-          >
-            <Ionicons name="receipt-outline" size={24} color={colors.text} />
-          </Pressable>
         </View>
       ),
     });
@@ -296,6 +298,13 @@ export default function VaultScreen() {
     seasonal: 'https://images.unsplash.com/photo-1514361892635-6b07e31e75f9?w=400',
   };
 
+  const toImageSource = (image: any) => {
+    if (typeof image === 'number') return image;
+    if (image && typeof image === 'object' && 'uri' in image) return image;
+    if (typeof image === 'string') return { uri: image };
+    return { uri: PLACEHOLDER_IMAGES.cocktail };
+  };
+
   const PLAYBOOK_TYPE_LABELS: Record<TechniquePlaybookType, string> = {
     ICE_STRATEGY: 'Ice Strategy Playbooks',
     ACID_CONTROL: 'Acid Control Playbooks',
@@ -347,7 +356,7 @@ export default function VaultScreen() {
   };
 
   // Open preview modal with item details and benefits
-  const handleItemPreview = (item: any, imageUrl: string, category: string) => {
+  const handleItemPreview = (item: any, imageSource: any, category: string) => {
     let benefits = [];
     let fullDescription = '';
 
@@ -391,7 +400,7 @@ export default function VaultScreen() {
       id: item.id,
       title: item.title || item.barName || item.name || item.seasonName,
       description: fullDescription,
-      imageUrl,
+      imageSource: toImageSource(imageSource),
       category,
       xpCost: item.xpCost,
       requiredTier: item.requiredTier,
@@ -404,7 +413,7 @@ export default function VaultScreen() {
     setPreviewModalVisible(true);
   };
 
-  const renderContentItem = (item: any, imageUrl: string, category: string = 'variation') => {
+  const renderContentItem = (item: any, imageSource: any, category: string = 'variation', previewImageSource?: any) => {
     const isTierLocked = !canAccessContent(tier, item.requiredTier);
 
     return (
@@ -412,10 +421,10 @@ export default function VaultScreen() {
         key={item.id}
         style={[styles.contentItemCard, isTierLocked && styles.lockedCard]}
         activeOpacity={0.7}
-        onPress={() => handleItemPreview(item, imageUrl, category)}
+        onPress={() => handleItemPreview(item, previewImageSource || imageSource, category)}
       >
         <Image
-          source={{ uri: imageUrl }}
+          source={toImageSource(imageSource)}
           style={[styles.contentItemThumbnail, isTierLocked && styles.lockedThumbnail]}
           resizeMode="cover"
         />
@@ -452,7 +461,14 @@ export default function VaultScreen() {
             return (
               <View key={type} style={styles.contentSection}>
                 <Text style={styles.contentSectionTitle}>{PLAYBOOK_TYPE_LABELS[type]}</Text>
-                {playbooks.map((playbook) => renderContentItem(playbook, PLAYBOOK_TYPE_IMAGES[type], 'playbook'))}
+                {playbooks.map((playbook) =>
+                  renderContentItem(
+                    playbook,
+                    getVaultPlaybookThumbnail(playbook.id),
+                    'playbook',
+                    getVaultPlaybookHeader(playbook.id)
+                  )
+                )}
               </View>
             );
           })}
@@ -484,7 +500,14 @@ export default function VaultScreen() {
                 <Text style={styles.contentSectionTitle}>
                   {difficultyLabels[difficulty as keyof typeof difficultyLabels]}
                 </Text>
-                {items.map((variation) => renderContentItem(variation, PLACEHOLDER_IMAGES.cocktail, 'variation'))}
+                {items.map((variation) =>
+                  renderContentItem(
+                    variation,
+                    getVaultVariationThumbnail(variation.id),
+                    'variation',
+                    getVaultVariationHeader(variation.id)
+                  )
+                )}
               </View>
             );
           })}
@@ -520,7 +543,7 @@ export default function VaultScreen() {
                   if (unlocked) {
                     handleBarPress(bar.id);
                   } else {
-                    handleItemPreview(bar, getBarThumbnail(bar.thumbnailKey).uri || PLACEHOLDER_IMAGES.bar, 'bar');
+                    handleItemPreview(bar, getBarThumbnail(bar.thumbnailKey), 'bar');
                   }
                 }}
               >
@@ -560,7 +583,7 @@ export default function VaultScreen() {
                         <TouchableOpacity
                           style={styles.barUnlockButton}
                           activeOpacity={0.8}
-                          onPress={() => handleItemPreview(bar, getBarThumbnail(bar.thumbnailKey).uri || PLACEHOLDER_IMAGES.bar, 'bar')}
+                          onPress={() => handleItemPreview(bar, getBarThumbnail(bar.thumbnailKey), 'bar')}
                         >
                           <Text style={styles.barUnlockButtonText}>Unlock</Text>
                         </TouchableOpacity>
@@ -581,7 +604,14 @@ export default function VaultScreen() {
         <View style={styles.inlineContent}>
           <View style={styles.contentSection}>
             <Text style={styles.contentSectionTitle}>Available Drops</Text>
-            {drops.map((drop) => renderContentItem({ ...drop, xpCost: 'Limited Time' }, PLACEHOLDER_IMAGES.seasonal, 'seasonal'))}
+            {drops.map((drop) =>
+              renderContentItem(
+                { ...drop, xpCost: 'Limited Time' },
+                getVaultSeasonalThumbnail(drop.id),
+                'seasonal',
+                getVaultSeasonalHeader(drop.id)
+              )
+            )}
           </View>
         </View>
       );

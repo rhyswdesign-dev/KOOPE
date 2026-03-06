@@ -166,7 +166,7 @@ export default function GameDetailsScreen() {
             {game.warnings.map((warning, index) => (
               <View key={index} style={styles.rowItem}>
                 <View style={[styles.iconContainer, { backgroundColor: 'rgba(255,107,107,0.15)' }]}>
-                  <Feather name="alert-triangle" size={20} color="#FF6B6B" />
+                  <Feather name="alert-triangle" size={20} color={colors.error} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.rowTitle}>{warning.text}</Text>

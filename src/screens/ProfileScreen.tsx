@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useLayoutEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -6,14 +6,15 @@ import {
   StyleSheet,
   SafeAreaView,
   ScrollView,
-  Pressable,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { colors, spacing, radii, serif } from '../theme/tokens';
 import { Heading } from '../components/ui';
+import MainPageHeader from '../components/ui/MainPageHeader';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { useSavedItems } from '../hooks/useSavedItems';
@@ -49,6 +50,10 @@ export default function ProfileScreen() {
   const currentLevel = Math.floor(totalXP / 100) + 1;
   const xpInLevel = totalXP % 100;
   const xpForNextLevel = 100;
+  const unlockedAchievementCount = achievements.filter(a => a.unlocked).length;
+  const savedCocktailCount = savedItems.savedCocktails?.length || 0;
+  const savedDrinkCount = savedItems.savedDrinks?.length || 0;
+  const savedTotalCount = savedCocktailCount + savedDrinkCount;
 
   // Compute what vault content the user can currently afford with their XP.
   // Only used in the free-user affordability card; shows XP as currency, not just a score.
@@ -97,25 +102,6 @@ export default function ProfileScreen() {
 
   const showAuthenticatedView = isAuthenticated;
 
-  useLayoutEffect(() => {
-    nav.setOptions({
-      headerRight: () => (
-        <Pressable
-          hitSlop={12}
-          onPress={() => nav.navigate('Settings')}
-          accessible={true}
-          accessibilityRole="button"
-          accessibilityLabel="Open settings (new updates available)"
-        >
-          <View style={{ marginRight: 16 }}>
-            <Ionicons name="settings-outline" size={24} color={colors.text} />
-            <View style={styles.settingsAttentionDot} />
-          </View>
-        </Pressable>
-      ),
-    });
-  }, [nav]);
-
   useEffect(() => {
     const loadStats = () => {
       setStreakData(streakService.getStreakData());
@@ -131,6 +117,13 @@ export default function ProfileScreen() {
       unsubscribe();
     };
   }, []);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      setStreakData(streakService.getStreakData());
+      setAchievements(achievementService.getAchievements());
+    }, [])
+  );
 
   const handleSignIn = () => {
     // Navigate to OAuth sign-in screen
@@ -155,6 +148,17 @@ export default function ProfileScreen() {
     return (
       <LinearGradient colors={['rgba(0,0,0,0)', '#1A120D']} style={styles.container}>
         <SafeAreaView style={styles.safeArea}>
+          <MainPageHeader
+            title="Profile"
+            subtitle="Account & progress"
+            rightActions={[
+              {
+                icon: 'settings-outline',
+                onPress: () => nav.navigate('Settings'),
+                accessibilityLabel: 'Open settings',
+              },
+            ]}
+          />
           <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
             {/* Profile Header with Avatar */}
             <View style={styles.profileHeaderSection}>
@@ -263,8 +267,8 @@ export default function ProfileScreen() {
                   <Text style={styles.statValue}>{completedLessons.length}</Text>
                 </View>
                 <View style={styles.statBox}>
-                  <Text style={styles.statBoxLabel}>Saved{'\n'}Recipes</Text>
-                  <Text style={styles.statValue}>{savedItems.savedCocktails?.length || 0}</Text>
+                  <Text style={styles.statBoxLabel}>Saved{'\n'}Drinks</Text>
+                  <Text style={styles.statValue}>{savedTotalCount}</Text>
                 </View>
                 <View style={styles.statBox}>
                   <Text style={styles.statBoxLabel}>Best{'\n'}Streak</Text>
@@ -292,7 +296,7 @@ export default function ProfileScreen() {
                       <View style={styles.badgeIcon}>
                         <Ionicons name={(achievement.icon || 'trophy') as any} size={32} color={colors.gold} />
                       </View>
-                      <Text style={styles.badgeName} numberOfLines={1}>{achievement.name}</Text>
+                      <Text style={styles.badgeName} numberOfLines={2}>{achievement.title}</Text>
                     </TouchableOpacity>
                   ))
                 ) : (
@@ -321,7 +325,7 @@ export default function ProfileScreen() {
                 <View style={styles.collectionStats}>
                   <View style={styles.collectionStatItem}>
                     <Ionicons name="bookmark" size={18} color={colors.accent} />
-                    <Text style={styles.collectionStatValue}>{savedItems.savedCocktails?.length || 0}</Text>
+                    <Text style={styles.collectionStatValue}>{savedTotalCount}</Text>
                     <Text style={styles.collectionStatLabel}>Saved</Text>
                   </View>
                   <View style={styles.collectionDivider} />
@@ -364,7 +368,7 @@ export default function ProfileScreen() {
                   <Text style={styles.insightDescription}>
                     {completedLessons.length === 0
                       ? 'Complete your first lesson to begin your bartending journey.'
-                      : `You've completed ${completedLessons.length} lesson${completedLessons.length !== 1 ? 's' : ''} and earned ${totalXP.toLocaleString()} XP so far.`}
+                      : `You've completed ${completedLessons.length} lesson${completedLessons.length !== 1 ? 's' : ''}, saved ${savedTotalCount} drink${savedTotalCount !== 1 ? 's' : ''}, unlocked ${unlockedAchievementCount} achievement${unlockedAchievementCount !== 1 ? 's' : ''}, and earned ${totalXP.toLocaleString()} XP.`}
                   </Text>
                 </View>
                 <View style={styles.insightImage}>
@@ -387,10 +391,20 @@ export default function ProfileScreen() {
   return (
     <LinearGradient colors={['rgba(0,0,0,0)', '#1A120D']} style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
+        <MainPageHeader
+          title="Profile"
+          subtitle="Account & progress"
+          rightActions={[
+            {
+              icon: 'settings-outline',
+              onPress: () => nav.navigate('Settings'),
+              accessibilityLabel: 'Open settings',
+            },
+          ]}
+        />
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-          <View style={styles.header}>
+          <View style={styles.signInIntro}>
             <MaterialCommunityIcons name="glass-cocktail" size={48} color={colors.accent} />
-            <Heading level={1} style={styles.title}>Profile</Heading>
             <Text style={styles.subtitle}>Sign in to access your profile</Text>
           </View>
 
@@ -454,18 +468,10 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: spacing(3),
   },
-  header: {
+  signInIntro: {
     alignItems: 'center',
-    marginTop: spacing(6),
-    marginBottom: spacing(6),
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: colors.text,
-    textAlign: 'center',
-    marginTop: spacing(3),
-    fontFamily: serifFont,
+    marginTop: spacing(4),
+    marginBottom: spacing(4),
   },
   subtitle: {
     fontSize: 16,
@@ -983,14 +989,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: colors.accent,
-  },
-  settingsAttentionDot: {
-    position: 'absolute',
-    top: -2,
-    right: -2,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.accent,
   },
 });

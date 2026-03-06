@@ -150,7 +150,7 @@ export default function SearchModal({
 
   const getCategoryColor = (category: string) => {
     switch (category) {
-      case 'recipe': return '#FF6B6B';
+      case 'recipe': return colors.error;
       case 'spirit': return '#4ECDC4';
       case 'event': return '#45B7D1';
       case 'user': return '#96CEB4';

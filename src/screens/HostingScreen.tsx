@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -7,11 +7,13 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { colors, radii, serif, spacing } from '../theme/tokens';
@@ -26,10 +28,21 @@ import { useUserTier } from '../store/useUserTier';
 import { isCocktailAccessible } from '../config/tierAccess';
 import { trackEvent, ANALYTICS_EVENTS } from '../lib/analytics';
 import { getCocktailImage } from '../../assets/images/cocktails';
+import { useXPSystem } from '../store/useXPSystem';
+import { useEngagement } from '../store/useEngagement';
+import { RecipesRepository } from '../repos/supabase/recipesRepo';
+import { ALL_COCKTAILS as FALLBACK_COCKTAILS } from '../data/cocktails';
+import { HOSTING_RECIPE_SUPPLEMENTS } from '../data/hostingSupplements';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 type EventVibe = 'casual' | 'dinner' | 'party';
 type WizardStep = 0 | 1 | 2;
+type SpiritFilter = 'any' | 'vodka' | 'gin' | 'rum' | 'whiskey' | 'tequila' | 'mezcal' | 'brandy' | 'mocktail';
+
+interface HostingPlanFilters {
+  spirit: SpiritFilter;
+  ingredients: string[];
+}
 
 interface HostingPlan {
   id: string;
@@ -39,14 +52,18 @@ interface HostingPlan {
     lowABV: boolean;
     noCitrus: boolean;
     spiritForward: boolean;
+    mocktails: boolean;
   };
+  filters?: HostingPlanFilters;
   selectedRecipeName?: string;
   createdAt: string;
 }
 
 interface MenuCocktail {
+  recipeId: string;
   name: string;
   ingredients: string[];
+  normalizedIngredients?: string[];
   missingIngredients: string[];
   canMake: boolean;
   difficulty: 'easy' | 'medium' | 'hard';
@@ -55,6 +72,11 @@ interface MenuCocktail {
   unlocked: boolean;
   confidence: 'high' | 'medium';
   why: string;
+  imageSource?: any;
+  baseSpirit?: string;
+  subtitle?: string;
+  recipeType?: string;
+  tags?: string[];
 }
 
 const HOSTING_PLANS_KEY = '@koope_hosting_plans';
@@ -71,6 +93,164 @@ function getHostingThumbnail(cocktailName: string) {
   };
   const aliasId = aliases[id];
   return getCocktailImage(id) || (aliasId ? getCocktailImage(aliasId) : null) || getCocktailImage('old-fashioned');
+}
+
+const HOSTING_TO_RECIPE_IDS: Record<string, string[]> = {
+  'old fashioned': ['old-fashioned', 'old-fashioned-classic'],
+  manhattan: ['manhattan'],
+  negroni: ['negroni'],
+  'gin tonic': ['gin-tonic'],
+  martini: ['martini', 'dry-martini'],
+  mojito: ['mojito'],
+  daiquiri: ['daiquiri'],
+  'rum punch': ['rum-punch', 'planters-punch'],
+  margarita: ['margarita'],
+  'moscow mule': ['moscow-mule'],
+  'whiskey sour': ['whiskey-sour'],
+};
+
+function normalizeCocktailKey(name: string) {
+  return name.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+function getHostingRecipeCandidateIds(cocktailName: string) {
+  const key = normalizeCocktailKey(cocktailName);
+  const mapped = HOSTING_TO_RECIPE_IDS[key] || [];
+  const slug = slugifyCocktailName(cocktailName);
+  return Array.from(new Set([slug, ...mapped]));
+}
+
+function getRecipeDisplayName(recipe: any): string {
+  return recipe?.name || recipe?.title || 'Untitled Cocktail';
+}
+
+function extractRecipeIngredientNames(ingredients: any): string[] {
+  let source: any[] = [];
+
+  if (Array.isArray(ingredients)) {
+    source = ingredients;
+  } else if (typeof ingredients === 'string') {
+    try {
+      const parsed = JSON.parse(ingredients);
+      source = Array.isArray(parsed) ? parsed : Object.values(parsed || {});
+    } catch {
+      source = ingredients.split(',').map((part) => part.trim()).filter(Boolean);
+    }
+  } else if (ingredients && typeof ingredients === 'object') {
+    source = Array.isArray((ingredients as any).items)
+      ? (ingredients as any).items
+      : Object.values(ingredients);
+  }
+
+  return source
+    .map((item) => {
+      if (typeof item === 'string') return item;
+      if (item && typeof item === 'object') {
+        const name =
+          item.name ||
+          item.ingredient ||
+          item.ingredient_name ||
+          item.title ||
+          item.item ||
+          item.text;
+        if (!name || typeof name !== 'string') return null;
+        const amount =
+          typeof item.amount === 'string' || typeof item.amount === 'number'
+            ? String(item.amount)
+            : typeof item.quantity === 'string' || typeof item.quantity === 'number'
+              ? String(item.quantity)
+              : '';
+        const unit =
+          typeof item.unit === 'string'
+            ? item.unit
+            : typeof item.measure === 'string'
+              ? item.measure
+              : '';
+        const combined = [amount, unit, name].filter(Boolean).join(' ').trim();
+        return combined.length > 0 ? combined : name;
+      }
+      return null;
+    })
+    .filter((item): item is string => Boolean(item));
+}
+
+function normalizeIngredientToken(raw: string): string {
+  return raw
+    .toLowerCase()
+    .replace(/\b\d+([./]\d+)?\s*(oz|ml|dash(es)?|barspoon|tbsp|tsp|cup(s)?)\b/g, '')
+    .replace(/\b(fresh|garnish|for garnish|optional|to taste)\b/g, '')
+    .replace(/[(),]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function hasAlcoholicSignals(baseSpirit?: string, ingredients: string[] = [], text: string = '') {
+  const spiritPattern =
+    /(vodka|gin|rum|whiskey|bourbon|rye|tequila|mezcal|brandy|cognac|campari|liqueur|vermouth|scotch|aperol|amaro|triple sec|cointreau)/i;
+  if (baseSpirit && spiritPattern.test(baseSpirit)) return true;
+  if (ingredients.some((i) => spiritPattern.test(i))) return true;
+  if (spiritPattern.test(text)) return true;
+  return false;
+}
+
+function isRecipeBatchable(recipe: {
+  id?: string;
+  name?: string;
+  title?: string;
+  category?: string;
+  recipeType?: string;
+  tags?: string[];
+}) {
+  const text = [
+    recipe.id || '',
+    recipe.name || '',
+    recipe.title || '',
+    recipe.category || '',
+    recipe.recipeType || '',
+    ...(recipe.tags || []),
+  ]
+    .join(' ')
+    .toLowerCase();
+
+  if (/\bshot(s)?\b/.test(text)) return false;
+  if (/\bjagerbomb\b/.test(text)) return false;
+  return true;
+}
+
+function mapDifficulty(raw: string | undefined): 'easy' | 'medium' | 'hard' {
+  const value = (raw || '').toLowerCase();
+  if (value.includes('beginner') || value.includes('easy')) return 'easy';
+  if (value.includes('hard') || value.includes('advanced') || value.includes('expert')) return 'hard';
+  return 'medium';
+}
+
+function toImageSource(image: any, id: string) {
+  if (typeof image === 'number') return image;
+  if (image && typeof image === 'object') return image;
+  if (typeof image === 'string' && image.length > 0) return { uri: image };
+  return getCocktailImage(id) || getCocktailImage('old-fashioned');
+}
+
+function mergeRecipesWithMocktails(recipes: any[]) {
+  const byId = new Map<string, any>();
+  [...recipes, ...HOSTING_RECIPE_SUPPLEMENTS].forEach((recipe) => {
+    const id = recipe?.id || slugifyCocktailName(getRecipeDisplayName(recipe));
+    if (!id) return;
+    if (!byId.has(id)) byId.set(id, recipe);
+  });
+  return Array.from(byId.values());
+}
+
+function hapticSelection() {
+  Haptics.selectionAsync().catch(() => {});
+}
+
+function hapticSuccess() {
+  Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+}
+
+function hapticWarning() {
+  Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
 }
 
 function mapItemToBarIngredient(item: any, index: number): BarIngredient {
@@ -123,6 +303,9 @@ export default function HostingScreen() {
   const nav = useNavigation<Nav>();
   const { user } = useAuth();
   const { tier } = useUserTier();
+  const { isCocktailUnlockedWithXP } = useXPSystem();
+  const { isRecipeUnlocked: isRecipeUnlockedWithEngagement } = useEngagement();
+  const scrollRef = useRef<ScrollView | null>(null);
 
   const { hasAccess: hasAdvancedHosting, gateWithTrigger: advancedHostingGate } = useFeatureAccess('hosting_advanced');
 
@@ -130,6 +313,7 @@ export default function HostingScreen() {
   const [error, setError] = useState<string | null>(null);
   const [inventory, setInventory] = useState<BarIngredient[]>([]);
   const [savedPlans, setSavedPlans] = useState<HostingPlan[]>([]);
+  const [recipeCatalog, setRecipeCatalog] = useState<any[]>([]);
 
   const [step, setStep] = useState<WizardStep>(0);
   const [selectedRecipe, setSelectedRecipe] = useState<MenuCocktail | null>(null);
@@ -139,8 +323,15 @@ export default function HostingScreen() {
     lowABV: false,
     noCitrus: false,
     spiritForward: false,
+    mocktails: false,
   });
+  const [planFilters, setPlanFilters] = useState<HostingPlanFilters>({ spirit: 'any', ingredients: [] });
+  const [menuFiltersVisible, setMenuFiltersVisible] = useState(false);
+  const [menuFilterInput, setMenuFilterInput] = useState('');
+  const [menuSearchVisible, setMenuSearchVisible] = useState(false);
+  const [menuSearchQuery, setMenuSearchQuery] = useState('');
   const [rejectedIds, setRejectedIds] = useState<Set<string>>(new Set());
+  const [isViewingSavedPlan, setIsViewingSavedPlan] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -161,10 +352,19 @@ export default function HostingScreen() {
 
         const rawPlans = await AsyncStorage.getItem(HOSTING_PLANS_KEY);
         const parsedPlans: HostingPlan[] = rawPlans ? JSON.parse(rawPlans) : [];
+        let loadedRecipes: any[] = [];
+        try {
+          loadedRecipes = await RecipesRepository.getAllRecipes(0, 400);
+        } catch {
+          loadedRecipes = [];
+        }
+        if (!loadedRecipes.length) loadedRecipes = FALLBACK_COCKTAILS as any[];
+        loadedRecipes = mergeRecipesWithMocktails(loadedRecipes);
 
         if (mounted) {
           setInventory(mergedInventory);
           setSavedPlans(parsedPlans.slice(0, 8));
+          setRecipeCatalog(loadedRecipes);
         }
       } catch {
         if (mounted) setError('Could not load hosting planner data.');
@@ -179,6 +379,14 @@ export default function HostingScreen() {
       mounted = false;
     };
   }, [user?.id]);
+
+  useEffect(() => {
+    if (!selectedRecipe) return;
+    const timer = setTimeout(() => {
+      scrollRef.current?.scrollTo({ y: 0, animated: false });
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [selectedRecipe]);
 
   const homeBar: HomeBar = useMemo(
     () => ({
@@ -196,61 +404,203 @@ export default function HostingScreen() {
   const buildRankedMenu = (
     nextPreferences: HostingPlan['preferences'],
     nextVibe: EventVibe,
-    nextRejectedIds: Set<string>
+    nextRejectedIds: Set<string>,
+    nextFilters: HostingPlanFilters,
+    searchQuery: string
   ): MenuCocktail[] => {
-    const all = HomeBarService.getAvailableCocktails(homeBar);
-    const preferredCategories: Record<EventVibe, string[]> = {
-      casual: ['Gin Cocktails', 'Vodka Cocktails', 'Rum Cocktails'],
-      dinner: ['Whiskey Cocktails', 'Gin Cocktails'],
-      party: ['Vodka Cocktails', 'Rum Cocktails', 'Tequila Cocktails'],
+    const inventoryNames = homeBar.ingredients.map((i) => i.name.toLowerCase());
+
+    const isMocktailCocktail = (cocktail: {
+      recipeId?: string;
+      name: string;
+      category?: string;
+      baseSpirit?: string;
+      recipeType?: string;
+      tags?: string[];
+      ingredients?: string[];
+      subtitle?: string;
+      description?: string;
+    }) => {
+      const category = (cocktail.category || '').toLowerCase();
+      const baseSpirit = (cocktail.baseSpirit || '').toLowerCase();
+      const recipeType = (cocktail.recipeType || '').toLowerCase();
+      const tags = (cocktail.tags || []).join(' ').toLowerCase();
+      const id = (cocktail.recipeId || '').toLowerCase();
+      const name = (cocktail.name || '').toLowerCase();
+      const subtitle = (cocktail.subtitle || '').toLowerCase();
+      const description = (cocktail.description || '').toLowerCase();
+      const textSignals = `${id} ${name} ${subtitle} ${description} ${tags}`;
+      const alcoholic = hasAlcoholicSignals(cocktail.baseSpirit, cocktail.ingredients || [], textSignals);
+
+      if (alcoholic) return false;
+      if (recipeType === 'mocktail') return true;
+      if (/(mocktail|non[- ]?alcoholic|zero[- ]?proof|alcohol[- ]?free)/.test(category)) return true;
+      if (baseSpirit === 'none' || baseSpirit === 'non-alcoholic' || baseSpirit === 'mocktail') return true;
+      if (/(virgin|mocktail|zero[- ]?proof|non[- ]?alcoholic|alcohol[- ]?free)/.test(textSignals)) return true;
+      return false;
     };
 
-    const filtered = all.filter((c) => {
+    const matchesVibe = (cocktail: { category?: string; ingredients: string[]; baseSpirit?: string; name: string; subtitle?: string; description?: string }, next: EventVibe) => {
+      const haystack = [
+        cocktail.name,
+        cocktail.category || '',
+        cocktail.baseSpirit || '',
+        cocktail.subtitle || '',
+        cocktail.description || '',
+        ...(cocktail.ingredients || []),
+      ]
+        .join(' ')
+        .toLowerCase();
+
+      if (next === 'casual') return /(gin|vodka|rum|highball|collins|spritz|mule|mojito|daiquiri|paloma|mocktail)/.test(haystack);
+      if (next === 'dinner') return /(whiskey|bourbon|rye|manhattan|martini|negroni|old fashioned|stirred|spirit)/.test(haystack);
+      return /(party|tequila|rum|vodka|tiki|punch|shot|spritz|margarita|mojito|paloma)/.test(haystack);
+    };
+
+    const isUnlockedInRecipeSystem = (recipeId: string, cocktailName: string) => {
+      const candidateIds = Array.from(new Set([recipeId, ...getHostingRecipeCandidateIds(cocktailName)]));
+      return candidateIds.some((id) =>
+        isCocktailAccessible(id, tier) ||
+        isCocktailUnlockedWithXP(id) ||
+        isRecipeUnlockedWithEngagement(id)
+      );
+    };
+
+    const candidates = recipeCatalog
+      .filter((recipe) => (recipe?.category || '').toLowerCase() !== 'syrups')
+      .filter((recipe) => isRecipeBatchable(recipe))
+      .map((recipe) => {
+        const ingredientLines = extractRecipeIngredientNames(recipe.ingredients);
+        const normalizedRequired = ingredientLines.map(normalizeIngredientToken).filter(Boolean);
+        const missingIngredients = normalizedRequired.filter(
+          (required) =>
+            !inventoryNames.some((available) => {
+              const normAvailable = normalizeIngredientToken(available);
+              return normAvailable.includes(required) || required.includes(normAvailable);
+            })
+        );
+        return {
+          recipeId: recipe.id || slugifyCocktailName(getRecipeDisplayName(recipe)),
+          name: getRecipeDisplayName(recipe),
+          subtitle: recipe.subtitle,
+          category: recipe.category || 'Cocktails',
+          baseSpirit: recipe.baseSpirit || recipe.base_spirit,
+          recipeType: recipe.recipeType,
+          tags: recipe.tags || [],
+          description: recipe.description,
+          ingredients: ingredientLines,
+          normalizedIngredients: normalizedRequired,
+          missingIngredients,
+          canMake: missingIngredients.length === 0,
+          difficulty: mapDifficulty(recipe.difficulty),
+          imageSource: toImageSource(recipe.image, recipe.id),
+        };
+      });
+
+    const filtered = candidates.filter((c) => {
       if (nextPreferences.noCitrus) {
-        const hasCitrus = c.ingredients.some((i) => /(lime|lemon|orange|citrus)/i.test(i));
+        const hasCitrus = (c.normalizedIngredients || c.ingredients).some((i) =>
+          /(fresh lime juice|fresh lemon juice|orange juice|grapefruit juice|citrus juice|lime juice|lemon juice)/i.test(i)
+        );
         if (hasCitrus) return false;
       }
       if (nextPreferences.lowABV) {
-        const strong = c.ingredients.filter((i) =>
-          /(vodka|gin|rum|whiskey|bourbon|rye|tequila|mezcal|brandy|cognac|campari|liqueur)/i.test(i)
+        const spiritLike = (c.normalizedIngredients || c.ingredients).filter((i) =>
+          /(vodka|gin|rum|whiskey|bourbon|rye|tequila|mezcal|brandy|cognac|campari|liqueur|vermouth)/i.test(i)
         ).length;
-        if (strong > 2) return false;
+        const hasMixer = (c.normalizedIngredients || c.ingredients).some((i) =>
+          /(juice|soda|tonic|ginger beer|cola|water|prosecco|champagne|sparkling|coconut)/i.test(i)
+        );
+        if (spiritLike > 1 || !hasMixer) return false;
       }
       if (nextPreferences.spiritForward) {
-        const spiritCount = c.ingredients.filter((i) =>
+        const spiritCount = (c.normalizedIngredients || c.ingredients).filter((i) =>
           /(vodka|gin|rum|whiskey|bourbon|rye|tequila|mezcal|brandy|cognac|campari|liqueur)/i.test(i)
         ).length;
         if (spiritCount < 2) return false;
       }
+      if (nextPreferences.mocktails && !isMocktailCocktail(c)) return false;
+      if (nextFilters.spirit !== 'any') {
+        if (nextFilters.spirit === 'mocktail') {
+          if (!isMocktailCocktail(c)) return false;
+        } else {
+          const spiritTerm = nextFilters.spirit.toLowerCase();
+          const spiritMatch = (c.baseSpirit || '').toLowerCase().includes(spiritTerm) ||
+            (c.normalizedIngredients || c.ingredients).some((i) => i.toLowerCase().includes(spiritTerm));
+          if (!spiritMatch) return false;
+        }
+      }
+      if (nextFilters.ingredients.length > 0) {
+        const haystack = [
+          c.name,
+          c.subtitle || '',
+          c.category || '',
+          c.baseSpirit || '',
+          ...(c.normalizedIngredients || c.ingredients),
+        ]
+          .join(' ')
+          .toLowerCase();
+        const allTermsMatch = nextFilters.ingredients.every((term) =>
+          haystack.includes(normalizeIngredientToken(term))
+        );
+        if (!allTermsMatch) return false;
+      }
+      const query = (searchQuery || '').trim().toLowerCase();
+      if (query) {
+        const haystack = [
+          c.name,
+          c.subtitle || '',
+          c.category || '',
+          c.baseSpirit || '',
+          ...(c.ingredients || []),
+        ]
+          .join(' ')
+          .toLowerCase();
+        if (!haystack.includes(query)) return false;
+      }
       return true;
     });
 
-    return filtered
+    const scored = filtered
       .map((c) => {
-        const id = slugifyCocktailName(c.name);
-        const unlocked = tier !== 'FREE' ? true : isCocktailAccessible(id, tier);
-        const categoryPref = preferredCategories[nextVibe].includes(c.category) ? 12 : 0;
+        const id = c.recipeId || slugifyCocktailName(c.name);
+        const unlocked = tier !== 'FREE' ? true : isUnlockedInRecipeSystem(id, c.name);
+        const isMocktail = isMocktailCocktail(c);
+        const inVibeCategory = matchesVibe(c, nextVibe);
+        const categoryPref = inVibeCategory ? 36 : 0;
+        const mocktailBonus = nextPreferences.mocktails && isMocktail ? 36 : 0;
         const nearBonus = c.canMake ? 24 : Math.max(0, 16 - c.missingIngredients.length * 4);
         const difficultyBonus = c.difficulty === 'easy' ? 6 : c.difficulty === 'medium' ? 3 : 0;
-        const score = categoryPref + nearBonus + difficultyBonus;
+        const unlockBonus = unlocked ? 14 : 0;
+        const score = categoryPref + mocktailBonus + nearBonus + difficultyBonus + unlockBonus;
         const confidence: 'high' | 'medium' = c.canMake ? 'high' : 'medium';
         const why = [
           c.canMake ? 'Ready with current inventory' : `${c.missingIngredients.length} missing ingredient${c.missingIngredients.length === 1 ? '' : 's'}`,
-          preferredCategories[nextVibe].includes(c.category) ? `Fits ${nextVibe} vibe` : 'Good alternate fit',
+          inVibeCategory ? `Fits ${nextVibe} vibe` : 'Good alternate fit',
+          isMocktail ? 'Zero-proof friendly' : 'Alcoholic build',
           c.difficulty === 'easy' ? 'Low prep complexity' : 'Moderate prep complexity',
         ].join(' • ');
 
-        return { ...c, id, unlocked, confidence, why, _score: score } as MenuCocktail & { _score: number };
+        return { ...c, id, unlocked, confidence, why, _score: score, _inVibeCategory: inVibeCategory } as MenuCocktail & { _score: number; _inVibeCategory: boolean };
       })
-      .filter((c) => !nextRejectedIds.has(c.id))
-      .sort((a, b) => b._score - a._score)
+      .filter((c) => !nextRejectedIds.has(c.id));
+
+    const vibeFirst = scored
+      .sort((a, b) => {
+        if (a.unlocked !== b.unlocked) return a.unlocked ? -1 : 1;
+        if (a.canMake !== b.canMake) return a.canMake ? -1 : 1;
+        if (a._inVibeCategory !== b._inVibeCategory) return a._inVibeCategory ? -1 : 1;
+        return b._score - a._score;
+      })
       .slice(0, 10)
-      .map(({ _score, ...rest }) => rest);
+      .map(({ _score, _inVibeCategory, ...rest }) => rest);
+
+    return vibeFirst;
   };
 
   const menu = useMemo<MenuCocktail[]>(() => {
-    return buildRankedMenu(preferences, vibe, rejectedIds);
-  }, [homeBar, preferences, vibe, rejectedIds, tier]);
+    return buildRankedMenu(preferences, vibe, rejectedIds, planFilters, menuSearchQuery);
+  }, [homeBar, preferences, vibe, rejectedIds, planFilters, menuSearchQuery, tier, isCocktailUnlockedWithXP, isRecipeUnlockedWithEngagement, recipeCatalog]);
 
   const shoppingGaps = useMemo(() => {
     const almost = menu.filter((c) => c.unlocked && !c.canMake).slice(0, 6);
@@ -264,6 +614,11 @@ export default function HostingScreen() {
       .map(([name, count]) => ({ name, count }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 12);
+  }, [menu]);
+
+  const unlockCounts = useMemo(() => {
+    const unlocked = menu.filter((c) => c.unlocked).length;
+    return { unlocked, locked: Math.max(0, menu.length - unlocked) };
   }, [menu]);
 
   const checklist = useMemo(() => {
@@ -306,8 +661,25 @@ export default function HostingScreen() {
     return Math.floor(totalBottleOz / spiritPerServeOz);
   }, [selectedRecipe]);
 
+  const selectedRecipeIsMocktail = useMemo(() => {
+    if (!selectedRecipe) return false;
+    const textSignals = `${selectedRecipe.recipeId || ''} ${selectedRecipe.name || ''} ${selectedRecipe.subtitle || ''} ${
+      selectedRecipe.why || ''
+    } ${(selectedRecipe.tags || []).join(' ')}`;
+    const alcoholic = hasAlcoholicSignals(selectedRecipe.baseSpirit, selectedRecipe.ingredients || [], textSignals);
+    const category = (selectedRecipe.category || '').toLowerCase();
+    const recipeType = (selectedRecipe.recipeType || '').toLowerCase();
+    if (alcoholic) return false;
+    return (
+      recipeType === 'mocktail' ||
+      /(mocktail|non[- ]?alcoholic|zero[- ]?proof|alcohol[- ]?free)/.test(category) ||
+      /(virgin|mocktail|zero[- ]?proof|non[- ]?alcoholic|alcohol[- ]?free)/.test(textSignals)
+    );
+  }, [selectedRecipe]);
+
   const dilutionEstimate = useMemo(() => {
     if (!selectedRecipe) return null;
+    if (selectedRecipeIsMocktail) return null;
     const hasJuiceOrEgg = selectedRecipe.ingredients.some((ing) =>
       /(juice|egg|pineapple|orange|lemon|lime|cream)/i.test(ing)
     );
@@ -315,7 +687,7 @@ export default function HostingScreen() {
     const totalDilutionOz = dilutionPerServeOz * baseServings;
     const totalDilutionMl = totalDilutionOz * 29.57;
     return { dilutionPerServeOz, totalDilutionOz, totalDilutionMl };
-  }, [selectedRecipe, baseServings]);
+  }, [selectedRecipe, baseServings, selectedRecipeIsMocktail]);
 
   const totalsEstimate = useMemo(() => {
     const preDilutionOz = selectedRecipeIngredients.reduce((sum, ing) => sum + ing.totalOz, 0);
@@ -336,14 +708,17 @@ export default function HostingScreen() {
         guestCount,
         vibe,
         preferences: { ...preferences },
+        filters: { ...planFilters },
         selectedRecipeName: selectedRecipe?.name,
         createdAt: new Date().toISOString(),
       };
       const next = [plan, ...savedPlans].slice(0, 8);
       setSavedPlans(next);
       await AsyncStorage.setItem(HOSTING_PLANS_KEY, JSON.stringify(next));
+      hapticSuccess();
       Alert.alert('Plan Saved', 'Saved to your hosting plans.');
     } catch {
+      hapticWarning();
       Alert.alert('Could Not Save', 'Please try again.');
     }
   };
@@ -353,7 +728,9 @@ export default function HostingScreen() {
       const next = savedPlans.filter((p) => p.id !== planId);
       setSavedPlans(next);
       await AsyncStorage.setItem(HOSTING_PLANS_KEY, JSON.stringify(next));
+      hapticSelection();
     } catch {
+      hapticWarning();
       Alert.alert('Could Not Delete', 'Please try again.');
     }
   };
@@ -377,8 +754,19 @@ export default function HostingScreen() {
   };
 
   const applyPlan = (plan: HostingPlan) => {
+    hapticSelection();
     const planRejected = new Set<string>();
-    const planMenu = buildRankedMenu(plan.preferences, plan.vibe, planRejected);
+    const normalizedPreferences = {
+      lowABV: !!plan.preferences?.lowABV,
+      noCitrus: !!plan.preferences?.noCitrus,
+      spiritForward: !!plan.preferences?.spiritForward,
+      mocktails: !!plan.preferences?.mocktails,
+    };
+    const normalizedFilters: HostingPlanFilters = {
+      spirit: (plan.filters?.spirit as SpiritFilter) || 'any',
+      ingredients: Array.isArray(plan.filters?.ingredients) ? plan.filters!.ingredients : [],
+    };
+    const planMenu = buildRankedMenu(normalizedPreferences, plan.vibe, planRejected, normalizedFilters, '');
     const savedMatch = plan.selectedRecipeName
       ? planMenu.find((item) => item.name.toLowerCase() === plan.selectedRecipeName!.toLowerCase())
       : null;
@@ -386,20 +774,28 @@ export default function HostingScreen() {
     setRejectedIds(planRejected);
     setGuestCount(plan.guestCount);
     setVibe(plan.vibe);
-    setPreferences(plan.preferences);
+    setPreferences(normalizedPreferences);
+    setPlanFilters(normalizedFilters);
+    setMenuFilterInput('');
+    setMenuSearchQuery('');
 
     if (savedMatch) {
       if (!savedMatch.unlocked) {
+        hapticWarning();
+        setIsViewingSavedPlan(false);
         setSelectedRecipe(null);
         setStep(2);
         Alert.alert('Recipe Locked', 'This saved menu is currently locked on your tier.');
         return;
       }
+      setIsViewingSavedPlan(true);
       setSelectedRecipe(savedMatch);
       setStep(2);
+      hapticSuccess();
       return;
     }
 
+    setIsViewingSavedPlan(false);
     setSelectedRecipe(null);
     setStep(2);
     if (plan.selectedRecipeName) {
@@ -408,26 +804,32 @@ export default function HostingScreen() {
   };
 
   const rejectCocktail = (cocktail: MenuCocktail) => {
+    hapticSelection();
     setRejectedIds((prev) => new Set(prev).add(cocktail.id));
     trackEvent('Hosting Recipe Rejected', { cocktail_id: cocktail.id, cocktail_name: cocktail.name, vibe });
   };
 
   const chooseCocktail = (cocktail: MenuCocktail) => {
     if (!cocktail.unlocked) {
+      hapticWarning();
       Alert.alert('Locked Recipe', 'This recipe is locked on your current tier.');
       return;
     }
+    hapticSuccess();
+    setIsViewingSavedPlan(false);
     setSelectedRecipe(cocktail);
     trackEvent('Hosting Recipe Selected', { cocktail_id: cocktail.id, cocktail_name: cocktail.name, guest_count: guestCount });
   };
 
   const updateGuestCount = (next: number) => {
     if (next <= 4) {
+      hapticSelection();
       setGuestCount(Math.max(1, next));
       trackEvent(ANALYTICS_EVENTS.PARTY_SCALED, { guest_count: Math.max(1, next), tier });
       return;
     }
     advancedHostingGate('T7', () => {
+      hapticSelection();
       setGuestCount(Math.max(1, next));
       trackEvent(ANALYTICS_EVENTS.PARTY_SCALED, { guest_count: Math.max(1, next), tier });
     });
@@ -435,6 +837,7 @@ export default function HostingScreen() {
 
   const addMissingToCart = async () => {
     if (shoppingGaps.length === 0) {
+      hapticWarning();
       Alert.alert('No Missing Items', 'You already have what you need for top suggestions.');
       return;
     }
@@ -467,10 +870,30 @@ export default function HostingScreen() {
         );
         added += 1;
       }
+      hapticSuccess();
       Alert.alert('Shopping List Updated', added > 0 ? `Added ${added} item${added === 1 ? '' : 's'}.` : 'All missing items are already in your cart.');
     } catch {
+      hapticWarning();
       Alert.alert('Could Not Add', 'Please try again.');
     }
+  };
+
+  const addIngredientFilterTerms = (raw: string) => {
+    const terms = raw
+      .split(',')
+      .map((item) => item.trim().toLowerCase())
+      .filter(Boolean);
+    if (!terms.length) return;
+    setPlanFilters((prev) => {
+      const next = new Set(prev.ingredients);
+      terms.forEach((term) => next.add(term));
+      return { ...prev, ingredients: Array.from(next) };
+    });
+    setMenuFilterInput('');
+  };
+
+  const removeIngredientFilterTerm = (term: string) => {
+    setPlanFilters((prev) => ({ ...prev, ingredients: prev.ingredients.filter((t) => t !== term) }));
   };
 
   const renderWizard = () => {
@@ -512,7 +935,7 @@ export default function HostingScreen() {
             </View>
           )}
 
-          <TouchableOpacity style={styles.primaryCta} onPress={() => setStep(1)}>
+          <TouchableOpacity style={styles.primaryCta} onPress={() => { hapticSelection(); setStep(1); }}>
             <Text style={styles.primaryCtaText}>Continue</Text>
           </TouchableOpacity>
         </View>
@@ -524,6 +947,15 @@ export default function HostingScreen() {
         <View style={[styles.sectionCard, styles.wizardCardCentered]}>
           <View style={styles.stepHeaderRow}>
             <Text style={styles.sectionTitle}>Step 2: Vibe & Preferences</Text>
+            <TouchableOpacity
+              style={[styles.stepFilterButton, menuFiltersVisible && styles.stepFilterButtonActive]}
+              onPress={() => {
+                hapticSelection();
+                setMenuFiltersVisible((prev) => !prev);
+              }}
+            >
+              <Ionicons name="search" size={15} color={menuFiltersVisible ? colors.bg : colors.text} />
+            </TouchableOpacity>
           </View>
           <Text style={styles.stepSubtitle}>Choose the mood, then tune how the menu gets ranked.</Text>
 
@@ -535,11 +967,11 @@ export default function HostingScreen() {
                 { key: 'dinner', label: 'Dinner', icon: 'restaurant-outline' },
                 { key: 'party', label: 'Party', icon: 'sparkles-outline' },
               ] as const).map((option) => (
-                <TouchableOpacity
-                  key={option.key}
-                  style={[styles.vibeChip, vibe === option.key && styles.vibeChipActive]}
-                  onPress={() => setVibe(option.key)}
-                >
+                  <TouchableOpacity
+                    key={option.key}
+                    style={[styles.vibeChip, vibe === option.key && styles.vibeChipActive]}
+                    onPress={() => { hapticSelection(); setVibe(option.key); }}
+                  >
                   <Ionicons
                     name={option.icon}
                     size={14}
@@ -559,13 +991,14 @@ export default function HostingScreen() {
                 { key: 'lowABV', label: 'Lower ABV', hint: 'Prioritize lighter drinks' },
                 { key: 'noCitrus', label: 'No Citrus', hint: 'Avoid lemon/lime-forward drinks' },
                 { key: 'spiritForward', label: 'Spirit-Forward', hint: 'Prioritize bolder builds' },
+                { key: 'mocktails', label: 'Mocktails', hint: 'Show zero-proof menu options' },
               ].map((pref) => {
                 const active = (preferences as any)[pref.key];
                 return (
                   <TouchableOpacity
                     key={pref.key}
                     style={[styles.prefChip, active && styles.prefChipActive]}
-                    onPress={() => setPreferences((prev) => ({ ...prev, [pref.key]: !active }))}
+                    onPress={() => { hapticSelection(); setPreferences((prev) => ({ ...prev, [pref.key]: !active })); }}
                   >
                     <View style={styles.prefTextWrap}>
                       <Text style={[styles.prefText, active && styles.prefTextActive]}>{pref.label}</Text>
@@ -582,17 +1015,64 @@ export default function HostingScreen() {
             </View>
           </View>
 
+          {menuFiltersVisible && (
+            <View style={styles.groupCard}>
+              <View style={styles.filterInputRow}>
+                <TextInput
+                  value={menuFilterInput}
+                  onChangeText={setMenuFilterInput}
+                  onSubmitEditing={() => addIngredientFilterTerms(menuFilterInput)}
+                  placeholder="Search by spirit or ingredient (comma separated)"
+                  placeholderTextColor={colors.subtext}
+                  style={[styles.filterInput, styles.filterInputFlex]}
+                  returnKeyType="done"
+                />
+                <TouchableOpacity
+                  style={styles.addTermButton}
+                  onPress={() => {
+                    hapticSelection();
+                    addIngredientFilterTerms(menuFilterInput);
+                  }}
+                >
+                  <Ionicons name="add" size={16} color={colors.bg} />
+                </TouchableOpacity>
+              </View>
+
+              {planFilters.ingredients.length > 0 && (
+                <View style={styles.termList}>
+                  {planFilters.ingredients.map((term) => (
+                    <TouchableOpacity
+                      key={term}
+                      style={styles.termChip}
+                      onPress={() => {
+                        hapticSelection();
+                        removeIngredientFilterTerm(term);
+                      }}
+                    >
+                      <Text style={styles.termChipText}>{term}</Text>
+                      <Ionicons name="close" size={12} color={colors.text} />
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+            </View>
+          )}
+
           <View style={styles.selectionSummaryCard}>
             <Text style={styles.selectionSummaryTitle}>Current Selection</Text>
             <Text style={styles.selectionSummaryText}>Guests: {guestCount}</Text>
             <Text style={styles.selectionSummaryText}>Vibe: {vibe.charAt(0).toUpperCase() + vibe.slice(1)}</Text>
             <Text style={styles.selectionSummaryText}>
+              Search terms: {planFilters.ingredients.length ? planFilters.ingredients.join(', ') : 'None'}
+            </Text>
+            <Text style={styles.selectionSummaryText}>
               Filters:{' '}
-              {preferences.lowABV || preferences.noCitrus || preferences.spiritForward
+              {preferences.lowABV || preferences.noCitrus || preferences.spiritForward || preferences.mocktails
                 ? [
                     preferences.lowABV ? 'Lower ABV' : null,
                     preferences.noCitrus ? 'No Citrus' : null,
                     preferences.spiritForward ? 'Spirit-Forward' : null,
+                    preferences.mocktails ? 'Mocktails' : null,
                   ]
                     .filter(Boolean)
                     .join(', ')
@@ -601,10 +1081,10 @@ export default function HostingScreen() {
           </View>
 
           <View style={styles.wizardActions}>
-            <TouchableOpacity style={styles.secondaryCta} onPress={() => setStep(0)}>
+            <TouchableOpacity style={styles.secondaryCta} onPress={() => { hapticSelection(); setStep(0); }}>
               <Text style={styles.secondaryCtaText}>Back</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.primaryCtaCompact} onPress={() => setStep(2)}>
+            <TouchableOpacity style={styles.primaryCtaCompact} onPress={() => { hapticSelection(); setStep(2); }}>
               <Text style={styles.primaryCtaText}>See Menu</Text>
             </TouchableOpacity>
           </View>
@@ -614,20 +1094,48 @@ export default function HostingScreen() {
 
     return (
       <View style={styles.sectionCard}>
-        <Text style={styles.sectionTitle}>Step 3: Menu You Can Make</Text>
+        <View style={styles.step3HeaderRow}>
+          <Text style={styles.sectionTitle}>Step 3: Menu You Can Make</Text>
+          <TouchableOpacity
+            style={styles.searchToggleButton}
+            onPress={() => {
+              hapticSelection();
+              setMenuSearchVisible((prev) => {
+                const next = !prev;
+                if (!next) setMenuSearchQuery('');
+                return next;
+              });
+            }}
+          >
+            <Ionicons name={menuSearchVisible ? 'close' : 'search'} size={16} color={colors.text} />
+          </TouchableOpacity>
+        </View>
+        {menuSearchVisible ? (
+          <TextInput
+            value={menuSearchQuery}
+            onChangeText={setMenuSearchQuery}
+            placeholder="Search cocktail or spirit..."
+            placeholderTextColor={colors.subtext}
+            style={styles.filterInput}
+          />
+        ) : null}
         <Text style={styles.stepSubtitleCentered}>
           {guestCount} guests • {vibe.charAt(0).toUpperCase() + vibe.slice(1)} vibe •{' '}
-          {preferences.lowABV || preferences.noCitrus || preferences.spiritForward
+          {preferences.lowABV || preferences.noCitrus || preferences.spiritForward || preferences.mocktails
             ? [
                 preferences.lowABV ? 'Lower ABV' : null,
                 preferences.noCitrus ? 'No Citrus' : null,
                 preferences.spiritForward ? 'Spirit-Forward' : null,
+                preferences.mocktails ? 'Mocktails' : null,
               ]
                 .filter(Boolean)
                 .join(', ')
             : 'No filters'}
         </Text>
         <Text style={styles.ingredientLegend}>Green = ingredients already in your bar</Text>
+        <Text style={styles.unlockLegend}>
+          {unlockCounts.unlocked} unlocked • {unlockCounts.locked} locked
+        </Text>
         {menu.length === 0 ? (
           <Text style={styles.emptyText}>No menu matches yet. Try changing vibe or preferences.</Text>
         ) : (
@@ -640,11 +1148,11 @@ export default function HostingScreen() {
                   return (
                     <>
                       <View style={styles.menuBodyRow}>
-                        <Image source={getHostingThumbnail(c.name)} style={styles.menuThumb} />
+                        <Image source={c.imageSource || getHostingThumbnail(c.name)} style={styles.menuThumb} />
                         <View style={styles.menuContent}>
                           <View style={styles.menuHeaderRow}>
                             <Text style={styles.menuName}>{c.name}</Text>
-                            {!c.unlocked && <Text style={styles.lockBadge}>Locked</Text>}
+                            {c.unlocked ? <Text style={styles.unlockedBadge}>Unlocked</Text> : <Text style={styles.lockBadge}>Locked</Text>}
                           </View>
                           <Text style={styles.menuMeta}>{c.category} • {c.difficulty} • {c.confidence} confidence</Text>
                           <Text style={styles.whyText}>{c.why}</Text>
@@ -678,7 +1186,7 @@ export default function HostingScreen() {
           ))
         )}
         <View style={styles.wizardActions}>
-          <TouchableOpacity style={styles.secondaryCta} onPress={() => setStep(1)}>
+          <TouchableOpacity style={styles.secondaryCta} onPress={() => { hapticSelection(); setStep(1); }}>
             <Text style={styles.secondaryCtaText}>Back</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.primaryCtaCompact} onPress={savePlan}>
@@ -696,6 +1204,8 @@ export default function HostingScreen() {
         <TouchableOpacity
           style={styles.editSetupButton}
           onPress={() => {
+            hapticSelection();
+            setIsViewingSavedPlan(false);
             setSelectedRecipe(null);
             setStep(0);
           }}
@@ -720,7 +1230,7 @@ export default function HostingScreen() {
         </View>
       ))}
 
-      {dilutionEstimate && (
+      {dilutionEstimate ? (
         <>
           <View style={styles.calcRow}>
             <Text style={styles.calcName}>Dilution (water from shaking/stirring)</Text>
@@ -744,7 +1254,9 @@ export default function HostingScreen() {
             Dilution estimate uses ~{dilutionEstimate.dilutionPerServeOz.toFixed(1)} oz water per drink.
           </Text>
         </>
-      )}
+      ) : selectedRecipeIsMocktail ? (
+        <Text style={styles.dilutionNote}>Mocktail selected: no dilution estimate applied.</Text>
+      ) : null}
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Prep Checklist</Text>
@@ -758,14 +1270,20 @@ export default function HostingScreen() {
         ))}
       </View>
 
-      <View style={styles.wizardActions}>
-        <TouchableOpacity style={styles.secondaryCta} onPress={() => setSelectedRecipe(null)}>
-          <Text style={styles.secondaryCtaText}>Choose Another</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.primaryCtaCompact} onPress={savePlan}>
-          <Text style={styles.primaryCtaText}>Save Plan</Text>
-        </TouchableOpacity>
-      </View>
+      {!isViewingSavedPlan ? (
+        <View style={styles.wizardActions}>
+          <TouchableOpacity style={styles.secondaryCta} onPress={() => { hapticSelection(); setSelectedRecipe(null); }}>
+            <Text style={styles.secondaryCtaText}>Choose Another</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.primaryCtaCompact} onPress={savePlan}>
+            <Text style={styles.primaryCtaText}>Save Plan</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <Text style={styles.savedPlanLockNote}>
+          Loaded from Saved Plan. Use Edit Setup to change recipe or save a new plan.
+        </Text>
+      )}
     </View>
   );
 
@@ -811,7 +1329,12 @@ export default function HostingScreen() {
         rightActions={[{ icon: 'cart-outline', onPress: () => nav.navigate('ShoppingCart'), accessibilityLabel: 'Open shopping cart' }]}
       />
 
-      <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        ref={scrollRef}
+        style={styles.content}
+        contentContainerStyle={styles.contentContainer}
+        showsVerticalScrollIndicator={false}
+      >
         {!selectedRecipe ? (
           <View style={isCenteredWizard ? styles.centerStage : undefined}>{renderWizard()}</View>
         ) : (
@@ -928,13 +1451,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: spacing(1),
+    marginBottom: spacing(0.9),
+    minHeight: 28,
   },
   sectionTitle: {
     color: colors.text,
     fontSize: 19,
     fontWeight: '700',
-    marginBottom: spacing(1),
+    marginBottom: 0,
     fontFamily: serif,
   },
   stepHeaderRow: {
@@ -942,6 +1466,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: spacing(1),
+    minHeight: 30,
+    marginBottom: spacing(0.75),
+  },
+  stepFilterButton: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.card,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepFilterButtonActive: {
+    borderColor: colors.accent,
+    backgroundColor: colors.accent,
   },
   stepSubtitle: {
     color: colors.subtext,
@@ -965,6 +1505,14 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontWeight: '600',
   },
+  unlockLegend: {
+    color: colors.subtext,
+    fontSize: 11,
+    marginTop: -spacing(0.45),
+    marginBottom: spacing(0.9),
+    textAlign: 'center',
+    fontWeight: '600',
+  },
   stepBadge: {
     borderRadius: radii.pill,
     borderWidth: 1,
@@ -972,7 +1520,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(214,138,56,0.14)',
     paddingHorizontal: spacing(0.9),
     paddingVertical: spacing(0.35),
-    marginBottom: spacing(1),
+    alignSelf: 'center',
   },
   stepBadgeText: {
     color: colors.accent,
@@ -1076,6 +1624,69 @@ const styles = StyleSheet.create({
   vibeIcon: { marginRight: spacing(0.4) },
   vibeText: { fontSize: 13, fontWeight: '600', color: colors.subtext },
   vibeTextActive: { color: colors.bg },
+  spiritFilterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing(0.6) },
+  spiritChip: {
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.bg,
+    paddingHorizontal: spacing(0.9),
+    paddingVertical: spacing(0.55),
+  },
+  spiritChipActive: { borderColor: colors.accent, backgroundColor: 'rgba(214,138,56,0.18)' },
+  spiritChipText: { color: colors.subtext, fontSize: 11, fontWeight: '700', textTransform: 'capitalize' },
+  spiritChipTextActive: { color: colors.text },
+  filterInput: {
+    marginTop: spacing(0.85),
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.bg,
+    color: colors.text,
+    fontSize: 13,
+    paddingHorizontal: spacing(1),
+    paddingVertical: spacing(0.75),
+  },
+  filterInputRow: {
+    marginTop: spacing(0.85),
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(0.6),
+  },
+  filterInputFlex: {
+    flex: 1,
+    marginTop: 0,
+  },
+  addTermButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: colors.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  termList: {
+    marginTop: spacing(0.75),
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing(0.55),
+  },
+  termChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(0.35),
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.bg,
+    paddingHorizontal: spacing(0.75),
+    paddingVertical: spacing(0.35),
+  },
+  termChipText: {
+    color: colors.text,
+    fontSize: 11,
+    fontWeight: '600',
+  },
   prefGroup: { gap: spacing(0.7) },
   prefChip: {
     borderRadius: radii.md,
@@ -1111,6 +1722,22 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 12,
     lineHeight: 18,
+  },
+  step3HeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing(1),
+  },
+  searchToggleButton: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.card,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   wizardActions: { flexDirection: 'row', gap: spacing(1), marginTop: spacing(1.25) },
   primaryCta: {
@@ -1163,6 +1790,16 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: colors.bg,
     backgroundColor: colors.accent,
+    paddingHorizontal: spacing(0.8),
+    paddingVertical: spacing(0.3),
+    borderRadius: radii.pill,
+    overflow: 'hidden',
+    fontWeight: '700',
+  },
+  unlockedBadge: {
+    fontSize: 10,
+    color: '#0B1B10',
+    backgroundColor: '#7EE08B',
     paddingHorizontal: spacing(0.8),
     paddingVertical: spacing(0.3),
     borderRadius: radii.pill,
@@ -1234,6 +1871,12 @@ const styles = StyleSheet.create({
     fontSize: 11,
     marginBottom: spacing(1.1),
     marginTop: spacing(0.2),
+  },
+  savedPlanLockNote: {
+    color: colors.subtext,
+    fontSize: 12,
+    textAlign: 'center',
+    marginTop: spacing(0.8),
   },
   checklistCard: {
     backgroundColor: colors.card,

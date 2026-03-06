@@ -8,7 +8,6 @@ import {
   TouchableOpacity,
   Share,
   Platform,
-  Dimensions,
   StatusBar,
   Modal,
   TextInput,
@@ -16,7 +15,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { colors, spacing, radii, fonts } from '../theme/tokens';
+import { colors, spacing, radii } from '../theme/tokens';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -35,8 +34,19 @@ import { getCompletionPromptConfig, tierToCompletionPlan } from '../lib/completi
 import { loadUserProfile, updateUserProfileFields } from '../services/userProfileService';
 import type { RecipeCompletionDetails } from '../types/userProfile';
 import { useFeatureAccess } from '../hooks/useFeatureAccess';
+import { recipeService as supabaseRecipeService } from '../lib/supabaseData';
+import RatioBalanceEditor from '../components/ratio/RatioBalanceEditor';
+import {
+  applyRatioProfileToIngredients,
+  RatioEditorState,
+  RatioProfile,
+} from '../utils/ratioEngine';
 
-const { width } = Dimensions.get('window');
+interface RecipeIngredientEntry {
+  key: string;
+  name: string;
+  amount: string;
+}
 
 export default function RecipeDetailScreen() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -53,6 +63,7 @@ export default function RecipeDetailScreen() {
   const [ratingFlowVisible, setRatingFlowVisible] = useState(false);
   const [inventoryLoading, setInventoryLoading] = useState(false);
   const [isSavingCompletion, setIsSavingCompletion] = useState(false);
+  const [isSavingRatios, setIsSavingRatios] = useState(false);
   const [inventoryOptions, setInventoryOptions] = useState<string[]>([]);
   const [brandSelections, setBrandSelections] = useState<Record<string, string>>({});
   const [substitutions, setSubstitutions] = useState('');
@@ -61,6 +72,19 @@ export default function RecipeDetailScreen() {
   const [completionNotes, setCompletionNotes] = useState('');
   const [selectedRating, setSelectedRating] = useState(0);
   const [lastCompletionId, setLastCompletionId] = useState<string | null>(null);
+  const [ratioProfile, setRatioProfile] = useState<RatioProfile | null>(
+    (recipe?.ratio_profile as RatioProfile | null) || null
+  );
+  const [ratioEstimated, setRatioEstimated] = useState(Boolean(recipe?.ratio_estimated));
+  const [ratioEditorState, setRatioEditorState] = useState<RatioEditorState>(
+    (recipe?.ratio_editor_state as RatioEditorState) || {
+      spirit: 50,
+      sweet: 50,
+      acid: 50,
+      dilution: 50,
+    }
+  );
+  const [showRatioEditor, setShowRatioEditor] = useState(false);
   const completionConfig = getCompletionPromptConfig(tierToCompletionPlan(tier));
   const hasBatching = canAccessContent(tier, 'PLUS');
   const showFlavorTags = canAccessContent(tier, 'PLUS');
@@ -75,7 +99,7 @@ export default function RecipeDetailScreen() {
     return recipe.flavorProfiles || recipe.flavorTags || [];
   }, [recipe]);
 
-  const recipeIngredients = useMemo(
+  const recipeIngredients = useMemo<RecipeIngredientEntry[]>(
     () =>
       (recipe?.ingredients || recipe?.tags || []).map((item: any, index: number) => {
         const ingredient = typeof item === 'string' ? item : (item.name || item);
@@ -130,6 +154,53 @@ export default function RecipeDetailScreen() {
       });
     } catch (error) {
       log.error('RecipeDetailScreen', 'Error sharing recipe', error, { recipeTitle: recipe.title });
+    }
+  };
+
+  const handleSaveRatioBalance = async (nextProfile: RatioProfile, nextEditorState: RatioEditorState) => {
+    if (!recipe?.id) {
+      Alert.alert('Not Available', 'This recipe cannot be updated yet.');
+      return;
+    }
+
+    const originalIngredients = recipeIngredients.map((item) => ({
+      name: item.name,
+      amount: item.amount,
+    }));
+    const updatedIngredients = applyRatioProfileToIngredients(originalIngredients, nextProfile);
+
+    try {
+      setIsSavingRatios(true);
+      const success = await supabaseRecipeService.update(recipe.id, {
+        ingredients: updatedIngredients.map((item) => `${item.amount} ${item.name}`),
+        ratio_profile: nextProfile,
+        ratio_estimated: false,
+        ratio_editor_state: nextEditorState,
+      });
+
+      if (!success) {
+        throw new Error('Failed to save balance changes');
+      }
+
+      setRatioProfile(nextProfile);
+      setRatioEditorState(nextEditorState);
+      setRatioEstimated(false);
+      setShowRatioEditor(false);
+
+      (nav as any).setParams({
+        recipe: {
+          ...recipe,
+          ingredients: updatedIngredients,
+          ratio_profile: nextProfile,
+          ratio_estimated: false,
+          ratio_editor_state: nextEditorState,
+        },
+      });
+      Alert.alert('Saved', 'Recipe balance has been updated.');
+    } catch (error: any) {
+      Alert.alert('Save Failed', error?.message || 'Could not save ratio balance.');
+    } finally {
+      setIsSavingRatios(false);
     }
   };
 
@@ -420,12 +491,19 @@ export default function RecipeDetailScreen() {
         {/* --- Action Buttons --- */}
         <View style={styles.actionButtonsContainer}>
           <TouchableOpacity style={styles.primaryButton} onPress={openMakeFlow}>
-            <Text style={styles.primaryButtonText}>Make this drink</Text>
+            <Text style={styles.primaryButtonText}>I Made This</Text>
           </TouchableOpacity>
-
-          <TouchableOpacity style={styles.secondaryButton} onPress={openMakeFlow}>
-            <Text style={styles.secondaryButtonText}>I Made This</Text>
-          </TouchableOpacity>
+          {ratioProfile ? (
+            <TouchableOpacity
+              style={styles.secondaryButton}
+              onPress={() => setShowRatioEditor(true)}
+              disabled={isSavingRatios}
+            >
+              <Text style={styles.secondaryButtonText}>
+                {ratioEstimated ? 'Adjust Estimated Ratio' : 'Edit Ratio Balance'}
+              </Text>
+            </TouchableOpacity>
+          ) : null}
         </View>
 
         {/* --- Taste Match & Flavor Tags (PLUS+ only) --- */}
@@ -472,38 +550,36 @@ export default function RecipeDetailScreen() {
 
         {/* --- Ingredients --- */}
         <View style={styles.section}>
-          <Text style={[styles.sectionHeader, { fontFamily: serifFont }]}>Ingredients</Text>
-          <View style={styles.ingredientsList}>
+          <View style={styles.ingrHeader}>
+            <Text style={[styles.sectionHeader, { fontFamily: serifFont, marginBottom: 0 }]}>Ingredients</Text>
+            <View style={styles.ingrCountBadge}>
+              <Text style={styles.ingrCountText}>
+                {(recipe.ingredients || recipe.tags || []).length}
+              </Text>
+            </View>
+          </View>
+          <View style={styles.ingrContainer}>
             {(recipe.ingredients || recipe.tags || []).map((item: any, index: number) => {
               const name = typeof item === 'string' ? item : (item.name || item);
               const amount = typeof item === 'string' ? '' : item.amount;
               const notes = typeof item === 'string' ? '' : item.notes;
-
-              // Simple icon logic based on keywords
-              let iconName: any = 'bottle-tonic-plus';
-              const lowerName = name.toLowerCase();
-              if (lowerName.includes('gin')) iconName = 'bottle-tonic';
-              else if (lowerName.includes('vermouth')) iconName = 'bottle-wine';
-              else if (lowerName.includes('campari')) iconName = 'bottle-wine'; // or a generic bottle
-              else if (lowerName.includes('orange') || lowerName.includes('lemon') || lowerName.includes('lime')) iconName = 'fruit-citrus';
-              else if (lowerName.includes('ice')) iconName = 'cube-outline';
-              else if (lowerName.includes('syrup')) iconName = 'water-outline';
-              else if (lowerName.includes('garnish')) iconName = 'leaf';
-              else if (lowerName.includes('bitters')) iconName = 'water';
+              const total = (recipe.ingredients || recipe.tags || []).length;
+              const isLast = index === total - 1;
 
               return (
-                <View key={index} style={styles.ingredientRow}>
-                  <View style={styles.ingredientIconBox}>
-                    <MaterialCommunityIcons name={iconName} size={20} color={colors.accent} />
-                  </View>
-                  <View style={styles.ingredientInfo}>
-                    <Text style={styles.ingredientName}>{name}</Text>
-                    {(amount || notes) && (
-                      <Text style={styles.ingredientDetail}>
-                        {amount}{amount && notes ? ' • ' : ''}{notes}
+                <View key={index}>
+                  <View style={styles.ingrRow}>
+                    <View style={styles.ingrAmountPill}>
+                      <Text style={styles.ingrAmountText} numberOfLines={2} adjustsFontSizeToFit>
+                        {amount || '—'}
                       </Text>
-                    )}
+                    </View>
+                    <View style={styles.ingrInfo}>
+                      <Text style={styles.ingrName}>{name}</Text>
+                      {notes ? <Text style={styles.ingrNotes}>{notes}</Text> : null}
+                    </View>
                   </View>
+                  {!isLast && <View style={styles.ingrDivider} />}
                 </View>
               );
             })}
@@ -652,7 +728,7 @@ export default function RecipeDetailScreen() {
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.aiButton}>
-              <MaterialCommunityIcons name="wand" size={20} color={colors.accent} />
+              <Ionicons name="sparkles-outline" size={20} color={colors.accent} />
               <Text style={styles.aiButtonTitle}>Customize This Recipe</Text>
             </TouchableOpacity>
           </View>
@@ -839,6 +915,26 @@ export default function RecipeDetailScreen() {
           </View>
         </View>
       </Modal>
+
+      <Modal
+        visible={showRatioEditor}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowRatioEditor(false)}
+      >
+        <View style={styles.ratioModalBackdrop}>
+          <View style={styles.ratioModalCard}>
+            {ratioProfile ? (
+              <RatioBalanceEditor
+                profile={ratioProfile}
+                initialState={ratioEditorState}
+                onCancel={() => setShowRatioEditor(false)}
+                onSave={handleSaveRatioBalance}
+              />
+            ) : null}
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -983,22 +1079,105 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 
-  // Ingredients
+  // Ingredients — "Bar Measure" layout
+  ingrHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing(2),
+  },
+  ingrCountBadge: {
+    minWidth: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: colors.accent + '1A',
+    borderWidth: 1,
+    borderColor: colors.accent + '40',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 8,
+  },
+  ingrCountText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: colors.accent,
+    letterSpacing: 0.5,
+  },
+  ingrContainer: {
+    backgroundColor: '#201510',
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.accent + '55',
+    overflow: 'hidden',
+  },
+  ingrRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing(1.75),
+    paddingRight: spacing(2),
+    paddingLeft: spacing(1.5),
+    gap: spacing(1.75),
+  },
+  ingrAmountPill: {
+    width: 58,
+    minHeight: 32,
+    paddingVertical: 5,
+    paddingHorizontal: 6,
+    backgroundColor: colors.accent + '16',
+    borderRadius: radii.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+    borderWidth: 1,
+    borderColor: colors.accent + '25',
+  },
+  ingrAmountText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: colors.accent,
+    textAlign: 'center',
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
+    lineHeight: 14,
+  },
+  ingrInfo: {
+    flex: 1,
+  },
+  ingrName: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.text,
+    lineHeight: 21,
+  },
+  ingrNotes: {
+    fontSize: 12,
+    color: colors.subtext,
+    marginTop: 2,
+    lineHeight: 16,
+  },
+  ingrDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: 'rgba(255,255,255,0.07)',
+    marginHorizontal: spacing(2),
+  },
+  // Legacy ingredient styles (kept for batch calculator)
   ingredientsList: {
     gap: spacing(1.5),
   },
   ingredientRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#261C16', // Slightly lighter than bg, matches mock
+    backgroundColor: '#261C16',
     padding: spacing(2),
-    borderRadius: radii.xl, // Pill-ish shape
+    borderRadius: radii.xl,
   },
   ingredientIconBox: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(214, 138, 56, 0.15)', // low opacity gold
+    backgroundColor: 'rgba(214, 138, 56, 0.15)',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: spacing(2),
@@ -1262,6 +1441,16 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.72)',
     justifyContent: 'center',
     padding: spacing(2),
+  },
+  ratioModalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.72)',
+    justifyContent: 'center',
+    padding: spacing(2),
+  },
+  ratioModalCard: {
+    borderRadius: radii.lg,
+    overflow: 'hidden',
   },
   modalCard: {
     maxHeight: '90%',

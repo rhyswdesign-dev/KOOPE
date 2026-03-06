@@ -19,7 +19,7 @@ const categories = [
     id: 'mystery-drop', 
     name: 'Mystery Drop', 
     icon: 'gift-outline', 
-    color: '#FF6B6B',
+    color: colors.error,
     description: 'Surprise collections with premium items',
     itemCount: 12
   },

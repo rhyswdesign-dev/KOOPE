@@ -1,10 +1,12 @@
 import React from 'react';
 import { Pressable, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScreenTourId } from '../../config/screenTours';
 import { useScreenTour } from '../../hooks/useScreenTour';
 import ScreenTourModal from './ScreenTourModal';
 import { colors, radii, spacing } from '../../theme/tokens';
+import { withHaptic } from '../../lib/haptics';
 
 interface TourWrapperOptions {
   showReplayButton?: boolean;
@@ -17,6 +19,7 @@ export function withScreenTour<P extends object>(
   options?: TourWrapperOptions
 ) {
   const TourWrappedScreen: React.FC<P> = (props) => {
+    const insets = useSafeAreaInsets();
     const {
       visible,
       stepIndex,
@@ -35,8 +38,14 @@ export function withScreenTour<P extends object>(
 
         {options?.showReplayButton === true && (
           <Pressable
-            style={styles.replayButton}
-            onPress={openTour}
+            style={[
+              styles.replayButton,
+              {
+                top: insets.top + spacing(2),
+                left: spacing(3),
+              },
+            ]}
+            onPress={withHaptic(openTour)}
             accessibilityRole="button"
             accessibilityLabel={options?.replayLabel || 'Open tour'}
           >
@@ -65,8 +74,6 @@ export function withScreenTour<P extends object>(
 const styles = StyleSheet.create({
   replayButton: {
     position: 'absolute',
-    left: spacing(2),
-    top: spacing(6),
     backgroundColor: 'rgba(43,31,23,0.92)',
     borderColor: colors.line,
     borderWidth: 1,

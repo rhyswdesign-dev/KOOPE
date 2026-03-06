@@ -4,14 +4,14 @@
  */
 
 export const spiritImages = {
-  tequila: require('./Tequila.png'),
-  whiskey: require('./Whiskey.png'),
-  rum: require('./Rum.png'),
-  gin: require('./Gin.png'),
-  vodka: require('./MMS Vodka.png'),
-  brandy: require('./Brandy.png'),
-  scotch: require('./Scotch.png'),
-  mezcal: require('./Mezcal.png'),
+  tequila: require('./koope-tequila.png'),
+  whiskey: require('./koope-whiskey.png'),
+  rum: require('./koope-rum.png'),
+  gin: require('./koope-gin.png'),
+  vodka: require('./koope-vodka.png'),
+  brandy: require('./koope-brandy.png'),
+  scotch: require('./koope-scotch.png'),
+  mezcal: require('./koope-mezcal.png'),
 };
 
 export type SpiritType = keyof typeof spiritImages;

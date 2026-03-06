@@ -1,6 +1,7 @@
 import React from 'react';
 import { Pressable, Text, StyleSheet, ViewStyle, TextStyle } from 'react-native';
-import { colors } from '../theme/tokens';
+import { colors, spacing, radii } from '../theme/tokens';
+import { withHaptic } from '../lib/haptics';
 
 type Props = {
   title: string;
@@ -44,17 +45,18 @@ export const PillButton: React.FC<Props> = ({ title, onPress, style, textStyle, 
   const txt = variantStyles.color;
   return (
     <Pressable
-      onPress={onPress}
+      onPress={withHaptic(onPress)}
       disabled={disabled}
       style={({ pressed }) => [
         styles.base,
-        { 
-          backgroundColor: bg, 
-          opacity: pressed ? 0.9 : 1,
+        {
+          backgroundColor: bg,
+          transform: [{ scale: pressed ? 0.97 : 1 }],
+          opacity: pressed ? 0.88 : 1,
           ...(variantStyles.borderWidth && { borderWidth: variantStyles.borderWidth }),
-          ...(variantStyles.borderColor && { borderColor: variantStyles.borderColor })
+          ...(variantStyles.borderColor && { borderColor: variantStyles.borderColor }),
         },
-        disabled && { opacity: 0.6 },
+        disabled && { opacity: 0.5 },
         style,
       ]}
     >
@@ -65,14 +67,18 @@ export const PillButton: React.FC<Props> = ({ title, onPress, style, textStyle, 
 
 const styles = StyleSheet.create({
   base: {
-    borderRadius: 9999,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    alignSelf: 'flex-start',
+    height: 48,
+    borderRadius: radii.pill,
+    paddingHorizontal: spacing(3),
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 48,
+    alignSelf: 'stretch',
   },
   text: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
+    textAlign: 'center',
   },
 });
 

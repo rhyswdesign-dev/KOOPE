@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { View, TextInput, StyleSheet, TouchableOpacity, Animated, Keyboard, Platform, InputAccessoryView, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, radii } from '../theme/tokens';
+import { withHaptic } from '../lib/haptics';
 
 interface SearchBarProps {
   value: string;
@@ -27,7 +28,7 @@ export default function SearchBar({
 }: SearchBarProps) {
   const [inputValue, setInputValue] = useState(value);
   const [isFocused, setIsFocused] = useState(false);
-  const debounceTimeout = useRef<NodeJS.Timeout>();
+  const debounceTimeout = useRef<NodeJS.Timeout | null>(null);
   const focusAnim = useRef(new Animated.Value(0)).current;
 
   // Sync with external value changes
@@ -105,7 +106,7 @@ export default function SearchBar({
 
         {inputValue.length > 0 && (
           <TouchableOpacity
-            onPress={handleClear}
+            onPress={withHaptic(handleClear)}
             style={styles.clearButton}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
@@ -117,7 +118,7 @@ export default function SearchBar({
       {Platform.OS === 'ios' && (
         <InputAccessoryView nativeID={inputAccessoryViewID}>
           <View style={styles.accessoryView}>
-            <TouchableOpacity onPress={() => Keyboard.dismiss()} style={styles.doneButton}>
+            <TouchableOpacity onPress={withHaptic(() => Keyboard.dismiss())} style={styles.doneButton}>
               <Text style={styles.doneButtonText}>Done</Text>
             </TouchableOpacity>
           </View>

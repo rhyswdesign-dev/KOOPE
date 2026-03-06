@@ -47,6 +47,7 @@ export interface CameraCaptureProps {
   scansRemaining?: number;
   isPaidUser?: boolean;
   isGuest?: boolean;
+  autoCloseOnCapture?: boolean;
 }
 
 const MODES = [
@@ -66,6 +67,7 @@ export default function CameraCapture({
   scansRemaining,
   isPaidUser = false,
   isGuest = false,
+  autoCloseOnCapture = true,
 }: CameraCaptureProps) {
   const [permission, requestPermission] = useCameraPermissions();
   const [cameraType, setCameraType] = useState<'back' | 'front'>('back');
@@ -119,7 +121,9 @@ export default function CameraCapture({
 
       if (photo?.uri) {
         onImageCaptured(photo.uri);
-        onClose();
+        if (autoCloseOnCapture) {
+          onClose();
+        }
       }
     } catch (error) {
       console.error('Failed to capture', error);
@@ -139,7 +143,9 @@ export default function CameraCapture({
 
       if (!result.canceled && result.assets[0]) {
         onImageCaptured(result.assets[0].uri);
-        onClose();
+        if (autoCloseOnCapture) {
+          onClose();
+        }
       }
     } catch (e) {
       Alert.alert('Error', 'Gallery access failed');

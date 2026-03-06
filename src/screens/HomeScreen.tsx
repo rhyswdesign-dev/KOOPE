@@ -1,6 +1,6 @@
 // src/screens/HomeScreen.tsx
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Platform } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Animated, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -12,6 +12,32 @@ import CocktailOfTheMonthCard from '../components/CocktailOfTheMonthCard';
 import { Recipe } from '../types/recipe';
 import { log } from '../lib/logger';
 import { Heading } from '../components/ui';
+
+function SkeletonCard() {
+  const pulseAnim = useRef(new Animated.Value(0.15)).current;
+
+  useEffect(() => {
+    const pulse = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, { toValue: 0.35, duration: 900, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 0.15, duration: 900, useNativeDriver: true }),
+      ])
+    );
+    pulse.start();
+    return () => pulse.stop();
+  }, []);
+
+  return (
+    <Animated.View style={[styles.skeletonCard, { opacity: pulseAnim }]}>
+      <View style={styles.skeletonImageArea} />
+      <View style={styles.skeletonBody}>
+        <View style={styles.skeletonTitle} />
+        <View style={styles.skeletonSubtitle} />
+        <View style={styles.skeletonTag} />
+      </View>
+    </Animated.View>
+  );
+}
 
 export default function HomeScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -52,9 +78,7 @@ export default function HomeScreen() {
 
           {/* Cocktail of the Month */}
           {loading ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color={colors.gold} />
-            </View>
+            <SkeletonCard />
           ) : featuredRecipe ? (
             <CocktailOfTheMonthCard
               recipe={featuredRecipe}
@@ -86,12 +110,42 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing(2),
     paddingBottom: spacing(6),
   },
-  loadingContainer: {
+  skeletonCard: {
     width: '100%',
     height: 320,
-    alignItems: 'center',
-    justifyContent: 'center',
+    borderRadius: radii.xl,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.line,
+    overflow: 'hidden',
     marginBottom: spacing(3),
+  },
+  skeletonImageArea: {
+    width: '100%',
+    height: 200,
+    backgroundColor: colors.line,
+  },
+  skeletonBody: {
+    padding: spacing(2),
+    gap: spacing(1.25),
+  },
+  skeletonTitle: {
+    height: 20,
+    width: '60%',
+    borderRadius: radii.sm,
+    backgroundColor: colors.line,
+  },
+  skeletonSubtitle: {
+    height: 14,
+    width: '85%',
+    borderRadius: radii.sm,
+    backgroundColor: colors.line,
+  },
+  skeletonTag: {
+    height: 14,
+    width: '40%',
+    borderRadius: radii.sm,
+    backgroundColor: colors.line,
   },
   featuredCard: {
     marginBottom: spacing(3),

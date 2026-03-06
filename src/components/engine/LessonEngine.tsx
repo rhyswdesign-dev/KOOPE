@@ -75,6 +75,12 @@ export const LessonEngine: React.FC<LessonEngineProps> = ({ lessonId, onComplete
   const feedbackAnim = useRef(new Animated.Value(0)).current;
   const heartPulseAnim = useRef(new Animated.Value(1)).current;
 
+  // Quick feedback flash overlay
+  const feedbackFlashOpacity = useRef(new Animated.Value(0)).current;
+  const feedbackIconScale = useRef(new Animated.Value(0.5)).current;
+  const feedbackIconOpacity = useRef(new Animated.Value(0)).current;
+  const feedbackTypeRef = useRef<'correct' | 'incorrect'>('correct');
+
   const {
     items,
     currentItemIndex,
@@ -258,10 +264,6 @@ export const LessonEngine: React.FC<LessonEngineProps> = ({ lessonId, onComplete
       exerciseType: currentItem.type
     });
 
-    // Show quick feedback animation and play sound
-    setQuickFeedbackType(result.correct ? 'correct' : 'incorrect');
-    setShowQuickFeedback(true);
-
     // Play appropriate audio feedback
     if (result.correct) {
       audio.playCorrectAnswer();
@@ -269,10 +271,34 @@ export const LessonEngine: React.FC<LessonEngineProps> = ({ lessonId, onComplete
       audio.playIncorrectAnswer();
     }
 
-    // Hide quick feedback after delay (reduced to 400ms for very fast transitions)
-    setTimeout(() => {
-      setShowQuickFeedback(false);
-    }, 400);
+    // Animate correct/incorrect flash overlay
+    feedbackTypeRef.current = result.correct ? 'correct' : 'incorrect';
+    setQuickFeedbackType(result.correct ? 'correct' : 'incorrect');
+    feedbackFlashOpacity.setValue(0);
+    feedbackIconScale.setValue(0.5);
+    feedbackIconOpacity.setValue(0);
+
+    Animated.sequence([
+      Animated.parallel([
+        Animated.timing(feedbackFlashOpacity, { toValue: 0.12, duration: 80, useNativeDriver: true }),
+        Animated.spring(feedbackIconScale, { toValue: 1, tension: 180, friction: 8, useNativeDriver: true }),
+        Animated.timing(feedbackIconOpacity, { toValue: 1, duration: 100, useNativeDriver: true }),
+      ]),
+      Animated.delay(200),
+      Animated.parallel([
+        Animated.timing(feedbackFlashOpacity, { toValue: 0, duration: 200, useNativeDriver: true }),
+        Animated.timing(feedbackIconOpacity, { toValue: 0, duration: 200, useNativeDriver: true }),
+      ]),
+    ]).start();
+
+    // Heart pulse-damage on incorrect
+    if (!result.correct) {
+      Animated.sequence([
+        Animated.timing(heartPulseAnim, { toValue: 1.4, duration: 100, useNativeDriver: true }),
+        Animated.timing(heartPulseAnim, { toValue: 0.85, duration: 80, useNativeDriver: true }),
+        Animated.timing(heartPulseAnim, { toValue: 1, duration: 120, useNativeDriver: true }),
+      ]).start();
+    }
 
     // Keep feedback visible until user taps Continue.
     Animated.spring(feedbackAnim, {
@@ -707,6 +733,31 @@ export const LessonEngine: React.FC<LessonEngineProps> = ({ lessonId, onComplete
         </View>
       </Animated.View>
 
+      {/* Quick Answer Flash Overlay */}
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          styles.quickFlashOverlay,
+          {
+            opacity: feedbackFlashOpacity,
+            backgroundColor: quickFeedbackType === 'correct' ? colors.success : colors.error,
+          },
+        ]}
+      >
+        <Animated.View
+          style={{
+            opacity: feedbackIconOpacity,
+            transform: [{ scale: feedbackIconScale }],
+          }}
+        >
+          <Ionicons
+            name={quickFeedbackType === 'correct' ? 'checkmark-circle' : 'close-circle'}
+            size={80}
+            color={colors.white}
+          />
+        </Animated.View>
+      </Animated.View>
+
       {/* Feedback Overlay - Minimalist Design */}
       {showFeedback && lastResult && (
         <Animated.View
@@ -921,6 +972,16 @@ const styles = StyleSheet.create({
     marginTop: 100,
     fontWeight: '600',
   },
+  quickFlashOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1100,
+  },
   // Minimalist Feedback Overlay
   feedbackOverlay: {
     position: 'absolute',
@@ -1081,7 +1142,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accent,
   },
   earnHeartsButton: {
-    backgroundColor: '#FF6B6B',
+    backgroundColor: colors.error,
   },
   goBackButton: {
     backgroundColor: 'transparent',

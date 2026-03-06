@@ -28,7 +28,7 @@ export default function InventoryStack() {
       <Stack.Screen
         name="ShoppingCart"
         component={ShoppingCartScreen}
-        options={{ headerShown: true, title: '🛒 Shopping Cart' }}
+        options={{ headerShown: false }}
       />
     </Stack.Navigator>
   );

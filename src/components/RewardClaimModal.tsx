@@ -1,7 +1,6 @@
 /**
  * Reward Claim Modal
- * Animated modal for claiming challenge rewards
- * Shows XP, keys, and badges with celebration effects
+ * On-brand dark espresso celebration for challenge completions
  */
 
 import React, { useEffect, useRef } from 'react';
@@ -11,13 +10,15 @@ import {
   StyleSheet,
   Modal,
   Pressable,
+  TouchableOpacity,
   Animated,
   Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, radii, fonts } from '../theme/tokens';
+import { colors, spacing, radii, serif } from '../theme/tokens';
 import { ChallengeReward } from '../types/challenge';
-import { log } from '../lib/logger';
+import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 
 interface RewardClaimModalProps {
   visible: boolean;
@@ -28,7 +29,7 @@ interface RewardClaimModalProps {
   claiming?: boolean;
 }
 
-const { width, height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 
 export const RewardClaimModal: React.FC<RewardClaimModalProps> = ({
   visible,
@@ -38,152 +39,133 @@ export const RewardClaimModal: React.FC<RewardClaimModalProps> = ({
   onClose,
   claiming = false,
 }) => {
-  const scaleAnim = useRef(new Animated.Value(0)).current;
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const bounceAnim = useRef(new Animated.Value(0)).current;
+  const cardScale = useRef(new Animated.Value(0.84)).current;
+  const cardOpacity = useRef(new Animated.Value(0)).current;
+  const overlayOpacity = useRef(new Animated.Value(0)).current;
+  const iconScale = useRef(new Animated.Value(0)).current;
+  const rewardsOpacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (visible) {
-      // Entrance animation
-      Animated.parallel([
-        Animated.spring(scaleAnim, {
-          toValue: 1,
-          tension: 50,
-          friction: 7,
-          useNativeDriver: true,
-        }),
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-      ]).start();
+      cardScale.setValue(0.84);
+      cardOpacity.setValue(0);
+      overlayOpacity.setValue(0);
+      iconScale.setValue(0);
+      rewardsOpacity.setValue(0);
 
-      // Continuous bounce animation for attention
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(bounceAnim, {
-            toValue: 1,
-            duration: 500,
-            useNativeDriver: true,
-          }),
-          Animated.timing(bounceAnim, {
-            toValue: 0,
-            duration: 500,
-            useNativeDriver: true,
-          }),
-        ])
-      ).start();
+      Animated.sequence([
+        Animated.timing(overlayOpacity, { toValue: 1, duration: 200, useNativeDriver: true }),
+        Animated.parallel([
+          Animated.spring(cardScale, { toValue: 1, tension: 54, friction: 8, useNativeDriver: true }),
+          Animated.timing(cardOpacity, { toValue: 1, duration: 250, useNativeDriver: true }),
+        ]),
+        Animated.spring(iconScale, { toValue: 1, tension: 75, friction: 6, useNativeDriver: true }),
+        Animated.timing(rewardsOpacity, { toValue: 1, duration: 300, useNativeDriver: true }),
+      ]).start();
     } else {
-      scaleAnim.setValue(0);
-      fadeAnim.setValue(0);
-      bounceAnim.setValue(0);
+      cardScale.setValue(0.84);
+      cardOpacity.setValue(0);
+      overlayOpacity.setValue(0);
+      iconScale.setValue(0);
+      rewardsOpacity.setValue(0);
     }
   }, [visible]);
 
   if (!reward) return null;
 
-  const bounceInterpolate = bounceAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, -10],
-  });
+  const hasMultipleRewards = [reward.xp > 0, reward.keys && reward.keys > 0, !!reward.badge]
+    .filter(Boolean).length > 1;
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="none"
-      onRequestClose={onClose}
-    >
-      <Pressable style={styles.overlay} onPress={onClose}>
+    <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
+      {/* Backdrop */}
+      <Animated.View style={[styles.backdrop, { opacity: overlayOpacity }]}>
+        <BlurView intensity={55} tint="dark" style={StyleSheet.absoluteFill} />
+      </Animated.View>
+
+      {/* Dismiss on tap outside */}
+      <Pressable style={styles.centeredWrapper} onPress={onClose}>
         <Animated.View
-          style={[
-            styles.modalContainer,
-            {
-              opacity: fadeAnim,
-              transform: [{ scale: scaleAnim }],
-            },
-          ]}
+          style={[styles.card, { opacity: cardOpacity, transform: [{ scale: cardScale }] }]}
         >
           <Pressable onPress={(e) => e.stopPropagation()}>
-            {/* Confetti or celebration icon */}
-            <View style={styles.celebrationIcon}>
-              <Ionicons name="trophy" size={64} color={colors.warning} />
+            {/* Amber shimmer top */}
+            <LinearGradient
+              colors={['rgba(214,138,56,0.22)', 'transparent']}
+              style={styles.topShimmer}
+            />
+
+            {/* Trophy icon */}
+            <View style={styles.iconSection}>
+              <View style={styles.glowHalo} />
+              <Animated.View style={[styles.iconRing, { transform: [{ scale: iconScale }] }]}>
+                <View style={styles.iconInner}>
+                  <Ionicons name="trophy" size={44} color={colors.accent} />
+                </View>
+              </Animated.View>
             </View>
 
-            {/* Challenge Title */}
-            <Text style={styles.title}>Challenge Complete!</Text>
-            <Text style={styles.subtitle}>{challengeTitle}</Text>
+            {/* Eyebrow */}
+            <View style={styles.eyebrow}>
+              <Ionicons name="checkmark-circle" size={12} color={colors.success} />
+              <Text style={styles.eyebrowText}>CHALLENGE COMPLETE</Text>
+            </View>
 
-            {/* Rewards Display */}
-            <View style={styles.rewardsContainer}>
-              {/* XP Reward */}
+            {/* Title + subtitle */}
+            <Text style={[styles.title, { fontFamily: serif }]}>Well done!</Text>
+            <Text style={styles.subtitle} numberOfLines={2}>{challengeTitle}</Text>
+
+            {/* Divider */}
+            <View style={styles.divider} />
+
+            {/* Reward items */}
+            <Animated.View style={[styles.rewardsRow, { opacity: rewardsOpacity }]}>
               {reward.xp > 0 && (
-                <Animated.View
-                  style={[
-                    styles.rewardItem,
-                    { transform: [{ translateY: bounceInterpolate }] },
-                  ]}
-                >
-                  <View style={[styles.rewardIcon, styles.xpIcon]}>
-                    <Ionicons name="flash" size={32} color={colors.accent} />
+                <View style={[styles.rewardCard, hasMultipleRewards && styles.rewardCardMulti]}>
+                  <View style={styles.rewardIconBox}>
+                    <Ionicons name="flash" size={26} color={colors.accent} />
                   </View>
                   <Text style={styles.rewardAmount}>+{reward.xp}</Text>
                   <Text style={styles.rewardLabel}>XP</Text>
-                </Animated.View>
+                </View>
               )}
-
-              {/* Keys Reward */}
-              {reward.keys && reward.keys > 0 && (
-                <Animated.View
-                  style={[
-                    styles.rewardItem,
-                    { transform: [{ translateY: bounceInterpolate }] },
-                  ]}
-                >
-                  <View style={[styles.rewardIcon, styles.keysIcon]}>
-                    <Ionicons name="key" size={32} color={colors.warning} />
+              {reward.keys != null && reward.keys > 0 && (
+                <View style={[styles.rewardCard, hasMultipleRewards && styles.rewardCardMulti]}>
+                  <View style={[styles.rewardIconBox, styles.rewardIconKey]}>
+                    <Ionicons name="key" size={26} color={colors.warning} />
                   </View>
                   <Text style={styles.rewardAmount}>+{reward.keys}</Text>
                   <Text style={styles.rewardLabel}>Keys</Text>
-                </Animated.View>
+                </View>
               )}
-
-              {/* Badge Reward */}
               {reward.badge && (
-                <Animated.View
-                  style={[
-                    styles.rewardItem,
-                    { transform: [{ translateY: bounceInterpolate }] },
-                  ]}
-                >
-                  <View style={[styles.rewardIcon, styles.badgeIcon]}>
-                    <Ionicons name="medal" size={32} color={colors.success} />
+                <View style={[styles.rewardCard, hasMultipleRewards && styles.rewardCardMulti]}>
+                  <View style={[styles.rewardIconBox, styles.rewardIconBadge]}>
+                    <Ionicons name="medal" size={26} color={colors.success} />
                   </View>
                   <Text style={styles.rewardAmount}>+1</Text>
                   <Text style={styles.rewardLabel}>Badge</Text>
-                </Animated.View>
+                </View>
               )}
-            </View>
+            </Animated.View>
 
-            {/* Claim Button */}
-            <Pressable
+            {/* Claim button */}
+            <TouchableOpacity
               style={[styles.claimButton, claiming && styles.claimButtonDisabled]}
               onPress={onClaim}
               disabled={claiming}
+              activeOpacity={0.82}
             >
               <Text style={styles.claimButtonText}>
-                {claiming ? 'Claiming...' : 'Claim Reward'}
+                {claiming ? 'Claiming…' : 'Claim Reward'}
               </Text>
-              {!claiming && (
-                <Ionicons name="checkmark-circle" size={24} color="#FFFFFF" />
-              )}
-            </Pressable>
+              {!claiming && <Ionicons name="checkmark-circle" size={20} color="#1A120D" />}
+            </TouchableOpacity>
 
-            {/* Close Button */}
-            <Pressable style={styles.closeButton} onPress={onClose}>
-              <Ionicons name="close" size={24} color={colors.textMuted} />
-            </Pressable>
+            {/* Dismiss link */}
+            <TouchableOpacity style={styles.dismissLink} onPress={onClose}>
+              <Text style={styles.dismissText}>Dismiss</Text>
+            </TouchableOpacity>
           </Pressable>
         </Animated.View>
       </Pressable>
@@ -192,105 +174,182 @@ export const RewardClaimModal: React.FC<RewardClaimModalProps> = ({
 };
 
 const styles = StyleSheet.create({
-  overlay: {
+  backdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.72)',
+  },
+  centeredWrapper: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    alignItems: 'center',
     justifyContent: 'center',
-    alignItems: 'center',
   },
-  modalContainer: {
-    width: width * 0.85,
-    backgroundColor: colors.background.elevated,
+  card: {
+    width: width * 0.84,
+    maxWidth: 380,
+    backgroundColor: colors.card,
     borderRadius: radii.xl,
-    padding: spacing.xl,
+    borderWidth: 1,
+    borderColor: 'rgba(214,138,56,0.22)',
+    overflow: 'hidden',
     alignItems: 'center',
+    paddingHorizontal: spacing(4),
+    paddingBottom: spacing(3),
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 14 },
+    shadowOpacity: 0.65,
+    shadowRadius: 28,
+    elevation: 14,
   },
-  celebrationIcon: {
-    marginBottom: spacing.md,
+  topShimmer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 80,
+  },
+  iconSection: {
+    marginTop: spacing(4.5),
+    marginBottom: spacing(2.5),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  glowHalo: {
+    position: 'absolute',
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: 'rgba(214,138,56,0.18)',
+  },
+  iconRing: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    borderWidth: 1.5,
+    borderColor: 'rgba(214,138,56,0.4)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconInner: {
+    width: 76,
+    height: 76,
+    borderRadius: 38,
+    backgroundColor: 'rgba(214,138,56,0.14)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  eyebrow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginBottom: spacing(1.25),
+  },
+  eyebrowText: {
+    fontSize: 10,
+    fontWeight: '900',
+    color: colors.success,
+    letterSpacing: 1.4,
   },
   title: {
-    ...fonts.title,
-    fontSize: 28,
-    color: colors.textLight,
-    marginBottom: spacing.xs,
+    fontSize: 26,
+    fontWeight: '900',
+    color: colors.text,
     textAlign: 'center',
+    marginBottom: spacing(0.75),
+    lineHeight: 32,
   },
   subtitle: {
-    ...fonts.body,
-    fontSize: 16,
-    color: colors.textMuted,
-    marginBottom: spacing.xl,
+    fontSize: 14,
+    color: colors.subtext,
     textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: spacing(2.5),
   },
-  rewardsContainer: {
+  divider: {
+    width: '100%',
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    marginBottom: spacing(2.5),
+  },
+  rewardsRow: {
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: spacing.lg,
-    marginBottom: spacing.xl,
+    gap: spacing(1.5),
     width: '100%',
+    marginBottom: spacing(3),
   },
-  rewardItem: {
-    alignItems: 'center',
+  rewardCard: {
     flex: 1,
-  },
-  rewardIcon: {
-    width: 64,
-    height: 64,
-    borderRadius: radii.lg,
-    justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: spacing.sm,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.07)',
+    paddingVertical: spacing(1.75),
+    gap: 4,
   },
-  xpIcon: {
-    backgroundColor: colors.accent + '20',
+  rewardCardMulti: {
+    maxWidth: 100,
   },
-  keysIcon: {
-    backgroundColor: colors.warning + '20',
+  rewardIconBox: {
+    width: 52,
+    height: 52,
+    borderRadius: radii.md,
+    backgroundColor: 'rgba(214,138,56,0.14)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 2,
   },
-  badgeIcon: {
-    backgroundColor: colors.success + '20',
+  rewardIconKey: {
+    backgroundColor: 'rgba(255,152,0,0.14)',
+  },
+  rewardIconBadge: {
+    backgroundColor: 'rgba(76,175,80,0.14)',
   },
   rewardAmount: {
-    ...fonts.title,
-    fontSize: 24,
-    color: colors.textLight,
-    marginBottom: spacing.xs,
+    fontSize: 20,
+    fontWeight: '900',
+    color: colors.text,
+    lineHeight: 24,
   },
   rewardLabel: {
-    ...fonts.caption,
-    fontSize: 12,
-    color: colors.textMuted,
+    fontSize: 10,
+    fontWeight: '700',
+    color: colors.subtext,
     textTransform: 'uppercase',
+    letterSpacing: 0.6,
   },
   claimButton: {
+    width: '100%',
+    height: 50,
+    borderRadius: radii.pill,
     backgroundColor: colors.accent,
-    borderRadius: radii.lg,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.xl,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
-    marginBottom: spacing.md,
-    width: '100%',
     justifyContent: 'center',
+    gap: spacing(1),
+    marginBottom: spacing(1.5),
+    shadowColor: colors.accent,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.38,
+    shadowRadius: 10,
+    elevation: 5,
   },
   claimButtonDisabled: {
     backgroundColor: colors.muted,
+    shadowOpacity: 0,
   },
   claimButtonText: {
-    ...fonts.button,
-    color: '#FFFFFF',
-    fontSize: 18,
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#1A120D',
+    letterSpacing: 0.3,
   },
-  closeButton: {
-    position: 'absolute',
-    top: spacing.md,
-    right: spacing.md,
-    padding: spacing.xs,
+  dismissLink: {
+    paddingVertical: spacing(1),
+  },
+  dismissText: {
+    fontSize: 13,
+    color: colors.subtext,
+    fontWeight: '600',
   },
 });

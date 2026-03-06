@@ -3,12 +3,13 @@
  * Clean, card-based design for managing home bar inventory
  */
 
-import React, { useState, useLayoutEffect, useCallback } from 'react';
+import React, { useState, useLayoutEffect, useCallback, useMemo } from 'react';
 import {
   ScrollView,
   View,
   Text,
   StyleSheet,
+  SafeAreaView,
   TouchableOpacity,
   Image,
   TextInput,
@@ -19,7 +20,7 @@ import {
   Platform,
 } from 'react-native';
 import { colors, spacing, radii, fonts, serif } from '../theme/tokens';
-import { Heading } from '../components/ui';
+import { Heading, MainPageHeader } from '../components/ui';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -533,10 +534,13 @@ export default function HomeBarScreen() {
   const { inventoryGate } = usePaywallTriggers();
   const { isKoopePlus, isKoopePro } = useSubscription();
   const { gateWithTrigger: optimizeBarGate } = useFeatureAccess('optimize_my_bar');
+  const { gateWithTrigger: hostingBasicGate } = useFeatureAccess('hosting_basic');
   const { gateWithTrigger: predictiveRestockGate } = useFeatureAccess('predictive_restock');
   const { user } = useAuth();
   const [showSearchModal, setShowSearchModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchModalQuery, setSearchModalQuery] = useState('');
+  const [searchHistory, setSearchHistory] = useState<string[]>([]);
   const [activeCategory, setActiveCategory] = useState<InventoryCategory | 'all'>('all');
   const [homeBar, setHomeBar] = useState<HomeBar>(mockHomeBar);
   const [showManualEntryModal, setShowManualEntryModal] = useState(false);
@@ -618,6 +622,144 @@ export default function HomeBarScreen() {
 
   const { lowStock, rest, all } = getFilteredInventory();
 
+  const categoryDisplayMap: Record<string, string> = {
+    spirit: 'Spirit',
+    mixer: 'Mixer',
+    garnish: 'Garnish',
+    ingredient: 'Ingredient',
+    liqueur: 'Liqueur',
+    bitters: 'Bitters',
+    syrup: 'Syrup',
+    other: 'Other',
+  };
+  const categoryPlaceholderMap: Record<string, string> = {
+    spirit: 'e.g., Vodka',
+    liqueur: 'e.g., Cointreau',
+    mixer: 'e.g., Tonic Water',
+    bitters: 'e.g., Angostura Bitters',
+    syrup: 'e.g., Simple Syrup',
+    garnish: 'e.g., Lemon',
+    ingredient: 'e.g., Cinnamon',
+    other: 'e.g., House Blend',
+  };
+
+  const normalizeSearchValue = (value: string | string[] | undefined) => {
+    if (!value) return '';
+    if (Array.isArray(value)) return value.join(' ').toLowerCase();
+    return value.toLowerCase();
+  };
+
+  const searchResults = useMemo(() => {
+    const query = searchModalQuery.trim().toLowerCase();
+    const terms = query.split(/\s+/).filter(Boolean);
+    if (!query) return [];
+
+    const scored = homeBar.ingredients
+      .map((item) => {
+        const name = normalizeSearchValue(item.name);
+        const brand = normalizeSearchValue(item.brand);
+        const category = normalizeSearchValue(categoryDisplayMap[item.category] || item.category);
+        const subcategory = normalizeSearchValue(item.subcategory);
+        const tags = normalizeSearchValue(item.tags);
+        const searchable = `${name} ${brand} ${category} ${subcategory} ${tags}`;
+        const matchesAll = terms.every((term) => searchable.includes(term));
+
+        if (!matchesAll) return null;
+
+        let score = 0;
+        if (name === query) score += 120;
+        else if (name.startsWith(query)) score += 90;
+        else if (name.includes(query)) score += 70;
+
+        if (brand === query) score += 45;
+        else if (brand.startsWith(query)) score += 30;
+        else if (brand.includes(query)) score += 20;
+
+        if (category.includes(query)) score += 18;
+        if (subcategory.includes(query)) score += 12;
+        if (tags.includes(query)) score += 8;
+        if (item.category === 'spirit') score += 2;
+
+        return { item, score };
+      })
+      .filter((entry): entry is { item: InventoryItem; score: number } => !!entry)
+      .sort((a, b) => b.score - a.score)
+      .map((entry) => entry.item);
+
+    return scored;
+  }, [searchModalQuery, homeBar.ingredients]);
+
+  const hasActiveSearch = searchModalQuery.trim().length > 0;
+
+  const popularInventoryItems = useMemo(() => {
+    return homeBar.ingredients
+      .slice()
+      .sort((a, b) => {
+        const favDiff = Number(b.isFavorite) - Number(a.isFavorite);
+        if (favDiff !== 0) return favDiff;
+        return a.name.localeCompare(b.name);
+      })
+      .slice(0, 12);
+  }, [homeBar.ingredients]);
+
+  const visibleSearchResults = useMemo(() => {
+    if (hasActiveSearch) return searchResults;
+    return popularInventoryItems;
+  }, [hasActiveSearch, searchResults, popularInventoryItems]);
+
+  const discoverLikeSuggestions = useMemo(() => {
+    const query = searchModalQuery.trim().toLowerCase();
+    const pool = Array.from(
+      new Set(
+        homeBar.ingredients.flatMap((item) =>
+          [item.name, item.brand, categoryDisplayMap[item.category], item.subcategory].filter(Boolean) as string[]
+        )
+      )
+    );
+
+    if (query.length > 0) {
+      const filtered = pool
+        .filter((text) => text.toLowerCase().includes(query))
+        .slice(0, 8);
+      return filtered.map((text) => ({ text, type: 'search' as const }));
+    }
+
+    const recent = searchHistory.slice(0, 4).map((text) => ({ text, type: 'history' as const }));
+    const trending = popularInventoryItems
+      .slice(0, 4)
+      .map((item) => ({ text: item.name, type: 'trending' as const }));
+    return [...recent, ...trending];
+  }, [searchModalQuery, homeBar.ingredients, searchHistory, popularInventoryItems]);
+
+  const recordSearchHistory = (value: string) => {
+    const normalized = value.trim();
+    if (!normalized) return;
+    setSearchHistory((prev) => [normalized, ...prev.filter((item) => item.toLowerCase() !== normalized.toLowerCase())].slice(0, 10));
+  };
+
+  const openSearchModal = () => {
+    setSearchModalQuery('');
+    setShowSearchModal(true);
+  };
+
+  const closeSearchModal = () => {
+    setShowSearchModal(false);
+    setSearchModalQuery('');
+  };
+
+  const resetManualEntry = () => {
+    setManualEntryName('');
+    setManualEntryCategory('spirit');
+    setManualEntryBrand('');
+    setManualEntryVolume('');
+    setShowCustomInput(false);
+  };
+
+  const openManualEntryWizard = () => {
+    resetManualEntry();
+    setShowManualEntryModal(true);
+  };
+
   // Calculate stats
   const spiritCount = homeBar.ingredients.filter(i => i.category === 'spirit').length;
   const mixerCount = homeBar.ingredients.filter(i => i.category === 'mixer').length;
@@ -628,7 +770,7 @@ export default function HomeBarScreen() {
   };
 
   const handleAddIngredient = () => {
-    setShowManualEntryModal(true);
+    openManualEntryWizard();
   };
 
   const handleSaveManualEntry = async () => {
@@ -694,11 +836,7 @@ export default function HomeBarScreen() {
   };
 
   const handleCancelManualEntry = () => {
-    setManualEntryName('');
-    setManualEntryCategory('spirit');
-    setManualEntryBrand('');
-    setManualEntryVolume('');
-    setShowCustomInput(false);
+    resetManualEntry();
     setShowManualEntryModal(false);
   };
 
@@ -828,32 +966,31 @@ export default function HomeBarScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      {/* Header - Solid Color like Shopping Cart */}
-      <View style={styles.header}>
-        <View style={styles.headerTop}>
-          <TouchableOpacity onPress={() => nav.goBack()} style={styles.backButton}>
-            <Ionicons name="chevron-back" size={24} color={colors.text} />
-          </TouchableOpacity>
+    <SafeAreaView style={styles.container}>
+      <MainPageHeader
+        title="Inventory"
+        subtitle={`${all.length} item${all.length !== 1 ? 's' : ''}`}
+        rightActions={[
+          {
+            icon: 'search',
+            onPress: openSearchModal,
+            accessibilityLabel: 'Search inventory',
+          },
+          {
+            icon: 'add',
+            onPress: handleAddIngredient,
+            accessibilityLabel: 'Add ingredient',
+          },
+          {
+            icon: 'cart-outline',
+            onPress: () => nav.navigate('ShoppingCart'),
+            accessibilityLabel: 'Open shopping cart',
+          },
+        ]}
+      />
 
-          <View style={styles.headerCenter}>
-            <Heading level={2} style={styles.headerTitle}>Inventory</Heading>
-            <Text style={styles.inventoryCountText}>
-              {all.length} item{all.length !== 1 ? 's' : ''}
-            </Text>
-          </View>
-
-          <View style={styles.headerRight}>
-            <TouchableOpacity onPress={() => setShowSearchModal(true)} style={styles.headerButton}>
-              <Ionicons name="search" size={20} color={colors.text} />
-            </TouchableOpacity>
-            <TouchableOpacity onPress={handleAddIngredient} style={styles.headerButton}>
-              <Ionicons name="add" size={20} color={colors.text} />
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Category Filters */}
+      {/* Category Filters */}
+      <View style={styles.filtersWrap}>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -885,6 +1022,38 @@ export default function HomeBarScreen() {
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
       >
+        {/* AI Inventory Suggestions */}
+        {all.length > 0 && (
+          <View style={styles.aiInventoryCard}>
+            <View style={styles.aiInventoryActionRow}>
+              <TouchableOpacity
+                style={[styles.aiInventoryActionCard, styles.aiInventoryActionCardHorizontal]}
+                onPress={() => optimizeBarGate('T4', () => nav.navigate('BarOptimizer'))}
+              >
+                <View style={styles.aiInventoryTileIconWrap}>
+                  <Ionicons name="bulb-outline" size={28} color={colors.accent} />
+                </View>
+                <View style={styles.aiInventoryActionText}>
+                  <Text style={styles.aiInventoryActionTitle} numberOfLines={2}>What should I buy next?</Text>
+                  <Text style={styles.aiInventoryActionSubtitle} numberOfLines={1}>Smart buy list</Text>
+                </View>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.aiInventoryActionCard, styles.aiInventoryActionCardHorizontal]}
+                onPress={() => hostingBasicGate('T6', () => nav.navigate('Hosting'))}
+              >
+                <View style={styles.aiInventoryTileIconWrap}>
+                  <Ionicons name="people-outline" size={28} color={colors.accent} />
+                </View>
+                <View style={styles.aiInventoryActionText}>
+                  <Text style={styles.aiInventoryActionTitle} numberOfLines={2}>Hosting</Text>
+                  <Text style={styles.aiInventoryActionSubtitle} numberOfLines={1}>Guest menu planner</Text>
+                </View>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
         {/* Low Stock Section */}
         {lowStock.length > 0 && (
           <View style={styles.section}>
@@ -924,29 +1093,6 @@ export default function HomeBarScreen() {
               }
             }}
           />
-        )}
-
-        {/* AI Inventory Suggestions */}
-        {all.length > 0 && (
-          <View style={styles.aiInventoryCard}>
-            <View style={styles.aiInventoryHeader}>
-              <Ionicons name="sparkles" size={20} color={colors.gold} />
-              <Heading level={3} style={styles.aiInventoryTitle}>AI Suggestions</Heading>
-            </View>
-            <TouchableOpacity
-              style={styles.aiInventoryActionCard}
-              onPress={() => optimizeBarGate('T4', () => (nav as any).navigate('Recipes'))}
-            >
-              <View style={styles.aiInventoryActionContent}>
-                <Ionicons name="bulb-outline" size={22} color={colors.accent} />
-                <View style={styles.aiInventoryActionText}>
-                  <Text style={styles.aiInventoryActionTitle}>What should I buy next?</Text>
-                  <Text style={styles.aiInventoryActionSubtitle}>Get smart recommendations</Text>
-                </View>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color={colors.subtext} />
-            </TouchableOpacity>
-          </View>
         )}
 
         {/* Bottom Spacing */}
@@ -1098,20 +1244,32 @@ export default function HomeBarScreen() {
           style={{ flex: 1 }}
         >
           <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
-              <View style={styles.modalHeader}>
+            <View style={[styles.modalContent, styles.manualModalContent]}>
+              <View style={[styles.modalHeader, styles.manualModalHeader]}>
                 <Text style={styles.modalTitle}>Add Ingredient</Text>
-                <TouchableOpacity onPress={() => Keyboard.dismiss()}>
-                  <Ionicons name="chevron-down" size={24} color={colors.text} />
-                </TouchableOpacity>
-                <TouchableOpacity onPress={handleCancelManualEntry}>
-                  <Ionicons name="close" size={24} color={colors.text} />
-                </TouchableOpacity>
+                <View style={styles.manualHeaderActions}>
+                  <TouchableOpacity style={styles.headerActionGhost} onPress={handleCancelManualEntry}>
+                    <Text style={styles.headerActionGhostText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.headerActionPrimary} onPress={handleSaveManualEntry}>
+                    <Text style={styles.headerActionPrimaryText}>Add</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
 
-              <ScrollView style={styles.modalForm} showsVerticalScrollIndicator={false}>
-                {/* Category Picker - Moved to top */}
-                <View style={styles.formGroup}>
+              <ScrollView
+                style={styles.modalForm}
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={styles.manualModalFormContent}
+                keyboardShouldPersistTaps="handled"
+              >
+                <Text style={styles.modalEyebrow}>Manual Entry</Text>
+                <Text style={styles.modalSubtitle}>Choose category and details in one step.</Text>
+
+                <View style={styles.formSectionCard}>
+                  <View style={styles.stepHeaderRowCompact}>
+                    <Text style={styles.sectionTitleCompact}>Type</Text>
+                  </View>
                   <Text style={styles.formLabel}>Category *</Text>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryPicker}>
                     {[
@@ -1132,7 +1290,6 @@ export default function HomeBarScreen() {
                         ]}
                         onPress={() => {
                           setManualEntryCategory(cat.value as BarIngredient['category']);
-                          // Clear name when switching categories to avoid confusion
                           setManualEntryName('');
                           setShowCustomInput(false);
                         }}
@@ -1150,80 +1307,78 @@ export default function HomeBarScreen() {
                   </ScrollView>
                 </View>
 
-                {/* Name Input or Dropdown */}
-                <View style={styles.formGroup}>
-                  <Text style={styles.formLabel}>Name *</Text>
-                  {CATEGORY_OPTIONS[manualEntryCategory] && !showCustomInput ? (
-                    // Show dropdown for categories with predefined options
-                    <ScrollView style={styles.dropdownContainer} nestedScrollEnabled>
-                      {CATEGORY_OPTIONS[manualEntryCategory].map((option) => (
+                <View style={styles.formSectionCard}>
+                  <View style={styles.stepHeaderRowCompact}>
+                    <Text style={styles.sectionTitleCompact}>Details</Text>
+                  </View>
+
+                  <View style={styles.formGroup}>
+                    <Text style={styles.formLabel}>Name *</Text>
+                    {CATEGORY_OPTIONS[manualEntryCategory] && !showCustomInput ? (
+                      <ScrollView style={styles.dropdownContainer} nestedScrollEnabled>
+                        {CATEGORY_OPTIONS[manualEntryCategory].map((option) => (
+                          <TouchableOpacity
+                            key={option}
+                            style={[
+                              styles.dropdownOption,
+                              manualEntryName === option && styles.dropdownOptionSelected
+                            ]}
+                            onPress={() => {
+                              setManualEntryName(option);
+                              setShowCustomInput(false);
+                            }}
+                          >
+                            <Text style={[
+                              styles.dropdownOptionText,
+                              manualEntryName === option && styles.dropdownOptionTextSelected
+                            ]}>
+                              {option}
+                            </Text>
+                            {manualEntryName === option && (
+                              <Ionicons name="checkmark" size={20} color={colors.accent} />
+                            )}
+                          </TouchableOpacity>
+                        ))}
                         <TouchableOpacity
-                          key={option}
-                          style={[
-                            styles.dropdownOption,
-                            manualEntryName === option && styles.dropdownOptionSelected
-                          ]}
+                          style={styles.dropdownCustomOption}
                           onPress={() => {
-                            setManualEntryName(option);
-                            setShowCustomInput(false);
+                            setManualEntryName('');
+                            setShowCustomInput(true);
                           }}
                         >
-                          <Text style={[
-                            styles.dropdownOptionText,
-                            manualEntryName === option && styles.dropdownOptionTextSelected
-                          ]}>
-                            {option}
-                          </Text>
-                          {manualEntryName === option && (
-                            <Ionicons name="checkmark" size={20} color={colors.accent} />
-                          )}
+                          <Ionicons name="add-circle-outline" size={20} color={colors.accent} />
+                          <Text style={styles.dropdownCustomOptionText}>Custom / Other</Text>
                         </TouchableOpacity>
-                      ))}
-                      {/* Custom option at the end */}
-                      <TouchableOpacity
-                        style={styles.dropdownCustomOption}
-                        onPress={() => {
-                          setManualEntryName('');
-                          setShowCustomInput(true);
-                        }}
-                      >
-                        <Ionicons name="add-circle-outline" size={20} color={colors.accent} />
-                        <Text style={styles.dropdownCustomOptionText}>Custom / Other</Text>
-                      </TouchableOpacity>
-                    </ScrollView>
-                  ) : (
-                    // Show text input for categories without predefined options OR when custom is selected
+                      </ScrollView>
+                    ) : (
+                      <TextInput
+                        style={styles.formInput}
+                        placeholder={categoryPlaceholderMap[manualEntryCategory] || 'e.g., Ingredient'}
+                        placeholderTextColor={colors.muted}
+                        value={manualEntryName}
+                        onChangeText={setManualEntryName}
+                        keyboardAppearance="dark"
+                        autoFocus={showCustomInput}
+                        returnKeyType="next"
+                        onSubmitEditing={() => Keyboard.dismiss()}
+                      />
+                    )}
+                  </View>
+
+                  <View style={styles.formGroup}>
+                    <Text style={styles.formLabel}>Brand (Optional)</Text>
                     <TextInput
                       style={styles.formInput}
-                      placeholder="e.g., Vodka"
+                      placeholder="e.g., Tito's"
                       placeholderTextColor={colors.muted}
-                      value={manualEntryName}
-                      onChangeText={setManualEntryName}
+                      value={manualEntryBrand}
+                      onChangeText={setManualEntryBrand}
                       keyboardAppearance="dark"
-                      autoFocus={showCustomInput}
                       returnKeyType="next"
                       onSubmitEditing={() => Keyboard.dismiss()}
                     />
-                  )}
-                </View>
+                  </View>
 
-                {/* Brand Input */}
-                <View style={styles.formGroup}>
-                  <Text style={styles.formLabel}>Brand (Optional)</Text>
-                  <TextInput
-                    style={styles.formInput}
-                    placeholder="e.g., Tito's"
-                    placeholderTextColor={colors.muted}
-                    value={manualEntryBrand}
-                    onChangeText={setManualEntryBrand}
-                    keyboardAppearance="dark"
-                    returnKeyType="next"
-                    onSubmitEditing={() => Keyboard.dismiss()}
-                  />
-                </View>
-
-                {/* Volume Input - Only for spirits and liqueurs */}
-                {(manualEntryCategory === 'spirit' || manualEntryCategory === 'liqueur') && (
                   <View style={styles.formGroup}>
                     <Text style={styles.formLabel}>Volume (ml, Optional)</Text>
                     <TextInput
@@ -1236,23 +1391,9 @@ export default function HomeBarScreen() {
                       keyboardAppearance="dark"
                     />
                   </View>
-                )}
+                </View>
               </ScrollView>
 
-              <View style={styles.modalActions}>
-                <TouchableOpacity
-                  style={[styles.modalButton, styles.modalButtonSecondary]}
-                  onPress={handleCancelManualEntry}
-                >
-                  <Text style={styles.modalButtonTextSecondary}>Cancel</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.modalButton, styles.modalButtonPrimary]}
-                  onPress={handleSaveManualEntry}
-                >
-                  <Text style={styles.modalButtonTextPrimary}>Add to Bar</Text>
-                </TouchableOpacity>
-              </View>
             </View>
           </View>
         </KeyboardAvoidingView>
@@ -1262,95 +1403,141 @@ export default function HomeBarScreen() {
       <Modal
         visible={showSearchModal}
         animationType="slide"
-        transparent={true}
-        onRequestClose={() => setShowSearchModal(false)}
+        transparent={false}
+        onRequestClose={closeSearchModal}
       >
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, styles.searchModalContent]}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Search Inventory</Text>
-              <TouchableOpacity onPress={() => setShowSearchModal(false)}>
-                <Ionicons name="close" size={24} color={colors.text} />
+        <SafeAreaView style={styles.searchScreen}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            style={styles.searchScreen}
+          >
+            <View style={styles.searchScreenHeader}>
+              <Text style={styles.searchScreenTitle}>Search Inventory</Text>
+              <TouchableOpacity style={styles.searchHeaderCloseButton} onPress={closeSearchModal}>
+                <Ionicons name="close" size={22} color={colors.text} />
               </TouchableOpacity>
             </View>
 
-            <View style={styles.searchInputContainer}>
-              <Ionicons name="search" size={20} color={colors.muted} style={styles.searchIcon} />
-              <TextInput
-                style={styles.searchInput}
-                placeholder="Search by name, brand, or category..."
-                placeholderTextColor={colors.muted}
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-                keyboardAppearance="dark"
-                autoFocus={true}
-                returnKeyType="done"
-                onSubmitEditing={() => Keyboard.dismiss()}
-                blurOnSubmit={true}
-              />
-              {searchQuery.length > 0 && (
-                <TouchableOpacity onPress={() => setSearchQuery('')}>
-                  <Ionicons name="close-circle" size={20} color={colors.muted} />
-                </TouchableOpacity>
-              )}
-            </View>
+            <View style={styles.searchScreenCard}>
+              <View style={styles.searchInputContainer}>
+                <Ionicons name="search" size={20} color={colors.muted} style={styles.searchIcon} />
+                <TextInput
+                  style={styles.searchInput}
+                  placeholder="Search by name, brand, or category..."
+                  placeholderTextColor={colors.muted}
+                  value={searchModalQuery}
+                  onChangeText={setSearchModalQuery}
+                  keyboardAppearance="dark"
+                  autoFocus={true}
+                  returnKeyType="search"
+                  onSubmitEditing={() => {
+                    recordSearchHistory(searchModalQuery);
+                    Keyboard.dismiss();
+                  }}
+                  blurOnSubmit={false}
+                />
+                {searchModalQuery.length > 0 && (
+                  <TouchableOpacity onPress={() => setSearchModalQuery('')}>
+                    <Ionicons name="close-circle" size={20} color={colors.muted} />
+                  </TouchableOpacity>
+                )}
+              </View>
 
-            {/* Search Results */}
-            <ScrollView style={styles.searchResults} showsVerticalScrollIndicator={false}>
-              {searchQuery.length > 0 ? (
-                all.length > 0 ? (
-                  <>
-                    <Text style={styles.searchResultsTitle}>
-                      {all.length} {all.length === 1 ? 'result' : 'results'} found
+              <ScrollView style={styles.searchResults} showsVerticalScrollIndicator={false}>
+                {discoverLikeSuggestions.length > 0 && (
+                  <View style={styles.searchSectionWrap}>
+                    <Text style={styles.searchSectionTitle}>
+                      {hasActiveSearch ? 'Suggestions' : 'Recent & Popular'}
                     </Text>
-                    {all.map((item) => (
+                    <View style={styles.searchSuggestionList}>
+                      {discoverLikeSuggestions.map((suggestion, index) => (
+                        <TouchableOpacity
+                          key={`${suggestion.text}-${index}`}
+                          style={styles.searchSuggestionItem}
+                          onPress={() => {
+                            setSearchModalQuery(suggestion.text);
+                            recordSearchHistory(suggestion.text);
+                          }}
+                        >
+                          <Ionicons
+                            name={
+                              suggestion.type === 'history'
+                                ? 'time'
+                                : suggestion.type === 'trending'
+                                  ? 'trending-up'
+                                  : 'search'
+                            }
+                            size={16}
+                            color={colors.subtext}
+                          />
+                          <Text style={styles.searchSuggestionText}>{suggestion.text}</Text>
+                          {suggestion.type === 'trending' && (
+                            <View style={styles.searchTrendingBadge}>
+                              <Text style={styles.searchTrendingBadgeText}>Trending</Text>
+                            </View>
+                          )}
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+                )}
+
+                <View style={styles.searchSectionWrap}>
+                  <View style={styles.searchResultsHeader}>
+                    <Text style={styles.searchSectionTitle}>
+                      {hasActiveSearch ? `Results for "${searchModalQuery}"` : 'Popular & Trending'}
+                    </Text>
+                    {hasActiveSearch && (
+                      <TouchableOpacity onPress={() => setSearchModalQuery('')}>
+                        <Text style={styles.searchClearText}>Clear</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+
+                  {visibleSearchResults.length > 0 ? (
+                    visibleSearchResults.map((item) => (
                       <TouchableOpacity
                         key={item.id}
                         style={styles.searchResultItem}
                         onPress={() => {
+                          recordSearchHistory(item.name);
                           handleItemPress(item);
-                          setShowSearchModal(false);
+                          closeSearchModal();
                         }}
                       >
                         <View style={styles.searchResultIcon}>
                           <Ionicons
                             name={getCategoryIcon(item.category, item.subcategory)}
-                            size={24}
+                            size={22}
                             color={colors.gold}
                           />
                         </View>
                         <View style={styles.searchResultInfo}>
                           <Text style={styles.searchResultName}>{item.name}</Text>
                           <Text style={styles.searchResultDetails}>
-                            {item.volume}ml{item.brand ? ` • ${item.brand}` : ''}
+                            {(item.volume ? `${item.volume}ml` : categoryDisplayMap[item.category] || item.category)}
+                            {item.brand ? ` • ${item.brand}` : ''}
                           </Text>
                         </View>
                         <Ionicons name="chevron-forward" size={20} color={colors.muted} />
                       </TouchableOpacity>
-                    ))}
-                  </>
-                ) : (
-                  <View style={styles.noResults}>
-                    <Ionicons name="search" size={48} color={colors.muted} />
-                    <Text style={styles.noResultsText}>No items found</Text>
-                    <Text style={styles.noResultsSubtext}>
-                      Try a different search term
-                    </Text>
-                  </View>
-                )
-              ) : (
-                <View style={styles.searchHint}>
-                  <Ionicons name="information-circle-outline" size={24} color={colors.muted} />
-                  <Text style={styles.searchHintText}>
-                    Start typing to search your inventory
-                  </Text>
+                    ))
+                  ) : (
+                    <View style={styles.noResults}>
+                      <Ionicons name="search" size={48} color={colors.muted} />
+                      <Text style={styles.noResultsText}>No results found</Text>
+                      <Text style={styles.noResultsSubtext}>
+                        Try searching by name, brand, or category
+                      </Text>
+                    </View>
+                  )}
                 </View>
-              )}
-            </ScrollView>
-          </View>
-        </View>
+              </ScrollView>
+            </View>
+          </KeyboardAvoidingView>
+        </SafeAreaView>
       </Modal>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -1359,62 +1546,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.bg,
   },
-  header: {
-    paddingTop: spacing(6),
+  filtersWrap: {
     paddingHorizontal: spacing(3),
     paddingBottom: spacing(2),
     backgroundColor: colors.bg,
     borderBottomWidth: 1,
     borderBottomColor: colors.line,
-  },
-  headerTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: spacing(2),
-  },
-  headerRight: {
-    flexDirection: 'row',
-    gap: spacing(1.5),
-  },
-  backButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.card,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: colors.card,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerCenter: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTitle: {
-    marginBottom: spacing(0.5),
-  },
-  inventoryCountText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.gold,
-    textAlign: 'center',
-    marginTop: spacing(0.5),
-  },
-  headerSubtitle: {
-    fontSize: 13,
-    color: colors.subtext,
-    marginBottom: spacing(2),
-    lineHeight: 18,
   },
   categoryFilters: {
     marginTop: spacing(1),
@@ -1613,24 +1750,132 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.text,
   },
+  modalEyebrow: {
+    fontSize: 12,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    color: colors.gold,
+    fontWeight: '700',
+    marginBottom: spacing(0.75),
+  },
   modalForm: {
-    marginBottom: spacing(3),
+    marginBottom: spacing(1.5),
+  },
+  manualModalContent: {
+    maxHeight: '96%',
+    borderTopWidth: 1,
+    borderTopColor: `${colors.gold}25`,
+    paddingTop: spacing(1.75),
+    paddingHorizontal: spacing(2),
+    paddingBottom: spacing(2),
+  },
+  manualModalHeader: {
+    marginBottom: spacing(1),
+  },
+  manualHeaderActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(1),
+  },
+  headerActionGhost: {
+    paddingHorizontal: spacing(1),
+    paddingVertical: spacing(0.5),
+  },
+  headerActionGhostText: {
+    color: colors.subtext,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  headerActionPrimary: {
+    backgroundColor: colors.accent,
+    borderRadius: radii.pill,
+    paddingHorizontal: spacing(1.4),
+    paddingVertical: spacing(0.55),
+  },
+  headerActionPrimaryText: {
+    color: colors.bg,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  manualModalFormContent: {
+    paddingBottom: spacing(1),
+  },
+  formSectionCard: {
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: radii.lg,
+    paddingHorizontal: spacing(1.5),
+    paddingVertical: spacing(1.35),
+    marginBottom: spacing(1),
+  },
+  formSectionTitle: {
+    fontSize: 12,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    color: colors.subtext,
+    marginBottom: spacing(1.5),
+    fontWeight: '700',
+  },
+  stepHeaderRowCompact: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing(0.6),
+  },
+  sectionTitleCompact: {
+    color: colors.text,
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  stepSubtitleCompact: {
+    color: colors.subtext,
+    fontSize: 13,
+    lineHeight: 18,
+    marginBottom: spacing(1.25),
+  },
+  stepCategoryGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing(0.75),
+  },
+  stepCategoryPill: {
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.bg,
+    paddingHorizontal: spacing(1.5),
+    paddingVertical: spacing(0.85),
+    minWidth: '30%',
+    alignItems: 'center',
+  },
+  stepCategoryPillActive: {
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
+  },
+  stepCategoryPillText: {
+    color: colors.subtext,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  stepCategoryPillTextActive: {
+    color: colors.bg,
   },
   formGroup: {
-    marginBottom: spacing(3),
+    marginBottom: spacing(1.25),
   },
   formLabel: {
     fontSize: 14,
     fontWeight: '600',
     color: colors.text,
-    marginBottom: spacing(1),
+    marginBottom: spacing(0.75),
   },
   formInput: {
     backgroundColor: colors.bg,
     borderRadius: radii.lg,
     paddingHorizontal: spacing(3),
-    paddingVertical: spacing(2),
-    fontSize: 16,
+    paddingVertical: spacing(1.4),
+    fontSize: 15,
     color: colors.text,
     borderWidth: 1,
     borderColor: colors.line,
@@ -1640,14 +1885,14 @@ const styles = StyleSheet.create({
     borderRadius: radii.lg,
     borderWidth: 1,
     borderColor: colors.line,
-    maxHeight: 300,
+    maxHeight: 360,
   },
   dropdownOption: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: spacing(3),
-    paddingVertical: spacing(2),
+    paddingVertical: spacing(1.5),
     borderBottomWidth: 1,
     borderBottomColor: colors.line,
   },
@@ -1667,7 +1912,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing(1),
     paddingHorizontal: spacing(3),
-    paddingVertical: spacing(2),
+    paddingVertical: spacing(1.5),
   },
   dropdownCustomOptionText: {
     fontSize: 16,
@@ -1678,20 +1923,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
   },
   categoryPickerButton: {
-    paddingHorizontal: spacing(3),
-    paddingVertical: spacing(1.5),
+    paddingHorizontal: spacing(2),
+    paddingVertical: spacing(0.85),
     borderRadius: radii.pill,
     backgroundColor: colors.bg,
     borderWidth: 1,
     borderColor: colors.line,
-    marginRight: spacing(2),
+    marginRight: spacing(1),
   },
   categoryPickerButtonActive: {
     backgroundColor: colors.gold,
     borderColor: colors.gold,
   },
   categoryPickerButtonText: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '600',
     color: colors.text,
   },
@@ -1702,9 +1947,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: spacing(2),
   },
+  manualModalActions: {
+    borderTopWidth: 1,
+    borderTopColor: colors.line,
+    paddingTop: spacing(1.25),
+    marginTop: spacing(0.25),
+  },
   modalButton: {
     flex: 1,
-    paddingVertical: spacing(2.5),
+    paddingVertical: spacing(1.85),
     borderRadius: radii.lg,
     alignItems: 'center',
     justifyContent: 'center',
@@ -1728,9 +1979,9 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   modalSubtitle: {
-    fontSize: 14,
+    fontSize: 13,
     color: colors.subtext,
-    marginBottom: spacing(3),
+    marginBottom: spacing(1.5),
   },
   optionsContainer: {
     gap: spacing(2),
@@ -1804,16 +2055,58 @@ const styles = StyleSheet.create({
   searchModalContent: {
     maxHeight: '80%',
   },
+  searchScreen: {
+    flex: 1,
+    backgroundColor: colors.bg,
+  },
+  searchScreenHeader: {
+    paddingHorizontal: spacing(3),
+    paddingTop: spacing(1),
+    paddingBottom: spacing(2),
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderBottomWidth: 1,
+    borderBottomColor: colors.line,
+  },
+  searchScreenTitle: {
+    fontSize: 26,
+    color: colors.text,
+    fontWeight: '700',
+    fontFamily: serif,
+    letterSpacing: 0.3,
+  },
+  searchHeaderCloseButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
+  searchScreenCard: {
+    marginHorizontal: spacing(3),
+    marginTop: spacing(2.5),
+    marginBottom: spacing(2),
+    borderRadius: radii.xl,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: `${colors.gold}26`,
+    padding: spacing(2),
+    flex: 1,
+  },
   searchInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.card,
-    borderRadius: radii.md,
+    backgroundColor: colors.bg,
+    borderRadius: radii.lg,
     paddingHorizontal: spacing(2),
     paddingVertical: spacing(1.5),
-    marginBottom: spacing(2),
+    marginBottom: spacing(1.25),
     borderWidth: 1,
-    borderColor: colors.line,
+    borderColor: `${colors.gold}2A`,
   },
   searchIcon: {
     marginRight: spacing(1.5),
@@ -1827,13 +2120,66 @@ const styles = StyleSheet.create({
   searchResults: {
     flex: 1,
   },
+  searchSectionWrap: {
+    marginBottom: spacing(2),
+  },
+  searchSectionTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: colors.text,
+    marginBottom: spacing(1.25),
+    fontFamily: serif,
+  },
+  searchSuggestionList: {
+    gap: spacing(1),
+  },
+  searchSuggestionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing(1.5),
+    paddingHorizontal: spacing(1.5),
+    backgroundColor: colors.bg,
+    borderRadius: radii.md,
+    gap: spacing(1.5),
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
+  searchSuggestionText: {
+    flex: 1,
+    fontSize: 15,
+    color: colors.text,
+    fontWeight: '500',
+  },
+  searchTrendingBadge: {
+    backgroundColor: colors.accent,
+    paddingHorizontal: spacing(1),
+    paddingVertical: spacing(0.25),
+    borderRadius: radii.sm,
+  },
+  searchTrendingBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: colors.bg,
+    textTransform: 'uppercase',
+  },
+  searchResultsHeader: {
+    marginBottom: spacing(1),
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
   searchResultsTitle: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '600',
     color: colors.subtext,
-    marginBottom: spacing(2),
+    marginBottom: 0,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+  },
+  searchClearText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.gold,
   },
   searchResultItem: {
     flexDirection: 'row',
@@ -1886,43 +2232,51 @@ const styles = StyleSheet.create({
   searchHint: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: spacing(6),
+    flexDirection: 'row',
+    gap: spacing(1),
+    paddingTop: spacing(1.5),
+    paddingBottom: spacing(0.5),
   },
   searchHintText: {
-    fontSize: 14,
+    fontSize: 12,
     color: colors.subtext,
-    marginTop: spacing(2),
     textAlign: 'center',
   },
   aiInventoryCard: {
-    backgroundColor: `${colors.gold}08`,
-    borderRadius: radii.lg,
-    padding: spacing(2),
+    padding: 0,
     marginHorizontal: spacing(3),
-    marginTop: spacing(3),
-    borderWidth: 1,
-    borderColor: `${colors.gold}20`,
+    marginTop: spacing(2),
   },
-  aiInventoryHeader: {
+  aiInventoryActionRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing(1),
-    marginBottom: spacing(1.5),
-  },
-  aiInventoryTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.text,
+    gap: spacing(1.25),
   },
   aiInventoryActionCard: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: colors.card,
-    borderRadius: radii.md,
-    padding: spacing(2),
+    backgroundColor: colors.bg,
+    borderRadius: radii.lg,
+    padding: spacing(1.4),
     borderWidth: 1,
-    borderColor: colors.line,
+    borderColor: 'rgba(255,255,255,0.12)',
+  },
+  aiInventoryActionCardHorizontal: {
+    flex: 1,
+    minHeight: 104,
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing(0.8),
+    paddingVertical: spacing(1.1),
+  },
+  aiInventoryTileIconWrap: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: `${colors.accent}12`,
   },
   aiInventoryActionContent: {
     flex: 1,
@@ -1931,17 +2285,20 @@ const styles = StyleSheet.create({
     gap: spacing(1.5),
   },
   aiInventoryActionText: {
-    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   aiInventoryActionTitle: {
-    fontSize: 15,
-    fontWeight: '600',
+    fontSize: 13,
+    fontWeight: '700',
     color: colors.text,
-    marginBottom: spacing(0.25),
+    marginBottom: spacing(0.15),
+    textAlign: 'center',
   },
   aiInventoryActionSubtitle: {
-    fontSize: 13,
+    fontSize: 11,
     color: colors.subtext,
-    lineHeight: 18,
+    lineHeight: 14,
+    textAlign: 'center',
   },
 });

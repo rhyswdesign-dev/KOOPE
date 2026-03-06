@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing } from '../../theme/tokens';
+import { withHaptic } from '../../lib/haptics';
 
 export type InPageTabItem = {
   key: string;
@@ -26,7 +27,7 @@ export default function InPageTabBar({ items, activeKey, onChange, scrollable = 
           <Pressable
             key={item.key}
             style={[styles.tab, isActive && styles.tabActive]}
-            onPress={() => onChange(item.key)}
+            onPress={withHaptic(() => onChange(item.key), 'selection')}
           >
             {!!item.icon && (
               <Ionicons

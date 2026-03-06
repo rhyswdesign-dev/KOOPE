@@ -1,17 +1,17 @@
 /**
  * ACHIEVEMENT UNLOCK MODAL
- * Celebration animation when user unlocks an achievement
+ * On-brand dark espresso celebration — amber gold, premium feel
  */
 
-import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Modal, Animated, Dimensions } from 'react-native';
+import React, { useEffect, useRef, useCallback } from 'react';
+import { View, Text, StyleSheet, Modal, Animated, Dimensions, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, radii } from '../theme/tokens';
+import { colors, spacing, radii, serif } from '../theme/tokens';
 import { Achievement } from '../services/achievementService';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 
-const { width, height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 
 interface AchievementUnlockModalProps {
   visible: boolean;
@@ -19,365 +19,371 @@ interface AchievementUnlockModalProps {
   onClose: () => void;
 }
 
-const RARITY_COLORS = {
+// Rarity config — on-brand palette
+const RARITY_CONFIG = {
   common: {
-    gradient: ['#6B7280', '#4B5563'],
-    icon: '#9CA3AF',
+    label: 'Common',
+    color: '#C7B8A5',
+    bg: 'rgba(199,184,165,0.14)',
+    border: 'rgba(199,184,165,0.28)',
+    glow: 'rgba(199,184,165,0.18)',
+    shimmer: ['rgba(199,184,165,0.18)', 'transparent'] as [string, string],
   },
   rare: {
-    gradient: ['#3B82F6', '#2563EB'],
-    icon: '#60A5FA',
+    label: 'Rare',
+    color: colors.accent,
+    bg: 'rgba(214,138,56,0.14)',
+    border: 'rgba(214,138,56,0.35)',
+    glow: 'rgba(214,138,56,0.22)',
+    shimmer: ['rgba(214,138,56,0.28)', 'transparent'] as [string, string],
   },
   epic: {
-    gradient: ['#8B5CF6', '#7C3AED'],
-    icon: '#A78BFA',
+    label: 'Epic',
+    color: '#A78BFA',
+    bg: 'rgba(167,139,250,0.14)',
+    border: 'rgba(167,139,250,0.3)',
+    glow: 'rgba(167,139,250,0.2)',
+    shimmer: ['rgba(167,139,250,0.22)', 'transparent'] as [string, string],
   },
   legendary: {
-    gradient: ['#F59E0B', '#D97706'],
-    icon: '#FCD34D',
+    label: 'Legendary',
+    color: '#E89C40',
+    bg: 'rgba(232,156,64,0.18)',
+    border: 'rgba(232,156,64,0.45)',
+    glow: 'rgba(232,156,64,0.28)',
+    shimmer: ['rgba(232,156,64,0.35)', 'transparent'] as [string, string],
   },
 };
 
-/**
- * AchievementUnlockModal Component
- *
- * Shows an animated celebration when achievement is unlocked
- */
 export default function AchievementUnlockModal({
   visible,
   achievement,
   onClose,
 }: AchievementUnlockModalProps) {
-  const scaleAnim = useRef(new Animated.Value(0)).current;
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(50)).current;
-  const rotateAnim = useRef(new Animated.Value(0)).current;
+  const cardScale = useRef(new Animated.Value(0.82)).current;
+  const cardOpacity = useRef(new Animated.Value(0)).current;
+  const iconScale = useRef(new Animated.Value(0)).current;
+  const glowOpacity = useRef(new Animated.Value(0)).current;
+  const overlayOpacity = useRef(new Animated.Value(0)).current;
+  const shimmerOpacity = useRef(new Animated.Value(0)).current;
+
+  const handleClose = useCallback(() => {
+    Animated.parallel([
+      Animated.timing(cardOpacity, { toValue: 0, duration: 180, useNativeDriver: true }),
+      Animated.timing(overlayOpacity, { toValue: 0, duration: 180, useNativeDriver: true }),
+      Animated.timing(cardScale, { toValue: 0.92, duration: 180, useNativeDriver: true }),
+    ]).start(() => onClose());
+  }, [onClose]);
 
   useEffect(() => {
     if (visible && achievement) {
-      // Start animations
-      Animated.parallel([
-        Animated.spring(scaleAnim, {
-          toValue: 1,
-          tension: 50,
-          friction: 7,
-          useNativeDriver: true,
-        }),
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-        Animated.spring(slideAnim, {
-          toValue: 0,
-          tension: 50,
-          friction: 7,
-          useNativeDriver: true,
-        }),
+      cardScale.setValue(0.82);
+      cardOpacity.setValue(0);
+      iconScale.setValue(0);
+      glowOpacity.setValue(0);
+      overlayOpacity.setValue(0);
+      shimmerOpacity.setValue(0);
+
+      // Backdrop → card entrance → icon pop → glow pulse
+      Animated.sequence([
+        Animated.timing(overlayOpacity, { toValue: 1, duration: 220, useNativeDriver: true }),
+        Animated.parallel([
+          Animated.spring(cardScale, { toValue: 1, tension: 52, friction: 8, useNativeDriver: true }),
+          Animated.timing(cardOpacity, { toValue: 1, duration: 260, useNativeDriver: true }),
+          Animated.timing(shimmerOpacity, { toValue: 1, duration: 400, useNativeDriver: true }),
+        ]),
+        Animated.spring(iconScale, { toValue: 1, tension: 72, friction: 6, useNativeDriver: true }),
+      ]).start(() => {
+        // Start glow pulse after entrance
         Animated.loop(
           Animated.sequence([
-            Animated.timing(rotateAnim, {
-              toValue: 1,
-              duration: 2000,
-              useNativeDriver: true,
-            }),
-            Animated.timing(rotateAnim, {
-              toValue: 0,
-              duration: 0,
-              useNativeDriver: true,
-            }),
+            Animated.timing(glowOpacity, { toValue: 1, duration: 900, useNativeDriver: true }),
+            Animated.timing(glowOpacity, { toValue: 0.45, duration: 900, useNativeDriver: true }),
           ])
-        ),
-      ]).start();
+        ).start();
+      });
 
-      // Auto close after 3.5 seconds
-      const timeout = setTimeout(() => {
-        handleClose();
-      }, 3500);
-
-      return () => clearTimeout(timeout);
+      const dismiss = setTimeout(handleClose, 4500);
+      return () => clearTimeout(dismiss);
     } else {
-      // Reset animations
-      scaleAnim.setValue(0);
-      fadeAnim.setValue(0);
-      slideAnim.setValue(50);
-      rotateAnim.setValue(0);
+      cardScale.setValue(0.82);
+      cardOpacity.setValue(0);
+      iconScale.setValue(0);
+      glowOpacity.setValue(0);
+      overlayOpacity.setValue(0);
+      shimmerOpacity.setValue(0);
     }
-  }, [visible, achievement]);
-
-  const handleClose = () => {
-    Animated.parallel([
-      Animated.timing(scaleAnim, {
-        toValue: 0,
-        duration: 200,
-        useNativeDriver: true,
-      }),
-      Animated.timing(fadeAnim, {
-        toValue: 0,
-        duration: 200,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      onClose();
-    });
-  };
+  }, [visible, achievement, handleClose]);
 
   if (!achievement) return null;
 
-  const rarityColors = RARITY_COLORS[achievement.rarity];
-
-  const rotate = rotateAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '360deg'],
-  });
+  const rarity = RARITY_CONFIG[achievement.rarity as keyof typeof RARITY_CONFIG] ?? RARITY_CONFIG.common;
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="none"
-      onRequestClose={handleClose}
-    >
-      <View style={styles.overlay}>
-        <BlurView intensity={50} style={StyleSheet.absoluteFill} />
+    <Modal visible={visible} transparent animationType="none" onRequestClose={handleClose}>
+      {/* Backdrop */}
+      <Animated.View style={[styles.backdrop, { opacity: overlayOpacity }]}>
+        <BlurView intensity={55} tint="dark" style={StyleSheet.absoluteFill} />
+      </Animated.View>
 
+      {/* Card */}
+      <View style={styles.centeredWrapper} pointerEvents="box-none">
         <Animated.View
-          style={[
-            styles.container,
-            {
-              opacity: fadeAnim,
-              transform: [{ scale: scaleAnim }, { translateY: slideAnim }],
-            },
-          ]}
+          style={[styles.card, { opacity: cardOpacity, transform: [{ scale: cardScale }] }]}
         >
-          {/* Rotating Glow Effect */}
-          <Animated.View
-            style={[
-              styles.glow,
-              {
-                transform: [{ rotate }],
-                backgroundColor: rarityColors.icon,
-              },
-            ]}
-          />
+          {/* Rarity shimmer at top */}
+          <Animated.View style={[styles.topShimmer, { opacity: shimmerOpacity }]}>
+            <LinearGradient
+              colors={rarity.shimmer}
+              style={StyleSheet.absoluteFill}
+            />
+          </Animated.View>
 
-          <LinearGradient
-            colors={rarityColors.gradient}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.card}
-          >
-            {/* Achievement Icon */}
-            <View style={styles.iconContainer}>
-              <Ionicons
-                name={achievement.icon as any}
-                size={80}
-                color="#FFFFFF"
-              />
+          {/* Icon */}
+          <View style={styles.iconSection}>
+            <Animated.View style={[styles.glowHalo, { backgroundColor: rarity.glow, opacity: glowOpacity }]} />
+            <Animated.View
+              style={[styles.iconRing, { borderColor: rarity.border, transform: [{ scale: iconScale }] }]}
+            >
+              <View style={[styles.iconInner, { backgroundColor: rarity.bg }]}>
+                <Ionicons name={achievement.icon as any} size={46} color={rarity.color} />
+              </View>
+            </Animated.View>
+          </View>
+
+          {/* Eyebrow */}
+          <View style={styles.eyebrow}>
+            <Ionicons name="trophy" size={12} color={colors.accent} />
+            <Text style={styles.eyebrowText}>ACHIEVEMENT UNLOCKED</Text>
+          </View>
+
+          {/* Title */}
+          <Text style={[styles.title, { fontFamily: serif }]}>{achievement.title}</Text>
+
+          {/* Description */}
+          <Text style={styles.description}>{achievement.description}</Text>
+
+          {/* Divider */}
+          <View style={styles.divider} />
+
+          {/* Rarity + XP */}
+          <View style={styles.metaRow}>
+            <View style={[styles.rarityPill, { backgroundColor: rarity.bg, borderColor: rarity.border }]}>
+              <Text style={[styles.rarityText, { color: rarity.color }]}>
+                {rarity.label.toUpperCase()}
+              </Text>
             </View>
-
-            {/* Achievement Unlocked Text */}
-            <View style={styles.headerBadge}>
-              <Ionicons name="trophy" size={16} color={colors.gold} />
-              <Text style={styles.headerText}>ACHIEVEMENT UNLOCKED!</Text>
-            </View>
-
-            {/* Achievement Title */}
-            <Text style={styles.title}>{achievement.title}</Text>
-
-            {/* Achievement Description */}
-            <Text style={styles.description}>{achievement.description}</Text>
-
-            {/* Rarity Badge */}
-            <View style={styles.rarityBadge}>
-              <Text style={styles.rarityText}>{achievement.rarity.toUpperCase()}</Text>
-            </View>
-
-            {/* XP Reward */}
-            <View style={styles.xpContainer}>
-              <Ionicons name="star" size={20} color={colors.gold} />
+            <View style={styles.xpPill}>
+              <Ionicons name="star" size={13} color={colors.accent} />
               <Text style={styles.xpText}>+{achievement.xpReward} XP</Text>
             </View>
-          </LinearGradient>
+          </View>
 
-          {/* Confetti Particles */}
-          {[...Array(12)].map((_, i) => (
-            <ConfettiParticle key={i} index={i} />
-          ))}
+          {/* Claim button */}
+          <TouchableOpacity style={styles.claimButton} onPress={handleClose} activeOpacity={0.82}>
+            <Text style={styles.claimText}>Claim Reward</Text>
+          </TouchableOpacity>
         </Animated.View>
+
+        {/* Amber spark particles */}
+        {visible && [...Array(8)].map((_, i) => (
+          <SparkParticle
+            key={i}
+            index={i}
+            color={i % 3 === 0 ? colors.accent : i % 3 === 1 ? '#F2E5D5' : rarity.color}
+          />
+        ))}
       </View>
     </Modal>
   );
 }
 
-/**
- * Confetti Particle Component
- */
-function ConfettiParticle({ index }: { index: number }) {
-  const translateY = useRef(new Animated.Value(0)).current;
-  const translateX = useRef(new Animated.Value(0)).current;
-  const opacity = useRef(new Animated.Value(1)).current;
-  const rotate = useRef(new Animated.Value(0)).current;
+function SparkParticle({ index, color }: { index: number; color: string }) {
+  const y = useRef(new Animated.Value(0)).current;
+  const x = useRef(new Animated.Value(0)).current;
+  const opacity = useRef(new Animated.Value(0)).current;
+  const scale = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    const delay = index * 100;
-    const randomX = (Math.random() - 0.5) * 200;
+    const angle = (index / 8) * Math.PI * 2;
+    const dist = 110 + (index % 3) * 30;
+    const delay = 350 + index * 70;
 
-    Animated.parallel([
-      Animated.timing(translateY, {
-        toValue: 300,
-        duration: 2000,
-        delay,
-        useNativeDriver: true,
-      }),
-      Animated.timing(translateX, {
-        toValue: randomX,
-        duration: 2000,
-        delay,
-        useNativeDriver: true,
-      }),
-      Animated.timing(opacity, {
-        toValue: 0,
-        duration: 2000,
-        delay,
-        useNativeDriver: true,
-      }),
-      Animated.timing(rotate, {
-        toValue: 4,
-        duration: 2000,
-        delay,
-        useNativeDriver: true,
-      }),
+    Animated.sequence([
+      Animated.delay(delay),
+      Animated.parallel([
+        Animated.timing(opacity, { toValue: 1, duration: 120, useNativeDriver: true }),
+        Animated.spring(scale, { toValue: 1, tension: 90, friction: 5, useNativeDriver: true }),
+      ]),
+      Animated.parallel([
+        Animated.timing(y, { toValue: -Math.sin(angle) * dist, duration: 550, useNativeDriver: true }),
+        Animated.timing(x, { toValue: Math.cos(angle) * dist, duration: 550, useNativeDriver: true }),
+        Animated.timing(opacity, { toValue: 0, duration: 550, useNativeDriver: true }),
+      ]),
     ]).start();
   }, []);
 
-  const colors = ['#F59E0B', '#EF4444', '#3B82F6', '#8B5CF6', '#10B981'];
-  const color = colors[index % colors.length];
-  const size = Math.random() * 8 + 4;
-
-  const rotation = rotate.interpolate({
-    inputRange: [0, 4],
-    outputRange: ['0deg', '1440deg'],
-  });
+  const size = 4 + (index % 3) * 2;
 
   return (
     <Animated.View
-      style={[
-        styles.confetti,
-        {
-          backgroundColor: color,
-          width: size,
-          height: size,
-          opacity,
-          transform: [
-            { translateY },
-            { translateX },
-            { rotate: rotation },
-          ],
-        },
-      ]}
+      style={{
+        position: 'absolute',
+        width: size,
+        height: size,
+        borderRadius: size / 2,
+        backgroundColor: color,
+        opacity,
+        transform: [{ translateX: x }, { translateY: y }, { scale }],
+      }}
     />
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: {
+  backdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.72)',
+  },
+  centeredWrapper: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-  },
-  container: {
-    width: width * 0.85,
-    maxWidth: 400,
-    alignItems: 'center',
-  },
-  glow: {
-    position: 'absolute',
-    width: 300,
-    height: 300,
-    borderRadius: 150,
-    opacity: 0.3,
   },
   card: {
-    width: '100%',
-    padding: spacing(4),
+    width: width * 0.84,
+    maxWidth: 380,
+    backgroundColor: colors.card,
     borderRadius: radii.xl,
+    borderWidth: 1,
+    borderColor: 'rgba(214,138,56,0.22)',
+    overflow: 'hidden',
     alignItems: 'center',
+    paddingHorizontal: spacing(4),
+    paddingBottom: spacing(3.5),
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.5,
-    shadowRadius: 20,
-    elevation: 10,
+    shadowOffset: { width: 0, height: 14 },
+    shadowOpacity: 0.65,
+    shadowRadius: 28,
+    elevation: 14,
   },
-  iconContainer: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+  topShimmer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 90,
+  },
+  iconSection: {
+    marginTop: spacing(4.5),
+    marginBottom: spacing(3),
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing(3),
   },
-  headerBadge: {
+  glowHalo: {
+    position: 'absolute',
+    width: 128,
+    height: 128,
+    borderRadius: 64,
+  },
+  iconRing: {
+    width: 92,
+    height: 92,
+    borderRadius: 46,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconInner: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  eyebrow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing(1),
-    paddingHorizontal: spacing(2),
-    paddingVertical: spacing(0.75),
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderRadius: radii.md,
-    marginBottom: spacing(2),
-  },
-  headerText: {
-    fontSize: 12,
-    fontWeight: '900',
-    color: '#FFFFFF',
-    letterSpacing: 1,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '900',
-    color: '#FFFFFF',
-    textAlign: 'center',
+    gap: 5,
     marginBottom: spacing(1.5),
   },
-  description: {
-    fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.9)',
+  eyebrowText: {
+    fontSize: 10,
+    fontWeight: '900',
+    color: colors.accent,
+    letterSpacing: 1.4,
+  },
+  title: {
+    fontSize: 26,
+    fontWeight: '900',
+    color: colors.text,
     textAlign: 'center',
+    marginBottom: spacing(1),
+    lineHeight: 32,
+  },
+  description: {
+    fontSize: 14,
+    color: colors.subtext,
+    textAlign: 'center',
+    lineHeight: 20,
     marginBottom: spacing(3),
   },
-  rarityBadge: {
-    paddingHorizontal: spacing(3),
-    paddingVertical: spacing(1),
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-    borderRadius: radii.md,
-    marginBottom: spacing(2),
+  divider: {
+    width: '100%',
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    marginBottom: spacing(2.5),
   },
-  rarityText: {
-    fontSize: 14,
-    fontWeight: '900',
-    color: '#FFFFFF',
-    letterSpacing: 1,
-  },
-  xpContainer: {
+  metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing(1),
-    paddingHorizontal: spacing(3),
-    paddingVertical: spacing(1.5),
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-    borderRadius: radii.lg,
+    gap: spacing(1.5),
+    marginBottom: spacing(3),
+  },
+  rarityPill: {
+    paddingHorizontal: spacing(2),
+    paddingVertical: spacing(0.75),
+    borderRadius: radii.pill,
+    borderWidth: 1,
+  },
+  rarityText: {
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 0.9,
+  },
+  xpPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: spacing(2),
+    paddingVertical: spacing(0.75),
+    borderRadius: radii.pill,
+    backgroundColor: 'rgba(214,138,56,0.14)',
+    borderWidth: 1,
+    borderColor: 'rgba(214,138,56,0.3)',
   },
   xpText: {
-    fontSize: 18,
+    fontSize: 13,
     fontWeight: '900',
-    color: colors.gold,
+    color: colors.accent,
   },
-  confetti: {
-    position: 'absolute',
-    top: 100,
-    borderRadius: 4,
+  claimButton: {
+    width: '100%',
+    height: 50,
+    borderRadius: radii.pill,
+    backgroundColor: colors.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: colors.accent,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.38,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  claimText: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#1A120D',
+    letterSpacing: 0.3,
   },
 });

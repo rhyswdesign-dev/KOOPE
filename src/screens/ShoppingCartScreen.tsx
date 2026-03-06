@@ -12,8 +12,9 @@ import {
   TouchableOpacity,
   Alert,
   Modal,
+  SafeAreaView,
 } from 'react-native';
-import { colors, spacing, radii, fonts } from '../theme/tokens';
+import { colors, spacing, radii } from '../theme/tokens';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -25,6 +26,7 @@ import Toast from '../components/Toast';
 import { useToast } from '../hooks/useToast';
 import { log } from '../lib/logger';
 import InPageTabBar from '../components/ui/InPageTabBar';
+import MainPageHeader from '../components/ui/MainPageHeader';
 
 type ViewMode = 'cocktail' | 'ingredient';
 type CategoryFilter = 'all' | 'spirits' | 'mixers' | 'garnishes' | 'syrups';
@@ -231,7 +233,7 @@ export default function ShoppingCartScreen() {
         <EmptyState
           icon="basket-outline"
           title="No shopping lists yet"
-          message="Add ingredients from cocktail recipes to start shopping"
+          message=""
           actionLabel="Explore Recipes"
           onAction={() => (nav as any).navigate('Main', { screen: 'Recipes' })}
         />
@@ -432,25 +434,27 @@ export default function ShoppingCartScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Shopping Overview</Text>
-        <View style={styles.headerActions}>
-          {consolidatedShoppingItems.allItems.length > 0 && (
-            <TouchableOpacity onPress={handleClearAll} style={styles.clearAllButton}>
-              <Text style={styles.clearAllText}>Clear All</Text>
-            </TouchableOpacity>
-          )}
-          <TouchableOpacity onPress={() => nav.goBack()}>
-            <Ionicons name="close" size={24} color={colors.text} />
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      <Text style={styles.headerSubtitle}>
-        Ingredients organized by cocktail — ready to shop or batch
-      </Text>
+    <SafeAreaView style={styles.container}>
+      <MainPageHeader
+        title="Shopping Overview"
+        subtitle={`${consolidatedShoppingItems.allItems.length} item${consolidatedShoppingItems.allItems.length !== 1 ? 's' : ''}`}
+        rightActions={[
+          ...(consolidatedShoppingItems.allItems.length > 0
+            ? [
+                {
+                  icon: 'trash-outline' as const,
+                  onPress: handleClearAll,
+                  accessibilityLabel: 'Clear all shopping items',
+                },
+              ]
+            : []),
+          {
+            icon: 'close' as const,
+            onPress: () => nav.goBack(),
+            accessibilityLabel: 'Close shopping overview',
+          },
+        ]}
+      />
 
       {/* View Mode Tabs */}
       <View style={styles.viewModeSection}>
@@ -630,7 +634,7 @@ export default function ShoppingCartScreen() {
         visible={toast.visible}
         onHide={hideToast}
       />
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -638,44 +642,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.bg,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing(3),
-    paddingTop: spacing(6),
-    paddingBottom: spacing(2),
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing(2),
-  },
-  clearAllButton: {
-    paddingHorizontal: spacing(2),
-    paddingVertical: spacing(1),
-    borderRadius: radii.full,
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.line,
-  },
-  clearAllText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#E57373',
-  },
-  headerSubtitle: {
-    fontSize: 13,
-    color: colors.subtext,
-    paddingHorizontal: spacing(3),
-    marginBottom: spacing(2),
-    lineHeight: 18,
   },
   viewModeSection: {
     flexDirection: 'row',

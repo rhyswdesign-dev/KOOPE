@@ -4,26 +4,24 @@
  * Features: Greeting, engagement badge, preferences card, AI prompt, Your Moods, AI Recommendations
  */
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
+  FlatList,
+  Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, radii, fonts } from '../theme/tokens';
+import { colors, spacing, radii, fonts, serif } from '../theme/tokens';
 import { usePersonalization } from '../store/usePersonalization';
 import { ALL_COCKTAILS } from '../data/cocktails';
 import RecipeCard from './RecipeCard';
 import { createRecipeCardProps } from '../utils/recipeActions';
-import { FlatList } from 'react-native';
 import { getCocktailImage } from '../../assets/images/cocktails';
-import {
-  BehavioralLearning
-} from '../services/behavioralLearning';
 import { log } from '../lib/logger';
-import { getTrendingCocktails, getCurrentSeason, getSeasonDisplayName, getSeasonEmoji } from '../services/seasonalTrendingService';
+import { getTrendingCocktails, getCurrentSeason, getSeasonDisplayName } from '../services/seasonalTrendingService';
 import { useUserTier } from '../store/useUserTier';
 import InPageTabBar from './ui/InPageTabBar';
 
@@ -44,8 +42,8 @@ export default function ForYouFeed({
 }: ForYouFeedProps) {
   const { profile, getFeaturedCocktails, scoreCocktail } = usePersonalization();
   const { tier } = useUserTier();
-  const [engagementScore, setEngagementScore] = useState(0);
   const [selectedRecommendTab, setSelectedRecommendTab] = useState<'matched' | 'beginner' | 'challenge' | 'trending'>('matched');
+  const tabTransitionAnim = useRef(new Animated.Value(1)).current;
 
   // Check if user has completed taste profile (must be declared before useMemo that depends on it)
   const hasProfile = profile && profile.favoriteSpirits && profile.favoriteSpirits.length > 0;
@@ -53,7 +51,6 @@ export default function ForYouFeed({
   // Get current season info for trending tab
   const currentSeason = getCurrentSeason();
   const seasonName = getSeasonDisplayName(currentSeason);
-  const seasonEmoji = getSeasonEmoji(currentSeason);
 
   // Get recommended cocktails by category - ALL TABS USE PERSONALIZED RECOMMENDATIONS
   const recommendedCocktails = useMemo(() => {
@@ -61,17 +58,16 @@ export default function ForYouFeed({
 
     const featured = getFeaturedCocktails();
     const hasPersonalizedContent = featured && featured.length > 0;
+    // Filter out syrups and ingredient-only entries from all recommendation tabs.
+    const actualCocktails = ALL_COCKTAILS.filter((cocktail) => {
+      const category = String(cocktail.category || '').toLowerCase();
+      const name = String(cocktail.name || '').toLowerCase();
+      return !category.includes('syrup') && !category.includes('ingredient') && !name.includes('syrup');
+    });
     // FREE tier: limit trending to 2 cocktails (to make room for feature previews)
     // PLUS/PRO tier: show 8 trending cocktails
     const trendingLimit = tier === 'FREE' ? 2 : 8;
-    const trending = getTrendingCocktails(ALL_COCKTAILS, trendingLimit);
-
-    // Filter out syrups and ingredients - only show actual cocktails
-    const actualCocktails = ALL_COCKTAILS.filter(cocktail =>
-      cocktail.category !== 'syrup' &&
-      cocktail.category !== 'ingredient' &&
-      !cocktail.name?.toLowerCase().includes('syrup')
-    );
+    const trending = getTrendingCocktails(actualCocktails, trendingLimit);
 
     log.debug('ForYouFeed', 'Building recommended cocktails', {
       featuredCount: featured?.length || 0,
@@ -195,44 +191,51 @@ export default function ForYouFeed({
     };
   }, [profile, hasProfile]);
 
-  useEffect(() => {
-    if (hasProfile && userProfile) {
-      const mockProfile = {
-        id: 'current-user',
-        favoriteSpirit: userProfile.favoriteSpirit,
-        spiritPreferences: userProfile.spiritPreferences,
-        flavorProfiles: userProfile.flavorProfiles,
-        skillLevel: userProfile.skillLevel,
-      };
 
-      const score = BehavioralLearning.calculateEngagementScore(mockProfile as any);
-      setEngagementScore(score);
-    }
-  }, [profile, userProfile, hasProfile]);
+  useEffect(() => {
+    tabTransitionAnim.setValue(0);
+    Animated.timing(tabTransitionAnim, {
+      toValue: 1,
+      duration: 280,
+      useNativeDriver: true,
+    }).start();
+  }, [selectedRecommendTab]);
 
   return (
     <View style={styles.container}>
-      <ScrollView nestedScrollEnabled showsVerticalScrollIndicator={false}>
         {/* Header with user info */}
         <View style={styles.header}>
           <View>
-            <Text style={styles.greeting}>{greeting} 👋</Text>
+            <View style={styles.inlineHeading}>
+              <Text style={styles.greeting}>{greeting}</Text>
+              <Ionicons name="hand-left-outline" size={22} color={colors.text} />
+            </View>
             <Text style={styles.subtitle}>
               {hasProfile && userProfile ? `${userProfile.favoriteSpirit} enthusiast` : 'Cocktail explorer'}
             </Text>
           </View>
-          {hasProfile && (
-            <View style={styles.engagementBadge}>
-              <Text style={styles.engagementText}>{Math.round(engagementScore)}%</Text>
-              <Text style={styles.engagementLabel}>Engaged</Text>
-            </View>
-          )}
+          <View style={[
+            styles.tierPill,
+            tier === 'PRO' && styles.tierPillPro,
+            tier === 'PLUS' && styles.tierPillPlus,
+          ]}>
+            <Ionicons
+              name={tier === 'PRO' ? 'diamond' : tier === 'PLUS' ? 'star' : 'person-outline'}
+              size={12}
+              color={tier === 'PRO' ? colors.accent : tier === 'PLUS' ? colors.gold : colors.subtext}
+            />
+            <Text style={[
+              styles.tierPillText,
+              tier === 'PRO' && styles.tierPillTextPro,
+              tier === 'PLUS' && styles.tierPillTextPlus,
+            ]}>{tier}</Text>
+          </View>
         </View>
 
         {/* Onboarding State - No Profile */}
         {!hasProfile && onRefineProfile && (
           <View style={styles.onboardingCard}>
-            <Text style={styles.onboardingEmoji}>🎯</Text>
+            <Ionicons name="compass-outline" size={26} color={colors.accent} />
             <Text style={styles.onboardingTitle}>Create Your Taste Profile</Text>
             <Text style={styles.onboardingDescription}>
               Answer 3 quick questions to get personalized cocktail recommendations tailored to your preferences
@@ -251,50 +254,29 @@ export default function ForYouFeed({
         {/* Personalization Stats - Only show if profile exists */}
         {hasProfile && userProfile && (
           <View style={styles.statsCard}>
-            <Text style={styles.statsTitle}>🧠 Your Preferences</Text>
-            <View style={styles.statsGrid}>
-              <View style={styles.statItem}>
-                <Text style={styles.statLabel}>Favorite Spirits</Text>
-                {userProfile.spiritPreferences.length > 1 ? (
-                  <View style={styles.spiritStack}>
-                    {userProfile.spiritPreferences.map((spirit, idx) => (
-                      <Text key={idx} style={styles.statValue}>
-                        {spirit.charAt(0).toUpperCase() + spirit.slice(1)}
-                      </Text>
-                    ))}
-                  </View>
-                ) : (
-                  <Text style={styles.statValue}>
-                    {userProfile.favoriteSpirit.charAt(0).toUpperCase() + userProfile.favoriteSpirit.slice(1)}
-                  </Text>
-                )}
-              </View>
-              <View style={styles.statItem}>
-                <Text style={styles.statLabel}>Skill Level</Text>
-                <Text style={styles.statValue}>
-                  {userProfile.skillLevel.charAt(0).toUpperCase() + userProfile.skillLevel.slice(1)}
-                </Text>
-              </View>
-              <View style={styles.statItem}>
-                <Text style={styles.statLabel}>Flavor Match</Text>
-                {userProfile.flavorProfiles.length > 1 ? (
-                  <View style={styles.flavorStack}>
-                    {userProfile.flavorProfiles.map((f, idx) => (
-                      <Text key={idx} style={styles.statValue}>
-                        {f.charAt(0).toUpperCase() + f.slice(1)}
-                      </Text>
-                    ))}
-                  </View>
-                ) : (
-                  <Text style={styles.statValue}>
-                    {userProfile.flavorProfiles[0]?.charAt(0).toUpperCase() + userProfile.flavorProfiles[0]?.slice(1)}
-                  </Text>
-                )}
-              </View>
+            <View style={styles.inlineHeading}>
+              <Ionicons name="analytics-outline" size={18} color={colors.text} />
+              <Text style={styles.statsTitle}>Your Preferences</Text>
             </View>
-            <Text style={styles.statsNote}>
-              💡 These update as you interact with recipes
+            <Text style={styles.statsNarrative}>
+              {'Curated around '}
+              <Text style={styles.statsHighlight}>
+                {userProfile.spiritPreferences.slice(0, 2).map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' & ')}
+              </Text>
+              {' — '}
+              {userProfile.flavorProfiles.slice(0, 2).map(f => f.charAt(0).toUpperCase() + f.slice(1)).join(' & ')}
+              {' flavors, '}
+              <Text style={styles.statsHighlight}>
+                {userProfile.skillLevel.charAt(0).toUpperCase() + userProfile.skillLevel.slice(1)}
+              </Text>
+              {' level.'}
             </Text>
+            <View style={styles.inlineHeading}>
+              <Ionicons name="bulb-outline" size={14} color={colors.subtext} />
+              <Text style={styles.statsNote}>
+                These update as you interact with recipes
+              </Text>
+            </View>
 
             {/* Refine Taste Profile Button */}
             {onRefineProfile && (
@@ -326,10 +308,10 @@ export default function ForYouFeed({
             <InPageTabBar
               scrollable
               items={[
-                { key: 'matched', label: hasProfile ? '⭐ Matched for You' : '⭐ Popular' },
-                { key: 'beginner', label: '🌱 Beginner Friendly' },
-                { key: 'challenge', label: '🌶️ Flavor Challenges' },
-                { key: 'trending', label: `${seasonEmoji} Trending ${seasonName}` },
+                { key: 'matched', label: hasProfile ? 'Matched for You' : 'Popular', icon: 'star-outline' },
+                { key: 'beginner', label: 'Beginner Friendly', icon: 'leaf-outline' },
+                { key: 'challenge', label: 'Flavor Challenges', icon: 'flame-outline' },
+                { key: 'trending', label: `Trending ${seasonName}`, icon: 'trending-up-outline' },
               ]}
               activeKey={selectedRecommendTab}
               onChange={(key) =>
@@ -339,34 +321,45 @@ export default function ForYouFeed({
           </View>
 
           {/* Horizontal Cocktail Cards */}
-          <FlatList
-            horizontal
-            nestedScrollEnabled
-            data={recommendedCocktails[selectedRecommendTab]}
-            keyExtractor={(item) => item.id}
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.cocktailList}
-            renderItem={({ item }) => (
-              <View style={styles.cocktailCardWrapper}>
-                <RecipeCard
-                  recipe={{
-                    id: item.id,
-                    name: item.name,
-                    description: item.subtitle || item.description,
-                    image: getCocktailImage(item.id, item.image),
-                    difficulty: item.difficulty || 'Medium',
-                    time: item.time || '5 min',
-                  }}
-                  onPress={() => onCocktailPress(item)}
-                  onSave={onSaveCocktail}
-                  onAddToCart={onAddToCart}
-                  isSaved={savedRecipeIds.has(item.id)}
-                />
-              </View>
-            )}
-          />
+          <Animated.View
+            style={{
+              opacity: tabTransitionAnim,
+              transform: [{
+                translateX: tabTransitionAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [16, 0],
+                }),
+              }],
+            }}
+          >
+            <FlatList
+              horizontal
+              nestedScrollEnabled
+              data={recommendedCocktails[selectedRecommendTab]}
+              keyExtractor={(item) => item.id}
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.cocktailList}
+              renderItem={({ item }) => (
+                <View style={styles.cocktailCardWrapper}>
+                  <RecipeCard
+                    recipe={{
+                      id: item.id,
+                      name: item.name,
+                      description: item.subtitle || item.description,
+                      image: getCocktailImage(item.id, item.image),
+                      difficulty: item.difficulty || 'Medium',
+                      time: item.time || '5 min',
+                    }}
+                    onPress={() => onCocktailPress(item)}
+                    onSave={onSaveCocktail}
+                    onAddToCart={onAddToCart}
+                    isSaved={savedRecipeIds.has(item.id)}
+                  />
+                </View>
+              )}
+            />
+          </Animated.View>
         </View>
-      </ScrollView>
     </View>
   );
 }
@@ -383,32 +376,52 @@ const styles = StyleSheet.create({
     paddingTop: spacing(2),
   },
   greeting: {
-    fontSize: 28,
-    fontWeight: '700',
+    fontSize: 26,
+    fontWeight: '800',
     color: colors.text,
+    fontFamily: serif,
+    letterSpacing: -0.3,
+  },
+  inlineHeading: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(0.75),
   },
   subtitle: {
     fontSize: 16,
     color: colors.subtext,
     marginTop: spacing(0.5),
   },
-  engagementBadge: {
-    backgroundColor: colors.gold + '20',
-    borderRadius: radii.md,
-    padding: spacing(1.5),
+  tierPill: {
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: spacing(0.5),
+    paddingVertical: spacing(0.75),
+    paddingHorizontal: spacing(1.25),
+    borderRadius: radii.pill,
+    backgroundColor: colors.line,
     borderWidth: 1,
-    borderColor: colors.gold,
+    borderColor: colors.line,
   },
-  engagementText: {
-    fontSize: 20,
+  tierPillPlus: {
+    backgroundColor: colors.gold + '20',
+    borderColor: colors.gold + '60',
+  },
+  tierPillPro: {
+    backgroundColor: colors.accent + '20',
+    borderColor: colors.accent + '60',
+  },
+  tierPillText: {
+    fontSize: 11,
     fontWeight: '700',
+    letterSpacing: 0.5,
+    color: colors.subtext,
+  },
+  tierPillTextPlus: {
     color: colors.gold,
   },
-  engagementLabel: {
-    fontSize: 10,
-    color: colors.gold,
-    marginTop: spacing(0.25),
+  tierPillTextPro: {
+    color: colors.accent,
   },
   statsCard: {
     margin: spacing(3),
@@ -425,29 +438,15 @@ const styles = StyleSheet.create({
     color: colors.text,
     marginBottom: spacing(2),
   },
-  statsGrid: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  statsNarrative: {
+    fontSize: 15,
+    color: colors.subtext,
+    lineHeight: 22,
     marginBottom: spacing(1.5),
   },
-  statItem: {
-    flex: 1,
-  },
-  statLabel: {
-    fontSize: 12,
-    color: colors.subtext,
-    marginBottom: spacing(0.5),
-  },
-  statValue: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.accent,
-  },
-  flavorStack: {
-    gap: spacing(0.25),
-  },
-  spiritStack: {
-    gap: spacing(0.25),
+  statsHighlight: {
+    color: colors.text,
+    fontWeight: '700',
   },
   statsNote: {
     fontSize: 12,
@@ -461,11 +460,12 @@ const styles = StyleSheet.create({
     gap: spacing(1),
     marginTop: spacing(2),
     paddingVertical: spacing(1.5),
-    paddingHorizontal: spacing(2),
+    paddingHorizontal: spacing(3),
     backgroundColor: colors.accent + '15',
-    borderRadius: radii.md,
+    borderRadius: radii.pill,
     borderWidth: 1,
     borderColor: colors.accent,
+    alignSelf: 'center',
   },
   refineButtonText: {
     fontSize: 14,
@@ -479,6 +479,8 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: '800',
     color: colors.text,
+    fontFamily: serif,
+    letterSpacing: -0.2,
     marginHorizontal: spacing(3),
     marginBottom: spacing(1),
   },
@@ -509,10 +511,6 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: colors.accent,
     alignItems: 'center',
-  },
-  onboardingEmoji: {
-    fontSize: 48,
-    marginBottom: spacing(2),
   },
   onboardingTitle: {
     fontSize: 22,

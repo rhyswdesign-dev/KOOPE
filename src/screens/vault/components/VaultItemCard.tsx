@@ -49,8 +49,8 @@ export default function VaultItemCard({ item, userProfile, onPress }: VaultItemC
       case 'common': return colors.subtext;
       case 'limited': return colors.accent;
       case 'rare': return colors.gold;
-      case 'prestige': return '#9C27B0';
-      case 'mystery': return '#FF6B6B';
+      case 'prestige': return colors.rarityPrestige;
+      case 'mystery': return colors.rarityMystery;
       default: return colors.subtext;
     }
   };
@@ -72,7 +72,7 @@ export default function VaultItemCard({ item, userProfile, onPress }: VaultItemC
 
   const getStockColor = (): string => {
     const percentage = getStockPercentage();
-    if (percentage <= 10) return '#FF6B6B';
+    if (percentage <= 10) return colors.error;
     if (percentage <= 30) return '#FFA726';
     return colors.accent;
   };
@@ -412,7 +412,7 @@ const styles = StyleSheet.create({
     left: spacing(1),
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FF6B6B',
+    backgroundColor: colors.error,
     paddingHorizontal: spacing(1),
     paddingVertical: spacing(0.5),
     borderRadius: radii.sm,
@@ -469,7 +469,7 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   insufficientText: {
-    color: '#FF6B6B',
+    color: colors.error,
   },
   
   // Discount Option

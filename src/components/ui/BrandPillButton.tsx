@@ -1,6 +1,7 @@
 import React from 'react';
 import { TouchableOpacity, Text, StyleSheet, ViewStyle, TextStyle } from 'react-native';
 import { colors, radii, spacing } from '../../theme/tokens';
+import { withHaptic } from '../../lib/haptics';
 
 type PillButtonVariant = 'filled' | 'outline' | 'ghost';
 
@@ -64,7 +65,7 @@ const BrandPillButton: React.FC<PillButtonProps> = ({
   return (
     <TouchableOpacity
       style={[getButtonStyle(), disabled && styles.disabled]}
-      onPress={onPress}
+      onPress={withHaptic(onPress)}
       disabled={disabled}
       accessibilityRole="button"
       accessibilityLabel={title}

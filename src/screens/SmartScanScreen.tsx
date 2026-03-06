@@ -278,6 +278,18 @@ export default function SmartScanScreen() {
     }
 
     // PLUS/PRO: run full AI waterfall — store the image for preview + BottleDetailScreen
+    if (!GoogleVisionService.isConfigured()) {
+      Alert.alert(
+        'AI Scanner Not Configured',
+        'Image recognition is not configured on this build yet. You can still scan barcodes or add the bottle manually.',
+        [
+          { text: 'Add Manually', onPress: () => navigation.navigate('ManualBottleEntry', {}) },
+          { text: 'Back to Scanner', onPress: () => setCameraVisible(true) },
+        ]
+      );
+      return;
+    }
+
     setImageUri(uri);
     setAnalyzing(true);
     setScanMode('ai');
@@ -460,6 +472,7 @@ export default function SmartScanScreen() {
         onImageCaptured={handleImageCaptured}
         onBarcodeScanned={handleBarcodeScanned}
         barcodeOnly={isFree}
+        autoCloseOnCapture={false}
         title="Smart Scan"
         isPaidUser={isSubscriber}
         isGuest={!user}

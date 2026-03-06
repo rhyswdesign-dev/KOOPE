@@ -24,13 +24,13 @@ import FeedbackScreen from '../screens/FeedbackScreen';
 import CocktailDetailScreen from '../screens/CocktailDetailScreen';
 import CocktailListScreen from '../screens/CocktailListScreen';
 import WhatCanIMakeScreen from '../screens/WhatCanIMakeScreen';
+import HostingScreen from '../screens/HostingScreen';
+import BarOptimizerScreen from '../screens/BarOptimizerScreen';
 
 import EditProfileScreen from '../screens/EditProfileScreen';
 import NonAlcoholicScreen from '../screens/NonAlcoholicScreen';
 import VaultScreen from '../screens/vault/VaultScreen';
 // Vault screens
-import VaultOrderDetailsScreen from '../screens/vault/VaultOrderDetailsScreen';
-import VaultOrderHistoryScreen from '../screens/vault/VaultOrderHistoryScreen';
 import VaultEarnXPScreen from '../screens/vault/VaultEarnXPScreen';
 import VaultCategoryScreen from '../screens/vault/VaultCategoryScreen';
 import CategoriesListScreen from '../screens/CategoriesListScreen';
@@ -81,6 +81,8 @@ import ReferralScreen from '../screens/ReferralScreen';
 import TutorialsScreen from '../screens/TutorialsScreen';
 import { useCartSync } from '../hooks/useCartSync';
 import TutorialIconButton from '../components/tour/TutorialIconButton';
+import type { ScreenTourId } from '../config/screenTours';
+import { useTutorialPreferences } from '../store/useTutorialPreferences';
 
 export type RootStackParamList = {
   Main: undefined;
@@ -124,14 +126,14 @@ export type RootStackParamList = {
   CocktailDetail: { cocktailId: string };
   CocktailList: { title: string; cocktailIds: string[]; category: string };
   WhatCanIMake: undefined;
+  Hosting: undefined;
+  BarOptimizer: undefined;
 
   EditProfile: undefined;
   Profile: undefined;
   OAuthSignIn: undefined;
   NonAlcoholic: undefined;
   Vault: undefined;
-  VaultOrderDetails: { orderId: string };
-  VaultOrderHistory: undefined;
   VaultEarnXP: undefined;
   VaultCategory: { category: VaultCategory };
   CategoriesList: undefined;
@@ -175,7 +177,7 @@ export type RootStackParamList = {
   ManageSubscription: undefined;
   NotificationCenter: undefined;
   Referral: undefined;
-  Tutorials: undefined;
+  Tutorials: { contextTourId?: ScreenTourId } | undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -188,6 +190,7 @@ interface RootNavigatorProps {
 
 export default function RootNavigator({ initialRouteName = 'Main', onHiddenFlaskComplete }: RootNavigatorProps = {}) {
   useCartSync();
+  const showTutorialIcons = useTutorialPreferences((state) => state.showTutorialIcons);
   const LegacyRemovedContentScreen = RecipesScreen;
 
   return (
@@ -204,11 +207,12 @@ export default function RootNavigator({ initialRouteName = 'Main', onHiddenFlask
         headerBackButtonDisplayMode: 'minimal',
         animation: 'fade',
         animationDuration: 200,
-        headerLeft: () => (
-          <View style={styles.headerLeftWrap}>
-            <TutorialIconButton onPress={() => navigation.navigate('Tutorials')} />
-          </View>
-        ),
+        headerRight: () =>
+          showTutorialIcons ? (
+            <View style={styles.headerRightWrap}>
+              <TutorialIconButton onPress={() => navigation.navigate('Tutorials')} />
+            </View>
+          ) : null,
       })}
     >
       <Stack.Screen name="Main" component={Tabs} />
@@ -376,6 +380,8 @@ export default function RootNavigator({ initialRouteName = 'Main', onHiddenFlask
       <Stack.Screen name="CocktailDetail" component={CocktailDetailScreen} options={{ headerShown: true, title: 'Cocktail' }} />
       <Stack.Screen name="CocktailList" component={CocktailListScreen} options={{ headerShown: true, title: 'Cocktails' }} />
       <Stack.Screen name="WhatCanIMake" component={WhatCanIMakeScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="Hosting" component={HostingScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="BarOptimizer" component={BarOptimizerScreen} options={{ headerShown: false }} />
 
       <Stack.Screen name="EditProfile" component={EditProfileScreen} options={{ headerShown: true, title: 'Edit Profile' }} />
       <Stack.Screen name="Profile" component={ProfileScreen} options={{ headerShown: true, title: 'Profile' }} />
@@ -383,8 +389,6 @@ export default function RootNavigator({ initialRouteName = 'Main', onHiddenFlask
       <Stack.Screen name="NonAlcoholic" component={NonAlcoholicScreen} options={{ headerShown: true, title: 'Non-Alcoholic' }} />
     <Stack.Screen name="Vault" component={VaultScreen} options={{ headerShown: true, title: 'Vault' }} />
     {/* Vault Economy Screens */}
-    <Stack.Screen name="VaultOrderDetails" component={VaultOrderDetailsScreen} options={{ headerShown: true, title: 'Order Details' }} />
-    <Stack.Screen name="VaultOrderHistory" component={VaultOrderHistoryScreen} options={{ headerShown: true, title: 'Order History' }} />
     <Stack.Screen name="VaultEarnXP" component={VaultEarnXPScreen} options={{ headerShown: true, title: 'Earn XP' }} />
     <Stack.Screen name="VaultCategory" component={VaultCategoryScreen} options={{ headerShown: false }} />
     <Stack.Screen name="CategoriesList" component={CategoriesListScreen} options={{ headerShown: true, title: 'Categories' }} />
@@ -420,7 +424,7 @@ export default function RootNavigator({ initialRouteName = 'Main', onHiddenFlask
     <Stack.Screen name="VoiceRecipe" component={VoiceRecipeScreen} options={{ headerShown: true, title: 'Voice Recipe Input' }} />
     <Stack.Screen name="HomeBar" component={HomeBarScreen} options={{ headerShown: false }} />
     <Stack.Screen name="SpiritRecognition" component={SpiritRecognitionScreen} options={{ headerShown: true, title: 'Scan Spirit' }} />
-    <Stack.Screen name="ShoppingCart" component={ShoppingCartScreen} options={{ headerShown: true, title: 'Shopping Cart' }} />
+    <Stack.Screen name="ShoppingCart" component={ShoppingCartScreen} options={{ headerShown: false }} />
       <Stack.Screen name="Achievements" component={AchievementsScreen} options={{ headerShown: true, title: 'Achievements' }} />
       <Stack.Screen name="SubscriptionDebug" component={SubscriptionDebugScreen} options={{ headerShown: true, title: 'Subscription Debug' }} />
       <Stack.Screen name="Paywall" component={PaywallScreen} options={{ headerShown: false, presentation: 'modal' }} />
@@ -440,7 +444,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  headerLeftWrap: {
-    paddingLeft: 4,
+  headerRightWrap: {
+    paddingRight: 4,
   },
 });

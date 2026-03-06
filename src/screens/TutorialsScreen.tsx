@@ -5,18 +5,20 @@ import {
   SafeAreaView,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   View,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { SCREEN_TOURS, ScreenTourId, ScreenTourSlide } from '../config/screenTours';
 import ScreenTourModal from '../components/tour/ScreenTourModal';
-import { colors, radii, spacing } from '../theme/tokens';
+import { colors, radii, serif, spacing } from '../theme/tokens';
 import { log } from '../lib/logger';
+import { useTutorialPreferences } from '../store/useTutorialPreferences';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -41,19 +43,40 @@ interface ActiveTourState {
 
 export default function TutorialsScreen() {
   const navigation = useNavigation<Nav>();
+  const route = useRoute<any>();
   const [activeTour, setActiveTour] = useState<ActiveTourState | null>(null);
+  const contextTourId = route.params?.contextTourId as ScreenTourId | undefined;
+  const showTutorialIcons = useTutorialPreferences((state) => state.showTutorialIcons);
+  const setShowTutorialIcons = useTutorialPreferences((state) => state.setShowTutorialIcons);
 
   useLayoutEffect(() => {
     navigation.setOptions({
       title: 'Tutorials',
       headerStyle: { backgroundColor: colors.bg },
       headerTintColor: colors.text,
-      headerTitleStyle: { color: colors.text, fontWeight: '900' },
+      headerTitleStyle: { color: colors.text, fontWeight: '700', fontSize: 22, fontFamily: serif },
       headerShadowVisible: false,
     });
   }, [navigation]);
 
-  const tourIds = useMemo(() => Object.keys(SCREEN_TOURS) as ScreenTourId[], []);
+  const tourIds = useMemo(() => {
+    const allTourIds = Object.keys(SCREEN_TOURS) as ScreenTourId[];
+    if (!contextTourId) return allTourIds;
+
+    const contextMap: Record<ScreenTourId, ScreenTourId[]> = {
+      tab_lessons: ['tab_lessons', 'feature_lesson_engine'],
+      tab_discover: ['tab_discover', 'feature_recipe_detail'],
+      tab_camera: ['tab_camera', 'feature_smart_scan'],
+      tab_inventory: ['tab_inventory'],
+      tab_profile: ['tab_profile'],
+      feature_lesson_engine: ['feature_lesson_engine', 'tab_lessons'],
+      feature_smart_scan: ['feature_smart_scan', 'tab_camera'],
+      feature_recipe_detail: ['feature_recipe_detail', 'tab_discover'],
+    };
+
+    const allowed = new Set(contextMap[contextTourId] || [contextTourId]);
+    return allTourIds.filter((id) => allowed.has(id));
+  }, [contextTourId]);
 
   const openTour = (id: ScreenTourId) => {
     setActiveTour({
@@ -115,8 +138,22 @@ export default function TutorialsScreen() {
         <View style={styles.headerCard}>
           <Text style={styles.headerTitle}>Feature Tours</Text>
           <Text style={styles.headerBody}>
-            Replay any tutorial to understand where features live and how each major flow works.
+            {contextTourId
+              ? 'Tutorials for this page and its related features.'
+              : 'Replay any tutorial to understand where features live and how each major flow works.'}
           </Text>
+          <View style={styles.toggleRow}>
+            <View>
+              <Text style={styles.toggleTitle}>Show tutorial icon</Text>
+              <Text style={styles.toggleBody}>Display the floating ? quick-access button in the app.</Text>
+            </View>
+            <Switch
+              value={showTutorialIcons}
+              onValueChange={setShowTutorialIcons}
+              thumbColor={showTutorialIcons ? colors.white : colors.subtle}
+              trackColor={{ true: colors.accent, false: colors.line }}
+            />
+          </View>
           <Pressable style={styles.resetButton} onPress={handleResetAll}>
             <Ionicons name="refresh-outline" size={16} color={colors.text} />
             <Text style={styles.resetButtonText}>Reset all tutorials</Text>
@@ -174,6 +211,27 @@ const styles = StyleSheet.create({
     color: colors.subtext,
     fontSize: 14,
     lineHeight: 20,
+  },
+  toggleRow: {
+    marginTop: spacing(0.5),
+    paddingTop: spacing(1),
+    borderTopWidth: 1,
+    borderTopColor: colors.line,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing(1),
+  },
+  toggleTitle: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  toggleBody: {
+    color: colors.subtext,
+    fontSize: 12,
+    marginTop: 2,
+    maxWidth: 250,
   },
   resetButton: {
     marginTop: spacing(0.5),

@@ -23,6 +23,7 @@ export { default as LoadingOverlay, LoadingProvider, useLoading, useAsyncOperati
 export { default as AudioButton } from './AudioButton';
 export { default as Heading } from './Heading';
 export { default as InPageTabBar } from './InPageTabBar';
+export { default as MainPageHeader } from './MainPageHeader';
 
 // New components
 export { default as VideoPlayer, InlineVideoPlayer, CompactVideoPlayer } from './VideoPlayer';

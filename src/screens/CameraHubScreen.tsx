@@ -9,14 +9,19 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   SafeAreaView,
   Animated,
   Platform,
   TextInput,
   KeyboardAvoidingView,
   Keyboard,
+  Dimensions,
   ImageSourcePropType,
+  Easing,
 } from 'react-native';
+
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
@@ -26,7 +31,16 @@ import type { CameraStackParamList } from '../navigation/CameraStack';
 
 const serifFont = Platform.select({ ios: 'Georgia', android: 'serif', default: 'serif' });
 
-const BACKGROUNDS: ImageSourcePropType[] = [
+function shuffleArray<T>(arr: T[]): T[] {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+const BACKGROUNDS: ImageSourcePropType[] = shuffleArray([
   require('../../assets/images/backgrounds/camera/bg-01.png'),
   require('../../assets/images/backgrounds/camera/bg-02.png'),
   require('../../assets/images/backgrounds/camera/bg-03.png'),
@@ -39,7 +53,6 @@ const BACKGROUNDS: ImageSourcePropType[] = [
   require('../../assets/images/backgrounds/camera/bg-10.png'),
   require('../../assets/images/backgrounds/camera/bg-11.png'),
   require('../../assets/images/backgrounds/camera/bg-12.png'),
-  require('../../assets/images/backgrounds/camera/bg-13.png'),
   require('../../assets/images/backgrounds/camera/bg-14.png'),
   require('../../assets/images/backgrounds/camera/bg-15.png'),
   require('../../assets/images/backgrounds/camera/bg-16.png'),
@@ -52,15 +65,29 @@ const BACKGROUNDS: ImageSourcePropType[] = [
   require('../../assets/images/backgrounds/camera/bg-23.png'),
   require('../../assets/images/backgrounds/camera/bg-24.png'),
   require('../../assets/images/backgrounds/camera/bg-25.png'),
-];
+  require('../../assets/images/backgrounds/camera/bg-26.png'),
+  require('../../assets/images/backgrounds/camera/bg-27.png'),
+  require('../../assets/images/backgrounds/camera/bg-28.png'),
+  require('../../assets/images/backgrounds/camera/bg-29.png'),
+  require('../../assets/images/backgrounds/camera/bg-30.png'),
+  require('../../assets/images/backgrounds/camera/bg-31.png'),
+  require('../../assets/images/backgrounds/camera/bg-32.png'),
+  require('../../assets/images/backgrounds/camera/bg-33.png'),
+  require('../../assets/images/backgrounds/camera/bg-34.png'),
+  require('../../assets/images/backgrounds/camera/bg-35.png'),
+]);
 
 export default function CameraHubScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<CameraStackParamList>>();
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
-  // Background Animation State
-  const [currentBgIndex, setCurrentBgIndex] = useState(0);
-  const fadeAnim = useRef(new Animated.Value(1)).current;
+  // Two-layer double buffer crossfade
+  const [layerAIndex, setLayerAIndex] = useState(0);
+  const [layerBIndex, setLayerBIndex] = useState(1);
+  const layerAOpacity = useRef(new Animated.Value(1)).current;
+  const layerBOpacity = useRef(new Animated.Value(0)).current;
+  const activeLayerRef = useRef<0 | 1>(0);
+  const currentIndexRef = useRef(0);
 
   // URL Input State
   const [showUrlInput, setShowUrlInput] = useState(false);
@@ -83,30 +110,67 @@ export default function CameraHubScreen() {
     );
     pulse.start();
 
-    // Background Rotation Loop
-    const interval = setInterval(() => {
-      // Fade Out
-      Animated.timing(fadeAnim, {
-        toValue: 0,
-        duration: 1000,
-        useNativeDriver: true,
-      }).start(() => {
-        // Change Image
-        setCurrentBgIndex((prev) => (prev + 1) % BACKGROUNDS.length);
-        // Fade In
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 1000,
-          useNativeDriver: true,
-        }).start();
-      });
-    }, 5000); // Change every 5 seconds
+    let isMounted = true;
+    let transitionTimer: ReturnType<typeof setTimeout> | null = null;
+    const HOLD_MS = 4200;
+    const FADE_MS = 1800;
+
+    const queueNextTransition = () => {
+      transitionTimer = setTimeout(() => {
+        if (!isMounted) return;
+
+        const incoming = (currentIndexRef.current + 1) % BACKGROUNDS.length;
+        const currentLayer = activeLayerRef.current;
+        const nextLayer: 0 | 1 = currentLayer === 0 ? 1 : 0;
+
+        if (nextLayer === 0) {
+          setLayerAIndex(incoming);
+          layerAOpacity.setValue(0);
+        } else {
+          setLayerBIndex(incoming);
+          layerBOpacity.setValue(0);
+        }
+
+        // Wait for image source swap to paint before animating.
+        requestAnimationFrame(() =>
+          requestAnimationFrame(() => {
+            const fadeIn = nextLayer === 0 ? layerAOpacity : layerBOpacity;
+            const fadeOut = currentLayer === 0 ? layerAOpacity : layerBOpacity;
+
+            Animated.parallel([
+              Animated.timing(fadeIn, {
+                toValue: 1,
+                duration: FADE_MS,
+                easing: Easing.inOut(Easing.cubic),
+                useNativeDriver: true,
+              }),
+              Animated.timing(fadeOut, {
+                toValue: 0,
+                duration: FADE_MS,
+                easing: Easing.inOut(Easing.cubic),
+                useNativeDriver: true,
+              }),
+            ]).start(({ finished }) => {
+              if (!finished || !isMounted) return;
+              activeLayerRef.current = nextLayer;
+              currentIndexRef.current = incoming;
+              queueNextTransition();
+            });
+          })
+        );
+      }, HOLD_MS);
+    };
+
+    queueNextTransition();
 
     return () => {
+      isMounted = false;
       pulse.stop();
-      clearInterval(interval);
+      if (transitionTimer) clearTimeout(transitionTimer);
+      layerAOpacity.stopAnimation();
+      layerBOpacity.stopAnimation();
     };
-  }, [pulseAnim, fadeAnim]);
+  }, [pulseAnim, layerAOpacity, layerBOpacity]);
 
   const handleUrlSubmit = () => {
     if (urlText.trim()) {
@@ -129,24 +193,40 @@ export default function CameraHubScreen() {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      {/* Animated Background Layer */}
+      {/* Background Layer A — always visible */}
       <Animated.Image
-        source={BACKGROUNDS[currentBgIndex]}
+        source={BACKGROUNDS[layerAIndex]}
         resizeMode="cover"
-        style={[styles.backgroundImage, { opacity: fadeAnim }]}
         blurRadius={0}
+        style={[styles.backgroundImage, { opacity: layerAOpacity }]}
+      />
+      {/* Background Layer B — crossfades in over A */}
+      <Animated.Image
+        source={BACKGROUNDS[layerBIndex]}
+        resizeMode="cover"
+        blurRadius={0}
+        style={[styles.backgroundImage, { opacity: layerBOpacity }]}
       />
 
       <LinearGradient
-        colors={['rgba(18,12,9,0.16)', 'rgba(18,12,9,0.08)', 'rgba(18,12,9,0.24)']}
+        colors={['rgba(12,8,5,0.55)', 'rgba(12,8,5,0.15)', 'rgba(12,8,5,0.72)']}
         style={styles.gradientOverlay}
       />
 
+      <TouchableWithoutFeedback
+        onPress={() => {
+          if (showUrlInput) {
+            setShowUrlInput(false);
+            setUrlText('');
+            Keyboard.dismiss();
+          }
+        }}
+      >
       <SafeAreaView style={styles.safeArea}>
-        {/* Header - simplified */}
+        {/* Header */}
         <View style={styles.header}>
           <View style={{ width: 28 }} />
-          <Text style={styles.headerTitle}>LENS</Text>
+          <Text style={styles.headerTitle}>Camera/Scanner</Text>
           <View style={{ width: 28 }} />
         </View>
 
@@ -244,6 +324,7 @@ export default function CameraHubScreen() {
           </View>
         </View>
       </SafeAreaView>
+      </TouchableWithoutFeedback>
     </KeyboardAvoidingView>
   );
 }
@@ -254,7 +335,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bg,
   },
   backgroundImage: {
-    ...StyleSheet.absoluteFillObject,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: SCREEN_WIDTH,
+    height: SCREEN_HEIGHT,
   },
   gradientOverlay: {
     ...StyleSheet.absoluteFillObject,
@@ -271,11 +356,9 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     color: colors.white,
-    fontSize: 14,
+    fontSize: 22,
     fontWeight: '700',
-    letterSpacing: 3,
     fontFamily: serifFont,
-    textTransform: 'uppercase',
   },
   content: {
     flex: 1,
@@ -345,7 +428,7 @@ const styles = StyleSheet.create({
     gap: spacing(1),
   },
   quickLinkActive: {
-    // Active state styling
+    opacity: 1,
   },
   quickIcon: {
     width: 56,
@@ -363,7 +446,7 @@ const styles = StyleSheet.create({
   },
   quickText: {
     color: 'rgba(255,255,255,0.6)',
-    fontSize: 9,
+    fontSize: 11,
     fontWeight: '700',
     letterSpacing: 0.5,
     textTransform: 'uppercase',

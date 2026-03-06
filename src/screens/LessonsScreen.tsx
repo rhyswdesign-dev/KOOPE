@@ -2,15 +2,15 @@
  * Lessons Screen - Professional bartending curriculum
  */
 
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Pressable, ScrollView, Alert, SafeAreaView, useWindowDimensions, Platform } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, Pressable, ScrollView, Alert, SafeAreaView, useWindowDimensions, Animated } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/RootNavigator';
 import { colors, spacing, radii, serif } from '../theme/tokens';
-import { Heading } from '../components/ui';
+import { Heading, MainPageHeader } from '../components/ui';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { TabView, SceneMap, TabBar } from 'react-native-tab-view';
+import { TabView, SceneMap } from 'react-native-tab-view';
 import { curriculumData } from '../utils/curriculumAdapter';
 import { useUser } from '../store/useUser';
 import { useXPSystem } from '../store/useXPSystem';
@@ -22,26 +22,40 @@ import { rewardService } from '../services/rewardService';
 import { Challenge } from '../types/challenge';
 import { log } from '../lib/logger';
 import XPBalanceModal from '../components/XPBalanceModal';
-import RecipeUnlockCard from '../components/RecipeUnlockCard';
-import { EARNABLE_RECIPES } from '../config/recipeUnlocks';
 import FeatureTooltipOverlay from '../components/FeatureTooltipOverlay';
 import { useFeatureTooltip } from '../hooks/useFeatureTooltip';
 import { TOOLTIP_CONFIGS } from '../config/tooltipContent';
 import { useFeatureAccess } from '../hooks/useFeatureAccess';
+import { useAuth } from '../contexts/AuthContext';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 // Lazy evaluation - only compute when StyleSheet is created (after runtime ready)
 const getSerifFont = () => serif;
 
+// Stable renderScene reference — must live OUTSIDE the component.
+// Defining SceneMap inside the component body creates a new function reference
+// on every render, causing TabView to re-mount both scenes each time.
+const renderScene = SceneMap({
+  lessons: LessonsView,
+  challenges: ChallengesView,
+});
+
 // Challenges component - Original Design with Supabase Data
 function ChallengesView() {
-  const navigation = useNavigation<NavigationProp>();
+  const { user } = useAuth();
   const { lives, completedLessons } = useUser();
   const { balance: totalXP } = useXPSystem();
   const engagement = useEngagement();
-  const { challenges: supabaseChallenges, isLoading, claimReward } = useChallenges();
+  const { challenges: supabaseChallenges, isLoading, claimReward, refreshChallenges } = useChallenges();
   const [claimingId, setClaimingId] = useState<string | null>(null);
+  const [liveStreak, setLiveStreak] = useState(streakService.getCurrentStreak());
+
+  useEffect(() => {
+    const unsubscribe = streakService.addStreakListener((next) => setLiveStreak(next));
+    setLiveStreak(streakService.getCurrentStreak());
+    return unsubscribe;
+  }, []);
 
   // Group challenges by frequency
   const weeklyChallenges = supabaseChallenges.filter(c => c.frequency === 'weekly');
@@ -53,6 +67,9 @@ function ChallengesView() {
     try {
       const reward = await claimReward(challenge.id);
       if (reward) {
+        await streakService.recordActivity('challenge_completed', user?.id);
+        setLiveStreak(streakService.getCurrentStreak());
+        await refreshChallenges();
         Alert.alert(
           'Reward Claimed!',
           `You received ${reward.xp} XP!`
@@ -70,7 +87,7 @@ function ChallengesView() {
     let current = 0;
     switch (type) {
       case 'streak':
-        current = engagement.currentStreak;
+        current = liveStreak;
         break;
       case 'lessons':
         current = completedLessons.length;
@@ -99,127 +116,11 @@ function ChallengesView() {
     return Math.min((current / required) * 100, 100);
   };
 
-  // Handle recipe unlock
-  const handleRecipeUnlock = (recipeId: string, recipeName: string) => {
-    engagement.unlockRecipe(recipeId);
-    Alert.alert(
-      'Recipe Unlocked!',
-      `You've unlocked ${recipeName}!`,
-      [
-        {
-          text: 'View Recipe',
-          style: 'default',
-          onPress: () => navigation.navigate('CocktailDetail', { cocktailId: recipeId }),
-        },
-        {
-          text: 'Later',
-          style: 'cancel',
-        },
-      ]
-    );
-  };
-
-  // Get unlockable recipes
-  const unlockableRecipes = EARNABLE_RECIPES.filter(recipe => {
-    if (engagement.isRecipeUnlocked(recipe.recipeId)) return false;
-    return recipe.methods.some(method => getMethodProgress(method.type, method.required) >= 100);
-  });
-
-  // Get in-progress recipes (top 3)
-  const inProgressRecipes = EARNABLE_RECIPES.filter(recipe => {
-    if (engagement.isRecipeUnlocked(recipe.recipeId)) return false;
-    const maxProgress = Math.max(...recipe.methods.map(m => getMethodProgress(m.type, m.required)));
-    return maxProgress > 0 && maxProgress < 100;
-  }).sort((a, b) => {
-    const aProgress = Math.max(...a.methods.map(m => getMethodProgress(m.type, m.required)));
-    const bProgress = Math.max(...b.methods.map(m => getMethodProgress(m.type, m.required)));
-    return bProgress - aProgress;
-  }).slice(0, 3);
-
   return (
     <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-      {/* Recipe Unlocks Section */}
-      {(unlockableRecipes.length > 0 || inProgressRecipes.length > 0) && (
-        <View style={styles.section}>
-          <Heading level={2} style={styles.sectionTitle}>Recipe Unlocks</Heading>
-          <Text style={styles.sectionSubtitle}>
-            Earn new cocktails through engagement
-          </Text>
-
-          {/* Unlockable Recipes */}
-          {unlockableRecipes.map(recipe => {
-            const bestMethod = recipe.methods.reduce((best, method) => {
-              const progress = getMethodProgress(method.type, method.required);
-              return progress > best.progress ? { method, progress } : best;
-            }, { method: recipe.methods[0], progress: 0 });
-
-            return (
-              <Pressable
-                key={recipe.recipeId}
-                style={[styles.challengeCard, styles.challengeCardCompleted]}
-                onPress={() => handleRecipeUnlock(recipe.recipeId, recipe.recipeName)}
-              >
-                <View style={styles.challengeContent}>
-                  <View style={styles.challengeHeader}>
-                    <Heading level={3} style={[styles.challengeTitle, styles.completedText]}>
-                      {recipe.recipeName}
-                    </Heading>
-                    <Text style={[styles.challengeDifficulty, styles.completedText]}>
-                      Ready!
-                    </Text>
-                  </View>
-                  <Text style={[styles.challengeDescription, styles.completedText]}>
-                    {bestMethod.method.description}
-                  </Text>
-                  <Text style={[styles.challengeReward, styles.completedText]}>
-                    Tap to unlock
-                  </Text>
-                </View>
-                <View style={styles.challengeStatus}>
-                  <Ionicons name="lock-open" size={24} color={colors.accent} />
-                </View>
-              </Pressable>
-            );
-          })}
-
-          {/* In-Progress Recipes */}
-          {inProgressRecipes.map(recipe => {
-            const bestMethod = recipe.methods.reduce((best, method) => {
-              const progress = getMethodProgress(method.type, method.required);
-              return progress > best.progress ? { method, progress } : best;
-            }, { method: recipe.methods[0], progress: 0 });
-
-            return (
-              <Pressable
-                key={recipe.recipeId}
-                style={styles.challengeCard}
-              >
-                <View style={styles.challengeContent}>
-                  <View style={styles.challengeHeader}>
-                    <Heading level={3} style={styles.challengeTitle}>
-                      {recipe.recipeName}
-                    </Heading>
-                    <Text style={styles.challengeDifficulty}>
-                      {Math.round(bestMethod.progress)}%
-                    </Text>
-                  </View>
-                  <Text style={styles.challengeDescription}>
-                    {bestMethod.method.description}
-                  </Text>
-                  <Text style={styles.challengeReward}>
-                    {recipe.difficulty === 'easy' && '⭐ Easy Unlock'}
-                    {recipe.difficulty === 'medium' && '⭐⭐ Medium Unlock'}
-                    {recipe.difficulty === 'hard' && '⭐⭐⭐ Hard Unlock'}
-                  </Text>
-                </View>
-                <View style={styles.challengeStatus}>
-                  <Ionicons name="lock-closed" size={24} color={colors.subtext} />
-                </View>
-              </Pressable>
-            );
-          })}
-        </View>
-      )}
+      <View style={styles.section}>
+        <Text style={styles.sectionSubtitle}>Challenge completion updates your streak and XP progress.</Text>
+      </View>
 
       {/* Weekly Challenges */}
       {weeklyChallenges.length > 0 && (
@@ -335,15 +236,54 @@ function ChallengesView() {
   );
 }
 
+function ChallengeProgressBar({ progressPercent, color }: { progressPercent: number; color: string }) {
+  const widthAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(widthAnim, {
+      toValue: Math.min(progressPercent, 100),
+      duration: 600,
+      delay: 120,
+      useNativeDriver: false,
+    }).start();
+  }, [progressPercent]);
+
+  return (
+    <View style={styles.progressBarBg}>
+      <Animated.View
+        style={[
+          styles.progressBarFill,
+          {
+            width: widthAnim.interpolate({
+              inputRange: [0, 100],
+              outputRange: ['0%', '100%'],
+            }),
+            backgroundColor: color,
+          },
+        ]}
+      />
+    </View>
+  );
+}
+
 // Challenges 2 - Real Supabase Data with Reward Claiming
 function Challenges2View() {
-  const navigation = useNavigation<NavigationProp>();
+  const { user } = useAuth();
   const { challenges, isLoading, refreshChallenges, claimReward: claimChallengeReward } = useChallenges();
   const { completedLessons } = useUser();
   const { balance: totalXP } = useXPSystem();
   const engagement = useEngagement();
   const [selectedChallenge, setSelectedChallenge] = useState<Challenge | null>(null);
   const [claiming, setClaiming] = useState(false);
+  const [liveStreak, setLiveStreak] = useState(streakService.getCurrentStreak());
+  const [claimedXP, setClaimedXP] = useState<number | null>(null);
+  const toastAnim = useRef(new Animated.Value(-80)).current;
+
+  useEffect(() => {
+    const unsubscribe = streakService.addStreakListener((next) => setLiveStreak(next));
+    setLiveStreak(streakService.getCurrentStreak());
+    return unsubscribe;
+  }, []);
 
   // Group challenges by frequency
   const dailyChallenges = challenges.filter(c => c.frequency === 'daily');
@@ -355,7 +295,7 @@ function Challenges2View() {
     let current = 0;
     switch (type) {
       case 'streak':
-        current = engagement.currentStreak;
+        current = liveStreak;
         break;
       case 'lessons':
         current = completedLessons.length;
@@ -387,49 +327,6 @@ function Challenges2View() {
     return Math.min((current / required) * 100, 100);
   };
 
-  // Handle method press - navigate to appropriate screen
-  const handleMethodPress = (method: any) => {
-    // TODO: Navigate to lessons, challenges, etc. based on method type
-    log.info('Challenges2View', 'Method pressed', { type: method.type });
-  };
-
-  // Handle recipe unlock
-  const handleRecipeUnlock = (recipeId: string) => {
-    engagement.unlockRecipe(recipeId);
-    Alert.alert(
-      'Recipe Unlocked!',
-      `You've unlocked a new cocktail recipe!`,
-      [
-        {
-          text: 'View Recipe',
-          style: 'default',
-          onPress: () => navigation.navigate('CocktailDetail', { cocktailId: recipeId }),
-        },
-        {
-          text: 'Later',
-          style: 'cancel',
-        },
-      ]
-    );
-  };
-
-  // Get unlockable recipes (not yet unlocked, at least one method complete)
-  const unlockableRecipes = EARNABLE_RECIPES.filter(recipe => {
-    if (engagement.isRecipeUnlocked(recipe.recipeId)) return false;
-    return recipe.methods.some(method => getMethodProgress(method.type, method.required) >= 100);
-  });
-
-  // Get in-progress recipes (not yet unlocked, some progress made)
-  const inProgressRecipes = EARNABLE_RECIPES.filter(recipe => {
-    if (engagement.isRecipeUnlocked(recipe.recipeId)) return false;
-    const maxProgress = Math.max(...recipe.methods.map(m => getMethodProgress(m.type, m.required)));
-    return maxProgress > 0 && maxProgress < 100;
-  }).sort((a, b) => {
-    const aProgress = Math.max(...a.methods.map(m => getMethodProgress(m.type, m.required)));
-    const bProgress = Math.max(...b.methods.map(m => getMethodProgress(m.type, m.required)));
-    return bProgress - aProgress; // Highest progress first
-  });
-
   const handleClaimReward = async () => {
     if (!selectedChallenge) return;
 
@@ -438,12 +335,16 @@ function Challenges2View() {
       const reward = await claimChallengeReward(selectedChallenge.id);
 
       if (reward) {
+        await streakService.recordActivity('challenge_completed', user?.id);
+        setLiveStreak(streakService.getCurrentStreak());
         log.info('Challenges2View', 'Reward claimed successfully', { challengeId: selectedChallenge.id });
-        Alert.alert(
-          'Reward Claimed!',
-          `You received ${reward.xp} XP!`,
-          [{ text: 'Awesome!', onPress: () => setSelectedChallenge(null) }]
-        );
+        setSelectedChallenge(null);
+        setClaimedXP(reward.xp);
+        Animated.sequence([
+          Animated.spring(toastAnim, { toValue: 0, tension: 100, friction: 8, useNativeDriver: true }),
+          Animated.delay(2200),
+          Animated.timing(toastAnim, { toValue: -80, duration: 300, useNativeDriver: true }),
+        ]).start(() => setClaimedXP(null));
         await refreshChallenges();
       } else {
         Alert.alert('Error', 'Failed to claim reward. Please try again.');
@@ -478,9 +379,7 @@ function Challenges2View() {
 
           {/* Progress bar */}
           <View style={styles.progressContainer}>
-            <View style={styles.progressBarBg}>
-              <View style={[styles.progressBarFill, { width: `${Math.min(progressPercent, 100)}%`, backgroundColor: challenge.color }]} />
-            </View>
+            <ChallengeProgressBar progressPercent={progressPercent} color={challenge.color} />
             <Text style={styles.progressText}>
               {challenge.currentProgress || 0}/{challenge.requirementCount}
             </Text>
@@ -527,57 +426,9 @@ function Challenges2View() {
   return (
     <>
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Recipe Unlocks Section */}
-        {(unlockableRecipes.length > 0 || inProgressRecipes.length > 0) && (
-          <View style={styles.section}>
-            <View style={styles.sectionHeaderRow}>
-              <View>
-                <Heading level={2} style={styles.sectionTitle}>🍸 Recipe Unlocks</Heading>
-                <Text style={styles.sectionSubtitle}>
-                  Earn new cocktails through engagement
-                </Text>
-              </View>
-              <View style={styles.frequencyBadge}>
-                <Ionicons name="restaurant" size={18} color={colors.gold} />
-              </View>
-            </View>
-
-            {/* Unlockable Recipes (Ready to claim!) */}
-            {unlockableRecipes.map(recipe => {
-              const currentProgress: { [key: string]: number } = {};
-              recipe.methods.forEach(method => {
-                currentProgress[method.type] = getMethodProgress(method.type, method.required);
-              });
-
-              return (
-                <RecipeUnlockCard
-                  key={recipe.recipeId}
-                  recipe={recipe}
-                  currentProgress={currentProgress}
-                  onMethodPress={handleMethodPress}
-                  onUnlock={() => handleRecipeUnlock(recipe.recipeId)}
-                />
-              );
-            })}
-
-            {/* In-Progress Recipes (Show top 3) */}
-            {inProgressRecipes.slice(0, 3).map(recipe => {
-              const currentProgress: { [key: string]: number } = {};
-              recipe.methods.forEach(method => {
-                currentProgress[method.type] = getMethodProgress(method.type, method.required);
-              });
-
-              return (
-                <RecipeUnlockCard
-                  key={recipe.recipeId}
-                  recipe={recipe}
-                  currentProgress={currentProgress}
-                  onMethodPress={handleMethodPress}
-                />
-              );
-            })}
-          </View>
-        )}
+        <View style={styles.section}>
+          <Text style={styles.sectionSubtitle}>Challenge completion updates your streak and XP progress.</Text>
+        </View>
 
         {/* Daily section */}
         {dailyChallenges.length > 0 && (
@@ -636,6 +487,18 @@ function Challenges2View() {
         )}
       </ScrollView>
 
+      {/* XP Celebration Toast */}
+      {claimedXP !== null && (
+        <Animated.View
+          pointerEvents="none"
+          style={[styles.celebrationToast, { transform: [{ translateY: toastAnim }] }]}
+        >
+          <MaterialCommunityIcons name="star-four-points" size={20} color={colors.gold} />
+          <Text style={styles.celebrationToastText}>+{claimedXP} XP Claimed!</Text>
+          <Ionicons name="checkmark-circle" size={20} color={colors.success} />
+        </Animated.View>
+      )}
+
       {/* Reward Claim Modal */}
       <RewardClaimModal
         visible={!!selectedChallenge}
@@ -656,13 +519,10 @@ function Challenges2View() {
 function LessonsView() {
   const navigation = useNavigation<NavigationProp>();
   const { lives, completedLessons, checkLifeRefresh } = useUser();
-  const { balance: xpBalance } = useXPSystem();
   const { gateWithTrigger: masteryGate } = useFeatureAccess('mastery_lessons');
   const [modules, setModules] = useState<any[]>([]);
   const [selectedModule, setSelectedModule] = useState<any | null>(null);
   const [moduleLessons, setModuleLessons] = useState<any[]>([]);
-  const [xpBalanceModalVisible, setXpBalanceModalVisible] = useState(false);
-  const streak = streakService.getCurrentStreak();
 
   useEffect(() => {
     // Check for life refresh on screen load
@@ -694,19 +554,6 @@ function LessonsView() {
     setSelectedModule(null);
     setModuleLessons([]);
   };
-
-  const handleHeartsPress = () => {
-    // Navigate to vault
-    log.nav('LessonsScreen', 'Vault');
-    navigation.navigate('Vault');
-  };
-
-  const handleProfilePress = () => {
-    // Navigate to profile tab
-    log.nav('LessonsScreen', 'Profile', {});
-    navigation.navigate('Profile');
-  };
-
 
   const handleLessonPress = (lesson: any) => {
     masteryGate('T10', () => {
@@ -784,7 +631,7 @@ function LessonsView() {
       subtitleStyle = styles.subtitleCompleted;
     } else if (isNext) {
       statusText = outOfLives ? 'Out of Lives' : 'In Progress';
-      subtitleStyle = outOfLives ? { color: '#FF6B6B', opacity: 0.8 } : styles.subtitleNext;
+      subtitleStyle = outOfLives ? { color: colors.error, opacity: 0.8 } : styles.subtitleNext;
     }
 
     return (
@@ -796,7 +643,7 @@ function LessonsView() {
             isCompleted && styles.nodeCompleted,
             isNext && styles.nodeNext,
             isLocked && styles.nodeLocked,
-            (isNext && outOfLives) && { borderColor: '#FF6B6B' }
+            (isNext && outOfLives) && { borderColor: colors.error }
           ]}>
             {isCompleted && <MaterialCommunityIcons name="check" size={16} color="#FFF" />}
             {isNext && !outOfLives && <MaterialCommunityIcons name="star-outline" size={16} color="#FFF" />}
@@ -832,46 +679,6 @@ function LessonsView() {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerContent}>
-          <View style={styles.statsRow}>
-            {/* XP Balance - Interactive */}
-            <Pressable
-              style={styles.statItem}
-              onPress={() => setXpBalanceModalVisible(true)}
-              accessible={true}
-              accessibilityRole="button"
-              accessibilityLabel={`XP Balance: ${xpBalance}`}
-            >
-              <Text style={styles.statValue}>{xpBalance}</Text>
-              <Text style={styles.statLabel}>XP</Text>
-            </Pressable>
-
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>{streak}</Text>
-              <Text style={styles.statLabel}>Streak</Text>
-            </View>
-
-            <Pressable style={styles.heartsContainer} onPress={handleHeartsPress}>
-              <MaterialCommunityIcons name="heart" size={20} color="#FF6B6B" />
-              <Text style={styles.heartsText}>{lives}</Text>
-            </Pressable>
-
-            <Pressable
-              style={styles.vaultIconButton}
-              onPress={() => {
-                log.nav('LessonsScreen', 'Vault', {});
-                navigation.navigate('Vault');
-              }}
-            >
-              <MaterialCommunityIcons name="treasure-chest" size={24} color={colors.gold} />
-            </Pressable>
-          </View>
-
-        </View>
-      </View>
-
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {!selectedModule ? (
           /* Show Chapters */
@@ -898,12 +705,6 @@ function LessonsView() {
           </View>
         )}
       </ScrollView>
-
-      {/* XP Balance Modal */}
-      <XPBalanceModal
-        visible={xpBalanceModalVisible}
-        onClose={() => setXpBalanceModalVisible(false)}
-      />
     </SafeAreaView>
   );
 }
@@ -911,8 +712,11 @@ function LessonsView() {
 export default function LessonsScreen() {
   const layout = useWindowDimensions();
   const { lives } = useUser();
+  const { balance: xpBalance } = useXPSystem();
   const navigation = useNavigation<NavigationProp>();
   const { showTooltip, dismissTooltip } = useFeatureTooltip('lessons');
+  const [liveStreak, setLiveStreak] = useState(streakService.getCurrentStreak());
+  const [xpBalanceModalVisible, setXpBalanceModalVisible] = useState(false);
 
   const [index, setIndex] = useState(0);
   const [routes] = useState([
@@ -920,62 +724,106 @@ export default function LessonsScreen() {
     { key: 'challenges', title: 'Challenges' },
   ]);
 
-  const handleHeartsPress = () => {
-    log.nav('LessonsScreen', 'Vault');
-    navigation.navigate('Vault');
+  useEffect(() => {
+    const unsubscribe = streakService.addStreakListener((next) => setLiveStreak(next));
+    setLiveStreak(streakService.getCurrentStreak());
+    return unsubscribe;
+  }, []);
+
+  const handleLivesPress = () => {
+    Alert.alert(
+      'Lives',
+      `You currently have ${lives} ${lives === 1 ? 'life' : 'lives'}.`,
+      [{ text: 'OK' }]
+    );
   };
-
-  const renderScene = SceneMap({
-    lessons: LessonsView,
-    challenges: ChallengesView,
-  });
-
-  const renderTabBar = (props: any) => (
-    <TabBar
-      {...props}
-      indicatorStyle={{
-        backgroundColor: colors.gold,
-        borderRadius: 999,
-        borderWidth: 1,
-        borderColor: colors.gold,
-        marginVertical: 4,
-        marginHorizontal: 4,
-      }}
-      style={{
-        backgroundColor: 'transparent',
-        marginHorizontal: spacing(2.5),
-        marginTop: spacing(1),
-        borderRadius: radii.pill,
-        borderWidth: 1,
-        borderColor: colors.line,
-      }}
-      tabStyle={{
-        minHeight: 40,
-      }}
-      labelStyle={{
-        fontWeight: '700',
-        fontSize: 13,
-      }}
-      activeColor={colors.goldText}
-      inactiveColor={colors.textMuted}
-    />
-  );
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Shared Header */}
-      <View style={styles.header}>
-        <View style={styles.headerContent}>
-        </View>
+      <MainPageHeader
+        title="Lessons"
+        leftContent={
+          <View style={styles.headerMetrics}>
+            <Pressable
+              style={styles.headerMetric}
+              onPress={() => setXpBalanceModalVisible(true)}
+              accessibilityRole="button"
+              accessibilityLabel={`XP balance ${xpBalance}`}
+            >
+              <Text style={styles.headerMetricValue}>{xpBalance}</Text>
+              <Text style={styles.headerMetricLabel}>XP</Text>
+            </Pressable>
+            <View style={styles.headerMetric}>
+              <Text style={styles.headerMetricValue}>{liveStreak}</Text>
+              <Text style={styles.headerMetricLabel}>Streak</Text>
+            </View>
+          </View>
+        }
+        rightContent={
+          <View style={styles.headerIcons}>
+            <Pressable
+              style={styles.headerIconButton}
+              onPress={handleLivesPress}
+              accessibilityRole="button"
+              accessibilityLabel={`Lives ${lives}`}
+            >
+              <MaterialCommunityIcons name="heart" size={18} color="#FF6B6B" />
+              <Text style={styles.headerIconText}>{lives}</Text>
+            </Pressable>
+            <Pressable
+              style={styles.headerIconButton}
+              onPress={() => {
+                log.nav('LessonsScreen', 'Vault', {});
+                navigation.navigate('Vault');
+              }}
+              accessibilityRole="button"
+              accessibilityLabel="Open vault"
+            >
+              <MaterialCommunityIcons name="treasure-chest" size={18} color={colors.gold} />
+            </Pressable>
+          </View>
+        }
+      />
+
+      <View style={styles.segmentedTabs}>
+        <Pressable
+          onPress={() => setIndex(0)}
+          style={[
+            styles.segmentedTabButton,
+            index === 0 && styles.segmentedTabButtonActive,
+          ]}
+        >
+          <Text style={[
+            styles.segmentedTabText,
+            index === 0 && styles.segmentedTabTextActive,
+          ]}>
+            Lessons
+          </Text>
+        </Pressable>
+        <Pressable
+          onPress={() => setIndex(1)}
+          style={[
+            styles.segmentedTabButton,
+            index === 1 && styles.segmentedTabButtonActive,
+          ]}
+        >
+          <Text style={[
+            styles.segmentedTabText,
+            index === 1 && styles.segmentedTabTextActive,
+          ]}>
+            Challenges
+          </Text>
+        </Pressable>
       </View>
 
       {/* Tab View */}
       <TabView
+        lazy
         navigationState={{ index, routes }}
         renderScene={renderScene}
         onIndexChange={setIndex}
         initialLayout={{ width: layout.width }}
-        renderTabBar={renderTabBar}
+        renderTabBar={() => null}
       />
 
       {/* Educational Tooltip Overlay */}
@@ -1002,6 +850,11 @@ export default function LessonsScreen() {
           },
         ]}
       />
+
+      <XPBalanceModal
+        visible={xpBalanceModalVisible}
+        onClose={() => setXpBalanceModalVisible(false)}
+      />
     </SafeAreaView>
   );
 };
@@ -1013,17 +866,78 @@ const styles = StyleSheet.create({
   },
 
   // Header
-  header: {
-    paddingHorizontal: spacing(2.5),
-    paddingVertical: spacing(2),
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.06)',
-    backgroundColor: colors.bg,
-  },
-
-  headerContent: {
+  headerMetrics: {
+    flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing(2),
+    gap: spacing(1.25),
+  },
+  headerMetric: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 44,
+  },
+  headerMetricValue: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: colors.text,
+    lineHeight: 18,
+  },
+  headerMetricLabel: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: colors.subtext,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+    lineHeight: 12,
+  },
+  headerIcons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(1),
+  },
+  headerIconButton: {
+    minWidth: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.card,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing(1),
+    gap: spacing(0.5),
+  },
+  headerIconText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  segmentedTabs: {
+    marginHorizontal: spacing(2),
+    marginTop: spacing(2),
+    marginBottom: spacing(1.5),
+    flexDirection: 'row',
+    backgroundColor: colors.card,
+    borderRadius: radii.lg,
+    padding: 4,
+  },
+  segmentedTabButton: {
+    flex: 1,
+    paddingVertical: spacing(1),
+    borderRadius: radii.md,
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+  },
+  segmentedTabButtonActive: {
+    backgroundColor: colors.accent,
+  },
+  segmentedTabText: {
+    color: colors.muted,
+    fontWeight: '600',
+    fontSize: 15,
+  },
+  segmentedTabTextActive: {
+    color: colors.bg,
+    fontWeight: '700',
   },
 
   levelContainer: {
@@ -1036,54 +950,6 @@ const styles = StyleSheet.create({
     color: colors.text,
     letterSpacing: 0.5,
     fontFamily: getSerifFont(),
-  },
-
-  statsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing(3),
-  },
-
-  statItem: {
-    alignItems: 'center',
-    minWidth: 50,
-  },
-
-  statValue: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: colors.text,
-    marginBottom: spacing(0.25),
-  },
-
-  statLabel: {
-    fontSize: 12,
-    color: colors.subtext,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-
-  heartsContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 107, 107, 0.15)',
-    paddingHorizontal: spacing(2),
-    paddingVertical: spacing(1),
-    borderRadius: radii.lg,
-    gap: spacing(0.75),
-  },
-
-  heartsText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#FF6B6B',
-  },
-  vaultIconButton: {
-    backgroundColor: 'rgba(212, 175, 55, 0.15)',
-    paddingHorizontal: spacing(1.5),
-    paddingVertical: spacing(1),
-    borderRadius: radii.lg,
   },
 
   // Content
@@ -1279,13 +1145,13 @@ const styles = StyleSheet.create({
   },
 
   outOfLivesText: {
-    color: '#FF6B6B',
+    color: colors.error,
     opacity: 0.7,
   },
 
   outOfLivesMessage: {
     fontSize: 11,
-    color: '#FF6B6B',
+    color: colors.error,
     fontStyle: 'italic',
     marginTop: spacing(0.5),
     opacity: 0.8,
@@ -1297,7 +1163,7 @@ const styles = StyleSheet.create({
   },
 
   typeTextDisabled: {
-    color: '#FF6B6B',
+    color: colors.error,
     opacity: 0.7,
   },
 
@@ -1517,6 +1383,37 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingVertical: spacing(4),
+  },
+
+  celebrationToast: {
+    position: 'absolute',
+    top: 0,
+    left: spacing(3),
+    right: spacing(3),
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing(1.5),
+    backgroundColor: colors.card,
+    borderRadius: radii.pill,
+    paddingVertical: spacing(1.75),
+    paddingHorizontal: spacing(3),
+    borderWidth: 1,
+    borderColor: colors.gold + '50',
+    shadowColor: colors.gold,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    elevation: 8,
+    zIndex: 9999,
+  },
+
+  celebrationToastText: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: colors.gold,
+    flex: 1,
+    textAlign: 'center',
   },
 
   // Timeline Styles

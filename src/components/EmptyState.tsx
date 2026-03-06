@@ -31,7 +31,7 @@ export default function EmptyState({
       </View>
 
       <Text style={styles.title}>{title}</Text>
-      <Text style={styles.message}>{message}</Text>
+      {message ? <Text style={styles.message}>{message}</Text> : null}
 
       {actionLabel && onAction && (
         <TouchableOpacity

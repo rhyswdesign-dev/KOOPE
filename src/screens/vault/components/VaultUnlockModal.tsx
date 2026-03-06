@@ -3,7 +3,7 @@
  * Handles XP unlock transactions with XP-as-discount options
  */
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import {
   ScrollView,
   Alert,
   Image,
+  Animated,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { colors, spacing, radii } from '../../../theme/tokens';
@@ -27,15 +28,35 @@ interface VaultUnlockModalProps {
   onClose: () => void;
 }
 
-export default function VaultUnlockModal({ 
-  visible, 
-  item, 
-  userProfile, 
-  onClose 
+export default function VaultUnlockModal({
+  visible,
+  item,
+  userProfile,
+  onClose
 }: VaultUnlockModalProps) {
   const { unlockVaultItem } = useVault();
   const [useDiscountOption, setUseDiscountOption] = useState(false);
   const [isUnlocking, setIsUnlocking] = useState(false);
+  const [unlockSuccess, setUnlockSuccess] = useState(false);
+  const celebrateScale = useRef(new Animated.Value(0.6)).current;
+  const celebrateOpacity = useRef(new Animated.Value(0)).current;
+  const spinAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (isUnlocking) {
+      const spin = Animated.loop(
+        Animated.timing(spinAnim, {
+          toValue: 1,
+          duration: 700,
+          useNativeDriver: true,
+        })
+      );
+      spin.start();
+      return () => spin.stop();
+    } else {
+      spinAnim.setValue(0);
+    }
+  }, [isUnlocking]);
 
   if (!item) return null;
 
@@ -77,11 +98,13 @@ export default function VaultUnlockModal({
       });
 
       if (success) {
-        Alert.alert(
-          '🎉 Unlocked!',
-          `${item.name} has been unlocked! ${item.type === 'physical' ? 'We\'ll send you tracking information once it ships.' : ''}`,
-          [{ text: 'Awesome!', onPress: onClose }]
-        );
+        setUnlockSuccess(true);
+        celebrateScale.setValue(0.6);
+        celebrateOpacity.setValue(0);
+        Animated.parallel([
+          Animated.spring(celebrateScale, { toValue: 1, tension: 120, friction: 7, useNativeDriver: true }),
+          Animated.timing(celebrateOpacity, { toValue: 1, duration: 200, useNativeDriver: true }),
+        ]).start();
       } else {
         Alert.alert('Unlock Failed', 'Please try again or contact support.');
       }
@@ -97,8 +120,8 @@ export default function VaultUnlockModal({
       case 'common': return colors.subtext;
       case 'limited': return colors.accent;
       case 'rare': return colors.gold;
-      case 'prestige': return '#9C27B0';
-      case 'mystery': return '#FF6B6B';
+      case 'prestige': return colors.rarityPrestige;
+      case 'mystery': return colors.rarityMystery;
       default: return colors.subtext;
     }
   };
@@ -115,8 +138,32 @@ export default function VaultUnlockModal({
   };
 
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
+    <Modal
+      visible={visible}
+      animationType="slide"
+      presentationStyle="pageSheet"
+      onDismiss={() => setUnlockSuccess(false)}
+    >
       <View style={styles.container}>
+        {/* Success Celebration */}
+        {unlockSuccess && (
+          <View style={styles.celebrationOverlay}>
+            <Animated.View style={[styles.celebrationContent, { opacity: celebrateOpacity, transform: [{ scale: celebrateScale }] }]}>
+              <View style={styles.celebrationIconRing}>
+                <Ionicons name="checkmark-circle" size={72} color={colors.accent} />
+              </View>
+              <Text style={styles.celebrationTitle}>Unlocked!</Text>
+              <Text style={styles.celebrationSubtitle}>{item.name}</Text>
+              {item.type === 'physical' && (
+                <Text style={styles.celebrationNote}>Tracking info will be sent once shipped.</Text>
+              )}
+              <TouchableOpacity style={styles.celebrationButton} onPress={() => { setUnlockSuccess(false); onClose(); }}>
+                <Text style={styles.celebrationButtonText}>Awesome!</Text>
+              </TouchableOpacity>
+            </Animated.View>
+          </View>
+        )}
+
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.headerLeft}>
@@ -305,11 +352,13 @@ export default function VaultUnlockModal({
               disabled={isUnlocking}
               activeOpacity={0.8}
             >
-              <MaterialCommunityIcons 
-                name={isUnlocking ? "loading" : "lock-open"} 
-                size={20} 
-                color={colors.white} 
-              />
+              {isUnlocking ? (
+                <Animated.View style={{ transform: [{ rotate: spinAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] }) }] }}>
+                  <Ionicons name="reload-outline" size={20} color={colors.white} />
+                </Animated.View>
+              ) : (
+                <Ionicons name="lock-open-outline" size={20} color={colors.white} />
+              )}
               <Text style={styles.unlockButtonText}>
                 {isUnlocking ? 'Unlocking...' : 'Unlock Item'}
               </Text>
@@ -411,7 +460,7 @@ const styles = StyleSheet.create({
   },
   urgencyText: {
     fontSize: 13,
-    color: '#FF6B6B',
+    color: colors.error,
     fontWeight: '700',
   },
   
@@ -547,7 +596,7 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   insufficientText: {
-    color: '#FF6B6B',
+    color: colors.error,
   },
   savingsText: {
     fontSize: 13,
@@ -601,8 +650,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.accent,
-    borderRadius: radii.md,
-    paddingVertical: spacing(2.5),
+    borderRadius: radii.pill,
+    paddingVertical: spacing(1.75),
+    height: 48,
     gap: spacing(2),
     marginBottom: spacing(2),
   },
@@ -619,5 +669,66 @@ const styles = StyleSheet.create({
     color: colors.subtext,
     textAlign: 'center',
     lineHeight: 18,
+  },
+
+  celebrationOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: colors.bg,
+    zIndex: 9999,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing(4),
+  },
+  celebrationContent: {
+    alignItems: 'center',
+    gap: spacing(2),
+  },
+  celebrationIconRing: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: colors.accent + '18',
+    borderWidth: 2,
+    borderColor: colors.accent + '40',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing(1),
+  },
+  celebrationTitle: {
+    fontSize: 36,
+    fontWeight: '900',
+    color: colors.text,
+    letterSpacing: -0.5,
+  },
+  celebrationSubtitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.accent,
+    textAlign: 'center',
+  },
+  celebrationNote: {
+    fontSize: 14,
+    color: colors.subtext,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  celebrationButton: {
+    marginTop: spacing(2),
+    backgroundColor: colors.accent,
+    borderRadius: radii.pill,
+    paddingVertical: spacing(1.75),
+    paddingHorizontal: spacing(5),
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  celebrationButtonText: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: colors.white,
   },
 });

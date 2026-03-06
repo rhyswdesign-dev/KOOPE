@@ -100,6 +100,8 @@ export const COCKTAIL_IMAGES: Record<string, any> = {
   // Tier 3: Variations & Specialty
   'oaxaca-old-fashioned': require('./cocktails/Oaxaca Old Fashioned.png'),
   'new-york-sour': require('./cocktails/New York Sour.png'),
+  'new_york_sour': require('./cocktails/New York Sour.png'),
+  'new-york-sour-variation': require('./cocktails/New York Sour.png'),
   'margarita-frozen': require('./cocktails/Frozen Margarita.png'),
   'tommy-margarita': require("./cocktails/Tommy’s Margarita.png"),
   'french-martini': require('./cocktails/French Martini.png'),
@@ -125,6 +127,14 @@ export const COCKTAIL_IMAGES: Record<string, any> = {
   'ranch-water': require('./cocktails/Ranch Water.png'),
   'revolver': require('./cocktails/Revolver.png'),
   'white-lady': require('./cocktails/White Lady.png'),
+  // Party shots (local image overrides for recipe cards + headers)
+  'lemon-drop-shot': require('./cocktails/Lemon Drop Shot.png'),
+  'washington-apple': require('./cocktails/Washington Apple.png'),
+  'buttery-nipple': require('./cocktails/Buttery Nipple.png'),
+  'green-tea-shot': require('./cocktails/Green Tea Shot.png'),
+  'pickleback': require('./cocktails/Pickleback.png'),
+  'jolly-rancher-shot': require('./cocktails/Jolly Rancher.png'),
+  'pineapple-upside-down-cake': require('./cocktails/Pineapple Upside Down.png'),
 
   // Tier 4: Syrups & Less Common
   'grenadine': require('./cocktails/Grenadine.png'),
@@ -148,7 +158,6 @@ export const COCKTAIL_IMAGES: Record<string, any> = {
 
   // NEW: Syrups (Nov 19, 2025)
   'simple-syrup': require('./cocktails/Simple Syrup.png'),
-  'demerara-syrup': require('./cocktails/Demerara Syrup.png'),
   'cinnamon-syrup': require('./cocktails/Cinnamon Syrup.png'),
   'ginger-syrup': require('./cocktails/Ginger Syrup.png'),
   'vanilla-syrup': require('./cocktails/Vanilla Syrup.png'),

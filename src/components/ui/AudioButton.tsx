@@ -8,6 +8,7 @@ import { Pressable, Text, StyleSheet, ViewStyle, TextStyle, View } from 'react-n
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, radii } from '../../theme/tokens';
 import { useAudio } from '../../hooks/useAudio';
+import { triggerHaptic } from '../../lib/haptics';
 
 interface AudioButtonProps {
   title: string;
@@ -50,7 +51,7 @@ export const AudioButton: React.FC<AudioButtonProps> = ({
 
     // Haptic feedback (on supported devices)
     if (hapticFeedback) {
-      // Note: Could integrate expo-haptics here for physical feedback
+      triggerHaptic('light');
     }
 
     // Execute the actual onPress function
@@ -62,7 +63,7 @@ export const AudioButton: React.FC<AudioButtonProps> = ({
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
-      borderRadius: radii.medium,
+      borderRadius: radii.md,
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 2 },
       shadowOpacity: 0.1,

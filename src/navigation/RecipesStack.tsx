@@ -16,9 +16,10 @@ export default function RecipesStack() {
         animation: 'slide_from_right',
         animationDuration: 200,
         headerBackButtonDisplayMode: 'minimal',
+        headerShown: false,
       }}
     >
-      <Stack.Screen name="RecipesMain" component={RecipesMainWithTour} options={{ headerShown: true }} />
+      <Stack.Screen name="RecipesMain" component={RecipesMainWithTour} />
     </Stack.Navigator>
   );
 }

@@ -13,16 +13,13 @@ export default function ProfileStack() {
   return (
     <Stack.Navigator
       screenOptions={{
-        headerShown: true,
-        headerStyle: { backgroundColor: '#1A0F0B' },
-        headerTintColor: '#FFFFFF',
-        headerTitleStyle: { color: '#FFFFFF', fontWeight: '900' },
+        headerShown: false,
         headerBackButtonDisplayMode: 'minimal',
         animation: 'slide_from_right',
         animationDuration: 200,
       }}
     >
-      <Stack.Screen name="ProfileMain" component={ProfileMainWithTour} options={{ title: 'Profile' }} />
+      <Stack.Screen name="ProfileMain" component={ProfileMainWithTour} />
     </Stack.Navigator>
   );
 }

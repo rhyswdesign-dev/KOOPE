@@ -14,6 +14,7 @@ import {
   ScrollView,
   Image,
   Dimensions,
+  ImageSourcePropType,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { colors, spacing, radii } from '../../../theme/tokens';
@@ -35,7 +36,7 @@ interface VaultItemPreviewModalProps {
   item: {
     title: string;
     description: string;
-    imageUrl: string;
+    imageSource: ImageSourcePropType;
     category: string;
     xpCost?: number;
     requiredTier?: 'FREE' | 'PLUS' | 'PRO';
@@ -62,7 +63,7 @@ export default function VaultItemPreviewModal({
     title: item.title,
     description: item.description,
     benefits: item.benefits?.length,
-    imageUrl: item.imageUrl,
+    imageSource: item.imageSource,
   });
 
   const canAfford = item.xpCost ? userXP >= item.xpCost : true;
@@ -100,7 +101,7 @@ export default function VaultItemPreviewModal({
             {/* Hero Image */}
             <View style={styles.heroContainer}>
               <Image
-                source={{ uri: item.imageUrl }}
+                source={item.imageSource}
                 style={styles.heroImage}
                 resizeMode="cover"
               />
@@ -473,7 +474,7 @@ const styles = StyleSheet.create({
   warningText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#FF6B6B',
+    color: colors.error,
   },
   actionsContainer: {
     flexDirection: 'row',

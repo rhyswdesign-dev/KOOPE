@@ -71,6 +71,21 @@ export const colors = {
   // Avatar/Profile
   avatar: '#2A241F', // avatar background
 
+  // Rarity (Vault items)
+  rarityCommon: '#C7B8A5',
+  rarityLimited: '#D68A38',
+  rarityRare: '#E89C40',
+  rarityPrestige: '#7C3AED',   // deep violet
+  rarityMystery: '#E86B3A',    // ember orange
+
+  // Status backgrounds
+  successBg: 'rgba(76, 175, 80, 0.12)',
+  successBorder: 'rgba(76, 175, 80, 0.28)',
+  warningBg: 'rgba(255, 152, 0, 0.12)',
+  warningBorder: 'rgba(255, 152, 0, 0.28)',
+  errorBg: 'rgba(244, 67, 54, 0.12)',
+  errorBorder: 'rgba(244, 67, 54, 0.28)',
+
   // Tier Colors
   tierGold: '#FFD700',
   tierSilver: '#C0C0C0',
@@ -320,6 +335,24 @@ export const layouts = {
     justifyContent: 'center' as const,
     alignItems: 'center' as const,
   },
+};
+
+// Icon size scale — use these instead of raw numbers
+export const iconSizes = {
+  xs: 14,  // decorative / inline
+  sm: 18,  // header action buttons
+  md: 22,  // navigation / back arrows
+  lg: 28,  // feature icons (tour, vault)
+  xl: 36,  // hero icons
+};
+
+// Animation durations (ms) — use for consistent motion timing
+export const durations = {
+  instant: 150,      // micro-feedback (button press)
+  fast: 250,         // progress bars, quick transitions
+  normal: 380,       // modal transitions, slide-ins
+  slow: 600,         // progress fill animations, counters
+  celebration: 2800, // unlock / challenge completion moments
 };
 
 // Global Component Styles

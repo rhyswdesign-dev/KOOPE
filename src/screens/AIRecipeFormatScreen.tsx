@@ -8,6 +8,7 @@ import {
   StyleSheet,
   Alert,
   ActivityIndicator,
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -16,11 +17,17 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, radii, fonts } from '../theme/tokens';
 import { AIRecipeFormatter, FormattedRecipe, RecipeInput } from '../services/aiRecipeFormatter';
 import VideoRecipeAnalyzer from '../services/videoRecipeAnalyzer';
-import { RecipeIntelligenceService, RecipeIntelligence } from '../services/recipeIntelligenceService';
 import { recipeService } from '../lib/supabaseData';
 import { useAuth } from '../contexts/AuthContext';
 import { log } from '../lib/logger';
 import InPageTabBar from '../components/ui/InPageTabBar';
+import RatioBalanceEditor from '../components/ratio/RatioBalanceEditor';
+import {
+  applyRatioProfileToIngredients,
+  maybeApplyEstimatedRatios,
+  RatioEditorState,
+  RatioProfile,
+} from '../utils/ratioEngine';
 
 export default function AIRecipeFormatScreen() {
   const nav = useNavigation<NativeStackNavigationProp<any>>();
@@ -52,9 +59,7 @@ export default function AIRecipeFormatScreen() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [formattedRecipe, setFormattedRecipe] = useState<FormattedRecipe | null>(null);
-  const [recipeIntelligence, setRecipeIntelligence] = useState<RecipeIntelligence | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [showIntelligence, setShowIntelligence] = useState(false);
   const [activeTab, setActiveTab] = useState<'ai' | 'manual'>(startWithManual ? 'manual' : 'ai');
   const [manualRecipe, setManualRecipe] = useState<FormattedRecipe>({
     title: '',
@@ -69,6 +74,15 @@ export default function AIRecipeFormatScreen() {
     servings: 1,
     tags: []
   });
+  const [ratioProfile, setRatioProfile] = useState<RatioProfile | null>(null);
+  const [ratioEstimated, setRatioEstimated] = useState(false);
+  const [ratioEditorState, setRatioEditorState] = useState<RatioEditorState>({
+    spirit: 50,
+    sweet: 50,
+    acid: 50,
+    dilution: 50,
+  });
+  const [showRatioEditor, setShowRatioEditor] = useState(false);
   // Removed recipe type selection - AI will auto-detect
 
   useLayoutEffect(() => {
@@ -147,12 +161,10 @@ export default function AIRecipeFormatScreen() {
   };
 
   const formatRecipeWithAI = async () => {
+    const urlToProcess = recipe?.sourceUrl || recipeUrl;
     try {
       setLoading(true);
       setError(null);
-
-      // Determine the URL to use - either from recipe object or direct URL parameter
-      const urlToProcess = recipe?.sourceUrl || recipeUrl;
 
       if (!urlToProcess) {
         throw new Error('No URL provided for recipe extraction');
@@ -163,9 +175,19 @@ export default function AIRecipeFormatScreen() {
         log.info('AIRecipeFormatScreen', 'Detected video URL, using VideoRecipeAnalyzer', { url: urlToProcess });
         try {
           const result = await VideoRecipeAnalyzer.analyzeVideoFromURL(urlToProcess);
-          setFormattedRecipe(result);
+          const ratioDefaults = maybeApplyEstimatedRatios({
+            title: result.title,
+            ingredients: result.ingredients || [],
+          });
+          setFormattedRecipe({
+            ...result,
+            ingredients: ratioDefaults.nextIngredients,
+          });
+          setRatioProfile(ratioDefaults.ratioProfile);
+          setRatioEstimated(ratioDefaults.ratioEstimated);
+          setRatioEditorState(ratioDefaults.editorState);
           return;
-        } catch (videoError) {
+        } catch (_videoError) {
           log.warn('AIRecipeFormatScreen', 'Video analysis failed, falling back to standard URL extraction', { url: urlToProcess });
           // Fall through to standard processing
         }
@@ -190,17 +212,17 @@ export default function AIRecipeFormatScreen() {
 
       // Format with AI
       const result = await AIRecipeFormatter.formatRecipe(input);
-      setFormattedRecipe(result);
-
-      // Generate recipe intelligence in the background
-      RecipeIntelligenceService.analyzeRecipe(result)
-        .then(intelligence => {
-          setRecipeIntelligence(intelligence);
-        })
-        .catch(error => {
-          log.warn('AIRecipeFormatScreen', 'Recipe intelligence analysis failed', { recipeTitle: result.title });
-          // Don't show error to user, intelligence is optional
-        });
+      const ratioDefaults = maybeApplyEstimatedRatios({
+        title: result.title,
+        ingredients: result.ingredients || [],
+      });
+      setFormattedRecipe({
+        ...result,
+        ingredients: ratioDefaults.nextIngredients,
+      });
+      setRatioProfile(ratioDefaults.ratioProfile);
+      setRatioEstimated(ratioDefaults.ratioEstimated);
+      setRatioEditorState(ratioDefaults.editorState);
 
     } catch (error: any) {
       setError(error.message || 'Failed to format recipe with AI');
@@ -258,11 +280,14 @@ export default function AIRecipeFormatScreen() {
           instructions: recipeToSave.instructions || [],
           category: activeTab === 'ai' ? 'AI Generated' : 'Manual Entry',
           difficulty: 'medium',
-          prep_time: null,
-          cook_time: null,
+          prep_time: undefined,
+          cook_time: undefined,
           servings: recipeToSave.servings || 1,
           image_url: recipe?.imageUrl || null,
           is_favorite: false,
+          ratio_profile: activeTab === 'ai' ? ratioProfile : null,
+          ratio_estimated: activeTab === 'ai' ? ratioEstimated : false,
+          ratio_editor_state: activeTab === 'ai' ? ratioEditorState : null,
         };
 
         log.info('AIRecipeFormatScreen', 'Creating new recipe', { title: recipeData.name, activeTab });
@@ -298,6 +323,9 @@ export default function AIRecipeFormatScreen() {
           instructions: recipeToSave.instructions || [],
           category: activeTab === 'ai' ? 'AI Generated' : 'Manual Entry',
           servings: recipeToSave.servings || 1,
+          ratio_profile: activeTab === 'ai' ? ratioProfile : null,
+          ratio_estimated: activeTab === 'ai' ? ratioEstimated : false,
+          ratio_editor_state: activeTab === 'ai' ? ratioEditorState : null,
         };
 
         log.info('AIRecipeFormatScreen', 'Updating existing recipe', { recipeId: recipe?.id, title: updateData.name, activeTab });
@@ -440,6 +468,19 @@ export default function AIRecipeFormatScreen() {
 
   const currentRecipe = activeTab === 'manual' ? manualRecipe : formattedRecipe;
 
+  const handleApplyRatioBalance = (profile: RatioProfile, editorState: RatioEditorState) => {
+    if (!formattedRecipe) return;
+    const nextIngredients = applyRatioProfileToIngredients(formattedRecipe.ingredients || [], profile);
+    setRatioProfile(profile);
+    setRatioEditorState(editorState);
+    setRatioEstimated(false);
+    setFormattedRecipe({
+      ...formattedRecipe,
+      ingredients: nextIngredients,
+    });
+    setShowRatioEditor(false);
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
@@ -478,6 +519,22 @@ export default function AIRecipeFormatScreen() {
             </View>
           )}
         </View>
+
+        {activeTab === 'ai' && ratioProfile && (
+          <View style={styles.ratioBanner}>
+            <View style={styles.ratioBannerCopy}>
+              <Text style={styles.ratioBannerTitle}>
+                {ratioEstimated ? 'Estimated Ratios Applied' : 'Ratio Profile Ready'}
+              </Text>
+              <Text style={styles.ratioBannerText}>
+                Family: {ratioProfile.family.replace('_', ' ')} • Base unit: oz • Servings: 1
+              </Text>
+            </View>
+            <TouchableOpacity style={styles.ratioButton} onPress={() => setShowRatioEditor(true)}>
+              <Text style={styles.ratioButtonText}>Adjust</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* Recipe Card Container */}
         <View style={styles.recipeCard}>
@@ -702,6 +759,26 @@ export default function AIRecipeFormatScreen() {
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      <Modal
+        visible={showRatioEditor}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowRatioEditor(false)}
+      >
+        <View style={styles.ratioModalBackdrop}>
+          <View style={styles.ratioModalCard}>
+            {ratioProfile ? (
+              <RatioBalanceEditor
+                profile={ratioProfile}
+                initialState={ratioEditorState}
+                onCancel={() => setShowRatioEditor(false)}
+                onSave={handleApplyRatioBalance}
+              />
+            ) : null}
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -900,6 +977,43 @@ const styles = StyleSheet.create({
   },
 
   // Enhanced recipe card styles
+  ratioBanner: {
+    marginBottom: spacing(2.5),
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: radii.md,
+    padding: spacing(1.5),
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing(1),
+  },
+  ratioBannerCopy: {
+    flex: 1,
+  },
+  ratioBannerTitle: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  ratioBannerText: {
+    marginTop: 2,
+    color: colors.subtext,
+    fontSize: 12,
+    textTransform: 'capitalize',
+  },
+  ratioButton: {
+    paddingHorizontal: spacing(1.5),
+    paddingVertical: spacing(0.75),
+    backgroundColor: colors.accent,
+    borderRadius: radii.md,
+  },
+  ratioButtonText: {
+    color: colors.white,
+    fontSize: 12,
+    fontWeight: '700',
+  },
   tagContainer: {
     flexDirection: 'row',
     gap: spacing(1),
@@ -1115,5 +1229,15 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: spacing(1.5),
+  },
+  ratioModalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    justifyContent: 'center',
+    padding: spacing(2),
+  },
+  ratioModalCard: {
+    borderRadius: radii.lg,
+    overflow: 'hidden',
   },
 });

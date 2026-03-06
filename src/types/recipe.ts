@@ -62,6 +62,9 @@ export interface Recipe {
   batchMultiplier?: number; // Default multiplier for batch mode (e.g., 4 for punch bowls)
   batchInstructions?: string[]; // Batch-specific prep steps (differs from single-serve)
   ratios?: RecipeRatio[]; // Structured ratios for scaling and remix engine
+  ratioEstimated?: boolean; // True when amounts were inferred from template defaults
+  ratioProfile?: any; // Stored ratio metadata for balance editing
+  ratioEditorState?: any; // Last slider state from guided balance editor
 
   // Flavor Intelligence (KOOPE+ Taste Match, PRO Taste Graph)
   flavorVector?: FlavorVector; // Numeric intensity per flavor (0-1 scale, computed)

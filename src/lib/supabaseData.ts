@@ -29,6 +29,9 @@ export interface Recipe {
   servings?: number;
   image_url?: string;
   is_favorite?: boolean;
+  ratio_profile?: any;
+  ratio_estimated?: boolean;
+  ratio_editor_state?: any;
   created_at?: string;
   updated_at?: string;
 }
@@ -283,7 +286,7 @@ export const storageService = {
     options?: { contentType?: string; cacheControl?: string }
   ): Promise<string | null> {
     try {
-      const { data, error } = await supabase.storage
+      const { error } = await supabase.storage
         .from(bucket)
         .upload(path, file, options);
 

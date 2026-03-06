@@ -2,6 +2,7 @@ import React, { forwardRef } from 'react';
 import { View, TextInput, StyleSheet, Pressable, TextInputProps } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, radii } from '../../theme/tokens';
+import { withHaptic } from '../../lib/haptics';
 
 interface SearchInputProps extends Omit<TextInputProps, 'style'> {
   onClear?: () => void;
@@ -53,7 +54,7 @@ const SearchInput = forwardRef<TextInput, SearchInputProps>(({
       />
       
       {showClear && (
-        <Pressable onPress={handleClear} hitSlop={8} style={styles.clearButton}>
+        <Pressable onPress={withHaptic(handleClear)} hitSlop={8} style={styles.clearButton}>
           <Ionicons 
             name="close-circle" 
             size={iconSize} 

@@ -5,7 +5,7 @@
 
 import * as FileSystem from 'expo-file-system';
 import { log } from '../lib/logger';
-import { findSpirit, type Spirit } from '../data/spiritsDatabase';
+import { findSpirit, SPIRITS_DATABASE, type Spirit } from '../data/spiritsDatabase';
 
 // You'll need to set this in your environment variables or .env file
 const GOOGLE_CLOUD_VISION_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_VISION_API_KEY || '';
@@ -36,6 +36,10 @@ export interface VisionResult {
 export class GoogleVisionService {
   private static API_ENDPOINT = 'https://vision.googleapis.com/v1/images:annotate';
 
+  static isConfigured(): boolean {
+    return Boolean(GOOGLE_CLOUD_VISION_API_KEY && GOOGLE_CLOUD_VISION_API_KEY.trim().length > 0);
+  }
+
   /**
    * Analyzes an image using Google Cloud Vision API
    * @param imageUri - Local file URI of the image to analyze
@@ -46,9 +50,8 @@ export class GoogleVisionService {
       log.info('GoogleVisionService', 'Starting image analysis', { imageUri });
 
       // Check if API key is configured
-      if (!GOOGLE_CLOUD_VISION_API_KEY) {
-        log.warn('GoogleVisionService', 'API key not configured, using fallback');
-        return this.fallbackAnalysis(imageUri);
+      if (!GoogleVisionService.isConfigured()) {
+        throw new Error('GOOGLE_VISION_NOT_CONFIGURED');
       }
 
       // Convert image to base64
@@ -98,9 +101,7 @@ export class GoogleVisionService {
     } catch (error) {
       log.error('GoogleVisionService', 'Error analyzing image', error);
 
-      // Fall back to mock service if API fails
-      log.info('GoogleVisionService', 'Falling back to mock analysis');
-      return this.fallbackAnalysis(imageUri);
+      throw error;
     }
   }
 
@@ -466,6 +467,7 @@ export class GoogleVisionService {
   static matchBottle(result: VisionResult): Spirit | null {
     const allText = (result.text || []).join(' ').toUpperCase();
     const allLabels = result.labels.join(' ').toLowerCase();
+    const normalizedText = allText.toLowerCase().replace(/[^a-z0-9\s]/g, ' ');
 
     log.info('GoogleVisionService', 'Matching bottle to database', {
       textLength: allText.length,
@@ -473,7 +475,7 @@ export class GoogleVisionService {
     });
 
     // Low confidence check
-    if (result.confidence < 0.4) {
+    if (result.confidence < 0.3) {
       log.warn('GoogleVisionService', 'Confidence too low for bottle matching', {
         confidence: result.confidence,
       });
@@ -520,6 +522,39 @@ export class GoogleVisionService {
         });
         return spirit;
       }
+    }
+
+    // Score-based fuzzy match across full OCR text for more resilient matching.
+    let bestSpirit: Spirit | null = null;
+    let bestScore = 0;
+    for (const spirit of SPIRITS_DATABASE) {
+      const brand = spirit.brand.toLowerCase();
+      const name = spirit.name.toLowerCase();
+      const type = spirit.type.toLowerCase();
+      let score = 0;
+
+      if (brand && normalizedText.includes(brand)) score += 8;
+      if (name && normalizedText.includes(name)) score += 6;
+      if (allLabels.includes(type)) score += 2;
+
+      for (const term of spirit.searchTerms) {
+        const normalizedTerm = term.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').trim();
+        if (normalizedTerm.length < 3) continue;
+        if (normalizedText.includes(normalizedTerm)) score += 3;
+      }
+
+      if (score > bestScore) {
+        bestScore = score;
+        bestSpirit = spirit;
+      }
+    }
+    if (bestSpirit && bestScore >= 6) {
+      log.info('GoogleVisionService', 'Bottle matched via fuzzy scoring', {
+        brand: bestSpirit.brand,
+        name: bestSpirit.name,
+        score: bestScore,
+      });
+      return bestSpirit;
     }
 
     log.warn('GoogleVisionService', 'Could not match bottle to database');

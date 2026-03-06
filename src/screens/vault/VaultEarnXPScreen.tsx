@@ -54,7 +54,7 @@ export default function VaultEarnXPScreen() {
       expectedXP: 100,
       icon: 'calendar',
       iconFamily: 'ionicons',
-      color: '#FF6B6B',
+      color: colors.error,
       estimatedTime: 'Daily',
     },
     {

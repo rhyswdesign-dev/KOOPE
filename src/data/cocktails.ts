@@ -6,7 +6,7 @@ const ESSENTIAL_SYRUPS = [
     title: 'Simple Syrup',
     subtitle: 'Makes 2 cups • Classic sweetener',
     category: 'Syrups',
-    image: 'https://images.unsplash.com/photo-1594490879028-3cebddbf1537?q=80&w=1200&auto=format&fit=crop',
+    image: require('../../assets/images/cocktails/Simple Syrup.png'),
     difficulty: 'Easy',
     time: '10 min',
     rating: 4.9,
@@ -25,7 +25,7 @@ const ESSENTIAL_SYRUPS = [
       'Strain into portion cups',
       'Label, date and initial'
     ],
-    description: 'The foundation of cocktail-making. 1:1 ratio creates a balanced sweetener.',
+    description: 'The foundational bar syrup: a clean 1:1 blend of white sugar and water that adds sweetness without changing flavor. Use it to balance citrus-forward drinks like Daiquiris, Whiskey Sours, and Tom Collins.',
   },
   {
     id: 'honey-syrup',
@@ -33,7 +33,7 @@ const ESSENTIAL_SYRUPS = [
     title: 'Honey Syrup',
     subtitle: 'Makes 1.5 cups • Rich sweetener',
     category: 'Syrups',
-    image: 'https://images.unsplash.com/photo-1587049352846-4a222e784169?q=80&w=1200&auto=format&fit=crop',
+    image: require('../../assets/images/cocktails/Honey Syrup.png'),
     difficulty: 'Easy',
     time: '5 min',
     rating: 4.8,
@@ -52,7 +52,7 @@ const ESSENTIAL_SYRUPS = [
       'Strain into portion cups',
       'Label, date and initial'
     ],
-    description: 'Perfect for Bees Knees and Gold Rush. 2:1 ratio provides rich sweetness.',
+    description: 'A silky syrup made from honey and warm water that adds round sweetness plus floral depth. Excellent in Gold Rush, Bee\'s Knees, and hot drinks where plain sugar can taste flat.',
   },
   {
     id: 'rosemary-syrup',
@@ -60,7 +60,7 @@ const ESSENTIAL_SYRUPS = [
     title: 'Rosemary Syrup',
     subtitle: 'Makes 3.7L • Herbal sweetener',
     category: 'Syrups',
-    image: 'https://images.unsplash.com/photo-1586281010691-a5d53729c98d?q=80&w=1200&auto=format&fit=crop',
+    image: require('../../assets/images/cocktails/Rosemary Syrup.png'),
     difficulty: 'Easy',
     time: '15 min',
     rating: 4.8,
@@ -81,7 +81,7 @@ const ESSENTIAL_SYRUPS = [
       'Strain into portion cups',
       'Label, date and initial'
     ],
-    description: 'Perfect for gin cocktails and sparkling drinks. Adds sophisticated herbal notes.',
+    description: 'An aromatic infusion of sugar, water, and fresh rosemary for piney, savory lift. Best when you want structure and freshness in citrus or gin drinks, especially with lemon, grapefruit, or sparkling builds.',
   },
   {
     id: 'grenadine',
@@ -89,7 +89,7 @@ const ESSENTIAL_SYRUPS = [
     title: 'Homemade Grenadine',
     subtitle: 'Essential • Pomegranate syrup',
     category: 'Syrups',
-    image: 'https://images.unsplash.com/photo-1632334735555-17e699ae1077?q=80&w=1200&auto=format&fit=crop',
+    image: require('../../assets/images/cocktails/Grenadine.png'),
     difficulty: 'Easy',
     time: '15 min',
     rating: 4.8,
@@ -109,7 +109,7 @@ const ESSENTIAL_SYRUPS = [
       'Let cool completely',
       'Store in refrigerator for up to 1 month'
     ],
-    description: 'Far better than store-bought. Essential for Tequila Sunrise and Shirley Temples.',
+    description: 'A tart-sweet pomegranate syrup built from pomegranate juice, sugar, and optional orange blossom water. It brings vibrant color, acidity, and fruit depth to classics like Tequila Sunrise, Jack Rose, and many tropical builds.',
   },
   {
     id: 'demerara-syrup',
@@ -117,7 +117,7 @@ const ESSENTIAL_SYRUPS = [
     title: 'Demerara Syrup',
     subtitle: 'Essential • Rich brown sugar',
     category: 'Syrups',
-    image: 'https://images.unsplash.com/photo-1481391243133-f96216dcb5d2?q=80&w=1200&auto=format&fit=crop',
+    image: require('../../assets/images/cocktails/Demerara Syrup.png'),
     difficulty: 'Easy',
     time: '10 min',
     rating: 4.7,
@@ -135,7 +135,7 @@ const ESSENTIAL_SYRUPS = [
       'Let cool completely',
       'Store in refrigerator for up to 1 month'
     ],
-    description: 'Richer than simple syrup. Perfect for Old Fashioneds and ti cocktails.',
+    description: 'A rich syrup made from demerara sugar and water, with natural molasses and toffee notes. Use it when you want deeper body than simple syrup, especially in Old Fashioneds, Rum drinks, and spirit-forward stirred cocktails.',
   },
 ];
 
@@ -945,23 +945,6 @@ const TIKI_EXOTIC_COCKTAILS = [
     era: 'tiki',
     base: 'rum',
     glassware: 'Hurricane Glass',
-    requiresPro: true,
-
-  },
-  {
-    id: 'scorpion-bowl',
-    name: 'Scorpion Bowl',
-    subtitle: 'Tiki • Sharing cocktail',
-    description: 'Large format tiki cocktail for sharing.',
-    ingredients: ['2 oz white rum', '1 oz brandy', '2 oz fresh orange juice', '1.5 oz fresh lemon juice', '1/2 oz orgeat syrup', 'Orange wheel and cherry garnish'],
-    instructions: ['Add all ingredients to large bowl with ice', 'Stir well to combine', 'Garnish with orange wheels and cherries', 'Serve with long straws'],
-    difficulty: 'Medium',
-    time: '4 min',
-    rating: 4.4,
-    image: 'https://images.unsplash.com/photo-1581795669633-91ef2c6cebaf?q=80&w=1200&auto=format&fit=crop',
-    era: 'tiki',
-    base: 'rum',
-    glassware: 'Punch Bowl',
     requiresPro: true,
 
   },

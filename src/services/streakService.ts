@@ -301,10 +301,20 @@ class StreakService {
   }
 
   /**
+   * Format a date in local time as YYYY-MM-DD
+   */
+  private toLocalDateString(date: Date): string {
+    const year = date.getFullYear();
+    const month = `${date.getMonth() + 1}`.padStart(2, '0');
+    const day = `${date.getDate()}`.padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  /**
    * Get today's date as ISO string (YYYY-MM-DD)
    */
   private getTodayDateString(): string {
-    return new Date().toISOString().split('T')[0];
+    return this.toLocalDateString(new Date());
   }
 
   /**
@@ -313,7 +323,7 @@ class StreakService {
   private getYesterdayDateString(): string {
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
-    return yesterday.toISOString().split('T')[0];
+    return this.toLocalDateString(yesterday);
   }
 
   /**
@@ -387,7 +397,7 @@ class StreakService {
     for (let i = days - 1; i >= 0; i--) {
       const date = new Date(today);
       date.setDate(date.getDate() - i);
-      const dateString = date.toISOString().split('T')[0];
+      const dateString = this.toLocalDateString(date);
 
       const historyEntry = this.streakData.streakHistory.find(e => e.date === dateString);
       calendar.push({

@@ -104,7 +104,7 @@ const getStatusColor = (status: string) => {
     case 'delivered': return colors.gold;
     case 'shipped': return colors.accent;
     case 'processing': return colors.subtext;
-    case 'cancelled': return '#FF6B6B';
+    case 'cancelled': return colors.error;
     default: return colors.subtext;
   }
 };

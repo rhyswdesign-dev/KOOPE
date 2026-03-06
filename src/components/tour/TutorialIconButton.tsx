@@ -2,22 +2,37 @@ import React from 'react';
 import { Pressable, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, radii } from '../../theme/tokens';
+import { withHaptic } from '../../lib/haptics';
 
 interface TutorialIconButtonProps {
   onPress: () => void;
   size?: number;
+  buttonSize?: number;
 }
 
-export default function TutorialIconButton({ onPress, size = 18 }: TutorialIconButtonProps) {
+export default function TutorialIconButton({
+  onPress,
+  size = 18,
+  buttonSize = 36,
+}: TutorialIconButtonProps) {
   return (
     <Pressable
-      onPress={onPress}
+      onPress={withHaptic(onPress)}
       hitSlop={10}
       accessibilityRole="button"
       accessibilityLabel="Open tutorials"
-      style={styles.button}
+      style={({ pressed }) => [
+        styles.button,
+        {
+          width: buttonSize,
+          height: buttonSize,
+          borderRadius: buttonSize / 2,
+          opacity: pressed ? 1 : 0.66,
+          transform: [{ scale: pressed ? 1.04 : 1 }],
+        },
+      ]}
     >
-      <Ionicons name="compass-outline" size={size} color={colors.text} />
+      <Ionicons name="help-circle-outline" size={size} color={colors.text} />
     </Pressable>
   );
 }
