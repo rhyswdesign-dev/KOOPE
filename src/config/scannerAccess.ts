@@ -13,11 +13,11 @@ export function getScannerTierAccess(tier: UserTier, hasPrestige: boolean = fals
   if (tier === 'FREE') {
     return {
       tierLabel: 'FREE',
-      scannerStack: 'Barcode Scanner + Manual Entry',
+      scannerStack: 'Barcode + AI Smart Scan',
       supportsBarcode: true,
-      supportsAiPhotoScan: false,
-      supportsMultiIngredientDetection: false,
-      notes: 'UPC/EAN barcode lookup only. No AI photo recognition.',
+      supportsAiPhotoScan: true,
+      supportsMultiIngredientDetection: true,
+      notes: 'Full scanner stack enabled. Monetization gate is inventory capacity, not scan access.',
     };
   }
 

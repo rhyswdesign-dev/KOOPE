@@ -83,6 +83,9 @@ export function useFeatureAccess(featureKey: FeatureKey): FeatureAccessResult {
       const resolvedTriggerId = triggerId ?? DEFAULT_TRIGGER_BY_FEATURE[featureKey];
       const trigger = resolvedTriggerId ? PAYWALL_TRIGGERS[resolvedTriggerId] : undefined;
       const wallMode: WallMode = trigger?.mode ?? 'hard';
+      const debugSuffix = resolvedTriggerId
+        ? `\n\n[Debug] Tier: ${tier} • Trigger: ${resolvedTriggerId}`
+        : `\n\n[Debug] Tier: ${tier} • Trigger: default`;
 
       // Track the gate event
       trackEvent(trigger?.analyticsEvent ?? ANALYTICS_EVENTS.FEATURE_GATED, {
@@ -98,7 +101,7 @@ export function useFeatureAccess(featureKey: FeatureKey): FeatureAccessResult {
 
         Alert.alert(
           feature.displayName,
-          trigger?.message ?? `${feature.description} Upgrade to ${targetTier}.`,
+          `${trigger?.message ?? `${feature.description} Upgrade to ${targetTier}.`}${debugSuffix}`,
           [
             {
               text: 'Not Now',
@@ -125,7 +128,7 @@ export function useFeatureAccess(featureKey: FeatureKey): FeatureAccessResult {
 
       Alert.alert(
         feature.displayName,
-        trigger?.message ?? `${feature.description} Upgrade to ${targetTier}.`,
+        `${trigger?.message ?? `${feature.description} Upgrade to ${targetTier}.`}${debugSuffix}`,
         [
           { text: 'Cancel', style: 'cancel' },
           {

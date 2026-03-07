@@ -10,6 +10,7 @@ import XPReminderScreen from './src/screens/XPReminderScreen';
 import WelcomeCarouselScreen from './src/screens/WelcomeCarouselScreen';
 import SurveyScreen from './src/screens/onboarding/SurveyScreen';
 import AgeGateScreen from './src/screens/AgeGateScreen';
+import OnboardingQuestionnaireScreen from './src/screens/onboarding/OnboardingQuestionnaireScreen';
 import { useSimpleOnboarding as useOnboarding } from './src/hooks/useSimpleOnboarding';
 import { UserProvider } from './src/contexts/UserContext';
 import { VaultProvider } from './src/contexts/VaultContext';
@@ -128,6 +129,7 @@ export default function App() {
     completeBartendingWelcome,
     completeWelcome,
     completeOnboarding,
+    completeQuestionnaire,
     completeSurvey,
     skipToXPReminder,
     completeXPReminder,
@@ -137,6 +139,7 @@ export default function App() {
   const deepLinkCleanupRef = React.useRef<null | (() => void)>(null);
   const lastHandledSharedUrlRef = React.useRef<string | null>(null);
   const [pendingSharedRecipeUrl, setPendingSharedRecipeUrl] = React.useState<string | null>(null);
+  const [launchSmartScanAfterOnboarding, setLaunchSmartScanAfterOnboarding] = React.useState(false);
   const {
     isReady: isShareIntentReady,
     hasShareIntent,
@@ -232,6 +235,20 @@ export default function App() {
     setPendingSharedRecipeUrl(null);
   }, [appState, pendingSharedRecipeUrl]);
 
+  React.useEffect(() => {
+    if (appState !== 'main') return;
+    if (!launchSmartScanAfterOnboarding) return;
+    if (!navigationRef.isReady()) return;
+
+    navigationRef.navigate('Main', {
+      screen: 'Camera',
+      params: {
+        screen: 'SmartScan',
+      },
+    } as any);
+    setLaunchSmartScanAfterOnboarding(false);
+  }, [appState, launchSmartScanAfterOnboarding]);
+
   console.log('App state:', appState);
 
   // Show splash screen
@@ -262,6 +279,20 @@ export default function App() {
   // Show XP reminder after skipping account setup
   if (appState === 'xp_reminder') {
     return <XPReminderScreen onComplete={completeXPReminder} onGoBack={goBackToOnboarding} />;
+  }
+
+  // Show onboarding questionnaire flow (required + optional + trial + payoff)
+  if (appState === 'questionnaire') {
+    return (
+      <OnboardingQuestionnaireScreen
+        onComplete={(action) => {
+          if (action === 'scan') {
+            setLaunchSmartScanAfterOnboarding(true);
+          }
+          completeQuestionnaire();
+        }}
+      />
+    );
   }
 
   // Show survey before main app

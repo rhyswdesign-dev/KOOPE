@@ -26,13 +26,6 @@ interface PaywallTriggers {
   xpGate: (currentXP: number, onSuccess?: () => void) => boolean;
 }
 
-interface UserTierData {
-  tier: 'free' | 'koope_plus' | 'koope_pro';
-  freeAIUses?: number;
-  inventoryCount?: number;
-  xp?: number;
-}
-
 const XP_LEVEL_4_THRESHOLD = 1250;
 const FREE_AI_LIMIT = 3;
 const FREE_INVENTORY_LIMIT = 10;
@@ -136,7 +129,7 @@ export function usePaywallTriggers(): PaywallTriggers {
 
   /**
    * 3. INVENTORY LIMIT TRIGGER
-   * FREE = 15 bottles max
+   * FREE = 10 bottles max
    * KOOPE+ = unlimited
    * PRO = unlimited
    */
@@ -162,26 +155,10 @@ export function usePaywallTriggers(): PaywallTriggers {
 
   /**
    * 3b. SCAN LIMIT TRIGGER
-   * FREE = 15 scans/month
-   * KOOPE+ = unlimited
-   * PRO = unlimited
+   * Scanning is unlimited for all tiers. Keep this as a no-op for compatibility
+   * with existing callers while we preserve the shared gate API.
    */
-  const scanGate = (monthlyScans: number, onSuccess?: () => void): boolean => {
-    const tier = getUserTier();
-
-    if (tier !== 'free') {
-      onSuccess?.();
-      return true;
-    }
-
-    if (monthlyScans >= FREE_SCANS_PER_MONTH) {
-      showPaywall(
-        'Scan Limit Reached',
-        `Starter Bar includes ${FREE_SCANS_PER_MONTH} scans per month. Upgrade to KOOPE+ for unlimited scanning.`
-      );
-      return false;
-    }
-
+  const scanGate = (_monthlyScans: number, onSuccess?: () => void): boolean => {
     onSuccess?.();
     return true;
   };
@@ -460,9 +437,8 @@ export function checkInventoryCapacity(inventoryCount: number, tier: 'free' | 'k
 /**
  * HELPER: Check scan capacity
  */
-export function checkScanCapacity(monthlyScans: number, tier: 'free' | 'koope_plus' | 'koope_pro'): boolean {
-  if (tier !== 'free') return true;
-  return monthlyScans < FREE_SCANS_PER_MONTH;
+export function checkScanCapacity(_monthlyScans: number, _tier: 'free' | 'koope_plus' | 'koope_pro'): boolean {
+  return true;
 }
 
 /**

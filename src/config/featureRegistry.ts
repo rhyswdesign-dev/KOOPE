@@ -130,9 +130,9 @@ export const FEATURE_REGISTRY: Record<FeatureKey, FeatureDefinition> = {
     category: 'inventory',
   },
   scans_unlimited: {
-    minTier: 'PLUS',
+    minTier: 'FREE',
     displayName: 'Unlimited Scans',
-    description: 'Scan as many bottles as you want, every month.',
+    description: 'Scan as many bottles as you want across barcode and AI photo scan.',
     paywallTarget: 'plus',
     category: 'inventory',
   },

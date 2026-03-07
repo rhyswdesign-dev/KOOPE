@@ -1,12 +1,11 @@
 /**
  * Smart Scan Screen
- * Tier-gated scan waterfall:
+ * Scan waterfall (all tiers):
  *
- *   FREE tier  — barcode (device-side, $0 cost) → manual search fallback
- *   PLUS/PRO   — barcode first (fastest) → AI label OCR → visual recognition → manual
+ *   barcode first (fastest) → AI label OCR → visual recognition → manual fallback
  *
- * Google Vision API is only called for PLUS/PRO users, keeping AI costs away
- * from the majority free user base.
+ * Free tier is scan-unlimited; monetization gate is inventory capacity (10 bottles),
+ * not scan capability.
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -69,8 +68,6 @@ export default function SmartScanScreen() {
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [showConsentDialog, setShowConsentDialog] = useState(false);
   const [hasGivenConsent, setHasGivenConsent] = useState(false);
-
-  const isFree = tier === 'FREE';
 
   // Check consent status on mount
   useEffect(() => {
@@ -249,35 +246,7 @@ export default function SmartScanScreen() {
   // ─── Photo capture handler ────────────────────────────────────────────────
   const handleImageCaptured = async (uri: string) => {
     setCameraVisible(false);
-
-    // FREE tier: AI scanning not included — redirect to manual.
-    // Do NOT store the image (it was never analyzed, don't show it).
-    if (isFree) {
-      Alert.alert(
-        'AI Scan is KŌOPE+',
-        'Upgrade to unlock AI label recognition, visual bottle matching, and more. Or add your bottle manually.',
-        [
-          {
-            text: 'Upgrade to PLUS',
-            onPress: () => openPaywall('smart_scan_ai_gate'),
-          },
-          {
-            text: 'Add Manually',
-            onPress: () => navigation.navigate('ManualBottleEntry', {}),
-          },
-          {
-            text: 'Cancel',
-            style: 'cancel',
-            onPress: () => {
-              setCameraVisible(true);
-            },
-          },
-        ]
-      );
-      return;
-    }
-
-    // PLUS/PRO: run full AI waterfall — store the image for preview + BottleDetailScreen
+    // All tiers: run full AI waterfall — store the image for preview + BottleDetailScreen
     if (!GoogleVisionService.isConfigured()) {
       Alert.alert(
         'AI Scanner Not Configured',
@@ -471,15 +440,15 @@ export default function SmartScanScreen() {
         onClose={handleCameraClose}
         onImageCaptured={handleImageCaptured}
         onBarcodeScanned={handleBarcodeScanned}
-        barcodeOnly={isFree}
+        barcodeOnly={false}
         autoCloseOnCapture={false}
         title="Smart Scan"
         isPaidUser={isSubscriber}
         isGuest={!user}
       />
 
-      {/* URL import — only for paid users (recipe scanning is PLUS/PRO) */}
-      {cameraVisible && !isFree && (
+      {/* URL import remains a paid convenience surface */}
+      {cameraVisible && isSubscriber && (
         <View style={styles.urlButtonContainer}>
           <TouchableOpacity style={styles.urlButton} onPress={handleImportFromURL}>
             <Ionicons name="link" size={24} color={colors.white} />

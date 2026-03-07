@@ -6,7 +6,8 @@
  * 2. Welcome Carousel (starts with "Welcome to KŌOPE")
  * 3. Auth/Account Setup screen (can be skipped)
  * 4. Bartending Welcome screen ("Learn Bartending at Your Own Pace")
- * 5. Main app (survey is now optional and triggered on 2nd+ app open)
+ * 5. Questionnaire + trial offer + payoff + first action
+ * 6. Main app
  *
  * For returning users (who have completed onboarding before):
  * - Skips all onboarding screens after splash
@@ -20,7 +21,6 @@ import { useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { trackEvent, ANALYTICS_EVENTS, ANALYTICS_PROPS } from '../lib/analytics';
 import { log } from '../lib/logger';
-import { supabase } from '../lib/supabase';
 
 type AppState =
   | 'loading'
@@ -29,6 +29,7 @@ type AppState =
   | 'bartending_welcome'
   | 'welcome'
   | 'onboarding'
+  | 'questionnaire'
   | 'survey'
   | 'xp_reminder'
   | 'main';
@@ -134,22 +135,12 @@ export function useSimpleOnboarding() {
   };
 
   const completeBartendingWelcome = async () => {
-    // After bartending welcome, go to main app (survey deferred)
+    // After bartending welcome, continue onboarding questionnaire flow
     trackEvent(ANALYTICS_EVENTS.ONBOARDING_STEP_COMPLETED, {
       [ANALYTICS_PROPS.STEP_NUMBER]: 3,
       [ANALYTICS_PROPS.STEP_NAME]: 'bartending_welcome',
     });
-
-    try {
-      // Mark onboarding as completed
-      await AsyncStorage.setItem(ONBOARDING_COMPLETED_KEY, 'true');
-      log.info('useSimpleOnboarding', 'Onboarding completed and saved (survey deferred)');
-      trackEvent(ANALYTICS_EVENTS.ONBOARDING_COMPLETED);
-    } catch (error) {
-      log.warn('useSimpleOnboarding', 'Error saving onboarding completion status', { error });
-    }
-
-    setAppState('main');
+    setAppState('questionnaire');
   };
 
   const completeSurvey = async () => {
@@ -175,22 +166,24 @@ export function useSimpleOnboarding() {
   };
 
   const completeXPReminder = async () => {
-    // After XP reminder, go directly to main app (skip survey)
-    // Survey will be prompted later as an XP-earning opportunity
-    try {
-      await AsyncStorage.setItem(ONBOARDING_COMPLETED_KEY, 'true');
-      log.info('useSimpleOnboarding', 'Onboarding completed after XP reminder (survey deferred)');
-      trackEvent(ANALYTICS_EVENTS.ONBOARDING_COMPLETED);
-    } catch (error) {
-      log.warn('useSimpleOnboarding', 'Error saving onboarding completion status', { error });
-    }
-
-    setAppState('main');
+    // Continue onboarding questionnaire after XP reminder
+    setAppState('questionnaire');
   };
 
   const goBackToOnboarding = () => {
     // Go back from XP reminder to account setup
     setAppState('onboarding');
+  };
+
+  const completeQuestionnaire = async () => {
+    try {
+      await AsyncStorage.setItem(ONBOARDING_COMPLETED_KEY, 'true');
+      log.info('useSimpleOnboarding', 'Onboarding questionnaire completed and saved');
+      trackEvent(ANALYTICS_EVENTS.ONBOARDING_COMPLETED);
+    } catch (error) {
+      log.warn('useSimpleOnboarding', 'Error saving onboarding completion status', { error });
+    }
+    setAppState('main');
   };
 
   const resetOnboarding = async () => {
@@ -215,6 +208,7 @@ export function useSimpleOnboarding() {
     completeWelcome,
     completeOnboarding,
     completeSurvey,
+    completeQuestionnaire,
     skipToXPReminder,
     completeXPReminder,
     goBackToOnboarding,

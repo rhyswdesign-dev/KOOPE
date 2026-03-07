@@ -30,10 +30,10 @@ import { InventoryService } from '../services/inventoryService';
 import { ShoppingListStore } from '../services/shoppingListStore';
 import EmptyState from '../components/EmptyState';
 import { log } from '../lib/logger';
-import { usePaywallTriggers } from '../hooks/usePaywallTriggers';
-import { useSubscription } from '../contexts/SubscriptionContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useFeatureAccess } from '../hooks/useFeatureAccess';
+import { useUserTier } from '../store/useUserTier';
+import { TIER_LIMITS } from '../config/tierAccess';
 
 // Import images from assets
 import * as Images from '../../assets/images';
@@ -531,8 +531,8 @@ const mockHomeBar: HomeBar = {
 
 export default function HomeBarScreen() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { inventoryGate } = usePaywallTriggers();
-  const { isKoopePlus, isKoopePro } = useSubscription();
+  const { gateWithTrigger: inventoryGate } = useFeatureAccess('inventory_unlimited');
+  const { tier } = useUserTier();
   const { gateWithTrigger: optimizeBarGate } = useFeatureAccess('optimize_my_bar');
   const { gateWithTrigger: hostingBasicGate } = useFeatureAccess('hosting_basic');
   const { gateWithTrigger: predictiveRestockGate } = useFeatureAccess('predictive_restock');
@@ -542,7 +542,7 @@ export default function HomeBarScreen() {
   const [searchModalQuery, setSearchModalQuery] = useState('');
   const [searchHistory, setSearchHistory] = useState<string[]>([]);
   const [activeCategory, setActiveCategory] = useState<InventoryCategory | 'all'>('all');
-  const [homeBar, setHomeBar] = useState<HomeBar>(mockHomeBar);
+  const [homeBar, setHomeBar] = useState<HomeBar>({ ...mockHomeBar, ingredients: [] });
   const [showManualEntryModal, setShowManualEntryModal] = useState(false);
   const [manualEntryName, setManualEntryName] = useState('');
   const [manualEntryCategory, setManualEntryCategory] = useState<BarIngredient['category']>('spirit');
@@ -568,17 +568,39 @@ export default function HomeBarScreen() {
 
   const loadStoredIngredients = async () => {
     try {
-      const storedIngredients = await HomeBarService.getStoredIngredients();
-      if (storedIngredients.length > 0) {
-        // Merge stored ingredients with existing mock data
-        setHomeBar(prev => ({
-          ...prev,
-          ingredients: [...prev.ingredients, ...storedIngredients]
-        }));
+      if (!user) return;
 
-        // Clear stored ingredients after loading to avoid duplicates
-        await HomeBarService.clearStoredIngredients();
+      const remoteItems = await InventoryService.getUserInventory(user.id);
+      const mappedRemote: BarIngredient[] = remoteItems.map((item) => ({
+        id: item.id,
+        name: item.item_name,
+        category: (item.category as BarIngredient['category']) || 'other',
+        subcategory: item.subcategory || undefined,
+        brand: item.brand || undefined,
+        volume: 750,
+        addedAt: item.added_at ? new Date(item.added_at) : new Date(),
+        isFavorite: false,
+        tags: [],
+      }));
+
+      const storedIngredients = await HomeBarService.getStoredIngredients();
+      const combined = [...mappedRemote];
+      const seen = new Set(combined.map((i) => `${i.name.toLowerCase()}|${(i.category || '').toLowerCase()}`));
+
+      for (const item of storedIngredients) {
+        const key = `${item.name.toLowerCase()}|${(item.category || '').toLowerCase()}`;
+        if (!seen.has(key)) {
+          combined.push(item);
+          seen.add(key);
+        }
       }
+
+      setHomeBar((prev) => ({
+        ...prev,
+        ingredients: combined,
+      }));
+
+      await HomeBarService.clearStoredIngredients();
     } catch (error) {
       log.error('HomeBarScreen', 'Failed to load stored ingredients', error as Error);
     }
@@ -594,6 +616,11 @@ export default function HomeBarScreen() {
 
   const getFilteredInventory = () => {
     let filtered = homeBar.ingredients;
+
+    // FREE tier visibility cap mirrors the hard add limit.
+    if (tier === 'FREE') {
+      filtered = filtered.slice(0, TIER_LIMITS.FREE.maxBottles);
+    }
 
     // Filter by category
     if (activeCategory !== 'all') {
@@ -779,10 +806,21 @@ export default function HomeBarScreen() {
       return;
     }
 
-    // Check inventory gate before adding
-    const currentCount = homeBar.ingredients.length;
-    const canProceed = inventoryGate(currentCount, async () => {
-      // Paywall passed - proceed with adding ingredient
+    if (!user) {
+      Alert.alert('Sign In Required', 'Please sign in to add items to your inventory');
+      return;
+    }
+
+    // Enforce Free tier cap against server truth so tier toggle is reliable.
+    if (tier === 'FREE') {
+      const count = await InventoryService.getInventoryCount(user.id);
+      if (count >= TIER_LIMITS.FREE.maxBottles) {
+        inventoryGate('T1');
+        return;
+      }
+    }
+
+    const canProceed = inventoryGate('T1', async () => {
       const newIngredient: BarIngredient = {
         id: `manual-${Date.now()}`,
         name: manualEntryName.trim(),
@@ -795,13 +833,8 @@ export default function HomeBarScreen() {
       };
 
       try {
-        if (!user) {
-          Alert.alert('Sign In Required', 'Please sign in to add items to your inventory');
-          return;
-        }
-
         // Add to Supabase
-        await InventoryService.addItem({
+        await InventoryService.addToInventory({
           userId: user.id,
           itemType: manualEntryCategory === 'spirit' ? 'spirit' : 'ingredient',
           itemName: manualEntryName.trim(),

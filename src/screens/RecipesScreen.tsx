@@ -1586,6 +1586,7 @@ export default function RecipesScreen() {
   const { gateWithTrigger: bringToPartyGate } = useFeatureAccess('bring_to_party');
   const { gateWithTrigger: predictiveEngineGate } = useFeatureAccess('predictive_engine');
   const { gateWithTrigger: flavorControlsGate } = useFeatureAccess('adjustable_flavor_controls');
+  const { gateWithTrigger: advancedFilterGate } = useFeatureAccess('advanced_filters');
 
   // XP System
   const {
@@ -2577,7 +2578,7 @@ export default function RecipesScreen() {
                     </Pressable>
 
                     <Pressable
-                      onPress={() => setShowFilterModal(true)}
+                      onPress={() => advancedFilterGate('T2', () => setShowFilterModal(true))}
                       style={{
                         flexDirection: 'row',
                         alignItems: 'center',
