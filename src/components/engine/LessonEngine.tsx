@@ -10,6 +10,7 @@ import {
   StyleSheet,
   Alert,
   Animated,
+  Easing,
   StatusBar,
   Platform,
   Pressable,
@@ -108,7 +109,8 @@ export const LessonEngine: React.FC<LessonEngineProps> = ({ lessonId, onComplete
       const targetProgress = (currentItemIndex + 1) / items.length;
       Animated.timing(progressAnim, {
         toValue: targetProgress,
-        duration: 250, // Reduced to 250ms for instant progress updates
+        duration: 180,
+        easing: Easing.out(Easing.cubic),
         useNativeDriver: false,
       }).start();
     }
@@ -123,13 +125,14 @@ export const LessonEngine: React.FC<LessonEngineProps> = ({ lessonId, onComplete
       Animated.parallel([
         Animated.timing(fadeAnim, {
           toValue: 1,
-          duration: 200, // Reduced to 200ms for instant appearance
+          duration: 170,
+          easing: Easing.out(Easing.cubic),
           useNativeDriver: true,
         }),
-        Animated.spring(slideAnim, {
+        Animated.timing(slideAnim, {
           toValue: 1,
-          tension: 120, // Higher tension for snappier feel
-          friction: 8,
+          duration: 170,
+          easing: Easing.out(Easing.cubic),
           useNativeDriver: true,
         }),
       ]).start();
@@ -450,19 +453,26 @@ export const LessonEngine: React.FC<LessonEngineProps> = ({ lessonId, onComplete
     );
   }
 
+  const skipMalformedItem = () => {
+    log.warn('LessonEngine', 'Skipping malformed lesson item', {
+      lessonId,
+      itemId: currentItem?.id,
+      type: currentItem?.type,
+    });
+
+    if (isLastItem) {
+      completeLesson();
+      return;
+    }
+
+    nextItem();
+  };
+
   const renderExercise = () => {
     if (!currentItem) {
       log.error('LessonEngine', 'renderExercise: No current item');
       return <Text style={styles.errorText}>No current item</Text>;
     }
-
-    log.debug('LessonEngine', 'Rendering exercise', {
-      id: currentItem.id,
-      type: currentItem.type,
-      prompt: currentItem.prompt?.substring(0, 50) + '...',
-      hasOptions: !!currentItem.options,
-      optionsLength: currentItem.options?.length
-    });
 
     // Normalize the type to handle corruption (mcp -> mcq)
     const exerciseType = currentItem.type === 'mcp' ? 'mcq' : currentItem.type;
@@ -473,6 +483,9 @@ export const LessonEngine: React.FC<LessonEngineProps> = ({ lessonId, onComplete
           return (
             <View style={styles.errorContainer}>
               <Text style={styles.errorText}>Multiple choice question missing options</Text>
+              <Pressable style={styles.skipButton} onPress={skipMalformedItem}>
+                <Text style={styles.skipButtonText}>Skip Question</Text>
+              </Pressable>
             </View>
           );
         }
@@ -490,6 +503,9 @@ export const LessonEngine: React.FC<LessonEngineProps> = ({ lessonId, onComplete
           return (
             <View style={styles.errorContainer}>
               <Text style={styles.errorText}>Order exercise missing target sequence</Text>
+              <Pressable style={styles.skipButton} onPress={skipMalformedItem}>
+                <Text style={styles.skipButtonText}>Skip Question</Text>
+              </Pressable>
             </View>
           );
         }
@@ -505,6 +521,9 @@ export const LessonEngine: React.FC<LessonEngineProps> = ({ lessonId, onComplete
           return (
             <View style={styles.errorContainer}>
               <Text style={styles.errorText}>Short answer question missing answer</Text>
+              <Pressable style={styles.skipButton} onPress={skipMalformedItem}>
+                <Text style={styles.skipButtonText}>Skip Question</Text>
+              </Pressable>
             </View>
           );
         }
@@ -549,6 +568,9 @@ export const LessonEngine: React.FC<LessonEngineProps> = ({ lessonId, onComplete
           return (
             <View style={styles.errorContainer}>
               <Text style={styles.errorText}>Checkbox question missing options or answers</Text>
+              <Pressable style={styles.skipButton} onPress={skipMalformedItem}>
+                <Text style={styles.skipButtonText}>Skip Question</Text>
+              </Pressable>
             </View>
           );
         }
@@ -563,6 +585,9 @@ export const LessonEngine: React.FC<LessonEngineProps> = ({ lessonId, onComplete
           return (
             <View style={styles.errorContainer}>
               <Text style={styles.errorText}>Match exercise missing pairs</Text>
+              <Pressable style={styles.skipButton} onPress={skipMalformedItem}>
+                <Text style={styles.skipButtonText}>Skip Question</Text>
+              </Pressable>
             </View>
           );
         }
@@ -577,6 +602,9 @@ export const LessonEngine: React.FC<LessonEngineProps> = ({ lessonId, onComplete
           <View style={styles.errorContainer}>
             <Text style={styles.errorText}>Unsupported question type: {exerciseType}</Text>
             <Text style={styles.errorSubtext}>Supported types: mcq, order, short, checkbox, match</Text>
+            <Pressable style={styles.skipButton} onPress={skipMalformedItem}>
+              <Text style={styles.skipButtonText}>Skip Question</Text>
+            </Pressable>
           </View>
         );
     }
@@ -831,22 +859,22 @@ export const LessonEngine: React.FC<LessonEngineProps> = ({ lessonId, onComplete
               if (isLastItem) {
                 completeLesson();
               } else {
-                // Move to next item
+                // Smooth handoff to next item without bounce artifacts.
                 Animated.parallel([
                   Animated.timing(fadeAnim, {
                     toValue: 0,
-                    duration: 100,
+                    duration: 90,
+                    easing: Easing.out(Easing.quad),
                     useNativeDriver: true,
                   }),
                   Animated.timing(slideAnim, {
                     toValue: 0,
-                    duration: 100,
+                    duration: 90,
+                    easing: Easing.out(Easing.quad),
                     useNativeDriver: true,
                   })
                 ]).start(() => {
                   nextItem();
-                  fadeAnim.setValue(1);
-                  slideAnim.setValue(1);
                 });
               }
             }}
@@ -1091,6 +1119,21 @@ const styles = StyleSheet.create({
     color: colors.error,
     textAlign: 'center',
     opacity: 0.8,
+  },
+  skipButton: {
+    marginTop: spacing(2),
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: colors.gold,
+    backgroundColor: 'rgba(214, 138, 56, 0.16)',
+    paddingVertical: spacing(1.25),
+    paddingHorizontal: spacing(2),
+  },
+  skipButtonText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.gold,
+    textAlign: 'center',
   },
 
   // Blocked state styles

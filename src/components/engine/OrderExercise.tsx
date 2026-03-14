@@ -227,13 +227,13 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   prompt: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: '400',
     fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
     color: colors.text,
     textAlign: 'center',
     marginBottom: spacing(5),
-    lineHeight: 34,
+    lineHeight: 30,
   },
   sectionLabel: {
     fontSize: 14,

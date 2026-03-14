@@ -45,23 +45,21 @@ export const MatchExercise: React.FC<MatchExerciseProps> = ({ item, onResult }) 
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
-        duration: 400,
+        duration: 220,
         useNativeDriver: true,
       }),
-      Animated.stagger(60, [
+      Animated.stagger(30, [
         ...leftAnims.map(anim =>
-          Animated.spring(anim, {
+          Animated.timing(anim, {
             toValue: 1,
-            tension: 80,
-            friction: 8,
+            duration: 180,
             useNativeDriver: true,
           })
         ),
         ...rightAnims.map(anim =>
-          Animated.spring(anim, {
+          Animated.timing(anim, {
             toValue: 1,
-            tension: 80,
-            friction: 8,
+            duration: 180,
             useNativeDriver: true,
           })
         ),
@@ -202,10 +200,6 @@ export const MatchExercise: React.FC<MatchExerciseProps> = ({ item, onResult }) 
           {rightItems.map((rightItem, index) => {
             const isMatched = isRightItemMatched(rightItem);
 
-            // Find if this specific right item is involved in a current selection/match
-            // For selection visualization, we only highlight if it's the confirmed match
-            const isActive = isMatched;
-
             return (
               <Animated.View
                 key={index}
@@ -284,13 +278,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing(1),
   },
   prompt: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: '400',
     fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
     color: colors.text,
     textAlign: 'center',
     marginBottom: spacing(5),
-    lineHeight: 34,
+    lineHeight: 30,
   },
   matchContainer: {
     flexDirection: 'row',

@@ -14,13 +14,11 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  SafeAreaView,
   Alert,
   ActivityIndicator,
-  Image,
   BackHandler,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useIsFocused } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, radii } from '../theme/tokens';
@@ -32,11 +30,8 @@ import { log } from '../lib/logger';
 import { InventoryService } from '../services/inventoryService';
 import { useAuth } from '../contexts/AuthContext';
 import { useSubscription } from '../contexts/SubscriptionContext';
-import { useUserTier } from '../store/useUserTier';
 import DataConsentDialog from '../components/modals/DataConsentDialog';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { SUBSCRIPTION_ENTITLEMENTS } from '../constants/subscriptions';
-import { getScannerTierAccess } from '../config/scannerAccess';
 
 function getManualPrefill(productName: string | null, productBrand: string | null): { brand?: string; name?: string } {
   const cleanName = productName?.trim() || '';
@@ -58,9 +53,9 @@ function getManualPrefill(productName: string | null, productBrand: string | nul
 
 export default function SmartScanScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<CameraStackParamList>>();
+  const isFocused = useIsFocused();
   const { user } = useAuth();
-  const { isSubscriber, customerInfo } = useSubscription();
-  const { tier } = useUserTier();
+  const { isSubscriber } = useSubscription();
 
   const [cameraVisible, setCameraVisible] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
@@ -68,18 +63,29 @@ export default function SmartScanScreen() {
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [showConsentDialog, setShowConsentDialog] = useState(false);
   const [hasGivenConsent, setHasGivenConsent] = useState(false);
+  // Always keep full photo scanner enabled; GoogleVisionService handles API fallback.
+  const aiScanEnabled = true;
 
   // Check consent status on mount
   useEffect(() => {
     checkConsentStatus();
   }, []);
 
-  // Show camera once consent is confirmed
+  // Show/hide camera based on focus + consent.
+  // Small delay avoids modal+jump glitch during stack transition.
   useEffect(() => {
-    if (hasGivenConsent) {
-      setCameraVisible(true);
+    if (!isFocused) {
+      setCameraVisible(false);
+      return;
     }
-  }, [hasGivenConsent]);
+    if (!hasGivenConsent || showConsentDialog) return;
+
+    const timer = setTimeout(() => {
+      setCameraVisible(true);
+    }, 120);
+
+    return () => clearTimeout(timer);
+  }, [hasGivenConsent, isFocused, showConsentDialog]);
 
   const checkConsentStatus = async () => {
     try {
@@ -100,7 +106,6 @@ export default function SmartScanScreen() {
       await AsyncStorage.setItem('data_consent_given', 'true');
       setHasGivenConsent(true);
       setShowConsentDialog(false);
-      setCameraVisible(true);
     } catch (error) {
       log.error('SmartScanScreen', 'Error saving consent', error);
     }
@@ -121,7 +126,6 @@ export default function SmartScanScreen() {
       // Paid users may decline data sharing and still scan
       setShowConsentDialog(false);
       setHasGivenConsent(true);
-      setCameraVisible(true);
     } else {
       Alert.alert(
         'Data Sharing Required',
@@ -246,19 +250,6 @@ export default function SmartScanScreen() {
   // ─── Photo capture handler ────────────────────────────────────────────────
   const handleImageCaptured = async (uri: string) => {
     setCameraVisible(false);
-    // All tiers: run full AI waterfall — store the image for preview + BottleDetailScreen
-    if (!GoogleVisionService.isConfigured()) {
-      Alert.alert(
-        'AI Scanner Not Configured',
-        'Image recognition is not configured on this build yet. You can still scan barcodes or add the bottle manually.',
-        [
-          { text: 'Add Manually', onPress: () => navigation.navigate('ManualBottleEntry', {}) },
-          { text: 'Back to Scanner', onPress: () => setCameraVisible(true) },
-        ]
-      );
-      return;
-    }
-
     setImageUri(uri);
     setAnalyzing(true);
     setScanMode('ai');
@@ -419,13 +410,6 @@ export default function SmartScanScreen() {
     scanMode === 'barcode'
       ? 'Searching spirits database'
       : 'Detecting bottles, recipes, and ingredients';
-  const activeEntitlements = Object.keys(customerInfo?.entitlements.active || {});
-  const hasProEntitlement = activeEntitlements.includes(SUBSCRIPTION_ENTITLEMENTS.KOOPE_PRO)
-    || activeEntitlements.includes(SUBSCRIPTION_ENTITLEMENTS.KOOPE_PRO_ALT);
-  const hasPlusEntitlement = activeEntitlements.includes(SUBSCRIPTION_ENTITLEMENTS.KOOPE_PLUS);
-  const hasPrestigeEntitlement = activeEntitlements.includes(SUBSCRIPTION_ENTITLEMENTS.PRESTIGE);
-  const scannerAccess = getScannerTierAccess(tier, hasPrestigeEntitlement);
-
   return (
     <>
       <DataConsentDialog
@@ -440,7 +424,7 @@ export default function SmartScanScreen() {
         onClose={handleCameraClose}
         onImageCaptured={handleImageCaptured}
         onBarcodeScanned={handleBarcodeScanned}
-        barcodeOnly={false}
+        barcodeOnly={!aiScanEnabled}
         autoCloseOnCapture={false}
         title="Smart Scan"
         isPaidUser={isSubscriber}
@@ -456,128 +440,23 @@ export default function SmartScanScreen() {
           </TouchableOpacity>
         </View>
       )}
-
-      <SafeAreaView style={styles.container}>
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-            <Ionicons name="chevron-back" size={28} color={colors.text} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Smart Scan</Text>
-          <View style={styles.headerSpacer} />
+      {analyzing && (
+        <View style={styles.analyzingOverlay}>
+          <ActivityIndicator size="large" color={colors.gold} />
+          <Text style={styles.analyzingTitle}>{analyzingTitle}</Text>
+          <Text style={styles.analyzingSubtitle}>{analyzingSubtitle}</Text>
         </View>
-
-        <View style={styles.content}>
-          <View style={styles.debugBanner}>
-            <Text style={styles.debugBannerText}>
-              Tier: {tier} | Sub: {isSubscriber ? 'yes' : 'no'}
-            </Text>
-            <Text style={styles.debugBannerSubtext}>
-              Entitlements: +:{hasPlusEntitlement ? 'Y' : 'N'} pro:{hasProEntitlement ? 'Y' : 'N'} prestige:{hasPrestigeEntitlement ? 'Y' : 'N'}
-            </Text>
-            <Text style={styles.debugBannerSubtext}>
-              Scanner: {scannerAccess.scannerStack}
-            </Text>
-            <Text style={styles.debugBannerSubtext}>
-              Multi-ingredient photo scan: {scannerAccess.supportsMultiIngredientDetection ? 'enabled' : 'not available'}
-            </Text>
-          </View>
-
-          {/* Preview image */}
-          {imageUri && (
-            <Image source={{ uri: imageUri }} style={styles.previewImage} />
-          )}
-
-          {/* Analyzing state */}
-          {analyzing && (
-            <View style={styles.analyzingContainer}>
-              <ActivityIndicator size="large" color={colors.gold} />
-              <Text style={styles.analyzingTitle}>{analyzingTitle}</Text>
-              <Text style={styles.analyzingSubtitle}>{analyzingSubtitle}</Text>
-            </View>
-          )}
-
-          {/* Action buttons after analysis */}
-          {!analyzing && imageUri && (
-            <View style={styles.actions}>
-              <TouchableOpacity style={styles.retakeButton} onPress={handleRetake}>
-                <Ionicons name="camera-outline" size={20} color={colors.text} />
-                <Text style={styles.retakeText}>Retake</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity style={styles.cancelButton} onPress={handleCameraClose}>
-                <Text style={styles.cancelText}>Cancel</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-        </View>
-      </SafeAreaView>
+      )}
     </>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.bg,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing(2),
-    paddingVertical: spacing(2),
-    borderBottomWidth: 1,
-    borderBottomColor: colors.line,
-  },
-  backButton: {
-    width: 44,
-    height: 44,
+  analyzingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(8,8,8,0.82)',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  headerSpacer: {
-    width: 44,
-  },
-  content: {
-    flex: 1,
-    justifyContent: 'flex-start',
-    alignItems: 'center',
-    padding: spacing(3),
-  },
-  debugBanner: {
-    width: '100%',
-    backgroundColor: 'rgba(214,138,56,0.14)',
-    borderWidth: 1,
-    borderColor: 'rgba(214,138,56,0.3)',
-    borderRadius: radii.md,
-    paddingHorizontal: spacing(2),
-    paddingVertical: spacing(1.5),
-    marginBottom: spacing(2),
-  },
-  debugBannerText: {
-    color: colors.text,
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  debugBannerSubtext: {
-    color: colors.subtext,
-    fontSize: 11,
-    marginTop: spacing(0.5),
-  },
-  previewImage: {
-    width: '100%',
-    height: 300,
-    borderRadius: radii.lg,
-    marginBottom: spacing(3),
-  },
-  analyzingContainer: {
-    alignItems: 'center',
     gap: spacing(2),
   },
   analyzingTitle: {
@@ -585,43 +464,12 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.text,
     marginTop: spacing(2),
+    fontFamily: 'Georgia',
   },
   analyzingSubtitle: {
     fontSize: 14,
     color: colors.subtext,
     textAlign: 'center',
-  },
-  actions: {
-    position: 'absolute',
-    bottom: spacing(4),
-    left: spacing(3),
-    right: spacing(3),
-    gap: spacing(2),
-  },
-  retakeButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing(1),
-    backgroundColor: colors.card,
-    borderRadius: radii.lg,
-    padding: spacing(2),
-    borderWidth: 1,
-    borderColor: colors.line,
-  },
-  retakeText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  cancelButton: {
-    alignItems: 'center',
-    padding: spacing(2),
-  },
-  cancelText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.subtext,
   },
   urlButtonContainer: {
     position: 'absolute',
@@ -637,16 +485,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     width: 64,
     height: 64,
-    shadowColor: '#000',
+    shadowColor: colors.accent,
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
     elevation: 5,
   },
   urlButtonText: {
     fontSize: 10,
     fontWeight: '700',
-    color: colors.white,
+    color: colors.goldText,
     marginTop: spacing(0.5),
   },
 });

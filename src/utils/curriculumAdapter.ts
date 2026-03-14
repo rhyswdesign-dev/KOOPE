@@ -53,6 +53,27 @@ const normalizeType = (value: unknown): ExerciseType => {
   return 'mcq';
 };
 
+const normalizeOrderTarget = (item: any): string[] => {
+  const candidates = [
+    item?.orderTarget,
+    item?.expectedOrder,
+    item?.correct_order,
+    item?.correctOrder,
+    item?.correct_sequence,
+    item?.sequence,
+    item?.correct,
+    item?.items,
+  ];
+
+  for (const candidate of candidates) {
+    if (Array.isArray(candidate) && candidate.length > 0) {
+      return candidate.map((v) => String(v)).filter(Boolean);
+    }
+  }
+
+  return [];
+};
+
 const normalizeFlat = (data: any): FlatCurriculum => {
   const modules: Module[] = (data.modules || []).map((module: any, index: number) => ({
     id: module.id,
@@ -85,7 +106,7 @@ const normalizeFlat = (data: any): FlatCurriculum => {
     prompt: item.prompt || '',
     options: item.options || [],
     answerIndex: typeof item.answerIndex === 'number' ? item.answerIndex : undefined,
-    orderTarget: item.orderTarget || item.expectedOrder || [],
+    orderTarget: normalizeOrderTarget(item),
     answerText: item.answerText || item.expectedAnswer,
     acceptableAnswers: item.acceptableAnswers || [],
     correct: item.correct || [],
@@ -136,6 +157,7 @@ const normalizeNested = (data: any): FlatCurriculum => {
         prerequisiteIds: lesson.prerequisiteIds || [],
         prereqs: lesson.prereqs || [],
         types,
+        xpReward: lesson.xpReward,
         tags: lesson.tags || [],
       });
 
@@ -155,7 +177,7 @@ const normalizeNested = (data: any): FlatCurriculum => {
           prompt: question.prompt || '',
           options: question.options || [],
           answerIndex,
-          orderTarget: question.orderTarget || question.expectedOrder || [],
+          orderTarget: normalizeOrderTarget(question),
           answerText: question.answerText || question.expectedAnswer,
           acceptableAnswers: question.acceptableAnswers || [],
           correct: Array.isArray(question.correct) ? question.correct : [],

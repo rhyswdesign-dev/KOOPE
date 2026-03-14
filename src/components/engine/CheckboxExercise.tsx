@@ -9,7 +9,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, radii, spacing } from '../../theme/tokens';
 import { Item } from '../../types/domain';
-import { log } from '../../lib/logger';
 
 interface CheckboxExerciseProps {
   item: Item;
@@ -34,15 +33,14 @@ export const CheckboxExercise: React.FC<CheckboxExerciseProps> = ({ item, onResu
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
-        duration: 400,
+        duration: 220,
         useNativeDriver: true,
       }),
-      Animated.stagger(60,
+      Animated.stagger(30,
         optionAnims.map(anim =>
-          Animated.spring(anim, {
+          Animated.timing(anim, {
             toValue: 1,
-            tension: 80,
-            friction: 8,
+            duration: 180,
             useNativeDriver: true,
           })
         )
@@ -85,12 +83,6 @@ export const CheckboxExercise: React.FC<CheckboxExerciseProps> = ({ item, onResu
 
   const isOptionSelected = (option: string) => selectedOptions.includes(option);
   const canSubmit = selectedOptions.length > 0;
-
-  log.debug('CheckboxExercise', 'Rendering CheckboxExercise', {
-    prompt: item.prompt,
-    optionsCount: item.options?.length,
-    fadeAnimValue: 1
-  });
 
   return (
     <Animated.View
@@ -188,13 +180,13 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   prompt: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: '400',
     fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
     color: colors.text,
     textAlign: 'center',
     marginBottom: spacing(5),
-    lineHeight: 34,
+    lineHeight: 30,
   },
   optionsContainer: {
     gap: spacing(1.5),

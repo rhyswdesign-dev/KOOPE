@@ -27,6 +27,7 @@ import { useFeatureTooltip } from '../hooks/useFeatureTooltip';
 import { TOOLTIP_CONFIGS } from '../config/tooltipContent';
 import { useFeatureAccess } from '../hooks/useFeatureAccess';
 import { useAuth } from '../contexts/AuthContext';
+import { useUserTier } from '../store/useUserTier';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -518,36 +519,66 @@ function Challenges2View() {
 // Lessons component (extracted from main component)
 function LessonsView() {
   const navigation = useNavigation<NavigationProp>();
-  const { lives, completedLessons, checkLifeRefresh } = useUser();
-  const { gateWithTrigger: masteryGate } = useFeatureAccess('mastery_lessons');
+  const { lives, completedLessons, checkLifeRefresh, completeLesson: completeUserLesson } = useUser();
+  const tier = useUserTier((s) => s.tier);
+  const { hasAccess: hasMasteryAccess, gateWithTrigger: masteryGate } = useFeatureAccess('mastery_lessons');
+  const ALWAYS_OPEN_MODULE_IDS = new Set(['ch7-mocktails-zero-proof']);
+  const MASTERY_MODULE_IDS = new Set(['ch4-spirits-pairing']);
   const [modules, setModules] = useState<any[]>([]);
   const [selectedModule, setSelectedModule] = useState<any | null>(null);
   const [moduleLessons, setModuleLessons] = useState<any[]>([]);
+  const isTipsLesson = (lesson: any): boolean => Array.isArray(lesson.tags) && lesson.tags.includes('tips_lesson');
+  const hasPlayableContent = (lesson: any): boolean => isTipsLesson(lesson) || (lesson.itemIds?.length || 0) > 0;
 
   useEffect(() => {
     // Check for life refresh on screen load
     checkLifeRefresh();
 
     // Load actual curriculum modules
-    const sortedModules = curriculumData.modules
+    const sortedBaseModules = curriculumData.modules
       .sort((a, b) => a.chapterIndex - b.chapterIndex)
-      .map(module => ({
+      .map((module) => ({
         ...module,
         completed: false, // Calculate based on completed lessons
-        locked: module.chapterIndex > 1 // Lock modules after first
       }));
 
+    const moduleHasContent = new Map<string, boolean>();
+    sortedBaseModules.forEach((module) => {
+      const lessons = curriculumData.lessons.filter((lesson) => lesson.moduleId === module.id);
+      const hasContent = lessons.some((lesson) => hasPlayableContent(lesson));
+      moduleHasContent.set(module.id, hasContent);
+    });
+
+    const visibleModules = sortedBaseModules.filter((module) => !MASTERY_MODULE_IDS.has(module.id));
+    const firstVisibleContentModuleId = visibleModules.find((module) => moduleHasContent.get(module.id))?.id;
+
+    const sortedModules = visibleModules.map((module) => ({
+      ...module,
+      locked: ALWAYS_OPEN_MODULE_IDS.has(module.id)
+        ? false
+        : (firstVisibleContentModuleId ? module.id !== firstVisibleContentModuleId : module.chapterIndex > 1),
+    }));
+
     setModules(sortedModules);
-  }, [checkLifeRefresh]);
+  }, [checkLifeRefresh, tier]);
 
   const handleModulePress = (module: any) => {
-    if (module.locked) return;
+    if (module.locked) {
+      if (MASTERY_MODULE_IDS.has(module.id) && tier !== 'PRO') {
+        masteryGate('T10');
+      }
+      return;
+    }
 
     // Load lessons for selected module
     const lessons = curriculumData.lessons.filter(lesson => lesson.moduleId === module.id);
-    const availableLessons = lessons.filter(lesson => (lesson.itemIds?.length || 0) > 0);
+    const availableLessons = lessons.filter(lesson => hasPlayableContent(lesson));
+    if (availableLessons.length === 0) {
+      Alert.alert('Coming Soon', 'This chapter is still being built. More lessons are on the way.');
+      return;
+    }
     setSelectedModule(module);
-    setModuleLessons(availableLessons.length > 0 ? availableLessons : lessons);
+    setModuleLessons(availableLessons);
   };
 
   const handleBackToModules = () => {
@@ -555,13 +586,90 @@ function LessonsView() {
     setModuleLessons([]);
   };
 
+  const handleMasteryPress = () => {
+    if (tier !== 'PRO') {
+      masteryGate('T10');
+      return;
+    }
+
+    const masteryModule = curriculumData.modules.find((module) => MASTERY_MODULE_IDS.has(module.id));
+    if (!masteryModule) {
+      Alert.alert('Coming Soon', 'Mastery lessons are not available yet.');
+      return;
+    }
+
+    const masteryLessons = curriculumData.lessons
+      .filter((lesson) => lesson.moduleId === masteryModule.id)
+      .filter((lesson) => hasPlayableContent(lesson));
+
+    if (masteryLessons.length === 0) {
+      Alert.alert('Coming Soon', 'Mastery lessons are still being built.');
+      return;
+    }
+
+    setSelectedModule({
+      ...masteryModule,
+      completed: false,
+      locked: false,
+    });
+    setModuleLessons(masteryLessons);
+  };
+
   const handleLessonPress = (lesson: any) => {
-    masteryGate('T10', () => {
-      log.nav('LessonsScreen', 'LessonEngine', { lessonId: lesson.id, title: lesson.title });
+    const isMasteryLesson = MASTERY_MODULE_IDS.has(lesson.moduleId);
+    if (isMasteryLesson && tier !== 'PRO') {
+      masteryGate('T10');
+      return;
+    }
+
+    const isAlwaysOpenModule = ALWAYS_OPEN_MODULE_IDS.has(lesson.moduleId);
+    if (isAlwaysOpenModule) {
+      if (isTipsLesson(lesson)) {
+        const xpReward = Math.max(0, Number(lesson.xpReward ?? 40));
+        const canClaimXP = !completedLessons.includes(lesson.id);
+        Alert.alert(
+          lesson.title,
+          `${lesson.description || 'Review this lesson for practical tips and workflows.'}\n\nReward: +${xpReward} XP`,
+          [
+            { text: 'Close', style: 'cancel' },
+            ...(canClaimXP ? [{
+              text: `Mark Complete (+${xpReward} XP)`,
+              onPress: () => completeUserLesson(lesson.id, xpReward),
+            }] : []),
+          ]
+        );
+        return;
+      }
+
+      log.nav('LessonsScreen', 'LessonEngine', { lessonId: lesson.id, title: lesson.title, alwaysOpen: true });
       navigation.navigate('LessonEngine', {
         lessonId: lesson.id,
         isFirstLesson: false
       });
+      return;
+    }
+
+    if (isTipsLesson(lesson)) {
+      const xpReward = Math.max(0, Number(lesson.xpReward ?? 40));
+      const canClaimXP = !completedLessons.includes(lesson.id);
+      Alert.alert(
+        lesson.title,
+        `${lesson.description || 'Review this lesson for practical tips and workflows.'}\n\nReward: +${xpReward} XP`,
+        [
+          { text: 'Close', style: 'cancel' },
+          ...(canClaimXP ? [{
+            text: `Mark Complete (+${xpReward} XP)`,
+            onPress: () => completeUserLesson(lesson.id, xpReward),
+          }] : []),
+        ]
+      );
+      return;
+    }
+
+    log.nav('LessonsScreen', 'LessonEngine', { lessonId: lesson.id, title: lesson.title });
+    navigation.navigate('LessonEngine', {
+      lessonId: lesson.id,
+      isFirstLesson: false
     });
   };
 
@@ -611,10 +719,11 @@ function LessonsView() {
   };
 
   const renderLesson = (lesson: any, index: number) => {
-    const hasContent = (lesson.itemIds?.length || 0) > 0;
+    const isTips = isTipsLesson(lesson);
+    const hasContent = hasPlayableContent(lesson);
     const isCompleted = completedLessons.includes(lesson.id);
     const isLocked = !hasContent || (index > 0 && !completedLessons.includes(moduleLessons[index - 1]?.id));
-    const outOfLives = lives <= 0;
+    const outOfLives = lives <= 0 && !isTips;
     const isNext = !isCompleted && !isLocked;
     const isLast = index === moduleLessons.length - 1;
 
@@ -625,12 +734,11 @@ function LessonsView() {
     if (!hasContent) {
       statusText = 'Coming Soon';
       subtitleStyle = styles.subtitleLocked;
-    } else
-    if (isCompleted) {
+    } else if (isCompleted) {
       statusText = 'Completed';
       subtitleStyle = styles.subtitleCompleted;
     } else if (isNext) {
-      statusText = outOfLives ? 'Out of Lives' : 'In Progress';
+      statusText = isTips ? 'Tip Lesson' : (outOfLives ? 'Out of Lives' : 'In Progress');
       subtitleStyle = outOfLives ? { color: colors.error, opacity: 0.8 } : styles.subtitleNext;
     }
 
@@ -669,7 +777,7 @@ function LessonsView() {
           {/* Optional: Show Duration if not locked */}
           {!isLocked && (
             <Text style={{ fontSize: 12, color: colors.subtext, marginTop: 2, opacity: 0.6 }}>
-              {lesson.estimatedMinutes} min • {lesson.types[0]}
+              {lesson.estimatedMinutes} min • {isTips ? 'tips' : (lesson.types?.[0] || 'lesson')}
             </Text>
           )}
         </Pressable>
@@ -683,7 +791,17 @@ function LessonsView() {
         {!selectedModule ? (
           /* Show Chapters */
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Bartending Curriculum</Text>
+            <View style={styles.curriculumHeaderRow}>
+              <Text style={styles.sectionTitle}>Bartending Curriculum</Text>
+              <Pressable style={styles.masteryInlineButton} onPress={handleMasteryPress}>
+                <Ionicons
+                  name={hasMasteryAccess ? 'checkmark-circle-outline' : 'lock-closed-outline'}
+                  size={14}
+                  color={colors.accent}
+                />
+                <Text style={styles.masteryInlineButtonText}>Mastery (PRO)</Text>
+              </Pressable>
+            </View>
             <Text style={styles.sectionSubtitle}>
               Professional bartending course designed by industry experts
             </Text>
@@ -977,6 +1095,63 @@ const styles = StyleSheet.create({
     marginBottom: spacing(3),
     lineHeight: 22,
     opacity: 0.8,
+  },
+  curriculumHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing(1),
+  },
+  masteryInlineButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(0.5),
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: radii.pill,
+    paddingVertical: spacing(0.5),
+    paddingHorizontal: spacing(1.25),
+    marginTop: -6,
+  },
+  masteryInlineButtonText: {
+    color: colors.accent,
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  },
+  masteryGateCard: {
+    backgroundColor: colors.card,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.line,
+    padding: spacing(2),
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(1.5),
+  },
+  masteryGateIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(214, 138, 56, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(214, 138, 56, 0.22)',
+  },
+  masteryGateCopy: {
+    flex: 1,
+  },
+  masteryGateTitle: {
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  masteryGateSubtitle: {
+    color: colors.subtext,
+    fontSize: 12,
+    marginTop: 2,
   },
 
   // Module Cards
