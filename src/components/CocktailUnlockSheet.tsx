@@ -13,6 +13,7 @@ interface CocktailUnlockSheetProps {
   visible: boolean;
   onClose: () => void;
   cocktailName?: string;
+  unlockHint?: string;
   xpCost: number;
   currentXP: number;
   canAfford: boolean;
@@ -24,6 +25,7 @@ export default function CocktailUnlockSheet({
   visible,
   onClose,
   cocktailName = 'This Cocktail',
+  unlockHint,
   xpCost,
   currentXP,
   canAfford,
@@ -51,6 +53,7 @@ export default function CocktailUnlockSheet({
             <Ionicons name="lock-open" size={32} color={colors.gold} />
             <Text style={styles.title}>Unlock {cocktailName}?</Text>
             <Text style={styles.subtitle}>Choose how you'd like to unlock this recipe</Text>
+            {unlockHint ? <Text style={styles.unlockHint}>{unlockHint}</Text> : null}
           </View>
 
           {/* XP Balance Display */}
@@ -159,6 +162,13 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.textMuted,
     marginTop: spacing(0.5),
+    textAlign: 'center',
+  },
+  unlockHint: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.gold,
+    marginTop: spacing(1),
     textAlign: 'center',
   },
   xpBalanceContainer: {

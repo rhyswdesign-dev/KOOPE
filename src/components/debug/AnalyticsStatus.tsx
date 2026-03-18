@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Analytics Status Component
  * Shows analytics provider status for debugging

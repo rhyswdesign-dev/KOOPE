@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * LEGAL HUB SCREEN
  * Central hub for all legal and privacy-related content

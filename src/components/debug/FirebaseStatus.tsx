@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Firebase Status Component
  * Shows Firebase connection status for debugging

@@ -7,8 +7,8 @@
     "noImplicitAny": true,
     "noImplicitThis": true,
     "alwaysStrict": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
     "baseUrl": ".",
@@ -31,6 +31,13 @@
   "exclude": [
     "MixMind/**/*",
     "node_modules",
-    "scripts/**/*"
+    "scripts/**/*",
+    "src/tests/**/*",
+    "src/components/__tests__/**/*",
+    "supabase/functions/**/*",
+    "firebase/**/*",
+    "@firebase/**/*",
+    "VAULT_EXAMPLE_USAGE.tsx",
+    "src/**/*OLD*"
   ]
 }

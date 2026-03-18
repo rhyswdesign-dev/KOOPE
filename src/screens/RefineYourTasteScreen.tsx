@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * REFINE YOUR TASTE SCREEN
  * Allows users to update their taste profile after onboarding

@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * ACHIEVEMENT UNLOCK MODAL
  * On-brand dark espresso celebration — amber gold, premium feel

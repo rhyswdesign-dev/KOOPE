@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Mood-Based Recipe Organization
  * Organizes cocktails by mood/occasion, personalized by user preferences

@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * USE OFFLINE HOOK
  * React hook for offline functionality

@@ -54,6 +54,8 @@ export default function ProfileScreen() {
   const savedCocktailCount = savedItems.savedCocktails?.length || 0;
   const savedDrinkCount = savedItems.savedDrinks?.length || 0;
   const savedTotalCount = savedCocktailCount + savedDrinkCount;
+  const createdRecipeCount = recipes.filter(r => r.type === 'created' || r.type === 'ai_generated').length;
+  const importedRecipeCount = recipes.filter(r => (r.type as string) === 'imported').length;
 
   // Compute what vault content the user can currently afford with their XP.
   // Only used in the free-user affordability card; shows XP as currency, not just a score.
@@ -331,14 +333,14 @@ export default function ProfileScreen() {
                   <View style={styles.collectionDivider} />
                   <View style={styles.collectionStatItem}>
                     <Ionicons name="create" size={18} color={colors.accent} />
-                    <Text style={styles.collectionStatValue}>{recipes.filter(r => r.type === 'created' || r.type === 'ai_generated').length}</Text>
+                    <Text style={styles.collectionStatValue}>{createdRecipeCount}</Text>
                     <Text style={styles.collectionStatLabel}>Created</Text>
                   </View>
                   <View style={styles.collectionDivider} />
                   <View style={styles.collectionStatItem}>
-                    <Ionicons name="game-controller" size={18} color={colors.accent} />
-                    <Text style={styles.collectionStatValue}>{savedItems.savedGames?.length || 0}</Text>
-                    <Text style={styles.collectionStatLabel}>Games</Text>
+                    <Ionicons name="download" size={18} color={colors.accent} />
+                    <Text style={styles.collectionStatValue}>{importedRecipeCount}</Text>
+                    <Text style={styles.collectionStatLabel}>Imported</Text>
                   </View>
                   <View style={styles.collectionDivider} />
                   <View style={styles.collectionStatItem}>

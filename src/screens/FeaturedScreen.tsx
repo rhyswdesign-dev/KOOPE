@@ -1,23 +1,19 @@
 import React, { useLayoutEffect, useRef, useState } from 'react';
 import {
-  ScrollView, View, Text, Image, TouchableOpacity, Pressable, StyleSheet, Share, Alert
+  ScrollView, View, Text, Image, TouchableOpacity, StyleSheet
 } from 'react-native';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, radii, fonts, standardText, buttons } from '../theme/tokens';
+import { colors, spacing, radii, fonts } from '../theme/tokens';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/RootNavigator';
-import { useSavedItems } from '../hooks/useSavedItems';
-import { SearchableItem, FilterOptions } from '../services/searchService';
+import { FilterOptions } from '../services/searchService';
 import SearchModal from '../components/SearchModal';
 import FilterDrawer from '../components/FilterDrawer';
-import CreateRecipeModal from '../components/CreateRecipeModal';
 import { useScreenTracking } from '../context/AnalyticsContext';
 import { log } from '../lib/logger';
-import { useUserTier } from '../store/useUserTier';
-import { useSubscription } from '../contexts/SubscriptionContext';
 import { useFeatureAccess } from '../hooks/useFeatureAccess';
-import { getFeaturedVaultItems, getActiveVaultItems } from '../data/vaultData';
+import { getFeaturedVaultItems } from '../data/vaultData';
 
 // Drinking games moved to Vault
 
@@ -34,14 +30,8 @@ const videos = [
 
 export default function FeaturedScreen() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { toggleSavedCocktail, isCocktailSaved } = useSavedItems();
   const mainScrollRef = useRef<ScrollView>(null);
-  const { tier } = useUserTier();
-  const { subscriptionTier } = useSubscription();
   const { gateWithTrigger: filterGate, hasAccess: hasFilterAccess } = useFeatureAccess('advanced_filters');
-
-  // FREE users see teaser but can't access full recipe
-  const isPremiumUser = subscriptionTier === 'plus' || subscriptionTier === 'pro';
 
   // Track screen view
   useScreenTracking('FeaturedScreen');
@@ -49,7 +39,6 @@ export default function FeaturedScreen() {
   // Modal states
   const [searchModalVisible, setSearchModalVisible] = useState(false);
   const [filterDrawerVisible, setFilterDrawerVisible] = useState(false);
-  const [createRecipeModalVisible, setCreateRecipeModalVisible] = useState(false);
   const [currentFilters, setCurrentFilters] = useState<Partial<FilterOptions>>({});
 
   const handleSearch = (query: string) => {
@@ -77,17 +66,6 @@ export default function FeaturedScreen() {
     setFilterDrawerVisible(false);
     log.info('FeaturedScreen', 'Applied filters', { filters });
     // Apply filters to featured content
-  };
-
-  const handleRecipeCreated = (recipeId: string) => {
-    log.info('FeaturedScreen', 'Recipe created', { recipeId });
-    setCreateRecipeModalVisible(false);
-    // Could navigate to the created recipe
-  };
-
-  const handleCompetitionEntryCreated = (entryId: string) => {
-    log.info('FeaturedScreen', 'Competition entry created', { entryId });
-    // Could navigate to the entry or competitions section
   };
 
   useLayoutEffect(() => {
@@ -174,13 +152,6 @@ export default function FeaturedScreen() {
         onApply={handleFilterApply}
         currentFilters={currentFilters}
       />
-      
-      <CreateRecipeModal
-        visible={createRecipeModalVisible}
-        onClose={() => setCreateRecipeModalVisible(false)}
-        onSuccess={handleRecipeCreated}
-      />
-
     </View>
   );
 }
@@ -199,76 +170,6 @@ function Section({ title, children, onPress }: { title:string; children:React.Re
         <Text style={styles.sectionTitle}>{title}</Text>
       )}
       <View style={{ marginTop: spacing(1) }}>{children}</View>
-    </View>
-  );
-}
-
-function HScroll({ cards, smallGap, onPress }:{ cards:Array<{title:string; subtitle?:string; img:any; id?:string; tier?:string}>; smallGap?:boolean; onPress?: (item: {title:string; subtitle?:string; img:any; id?:string; tier?:string}) => void }) {
-  const { toggleSavedBar, isBarSaved } = useSavedItems();
-
-  const handleShare = async (item: {title:string; subtitle?:string; img:any; id?:string; tier?:string}) => {
-    try {
-      await Share.share({
-        message: `Check out ${item.title}! ${item.subtitle ? item.subtitle : 'A great bar to visit.'}`,
-        title: `${item.title} - Bar Recommendation`,
-      });
-    } catch (error) {
-      Alert.alert('Error', 'Unable to share at this time');
-    }
-  };
-
-  return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false}
-      contentContainerStyle={{ gap: smallGap ? spacing(1.5) : spacing(2) }}>
-      {cards.map(c=>(
-        <TouchableOpacity key={c.id || c.title} style={styles.hCard} onPress={() => onPress?.(c)} activeOpacity={0.8}>
-          <View style={styles.cardImageContainer}>
-            <Image source={typeof c.img === 'string' ? { uri: c.img } : c.img} style={styles.hImage}/>
-            <TouchableOpacity
-              style={styles.cardShareButton}
-              onPress={() => handleShare(c)}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="share-outline" size={16} color={colors.white} />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.cardSaveButton}
-              onPress={() => toggleSavedBar({
-                id: c.id || c.title,
-                name: c.title,
-                subtitle: c.subtitle,
-                image: c.img
-              })}
-              activeOpacity={0.7}
-            >
-              <Ionicons 
-                name={isBarSaved(c.id || c.title) ? "bookmark" : "bookmark-outline"} 
-                size={16} 
-                color={isBarSaved(c.id || c.title) ? colors.accent : colors.white} 
-              />
-            </TouchableOpacity>
-          </View>
-          <Text style={styles.cardTitle}>{c.title}</Text>
-          {c.subtitle ? <Text style={styles.cardSub}>{c.subtitle}</Text> : null}
-        </TouchableOpacity>
-      ))}
-    </ScrollView>
-  );
-}
-
-function ToolPromo({ title, subtitle, cta, onPress }:{
-  title:string; subtitle:string; cta:string; onPress:()=>void;
-}) {
-  return (
-    <View style={styles.toolCard}>
-      <View style={{ flex:1 }}>
-        <Text style={styles.cardTitle}>{title}</Text>
-        <Text style={styles.cardSub}>{subtitle}</Text>
-      </View>
-      <TouchableOpacity onPress={onPress} style={styles.goldBtn}>
-        <Text style={styles.goldBtnText}>{cta}</Text>
-        <Ionicons name="chevron-forward" size={16} color={colors.text} style={{ marginLeft: 6 }} />
-      </TouchableOpacity>
     </View>
   );
 }

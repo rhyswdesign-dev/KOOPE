@@ -4,6 +4,7 @@
  */
 
 import { ALL_COCKTAILS } from '../data/cocktails';
+import { formatIngredientDisplay, ingredientListToSearchText } from './ingredientFormatting';
 
 export interface DetailedCocktailIngredient {
   name: string;
@@ -33,18 +34,11 @@ export interface DetailedCocktail {
 export function transformCocktailToDetailFormat(cocktail: any): DetailedCocktail {
   // Transform ingredients from strings to objects with notes
   const transformedIngredients: DetailedCocktailIngredient[] = cocktail.ingredients?.map((ingredient: any) => {
-    if (typeof ingredient === 'string') {
-      return {
-        name: ingredient,
-        note: generateIngredientNote(ingredient)
-      };
-    } else if (ingredient?.name) {
-      return {
-        name: ingredient.name,
-        note: ingredient.note || generateIngredientNote(ingredient.name)
-      };
-    }
-    return { name: ingredient.toString() };
+    const formatted = formatIngredientDisplay(ingredient);
+    return {
+      name: formatted.name,
+      note: formatted.note || generateIngredientNote(formatted.name)
+    };
   }) || [];
 
   return {
@@ -124,7 +118,7 @@ function getBaseSpirit(cocktail: any): string {
   if (cocktail.base) return cocktail.base;
 
   const name = cocktail.name?.toLowerCase() || '';
-  const ingredients = cocktail.ingredients?.join(' ').toLowerCase() || '';
+  const ingredients = ingredientListToSearchText(cocktail.ingredients);
 
   if (name.includes('whiskey') || ingredients.includes('whiskey') || ingredients.includes('bourbon') || ingredients.includes('rye')) return 'whiskey';
   if (name.includes('gin') || ingredients.includes('gin')) return 'gin';
@@ -183,7 +177,7 @@ function generateInstructions(cocktail: any): string[] {
 function generateTips(cocktail: any): string[] {
   const tips: string[] = [];
   const base = getBaseSpirit(cocktail);
-  const ingredients = cocktail.ingredients?.join(' ').toLowerCase() || '';
+  const ingredients = ingredientListToSearchText(cocktail.ingredients);
 
   // Base spirit tips
   if (base === 'whiskey') {
@@ -229,7 +223,7 @@ function generateTips(cocktail: any): string[] {
 function generateGlassware(cocktail: any): string {
   if (cocktail.glassware) return cocktail.glassware;
 
-  const ingredients = cocktail.ingredients?.join(' ').toLowerCase() || '';
+  const ingredients = ingredientListToSearchText(cocktail.ingredients);
   const name = cocktail.name?.toLowerCase() || '';
 
   // Specific cocktail types

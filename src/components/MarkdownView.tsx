@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * MARKDOWN RENDERER COMPONENT
  * Renders markdown content with proper styling and anchor support

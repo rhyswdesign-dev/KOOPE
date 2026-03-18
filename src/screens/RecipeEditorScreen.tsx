@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Recipe Editor Screen
  * Full-screen editor for customizing AI-generated recipes

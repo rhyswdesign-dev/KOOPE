@@ -21,6 +21,8 @@ export interface UserRecipe {
   }>;
   instructions: string[];
   image?: string;
+  thumbnailImage?: string;
+  headerImage?: string;
   tags?: string[];
   difficulty?: 'Easy' | 'Medium' | 'Hard';
   prepTime?: number; // in minutes

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   ScrollView,
   StyleSheet,
-  Pressable,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -20,21 +19,10 @@ interface FilterModalProps {
   onApplyFilters: (filters: Partial<FilterOptions>) => void;
 }
 
-const DIFFICULTY_LEVELS = ['easy', 'medium', 'hard'];
-const CATEGORIES = ['cocktails', 'shots', 'mocktails', 'syrups'];
-const COMMON_INGREDIENTS = [
-  'vodka',
-  'gin',
-  'rum',
-  'tequila',
-  'whiskey',
-  'bourbon',
-  'lime',
-  'lemon',
-  'mint',
-  'sugar',
-  'simple syrup',
-  'soda water',
+const CATEGORIES = ['cocktails', 'shots', 'mocktails', 'syrups', 'variations'];
+const SORT_OPTIONS: Array<{ label: string; value: FilterOptions['sortOrder'] }> = [
+  { label: 'A to Z', value: 'alphabetical-asc' },
+  { label: 'Z to A', value: 'alphabetical-desc' },
 ];
 
 /**
@@ -50,47 +38,53 @@ export default function FilterModal({
 }: FilterModalProps) {
   const [localFilters, setLocalFilters] = useState<Partial<FilterOptions>>(filters);
 
+  useEffect(() => {
+    if (!visible) return;
+    setLocalFilters(filters);
+  }, [visible, filters]);
+
   const handleApply = () => {
     onApplyFilters(localFilters);
     onClose();
   };
 
   const handleReset = () => {
-    const resetFilters: Partial<FilterOptions> = {};
+    const resetFilters: Partial<FilterOptions> = {
+      category: [],
+      sortOrder: 'alphabetical-asc',
+    };
     setLocalFilters(resetFilters);
     onApplyFilters(resetFilters);
   };
 
-  const toggleDifficulty = (difficulty: string) => {
-    setLocalFilters((prev) => ({
-      ...prev,
-      difficulty: prev.difficulty === difficulty ? undefined : difficulty,
-    }));
+  const normalizeToArray = (value?: string[] | string): string[] => {
+    if (Array.isArray(value)) return value;
+    if (typeof value === 'string' && value.trim()) return [value.trim()];
+    return [];
   };
 
   const toggleCategory = (category: string) => {
+    const selectedCategories = normalizeToArray(localFilters.category);
+    const hasCategory = selectedCategories.includes(category);
     setLocalFilters((prev) => ({
       ...prev,
-      category: prev.category === category ? undefined : category,
+      category: hasCategory
+        ? selectedCategories.filter((c) => c !== category)
+        : [...selectedCategories, category],
     }));
   };
 
-  const toggleIngredient = (ingredient: string) => {
-    const currentIngredients = localFilters.ingredients || [];
-    const hasIngredient = currentIngredients.includes(ingredient);
-
+  const toggleSort = (sortOrder: FilterOptions['sortOrder']) => {
     setLocalFilters((prev) => ({
       ...prev,
-      ingredients: hasIngredient
-        ? currentIngredients.filter((i) => i !== ingredient)
-        : [...currentIngredients, ingredient],
+      sortOrder: prev.sortOrder === sortOrder ? 'alphabetical-asc' : sortOrder,
     }));
   };
 
+  const selectedCategories = normalizeToArray(localFilters.category);
   const activeFilterCount =
-    (localFilters.difficulty ? 1 : 0) +
-    (localFilters.category ? 1 : 0) +
-    (localFilters.ingredients?.length || 0);
+    selectedCategories.length +
+    (localFilters.sortOrder && localFilters.sortOrder !== 'alphabetical-asc' ? 1 : 0);
 
   return (
     <Modal
@@ -103,7 +97,7 @@ export default function FilterModal({
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.headerLeft}>
-            <Text style={styles.headerTitle}>Filters</Text>
+            <Text style={styles.headerTitle}>Basic Filters</Text>
             {activeFilterCount > 0 && (
               <View style={styles.badge}>
                 <Text style={styles.badgeText}>{activeFilterCount}</Text>
@@ -116,33 +110,16 @@ export default function FilterModal({
         </View>
 
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-          {/* Difficulty Filter */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Difficulty</Text>
-            <View style={styles.chipContainer}>
-              {DIFFICULTY_LEVELS.map((level) => {
-                const isSelected = localFilters.difficulty === level;
-                return (
-                  <TouchableOpacity
-                    key={level}
-                    style={[styles.chip, isSelected && styles.chipSelected]}
-                    onPress={() => toggleDifficulty(level)}
-                  >
-                    <Text style={[styles.chipText, isSelected && styles.chipTextSelected]}>
-                      {level.charAt(0).toUpperCase() + level.slice(1)}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </View>
+          <Text style={styles.helperText}>
+            Quick browsing filters only. Use Advanced for spirit, mood, and difficulty.
+          </Text>
 
-          {/* Category Filter */}
+          {/* Basic Category Filter */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Category</Text>
             <View style={styles.chipContainer}>
               {CATEGORIES.map((category) => {
-                const isSelected = localFilters.category === category;
+                const isSelected = selectedCategories.includes(category);
                 return (
                   <TouchableOpacity
                     key={category}
@@ -158,28 +135,20 @@ export default function FilterModal({
             </View>
           </View>
 
-          {/* Ingredients Filter */}
+          {/* Basic Sort Filter */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Common Ingredients</Text>
+            <Text style={styles.sectionTitle}>Sort</Text>
             <View style={styles.chipContainer}>
-              {COMMON_INGREDIENTS.map((ingredient) => {
-                const isSelected = localFilters.ingredients?.includes(ingredient);
+              {SORT_OPTIONS.map((option) => {
+                const isSelected = localFilters.sortOrder === option.value;
                 return (
                   <TouchableOpacity
-                    key={ingredient}
+                    key={option.value}
                     style={[styles.chip, isSelected && styles.chipSelected]}
-                    onPress={() => toggleIngredient(ingredient)}
+                    onPress={() => toggleSort(option.value)}
                   >
-                    {isSelected && (
-                      <Ionicons
-                        name="checkmark-circle"
-                        size={16}
-                        color={colors.bg}
-                        style={styles.chipIcon}
-                      />
-                    )}
                     <Text style={[styles.chipText, isSelected && styles.chipTextSelected]}>
-                      {ingredient.charAt(0).toUpperCase() + ingredient.slice(1)}
+                      {option.label}
                     </Text>
                   </TouchableOpacity>
                 );
@@ -217,14 +186,16 @@ export default function FilterModal({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.bg,
+    backgroundColor: colors.card,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(214,138,56,0.25)',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: spacing(3),
-    paddingVertical: spacing(2),
+    paddingVertical: spacing(2.5),
     borderBottomWidth: 1,
     borderBottomColor: colors.line,
   },
@@ -234,41 +205,53 @@ const styles = StyleSheet.create({
     gap: spacing(1.5),
   },
   headerTitle: {
-    fontSize: 24,
-    fontWeight: '900',
+    fontSize: 22,
+    fontWeight: '700',
     color: colors.text,
+    fontFamily: 'Georgia',
   },
   badge: {
     backgroundColor: colors.accent,
-    borderRadius: 12,
-    minWidth: 24,
-    height: 24,
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: spacing(1),
+    paddingHorizontal: spacing(0.75),
   },
   badgeText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700',
     color: colors.bg,
   },
   closeButton: {
-    width: 40,
-    height: 40,
+    width: 36,
+    height: 36,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: colors.bg,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: colors.line,
   },
   content: {
     flex: 1,
     paddingHorizontal: spacing(3),
   },
+  helperText: {
+    marginTop: spacing(2),
+    fontSize: 13,
+    color: colors.subtext,
+  },
   section: {
     marginTop: spacing(4),
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 10,
     fontWeight: '700',
-    color: colors.text,
+    color: colors.accent,
+    textTransform: 'uppercase',
+    letterSpacing: 1.5,
     marginBottom: spacing(2),
   },
   chipContainer: {
@@ -281,49 +264,52 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: spacing(2),
     paddingVertical: spacing(1.5),
-    borderRadius: radii.lg,
-    backgroundColor: colors.card,
-    borderWidth: 2,
-    borderColor: colors.line,
+    borderRadius: radii.pill,
+    backgroundColor: colors.bg,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.10)',
   },
   chipSelected: {
     backgroundColor: colors.accent,
     borderColor: colors.accent,
-  },
-  chipIcon: {
-    marginRight: spacing(0.5),
+    shadowColor: colors.accent,
+    shadowOpacity: 0.45,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 6,
   },
   chipText: {
     fontSize: 14,
     fontWeight: '600',
-    color: colors.text,
+    color: colors.subtext,
   },
   chipTextSelected: {
-    color: colors.bg,
+    color: colors.goldText,
+    fontWeight: '700',
   },
   footer: {
     flexDirection: 'row',
     paddingHorizontal: spacing(3),
-    paddingVertical: spacing(2),
+    paddingVertical: spacing(2.5),
     gap: spacing(2),
     borderTopWidth: 1,
     borderTopColor: colors.line,
-    backgroundColor: colors.bg,
+    backgroundColor: colors.card,
   },
   resetButton: {
     flex: 1,
     paddingVertical: spacing(2),
-    borderRadius: radii.lg,
-    backgroundColor: colors.card,
+    borderRadius: radii.pill,
+    backgroundColor: 'transparent',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: colors.line,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
   },
   resetButtonText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.text,
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.subtext,
   },
   resetButtonTextDisabled: {
     color: colors.muted,
@@ -331,14 +317,19 @@ const styles = StyleSheet.create({
   applyButton: {
     flex: 2,
     paddingVertical: spacing(2),
-    borderRadius: radii.lg,
+    borderRadius: radii.pill,
     backgroundColor: colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: colors.accent,
+    shadowOpacity: 0.5,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 8,
   },
   applyButtonText: {
     fontSize: 16,
     fontWeight: '700',
-    color: colors.bg,
+    color: colors.goldText,
   },
 });

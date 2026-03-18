@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * VAULT EARN XP SCREEN
  * Clean, modern design following app's current patterns

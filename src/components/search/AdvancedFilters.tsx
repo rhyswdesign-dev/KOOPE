@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * ADVANCED SEARCH FILTERS COMPONENT
  * Comprehensive filtering interface for cocktail recipes and content

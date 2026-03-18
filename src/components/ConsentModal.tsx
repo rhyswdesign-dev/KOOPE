@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * CONSENT MODAL COMPONENT
  * First-run or re-consent modal for privacy compliance

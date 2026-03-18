@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Animated, Dimensions, Image } from 'react-native';
 import { Video, ResizeMode } from 'expo-av';

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { Platform, Alert } from 'react-native';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';

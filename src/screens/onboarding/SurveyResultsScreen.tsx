@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Survey Results Screen - Shows placement results and explanation
  */

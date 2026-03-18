@@ -21,6 +21,11 @@ import { useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { trackEvent, ANALYTICS_EVENTS, ANALYTICS_PROPS } from '../lib/analytics';
 import { log } from '../lib/logger';
+import {
+  AGE_VERIFICATION_RULE_VERSION,
+  AGE_VERIFICATION_STORAGE_KEY,
+  AgeVerificationPayload,
+} from '../services/ageVerificationService';
 
 type AppState =
   | 'loading'
@@ -74,8 +79,13 @@ export function useSimpleOnboarding() {
 
   const handleSplashFinish = async () => {
     try {
-      const ageVerified = await AsyncStorage.getItem(AGE_VERIFIED_KEY);
-      if (ageVerified !== 'true') {
+      const storedAgeVerification = await AsyncStorage.getItem(AGE_VERIFICATION_STORAGE_KEY);
+      const parsedAgeVerification = storedAgeVerification ? JSON.parse(storedAgeVerification) as AgeVerificationPayload : null;
+      if (
+        !parsedAgeVerification ||
+        parsedAgeVerification.isOfLegalAge !== true ||
+        parsedAgeVerification.ruleVersion !== AGE_VERIFICATION_RULE_VERSION
+      ) {
         log.info('useSimpleOnboarding', 'Age gate required before onboarding');
         setAppState('age_gate');
         return;
@@ -96,8 +106,8 @@ export function useSimpleOnboarding() {
       }
     } catch (error) {
       log.warn('useSimpleOnboarding', 'Error checking onboarding status', { error });
-      // On error, assume new user and show onboarding
-      setAppState('bartending_welcome');
+      // On error, fall back to the legal access gate before showing onboarding
+      setAppState('age_gate');
     }
   };
 
@@ -110,9 +120,10 @@ export function useSimpleOnboarding() {
     setAppState('onboarding');
   };
 
-  const completeAgeGate = async () => {
+  const completeAgeGate = async (payload: AgeVerificationPayload) => {
     try {
       await AsyncStorage.setItem(AGE_VERIFIED_KEY, 'true');
+      await AsyncStorage.setItem(AGE_VERIFICATION_STORAGE_KEY, JSON.stringify(payload));
       log.info('useSimpleOnboarding', 'Age gate completed');
       trackEvent(ANALYTICS_EVENTS.ONBOARDING_STEP_COMPLETED, {
         [ANALYTICS_PROPS.STEP_NUMBER]: 0,
@@ -191,13 +202,14 @@ export function useSimpleOnboarding() {
       // Clear onboarding completion status
       await AsyncStorage.removeItem(ONBOARDING_COMPLETED_KEY);
       await AsyncStorage.removeItem(AGE_VERIFIED_KEY);
+      await AsyncStorage.removeItem(AGE_VERIFICATION_STORAGE_KEY);
       log.info('useSimpleOnboarding', 'Onboarding status reset');
     } catch (error) {
       log.warn('useSimpleOnboarding', 'Error resetting onboarding status', { error });
     }
 
-    // Restart onboarding flow
-    setAppState('bartending_welcome');
+    // Restart onboarding flow from the legal access gate
+    setAppState('age_gate');
   };
 
   return {

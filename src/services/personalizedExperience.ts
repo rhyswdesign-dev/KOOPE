@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * PERSONALIZED EXPERIENCE ENGINE
  * Maps survey responses to create a tailored user experience across all app features

@@ -22,11 +22,12 @@ import { useAuth } from '../contexts/AuthContext';
 interface OAuthSignInProps {
   onComplete?: () => void;
   onSkip?: () => void;
+  previewMode?: boolean;
 }
 
 const { width } = Dimensions.get('window');
 
-export default function OAuthSignInScreen({ onComplete, onSkip }: OAuthSignInProps) {
+export default function OAuthSignInScreen({ onComplete, onSkip, previewMode = false }: OAuthSignInProps) {
   const [isLoading, setIsLoading] = useState(false);
   const { signInWithApple, signInWithGoogle, signInWithEmail } = useAuth();
 
@@ -43,6 +44,13 @@ export default function OAuthSignInScreen({ onComplete, onSkip }: OAuthSignInPro
   const handleSkip = onSkip || (() => navigation?.canGoBack() && navigation.goBack());
 
   const handleTestSignIn = async () => {
+    if (previewMode) {
+      Alert.alert('Preview mode', 'This is only a demo of the sign-in step. No account action was taken.', [
+        { text: 'Continue', onPress: handleComplete },
+      ]);
+      return;
+    }
+
     setIsLoading(true);
     try {
       console.log('🔧 Test Sign-In initiated');
@@ -60,6 +68,13 @@ export default function OAuthSignInScreen({ onComplete, onSkip }: OAuthSignInPro
   };
 
   const handleAppleSignIn = async () => {
+    if (previewMode) {
+      Alert.alert('Preview mode', 'Apple sign-in is disabled in preview. Advancing to the next onboarding step.', [
+        { text: 'Continue', onPress: handleComplete },
+      ]);
+      return;
+    }
+
     setIsLoading(true);
     try {
       log.info('OAuthSignInScreen', 'Apple Sign-In initiated');
@@ -81,6 +96,13 @@ export default function OAuthSignInScreen({ onComplete, onSkip }: OAuthSignInPro
   };
 
   const handleGoogleSignIn = async () => {
+    if (previewMode) {
+      Alert.alert('Preview mode', 'Google sign-in is disabled in preview. Advancing to the next onboarding step.', [
+        { text: 'Continue', onPress: handleComplete },
+      ]);
+      return;
+    }
+
     setIsLoading(true);
     try {
       log.info('OAuthSignInScreen', 'Google Sign-In initiated');
@@ -213,20 +235,24 @@ export default function OAuthSignInScreen({ onComplete, onSkip }: OAuthSignInPro
           </TouchableOpacity>
 
           {/* Test Sign-In (Development Only) */}
-          <TouchableOpacity
-            style={[styles.testButton, isLoading && styles.buttonDisabled]}
-            onPress={() => {
-              console.log('🔧 Test button pressed!');
-              handleTestSignIn();
-            }}
-            disabled={isLoading}
-            activeOpacity={0.8}
-          >
-            <View style={styles.buttonContent}>
-              <Ionicons name="flask" size={24} color={colors.gold} />
-              <Text style={styles.testButtonText}>Sign In with Test Account</Text>
-            </View>
-          </TouchableOpacity>
+          {(__DEV__ || previewMode) && (
+            <TouchableOpacity
+              style={[styles.testButton, isLoading && styles.buttonDisabled]}
+              onPress={() => {
+                console.log('🔧 Test button pressed!');
+                handleTestSignIn();
+              }}
+              disabled={isLoading}
+              activeOpacity={0.8}
+            >
+              <View style={styles.buttonContent}>
+                <Ionicons name={previewMode ? 'eye-outline' : 'flask'} size={24} color={colors.gold} />
+                <Text style={styles.testButtonText}>
+                  {previewMode ? 'Preview Continue' : 'Sign In with Test Account'}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Terms */}

@@ -9,12 +9,13 @@ type FlatCurriculum = {
 
 const MODULE_ORDER: string[] = [
   'bartending basics',
-  'classics & remixes',
   'techniques & prep',
-  'spirits & pairing',
+  'classics & remixes',
+  'flavor logic & pairing',
+  'batching & punches',
   'mocktails & zero-proof',
   'hosting & vibes',
-  'batching & punches',
+  'mastery: spirits deep dive',
 ];
 
 const normalizeModuleName = (value: unknown): string =>
@@ -31,12 +32,13 @@ const preferredChapterIndex = (module: { id?: string; title?: string }, fallback
 
   // Handle likely slug/id variants.
   if (normalizedId.includes('bartending-basics')) return 1;
-  if (normalizedId.includes('classics-remix')) return 2;
-  if (normalizedId.includes('techniques-prep')) return 3;
-  if (normalizedId.includes('spirits-pairing')) return 4;
-  if (normalizedId.includes('mocktails') || normalizedId.includes('zero-proof')) return 5;
-  if (normalizedId.includes('hosting-vibes')) return 6;
-  if (normalizedId.includes('batching-punches')) return 7;
+  if (normalizedId.includes('techniques-prep')) return 2;
+  if (normalizedId.includes('classics-remix')) return 3;
+  if (normalizedId.includes('flavor-logic')) return 4;
+  if (normalizedId.includes('batching-punches')) return 5;
+  if (normalizedId.includes('mocktails') || normalizedId.includes('zero-proof')) return 6;
+  if (normalizedId.includes('hosting-vibes')) return 7;
+  if (normalizedId.includes('spirits-pairing')) return 8;
 
   return fallback;
 };
@@ -44,6 +46,7 @@ const preferredChapterIndex = (module: { id?: string; title?: string }, fallback
 const normalizeType = (value: unknown): ExerciseType => {
   const t = String(value || 'mcq').toLowerCase();
   if (t === 'multiple_choice') return 'mcq';
+  if (t === 'roleplay') return 'mcq';
   if (t === 'multi_select') return 'checkbox';
   if (t === 'short_answer') return 'short';
   if (t === 'ordering') return 'order';
@@ -54,7 +57,8 @@ const normalizeType = (value: unknown): ExerciseType => {
 };
 
 const normalizeOrderTarget = (item: any): string[] => {
-  const candidates = [
+  const rawItems = Array.isArray(item?.items) ? item.items.map((v: unknown) => String(v)) : [];
+  const sequenceCandidates = [
     item?.orderTarget,
     item?.expectedOrder,
     item?.correct_order,
@@ -62,15 +66,26 @@ const normalizeOrderTarget = (item: any): string[] => {
     item?.correct_sequence,
     item?.sequence,
     item?.correct,
-    item?.items,
   ];
 
-  for (const candidate of candidates) {
-    if (Array.isArray(candidate) && candidate.length > 0) {
-      return candidate.map((v) => String(v)).filter(Boolean);
+  for (const sequence of sequenceCandidates) {
+    if (!Array.isArray(sequence) || sequence.length === 0) continue;
+
+    // Index-based sequence: map indexes -> items labels
+    if (rawItems.length > 0 && sequence.every((v) => typeof v === 'number' || /^\d+$/.test(String(v)))) {
+      const mapped = sequence
+        .map((idx) => rawItems[Number(idx)])
+        .filter((v): v is string => typeof v === 'string' && v.length > 0);
+      if (mapped.length > 0) return mapped;
     }
+
+    // Already label-based sequence
+    const asLabels = sequence.map((v) => String(v)).filter(Boolean);
+    if (asLabels.length > 0) return asLabels;
   }
 
+  // Last fallback: use items as already-correct order if no explicit sequence exists.
+  if (rawItems.length > 0) return rawItems;
   return [];
 };
 
@@ -84,6 +99,12 @@ const normalizeFlat = (data: any): FlatCurriculum => {
     estimatedMinutes: Number(module.estimatedMinutes ?? 10),
     tags: module.tags || [],
     lessonIds: module.lessonIds || [],
+    brief: module.brief,
+    whyItMatters: module.whyItMatters || module.why_it_matters,
+    unlockReward: module.unlockReward || module.unlock_reward,
+    bestFor: module.bestFor || module.best_for || [],
+    contextBrief: module.contextBrief || module.context_brief,
+    requiredTier: module.requiredTier || module.required_tier,
   }));
 
   const lessons: Lesson[] = (data.lessons || []).map((lesson: any) => ({
@@ -98,6 +119,11 @@ const normalizeFlat = (data: any): FlatCurriculum => {
     description: lesson.description,
     xpReward: lesson.xpReward,
     tags: lesson.tags,
+    brief: lesson.brief,
+    practiceFocus: lesson.practiceFocus || lesson.practice_focus,
+    commonMistake: lesson.commonMistake || lesson.common_mistake,
+    showLessonBrief: lesson.showLessonBrief || lesson.show_lesson_brief,
+    contextBrief: lesson.contextBrief || lesson.context_brief,
   }));
 
   const items: Item[] = (data.items || []).map((item: any) => ({
@@ -109,9 +135,11 @@ const normalizeFlat = (data: any): FlatCurriculum => {
     orderTarget: normalizeOrderTarget(item),
     answerText: item.answerText || item.expectedAnswer,
     acceptableAnswers: item.acceptableAnswers || [],
+    validationMode: item.validationMode || item.validation_mode,
+    requiredKeywords: item.requiredKeywords || item.required_keywords || [],
     correct: item.correct || [],
     pairs: item.pairs,
-    roleplay: item.roleplay,
+    roleplay: item.roleplay || (String(item.type || '').toLowerCase() === 'roleplay' ? { mode: 'scenario' } : undefined),
     tags: item.tags || [],
     conceptId: item.conceptId,
     difficulty: typeof item.difficulty === 'number' ? item.difficulty : 0.5,
@@ -139,6 +167,12 @@ const normalizeNested = (data: any): FlatCurriculum => {
       estimatedMinutes: Number(module.estimatedMinutes ?? 30),
       tags: module.tags || [],
       lessonIds: [],
+      brief: module.brief,
+      whyItMatters: module.whyItMatters || module.why_it_matters,
+      unlockReward: module.unlockReward || module.unlock_reward,
+      bestFor: module.bestFor || module.best_for || [],
+      contextBrief: module.contextBrief || module.context_brief,
+      requiredTier: module.requiredTier || module.required_tier,
     });
 
     (module.lessons || []).forEach((lesson: any, lessonIndex: number) => {
@@ -159,6 +193,11 @@ const normalizeNested = (data: any): FlatCurriculum => {
         types,
         xpReward: lesson.xpReward,
         tags: lesson.tags || [],
+        brief: lesson.brief,
+        practiceFocus: lesson.practiceFocus || lesson.practice_focus,
+        commonMistake: lesson.commonMistake || lesson.common_mistake,
+        showLessonBrief: lesson.showLessonBrief || lesson.show_lesson_brief,
+        contextBrief: lesson.contextBrief || lesson.context_brief,
       });
 
       lessonItems.forEach((question: any, questionIndex: number) => {
@@ -180,9 +219,11 @@ const normalizeNested = (data: any): FlatCurriculum => {
           orderTarget: normalizeOrderTarget(question),
           answerText: question.answerText || question.expectedAnswer,
           acceptableAnswers: question.acceptableAnswers || [],
+          validationMode: question.validationMode || question.validation_mode,
+          requiredKeywords: question.requiredKeywords || question.required_keywords || [],
           correct: Array.isArray(question.correct) ? question.correct : [],
           pairs: question.pairs,
-          roleplay: question.roleplay,
+          roleplay: question.roleplay || (String(question.type || '').toLowerCase() === 'roleplay' ? { mode: 'scenario' } : undefined),
           tags: question.tags || [],
           conceptId: question.conceptId,
           difficulty: typeof question.difficulty === 'number' ? question.difficulty : 0.5,

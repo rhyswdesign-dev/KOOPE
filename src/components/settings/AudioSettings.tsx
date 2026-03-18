@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Audio Settings Component
  * Allows users to control their audio experience

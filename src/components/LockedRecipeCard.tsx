@@ -17,9 +17,19 @@ interface LockedRecipeCardProps {
   style?: ViewStyle; // Allow custom styling for different layouts
   xpCost?: number; // XP cost to unlock (if undefined, XP unlock not available)
   canAfford?: boolean; // Whether user has enough XP
+  title?: string;
+  subtitle?: string;
 }
 
-export default function LockedRecipeCard({ image, onPress, style, xpCost, canAfford }: LockedRecipeCardProps) {
+export default function LockedRecipeCard({
+  image,
+  onPress,
+  style,
+  xpCost,
+  canAfford,
+  title,
+  subtitle,
+}: LockedRecipeCardProps) {
   return (
     <TouchableOpacity
       style={[styles.card, style]}
@@ -27,7 +37,7 @@ export default function LockedRecipeCard({ image, onPress, style, xpCost, canAff
       activeOpacity={0.8}
       accessible={true}
       accessibilityRole="button"
-      accessibilityLabel="Locked cocktail - upgrade to unlock"
+      accessibilityLabel={title ? `Locked cocktail ${title}` : 'Locked cocktail - upgrade to unlock'}
       accessibilityHint="Tap to see upgrade options"
     >
       <ImageBackground
@@ -48,6 +58,13 @@ export default function LockedRecipeCard({ image, onPress, style, xpCost, canAff
           </View>
           <Text style={styles.upgradeText}>Tap to Unlock</Text>
         </View>
+
+        {(title || subtitle) && (
+          <View style={styles.textOverlay}>
+            {title ? <Text style={styles.title}>{title}</Text> : null}
+            {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+          </View>
+        )}
 
         {/* Premium badge */}
         <View style={styles.premiumBadge}>
@@ -92,6 +109,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  textOverlay: {
+    position: 'absolute',
+    left: spacing(1.5),
+    right: spacing(1.5),
+    bottom: spacing(5.5),
+    backgroundColor: 'rgba(14, 14, 14, 0.7)',
+    borderRadius: radii.md,
+    paddingHorizontal: spacing(1.25),
+    paddingVertical: spacing(1),
+  },
   lockIconContainer: {
     width: 64,
     height: 64,
@@ -117,6 +144,18 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
     opacity: 0.9,
+  },
+  title: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.white,
+    marginBottom: 2,
+  },
+  subtitle: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: colors.textMuted,
+    lineHeight: 15,
   },
   premiumBadge: {
     position: 'absolute',

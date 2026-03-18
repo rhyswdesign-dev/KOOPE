@@ -31,12 +31,20 @@ interface SupabaseLesson {
 interface SupabaseItem {
   id: string;
   type: string;
-  prompt: string;
+  prompt?: string | null;
+  question?: string | null;
+  stem?: string | null;
   options: string[];
   answer_index: number | null;
-  order_target: string[];
+  order_target: string[] | null;
+  expected_order?: string[] | null;
+  correct_order?: string[] | null;
+  items?: string[] | null;
+  sequence?: string[] | null;
   answer_text: string | null;
   acceptable_answers: string[];
+  validation_mode?: string | null;
+  required_keywords?: string[] | null;
   correct: string[];
   pairs: any;
   roleplay: any;
@@ -45,6 +53,64 @@ interface SupabaseItem {
   difficulty: number | null;
   xp_award: number;
   review_weight: number | null;
+}
+
+const normalizeExerciseType = (value: unknown): ExerciseType => {
+  const t = String(value || 'mcq').toLowerCase();
+  if (t === 'multiple_choice' || t === 'mcp' || t === 'roleplay') return 'mcq';
+  if (t === 'multi_select') return 'checkbox';
+  if (t === 'short_answer') return 'short';
+  if (t === 'ordering') return 'order';
+  if (t === 'matching') return 'match';
+  if (t === 'mcq' || t === 'checkbox' || t === 'short' || t === 'order' || t === 'match') return t;
+  return 'mcq';
+};
+
+const fallbackPromptByType: Record<ExerciseType, string> = {
+  mcq: 'Choose the best answer.',
+  checkbox: 'Select all correct options.',
+  order: 'Place the process in order.',
+  match: 'Match each item to the best pair.',
+  short: 'Enter your answer.',
+};
+
+function resolvePrompt(raw: SupabaseItem): string {
+  const candidate = [raw.prompt, raw.question, raw.stem]
+    .map((v) => (typeof v === 'string' ? v.trim() : ''))
+    .find((v) => v.length > 0);
+  if (candidate) return candidate;
+  return fallbackPromptByType[normalizeExerciseType(raw.type)];
+}
+
+function normalizeOrderTargetFromRaw(raw: SupabaseItem): string[] {
+  const itemLabels = Array.isArray(raw.items) ? raw.items.map((v) => String(v)) : [];
+  const optionLabels = Array.isArray(raw.options) ? raw.options.map((v) => String(v)) : [];
+  const labelsPool = itemLabels.length > 0 ? itemLabels : optionLabels;
+  const candidates = [
+    raw.order_target,
+    raw.expected_order,
+    raw.correct_order,
+    raw.sequence,
+    raw.correct,
+  ];
+  for (const value of candidates) {
+    if (!Array.isArray(value) || value.length === 0) continue;
+
+    // Convert index-based order arrays like [0,1,2,3] into actual labels.
+    if (labelsPool.length > 0 && value.every((v) => typeof v === 'number' || /^\d+$/.test(String(v)))) {
+      const mapped = value
+        .map((v) => labelsPool[Number(v)])
+        .filter((v): v is string => typeof v === 'string' && v.length > 0);
+      if (mapped.length > 0) return mapped;
+    }
+
+    const labels = value.map((v) => String(v)).filter(Boolean);
+    // Skip invalid numeric-only labels when we cannot map them to items.
+    if (labels.length > 0 && labels.every((v) => /^\d+$/.test(v))) continue;
+    if (labels.length > 0) return labels;
+  }
+  if (labelsPool.length > 0) return labelsPool;
+  return [];
 }
 
 export class SupabaseContentRepository implements ContentRepository {
@@ -147,23 +213,35 @@ export class SupabaseContentRepository implements ContentRepository {
   }
 
   private mapSupabaseItem(i: SupabaseItem): Item {
+    const normalizedType = normalizeExerciseType(i.type);
+    const normalizedAnswerIndex =
+      typeof i.answer_index === 'number'
+        ? i.answer_index
+        : typeof (i as any).correct === 'number'
+          ? (i as any).correct
+          : undefined;
+
     return {
       id: i.id,
-      type: i.type as ExerciseType,
-      prompt: i.prompt,
+      type: normalizedType,
+      prompt: resolvePrompt(i),
       options: i.options || [],
-      answerIndex: i.answer_index,
-      orderTarget: i.order_target || [],
-      answerText: i.answer_text,
+      answerIndex: normalizedAnswerIndex,
+      orderTarget: normalizeOrderTargetFromRaw(i),
+      answerText: i.answer_text ?? undefined,
       acceptableAnswers: i.acceptable_answers || [],
+      validationMode: i.validation_mode === 'exact' || i.validation_mode === 'contains' || i.validation_mode === 'keywords'
+        ? i.validation_mode
+        : undefined,
+      requiredKeywords: i.required_keywords || [],
       correct: i.correct || [],
       pairs: i.pairs,
-      roleplay: i.roleplay,
+      roleplay: i.roleplay || (String(i.type || '').toLowerCase() === 'roleplay' ? { mode: 'scenario' } : undefined),
       tags: i.tags || [],
-      conceptId: i.concept_id,
-      difficulty: i.difficulty,
+      conceptId: i.concept_id ?? undefined,
+      difficulty: i.difficulty ?? 0.5,
       xpAward: i.xp_award || 10,
-      reviewWeight: i.review_weight,
+      reviewWeight: i.review_weight ?? undefined,
     };
   }
 

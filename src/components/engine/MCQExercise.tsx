@@ -65,7 +65,7 @@ export const MCQExercise: React.FC<MCQExerciseProps> = ({ item, onResult }) => {
 
     setTimeout(() => {
       onResult({ correct: isCorrect, msToAnswer: timeToAnswer });
-    }, 800);
+    }, 280);
   };
 
   const allMatched = selectedOption !== null;
@@ -79,6 +79,11 @@ export const MCQExercise: React.FC<MCQExerciseProps> = ({ item, onResult }) => {
         },
       ]}
     >
+      {!!item.roleplay && (
+        <View style={styles.roleplayBadge}>
+          <Text style={styles.roleplayBadgeText}>Roleplay</Text>
+        </View>
+      )}
       <Text style={styles.prompt}>{item.prompt}</Text>
 
       <View style={styles.optionsList}>
@@ -149,6 +154,23 @@ const styles = StyleSheet.create({
   container: {
     width: '100%',
     paddingHorizontal: spacing(1),
+  },
+  roleplayBadge: {
+    alignSelf: 'center',
+    marginBottom: spacing(1.5),
+    paddingHorizontal: spacing(1.5),
+    paddingVertical: spacing(0.75),
+    borderRadius: radii.full,
+    backgroundColor: 'rgba(214, 138, 56, 0.14)',
+    borderWidth: 1,
+    borderColor: `${colors.gold}55`,
+  },
+  roleplayBadgeText: {
+    color: colors.gold,
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
   },
   prompt: {
     fontSize: 24,

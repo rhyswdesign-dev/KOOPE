@@ -25,8 +25,9 @@ import RecipeCard from '../components/RecipeCard';
 import { handleRecipeView } from '../utils/recipeActions';
 import { log } from '../lib/logger';
 import InPageTabBar from '../components/ui/InPageTabBar';
+import { useScrollHaptic, withHaptic } from '../lib/haptics';
 
-type TabType = 'saved' | 'created' | 'imported' | 'games' | 'vault';
+type TabType = 'saved' | 'created' | 'imported' | 'vault';
 
 interface TabConfig {
   key: TabType;
@@ -38,7 +39,6 @@ const TABS: TabConfig[] = [
   { key: 'saved', label: 'Saved', icon: 'bookmark-outline' },
   { key: 'created', label: 'Created', icon: 'create-outline' },
   { key: 'imported', label: 'Imported', icon: 'download-outline' },
-  { key: 'games', label: 'Games', icon: 'game-controller-outline' },
   { key: 'vault', label: 'Playbooks', icon: 'book-outline' },
 ];
 
@@ -49,6 +49,7 @@ export default function ProfileSavedItemsScreen() {
 
   const [activeTab, setActiveTab] = useState<TabType>('saved');
   const [refreshing, setRefreshing] = useState(false);
+  const onScrollHaptic = useScrollHaptic('selection', 800);
 
   useLayoutEffect(() => {
     nav.setOptions({
@@ -83,10 +84,6 @@ export default function ProfileSavedItemsScreen() {
     return userRecipes.filter((r) => (r.type as string) === 'imported');
   };
 
-  const getUnlockedGames = () => {
-    return (savedItems.savedVaultItems || []).filter((item) => item.id.startsWith('game_'));
-  };
-
   const getPlaybookItems = () => {
     return (savedItems.savedVaultItems || []).filter((item) => item.id.startsWith('playbook_'));
   };
@@ -99,8 +96,6 @@ export default function ProfileSavedItemsScreen() {
         return getCreatedRecipes();
       case 'imported':
         return getImportedRecipes();
-      case 'games':
-        return getUnlockedGames();
       case 'vault':
         return getPlaybookItems();
       default:
@@ -116,8 +111,6 @@ export default function ProfileSavedItemsScreen() {
         return getCreatedRecipes().length;
       case 'imported':
         return getImportedRecipes().length;
-      case 'games':
-        return getUnlockedGames().length;
       case 'vault':
         return getPlaybookItems().length;
       default:
@@ -148,6 +141,12 @@ export default function ProfileSavedItemsScreen() {
 
   const renderUserRecipe = ({ item }: { item: UserRecipe }) => {
     const isImported = (item.type as string) === 'imported';
+    const firstAmount = item.ingredients?.[0]?.amount?.trim?.() || '';
+    const amountLabel = firstAmount
+      ? /\b(oz|ml|dash|dashes|tsp|tbsp|cl|cup|part|parts)\b/i.test(firstAmount)
+        ? firstAmount
+        : `${firstAmount} oz`
+      : '';
 
     return (
       <View style={styles.recipeCardWrapper}>
@@ -156,14 +155,12 @@ export default function ProfileSavedItemsScreen() {
             id: item.id,
             name: item.name,
             title: item.name,
-            description: item.description || '',
-            image: item.image || 'https://images.unsplash.com/photo-1514362545857-3f16c0c5604c?q=80&w=1200',
+            description: amountLabel ? `${amountLabel} • ${item.description || ''}` : item.description || '',
+            image: item.thumbnailImage || item.headerImage || item.image || 'https://images.unsplash.com/photo-1514362545857-3f16c0c5604c?q=80&w=1200',
             difficulty: (item.difficulty as any) || 'Medium',
             time: item.prepTime ? `${item.prepTime} min` : '5 min',
           }}
-          onPress={() =>
-            handleRecipeView(item, nav)
-          }
+          onPress={() => handleRecipeView(item as any, nav)}
           onDelete={() => handleDelete(item)}
           showDeleteButton={true}
           showSaveButton={false}
@@ -191,24 +188,6 @@ export default function ProfileSavedItemsScreen() {
   const handleDelete = (recipe: UserRecipe) => {
     deleteRecipe(recipe.id);
     log.info('ProfileSavedItems', 'Recipe deleted', { id: recipe.id });
-  };
-
-  const renderGameItem = ({ item }: { item: any }) => {
-    return (
-      <TouchableOpacity
-        style={styles.savedItemCard}
-        onPress={() => nav.navigate('GameDetails' as any, { id: item.id })}
-      >
-        <View style={styles.savedItemIcon}>
-          <Ionicons name="game-controller-outline" size={24} color={colors.accent} />
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.savedItemTitle}>{item.name}</Text>
-          <Text style={styles.savedItemSubtitle}>Unlocked from Vault</Text>
-        </View>
-        <Ionicons name="lock-open-outline" size={18} color={colors.success} />
-      </TouchableOpacity>
-    );
   };
 
   const renderVaultItem = ({ item }: { item: any }) => {
@@ -249,13 +228,6 @@ export default function ProfileSavedItemsScreen() {
         action: 'Go to Camera',
         onAction: () => (nav as any).navigate('Main', { screen: 'Camera', params: { screen: 'RecipeURLImport' } }),
       },
-      games: {
-        icon: 'game-controller-outline',
-        title: 'No unlocked games yet',
-        subtitle: 'Earn XP and unlock drinking games from the Vault',
-        action: 'Explore Vault',
-        onAction: () => (nav as any).navigate('Main', { screen: 'Vault' }),
-      },
       vault: {
         icon: 'book-outline',
         title: 'No playbooks yet',
@@ -274,7 +246,7 @@ export default function ProfileSavedItemsScreen() {
         </View>
         <Heading level={2} style={styles.emptyTitle}>{config.title}</Heading>
         <Text style={styles.emptySubtitle}>{config.subtitle}</Text>
-        <TouchableOpacity style={styles.emptyAction} onPress={config.onAction}>
+        <TouchableOpacity style={styles.emptyAction} onPress={withHaptic(config.onAction)}>
           <Text style={styles.emptyActionText}>{config.action}</Text>
           <Ionicons name="arrow-forward" size={16} color={colors.accent} />
         </TouchableOpacity>
@@ -283,7 +255,7 @@ export default function ProfileSavedItemsScreen() {
   };
 
   const activeData = getActiveData();
-  const totalCount = getSavedRecipes().length + getCreatedRecipes().length + getImportedRecipes().length + getUnlockedGames().length + getPlaybookItems().length;
+  const totalCount = getSavedRecipes().length + getCreatedRecipes().length + getImportedRecipes().length + getPlaybookItems().length;
 
   return (
     <SafeAreaView style={styles.container} edges={['left', 'right', 'bottom']}>
@@ -314,11 +286,11 @@ export default function ProfileSavedItemsScreen() {
           data={activeData as any[]}
           renderItem={
             activeTab === 'saved' ? renderSavedItem
-            : activeTab === 'games' ? renderGameItem
             : activeTab === 'vault' ? renderVaultItem
             : renderUserRecipe
           }
           keyExtractor={(item) => item.id}
+          onScrollBeginDrag={onScrollHaptic}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
           refreshControl={

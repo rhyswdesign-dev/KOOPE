@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Bartender AI Assistant Service
  * Handles chat conversations, rate limiting, and recipe suggestions

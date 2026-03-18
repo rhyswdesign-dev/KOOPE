@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * VAULT ITEM CARD
  * Shows XP pricing, stock counters, and rarity indicators

@@ -7,7 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
-import { colors, spacing, radii } from '../theme/tokens';
+import { colors, spacing, radii, fonts } from '../theme/tokens';
 import { log } from '../lib/logger';
 import { feedbackService } from '../lib/supabaseData';
 
@@ -381,26 +381,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   title: {
-    fontSize: 28,
-    fontWeight: '900',
+    fontSize: 26,
+    fontWeight: '800',
     color: colors.text,
     textAlign: 'center',
     marginBottom: spacing(1),
+    fontFamily: 'Georgia',
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: fonts.small,
     color: colors.subtext,
     textAlign: 'center',
-    lineHeight: 22,
+    lineHeight: 20,
   },
   section: {
     paddingHorizontal: spacing(3),
     marginBottom: spacing(4),
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 10,
     fontWeight: '700',
-    color: colors.text,
+    color: colors.accent,
+    textTransform: 'uppercase',
+    letterSpacing: 1.5,
     marginBottom: spacing(2),
   },
   typeGrid: {
@@ -419,8 +422,9 @@ const styles = StyleSheet.create({
     borderColor: colors.line,
   },
   selectedTypeCard: {
-    backgroundColor: colors.accent,
+    backgroundColor: 'rgba(214,138,56,0.12)',
     borderColor: colors.accent,
+    borderWidth: 1.5,
   },
   typeLabel: {
     fontSize: 14,
@@ -430,34 +434,34 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   selectedTypeLabel: {
-    color: colors.goldText,
+    color: colors.accent,
   },
   typeDescription: {
-    fontSize: 12,
+    fontSize: 11,
     color: colors.subtext,
     marginTop: spacing(0.5),
     textAlign: 'center',
+    lineHeight: 15,
   },
   selectedTypeDescription: {
-    color: colors.goldText,
-    opacity: 0.8,
+    color: colors.subtext,
   },
   ratingContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: spacing(1),
+    gap: spacing(1.5),
     marginBottom: spacing(1),
   },
   ratingHint: {
-    fontSize: 14,
+    fontSize: fonts.small,
     color: colors.subtext,
     textAlign: 'center',
   },
   textInput: {
     backgroundColor: colors.card,
-    borderRadius: radii.lg,
+    borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: colors.line,
+    borderColor: 'rgba(255,255,255,0.10)',
     paddingHorizontal: spacing(2),
     paddingVertical: spacing(2.5),
     fontSize: 16,
@@ -469,10 +473,10 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
   },
   characterCount: {
-    fontSize: 12,
-    color: colors.subtle,
+    fontSize: 11,
+    color: colors.muted,
     textAlign: 'right',
-    marginTop: spacing(0.5),
+    marginTop: spacing(0.75),
   },
   categoriesContainer: {
     gap: spacing(1.5),
@@ -480,41 +484,48 @@ const styles = StyleSheet.create({
   categoryChip: {
     paddingVertical: spacing(1),
     paddingHorizontal: spacing(2),
-    borderRadius: 20,
-    backgroundColor: colors.card,
+    borderRadius: radii.pill,
+    backgroundColor: colors.bg,
     borderWidth: 1,
-    borderColor: colors.line,
+    borderColor: 'rgba(255,255,255,0.10)',
   },
   selectedCategoryChip: {
     backgroundColor: colors.accent,
     borderColor: colors.accent,
+    shadowColor: colors.accent,
+    shadowOpacity: 0.4,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 4,
   },
   categoryChipText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
-    color: colors.text,
+    color: colors.subtext,
   },
   selectedCategoryChipText: {
     color: colors.goldText,
+    fontWeight: '700',
   },
   fieldHint: {
-    fontSize: 12,
+    fontSize: 11,
     color: colors.subtext,
     marginTop: spacing(1),
+    opacity: 0.7,
   },
   submitSection: {
     paddingHorizontal: spacing(3),
   },
   submitButton: {
     backgroundColor: colors.accent,
-    borderRadius: radii.lg,
+    borderRadius: radii.pill,
     paddingVertical: spacing(2.5),
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing(3),
     shadowColor: colors.accent,
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
+    shadowOpacity: 0.45,
+    shadowRadius: 14,
     shadowOffset: { width: 0, height: 4 },
     elevation: 8,
   },
@@ -527,10 +538,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '800',
     color: colors.goldText,
+    letterSpacing: 0.5,
   },
   privacyNote: {
-    fontSize: 12,
-    color: colors.subtle,
+    fontSize: 11,
+    color: colors.muted,
     textAlign: 'center',
     lineHeight: 16,
   },

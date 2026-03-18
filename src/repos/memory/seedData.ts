@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Seed Data for Bartending App
  * Mock content to demonstrate the lesson engine

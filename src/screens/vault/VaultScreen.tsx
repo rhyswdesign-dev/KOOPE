@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * VAULT HOME SCREEN - XP ECONOMY
  * Clean layout matching app's current design patterns

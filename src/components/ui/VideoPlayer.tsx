@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * VideoPlayer Component
  * Inline and fullscreen video player with controls

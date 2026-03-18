@@ -12,6 +12,12 @@ export interface Module {
   estimatedMinutes: number;
   tags: string[];
   lessonIds?: string[]; // For Firestore compatibility
+  brief?: string;
+  whyItMatters?: string;
+  unlockReward?: string;
+  bestFor?: string[];
+  contextBrief?: string;
+  requiredTier?: 'FREE' | 'PLUS' | 'PRO';
 }
 
 export interface Lesson {
@@ -26,9 +32,20 @@ export interface Lesson {
   prereqs?: string[]; // For Firestore compatibility
   xpReward?: number; // For Firestore compatibility
   tags?: string[]; // For Firestore compatibility
+  brief?: string;
+  practiceFocus?: string;
+  commonMistake?: string;
+  showLessonBrief?: boolean;
+  contextBrief?: string;
 }
 
 export type ExerciseType = 'mcq' | 'order' | 'short' | 'checkbox' | 'match';
+export type ShortAnswerValidationMode = 'exact' | 'contains' | 'keywords';
+
+export interface RoleplayMeta {
+  mode?: 'scenario';
+  tags?: string[];
+}
 
 export interface Item {
   id: string;
@@ -42,9 +59,11 @@ export interface Item {
   answerText?: string; // For short answer
   expectedAnswer?: string; // For Firestore compatibility
   acceptableAnswers?: string[]; // For short answer variations
+  validationMode?: ShortAnswerValidationMode;
+  requiredKeywords?: string[];
   correct?: string[]; // For checkbox exercises
   pairs?: Array<{left: string; right: string}>; // For match exercises
-  roleplay?: any; // For roleplay exercises
+  roleplay?: RoleplayMeta; // Rendered as MCQ with scenario labeling
   tags: string[];
   conceptId?: string;
   difficulty: number; // 0-1 scale

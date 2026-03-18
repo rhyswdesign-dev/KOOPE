@@ -9,15 +9,18 @@ import {
   Alert,
   ScrollView,
   Modal,
-  Keyboard,
+  Image,
 } from 'react-native';
-import { colors, spacing, radii, fonts } from '../theme/tokens';
+import { colors, spacing, radii } from '../theme/tokens';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { useUserRecipes } from '../store/useUserRecipes';
 import { log } from '../lib/logger';
+import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
+import { useScrollHaptic, withHaptic } from '../lib/haptics';
 
 type RecipeType = 'cocktail' | 'syrup' | 'bitter' | 'infusion' | 'shrub' | 'cordial' | 'tincture';
 type RecipeMethod = 'shake' | 'stir' | 'build' | 'blend' | 'muddle' | 'layer' | 'swizzle' | 'throw';
@@ -55,12 +58,31 @@ const glasswareOptions = [
 
 const difficultyOptions = ['Easy', 'Intermediate', 'Advanced'];
 
+const AMOUNT_PREFIX_REGEX = /^\s*(\d*\.?\d+)\s*(oz|ml|dash|dashes|tsp|tbsp|cl|cup|part|parts)?\s+/i;
+
+const normalizeAmount = (raw: string): string => {
+  const trimmed = String(raw || '').trim();
+  if (!trimmed) return '';
+  if (/\b(oz|ml|dash|dashes|tsp|tbsp|cl|cup|part|parts)\b/i.test(trimmed)) return trimmed;
+  if (/^\d*\.?\d+$/.test(trimmed)) return `${trimmed} oz`;
+  return trimmed;
+};
+
 export default function AddRecipeScreen() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { addRecipe } = useUserRecipes();
+  const route = useRoute();
+  const { addRecipe, updateRecipe, getRecipeById } = useUserRecipes();
+  const editingRecipe = (route.params as { recipe?: any; isEdit?: boolean } | undefined)?.recipe;
+  const isEditMode = Boolean(editingRecipe?.id);
+  const onScrollHaptic = useScrollHaptic('selection', 800);
   const [loading, setLoading] = useState(false);
   const [showGlasswareModal, setShowGlasswareModal] = useState(false);
   const [showDifficultyModal, setShowDifficultyModal] = useState(false);
+  const [recipeMedia, setRecipeMedia] = useState<{
+    original?: string;
+    thumbnail?: string;
+    header?: string;
+  }>({});
 
   const [recipe, setRecipe] = useState<ManualRecipe>({
     title: '',
@@ -76,15 +98,64 @@ export default function AddRecipeScreen() {
     method: undefined
   });
 
+  React.useEffect(() => {
+    if (!isEditMode || !editingRecipe) return;
+
+    const normalizeIngredients = (ingredients: any[] = []) => {
+      if (!Array.isArray(ingredients) || ingredients.length === 0) return [{ name: '', amount: '' }];
+      return ingredients.map((ing: any) => {
+        if (typeof ing === 'string') {
+          const stringMatch = ing.match(AMOUNT_PREFIX_REGEX);
+          if (stringMatch) {
+            const amountRaw = `${stringMatch[1]} ${stringMatch[2] || ''}`.trim();
+            return { amount: normalizeAmount(amountRaw), name: ing.replace(AMOUNT_PREFIX_REGEX, '').trim() };
+          }
+          return { amount: '', name: ing };
+        }
+        const amountRaw = String(ing?.amount || '').trim();
+        let name = String(ing?.name || '').trim();
+        name = name.replace(AMOUNT_PREFIX_REGEX, '').trim();
+        const amount = normalizeAmount(amountRaw);
+        if (amount || name) return { amount, name };
+        return { amount: '', name: String(ing || '') };
+      });
+    };
+
+    const normalizeInstructions = (instructions: any[] = []) => {
+      if (!Array.isArray(instructions) || instructions.length === 0) return [''];
+      return instructions.map((inst: any) => String(inst || '')).filter(Boolean);
+    };
+
+    setRecipe({
+      title: editingRecipe.name || editingRecipe.title || '',
+      description: editingRecipe.description || '',
+      ingredients: normalizeIngredients(editingRecipe.ingredients),
+      instructions: normalizeInstructions(editingRecipe.instructions),
+      garnish: editingRecipe.garnish || '',
+      glassware: editingRecipe.glassware || 'Rocks Glass',
+      time: String(editingRecipe.prepTime || editingRecipe.time || '5').replace(/[^\d]/g, '') || '5',
+      servings: Number(editingRecipe.servings || 1),
+      tags: editingRecipe.tags?.length ? editingRecipe.tags : ['Easy'],
+      recipeType: 'cocktail',
+      method: undefined,
+    });
+
+    setRecipeMedia({
+      original: editingRecipe.image || editingRecipe.thumbnailImage || editingRecipe.headerImage,
+      thumbnail: editingRecipe.thumbnailImage || editingRecipe.image,
+      header: editingRecipe.headerImage || editingRecipe.image,
+    });
+  }, [isEditMode, editingRecipe]);
+
   useLayoutEffect(() => {
     nav.setOptions({
-      title: 'Create Recipe',
+      title: isEditMode ? 'Edit Recipe' : 'Create Recipe',
       headerStyle: { backgroundColor: colors.bg },
       headerTintColor: colors.text,
       headerTitleStyle: { color: colors.text, fontWeight: '700' },
       headerShadowVisible: false,
     });
-  }, [nav]);
+  }, [nav, isEditMode]);
 
   const updateIngredient = (index: number, field: 'name' | 'amount', value: string) => {
     const updatedIngredients = [...recipe.ingredients];
@@ -119,6 +190,90 @@ export default function AddRecipeScreen() {
       ...recipe,
       instructions: [...recipe.instructions, '']
     });
+  };
+
+  const processRecipeImage = async (uri: string) => {
+    const base = await ImageManipulator.manipulateAsync(uri, [], {
+      compress: 1,
+      format: ImageManipulator.SaveFormat.JPEG,
+    });
+
+    const sourceWidth = base.width;
+    const sourceHeight = base.height;
+
+    const cropToRatio = async (targetRatio: number, outputWidth: number, outputHeight: number) => {
+      const sourceRatio = sourceWidth / sourceHeight;
+      let cropWidth = sourceWidth;
+      let cropHeight = sourceHeight;
+
+      if (sourceRatio > targetRatio) {
+        cropWidth = Math.floor(sourceHeight * targetRatio);
+      } else {
+        cropHeight = Math.floor(sourceWidth / targetRatio);
+      }
+
+      const originX = Math.max(0, Math.floor((sourceWidth - cropWidth) / 2));
+      const originY = Math.max(0, Math.floor((sourceHeight - cropHeight) / 2));
+
+      return ImageManipulator.manipulateAsync(
+        uri,
+        [
+          { crop: { originX, originY, width: cropWidth, height: cropHeight } },
+          { resize: { width: outputWidth, height: outputHeight } },
+        ],
+        {
+          compress: 0.88,
+          format: ImageManipulator.SaveFormat.JPEG,
+        }
+      );
+    };
+
+    const [thumb, header] = await Promise.all([
+      cropToRatio(4 / 5, 1080, 1350),
+      cropToRatio(16 / 9, 1600, 900),
+    ]);
+
+    setRecipeMedia({
+      original: uri,
+      thumbnail: thumb.uri,
+      header: header.uri,
+    });
+  };
+
+  const handleUploadImage = async () => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (permission.status !== 'granted') {
+      Alert.alert('Permission Required', 'Photo library access is needed to upload recipe images.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [4, 5],
+      quality: 1,
+    });
+
+    if (result.canceled || !result.assets?.[0]?.uri) return;
+    await processRecipeImage(result.assets[0].uri);
+  };
+
+  const handleTakePhoto = async () => {
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
+    if (permission.status !== 'granted') {
+      Alert.alert('Permission Required', 'Camera access is needed to take recipe photos.');
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [4, 5],
+      quality: 1,
+    });
+
+    if (result.canceled || !result.assets?.[0]?.uri) return;
+    await processRecipeImage(result.assets[0].uri);
   };
 
   const removeInstruction = (index: number) => {
@@ -241,30 +396,53 @@ export default function AddRecipeScreen() {
 
     setLoading(true);
     try {
-      await addRecipe({
+      const mappedDifficulty: 'Easy' | 'Medium' | 'Hard' =
+        recipe.tags[0] === 'Intermediate'
+          ? 'Medium'
+          : recipe.tags[0] === 'Advanced'
+            ? 'Hard'
+            : 'Easy';
+
+      const payload = {
         name: recipe.title.trim(),
-        type: 'created',
+        type: 'created' as const,
         description: recipe.description.trim() || 'Custom cocktail recipe',
         ingredients: recipe.ingredients
           .filter(ing => ing.name.trim())
           .map(ing => ({
-            name: `${ing.amount.trim()} ${ing.name.trim()}`.trim(),
-            amount: ing.amount.trim(),
+            name: ing.name.trim().replace(AMOUNT_PREFIX_REGEX, '').trim(),
+            amount: normalizeAmount(ing.amount),
             unit: '',
-            notes: ''
           })),
         instructions: recipe.instructions.filter(inst => inst.trim()),
         tags: recipe.tags,
-        difficulty: recipe.tags[0] || 'Easy',
+        difficulty: mappedDifficulty,
         prepTime: parseInt(recipe.time) || 5,
         servings: recipe.servings,
-        notes: `Garnish: ${recipe.garnish || 'None'}, Glass: ${recipe.glassware}`
-      });
+        image: recipeMedia.thumbnail,
+        thumbnailImage: recipeMedia.thumbnail,
+        headerImage: recipeMedia.header,
+        notes: `Garnish: ${recipe.garnish || 'None'}, Glass: ${recipe.glassware}`,
+      };
 
-      Alert.alert('Success!', 'Your recipe has been saved', [
-        { text: 'Create Another', onPress: resetForm },
-        { text: 'View My Collection', onPress: () => nav.navigate('ProfileSavedItems') }
-      ]);
+      const canUpdateExisting = Boolean(isEditMode && editingRecipe?.id && getRecipeById(editingRecipe.id));
+
+      if (canUpdateExisting && editingRecipe?.id) {
+        await updateRecipe(editingRecipe.id, payload);
+      } else {
+        await addRecipe(payload);
+      }
+
+      Alert.alert(
+        'Success!',
+        canUpdateExisting ? 'Your recipe has been updated' : 'Your recipe has been saved',
+        isEditMode
+          ? [{ text: 'Done', onPress: () => nav.goBack() }]
+          : [
+              { text: 'Create Another', onPress: resetForm },
+              { text: 'View My Collection', onPress: () => nav.navigate('ProfileSavedItems') },
+            ]
+      );
     } catch (error: any) {
       log.error('AddRecipeScreen', 'Save error', error, { recipeName: recipe.title });
       Alert.alert('Error', `Failed to save recipe: ${error.message}`);
@@ -287,6 +465,7 @@ export default function AddRecipeScreen() {
       recipeType: 'cocktail',
       method: undefined
     });
+    setRecipeMedia({});
   };
 
   return (
@@ -296,6 +475,7 @@ export default function AddRecipeScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
+        onScrollBeginDrag={onScrollHaptic}
       >
     <View style={styles.minimalContainer}>
       {/* Title - Large and prominent */}
@@ -309,10 +489,36 @@ export default function AddRecipeScreen() {
       />
 
       {/* Meta Info */}
+      <View style={styles.mediaCard}>
+        <Text style={styles.mediaTitle}>Recipe Cover</Text>
+        <Text style={styles.mediaHint}>Keep the drink centered in the frame. We auto-generate thumbnail (4:5) + header (16:9).</Text>
+        <View style={styles.mediaPreviewWrap}>
+          {recipeMedia.thumbnail ? (
+            <Image source={{ uri: recipeMedia.thumbnail }} style={styles.mediaPreview} />
+          ) : (
+            <View style={styles.mediaPlaceholder}>
+              <Ionicons name="image-outline" size={24} color={colors.subtext} />
+              <Text style={styles.mediaPlaceholderText}>No image selected</Text>
+            </View>
+          )}
+          <View style={styles.mediaFrameGuide} />
+        </View>
+        <View style={styles.mediaActionsRow}>
+          <TouchableOpacity style={styles.mediaActionButton} onPress={withHaptic(handleTakePhoto, 'selection')}>
+            <Ionicons name="camera-outline" size={16} color={colors.gold} />
+            <Text style={styles.mediaActionText}>Take Picture</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.mediaActionButton} onPress={withHaptic(handleUploadImage, 'selection')}>
+            <Ionicons name="images-outline" size={16} color={colors.gold} />
+            <Text style={styles.mediaActionText}>Upload</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
       <View style={styles.minimalMeta}>
         <TouchableOpacity
           style={styles.minimalMetaItem}
-          onPress={() => setShowGlasswareModal(true)}
+          onPress={withHaptic(() => setShowGlasswareModal(true), 'selection')}
         >
           <Text style={styles.minimalMetaLabel}>Glass</Text>
           <Text style={styles.minimalMetaValue}>{recipe.glassware}</Text>
@@ -322,7 +528,7 @@ export default function AddRecipeScreen() {
 
         <TouchableOpacity
           style={styles.minimalMetaItem}
-          onPress={() => setShowDifficultyModal(true)}
+          onPress={withHaptic(() => setShowDifficultyModal(true), 'selection')}
         >
           <Text style={styles.minimalMetaLabel}>Level</Text>
           <Text style={styles.minimalMetaValue}>{recipe.tags[0]}</Text>
@@ -381,7 +587,7 @@ export default function AddRecipeScreen() {
             <TouchableOpacity
               key={type.key}
               style={[styles.typeChip, isSelected && styles.typeChipSelected]}
-              onPress={() => setRecipe({...recipe, recipeType: type.key as RecipeType, method: undefined})}
+              onPress={withHaptic(() => setRecipe({...recipe, recipeType: type.key as RecipeType, method: undefined}), 'selection')}
             >
               <Ionicons
                 name={type.icon as any}
@@ -423,7 +629,7 @@ export default function AddRecipeScreen() {
           />
           {recipe.ingredients.length > 1 && (
             <TouchableOpacity
-              onPress={() => removeIngredient(index)}
+              onPress={withHaptic(() => removeIngredient(index), 'selection')}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
               <Ionicons name="remove-circle-outline" size={20} color={colors.muted} />
@@ -431,7 +637,7 @@ export default function AddRecipeScreen() {
           )}
         </View>
       ))}
-      <TouchableOpacity onPress={addIngredient} style={styles.minimalAddLink}>
+      <TouchableOpacity onPress={withHaptic(addIngredient, 'selection')} style={styles.minimalAddLink}>
         <Ionicons name="add" size={16} color={colors.gold} />
         <Text style={styles.minimalAddLinkText}>Add ingredient</Text>
       </TouchableOpacity>
@@ -463,7 +669,7 @@ export default function AddRecipeScreen() {
                 <TouchableOpacity
                   key={method.key}
                   style={[styles.methodOption, isSelected && styles.methodOptionSelected]}
-                  onPress={() => applyMethodSuggestions(method.key as RecipeMethod)}
+                  onPress={withHaptic(() => applyMethodSuggestions(method.key as RecipeMethod), 'selection')}
                 >
                   <Ionicons
                     name={method.icon as any}
@@ -516,7 +722,7 @@ export default function AddRecipeScreen() {
             />
             {recipe.instructions.length > 1 && (
               <TouchableOpacity
-                onPress={() => removeInstruction(index)}
+                onPress={withHaptic(() => removeInstruction(index), 'selection')}
                 style={styles.minimalRemoveStep}
               >
                 <Ionicons name="trash-outline" size={18} color={colors.muted} />
@@ -525,7 +731,7 @@ export default function AddRecipeScreen() {
           </View>
         </View>
       ))}
-      <TouchableOpacity onPress={addInstruction} style={styles.minimalAddLink}>
+      <TouchableOpacity onPress={withHaptic(addInstruction, 'selection')} style={styles.minimalAddLink}>
         <Ionicons name="add" size={16} color={colors.gold} />
         <Text style={styles.minimalAddLinkText}>Add step</Text>
       </TouchableOpacity>
@@ -534,7 +740,11 @@ export default function AddRecipeScreen() {
       {recipe.garnish || (
         <TouchableOpacity
           style={styles.minimalAddLink}
-          onPress={() => {}}
+          onPress={withHaptic(() => {
+            if (!recipe.garnish) {
+              setRecipe({ ...recipe, garnish: '' });
+            }
+          }, 'selection')}
         >
           <Ionicons name="add" size={16} color={colors.gold} />
           <Text style={styles.minimalAddLinkText}>Add garnish (optional)</Text>
@@ -558,7 +768,7 @@ export default function AddRecipeScreen() {
         {/* Save Button */}
         <TouchableOpacity
           style={[styles.saveButton, loading && styles.saveButtonDisabled]}
-          onPress={saveRecipe}
+          onPress={withHaptic(saveRecipe, 'medium')}
           disabled={loading}
         >
           <Ionicons name="checkmark-circle" size={24} color={colors.bg} />
@@ -582,7 +792,7 @@ export default function AddRecipeScreen() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Select Glassware</Text>
               <TouchableOpacity
-                onPress={() => setShowGlasswareModal(false)}
+                onPress={withHaptic(() => setShowGlasswareModal(false), 'selection')}
                 style={styles.modalCloseButton}
               >
                 <Ionicons name="close" size={24} color={colors.text} />
@@ -596,10 +806,10 @@ export default function AddRecipeScreen() {
                     styles.modalOption,
                     recipe.glassware === item && styles.modalOptionSelected
                   ]}
-                  onPress={() => {
+                  onPress={withHaptic(() => {
                     setRecipe({ ...recipe, glassware: item });
                     setShowGlasswareModal(false);
-                  }}
+                  }, 'selection')}
                 >
                   <Text style={[
                     styles.modalOptionText,
@@ -628,7 +838,7 @@ export default function AddRecipeScreen() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Select Difficulty</Text>
               <TouchableOpacity
-                onPress={() => setShowDifficultyModal(false)}
+                onPress={withHaptic(() => setShowDifficultyModal(false), 'selection')}
                 style={styles.modalCloseButton}
               >
                 <Ionicons name="close" size={24} color={colors.text} />
@@ -642,10 +852,10 @@ export default function AddRecipeScreen() {
                     styles.modalOption,
                     recipe.tags[0] === item && styles.modalOptionSelected
                   ]}
-                  onPress={() => {
+                  onPress={withHaptic(() => {
                     setRecipe({ ...recipe, tags: [item] });
                     setShowDifficultyModal(false);
-                  }}
+                  }, 'selection')}
                 >
                   <Text style={[
                     styles.modalOptionText,
@@ -694,6 +904,79 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: spacing(3),
+  },
+  mediaCard: {
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: radii.lg,
+    padding: spacing(2),
+    marginBottom: spacing(2.5),
+    gap: spacing(1),
+  },
+  mediaTitle: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  mediaHint: {
+    color: colors.subtext,
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  mediaPreviewWrap: {
+    marginTop: spacing(0.5),
+    height: 140,
+    borderRadius: radii.md,
+    overflow: 'hidden',
+    backgroundColor: colors.bg,
+    borderWidth: 1,
+    borderColor: colors.line,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  mediaPreview: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  mediaPlaceholder: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing(0.5),
+  },
+  mediaPlaceholderText: {
+    color: colors.subtext,
+    fontSize: 12,
+  },
+  mediaFrameGuide: {
+    position: 'absolute',
+    width: '72%',
+    height: '72%',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.45)',
+    borderRadius: radii.md,
+  },
+  mediaActionsRow: {
+    flexDirection: 'row',
+    gap: spacing(1.5),
+    marginTop: spacing(1),
+  },
+  mediaActionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(0.75),
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: radii.md,
+    paddingVertical: spacing(1),
+    paddingHorizontal: spacing(1.25),
+    backgroundColor: colors.bg,
+  },
+  mediaActionText: {
+    color: colors.text,
+    fontSize: 12,
+    fontWeight: '700',
   },
   minimalMetaItem: {
     flex: 1,

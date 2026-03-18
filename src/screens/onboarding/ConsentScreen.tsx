@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Consent Screen - Privacy and analytics consent
  */

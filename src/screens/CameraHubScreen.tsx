@@ -26,8 +26,10 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 import { colors, spacing, radii } from '../theme/tokens';
 import type { CameraStackParamList } from '../navigation/CameraStack';
+import { withHaptic } from '../lib/haptics';
 
 const serifFont = Platform.select({ ios: 'Georgia', android: 'serif', default: 'serif' });
 
@@ -239,7 +241,7 @@ export default function CameraHubScreen() {
             {/* Central Pulse Action */}
             <TouchableOpacity
               style={styles.mainCameraButtonWrapper}
-              onPress={() => navigation.navigate('SmartScan')}
+              onPress={withHaptic(() => navigation.navigate('SmartScan'), 'medium')}
               activeOpacity={0.9}
             >
               <Animated.View style={[styles.pulseRing, { transform: [{ scale: pulseAnim }] }]} />
@@ -253,36 +255,50 @@ export default function CameraHubScreen() {
             <View style={styles.quickLinks}>
               <TouchableOpacity
                 style={styles.quickLink}
-                onPress={() => navigation.navigate('SmartScan')}
+                onPress={withHaptic(() => navigation.navigate('SmartScan'), 'selection')}
               >
                 <View style={styles.quickIcon}>
+                  <BlurView intensity={35} tint="dark" style={StyleSheet.absoluteFill} />
                   <Ionicons name="wine" size={20} color={colors.gold} />
                 </View>
                 <Text style={styles.quickText}>BOTTLE</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.quickLink}
-                onPress={() => navigation.navigate('SmartScan')}
+                onPress={withHaptic(() => navigation.navigate('OCRCapture'), 'selection')}
               >
                 <View style={styles.quickIcon}>
+                  <BlurView intensity={35} tint="dark" style={StyleSheet.absoluteFill} />
                   <Ionicons name="document-text" size={20} color={colors.gold} />
                 </View>
                 <Text style={styles.quickText}>RECIPE</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.quickLink}
-                onPress={() => navigation.navigate('SmartScan')}
+                onPress={withHaptic(() => navigation.navigate('IngredientScan'), 'selection')}
               >
                 <View style={styles.quickIcon}>
+                  <BlurView intensity={35} tint="dark" style={StyleSheet.absoluteFill} />
                   <Ionicons name="leaf" size={20} color={colors.gold} />
                 </View>
                 <Text style={styles.quickText}>INGREDIENT</Text>
               </TouchableOpacity>
               <TouchableOpacity
+                style={styles.quickLink}
+                onPress={withHaptic(() => navigation.navigate('ManualBottleEntry', {}), 'selection')}
+              >
+                <View style={styles.quickIcon}>
+                  <BlurView intensity={35} tint="dark" style={StyleSheet.absoluteFill} />
+                  <Ionicons name="add-circle" size={20} color={colors.gold} />
+                </View>
+                <Text style={styles.quickText}>ADD</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
                 style={[styles.quickLink, showUrlInput && styles.quickLinkActive]}
-                onPress={handleLinkPress}
+                onPress={withHaptic(handleLinkPress, 'selection')}
               >
                 <View style={[styles.quickIcon, showUrlInput && styles.quickIconActive]}>
+                  {!showUrlInput ? <BlurView intensity={35} tint="dark" style={StyleSheet.absoluteFill} /> : null}
                   <Ionicons name="link" size={20} color={showUrlInput ? colors.white : colors.gold} />
                 </View>
                 <Text style={[styles.quickText, showUrlInput && styles.quickTextActive]}>LINK</Text>
@@ -292,6 +308,7 @@ export default function CameraHubScreen() {
             {/* URL Input - shown when LINK is tapped */}
             {showUrlInput && (
               <View style={styles.urlInputContainer}>
+                <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />
                 <TextInput
                   style={styles.urlInput}
                   placeholder="Paste recipe URL here..."
@@ -307,7 +324,7 @@ export default function CameraHubScreen() {
                 />
                 <TouchableOpacity
                   style={[styles.urlSubmitButton, !urlText.trim() && styles.urlSubmitButtonDisabled]}
-                  onPress={handleUrlSubmit}
+                  onPress={withHaptic(handleUrlSubmit, 'medium')}
                   disabled={!urlText.trim()}
                 >
                   <Ionicons name="arrow-forward" size={20} color={colors.white} />
@@ -420,8 +437,10 @@ const styles = StyleSheet.create({
   quickLinks: {
     flexDirection: 'row',
     justifyContent: 'center',
+    flexWrap: 'wrap',
     gap: spacing(3),
     paddingHorizontal: spacing(2),
+    rowGap: spacing(2),
   },
   quickLink: {
     alignItems: 'center',
@@ -434,11 +453,16 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(255,255,255,0.08)',
     borderWidth: 1,
-    borderColor: 'rgba(214, 138, 56, 0.3)',
+    borderColor: 'rgba(255,255,255,0.22)',
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
   },
   quickIconActive: {
     backgroundColor: colors.gold,
@@ -459,10 +483,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: spacing(4),
     marginHorizontal: spacing(3),
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(255,255,255,0.08)',
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: colors.gold,
+    borderColor: 'rgba(255,255,255,0.22)',
     overflow: 'hidden',
   },
   urlInput: {

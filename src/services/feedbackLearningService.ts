@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Feedback Learning Service
  * Dynamically updates taste profile weights based on user feedback

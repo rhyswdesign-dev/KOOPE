@@ -16,7 +16,6 @@
 
 import { useCallback } from 'react';
 import { useNavigation } from '@react-navigation/native';
-import { Alert } from 'react-native';
 import { useUserTier, UserTier } from '../store/useUserTier';
 import {
   FeatureKey,
@@ -25,7 +24,6 @@ import {
 } from '../config/featureRegistry';
 import {
   PAYWALL_TRIGGERS,
-  WallMode,
 } from '../config/paywallTriggers';
 import { trackEvent, ANALYTICS_EVENTS, ANALYTICS_PROPS } from '../lib/analytics';
 
@@ -82,10 +80,6 @@ export function useFeatureAccess(featureKey: FeatureKey): FeatureAccessResult {
       // Look up trigger for custom messaging
       const resolvedTriggerId = triggerId ?? DEFAULT_TRIGGER_BY_FEATURE[featureKey];
       const trigger = resolvedTriggerId ? PAYWALL_TRIGGERS[resolvedTriggerId] : undefined;
-      const wallMode: WallMode = trigger?.mode ?? 'hard';
-      const debugSuffix = resolvedTriggerId
-        ? `\n\n[Debug] Tier: ${tier} • Trigger: ${resolvedTriggerId}`
-        : `\n\n[Debug] Tier: ${tier} • Trigger: default`;
 
       // Track the gate event
       trackEvent(trigger?.analyticsEvent ?? ANALYTICS_EVENTS.FEATURE_GATED, {
@@ -95,53 +89,11 @@ export function useFeatureAccess(featureKey: FeatureKey): FeatureAccessResult {
         ...(resolvedTriggerId ? { trigger_id: resolvedTriggerId } : {}),
       });
 
-      // Soft mode: show nudge but still allow the action
-      if (wallMode === 'soft') {
-        const targetTier = (trigger?.requiredPlan ?? feature.paywallTarget) === 'pro' ? 'KŌOPE PRO' : 'KŌOPE+';
-
-        Alert.alert(
-          feature.displayName,
-          `${trigger?.message ?? `${feature.description} Upgrade to ${targetTier}.`}${debugSuffix}`,
-          [
-            {
-              text: 'Not Now',
-              style: 'cancel',
-              onPress: () => onSuccess?.(),
-            },
-            {
-              text: trigger?.ctaText ?? `Upgrade to ${targetTier}`,
-              onPress: () => {
-                navigation.navigate('Paywall', {
-                  displayCloseButton: true,
-                  offering: (trigger?.requiredPlan ?? feature.paywallTarget) === 'pro' ? 'pro' : null,
-                });
-              },
-            },
-          ]
-        );
-        // Soft mode: action still succeeds
-        return true;
-      }
-
-      // Hard / Preview mode: block the action
-      const targetTier = (trigger?.requiredPlan ?? feature.paywallTarget) === 'pro' ? 'KŌOPE PRO' : 'KŌOPE+';
-
-      Alert.alert(
-        feature.displayName,
-        `${trigger?.message ?? `${feature.description} Upgrade to ${targetTier}.`}${debugSuffix}`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: trigger?.ctaText ?? `Upgrade to ${targetTier}`,
-            onPress: () => {
-              navigation.navigate('Paywall', {
-                displayCloseButton: true,
-                offering: (trigger?.requiredPlan ?? feature.paywallTarget) === 'pro' ? 'pro' : null,
-              });
-            },
-          },
-        ]
-      );
+      // Unified behavior: all feature gates route directly to Paywall and block action.
+      navigation.navigate('Paywall', {
+        displayCloseButton: true,
+        offering: (trigger?.requiredPlan ?? feature.paywallTarget) === 'pro' ? 'pro' : null,
+      });
 
       return false;
     },

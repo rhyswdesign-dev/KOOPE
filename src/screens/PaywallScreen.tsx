@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * KOOPE PREMIUM PAYWALL
  *

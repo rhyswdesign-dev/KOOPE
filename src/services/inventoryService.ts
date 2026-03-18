@@ -155,18 +155,46 @@ export class InventoryService {
         return { success: false, duplicate: true };
       }
 
-      const { error } = await supabase
-        .from('user_inventory')
-        .insert({
-          user_id: params.userId,
-          item_type: params.itemType,
-          item_name: formattedName, // Use formatted name
-          category: params.category || null,
-          image_url: params.imageUrl || null,
-          subcategory: params.subcategory || null,
-          brand: params.brand || null,
-          notes: params.notes || null,
-        });
+      const insertPayload: Record<string, any> = {
+        user_id: params.userId,
+        item_type: params.itemType,
+        item_name: formattedName, // Use formatted name
+        category: params.category || null,
+        image_url: params.imageUrl || null,
+        subcategory: params.subcategory || null,
+        brand: params.brand || null,
+        notes: params.notes || null,
+      };
+
+      let error: any = null;
+      for (let attempt = 0; attempt < 8; attempt++) {
+        const result = await supabase
+          .from('user_inventory')
+          .insert(insertPayload);
+        error = result.error;
+        if (!error) break;
+
+        // Schema compatibility fallback:
+        // Some environments are missing optional columns (e.g. notes, brand).
+        const missingColumnMatch =
+          error?.code === 'PGRST204' &&
+          typeof error?.message === 'string'
+            ? error.message.match(/Could not find the '([^']+)' column/i)
+            : null;
+
+        const missingColumn = missingColumnMatch?.[1];
+        if (missingColumn && Object.prototype.hasOwnProperty.call(insertPayload, missingColumn)) {
+          if (missingColumn === 'brand' && params.brand) {
+            const currentName = String(insertPayload.item_name || formattedName).trim();
+            if (!currentName.includes(' - ')) {
+              insertPayload.item_name = `${params.brand.trim()} - ${currentName}`;
+            }
+          }
+          delete insertPayload[missingColumn];
+          continue;
+        }
+        break;
+      }
 
       if (error) {
         log.error('InventoryService', 'Error adding to inventory', error);

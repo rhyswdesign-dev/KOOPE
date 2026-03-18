@@ -114,7 +114,7 @@ export const MatchExercise: React.FC<MatchExerciseProps> = ({ item, onResult }) 
         correct: isCorrect,
         msToAnswer
       });
-    }, 800);
+    }, 280);
   };
 
   const canSubmit = Object.keys(matches).length === pairs.length;
@@ -145,9 +145,7 @@ export const MatchExercise: React.FC<MatchExerciseProps> = ({ item, onResult }) 
         },
       ]}
     >
-      <Text style={styles.prompt}>
-        Match the trait to its professional application
-      </Text>
+      <Text style={styles.prompt}>{item.prompt}</Text>
 
       <View style={styles.matchContainer}>
         {/* Left Column - Traits (White Pills) */}

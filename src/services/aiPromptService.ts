@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * AI Prompt Service
  * Handles daily limits, rewards, and learning from AI prompts

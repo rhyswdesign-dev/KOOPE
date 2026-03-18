@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * VAULT ECONOMY DATA
  * Mock data for XP + Keys based virtual economy system

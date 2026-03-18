@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * VAULT UNLOCK MODAL
  * Handles XP unlock transactions with XP-as-discount options

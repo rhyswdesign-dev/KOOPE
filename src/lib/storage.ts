@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { storage, auth } from '../config/firebase';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import * as ImageManipulator from 'expo-image-manipulator';

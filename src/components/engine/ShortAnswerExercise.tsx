@@ -5,10 +5,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TextInput, Pressable } from 'react-native';
-import { Item } from '../../types/domain';
 import { ExerciseCommonProps } from './OrderExercise';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/tokens';
+import { getShortAnswerHint, isShortAnswerCorrect, normalizeShortAnswer } from '../../utils/exerciseValidation';
 
 export default function ShortAnswerExercise({ item, onResult, disabled = false }: ExerciseCommonProps): React.JSX.Element {
   const [userAnswer, setUserAnswer] = useState('');
@@ -25,44 +25,8 @@ export default function ShortAnswerExercise({ item, onResult, disabled = false }
     setShowHint(false);
   }, [item.id]); // Depend on item.id to reset when question changes
 
-  const normalizeAnswer = (answer: string): string => {
-    return answer.toLowerCase().trim().replace(/\s+/g, ' ');
-  };
-
-  const getAcceptableAnswers = (): string[] => {
-    if (!item.answerText) return [];
-    
-    // Primary answer
-    const answers = [item.answerText];
-    
-    // Add acceptable variations if defined in item
-    if ((item as any).acceptableAnswers) {
-      answers.push(...(item as any).acceptableAnswers);
-    }
-    
-    // Add common variations for cocktail names
-    if (item.answerText.includes(' ')) {
-      // Add version without spaces
-      answers.push(item.answerText.replace(/\s+/g, ''));
-    }
-    
-    // Add version with "the" prefix for certain cocktails
-    if (!item.answerText.toLowerCase().startsWith('the ')) {
-      answers.push(`the ${item.answerText}`);
-    }
-    
-    return answers.map(normalizeAnswer);
-  };
-
   const checkAnswer = (): boolean => {
-    const normalizedInput = normalizeAnswer(userAnswer);
-    const acceptableAnswers = getAcceptableAnswers();
-    
-    return acceptableAnswers.some(answer => 
-      normalizedInput === answer || 
-      normalizedInput.includes(answer) ||
-      answer.includes(normalizedInput)
-    );
+    return isShortAnswerCorrect(userAnswer, item as any);
   };
 
   const handleSubmit = () => {
@@ -78,7 +42,7 @@ export default function ShortAnswerExercise({ item, onResult, disabled = false }
       setAnswered(true);
       setTimeout(() => {
         onResult({ correct: true, msToAnswer: timeToAnswer });
-      }, 1000);
+      }, 320);
     } else {
       // Show hint after 2 failed attempts
       if (newAttempts >= 2) {
@@ -90,7 +54,7 @@ export default function ShortAnswerExercise({ item, onResult, disabled = false }
         setAnswered(true);
         setTimeout(() => {
           onResult({ correct: false, msToAnswer: timeToAnswer });
-        }, 2000);
+        }, 480);
       }
     }
   };
@@ -101,16 +65,7 @@ export default function ShortAnswerExercise({ item, onResult, disabled = false }
   };
 
   const getHint = (): string => {
-    if (!item.answerText) return '';
-    
-    const answer = item.answerText.toLowerCase();
-    
-    // Create a hint by showing first letter and length
-    const firstLetter = answer.charAt(0).toUpperCase();
-    const restLength = answer.length - 1;
-    const dashes = '_'.repeat(restLength);
-    
-    return `${firstLetter}${dashes}`;
+    return getShortAnswerHint(item as any);
   };
 
   const getPlaceholder = (): string => {
@@ -123,9 +78,16 @@ export default function ShortAnswerExercise({ item, onResult, disabled = false }
     }
   };
 
+  const promptText = item.prompt?.trim() || 'Enter your answer below.';
+  const normalizedShort = normalizeShortAnswer(item as any);
+  const answerLength = normalizedShort.answerText?.length || 0;
+
   return (
     <View style={styles.container}>
-      <Text style={styles.prompt}>{item.prompt}</Text>
+      <View style={styles.questionCard}>
+        <Text style={styles.questionLabel}>Question</Text>
+        <Text style={styles.prompt}>{promptText}</Text>
+      </View>
       
       <View style={styles.inputContainer}>
         <TextInput
@@ -136,7 +98,7 @@ export default function ShortAnswerExercise({ item, onResult, disabled = false }
           value={userAnswer}
           onChangeText={setUserAnswer}
           placeholder={getPlaceholder()}
-          placeholderTextColor="#999"
+          placeholderTextColor={colors.subtext}
           editable={!answered && !disabled}
           autoCapitalize="none"
           autoCorrect={false}
@@ -165,7 +127,7 @@ export default function ShortAnswerExercise({ item, onResult, disabled = false }
           <Text style={styles.hintLabel}>Hint:</Text>
           <Text style={styles.hintText}>{getHint()}</Text>
           <Text style={styles.hintSubtext}>
-            {item.answerText?.length} letters
+            {answerLength} letters
           </Text>
         </View>
       )}
@@ -190,7 +152,7 @@ export default function ShortAnswerExercise({ item, onResult, disabled = false }
             <View style={styles.correctAnswerContainer}>
               <Text style={styles.correctAnswerLabel}>Correct answer:</Text>
               <Text style={styles.correctAnswerText}>
-                {item.answerText}
+                {normalizedShort.answerText}
               </Text>
             </View>
           )}
@@ -218,73 +180,92 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  questionCard: {
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  questionLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.gold,
+    textTransform: 'uppercase',
+    letterSpacing: 1.1,
+    textAlign: 'center',
+    marginBottom: 6,
+  },
   prompt: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '600',
-    marginBottom: 32,
-    lineHeight: 28,
+    color: colors.text,
+    lineHeight: 24,
     textAlign: 'center',
   },
   inputContainer: {
-    marginBottom: 24,
-    gap: 16,
+    marginBottom: 20,
+    gap: 12,
   },
   input: {
-    borderWidth: 2,
-    borderColor: '#e0e0e0',
+    borderWidth: 1.5,
+    borderColor: colors.line,
     borderRadius: 12,
     padding: 16,
-    fontSize: 18,
+    fontSize: 17,
     textAlign: 'center',
-    backgroundColor: '#fff',
+    color: colors.text,
+    backgroundColor: 'rgba(255,255,255,0.06)',
   },
   correctInput: {
-    borderColor: '#4CAF50',
-    backgroundColor: '#e8f5e8',
+    borderColor: colors.success,
+    backgroundColor: 'rgba(76,175,80,0.12)',
   },
   incorrectInput: {
-    borderColor: '#f44336',
-    backgroundColor: '#ffeaea',
+    borderColor: colors.error,
+    backgroundColor: 'rgba(244,67,54,0.12)',
   },
   submitButton: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: colors.gold,
     borderRadius: 12,
     paddingVertical: 12,
     alignItems: 'center',
   },
   disabledButton: {
-    backgroundColor: '#ccc',
+    backgroundColor: 'rgba(255,255,255,0.2)',
   },
   submitButtonText: {
-    color: '#fff',
+    color: colors.goldText,
     fontSize: 16,
     fontWeight: '600',
   },
   hintContainer: {
-    backgroundColor: '#fff3cd',
+    backgroundColor: 'rgba(255,255,255,0.06)',
     borderRadius: 8,
     padding: 16,
     marginBottom: 24,
-    borderLeftWidth: 4,
-    borderLeftColor: '#ffc107',
+    borderLeftWidth: 3,
+    borderLeftColor: colors.accent,
     alignItems: 'center',
   },
   hintLabel: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: '#856404',
+    color: colors.subtext,
     marginBottom: 8,
   },
   hintText: {
     fontSize: 24,
     fontFamily: 'monospace',
     letterSpacing: 2,
-    color: '#856404',
+    color: colors.text,
     marginBottom: 4,
   },
   hintSubtext: {
     fontSize: 12,
-    color: '#856404',
+    color: colors.subtext,
   },
   feedback: {
     alignItems: 'center',
@@ -300,10 +281,10 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   correctText: {
-    color: '#4CAF50',
+    color: colors.success,
   },
   incorrectText: {
-    color: '#f44336',
+    color: colors.error,
   },
   correctAnswerContainer: {
     alignItems: 'center',
@@ -311,21 +292,21 @@ const styles = StyleSheet.create({
   },
   correctAnswerLabel: {
     fontSize: 14,
-    color: '#666',
+    color: colors.subtext,
   },
   correctAnswerText: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#4CAF50',
+    color: colors.text,
   },
   retryButton: {
-    backgroundColor: '#2196F3',
+    backgroundColor: colors.accent,
     borderRadius: 8,
     paddingHorizontal: 20,
     paddingVertical: 8,
   },
   retryButtonText: {
-    color: '#fff',
+    color: colors.goldText,
     fontSize: 14,
     fontWeight: '600',
   },
@@ -335,6 +316,6 @@ const styles = StyleSheet.create({
   },
   attemptsText: {
     fontSize: 12,
-    color: '#666',
+    color: colors.subtext,
   },
 });

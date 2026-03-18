@@ -258,6 +258,21 @@ export default function SettingsScreen() {
 
             <TouchableOpacity
               style={styles.settingItem}
+              onPress={() => nav.navigate('OnboardingPreview')}
+              activeOpacity={0.7}
+            >
+              <View style={styles.settingItemLeft}>
+                <Ionicons name="sparkles-outline" size={22} color={colors.accent} />
+                <Text style={styles.settingItemText}>Preview Full Onboarding</Text>
+              </View>
+              <View style={styles.settingItemRight}>
+                <Text style={styles.settingItemBadge}>Safe demo</Text>
+                <Ionicons name="chevron-forward" size={20} color={colors.subtext} />
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.settingItem}
               onPress={() => nav.navigate('NotificationCenter')}
               activeOpacity={0.7}
             >

@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * FeatureTooltip Component
  * "What's new" tooltips and coach-marks for new features

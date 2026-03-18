@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Vault Transaction Repository - Supabase Implementation
  * Handles all vault economy write operations

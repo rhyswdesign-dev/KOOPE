@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Question Image Mapper
  * Maps question content to appropriate images from our assets

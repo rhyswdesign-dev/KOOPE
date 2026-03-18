@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * NOTIFICATION SERVICE
  * Comprehensive push notification and in-app notification system

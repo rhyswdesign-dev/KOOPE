@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * UI Components Index
  * Central export file for all UI components

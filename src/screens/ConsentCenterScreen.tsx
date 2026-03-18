@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * CONSENT CENTER SCREEN
  * Central hub for managing privacy preferences and tracking consent

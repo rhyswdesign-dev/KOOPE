@@ -183,7 +183,12 @@
               "xpAward": 5
             }
           ],
-          "notes": "Module 1 authored and validated for in-app question format."
+          "notes": "Module 1 authored and validated for in-app question format.",
+          "showLessonBrief": true,
+          "brief": "This lesson helps you understand the behaviors that make guests trust you before they judge your drinks.",
+          "practiceFocus": "Reading guest needs, service posture, and professional habits.",
+          "commonMistake": "Treating bartending like performance instead of hospitality.",
+          "contextBrief": "The strongest bartenders are usually remembered for consistency, calmness, and comfort, not theatrics."
         },
         {
           "id": "ch1-bartending-basics.lesson02",
@@ -1790,9 +1795,23 @@
               "xpAward": 10
             }
           ],
-          "notes": "Module 1 authored and validated for in-app question format."
+          "notes": "Module 1 authored and validated for in-app question format.",
+          "showLessonBrief": true,
+          "brief": "This checkpoint asks you to use the basic principles together under simple pressure.",
+          "practiceFocus": "Choosing the right structure based on a guest brief.",
+          "commonMistake": "Thinking the answer is about a recipe name instead of the build logic.",
+          "contextBrief": "Checkpoints should feel like live service decisions, not school exams."
         }
-      ]
+      ],
+      "brief": "Learn the behaviors, setup habits, and core service instincts that make drinks feel professional before advanced technique even matters.",
+      "whyItMatters": "Most bad drinks start with bad setup, poor communication, or weak station awareness, not just wrong recipes.",
+      "unlockReward": "Unlock stronger lesson confidence and the foundation for every later module.",
+      "bestFor": [
+        "Home Bartender",
+        "Taste Builder"
+      ],
+      "contextBrief": "Bartending is part hospitality, part systems thinking. Guests remember how a drink felt, not just what was in it.",
+      "requiredTier": "FREE"
     },
     {
       "id": "ch3-techniques-prep",
@@ -1979,7 +1998,12 @@
               "xpAward": 6
             }
           ],
-          "notes": "Module 2 authored and validated for in-app format."
+          "notes": "Module 2 authored and validated for in-app format.",
+          "showLessonBrief": true,
+          "brief": "This lesson teaches the first big technical fork in bartending: when to shake and when to stir.",
+          "practiceFocus": "Texture, aeration, clarity, and dilution control.",
+          "commonMistake": "Choosing technique based on habit instead of ingredient structure.",
+          "contextBrief": "Many cocktail mistakes are not recipe mistakes at all. They come from using the wrong technique on the right build."
         },
         {
           "id": "ch3-techniques-prep.lesson02",
@@ -3619,9 +3643,23 @@
               "xpAward": 10
             }
           ],
-          "notes": "Module 2 authored and validated for in-app format."
+          "notes": "Module 2 authored and validated for in-app format.",
+          "showLessonBrief": true,
+          "brief": "This checkpoint tests whether you can apply technique choices instead of just naming them.",
+          "practiceFocus": "Fixing balance and selecting the right build sequence under pressure.",
+          "commonMistake": "Changing too many variables at once when a drink tastes off.",
+          "contextBrief": "The strongest technicians diagnose first, then adjust in small deliberate moves."
         }
-      ]
+      ],
+      "brief": "This module teaches how drinks are actually built: shaking, stirring, dilution, measuring, prep, and workflow.",
+      "whyItMatters": "Technique is what turns good ingredients into repeatable drinks.",
+      "unlockReward": "Unlock cleaner execution and more consistency across every classic.",
+      "bestFor": [
+        "Home Bartender",
+        "Mastery"
+      ],
+      "contextBrief": "Professional bars rely on systems because speed without precision creates waste and inconsistency.",
+      "requiredTier": "FREE"
     },
     {
       "id": "ch4-spirits-pairing",
@@ -3749,7 +3787,12 @@
           "xpReward": 48,
           "tags": [
             "mastery_curriculum"
-          ]
+          ],
+          "showLessonBrief": true,
+          "brief": "This lesson gives you deeper product literacy around how distillation works.",
+          "practiceFocus": "Reading process, tasting consequences, and recommendation logic.",
+          "commonMistake": "Reducing the category to marketing language instead of production and flavor structure.",
+          "contextBrief": "Mastery lessons work best when you understand why the category developed the way it did before you start answering questions about it."
         },
         {
           "id": "ch4-spirits-pairing.lesson02",
@@ -3865,7 +3908,12 @@
           "xpReward": 48,
           "tags": [
             "mastery_curriculum"
-          ]
+          ],
+          "showLessonBrief": true,
+          "brief": "This lesson gives you deeper product literacy around whiskey aging science.",
+          "practiceFocus": "Reading process, tasting consequences, and recommendation logic.",
+          "commonMistake": "Reducing the category to marketing language instead of production and flavor structure.",
+          "contextBrief": "Mastery lessons work best when you understand why the category developed the way it did before you start answering questions about it."
         },
         {
           "id": "ch4-spirits-pairing.lesson03",
@@ -3981,7 +4029,12 @@
           "xpReward": 48,
           "tags": [
             "mastery_curriculum"
-          ]
+          ],
+          "showLessonBrief": true,
+          "brief": "This lesson gives you deeper product literacy around rum production styles.",
+          "practiceFocus": "Reading process, tasting consequences, and recommendation logic.",
+          "commonMistake": "Reducing the category to marketing language instead of production and flavor structure.",
+          "contextBrief": "Mastery lessons work best when you understand why the category developed the way it did before you start answering questions about it."
         },
         {
           "id": "ch4-spirits-pairing.lesson04",
@@ -4097,7 +4150,12 @@
           "xpReward": 54,
           "tags": [
             "mastery_curriculum"
-          ]
+          ],
+          "showLessonBrief": true,
+          "brief": "This lesson gives you deeper product literacy around tequila vs mezcal.",
+          "practiceFocus": "Reading process, tasting consequences, and recommendation logic.",
+          "commonMistake": "Reducing the category to marketing language instead of production and flavor structure.",
+          "contextBrief": "Mastery lessons work best when you understand why the category developed the way it did before you start answering questions about it."
         },
         {
           "id": "ch4-spirits-pairing.lesson05",
@@ -4214,7 +4272,12 @@
           "xpReward": 54,
           "tags": [
             "mastery_curriculum"
-          ]
+          ],
+          "showLessonBrief": true,
+          "brief": "This lesson gives you deeper product literacy around gin botanicals & styles.",
+          "practiceFocus": "Reading process, tasting consequences, and recommendation logic.",
+          "commonMistake": "Reducing the category to marketing language instead of production and flavor structure.",
+          "contextBrief": "Mastery lessons work best when you understand why the category developed the way it did before you start answering questions about it."
         },
         {
           "id": "ch4-spirits-pairing.lesson06",
@@ -4330,7 +4393,12 @@
           "xpReward": 54,
           "tags": [
             "mastery_curriculum"
-          ]
+          ],
+          "showLessonBrief": true,
+          "brief": "This lesson gives you deeper product literacy around brandy & grape spirits.",
+          "practiceFocus": "Reading process, tasting consequences, and recommendation logic.",
+          "commonMistake": "Reducing the category to marketing language instead of production and flavor structure.",
+          "contextBrief": "Mastery lessons work best when you understand why the category developed the way it did before you start answering questions about it."
         },
         {
           "id": "ch4-spirits-pairing.lesson07",
@@ -4446,7 +4514,12 @@
           "xpReward": 60,
           "tags": [
             "mastery_curriculum"
-          ]
+          ],
+          "showLessonBrief": true,
+          "brief": "This lesson gives you deeper product literacy around fortified wines.",
+          "practiceFocus": "Reading process, tasting consequences, and recommendation logic.",
+          "commonMistake": "Reducing the category to marketing language instead of production and flavor structure.",
+          "contextBrief": "Mastery lessons work best when you understand why the category developed the way it did before you start answering questions about it."
         },
         {
           "id": "ch4-spirits-pairing.lesson08",
@@ -4562,7 +4635,12 @@
           "xpReward": 60,
           "tags": [
             "mastery_curriculum"
-          ]
+          ],
+          "showLessonBrief": true,
+          "brief": "This lesson gives you deeper product literacy around liqueurs & modifiers mastery.",
+          "practiceFocus": "Reading process, tasting consequences, and recommendation logic.",
+          "commonMistake": "Reducing the category to marketing language instead of production and flavor structure.",
+          "contextBrief": "Mastery lessons work best when you understand why the category developed the way it did before you start answering questions about it."
         },
         {
           "id": "ch4-spirits-pairing.lesson09",
@@ -4750,7 +4828,12 @@
           "xpReward": 100,
           "tags": [
             "mastery_curriculum"
-          ]
+          ],
+          "showLessonBrief": true,
+          "brief": "This lesson gives you deeper product literacy around reading bottle labels like a pro.",
+          "practiceFocus": "Reading process, tasting consequences, and recommendation logic.",
+          "commonMistake": "Reducing the category to marketing language instead of production and flavor structure.",
+          "contextBrief": "Mastery lessons work best when you understand why the category developed the way it did before you start answering questions about it."
         },
         {
           "id": "ch4-spirits-pairing.lesson10",
@@ -5071,7 +5154,12 @@
           "xpReward": 216,
           "tags": [
             "mastery_curriculum"
-          ]
+          ],
+          "showLessonBrief": true,
+          "brief": "This lesson gives you deeper product literacy around taste spirits like a professional.",
+          "practiceFocus": "Reading process, tasting consequences, and recommendation logic.",
+          "commonMistake": "Reducing the category to marketing language instead of production and flavor structure.",
+          "contextBrief": "Mastery lessons work best when you understand why the category developed the way it did before you start answering questions about it."
         }
       ],
       "tags": [
@@ -5079,7 +5167,15 @@
         "spirits",
         "advanced"
       ],
-      "estimatedMinutes": 85
+      "estimatedMinutes": 85,
+      "brief": "This is the advanced path for users who want to understand production, labels, maturation, and tasting at a deeper level.",
+      "whyItMatters": "If you understand the bottle, you make better recipe decisions and better recommendations.",
+      "unlockReward": "Unlock advanced product confidence, deeper tasting language, and stronger PRO value.",
+      "bestFor": [
+        "Mastery"
+      ],
+      "contextBrief": "Most people drink spirits through branding. Mastery starts when users can read process instead of marketing.",
+      "requiredTier": "PRO"
     },
     {
       "id": "ch5-classics-remix",
@@ -5268,7 +5364,12 @@
               "xpAward": 7
             }
           ],
-          "notes": "Module 3 authored and validated for in-app format."
+          "notes": "Module 3 authored and validated for in-app format.",
+          "showLessonBrief": true,
+          "brief": "This lesson introduces the core sour template that powers a huge part of cocktail culture.",
+          "practiceFocus": "Strong, sweet, and sour relationships.",
+          "commonMistake": "Memorizing a ratio without understanding what each part is doing.",
+          "contextBrief": "Templates are useful because they compress a lot of recipes into one repeatable structure."
         },
         {
           "id": "ch5-classics-remix.lesson02",
@@ -6705,578 +6806,29 @@
               "xpAward": 10
             }
           ],
-          "notes": "Module 3 authored and validated for in-app format."
+          "notes": "Module 3 authored and validated for in-app format.",
+          "showLessonBrief": true,
+          "brief": "This checkpoint asks you to think like a builder, not just a memorizer.",
+          "practiceFocus": "Choosing a fitting cocktail structure from a guest-style brief.",
+          "commonMistake": "Picking a drink by name without defending why the structure fits.",
+          "contextBrief": "A bartender becomes more creative the moment they can defend structure, not just repeat it."
         }
-      ]
+      ],
+      "brief": "This module teaches cocktail frameworks so you stop memorizing isolated drinks and start recognizing families.",
+      "whyItMatters": "Once you understand the template, you can build, adjust, and remix with confidence.",
+      "unlockReward": "Unlock better menu reading and stronger recipe intuition.",
+      "bestFor": [
+        "Home Bartender",
+        "Taste Builder"
+      ],
+      "contextBrief": "Most modern cocktails are variations on a small number of structural families.",
+      "requiredTier": "FREE"
     },
     {
       "id": "ch5b-batching-punches",
       "title": "Batching & Punches",
       "slug": "ch5b-batching-punches",
       "lessons": [
-        {
-          "id": "ch5b-batching-punches.lesson01",
-          "title": "Batch Math & Scaling",
-          "slug": "batch-math-scaling-logic",
-          "question_count": 10,
-          "questions": [
-            {
-              "id": "m4l2q1",
-              "type": "mcq",
-              "prompt": "If a recipe uses 2 oz spirit per drink, how much spirit for 8 drinks?",
-              "options": [
-                "10 oz",
-                "16 oz",
-                "20 oz",
-                "24 oz"
-              ],
-              "correct": 1,
-              "insight": "2 oz x 8 = 16 oz.",
-              "xpAward": 7
-            },
-            {
-              "id": "m4l2q2",
-              "type": "checkbox",
-              "prompt": "When scaling a batch, what must be multiplied?",
-              "options": [
-                "Spirit",
-                "Sweetener",
-                "Citrus",
-                "Dilution target",
-                "Garnish count if prepped"
-              ],
-              "correct": [
-                0,
-                1,
-                2,
-                3,
-                4
-              ],
-              "insight": "Scale every relevant component, not just base spirit.",
-              "xpAward": 7
-            },
-            {
-              "id": "m4l2q3",
-              "type": "match",
-              "prompt": "Match servings to typical batch size label.",
-              "pairs": [
-                {
-                  "left": "5 drinks",
-                  "right": "Small batch"
-                },
-                {
-                  "left": "12 drinks",
-                  "right": "Medium batch"
-                },
-                {
-                  "left": "20 drinks",
-                  "right": "Party batch"
-                },
-                {
-                  "left": "40+ drinks",
-                  "right": "Event service batch"
-                }
-              ],
-              "insight": "Naming batch sizes improves prep communication.",
-              "xpAward": 7
-            },
-            {
-              "id": "m4l2q4",
-              "type": "short",
-              "prompt": "What tool helps measure larger quantities accurately?",
-              "answerText": "Measuring cup or digital scale.",
-              "acceptableAnswers": [
-                "digital scale",
-                "measuring cup"
-              ],
-              "correct_text": "Measuring cup or digital scale.",
-              "acceptable_answers": [
-                "digital scale",
-                "measuring cup"
-              ],
-              "insight": "Larger batches benefit from weight/volume precision.",
-              "xpAward": 7
-            },
-            {
-              "id": "m4l2q5",
-              "type": "roleplay",
-              "prompt": "Your scaled batch tastes too sweet. First correction?",
-              "options": [
-                "Add citrus or controlled dilution",
-                "Add more syrup",
-                "Add garnish only"
-              ],
-              "correct": 0,
-              "insight": "Sweet-heavy scaling errors are common and fixable.",
-              "xpAward": 7
-            },
-            {
-              "id": "m4l2q6",
-              "type": "mcq",
-              "prompt": "Why document batch recipes after testing?",
-              "options": [
-                "Consistency and repeatability",
-                "To reduce bottle cost only",
-                "To avoid chilling",
-                "To skip tasting"
-              ],
-              "correct": 0,
-              "insight": "Written batch specs protect quality across services.",
-              "xpAward": 7
-            },
-            {
-              "id": "m4l2q7",
-              "type": "order",
-              "prompt": "Scaling workflow order:",
-              "items": [
-                "Start with validated single recipe",
-                "Multiply ingredients",
-                "Mix and integrate",
-                "Taste and adjust"
-              ],
-              "correct_order": [
-                0,
-                1,
-                2,
-                3
-              ],
-              "insight": "Scale from a proven base formula.",
-              "xpAward": 7
-            },
-            {
-              "id": "m4l2q8",
-              "type": "checkbox",
-              "prompt": "Common batch math mistakes include:",
-              "options": [
-                "Forgetting dilution",
-                "Incorrect multiplication",
-                "Not converting units",
-                "Over-labeling bottles",
-                "Skipping final taste"
-              ],
-              "correct": [
-                0,
-                1,
-                2,
-                4
-              ],
-              "insight": "Math + sensory checks are both required.",
-              "xpAward": 7
-            },
-            {
-              "id": "m4l2q9",
-              "type": "mcq",
-              "prompt": "Which ingredient in many batched cocktails spoils fastest?",
-              "options": [
-                "Bitters",
-                "Fresh citrus juice",
-                "Base spirit",
-                "Sugar syrup"
-              ],
-              "correct": 1,
-              "insight": "Fresh citrus has the shortest quality window.",
-              "xpAward": 7
-            },
-            {
-              "id": "m4l2q10",
-              "type": "short",
-              "prompt": "Why taste a batch before service?",
-              "answerText": "To confirm balance and consistency.",
-              "acceptableAnswers": [
-                "confirm balance",
-                "quality check before service"
-              ],
-              "correct_text": "To confirm balance and consistency.",
-              "acceptable_answers": [
-                "confirm balance",
-                "quality check before service"
-              ],
-              "insight": "Never serve scaled cocktails without tasting.",
-              "xpAward": 7
-            }
-          ],
-          "notes": "Module 4 authored and validated for in-app format."
-        },
-        {
-          "id": "ch5b-batching-punches.lesson02",
-          "title": "Pre-Dilution Science",
-          "slug": "pre-dilution-science",
-          "question_count": 10,
-          "questions": [
-            {
-              "id": "m4l3q1",
-              "type": "mcq",
-              "prompt": "Why pre-dilute batched cocktails?",
-              "options": [
-                "To remove alcohol",
-                "To mimic final service dilution",
-                "To add sweetness",
-                "To increase carbonation"
-              ],
-              "correct": 1,
-              "insight": "Pre-dilution simulates dilution from normal stirring/shaking.",
-              "xpAward": 8
-            },
-            {
-              "id": "m4l3q2",
-              "type": "checkbox",
-              "prompt": "Pre-dilution helps deliver:",
-              "options": [
-                "Balanced strength",
-                "Consistent flavor",
-                "Faster service",
-                "Permanent carbonation",
-                "Texture alignment"
-              ],
-              "correct": [
-                0,
-                1,
-                2,
-                4
-              ],
-              "insight": "It aligns service-ready taste across pours.",
-              "xpAward": 8
-            },
-            {
-              "id": "m4l3q3",
-              "type": "match",
-              "prompt": "Match technique to outcome.",
-              "pairs": [
-                {
-                  "left": "Pre-dilution",
-                  "right": "Ready-to-serve balance"
-                },
-                {
-                  "left": "Fresh shake/stir",
-                  "right": "Live dilution during prep"
-                },
-                {
-                  "left": "No dilution",
-                  "right": "Harsh concentrated profile"
-                },
-                {
-                  "left": "Over-dilution",
-                  "right": "Thin/flabby profile"
-                }
-              ],
-              "insight": "Dilution accuracy is central to batch quality.",
-              "xpAward": 8
-            },
-            {
-              "id": "m4l3q4",
-              "type": "short",
-              "prompt": "What liquid is used for pre-dilution?",
-              "answerText": "Water.",
-              "acceptableAnswers": [
-                "filtered water",
-                "cold water"
-              ],
-              "correct_text": "Water.",
-              "acceptable_answers": [
-                "filtered water",
-                "cold water"
-              ],
-              "insight": "Use clean, neutral water for predictable results.",
-              "xpAward": 8
-            },
-            {
-              "id": "m4l3q5",
-              "type": "roleplay",
-              "prompt": "Guests say your batch tastes too strong. Most likely issue?",
-              "options": [
-                "Missing/low dilution",
-                "Too much garnish",
-                "Wrong bottle shape"
-              ],
-              "correct": 0,
-              "insight": "Undiluted batches often taste hot and unintegrated.",
-              "xpAward": 8
-            },
-            {
-              "id": "m4l3q6",
-              "type": "mcq",
-              "prompt": "Common pre-dilution target range for many stirred batches?",
-              "options": [
-                "5%",
-                "20-25%",
-                "50%",
-                "80%"
-              ],
-              "correct": 1,
-              "insight": "Many spirit-forward batches land around 20-25%.",
-              "xpAward": 8
-            },
-            {
-              "id": "m4l3q7",
-              "type": "order",
-              "prompt": "Pre-dilution workflow:",
-              "items": [
-                "Mix core ingredients",
-                "Add measured dilution water",
-                "Chill batch",
-                "Taste and serve"
-              ],
-              "correct_order": [
-                0,
-                1,
-                2,
-                3
-              ],
-              "insight": "Order matters for consistent integration.",
-              "xpAward": 8
-            },
-            {
-              "id": "m4l3q8",
-              "type": "checkbox",
-              "prompt": "Pre-dilution generally improves:",
-              "options": [
-                "Drink balance",
-                "Service speed",
-                "Consistency by pour",
-                "Shelf life indefinitely",
-                "Guest experience"
-              ],
-              "correct": [
-                0,
-                1,
-                2,
-                4
-              ],
-              "insight": "Done correctly, pre-dilution increases reliability.",
-              "xpAward": 8
-            },
-            {
-              "id": "m4l3q9",
-              "type": "mcq",
-              "prompt": "Which style usually needs less pre-dilution than citrus sours?",
-              "options": [
-                "Spirit-forward cocktails",
-                "Frozen drinks",
-                "Cream cocktails",
-                "Top-with-soda highballs"
-              ],
-              "correct": 0,
-              "insight": "Spirit-forward templates typically need controlled but lower dilution.",
-              "xpAward": 8
-            },
-            {
-              "id": "m4l3q10",
-              "type": "short",
-              "prompt": "Why should pre-diluted batches be chilled before serving?",
-              "answerText": "To serve at target temperature and preserve balance.",
-              "acceptableAnswers": [
-                "maintain proper temperature",
-                "keep cold for correct profile"
-              ],
-              "correct_text": "To serve at target temperature and preserve balance.",
-              "acceptable_answers": [
-                "maintain proper temperature",
-                "keep cold for correct profile"
-              ],
-              "insight": "Temperature impacts perceived sweetness, strength, and texture.",
-              "xpAward": 8
-            }
-          ],
-          "notes": "Module 4 authored and validated for in-app format."
-        },
-        {
-          "id": "ch5b-batching-punches.lesson03",
-          "title": "Storage & Shelf Life",
-          "slug": "storage-labeling-shelf-life",
-          "question_count": 10,
-          "questions": [
-            {
-              "id": "m4l4q1",
-              "type": "mcq",
-              "prompt": "How long does fresh-citrus batch quality usually hold refrigerated?",
-              "options": [
-                "4-6 hours",
-                "24-48 hours",
-                "1 week",
-                "1 month"
-              ],
-              "correct": 1,
-              "insight": "Citrus quality drops quickly due to oxidation.",
-              "xpAward": 8
-            },
-            {
-              "id": "m4l4q2",
-              "type": "checkbox",
-              "prompt": "Which factors most affect batch shelf life?",
-              "options": [
-                "Citrus content",
-                "Storage temperature",
-                "Oxygen exposure",
-                "Bottle color only",
-                "Sanitation"
-              ],
-              "correct": [
-                0,
-                1,
-                2,
-                4
-              ],
-              "insight": "Temperature, oxygen, and hygiene drive stability.",
-              "xpAward": 8
-            },
-            {
-              "id": "m4l4q3",
-              "type": "match",
-              "prompt": "Match storage method to benefit.",
-              "pairs": [
-                {
-                  "left": "Refrigeration",
-                  "right": "Slows spoilage"
-                },
-                {
-                  "left": "Sealed bottle",
-                  "right": "Reduces oxidation"
-                },
-                {
-                  "left": "Date labeling",
-                  "right": "Tracks freshness window"
-                },
-                {
-                  "left": "Sanitized container",
-                  "right": "Lowers contamination risk"
-                }
-              ],
-              "insight": "Storage discipline is as important as recipe quality.",
-              "xpAward": 8
-            },
-            {
-              "id": "m4l4q4",
-              "type": "short",
-              "prompt": "Why should batched cocktails be sealed tightly?",
-              "answerText": "To reduce oxygen exposure and oxidation.",
-              "acceptableAnswers": [
-                "reduce oxidation",
-                "limit oxygen contact"
-              ],
-              "correct_text": "To reduce oxygen exposure and oxidation.",
-              "acceptable_answers": [
-                "reduce oxidation",
-                "limit oxygen contact"
-              ],
-              "insight": "Oxygen dulls aromatics and freshness.",
-              "xpAward": 8
-            },
-            {
-              "id": "m4l4q5",
-              "type": "roleplay",
-              "prompt": "A citrus batch tastes dull after 2 days. Likely cause?",
-              "options": [
-                "Oxidation",
-                "Too much garnish",
-                "High-quality spirits"
-              ],
-              "correct": 0,
-              "insight": "Oxidation is the primary freshness killer.",
-              "xpAward": 8
-            },
-            {
-              "id": "m4l4q6",
-              "type": "mcq",
-              "prompt": "Which batches usually store longest?",
-              "options": [
-                "Spirit-forward batches",
-                "Fresh citrus sours",
-                "Egg-white batches",
-                "Carbonated batches"
-              ],
-              "correct": 0,
-              "insight": "Low-perishable spirit-forward batches are more stable.",
-              "xpAward": 8
-            },
-            {
-              "id": "m4l4q7",
-              "type": "order",
-              "prompt": "Best storage process order:",
-              "items": [
-                "Prepare batch",
-                "Seal container",
-                "Refrigerate",
-                "Label date/time"
-              ],
-              "correct_order": [
-                0,
-                1,
-                2,
-                3
-              ],
-              "insight": "Clear labeling prevents accidental over-age service.",
-              "xpAward": 8
-            },
-            {
-              "id": "m4l4q8",
-              "type": "checkbox",
-              "prompt": "Possible spoilage signs include:",
-              "options": [
-                "Off/sour smell",
-                "Unexpected cloudiness",
-                "Color shift",
-                "Strong spirit aroma",
-                "Fizz in non-carbonated batch"
-              ],
-              "correct": [
-                0,
-                1,
-                2,
-                4
-              ],
-              "insight": "Use sensory QC before every service window.",
-              "xpAward": 8
-            },
-            {
-              "id": "m4l4q9",
-              "type": "mcq",
-              "prompt": "Primary reason to label batch containers is:",
-              "options": [
-                "Decoration",
-                "Freshness tracking",
-                "Faster chilling",
-                "Higher ABV"
-              ],
-              "correct": 1,
-              "insight": "Labeling supports safety and consistency.",
-              "xpAward": 8
-            },
-            {
-              "id": "m4l4q10",
-              "type": "short",
-              "prompt": "Name one suitable container for batching.",
-              "answerText": "Glass bottle",
-              "acceptableAnswers": [
-                "sealed food-safe bottle",
-                "glass bottle"
-              ],
-              "correct_text": "Glass bottle",
-              "acceptable_answers": [
-                "sealed food-safe bottle",
-                "glass bottle"
-              ],
-              "insight": "Use food-safe, sealable containers.",
-              "xpAward": 8
-            }
-          ],
-          "notes": "Module 4 authored and validated for in-app format."
-        },
-        {
-          "id": "ch5b-batching-punches.lesson04",
-          "title": "Building a Batched Fruit Punch",
-          "slug": "building-a-batched-fruit-punch",
-          "question_count": 0,
-          "questions": [],
-          "notes": "Questions not yet authored in enhanced format."
-        },
-        {
-          "id": "ch5b-batching-punches.lesson05",
-          "title": "Batched Sours & Espresso Martinis",
-          "slug": "batched-sours-espresso-martinis",
-          "question_count": 0,
-          "questions": [],
-          "notes": "Questions not yet authored in enhanced format."
-        },
         {
           "id": "ch5b-batching-punches.lesson06",
           "title": "Batching Fundamentals",
@@ -7461,15 +7013,1114 @@
               "xpAward": 7
             }
           ],
-          "notes": "Module 4 authored and validated for in-app format."
+          "notes": "Module 4 authored and validated for in-app format.",
+          "showLessonBrief": true,
+          "brief": "This lesson frames batching as a service system first, then a math problem.",
+          "practiceFocus": "Why batching exists, when it helps, and what it changes operationally.",
+          "commonMistake": "Jumping into scale math before deciding what should and should not be batched.",
+          "contextBrief": "Good batching is not just bigger recipes. It is the decision to protect consistency, pace, and quality when one drink becomes service for a group.",
+          "xpReward": 70
+        },
+        {
+          "id": "ch5b-batching-punches.lesson01",
+          "title": "Batch Math & Scaling",
+          "slug": "batch-math-scaling-logic",
+          "question_count": 10,
+          "questions": [
+            {
+              "id": "m4l2q1",
+              "type": "mcq",
+              "prompt": "If a recipe uses 2 oz spirit per drink, how much spirit for 8 drinks?",
+              "options": [
+                "10 oz",
+                "16 oz",
+                "20 oz",
+                "24 oz"
+              ],
+              "correct": 1,
+              "insight": "2 oz x 8 = 16 oz.",
+              "xpAward": 7
+            },
+            {
+              "id": "m4l2q2",
+              "type": "checkbox",
+              "prompt": "When scaling a batch, what must be multiplied?",
+              "options": [
+                "Spirit",
+                "Sweetener",
+                "Citrus",
+                "Dilution target",
+                "Garnish count if prepped"
+              ],
+              "correct": [
+                0,
+                1,
+                2,
+                3,
+                4
+              ],
+              "insight": "Scale every relevant component, not just base spirit.",
+              "xpAward": 7
+            },
+            {
+              "id": "m4l2q3",
+              "type": "match",
+              "prompt": "Match servings to typical batch size label.",
+              "pairs": [
+                {
+                  "left": "5 drinks",
+                  "right": "Small batch"
+                },
+                {
+                  "left": "12 drinks",
+                  "right": "Medium batch"
+                },
+                {
+                  "left": "20 drinks",
+                  "right": "Party batch"
+                },
+                {
+                  "left": "40+ drinks",
+                  "right": "Event service batch"
+                }
+              ],
+              "insight": "Naming batch sizes improves prep communication.",
+              "xpAward": 7
+            },
+            {
+              "id": "m4l2q4",
+              "type": "short",
+              "prompt": "What tool helps measure larger quantities accurately?",
+              "answerText": "Measuring cup or digital scale.",
+              "acceptableAnswers": [
+                "digital scale",
+                "measuring cup"
+              ],
+              "correct_text": "Measuring cup or digital scale.",
+              "acceptable_answers": [
+                "digital scale",
+                "measuring cup"
+              ],
+              "insight": "Larger batches benefit from weight/volume precision.",
+              "xpAward": 7
+            },
+            {
+              "id": "m4l2q5",
+              "type": "roleplay",
+              "prompt": "Your scaled batch tastes too sweet. First correction?",
+              "options": [
+                "Add citrus or controlled dilution",
+                "Add more syrup",
+                "Add garnish only"
+              ],
+              "correct": 0,
+              "insight": "Sweet-heavy scaling errors are common and fixable.",
+              "xpAward": 7
+            },
+            {
+              "id": "m4l2q6",
+              "type": "mcq",
+              "prompt": "Why document batch recipes after testing?",
+              "options": [
+                "Consistency and repeatability",
+                "To reduce bottle cost only",
+                "To avoid chilling",
+                "To skip tasting"
+              ],
+              "correct": 0,
+              "insight": "Written batch specs protect quality across services.",
+              "xpAward": 7
+            },
+            {
+              "id": "m4l2q7",
+              "type": "order",
+              "prompt": "Scaling workflow order:",
+              "items": [
+                "Start with validated single recipe",
+                "Multiply ingredients",
+                "Mix and integrate",
+                "Taste and adjust"
+              ],
+              "correct_order": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "insight": "Scale from a proven base formula.",
+              "xpAward": 7
+            },
+            {
+              "id": "m4l2q8",
+              "type": "checkbox",
+              "prompt": "Common batch math mistakes include:",
+              "options": [
+                "Forgetting dilution",
+                "Incorrect multiplication",
+                "Not converting units",
+                "Over-labeling bottles",
+                "Skipping final taste"
+              ],
+              "correct": [
+                0,
+                1,
+                2,
+                4
+              ],
+              "insight": "Math + sensory checks are both required.",
+              "xpAward": 7
+            },
+            {
+              "id": "m4l2q9",
+              "type": "mcq",
+              "prompt": "Which ingredient in many batched cocktails spoils fastest?",
+              "options": [
+                "Bitters",
+                "Fresh citrus juice",
+                "Base spirit",
+                "Sugar syrup"
+              ],
+              "correct": 1,
+              "insight": "Fresh citrus has the shortest quality window.",
+              "xpAward": 7
+            },
+            {
+              "id": "m4l2q10",
+              "type": "short",
+              "prompt": "Why taste a batch before service?",
+              "answerText": "To confirm balance and consistency.",
+              "acceptableAnswers": [
+                "confirm balance",
+                "quality check before service"
+              ],
+              "correct_text": "To confirm balance and consistency.",
+              "acceptable_answers": [
+                "confirm balance",
+                "quality check before service"
+              ],
+              "insight": "Never serve scaled cocktails without tasting.",
+              "xpAward": 7
+            }
+          ],
+          "notes": "Module 4 authored and validated for in-app format.",
+          "xpReward": 70
+        },
+        {
+          "id": "ch5b-batching-punches.lesson02",
+          "title": "Pre-Dilution Science",
+          "slug": "pre-dilution-science",
+          "question_count": 10,
+          "questions": [
+            {
+              "id": "m4l3q1",
+              "type": "mcq",
+              "prompt": "Why pre-dilute batched cocktails?",
+              "options": [
+                "To remove alcohol",
+                "To mimic final service dilution",
+                "To add sweetness",
+                "To increase carbonation"
+              ],
+              "correct": 1,
+              "insight": "Pre-dilution simulates dilution from normal stirring/shaking.",
+              "xpAward": 8
+            },
+            {
+              "id": "m4l3q2",
+              "type": "checkbox",
+              "prompt": "Pre-dilution helps deliver:",
+              "options": [
+                "Balanced strength",
+                "Consistent flavor",
+                "Faster service",
+                "Permanent carbonation",
+                "Texture alignment"
+              ],
+              "correct": [
+                0,
+                1,
+                2,
+                4
+              ],
+              "insight": "It aligns service-ready taste across pours.",
+              "xpAward": 8
+            },
+            {
+              "id": "m4l3q3",
+              "type": "match",
+              "prompt": "Match technique to outcome.",
+              "pairs": [
+                {
+                  "left": "Pre-dilution",
+                  "right": "Ready-to-serve balance"
+                },
+                {
+                  "left": "Fresh shake/stir",
+                  "right": "Live dilution during prep"
+                },
+                {
+                  "left": "No dilution",
+                  "right": "Harsh concentrated profile"
+                },
+                {
+                  "left": "Over-dilution",
+                  "right": "Thin/flabby profile"
+                }
+              ],
+              "insight": "Dilution accuracy is central to batch quality.",
+              "xpAward": 8
+            },
+            {
+              "id": "m4l3q4",
+              "type": "short",
+              "prompt": "What liquid is used for pre-dilution?",
+              "answerText": "Water.",
+              "acceptableAnswers": [
+                "filtered water",
+                "cold water"
+              ],
+              "correct_text": "Water.",
+              "acceptable_answers": [
+                "filtered water",
+                "cold water"
+              ],
+              "insight": "Use clean, neutral water for predictable results.",
+              "xpAward": 8
+            },
+            {
+              "id": "m4l3q5",
+              "type": "roleplay",
+              "prompt": "Guests say your batch tastes too strong. Most likely issue?",
+              "options": [
+                "Missing/low dilution",
+                "Too much garnish",
+                "Wrong bottle shape"
+              ],
+              "correct": 0,
+              "insight": "Undiluted batches often taste hot and unintegrated.",
+              "xpAward": 8
+            },
+            {
+              "id": "m4l3q6",
+              "type": "mcq",
+              "prompt": "Common pre-dilution target range for many stirred batches?",
+              "options": [
+                "5%",
+                "20-25%",
+                "50%",
+                "80%"
+              ],
+              "correct": 1,
+              "insight": "Many spirit-forward batches land around 20-25%.",
+              "xpAward": 8
+            },
+            {
+              "id": "m4l3q7",
+              "type": "order",
+              "prompt": "Pre-dilution workflow:",
+              "items": [
+                "Mix core ingredients",
+                "Add measured dilution water",
+                "Chill batch",
+                "Taste and serve"
+              ],
+              "correct_order": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "insight": "Order matters for consistent integration.",
+              "xpAward": 8
+            },
+            {
+              "id": "m4l3q8",
+              "type": "checkbox",
+              "prompt": "Pre-dilution generally improves:",
+              "options": [
+                "Drink balance",
+                "Service speed",
+                "Consistency by pour",
+                "Shelf life indefinitely",
+                "Guest experience"
+              ],
+              "correct": [
+                0,
+                1,
+                2,
+                4
+              ],
+              "insight": "Done correctly, pre-dilution increases reliability.",
+              "xpAward": 8
+            },
+            {
+              "id": "m4l3q9",
+              "type": "mcq",
+              "prompt": "Which style usually needs less pre-dilution than citrus sours?",
+              "options": [
+                "Spirit-forward cocktails",
+                "Frozen drinks",
+                "Cream cocktails",
+                "Top-with-soda highballs"
+              ],
+              "correct": 0,
+              "insight": "Spirit-forward templates typically need controlled but lower dilution.",
+              "xpAward": 8
+            },
+            {
+              "id": "m4l3q10",
+              "type": "short",
+              "prompt": "Why should pre-diluted batches be chilled before serving?",
+              "answerText": "To serve at target temperature and preserve balance.",
+              "acceptableAnswers": [
+                "maintain proper temperature",
+                "keep cold for correct profile"
+              ],
+              "correct_text": "To serve at target temperature and preserve balance.",
+              "acceptable_answers": [
+                "maintain proper temperature",
+                "keep cold for correct profile"
+              ],
+              "insight": "Temperature impacts perceived sweetness, strength, and texture.",
+              "xpAward": 8
+            }
+          ],
+          "notes": "Module 4 authored and validated for in-app format.",
+          "xpReward": 80
+        },
+        {
+          "id": "ch5b-batching-punches.lesson03",
+          "title": "Storage & Shelf Life",
+          "slug": "storage-labeling-shelf-life",
+          "question_count": 10,
+          "questions": [
+            {
+              "id": "m4l4q1",
+              "type": "mcq",
+              "prompt": "How long does fresh-citrus batch quality usually hold refrigerated?",
+              "options": [
+                "4-6 hours",
+                "24-48 hours",
+                "1 week",
+                "1 month"
+              ],
+              "correct": 1,
+              "insight": "Citrus quality drops quickly due to oxidation.",
+              "xpAward": 8
+            },
+            {
+              "id": "m4l4q2",
+              "type": "checkbox",
+              "prompt": "Which factors most affect batch shelf life?",
+              "options": [
+                "Citrus content",
+                "Storage temperature",
+                "Oxygen exposure",
+                "Bottle color only",
+                "Sanitation"
+              ],
+              "correct": [
+                0,
+                1,
+                2,
+                4
+              ],
+              "insight": "Temperature, oxygen, and hygiene drive stability.",
+              "xpAward": 8
+            },
+            {
+              "id": "m4l4q3",
+              "type": "match",
+              "prompt": "Match storage method to benefit.",
+              "pairs": [
+                {
+                  "left": "Refrigeration",
+                  "right": "Slows spoilage"
+                },
+                {
+                  "left": "Sealed bottle",
+                  "right": "Reduces oxidation"
+                },
+                {
+                  "left": "Date labeling",
+                  "right": "Tracks freshness window"
+                },
+                {
+                  "left": "Sanitized container",
+                  "right": "Lowers contamination risk"
+                }
+              ],
+              "insight": "Storage discipline is as important as recipe quality.",
+              "xpAward": 8
+            },
+            {
+              "id": "m4l4q4",
+              "type": "short",
+              "prompt": "Why should batched cocktails be sealed tightly?",
+              "answerText": "To reduce oxygen exposure and oxidation.",
+              "acceptableAnswers": [
+                "reduce oxidation",
+                "limit oxygen contact"
+              ],
+              "correct_text": "To reduce oxygen exposure and oxidation.",
+              "acceptable_answers": [
+                "reduce oxidation",
+                "limit oxygen contact"
+              ],
+              "insight": "Oxygen dulls aromatics and freshness.",
+              "xpAward": 8
+            },
+            {
+              "id": "m4l4q5",
+              "type": "roleplay",
+              "prompt": "A citrus batch tastes dull after 2 days. Likely cause?",
+              "options": [
+                "Oxidation",
+                "Too much garnish",
+                "High-quality spirits"
+              ],
+              "correct": 0,
+              "insight": "Oxidation is the primary freshness killer.",
+              "xpAward": 8
+            },
+            {
+              "id": "m4l4q6",
+              "type": "mcq",
+              "prompt": "Which batches usually store longest?",
+              "options": [
+                "Spirit-forward batches",
+                "Fresh citrus sours",
+                "Egg-white batches",
+                "Carbonated batches"
+              ],
+              "correct": 0,
+              "insight": "Low-perishable spirit-forward batches are more stable.",
+              "xpAward": 8
+            },
+            {
+              "id": "m4l4q7",
+              "type": "order",
+              "prompt": "Best storage process order:",
+              "items": [
+                "Prepare batch",
+                "Seal container",
+                "Refrigerate",
+                "Label date/time"
+              ],
+              "correct_order": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "insight": "Clear labeling prevents accidental over-age service.",
+              "xpAward": 8
+            },
+            {
+              "id": "m4l4q8",
+              "type": "checkbox",
+              "prompt": "Possible spoilage signs include:",
+              "options": [
+                "Off/sour smell",
+                "Unexpected cloudiness",
+                "Color shift",
+                "Strong spirit aroma",
+                "Fizz in non-carbonated batch"
+              ],
+              "correct": [
+                0,
+                1,
+                2,
+                4
+              ],
+              "insight": "Use sensory QC before every service window.",
+              "xpAward": 8
+            },
+            {
+              "id": "m4l4q9",
+              "type": "mcq",
+              "prompt": "Primary reason to label batch containers is:",
+              "options": [
+                "Decoration",
+                "Freshness tracking",
+                "Faster chilling",
+                "Higher ABV"
+              ],
+              "correct": 1,
+              "insight": "Labeling supports safety and consistency.",
+              "xpAward": 8
+            },
+            {
+              "id": "m4l4q10",
+              "type": "short",
+              "prompt": "Name one suitable container for batching.",
+              "answerText": "Glass bottle",
+              "acceptableAnswers": [
+                "sealed food-safe bottle",
+                "glass bottle"
+              ],
+              "correct_text": "Glass bottle",
+              "acceptable_answers": [
+                "sealed food-safe bottle",
+                "glass bottle"
+              ],
+              "insight": "Use food-safe, sealable containers.",
+              "xpAward": 8
+            }
+          ],
+          "notes": "Module 4 authored and validated for in-app format.",
+          "xpReward": 80
+        },
+        {
+          "id": "ch5b-batching-punches.lesson04",
+          "title": "Building a Batched Fruit Punch",
+          "slug": "building-a-batched-fruit-punch",
+          "question_count": 10,
+          "questions": [
+            {
+              "id": "m4l5q1",
+              "type": "mcq",
+              "prompt": "What makes fruit punch batching harder than spirit-forward batching?",
+              "options": [
+                "Fruit and citrus degrade faster",
+                "It always needs cream",
+                "It cannot be chilled",
+                "Guests never share it"
+              ],
+              "correct": 0,
+              "insight": "Fresh ingredients shorten the stability window and require tighter prep timing.",
+              "xpAward": 8
+            },
+            {
+              "id": "m4l5q2",
+              "type": "checkbox",
+              "prompt": "Good batched fruit punch components include:",
+              "options": [
+                "Base spirit",
+                "Acid source",
+                "Sweetener",
+                "Dilution plan",
+                "Random garnish only"
+              ],
+              "correct": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "insight": "Punch still follows structure: strong, acid, sweet, water.",
+              "xpAward": 8
+            },
+            {
+              "id": "m4l5q3",
+              "type": "match",
+              "prompt": "Match punch element to job.",
+              "pairs": [
+                {
+                  "left": "Citrus",
+                  "right": "Brightens and balances sweetness"
+                },
+                {
+                  "left": "Sweetener",
+                  "right": "Rounds harsh acidity"
+                },
+                {
+                  "left": "Dilution",
+                  "right": "Softens strength and opens flavor"
+                },
+                {
+                  "left": "Large ice block",
+                  "right": "Keeps punch cold with slower melt"
+                }
+              ],
+              "insight": "Punch design is about managing balance over service time.",
+              "xpAward": 8
+            },
+            {
+              "id": "m4l5q4",
+              "type": "short",
+              "prompt": "Why should batched fruit punch usually be tasted after chilling?",
+              "answerText": "Cold temperature changes sweetness and acid perception.",
+              "acceptableAnswers": [
+                "cold changes flavor balance",
+                "temperature affects sweetness and acidity"
+              ],
+              "correct_text": "Cold temperature changes sweetness and acid perception.",
+              "acceptable_answers": [
+                "cold changes flavor balance",
+                "temperature affects sweetness and acidity"
+              ],
+              "insight": "A punch can taste balanced warm and drift once served cold.",
+              "xpAward": 8
+            },
+            {
+              "id": "m4l5q5",
+              "type": "roleplay",
+              "prompt": "Your fruit punch tastes sharp and thin. Best first fix?",
+              "options": [
+                "Add controlled sweetness and re-taste",
+                "Add more citrus immediately",
+                "Warm it up"
+              ],
+              "correct": 0,
+              "insight": "Thin + sharp usually needs sweetness or body before more acid.",
+              "xpAward": 8
+            },
+            {
+              "id": "m4l5q6",
+              "type": "mcq",
+              "prompt": "Best ice format for a shared fruit punch bowl?",
+              "options": [
+                "Large ice block",
+                "Crushed ice",
+                "No ice at all",
+                "Dry ice"
+              ],
+              "correct": 0,
+              "insight": "Large-format ice preserves temperature without flooding the bowl.",
+              "xpAward": 8
+            },
+            {
+              "id": "m4l5q7",
+              "type": "order",
+              "prompt": "Best fruit punch build order:",
+              "items": [
+                "Build base batch",
+                "Taste for balance",
+                "Chill batch",
+                "Add large ice and garnish at service"
+              ],
+              "correct_order": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "insight": "Final presentation should happen near service, not hours ahead.",
+              "xpAward": 8
+            },
+            {
+              "id": "m4l5q8",
+              "type": "checkbox",
+              "prompt": "Signs a batched fruit punch is event-ready:",
+              "options": [
+                "Balanced when cold",
+                "Clear garnish plan",
+                "Documented serving volume",
+                "No dilution plan",
+                "Stable storage container"
+              ],
+              "correct": [
+                0,
+                1,
+                2,
+                4
+              ],
+              "insight": "Event readiness is operational, not just flavor-based.",
+              "xpAward": 8
+            },
+            {
+              "id": "m4l5q9",
+              "type": "mcq",
+              "prompt": "Why should fresh herbs often be added close to service?",
+              "options": [
+                "They wilt and lose aroma quickly",
+                "They increase ABV",
+                "They stop dilution",
+                "They replace citrus"
+              ],
+              "correct": 0,
+              "insight": "Herbs fade fast once cut or submerged.",
+              "xpAward": 8
+            },
+            {
+              "id": "m4l5q10",
+              "type": "short",
+              "prompt": "Name one fruit punch quality risk during long service.",
+              "answerText": "Oxidation or over-dilution.",
+              "acceptableAnswers": [
+                "oxidation",
+                "over dilution",
+                "watering down"
+              ],
+              "correct_text": "Oxidation or over-dilution.",
+              "acceptable_answers": [
+                "oxidation",
+                "over dilution",
+                "watering down"
+              ],
+              "insight": "Punch quality usually falls from time, oxygen, and melt.",
+              "xpAward": 8
+            }
+          ],
+          "notes": "Fruit punch batching lesson authored for practical scaling, freshness, and presentation decisions.",
+          "xpReward": 80
+        },
+        {
+          "id": "ch5b-batching-punches.lesson05",
+          "title": "Batched Sours & Espresso Martinis",
+          "slug": "batched-sours-espresso-martinis",
+          "question_count": 10,
+          "questions": [
+            {
+              "id": "m4l6q1",
+              "type": "mcq",
+              "prompt": "Why are batched sours more sensitive than Negroni-style batches?",
+              "options": [
+                "They rely on citrus balance and fresh texture",
+                "They cannot use bottles",
+                "They never need dilution",
+                "They must be served warm"
+              ],
+              "correct": 0,
+              "insight": "Citrus and foam texture make sour families less stable over time.",
+              "xpAward": 8
+            },
+            {
+              "id": "m4l6q2",
+              "type": "checkbox",
+              "prompt": "When batching a sour, you still need to manage:",
+              "options": [
+                "Freshness of citrus",
+                "Shake dilution",
+                "Texture at service",
+                "Sweetness balance",
+                "Barrel aging"
+              ],
+              "correct": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "insight": "Batching the base does not remove the need for service technique.",
+              "xpAward": 8
+            },
+            {
+              "id": "m4l6q3",
+              "type": "match",
+              "prompt": "Match drink style to main batch concern.",
+              "pairs": [
+                {
+                  "left": "Whiskey Sour batch",
+                  "right": "Citrus freshness"
+                },
+                {
+                  "left": "Espresso Martini batch",
+                  "right": "Foam and temperature"
+                },
+                {
+                  "left": "Egg-white sour batch",
+                  "right": "Safety and texture"
+                },
+                {
+                  "left": "Spirit-forward batch",
+                  "right": "Storage stability"
+                }
+              ],
+              "insight": "Different families fail in different ways when scaled.",
+              "xpAward": 8
+            },
+            {
+              "id": "m4l6q4",
+              "type": "short",
+              "prompt": "Why should espresso martini batches usually be served very cold?",
+              "answerText": "Cold temperature supports texture and perceived balance.",
+              "acceptableAnswers": [
+                "cold improves texture",
+                "very cold helps foam and balance"
+              ],
+              "correct_text": "Cold temperature supports texture and perceived balance.",
+              "acceptable_answers": [
+                "cold improves texture",
+                "very cold helps foam and balance"
+              ],
+              "insight": "Espresso builds feel flatter and sweeter when served too warm.",
+              "xpAward": 8
+            },
+            {
+              "id": "m4l6q5",
+              "type": "roleplay",
+              "prompt": "Your batched espresso martini pours fine but has weak foam. Best correction?",
+              "options": [
+                "Shake harder at service",
+                "Add more sugar only",
+                "Serve it warm"
+              ],
+              "correct": 0,
+              "insight": "Espresso martinis still need vigorous service agitation to build crema-like foam.",
+              "xpAward": 8
+            },
+            {
+              "id": "m4l6q6",
+              "type": "mcq",
+              "prompt": "Best strategy for egg-white style sour batching?",
+              "options": [
+                "Batch the base, then add texture element per serve",
+                "Pre-foam everything hours ahead",
+                "Leave out acid",
+                "Replace ice with water"
+              ],
+              "correct": 0,
+              "insight": "Separate the stable batch from the fragile texture step.",
+              "xpAward": 8
+            },
+            {
+              "id": "m4l6q7",
+              "type": "order",
+              "prompt": "Best batched sour workflow:",
+              "items": [
+                "Batch stable ingredients",
+                "Chill thoroughly",
+                "Add fresh/texture-sensitive elements at service",
+                "Shake and strain per drink"
+              ],
+              "correct_order": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "insight": "Hybrid batching often gives the best balance of speed and quality.",
+              "xpAward": 8
+            },
+            {
+              "id": "m4l6q8",
+              "type": "checkbox",
+              "prompt": "Good espresso martini batch prep includes:",
+              "options": [
+                "Documented coffee component",
+                "Cold storage",
+                "Fresh service shake",
+                "Glassware pre-chill",
+                "Ignoring dilution"
+              ],
+              "correct": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "insight": "The drink still lives or dies by temperature and shake quality.",
+              "xpAward": 8
+            },
+            {
+              "id": "m4l6q9",
+              "type": "mcq",
+              "prompt": "What is the main risk of batching citrus too far ahead?",
+              "options": [
+                "Oxidation dulls brightness",
+                "It raises ABV",
+                "It prevents shaking",
+                "It clarifies itself"
+              ],
+              "correct": 0,
+              "insight": "Acid profile and aroma both fade with time.",
+              "xpAward": 8
+            },
+            {
+              "id": "m4l6q10",
+              "type": "short",
+              "prompt": "Name one reason hybrid batching is useful for sours.",
+              "answerText": "It keeps service fast while preserving freshness and texture.",
+              "acceptableAnswers": [
+                "speed with freshness",
+                "faster service while keeping texture"
+              ],
+              "correct_text": "It keeps service fast while preserving freshness and texture.",
+              "acceptable_answers": [
+                "speed with freshness",
+                "faster service while keeping texture"
+              ],
+              "insight": "Hybrid batching is often the right compromise for fragile drink families.",
+              "xpAward": 8
+            }
+          ],
+          "notes": "Batched sour and espresso martini lesson authored for texture-sensitive service planning.",
+          "xpReward": 80
         },
         {
           "id": "ch5b-batching-punches.lesson07",
           "title": "Low-ABV & Zero-Proof Punch",
           "slug": "low-abv-zero-proof-punch",
-          "question_count": 0,
-          "questions": [],
-          "notes": "Questions not yet authored in enhanced format."
+          "question_count": 10,
+          "questions": [
+            {
+              "id": "m4l7q1",
+              "type": "mcq",
+              "prompt": "What makes low-ABV and zero-proof punch especially useful for events?",
+              "options": [
+                "They support longer social drinking and inclusion",
+                "They eliminate all prep",
+                "They need no chilling",
+                "They replace water service"
+              ],
+              "correct": 0,
+              "insight": "These formats widen the menu and reduce alcohol fatigue across a longer event.",
+              "xpAward": 8
+            },
+            {
+              "id": "m4l7q2",
+              "type": "checkbox",
+              "prompt": "Good low-ABV or zero-proof punch bases include:",
+              "options": [
+                "Tea",
+                "Vermouth",
+                "Juice",
+                "Soda lengthening",
+                "Cream liqueur by default"
+              ],
+              "correct": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "insight": "These builds still need structure, not just volume.",
+              "xpAward": 8
+            },
+            {
+              "id": "m4l7q3",
+              "type": "match",
+              "prompt": "Match punch style to likely base.",
+              "pairs": [
+                {
+                  "left": "Low-ABV aperitivo punch",
+                  "right": "Vermouth or fortified wine"
+                },
+                {
+                  "left": "Tea-citrus zero-proof punch",
+                  "right": "Brewed tea"
+                },
+                {
+                  "left": "Sparkling NA punch",
+                  "right": "Carbonated lengthener"
+                },
+                {
+                  "left": "Herbal light punch",
+                  "right": "Botanical base or infused tea"
+                }
+              ],
+              "insight": "Base choice defines body and flavor direction even without high-proof spirits.",
+              "xpAward": 8
+            },
+            {
+              "id": "m4l7q4",
+              "type": "short",
+              "prompt": "Why should carbonation usually be added close to service in punch?",
+              "answerText": "To preserve fizz and freshness.",
+              "acceptableAnswers": [
+                "keep carbonation",
+                "preserve fizz"
+              ],
+              "correct_text": "To preserve fizz and freshness.",
+              "acceptable_answers": [
+                "keep carbonation",
+                "preserve fizz"
+              ],
+              "insight": "Sparkling components flatten quickly in a pre-built bowl.",
+              "xpAward": 8
+            },
+            {
+              "id": "m4l7q5",
+              "type": "roleplay",
+              "prompt": "A guest wants something festive but not alcoholic. Best punch direction?",
+              "options": [
+                "Tea-citrus sparkling punch with garnish",
+                "Warm syrup and water",
+                "Straight juice only"
+              ],
+              "correct": 0,
+              "insight": "Festive zero-proof drinks still need structure, lift, and presentation.",
+              "xpAward": 8
+            },
+            {
+              "id": "m4l7q6",
+              "type": "mcq",
+              "prompt": "What keeps low-ABV punches from tasting flat?",
+              "options": [
+                "Acid, dilution control, and aroma",
+                "Only more sugar",
+                "Serving warm",
+                "Removing garnish"
+              ],
+              "correct": 0,
+              "insight": "Reduced alcohol means balance work has to be more intentional.",
+              "xpAward": 8
+            },
+            {
+              "id": "m4l7q7",
+              "type": "order",
+              "prompt": "Best zero-proof punch service flow:",
+              "items": [
+                "Build still base",
+                "Taste for balance",
+                "Chill",
+                "Add carbonation and garnish near service"
+              ],
+              "correct_order": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "insight": "Separate stable prep from last-minute sparkle and aroma.",
+              "xpAward": 8
+            },
+            {
+              "id": "m4l7q8",
+              "type": "checkbox",
+              "prompt": "Inclusive punch planning should include:",
+              "options": [
+                "Clear ABV labeling",
+                "At least one true-zero option",
+                "Flavor notes for guests",
+                "Equivalent presentation quality",
+                "Assumptions about why guests are abstaining"
+              ],
+              "correct": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "insight": "Inclusion is design plus communication.",
+              "xpAward": 8
+            },
+            {
+              "id": "m4l7q9",
+              "type": "mcq",
+              "prompt": "Best ice choice for a low-ABV punch bowl?",
+              "options": [
+                "Large block",
+                "Crushed ice only",
+                "No ice",
+                "Dry ice"
+              ],
+              "correct": 0,
+              "insight": "Low-ABV punch still needs temperature control without flooding the bowl.",
+              "xpAward": 8
+            },
+            {
+              "id": "m4l7q10",
+              "type": "short",
+              "prompt": "Name one risk when a zero-proof punch is built too sweet.",
+              "answerText": "It becomes heavy and loses refreshment.",
+              "acceptableAnswers": [
+                "too sweet feels heavy",
+                "cloying and not refreshing"
+              ],
+              "correct_text": "It becomes heavy and loses refreshment.",
+              "acceptable_answers": [
+                "too sweet feels heavy",
+                "cloying and not refreshing"
+              ],
+              "insight": "Without alcohol, excess sugar becomes obvious fast.",
+              "xpAward": 8
+            }
+          ],
+          "notes": "Low-ABV and zero-proof punch lesson authored for inclusive, stable event formats.",
+          "xpReward": 80
         },
         {
           "id": "ch5b-batching-punches.lesson08",
@@ -7651,7 +8302,8 @@
               "xpAward": 8
             }
           ],
-          "notes": "Module 4 authored and validated for in-app format."
+          "notes": "Module 4 authored and validated for in-app format.",
+          "xpReward": 80
         },
         {
           "id": "ch5b-batching-punches.lesson09",
@@ -7833,17 +8485,1413 @@
               "xpAward": 10
             }
           ],
-          "notes": "Module 4 authored and validated for in-app format."
+          "notes": "Module 4 authored and validated for in-app format.",
+          "xpReward": 100
         },
         {
           "id": "ch5b-batching-punches.lesson10",
           "title": "Checkpoint: Host a 10-Guest Event",
           "slug": "checkpoint-host-a-10-guest-event",
-          "question_count": 0,
-          "questions": [],
-          "notes": "Questions not yet authored in enhanced format."
+          "question_count": 10,
+          "questions": [
+            {
+              "id": "m4l10q1",
+              "type": "roleplay",
+              "prompt": "You are hosting 10 guests with mixed drinking preferences. Best first move?",
+              "options": [
+                "Choose one cocktail and hope it fits everyone",
+                "Plan the menu mix and service format first",
+                "Buy more garnish and decide later"
+              ],
+              "correct": 1,
+              "insight": "Hosting starts with menu design and logistics, not random recipe selection.",
+              "xpAward": 10
+            },
+            {
+              "id": "m4l10q2",
+              "type": "mcq",
+              "prompt": "For a 10-guest event, what usually improves service most?",
+              "options": [
+                "Pre-batching core drinks",
+                "Making every round individually",
+                "Skipping ice prep",
+                "Serving warm cocktails"
+              ],
+              "correct": 0,
+              "insight": "Pre-batching removes the biggest service bottleneck.",
+              "xpAward": 10
+            },
+            {
+              "id": "m4l10q3",
+              "type": "checkbox",
+              "prompt": "A strong 10-guest plan includes:",
+              "options": [
+                "A main batch",
+                "A zero-proof or low-ABV option",
+                "A garnish/prep plan",
+                "A storage/chill plan",
+                "No serving volume estimate"
+              ],
+              "correct": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "insight": "Guest count increases the cost of every planning gap.",
+              "xpAward": 10
+            },
+            {
+              "id": "m4l10q4",
+              "type": "match",
+              "prompt": "Match hosting problem to best fix.",
+              "pairs": [
+                {
+                  "left": "Batch tastes too strong",
+                  "right": "Check dilution and chill"
+                },
+                {
+                  "left": "Service is slow",
+                  "right": "Reduce build steps per guest"
+                },
+                {
+                  "left": "Zero-proof guests feel ignored",
+                  "right": "Add a designed NA option"
+                },
+                {
+                  "left": "Punch waters out fast",
+                  "right": "Use larger-format ice"
+                }
+              ],
+              "insight": "Event success is operational problem-solving under constraints.",
+              "xpAward": 10
+            },
+            {
+              "id": "m4l10q5",
+              "type": "short",
+              "prompt": "What does a good hosting menu balance besides flavor?",
+              "answerText": "Speed, inclusivity, and repeatability.",
+              "acceptableAnswers": [
+                "speed and inclusivity",
+                "repeatable service and guest fit"
+              ],
+              "correct_text": "Speed, inclusivity, and repeatability.",
+              "acceptable_answers": [
+                "speed and inclusivity",
+                "repeatable service and guest fit"
+              ],
+              "insight": "A host serves the room, not just the recipe.",
+              "xpAward": 10
+            },
+            {
+              "id": "m4l10q6",
+              "type": "roleplay",
+              "prompt": "Guests are arriving in 20 minutes and the batch is not cold. Best response?",
+              "options": [
+                "Serve it warm",
+                "Use controlled chilling strategy and retaste",
+                "Add random soda"
+              ],
+              "correct": 1,
+              "insight": "Temperature is not optional; chill first, then validate balance.",
+              "xpAward": 10
+            },
+            {
+              "id": "m4l10q7",
+              "type": "mcq",
+              "prompt": "Which format is usually safest for a large first round?",
+              "options": [
+                "One well-tested batch with simple garnish",
+                "Complex à la minute tasting menu",
+                "Frozen blender service only",
+                "Dry garnish-only service"
+              ],
+              "correct": 0,
+              "insight": "The first round should lower stress, not create it.",
+              "xpAward": 10
+            },
+            {
+              "id": "m4l10q8",
+              "type": "order",
+              "prompt": "Best pre-event workflow:",
+              "items": [
+                "Finalize menu and counts",
+                "Batch and label",
+                "Chill and stage glassware/ice",
+                "Add final garnish elements at service"
+              ],
+              "correct_order": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "insight": "Sequence protects both quality and calm.",
+              "xpAward": 10
+            },
+            {
+              "id": "m4l10q9",
+              "type": "checkbox",
+              "prompt": "Final event-readiness checks should cover:",
+              "options": [
+                "Flavor when cold",
+                "Serving volume",
+                "Guest mix and ABV options",
+                "Ice plan",
+                "Unmeasured backup pours"
+              ],
+              "correct": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "insight": "Readiness means flavor plus logistics.",
+              "xpAward": 10
+            },
+            {
+              "id": "m4l10q10",
+              "type": "short",
+              "prompt": "Name one sign your event drink plan is too complicated.",
+              "answerText": "It depends on too many last-minute steps.",
+              "acceptableAnswers": [
+                "too many last minute steps",
+                "service is too complex"
+              ],
+              "correct_text": "It depends on too many last-minute steps.",
+              "acceptable_answers": [
+                "too many last minute steps",
+                "service is too complex"
+              ],
+              "insight": "Complexity is the enemy of consistent hosting.",
+              "xpAward": 10
+            }
+          ],
+          "notes": "Batching checkpoint authored as a full hosting decision simulation.",
+          "showLessonBrief": true,
+          "brief": "This checkpoint pushes you to think like a host serving a room, not a bartender making one perfect drink.",
+          "practiceFocus": "Workflow, pacing, and event-fit decisions.",
+          "commonMistake": "Optimizing only the recipe and ignoring guest flow.",
+          "contextBrief": "At scale, the best drink is the one that survives real service conditions while still feeling intentional.",
+          "xpReward": 100
         }
-      ]
+      ],
+      "brief": "This module teaches how to scale drinks for groups without losing balance, temperature control, or presentation.",
+      "whyItMatters": "Great one-off drinks do not automatically become great party drinks.",
+      "unlockReward": "Unlock stronger hosting confidence and better event execution habits.",
+      "bestFor": [
+        "Home Bartender",
+        "Taste Builder"
+      ],
+      "contextBrief": "Batching is really production design: flavor consistency under time pressure.",
+      "requiredTier": "FREE"
+    },
+    {
+      "id": "ch6-flavor-logic",
+      "title": "Flavor Logic & Pairing",
+      "slug": "flavor-logic-pairing",
+      "lessons": [
+        {
+          "id": "ch6-flavor-logic.lesson01",
+          "title": "Palate Mapping Basics",
+          "slug": "palate-mapping-basics",
+          "question_count": 6,
+          "questions": [
+            {
+              "id": "m6l1q1",
+              "type": "mcq",
+              "prompt": "What is the main goal of palate mapping?",
+              "options": [
+                "Memorize brand names",
+                "Describe how a drink moves across sweetness, acidity, bitterness, aroma, and texture",
+                "Only rate how strong a drink tastes",
+                "Replace recipe measurements"
+              ],
+              "correct": 1,
+              "insight": "Palate mapping gives users a repeatable way to describe what they are tasting instead of relying on vague reactions.",
+              "xpAward": 7
+            },
+            {
+              "id": "m6l1q2",
+              "type": "checkbox",
+              "prompt": "Useful palate-mapping dimensions include:",
+              "options": [
+                "Sweetness",
+                "Acidity",
+                "Bitterness",
+                "Texture",
+                "Bottle shape"
+              ],
+              "correct": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "insight": "Flavor perception is multi-dimensional. Good mapping separates taste, aroma, and mouthfeel.",
+              "xpAward": 7
+            },
+            {
+              "id": "m6l1q3",
+              "type": "match",
+              "prompt": "Match tasting cue to what it helps you identify.",
+              "pairs": [
+                {
+                  "left": "Brightness",
+                  "right": "Acid lift"
+                },
+                {
+                  "left": "Roundness",
+                  "right": "Sweetness or body"
+                },
+                {
+                  "left": "Dry finish",
+                  "right": "Bitterness/tannin perception"
+                },
+                {
+                  "left": "Perfumed nose",
+                  "right": "Aromatic intensity"
+                }
+              ],
+              "insight": "Using consistent language makes flavor decisions easier to repeat and teach.",
+              "xpAward": 7
+            },
+            {
+              "id": "m6l1q4",
+              "type": "roleplay",
+              "prompt": "A guest says, “I want something bright but not sharp.” What should you clarify first?",
+              "options": [
+                "Whether they mean citrusy but balanced",
+                "What glass they want",
+                "If they want the strongest option"
+              ],
+              "correct": 0,
+              "insight": "Good bartenders translate abstract language into flavor structure before choosing a drink.",
+              "xpAward": 7
+            },
+            {
+              "id": "m6l1q5",
+              "type": "short",
+              "prompt": "In one phrase, what does palate mapping help you do?",
+              "answerText": "Describe flavor structure clearly.",
+              "acceptableAnswers": [
+                "describe flavor clearly",
+                "map flavor structure",
+                "explain how a drink tastes"
+              ],
+              "validationMode": "contains",
+              "insight": "If you can describe structure clearly, you can adjust recipes more intentionally.",
+              "xpAward": 7
+            },
+            {
+              "id": "m6l1q6",
+              "type": "mcq",
+              "prompt": "Which statement is most useful when mapping a cocktail?",
+              "options": [
+                "It tastes premium",
+                "It opens sweet, finishes dry, and has a citrus-led nose",
+                "It is very alcoholic",
+                "It reminds me of a party"
+              ],
+              "correct": 1,
+              "insight": "The best flavor notes explain sequence and structure, not just opinion.",
+              "xpAward": 7
+            }
+          ],
+          "notes": "Introduces the language and framework used throughout the flavor module.",
+          "xpReward": 42,
+          "tags": [
+            "flavor_module",
+            "core_curriculum"
+          ],
+          "showLessonBrief": true,
+          "brief": "This lesson introduces the language of flavor structure so later balancing decisions feel concrete.",
+          "practiceFocus": "Describing sweetness, acidity, bitterness, aroma, and texture in a usable way.",
+          "commonMistake": "Using vague reactions instead of sensory structure.",
+          "contextBrief": "If you can describe flavor clearly, you can fix drinks more efficiently and explain them more confidently."
+        },
+        {
+          "id": "ch6-flavor-logic.lesson02",
+          "title": "Balance: Sweet, Sour, Bitter, Salty",
+          "slug": "balance-sweet-sour-bitter-salty",
+          "question_count": 6,
+          "questions": [
+            {
+              "id": "m6l2q1",
+              "type": "mcq",
+              "prompt": "What does acid usually do in a cocktail?",
+              "options": [
+                "Adds carbonation",
+                "Lifts flavor and balances sweetness",
+                "Always increases bitterness",
+                "Makes texture heavier"
+              ],
+              "correct": 1,
+              "insight": "Acid sharpens perception and prevents sweet builds from feeling flat.",
+              "xpAward": 7
+            },
+            {
+              "id": "m6l2q2",
+              "type": "checkbox",
+              "prompt": "Which adjustments can reduce a drink that feels cloying?",
+              "options": [
+                "Add acid",
+                "Add dilution",
+                "Add a touch of bitterness",
+                "Increase syrup heavily",
+                "Add saline carefully"
+              ],
+              "correct": [
+                0,
+                1,
+                2,
+                4
+              ],
+              "insight": "Balance is about counter-pressure. Several tools can reduce perceived heaviness.",
+              "xpAward": 7
+            },
+            {
+              "id": "m6l2q3",
+              "type": "match",
+              "prompt": "Match taste element to common effect.",
+              "pairs": [
+                {
+                  "left": "Sweetness",
+                  "right": "Softens sharp edges"
+                },
+                {
+                  "left": "Sourness",
+                  "right": "Adds lift and tension"
+                },
+                {
+                  "left": "Bitterness",
+                  "right": "Creates a drying finish"
+                },
+                {
+                  "left": "Salinity",
+                  "right": "Enhances perception and length"
+                }
+              ],
+              "insight": "Understanding the job of each taste element is more useful than memorizing fixed recipes.",
+              "xpAward": 7
+            },
+            {
+              "id": "m6l2q4",
+              "type": "roleplay",
+              "prompt": "A Daiquiri tastes sharp and thin. What is your best first move?",
+              "options": [
+                "Add a little sweetness or reduce acid pressure",
+                "Add cream",
+                "Serve it warm"
+              ],
+              "correct": 0,
+              "insight": "When acid is outrunning the rest of the build, rebalance sweetness before making drastic changes.",
+              "xpAward": 7
+            },
+            {
+              "id": "m6l2q5",
+              "type": "order",
+              "prompt": "When fixing an unbalanced drink, what is the smartest order of operations?",
+              "items": [
+                "Identify what is dominating",
+                "Choose the balancing lever",
+                "Adjust in small increments",
+                "Retaste",
+                "Stop once the structure feels integrated"
+              ],
+              "correct_order": [
+                0,
+                1,
+                2,
+                3,
+                4
+              ],
+              "insight": "Good rebalancing is diagnostic first, then incremental. Overshooting usually comes from moving too fast.",
+              "xpAward": 7
+            },
+            {
+              "id": "m6l2q6",
+              "type": "short",
+              "prompt": "What does a tiny amount of saline usually do in a drink?",
+              "answerText": "It boosts flavor perception and rounds the drink slightly.",
+              "acceptableAnswers": [
+                "enhances flavor perception",
+                "rounds and lifts flavor",
+                "makes flavors pop"
+              ],
+              "validationMode": "keywords",
+              "requiredKeywords": [
+                "flavor"
+              ],
+              "insight": "Saline is not about making a drink salty. It is about making other flavors read more clearly.",
+              "xpAward": 7
+            }
+          ],
+          "notes": "Builds practical balancing logic before deeper pairing lessons.",
+          "xpReward": 42,
+          "tags": [
+            "flavor_module",
+            "core_curriculum"
+          ]
+        },
+        {
+          "id": "ch6-flavor-logic.lesson03",
+          "title": "Aroma Drives Flavor",
+          "slug": "aroma-drives-flavor",
+          "question_count": 6,
+          "questions": [
+            {
+              "id": "m6l3q1",
+              "type": "mcq",
+              "prompt": "Which sense contributes most to what we call flavor?",
+              "options": [
+                "Sight",
+                "Smell",
+                "Touch",
+                "Temperature only"
+              ],
+              "correct": 1,
+              "insight": "Aroma does a huge amount of flavor work, which is why garnish and nose matter so much.",
+              "xpAward": 8
+            },
+            {
+              "id": "m6l3q2",
+              "type": "checkbox",
+              "prompt": "Which techniques increase aromatic impact?",
+              "options": [
+                "Expressing citrus peel",
+                "Using fresh herbs",
+                "Serving in a shape that concentrates aroma",
+                "Letting garnish dry out",
+                "Managing glass temperature"
+              ],
+              "correct": [
+                0,
+                1,
+                2,
+                4
+              ],
+              "insight": "Aroma is controllable. Technique can increase or mute how a drink is perceived before the first sip.",
+              "xpAward": 8
+            },
+            {
+              "id": "m6l3q3",
+              "type": "match",
+              "prompt": "Match aromatic source to likely result.",
+              "pairs": [
+                {
+                  "left": "Mint slap",
+                  "right": "Fresh herbal nose"
+                },
+                {
+                  "left": "Expressed orange peel",
+                  "right": "Bright oil-driven citrus aroma"
+                },
+                {
+                  "left": "Atomized absinthe rinse",
+                  "right": "Framed aromatic top note"
+                },
+                {
+                  "left": "Warm glass mishandling",
+                  "right": "Faster aroma loss and imbalance"
+                }
+              ],
+              "insight": "Aromatics should be designed, not treated as decoration.",
+              "xpAward": 8
+            },
+            {
+              "id": "m6l3q4",
+              "type": "roleplay",
+              "prompt": "A guest says a drink tastes flat even though the spec is correct. What should you check first?",
+              "options": [
+                "Its aromatic lift and garnish condition",
+                "Whether the menu font is bold enough",
+                "If the bottle was expensive"
+              ],
+              "correct": 0,
+              "insight": "A structurally correct drink can still feel dull if the aromatic layer is dead or missing.",
+              "xpAward": 8
+            },
+            {
+              "id": "m6l3q5",
+              "type": "short",
+              "prompt": "Why is garnish often more than decoration?",
+              "answerText": "It changes aroma and therefore changes perceived flavor.",
+              "acceptableAnswers": [
+                "it affects aroma",
+                "it changes perceived flavor through aroma",
+                "aroma changes taste perception"
+              ],
+              "validationMode": "contains",
+              "insight": "A good garnish is functional. It should shape the first sensory impression.",
+              "xpAward": 8
+            },
+            {
+              "id": "m6l3q6",
+              "type": "mcq",
+              "prompt": "Which move best preserves a delicate aromatic garnish?",
+              "options": [
+                "Build it early and leave it sitting",
+                "Add it at the end right before service",
+                "Freeze it solid",
+                "Submerge it completely"
+              ],
+              "correct": 1,
+              "insight": "Many aromatic garnishes are strongest right at service, not minutes earlier.",
+              "xpAward": 8
+            }
+          ],
+          "notes": "Focuses on retronasal perception, garnish utility, and aromatic design.",
+          "xpReward": 48,
+          "tags": [
+            "flavor_module",
+            "core_curriculum"
+          ]
+        },
+        {
+          "id": "ch6-flavor-logic.lesson04",
+          "title": "Texture & Mouthfeel",
+          "slug": "texture-and-mouthfeel",
+          "question_count": 6,
+          "questions": [
+            {
+              "id": "m6l4q1",
+              "type": "mcq",
+              "prompt": "What does “mouthfeel” describe?",
+              "options": [
+                "Only alcohol strength",
+                "The texture and body of a drink in the mouth",
+                "The garnish style",
+                "Whether a drink is classic"
+              ],
+              "correct": 1,
+              "insight": "Texture changes how intense, luxurious, or refreshing a drink feels even when the flavor list stays similar.",
+              "xpAward": 8
+            },
+            {
+              "id": "m6l4q2",
+              "type": "checkbox",
+              "prompt": "Which elements can meaningfully change mouthfeel?",
+              "options": [
+                "Dilution",
+                "Egg white or aquafaba",
+                "Sugar level",
+                "Carbonation",
+                "Bottle label design"
+              ],
+              "correct": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "insight": "Body comes from several design choices, not one ingredient.",
+              "xpAward": 8
+            },
+            {
+              "id": "m6l4q3",
+              "type": "match",
+              "prompt": "Match texture cue to likely source.",
+              "pairs": [
+                {
+                  "left": "Silky foam",
+                  "right": "Egg white or aquafaba technique"
+                },
+                {
+                  "left": "Lean and snappy",
+                  "right": "High acid / low sugar profile"
+                },
+                {
+                  "left": "Rich and coating",
+                  "right": "Higher sugar or cream component"
+                },
+                {
+                  "left": "Prickly and lively",
+                  "right": "Carbonation"
+                }
+              ],
+              "insight": "Texture is often a clue to underlying recipe structure.",
+              "xpAward": 8
+            },
+            {
+              "id": "m6l4q4",
+              "type": "roleplay",
+              "prompt": "A guest wants a sour that feels softer and creamier without adding dairy. Best direction?",
+              "options": [
+                "Use an egg white or aquafaba style texture build",
+                "Double the acid",
+                "Remove all dilution"
+              ],
+              "correct": 0,
+              "insight": "Texture can be designed independently from sweetness by changing foam and body elements.",
+              "xpAward": 8
+            },
+            {
+              "id": "m6l4q5",
+              "type": "order",
+              "prompt": "For an egg-white style sour, place the process in order.",
+              "items": [
+                "Add ingredients without ice",
+                "Dry shake",
+                "Add ice",
+                "Shake again",
+                "Strain into serving glass"
+              ],
+              "correct_order": [
+                0,
+                1,
+                2,
+                3,
+                4
+              ],
+              "insight": "Texture quality depends on sequence. The dry shake builds foam before dilution enters the system.",
+              "xpAward": 8
+            },
+            {
+              "id": "m6l4q6",
+              "type": "short",
+              "prompt": "Why can carbonation make a drink feel lighter?",
+              "answerText": "It adds lift and a more lively texture.",
+              "acceptableAnswers": [
+                "it adds lift",
+                "it makes the texture feel lighter",
+                "it feels more lively"
+              ],
+              "validationMode": "contains",
+              "insight": "Texture is perception. Bubbles can make a drink feel brighter even when sweetness stays constant.",
+              "xpAward": 8
+            }
+          ],
+          "notes": "Connects texture choices to spec design and service execution.",
+          "xpReward": 48,
+          "tags": [
+            "flavor_module",
+            "core_curriculum"
+          ]
+        },
+        {
+          "id": "ch6-flavor-logic.lesson05",
+          "title": "Pairing Matrix: Spirit, Citrus, Sweetener, Modifier",
+          "slug": "pairing-matrix",
+          "question_count": 6,
+          "questions": [
+            {
+              "id": "m6l5q1",
+              "type": "mcq",
+              "prompt": "What is the main purpose of a pairing matrix?",
+              "options": [
+                "Replace tasting entirely",
+                "Help you predict combinations that are structurally coherent",
+                "Force every cocktail into the same recipe",
+                "Only organize bottles by color"
+              ],
+              "correct": 1,
+              "insight": "A pairing matrix is a prediction tool. It narrows strong possibilities before you start building.",
+              "xpAward": 8
+            },
+            {
+              "id": "m6l5q2",
+              "type": "checkbox",
+              "prompt": "When evaluating a pairing, which questions matter most?",
+              "options": [
+                "Does the spirit weight fit the citrus?",
+                "Does the sweetener shape match the flavor tone?",
+                "Does the modifier support or clutter the build?",
+                "Is the glass expensive?",
+                "Will the finish stay coherent?"
+              ],
+              "correct": [
+                0,
+                1,
+                2,
+                4
+              ],
+              "insight": "Good pairings are structural, not random. Weight, tone, and finish all matter.",
+              "xpAward": 8
+            },
+            {
+              "id": "m6l5q3",
+              "type": "match",
+              "prompt": "Match build element to a likely pairing cue.",
+              "pairs": [
+                {
+                  "left": "London Dry gin",
+                  "right": "Works well with lemon and dry modifiers"
+                },
+                {
+                  "left": "Aged rum",
+                  "right": "Can handle warmer spice and richer sweeteners"
+                },
+                {
+                  "left": "Tequila blanco",
+                  "right": "Likes bright lime-led structure"
+                },
+                {
+                  "left": "Bourbon",
+                  "right": "Pairs well with citrus plus depth-oriented sweeteners"
+                }
+              ],
+              "insight": "The matrix is really a framework for understanding weight and aromatic fit.",
+              "xpAward": 8
+            },
+            {
+              "id": "m6l5q4",
+              "type": "roleplay",
+              "prompt": "You want a bright tequila drink with more complexity than a basic Margarita. Best modifier direction?",
+              "options": [
+                "A measured bitter-orange or herbal modifier",
+                "Heavy cream liqueur",
+                "No acid at all"
+              ],
+              "correct": 0,
+              "insight": "A matrix helps you add complexity without breaking the core flavor identity.",
+              "xpAward": 8
+            },
+            {
+              "id": "m6l5q5",
+              "type": "short",
+              "prompt": "Why is pairing about more than “these flavors both taste good”?",
+              "answerText": "Because weight, balance, and finish must also work together.",
+              "acceptableAnswers": [
+                "weight and balance matter too",
+                "structure and finish matter",
+                "it must be coherent structurally"
+              ],
+              "validationMode": "keywords",
+              "requiredKeywords": [
+                "balance",
+                "structure"
+              ],
+              "insight": "A drink can have attractive ingredients and still fail if the structure collapses.",
+              "xpAward": 8
+            },
+            {
+              "id": "m6l5q6",
+              "type": "mcq",
+              "prompt": "Which combination is most structurally coherent?",
+              "options": [
+                "Blanco tequila, lime, agave, orange liqueur",
+                "Cream liqueur, soda water, overproof rum, saline",
+                "Peated Scotch, coconut cream, tonic, grenadine",
+                "Dry gin, milk, cassis, cola"
+              ],
+              "correct": 0,
+              "insight": "The best pairings respect both flavor family and structural logic.",
+              "xpAward": 8
+            }
+          ],
+          "notes": "Introduces flavor prediction and combination planning.",
+          "xpReward": 48,
+          "tags": [
+            "flavor_module",
+            "core_curriculum"
+          ]
+        },
+        {
+          "id": "ch6-flavor-logic.lesson06",
+          "title": "Substitution by Flavor Function",
+          "slug": "substitution-by-flavor-function",
+          "question_count": 6,
+          "questions": [
+            {
+              "id": "m6l6q1",
+              "type": "mcq",
+              "prompt": "What is the smartest first question when substituting an ingredient?",
+              "options": [
+                "Is the bottle the same color?",
+                "What function is this ingredient serving in the drink?",
+                "Was it trending online?",
+                "Does it have a luxury label?"
+              ],
+              "correct": 1,
+              "insight": "Good substitutions preserve function first: sweetness, acidity, bitterness, aroma, or body.",
+              "xpAward": 8
+            },
+            {
+              "id": "m6l6q2",
+              "type": "checkbox",
+              "prompt": "A useful substitution check should account for:",
+              "options": [
+                "Flavor tone",
+                "Sugar level",
+                "Proof or intensity",
+                "Texture impact",
+                "Bottle height"
+              ],
+              "correct": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "insight": "A swap that matches flavor but blows up texture or sweetness is still a bad swap.",
+              "xpAward": 8
+            },
+            {
+              "id": "m6l6q3",
+              "type": "match",
+              "prompt": "Match original ingredient to a plausible functional substitute.",
+              "pairs": [
+                {
+                  "left": "Simple syrup",
+                  "right": "Honey syrup with sweetness adjustment"
+                },
+                {
+                  "left": "Lemon juice",
+                  "right": "Lime with profile adjustment"
+                },
+                {
+                  "left": "Orange liqueur",
+                  "right": "Another citrus modifier with sweetness awareness"
+                },
+                {
+                  "left": "Mint garnish",
+                  "right": "Fresh herb with aromatic intent"
+                }
+              ],
+              "insight": "Substitution is strongest when you know exactly what job the original ingredient was doing.",
+              "xpAward": 8
+            },
+            {
+              "id": "m6l6q4",
+              "type": "roleplay",
+              "prompt": "You are out of simple syrup for a Daiquiri-style build. Best recovery path?",
+              "options": [
+                "Use another sweetener and adjust for sweetness + flavor tone",
+                "Skip sweetness completely",
+                "Double the citrus to hide it"
+              ],
+              "correct": 0,
+              "insight": "Recovery is about replacing function, not panicking or deleting balance.",
+              "xpAward": 8
+            },
+            {
+              "id": "m6l6q5",
+              "type": "short",
+              "prompt": "Why is “same category” not always enough for a good substitute?",
+              "answerText": "Because proof, sweetness, aroma, and texture can still differ too much.",
+              "acceptableAnswers": [
+                "function can still differ",
+                "sweetness proof aroma and texture may change",
+                "same category does not mean same role"
+              ],
+              "validationMode": "keywords",
+              "requiredKeywords": [
+                "sweetness",
+                "texture"
+              ],
+              "insight": "Category labels are broad. Functional behavior is what matters inside the spec.",
+              "xpAward": 8
+            },
+            {
+              "id": "m6l6q6",
+              "type": "mcq",
+              "prompt": "Which substitution mindset is strongest?",
+              "options": [
+                "Replace by color and hope",
+                "Replace by function, then retaste and adjust",
+                "Never substitute anything",
+                "Always make the drink sweeter"
+              ],
+              "correct": 1,
+              "insight": "Function-first substitution is how improvisation stays controlled instead of chaotic.",
+              "xpAward": 8
+            }
+          ],
+          "notes": "Designed to train ingredient improvisation under realistic bar constraints.",
+          "xpReward": 48,
+          "tags": [
+            "flavor_module",
+            "core_curriculum"
+          ]
+        },
+        {
+          "id": "ch6-flavor-logic.lesson07",
+          "title": "Flavor Troubleshooting Lab",
+          "slug": "flavor-troubleshooting-lab",
+          "question_count": 6,
+          "questions": [
+            {
+              "id": "m6l7q1",
+              "type": "mcq",
+              "prompt": "If a cocktail tastes muddy, what is usually the first diagnosis?",
+              "options": [
+                "Too many competing flavor signals or weak structure",
+                "Not enough glassware options",
+                "The ice is too clear",
+                "The garnish is too neat"
+              ],
+              "correct": 0,
+              "insight": "Muddiness often means the drink lacks a clear flavor hierarchy.",
+              "xpAward": 9
+            },
+            {
+              "id": "m6l7q2",
+              "type": "checkbox",
+              "prompt": "Which moves can help a dull cocktail?",
+              "options": [
+                "Increase aromatic lift",
+                "Adjust acid or dilution",
+                "Clarify the sweetener load",
+                "Simplify modifier stack",
+                "Add random liqueurs"
+              ],
+              "correct": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "insight": "Fixes should target the problem source, not just increase complexity.",
+              "xpAward": 9
+            },
+            {
+              "id": "m6l7q3",
+              "type": "match",
+              "prompt": "Match problem to strongest first lever.",
+              "pairs": [
+                {
+                  "left": "Too sour",
+                  "right": "Increase sweetness or reduce acid pressure"
+                },
+                {
+                  "left": "Too sweet",
+                  "right": "Add lift, bitterness, or dilution"
+                },
+                {
+                  "left": "Too bitter",
+                  "right": "Rebuild sweetness/body balance"
+                },
+                {
+                  "left": "Too hot/alcoholic",
+                  "right": "Improve dilution and integration"
+                }
+              ],
+              "insight": "The fastest fix is usually the one that addresses the dominant imbalance directly.",
+              "xpAward": 9
+            },
+            {
+              "id": "m6l7q4",
+              "type": "roleplay",
+              "prompt": "Your riff tastes busy and unfocused. What do you do first?",
+              "options": [
+                "Strip it back to the base template and identify the excess element",
+                "Add another modifier for complexity",
+                "Serve it quickly before anyone notices"
+              ],
+              "correct": 0,
+              "insight": "When a drink loses clarity, go back to template logic instead of piling on more variables.",
+              "xpAward": 9
+            },
+            {
+              "id": "m6l7q5",
+              "type": "short",
+              "prompt": "What is usually the sign of a balanced finish?",
+              "answerText": "No single element dominates after the sip.",
+              "acceptableAnswers": [
+                "nothing dominates the finish",
+                "the finish feels integrated",
+                "one element does not stick out harshly"
+              ],
+              "validationMode": "contains",
+              "insight": "The finish tells you whether the drink stayed coherent after the initial impact.",
+              "xpAward": 9
+            },
+            {
+              "id": "m6l7q6",
+              "type": "mcq",
+              "prompt": "What should you avoid while troubleshooting?",
+              "options": [
+                "Changing multiple variables at once",
+                "Retasting between moves",
+                "Making one measured adjustment",
+                "Rechecking aroma after a change"
+              ],
+              "correct": 0,
+              "insight": "If you change too many variables at once, you stop learning what actually fixed the drink.",
+              "xpAward": 9
+            }
+          ],
+          "notes": "A diagnostic module for turning weak specs into coherent drinks.",
+          "xpReward": 54,
+          "tags": [
+            "flavor_module",
+            "core_curriculum"
+          ]
+        },
+        {
+          "id": "ch6-flavor-logic.lesson08",
+          "title": "Seasonal Flavor Design",
+          "slug": "seasonal-flavor-design",
+          "question_count": 6,
+          "questions": [
+            {
+              "id": "m6l8q1",
+              "type": "mcq",
+              "prompt": "What usually defines seasonal drink design best?",
+              "options": [
+                "Only using expensive ingredients",
+                "Matching flavor tone, produce, and mood to time of year",
+                "Serving every drink hot",
+                "Removing all citrus"
+              ],
+              "correct": 1,
+              "insight": "Seasonality is about alignment: ingredient availability, guest expectation, and sensory tone.",
+              "xpAward": 9
+            },
+            {
+              "id": "m6l8q2",
+              "type": "checkbox",
+              "prompt": "Common seasonal design signals include:",
+              "options": [
+                "Fresh produce windows",
+                "Temperature and texture preference",
+                "Aromatic profile shifts",
+                "Guest mood and occasion",
+                "Ignoring menu context"
+              ],
+              "correct": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "insight": "Seasonality is not just produce. It is also about how guests want drinks to feel.",
+              "xpAward": 9
+            },
+            {
+              "id": "m6l8q3",
+              "type": "match",
+              "prompt": "Match seasonal cue to design direction.",
+              "pairs": [
+                {
+                  "left": "Summer patio service",
+                  "right": "Lighter, brighter, more refreshing builds"
+                },
+                {
+                  "left": "Autumn menu",
+                  "right": "Warmer spice and deeper texture"
+                },
+                {
+                  "left": "Holiday hosting",
+                  "right": "Comforting aromatics and batch-friendly structure"
+                },
+                {
+                  "left": "Spring launch",
+                  "right": "Herbal lift and freshness"
+                }
+              ],
+              "insight": "Seasonal design works best when the drink feels native to the moment it is served.",
+              "xpAward": 9
+            },
+            {
+              "id": "m6l8q4",
+              "type": "roleplay",
+              "prompt": "You are building a fall riff on a sour. Which direction is strongest?",
+              "options": [
+                "Keep structure but shift sweetener and aroma toward warm spice/apple depth",
+                "Remove acidity entirely",
+                "Only darken the glassware"
+              ],
+              "correct": 0,
+              "insight": "Good seasonal design changes the emotional tone of the drink while keeping structural control.",
+              "xpAward": 9
+            },
+            {
+              "id": "m6l8q5",
+              "type": "short",
+              "prompt": "Why should seasonal drinks still respect core balance?",
+              "answerText": "Because theme without structure still makes a weak cocktail.",
+              "acceptableAnswers": [
+                "seasonality does not replace balance",
+                "theme must still be structurally sound",
+                "a seasonal drink still needs balance"
+              ],
+              "validationMode": "contains",
+              "insight": "A drink should feel seasonal and still taste complete. Theme is not a substitute for balance.",
+              "xpAward": 9
+            },
+            {
+              "id": "m6l8q6",
+              "type": "mcq",
+              "prompt": "Which build is most likely to read as warm-weather appropriate?",
+              "options": [
+                "Long citrus highball with fresh herbs",
+                "Heavy cream and baking-spice flip",
+                "Dense port cobbler without ice",
+                "Rich hot toddy riff"
+              ],
+              "correct": 0,
+              "insight": "Seasonal fit is often obvious through weight, temperature, and aromatic direction.",
+              "xpAward": 9
+            }
+          ],
+          "notes": "Turns flavor theory into menu and seasonal thinking.",
+          "xpReward": 54,
+          "tags": [
+            "flavor_module",
+            "core_curriculum"
+          ]
+        },
+        {
+          "id": "ch6-flavor-logic.lesson09",
+          "title": "Blind Flavor Prediction Drills",
+          "slug": "blind-flavor-prediction-drills",
+          "question_count": 6,
+          "questions": [
+            {
+              "id": "m6l9q1",
+              "type": "mcq",
+              "prompt": "What is the goal of a blind flavor prediction drill?",
+              "options": [
+                "Guess brands perfectly",
+                "Predict likely structure and flavor behavior from a spec or cue set",
+                "Ignore recipe ratios",
+                "Score drinks only by strength"
+              ],
+              "correct": 1,
+              "insight": "Prediction drills train internal models. You are learning to anticipate outcome before the first sip.",
+              "xpAward": 10
+            },
+            {
+              "id": "m6l9q2",
+              "type": "checkbox",
+              "prompt": "Before tasting, strong predictors include:",
+              "options": [
+                "Base spirit weight",
+                "Acid source",
+                "Sweetener style",
+                "Modifier family",
+                "Bottle cap color"
+              ],
+              "correct": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "insight": "A good prediction starts with the structural levers, not cosmetic details.",
+              "xpAward": 10
+            },
+            {
+              "id": "m6l9q3",
+              "type": "match",
+              "prompt": "Match spec cue to likely outcome.",
+              "pairs": [
+                {
+                  "left": "High acid + low sugar",
+                  "right": "Lean / sharp profile"
+                },
+                {
+                  "left": "Rich sweetener + aged spirit",
+                  "right": "Rounder deeper profile"
+                },
+                {
+                  "left": "Carbonation + citrus",
+                  "right": "Lifted refreshing profile"
+                },
+                {
+                  "left": "Amaro modifier + orange oils",
+                  "right": "Bittersweet aromatic finish"
+                }
+              ],
+              "insight": "Prediction gets sharper when you connect ingredient signals to sensory outcomes.",
+              "xpAward": 10
+            },
+            {
+              "id": "m6l9q4",
+              "type": "roleplay",
+              "prompt": "You read a menu spec with tequila, lime, agave, and a bitter-orange modifier. What should you predict first?",
+              "options": [
+                "Bright agave-led sour with added bittersweet complexity",
+                "Creamy dessert drink",
+                "Spirit-free spritz"
+              ],
+              "correct": 0,
+              "insight": "Prediction is about recognizing templates plus the specific twist being applied.",
+              "xpAward": 10
+            },
+            {
+              "id": "m6l9q5",
+              "type": "short",
+              "prompt": "Why are blind prediction drills useful for creativity?",
+              "answerText": "They help you anticipate outcomes before building, so riffs become more intentional.",
+              "acceptableAnswers": [
+                "they make riffs more intentional",
+                "they help predict outcomes before building",
+                "they strengthen flavor intuition"
+              ],
+              "validationMode": "keywords",
+              "requiredKeywords": [
+                "predict",
+                "intentional"
+              ],
+              "insight": "The stronger your predictions, the fewer random trial-and-error builds you need.",
+              "xpAward": 10
+            },
+            {
+              "id": "m6l9q6",
+              "type": "mcq",
+              "prompt": "What is the best post-drill habit after tasting?",
+              "options": [
+                "Compare your prediction to the actual result and note the miss",
+                "Ignore the result and move on",
+                "Only record whether you liked it",
+                "Change the recipe immediately without reflection"
+              ],
+              "correct": 0,
+              "insight": "Feedback closes the loop. Prediction only improves when you compare forecast to reality.",
+              "xpAward": 10
+            }
+          ],
+          "notes": "Advanced sensory reasoning practice before the final checkpoint.",
+          "xpReward": 60,
+          "tags": [
+            "flavor_module",
+            "core_curriculum"
+          ]
+        },
+        {
+          "id": "ch6-flavor-logic.lesson10",
+          "title": "Checkpoint: Build & Defend a Spec",
+          "slug": "checkpoint-build-defend-spec",
+          "question_count": 6,
+          "questions": [
+            {
+              "id": "m6l10q1",
+              "type": "roleplay",
+              "prompt": "Guest brief: “I want something refreshing, citrusy, and strong, but not sugary.” Which direction is strongest?",
+              "options": [
+                "A sour-style build with a restrained sweetener and crisp finish",
+                "A creamy dessert-style drink",
+                "A heavy sweet punch"
+              ],
+              "correct": 0,
+              "insight": "The brief points toward high refreshment, visible citrus, enough spirit weight, and disciplined sweetness.",
+              "xpAward": 10
+            },
+            {
+              "id": "m6l10q2",
+              "type": "mcq",
+              "prompt": "If your first spec tastes sweeter than intended, what is the smartest correction?",
+              "options": [
+                "Increase acid tension or reduce sweetener load slightly",
+                "Add cream",
+                "Change the glass only",
+                "Ignore the brief"
+              ],
+              "correct": 0,
+              "insight": "Checkpoint work is about honoring the brief through measured structural correction.",
+              "xpAward": 10
+            },
+            {
+              "id": "m6l10q3",
+              "type": "checkbox",
+              "prompt": "A strong final defense of your spec should explain:",
+              "options": [
+                "Why the spirit choice fits the brief",
+                "How acid and sweetness were balanced",
+                "What the aromatic direction adds",
+                "Why the finish is appropriate",
+                "Why the label looked cool"
+              ],
+              "correct": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "insight": "Being able to defend a spec proves you understand the design, not just the recipe.",
+              "xpAward": 10
+            },
+            {
+              "id": "m6l10q4",
+              "type": "match",
+              "prompt": "Match design choice to defense logic.",
+              "pairs": [
+                {
+                  "left": "Restrained sweetener",
+                  "right": "Keeps the finish clean and non-cloying"
+                },
+                {
+                  "left": "Bright citrus",
+                  "right": "Delivers refreshment and lift"
+                },
+                {
+                  "left": "Aromatic garnish",
+                  "right": "Frames first impression and finish"
+                },
+                {
+                  "left": "Spirit-forward base",
+                  "right": "Maintains strength and structure"
+                }
+              ],
+              "insight": "A defensible spec has a reason behind each major design choice.",
+              "xpAward": 10
+            },
+            {
+              "id": "m6l10q5",
+              "type": "short",
+              "prompt": "What makes a cocktail spec defensible, not just drinkable?",
+              "answerText": "Each ingredient and adjustment has a clear job tied to the brief.",
+              "acceptableAnswers": [
+                "every ingredient has a job",
+                "the design choices clearly match the brief",
+                "the structure is intentional"
+              ],
+              "validationMode": "keywords",
+              "requiredKeywords": [
+                "brief",
+                "job"
+              ],
+              "insight": "A drink becomes defensible when you can explain why it works, not just that it tastes good.",
+              "xpAward": 10
+            },
+            {
+              "id": "m6l10q6",
+              "type": "order",
+              "prompt": "Place the final build-thinking sequence in order.",
+              "items": [
+                "Read the flavor brief",
+                "Choose the base template",
+                "Select ingredients by function",
+                "Taste and rebalance",
+                "Defend the final choices"
+              ],
+              "correct_order": [
+                0,
+                1,
+                2,
+                3,
+                4
+              ],
+              "insight": "Great riffs are built on process. Read the brief, choose the structure, then justify the final outcome.",
+              "xpAward": 10
+            }
+          ],
+          "notes": "Capstone checkpoint for flavor reasoning, recipe construction, and communication under constraints.",
+          "xpReward": 60,
+          "tags": [
+            "flavor_module",
+            "core_curriculum",
+            "checkpoint"
+          ],
+          "showLessonBrief": true,
+          "brief": "This checkpoint tests whether you can build and defend a spec from a flavor brief.",
+          "practiceFocus": "Template choice, ingredient function, and final justification.",
+          "commonMistake": "Making a drink that tastes decent without being able to explain why it answers the brief.",
+          "contextBrief": "Real confidence starts when you can justify each choice in the glass, not just hope the result works."
+        }
+      ],
+      "brief": "This module teaches how to read, balance, troubleshoot, and design flavor with more intention.",
+      "whyItMatters": "This is the point where users stop following recipes blindly and start understanding why drinks work.",
+      "unlockReward": "Unlock the Gimlet checkpoint reward and stronger improvisation skills.",
+      "bestFor": [
+        "Taste Builder",
+        "Mastery"
+      ],
+      "contextBrief": "Flavor design is less about good ingredients and more about pressure, contrast, weight, and finish.",
+      "requiredTier": "FREE"
     },
     {
       "id": "ch7-mocktails-zero-proof",
@@ -7854,104 +9902,824 @@
           "id": "ch7-mocktails-zero-proof.lesson01",
           "title": "Zero-Proof Foundations",
           "slug": "zero-proof-foundations",
-          "question_count": 0,
-          "questions": [],
-          "notes": "Core concept: Base + Acid + Sweet + Aroma. Common zero-proof bases: tea, juices, soda, non-alcoholic spirits, coconut water. Focus on cocktail structure, not “juice only” builds.",
+          "question_count": 5,
+          "questions": [
+            {
+              "id": "m5l1q1",
+              "type": "mcq",
+              "prompt": "What core structure still applies to serious mocktails?",
+              "options": [
+                "Base + acid + sweet + aroma",
+                "Juice + sugar only",
+                "Ice + garnish only",
+                "Milk + syrup + soda"
+              ],
+              "correct": 0,
+              "insight": "Zero-proof drinks still need deliberate structure to feel complete.",
+              "xpAward": 8
+            },
+            {
+              "id": "m5l1q2",
+              "type": "checkbox",
+              "prompt": "Common zero-proof base options include:",
+              "options": [
+                "Tea",
+                "Juice",
+                "Soda",
+                "Non-alcoholic spirit",
+                "Salt rim only"
+              ],
+              "correct": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "insight": "The base defines body and flavor direction even without alcohol.",
+              "xpAward": 8
+            },
+            {
+              "id": "m5l1q3",
+              "type": "match",
+              "prompt": "Match zero-proof element to function.",
+              "pairs": [
+                {
+                  "left": "Base",
+                  "right": "Provides body or flavor direction"
+                },
+                {
+                  "left": "Acid",
+                  "right": "Adds brightness and balance"
+                },
+                {
+                  "left": "Sweet",
+                  "right": "Rounds sharpness"
+                },
+                {
+                  "left": "Aroma",
+                  "right": "Builds perceived complexity"
+                }
+              ],
+              "insight": "Thinking in functions helps mocktails feel designed, not improvised.",
+              "xpAward": 8
+            },
+            {
+              "id": "m5l1q4",
+              "type": "roleplay",
+              "prompt": "A guest says, “I want a real drink, just not alcoholic.” What is the right mindset?",
+              "options": [
+                "Build with full cocktail structure",
+                "Serve sweet juice in a nice glass",
+                "Use garnish to distract from weak flavor"
+              ],
+              "correct": 0,
+              "insight": "The goal is a complete drink experience, not a placeholder.",
+              "xpAward": 8
+            },
+            {
+              "id": "m5l1q5",
+              "type": "short",
+              "prompt": "What can replace the “base spirit” in many mocktails?",
+              "answerText": "Tea or juice.",
+              "acceptableAnswers": [
+                "tea",
+                "juice",
+                "non alcoholic spirit"
+              ],
+              "correct_text": "Tea or juice.",
+              "acceptable_answers": [
+                "tea",
+                "juice",
+                "non alcoholic spirit"
+              ],
+              "insight": "Once you understand the base function, mocktail design becomes much easier.",
+              "xpAward": 8
+            }
+          ],
+          "notes": "Guided lesson on zero-proof structure and base logic.",
           "xpReward": 40,
           "tags": [
-            "tips_lesson",
-            "tips_lesson"
-          ]
+            "guided_lesson"
+          ],
+          "showLessonBrief": true,
+          "brief": "This lesson establishes that mocktails still need structure, not just ingredients without alcohol.",
+          "practiceFocus": "Base, acid, sweetener, and aroma in zero-proof builds.",
+          "commonMistake": "Treating a mocktail like a juice blend instead of a designed drink.",
+          "contextBrief": "Zero-proof drinks reveal whether your structure is real, because alcohol is no longer carrying body or finish for you."
         },
         {
           "id": "ch7-mocktails-zero-proof.lesson02",
           "title": "Building Structure Without Alcohol",
           "slug": "building-structure-without-alcohol",
-          "question_count": 0,
-          "questions": [],
-          "notes": "Learn to build balance without ethanol: citrus, shrubs/vinegar, tea tannin, and NA bitters. If a mocktail tastes too sweet, first adjust acidity.",
+          "question_count": 5,
+          "questions": [
+            {
+              "id": "m5l2q1",
+              "type": "mcq",
+              "prompt": "What is the main challenge when building without alcohol?",
+              "options": [
+                "Replacing structure and balance",
+                "Finding any glassware",
+                "Avoiding citrus completely",
+                "Using only syrups"
+              ],
+              "correct": 0,
+              "insight": "Alcohol often contributes body and finish, so other ingredients must take over those jobs.",
+              "xpAward": 8
+            },
+            {
+              "id": "m5l2q2",
+              "type": "checkbox",
+              "prompt": "Useful structure tools in zero-proof builds include:",
+              "options": [
+                "Citrus",
+                "Shrubs or vinegars",
+                "Tea",
+                "Bitters or NA bitters",
+                "Warm water only"
+              ],
+              "correct": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "insight": "Acid, tannin, bitterness, and aroma help replace missing depth.",
+              "xpAward": 8
+            },
+            {
+              "id": "m5l2q3",
+              "type": "match",
+              "prompt": "Match ingredient type to what it adds.",
+              "pairs": [
+                {
+                  "left": "Citrus",
+                  "right": "Brightness"
+                },
+                {
+                  "left": "Tea",
+                  "right": "Tannin and structure"
+                },
+                {
+                  "left": "Shrub",
+                  "right": "Acid + flavor concentration"
+                },
+                {
+                  "left": "Sweetener",
+                  "right": "Balance and roundness"
+                }
+              ],
+              "insight": "Each element should earn its place in the drink.",
+              "xpAward": 8
+            },
+            {
+              "id": "m5l2q4",
+              "type": "roleplay",
+              "prompt": "Your mocktail tastes too sweet. Best first adjustment?",
+              "options": [
+                "Add citrus or acidity",
+                "Add more syrup",
+                "Add whipped cream"
+              ],
+              "correct": 0,
+              "insight": "Acid is usually the first lever when sweetness gets heavy.",
+              "xpAward": 8
+            },
+            {
+              "id": "m5l2q5",
+              "type": "short",
+              "prompt": "What should balance replace in a zero-proof build when alcohol is removed?",
+              "answerText": "Body, finish, and structure.",
+              "acceptableAnswers": [
+                "structure and body",
+                "body and finish"
+              ],
+              "correct_text": "Body, finish, and structure.",
+              "acceptable_answers": [
+                "structure and body",
+                "body and finish"
+              ],
+              "insight": "You are not just removing alcohol; you are redesigning the drink around what is missing.",
+              "xpAward": 8
+            }
+          ],
+          "notes": "Guided lesson on building balance without ethanol.",
           "xpReward": 40,
           "tags": [
-            "tips_lesson",
-            "tips_lesson"
+            "guided_lesson"
           ]
         },
         {
           "id": "ch7-mocktails-zero-proof.lesson03",
           "title": "Texture & Mouthfeel",
           "slug": "texture-mouthfeel-foams-fizz-weight",
-          "question_count": 0,
-          "questions": [],
-          "notes": "Alcohol adds body, so zero-proof drinks use alternatives: aquafaba/egg white, coconut cream, carbonation, tonic, and saline for palate length and texture.",
+          "question_count": 5,
+          "questions": [
+            {
+              "id": "m5l3q1",
+              "type": "mcq",
+              "prompt": "Why is texture especially important in mocktails?",
+              "options": [
+                "Alcohol normally adds body",
+                "Mocktails never use ice",
+                "Texture replaces garnish",
+                "It raises ABV"
+              ],
+              "correct": 0,
+              "insight": "Without alcohol, a drink can feel thin unless body is intentionally added.",
+              "xpAward": 8
+            },
+            {
+              "id": "m5l3q2",
+              "type": "checkbox",
+              "prompt": "Ingredients that can improve zero-proof mouthfeel include:",
+              "options": [
+                "Aquafaba",
+                "Coconut cream",
+                "Tonic or soda",
+                "Saline solution",
+                "Food coloring only"
+              ],
+              "correct": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "insight": "Texture can come from foam, carbonation, fat, or mineral lift.",
+              "xpAward": 8
+            },
+            {
+              "id": "m5l3q3",
+              "type": "match",
+              "prompt": "Match ingredient to texture effect.",
+              "pairs": [
+                {
+                  "left": "Aquafaba",
+                  "right": "Foam"
+                },
+                {
+                  "left": "Coconut cream",
+                  "right": "Rich body"
+                },
+                {
+                  "left": "Soda",
+                  "right": "Lift and lightness"
+                },
+                {
+                  "left": "Saline",
+                  "right": "Flavor extension"
+                }
+              ],
+              "insight": "Mouthfeel is built from more than one lever.",
+              "xpAward": 8
+            },
+            {
+              "id": "m5l3q4",
+              "type": "roleplay",
+              "prompt": "A zero-proof sour tastes thin even though balance is right. Best improvement?",
+              "options": [
+                "Add a texture component like aquafaba",
+                "Increase garnish only",
+                "Serve it warmer"
+              ],
+              "correct": 0,
+              "insight": "Once flavor is balanced, texture is often the missing piece.",
+              "xpAward": 8
+            },
+            {
+              "id": "m5l3q5",
+              "type": "short",
+              "prompt": "What ingredient can create foam in a zero-proof drink?",
+              "answerText": "Aquafaba.",
+              "acceptableAnswers": [
+                "aquafaba",
+                "egg white substitute"
+              ],
+              "correct_text": "Aquafaba.",
+              "acceptable_answers": [
+                "aquafaba",
+                "egg white substitute"
+              ],
+              "insight": "Foam changes both texture and perceived quality.",
+              "xpAward": 8
+            }
+          ],
+          "notes": "Guided lesson on texture and mouthfeel in zero-proof drinks.",
           "xpReward": 40,
           "tags": [
-            "tips_lesson",
-            "tips_lesson"
+            "guided_lesson"
           ]
         },
         {
           "id": "ch7-mocktails-zero-proof.lesson04",
           "title": "Zero-Proof Syrups & Cordials",
           "slug": "zero-proof-syrups-cordials",
-          "question_count": 0,
-          "questions": [],
-          "notes": "Layer flavor with ginger, hibiscus, mint, citrus cordials, and honey syrup. Cordials deliver concentrated flavor + sweetness while improving consistency.",
+          "question_count": 5,
+          "questions": [
+            {
+              "id": "m5l4q1",
+              "type": "mcq",
+              "prompt": "Why are syrups and cordials so important in zero-proof drinks?",
+              "options": [
+                "They add layered flavor and controlled sweetness",
+                "They replace all acid",
+                "They make chilling unnecessary",
+                "They always add carbonation"
+              ],
+              "correct": 0,
+              "insight": "Without spirit complexity, syrups and cordials often carry much of the flavor design.",
+              "xpAward": 8
+            },
+            {
+              "id": "m5l4q2",
+              "type": "checkbox",
+              "prompt": "Examples of useful zero-proof syrups and cordials:",
+              "options": [
+                "Ginger syrup",
+                "Hibiscus syrup",
+                "Mint syrup",
+                "Citrus cordial",
+                "Bourbon reduction"
+              ],
+              "correct": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "insight": "Flavor layering should feel intentional rather than sugary.",
+              "xpAward": 8
+            },
+            {
+              "id": "m5l4q3",
+              "type": "match",
+              "prompt": "Match syrup or cordial to likely role.",
+              "pairs": [
+                {
+                  "left": "Ginger syrup",
+                  "right": "Spice and warmth"
+                },
+                {
+                  "left": "Hibiscus syrup",
+                  "right": "Bright tart floral note"
+                },
+                {
+                  "left": "Honey syrup",
+                  "right": "Round sweetness"
+                },
+                {
+                  "left": "Citrus cordial",
+                  "right": "Sweet-acid concentration"
+                }
+              ],
+              "insight": "Each sweetener has a different flavor footprint.",
+              "xpAward": 8
+            },
+            {
+              "id": "m5l4q4",
+              "type": "roleplay",
+              "prompt": "A mocktail tastes flat but already has enough acid. Better next move?",
+              "options": [
+                "Add a more expressive syrup or cordial",
+                "Add plain water",
+                "Remove the garnish"
+              ],
+              "correct": 0,
+              "insight": "Sometimes the drink needs flavor density, not more brightness.",
+              "xpAward": 8
+            },
+            {
+              "id": "m5l4q5",
+              "type": "short",
+              "prompt": "What is the purpose of a cordial?",
+              "answerText": "Concentrated flavor and sweetness.",
+              "acceptableAnswers": [
+                "concentrated flavor and sweetness",
+                "sweet concentrated flavor"
+              ],
+              "correct_text": "Concentrated flavor and sweetness.",
+              "acceptable_answers": [
+                "concentrated flavor and sweetness",
+                "sweet concentrated flavor"
+              ],
+              "insight": "Cordials can add both balance and identity to zero-proof builds.",
+              "xpAward": 8
+            }
+          ],
+          "notes": "Guided lesson on zero-proof syrups, cordials, and flavor layering.",
           "xpReward": 40,
           "tags": [
-            "tips_lesson",
-            "tips_lesson"
+            "guided_lesson"
           ]
         },
         {
           "id": "ch7-mocktails-zero-proof.lesson05",
           "title": "Low-ABV vs True Zero",
           "slug": "low-abv-vs-true-zero",
-          "question_count": 0,
-          "questions": [],
-          "notes": "Low ABV is not non-alcoholic. Low ABV examples: spritz, sherry cocktails, vermouth highballs. True zero includes mocktails and soda-based NA builds.",
+          "question_count": 5,
+          "questions": [
+            {
+              "id": "m5l5q1",
+              "type": "mcq",
+              "prompt": "What is the key difference between low-ABV and true zero-proof?",
+              "options": [
+                "Low-ABV still contains alcohol",
+                "Low-ABV uses more garnish",
+                "True zero must be carbonated",
+                "There is no real difference"
+              ],
+              "correct": 0,
+              "insight": "This distinction matters for trust, safety, and menu clarity.",
+              "xpAward": 8
+            },
+            {
+              "id": "m5l5q2",
+              "type": "checkbox",
+              "prompt": "Examples of low-ABV drinks include:",
+              "options": [
+                "Spritz",
+                "Sherry cocktails",
+                "Vermouth highballs",
+                "Tea citrus cooler",
+                "Mint lime soda"
+              ],
+              "correct": [
+                0,
+                1,
+                2
+              ],
+              "insight": "Low-ABV drinks can be lighter, but they are not alcohol-free.",
+              "xpAward": 8
+            },
+            {
+              "id": "m5l5q3",
+              "type": "match",
+              "prompt": "Match drink type to ABV class.",
+              "pairs": [
+                {
+                  "left": "Vermouth soda",
+                  "right": "Low ABV"
+                },
+                {
+                  "left": "Sherry spritz",
+                  "right": "Low ABV"
+                },
+                {
+                  "left": "Tea-citrus cooler",
+                  "right": "True zero"
+                },
+                {
+                  "left": "Mint lime soda",
+                  "right": "True zero"
+                }
+              ],
+              "insight": "Users and guests need clear classification, not vague labels.",
+              "xpAward": 8
+            },
+            {
+              "id": "m5l5q4",
+              "type": "roleplay",
+              "prompt": "A guest says “non-alcoholic only.” What must you avoid?",
+              "options": [
+                "Serving a low-ABV vermouth build",
+                "Using soda and citrus",
+                "Checking ingredients carefully"
+              ],
+              "correct": 0,
+              "insight": "Low-ABV can still be inappropriate when a guest needs true zero.",
+              "xpAward": 8
+            },
+            {
+              "id": "m5l5q5",
+              "type": "short",
+              "prompt": "Which ingredient creates a low-ABV cocktail in many lighter builds?",
+              "answerText": "Vermouth.",
+              "acceptableAnswers": [
+                "vermouth",
+                "sherry"
+              ],
+              "correct_text": "Vermouth.",
+              "acceptable_answers": [
+                "vermouth",
+                "sherry"
+              ],
+              "insight": "Fortified wines often anchor the low-ABV category.",
+              "xpAward": 8
+            }
+          ],
+          "notes": "Guided lesson on distinguishing low-ABV from true zero-proof drinks.",
           "xpReward": 40,
           "tags": [
-            "tips_lesson",
-            "tips_lesson"
+            "guided_lesson"
           ]
         },
         {
           "id": "ch7-mocktails-zero-proof.lesson06",
           "title": "Mocktail Classics Remixed",
           "slug": "mocktail-classics-remixed",
-          "question_count": 0,
-          "questions": [],
-          "notes": "Rebuild classics by structure: Margarita -> lime + agave + soda, Mojito -> mint + lime + soda, Spritz -> orange + tonic. Mimic balance, not alcohol heat.",
+          "question_count": 5,
+          "questions": [
+            {
+              "id": "m5l6q1",
+              "type": "mcq",
+              "prompt": "What is the goal when remixing a classic into a mocktail?",
+              "options": [
+                "Preserve the structure and experience",
+                "Copy the exact alcohol flavor",
+                "Make it much sweeter",
+                "Ignore the original build"
+              ],
+              "correct": 0,
+              "insight": "Good remixes mirror the role each ingredient played in the original.",
+              "xpAward": 8
+            },
+            {
+              "id": "m5l6q2",
+              "type": "checkbox",
+              "prompt": "Useful mocktail classic remixes include:",
+              "options": [
+                "Margarita style: lime + agave + soda",
+                "Mojito style: mint + lime + soda",
+                "Spritz style: orange + tonic",
+                "Old Fashioned style: caramel milkshake",
+                "Tea sour variations"
+              ],
+              "correct": [
+                0,
+                1,
+                2,
+                4
+              ],
+              "insight": "A remix should preserve the family logic, not just the drink name.",
+              "xpAward": 8
+            },
+            {
+              "id": "m5l6q3",
+              "type": "match",
+              "prompt": "Match classic to zero-proof direction.",
+              "pairs": [
+                {
+                  "left": "Margarita",
+                  "right": "Citrus + sweetener + lift"
+                },
+                {
+                  "left": "Mojito",
+                  "right": "Mint + lime + sparkling top"
+                },
+                {
+                  "left": "Spritz",
+                  "right": "Bittersweet citrus + carbonation"
+                },
+                {
+                  "left": "Sour family",
+                  "right": "Base + acid + sweet + texture"
+                }
+              ],
+              "insight": "Framework thinking makes remixing much easier than memorizing one-offs.",
+              "xpAward": 8
+            },
+            {
+              "id": "m5l6q4",
+              "type": "roleplay",
+              "prompt": "A guest loves Mojitos but wants zero-proof. Best design direction?",
+              "options": [
+                "Mint + lime + soda with clear structure",
+                "Orange juice and sugar",
+                "Heavy cream and vanilla"
+              ],
+              "correct": 0,
+              "insight": "The point is to preserve freshness, lift, and herb-citrus identity.",
+              "xpAward": 8
+            },
+            {
+              "id": "m5l6q5",
+              "type": "short",
+              "prompt": "What should a mocktail remix preserve first: the name or the structure?",
+              "answerText": "The structure.",
+              "acceptableAnswers": [
+                "structure",
+                "cocktail structure"
+              ],
+              "correct_text": "The structure.",
+              "acceptable_answers": [
+                "structure",
+                "cocktail structure"
+              ],
+              "insight": "If the structure holds, the remix will feel more authentic and balanced.",
+              "xpAward": 8
+            }
+          ],
+          "notes": "Guided lesson on translating classic cocktail structures into zero-proof versions.",
           "xpReward": 40,
           "tags": [
-            "tips_lesson",
-            "tips_lesson"
+            "guided_lesson"
           ]
         },
         {
           "id": "ch7-mocktails-zero-proof.lesson07",
           "title": "Pairing Mocktails with Food",
           "slug": "pairing-mocktails-with-food",
-          "question_count": 0,
-          "questions": [],
-          "notes": "Pairing logic: citrus with seafood, herbal with salads, spiced with BBQ. For spicy food, citrus/ginger mocktails usually perform best.",
+          "question_count": 5,
+          "questions": [
+            {
+              "id": "m5l7q1",
+              "type": "mcq",
+              "prompt": "Why does pairing matter in zero-proof service?",
+              "options": [
+                "It helps the drink support the food instead of disappearing beside it",
+                "It makes every drink sweeter",
+                "It removes the need for garnish",
+                "It only matters for wine"
+              ],
+              "correct": 0,
+              "insight": "Pairing gives zero-proof drinks a clearer role at the table.",
+              "xpAward": 8
+            },
+            {
+              "id": "m5l7q2",
+              "type": "checkbox",
+              "prompt": "Strong pairing directions include:",
+              "options": [
+                "Citrus with seafood",
+                "Herbal builds with salads",
+                "Spiced drinks with BBQ",
+                "Creamy sweet drinks with everything",
+                "Ginger with spicy food"
+              ],
+              "correct": [
+                0,
+                1,
+                2,
+                4
+              ],
+              "insight": "Pairing should reflect intensity and flavor direction, not just sweetness.",
+              "xpAward": 8
+            },
+            {
+              "id": "m5l7q3",
+              "type": "match",
+              "prompt": "Match flavor direction to likely food pairing.",
+              "pairs": [
+                {
+                  "left": "Citrus-forward",
+                  "right": "Seafood"
+                },
+                {
+                  "left": "Herbal",
+                  "right": "Salads and greens"
+                },
+                {
+                  "left": "Spiced",
+                  "right": "BBQ or roasted food"
+                },
+                {
+                  "left": "Ginger-bright",
+                  "right": "Spicy dishes"
+                }
+              ],
+              "insight": "The pairing logic is about contrast and support.",
+              "xpAward": 8
+            },
+            {
+              "id": "m5l7q4",
+              "type": "roleplay",
+              "prompt": "A guest asks for a mocktail with spicy food. Best direction?",
+              "options": [
+                "Citrus or ginger-driven build",
+                "Dessert-heavy cream drink",
+                "Flat juice only"
+              ],
+              "correct": 0,
+              "insight": "Brightness and spice-friendly aromatics work better than heavy sweetness.",
+              "xpAward": 8
+            },
+            {
+              "id": "m5l7q5",
+              "type": "short",
+              "prompt": "Which mocktail flavor direction often pairs well with spicy food?",
+              "answerText": "Citrus or ginger.",
+              "acceptableAnswers": [
+                "citrus",
+                "ginger"
+              ],
+              "correct_text": "Citrus or ginger.",
+              "acceptable_answers": [
+                "citrus",
+                "ginger"
+              ],
+              "insight": "Acid and ginger usually cut through heat better than sugar alone.",
+              "xpAward": 8
+            }
+          ],
+          "notes": "Guided lesson on pairing mocktails with food using flavor logic.",
           "xpReward": 40,
           "tags": [
-            "tips_lesson",
-            "tips_lesson"
+            "guided_lesson"
           ]
         },
         {
           "id": "ch7-mocktails-zero-proof.lesson08",
           "title": "Visual & Premium Presentation",
           "slug": "visual-premium-presentation",
-          "question_count": 0,
-          "questions": [],
-          "notes": "Mocktails rely heavily on presentation: garnish technique, glassware selection, and ice strategy. Premium visuals increase perceived value and event quality.",
+          "question_count": 5,
+          "questions": [
+            {
+              "id": "m5l8q1",
+              "type": "mcq",
+              "prompt": "Why is presentation especially important for mocktails?",
+              "options": [
+                "Visual quality helps communicate value and intention",
+                "It hides poor balance",
+                "It replaces aroma",
+                "It removes the need for structure"
+              ],
+              "correct": 0,
+              "insight": "Guests judge value quickly, especially when alcohol is absent.",
+              "xpAward": 8
+            },
+            {
+              "id": "m5l8q2",
+              "type": "checkbox",
+              "prompt": "Premium zero-proof presentation should consider:",
+              "options": [
+                "Glassware choice",
+                "Garnish quality",
+                "Ice strategy",
+                "Color contrast",
+                "Using any cup available"
+              ],
+              "correct": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "insight": "Presentation should be designed with the same care as cocktails.",
+              "xpAward": 8
+            },
+            {
+              "id": "m5l8q3",
+              "type": "match",
+              "prompt": "Match presentation choice to benefit.",
+              "pairs": [
+                {
+                  "left": "Proper glassware",
+                  "right": "Improves perceived value"
+                },
+                {
+                  "left": "Clear or intentional ice",
+                  "right": "Supports temperature and polish"
+                },
+                {
+                  "left": "Fresh garnish",
+                  "right": "Reinforces aroma and finish"
+                },
+                {
+                  "left": "Clean build lines",
+                  "right": "Signals professionalism"
+                }
+              ],
+              "insight": "Presentation shapes expectation before the first sip.",
+              "xpAward": 8
+            },
+            {
+              "id": "m5l8q4",
+              "type": "roleplay",
+              "prompt": "A zero-proof drink tastes good but looks flat and forgettable. Best upgrade?",
+              "options": [
+                "Improve garnish, glassware, and ice strategy",
+                "Add more syrup",
+                "Serve it faster without changes"
+              ],
+              "correct": 0,
+              "insight": "Presentation problems should be solved visually, not with extra sweetness.",
+              "xpAward": 8
+            },
+            {
+              "id": "m5l8q5",
+              "type": "short",
+              "prompt": "Why does premium presentation matter in zero-proof service?",
+              "answerText": "It raises perceived value and guest confidence.",
+              "acceptableAnswers": [
+                "perceived value",
+                "guest confidence",
+                "visual quality"
+              ],
+              "correct_text": "It raises perceived value and guest confidence.",
+              "acceptable_answers": [
+                "perceived value",
+                "guest confidence",
+                "visual quality"
+              ],
+              "insight": "The drink should feel intentionally built, not like a compromise.",
+              "xpAward": 8
+            }
+          ],
+          "notes": "Guided lesson on premium visual presentation for zero-proof drinks.",
           "xpReward": 40,
           "tags": [
-            "tips_lesson",
-            "tips_lesson"
+            "guided_lesson"
           ]
         },
         {
@@ -8299,7 +11067,6 @@
           "notes": "Quiz lesson on inclusive hosting decisions and ABV clarity.",
           "xpReward": 200,
           "tags": [
-            "quiz_lesson",
             "quiz_lesson"
           ]
         },
@@ -8656,11 +11423,24 @@
           "notes": "Final scenario checkpoint for mocktail design under constraints.",
           "xpReward": 200,
           "tags": [
-            "quiz_lesson",
             "quiz_lesson"
-          ]
+          ],
+          "showLessonBrief": true,
+          "brief": "This checkpoint tests whether you can create a serious zero-proof spec from a clear guest brief.",
+          "practiceFocus": "Balancing refreshment, sweetness restraint, and premium presentation.",
+          "commonMistake": "Replacing alcohol with sugar or fruit volume instead of design logic.",
+          "contextBrief": "The best mocktails feel intentional, restrained, and complete rather than compensating for what is missing."
         }
-      ]
+      ],
+      "brief": "This module shows how serious zero-proof drinks are built with structure, texture, aroma, and balance.",
+      "whyItMatters": "Removing alcohol removes body and intensity, so the build has to become more intentional.",
+      "unlockReward": "Unlock inclusive hosting confidence and stronger flavor-building discipline.",
+      "bestFor": [
+        "Home Bartender",
+        "Taste Builder"
+      ],
+      "contextBrief": "Mocktails expose weak recipe thinking fast. If a zero-proof drink works, the structure is usually strong.",
+      "requiredTier": "FREE"
     },
     {
       "id": "ch6-hosting-vibes",
@@ -8852,7 +11632,12 @@
           "notes": "Module 8 authored for global culture context, regional styles, and hospitality recommendation skills.",
           "tags": [
             "culture_module"
-          ]
+          ],
+          "showLessonBrief": true,
+          "brief": "This lesson uses Italian aperitivo culture to teach how drinking traditions shape structure and mood.",
+          "practiceFocus": "Reading low-ABV social formats through culture and ingredient logic.",
+          "commonMistake": "Treating cultural cocktails like random recipe collections instead of coherent traditions.",
+          "contextBrief": "Culture helps memory. Once users know why a drink exists, they retain how it works more easily."
         },
         {
           "id": "ch6-hosting-vibes.lesson02",
@@ -10529,7 +13314,12 @@
           "notes": "Module 8 authored for global culture context, regional styles, and hospitality recommendation skills.",
           "tags": [
             "culture_module"
-          ]
+          ],
+          "showLessonBrief": true,
+          "brief": "This checkpoint asks you to move between regions and styles without losing the why behind each format.",
+          "practiceFocus": "Matching place, drink type, and social context.",
+          "commonMistake": "Recognizing a drink name but missing the tradition it belongs to.",
+          "contextBrief": "Global cocktail knowledge matters most when it sharpens recommendations and storytelling, not trivia recall."
         }
       ],
       "estimatedMinutes": 60,
@@ -10538,7 +13328,16 @@
         "global",
         "history",
         "cocktails"
-      ]
+      ],
+      "brief": "This module shows how drinks developed through place, culture, ingredients, and local drinking traditions.",
+      "whyItMatters": "Understanding context makes cocktails easier to remember and easier to recommend.",
+      "unlockReward": "Unlock stronger storytelling and recommendation confidence.",
+      "bestFor": [
+        "Taste Builder",
+        "Mastery"
+      ],
+      "contextBrief": "Cocktails are cultural artifacts as much as recipes. Region explains a lot of flavor logic.",
+      "requiredTier": "PLUS"
     }
   ]
 }

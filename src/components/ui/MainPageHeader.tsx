@@ -13,6 +13,7 @@ export interface MainPageHeaderAction {
 interface MainPageHeaderProps {
   title: string;
   subtitle?: string;
+  onTitlePress?: () => void;
   showBackButton?: boolean;
   onBackPress?: () => void;
   rightActions?: MainPageHeaderAction[];
@@ -23,6 +24,7 @@ interface MainPageHeaderProps {
 export default function MainPageHeader({
   title,
   subtitle,
+  onTitlePress,
   showBackButton = false,
   onBackPress,
   rightActions = [],
@@ -42,9 +44,20 @@ export default function MainPageHeader({
           <View style={styles.leftSpacer} />
         )}
 
-        <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle}>{title}</Text>
-          {subtitle ? <Text style={styles.headerSubtitle}>{subtitle}</Text> : null}
+        <View style={styles.headerCenter} pointerEvents="box-none">
+          <Pressable
+            style={styles.titlePressable}
+            disabled={!onTitlePress}
+            onPress={onTitlePress ? withHaptic(onTitlePress) : undefined}
+          >
+            <View style={styles.titleRow}>
+              <Text style={styles.headerTitle}>{title}</Text>
+              {onTitlePress ? (
+                <Ionicons name="chevron-down" size={14} color={colors.subtext} style={styles.titleChevron} />
+              ) : null}
+            </View>
+            {subtitle ? <Text style={styles.headerSubtitle}>{subtitle}</Text> : null}
+          </Pressable>
         </View>
 
         <View style={styles.headerRight}>
@@ -107,7 +120,16 @@ const styles = StyleSheet.create({
     right: 0,
     alignItems: 'center',
     justifyContent: 'center',
-    pointerEvents: 'none',
+  },
+  titlePressable: {
+    alignItems: 'center',
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  titleChevron: {
+    marginLeft: spacing(0.5),
   },
   headerTitle: {
     fontSize: 22,

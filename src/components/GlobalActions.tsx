@@ -1,21 +1,15 @@
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  Pressable,
-  TextInput,
-  Modal,
-  Share,
-  Alert,
-} from 'react-native';
+import { View, Text, StyleSheet, Pressable, Share, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, radii } from '../theme/tokens';
+import { colors, spacing } from '../theme/tokens';
 import { searchService, SearchableItem, FilterOptions } from '../services/searchService';
 import SearchModal from './SearchModal';
 import FilterDrawer from './FilterDrawer';
-import CreateRecipeModal from './CreateRecipeModal';
 import CreateCompetitionEntryModal from './CreateCompetitionEntryModal';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { RootStackParamList } from '../navigation/RootNavigator';
+import { withHaptic } from '../lib/haptics';
 
 interface GlobalActionsProps {
   onSearch?: (results: SearchableItem[]) => void;
@@ -41,7 +35,7 @@ export default function GlobalActions({
   onAdd,
   onUpload,
   onDownload,
-  onRecipeCreated,
+  onRecipeCreated: _onRecipeCreated,
   onCompetitionEntryCreated,
   showSearch = true,
   showFilter = true,
@@ -52,22 +46,23 @@ export default function GlobalActions({
   competitionId,
   competitionTitle,
 }: GlobalActionsProps) {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [searchVisible, setSearchVisible] = useState(false);
   const [filterVisible, setFilterVisible] = useState(false);
-  const [createRecipeVisible, setCreateRecipeVisible] = useState(false);
   const [createEntryVisible, setCreateEntryVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState<Partial<FilterOptions>>({});
 
-  const handleSearch = (query: string, newFilters?: Partial<FilterOptions>) => {
+  const handleSearch = async (query: string, newFilters?: Partial<FilterOptions>) => {
     const combinedFilters = { ...filters, ...newFilters };
-    const results = searchService.search(query, combinedFilters);
+    const results = await Promise.resolve(searchService.search(query, combinedFilters));
     onSearch?.(results);
     setSearchQuery(query);
     setFilters(combinedFilters);
   };
 
   const handleShare = async () => {
+    onShare?.({});
     try {
       await Share.share({
         message: 'Check out this amazing cocktail app!',
@@ -79,20 +74,12 @@ export default function GlobalActions({
   };
 
   const handleAdd = () => {
+    onAdd?.();
     if (competitionId) {
       // We're in a competition context
       setCreateEntryVisible(true);
     } else {
-      // General context - show options
-      Alert.alert(
-        'Create Content',
-        'What would you like to create?',
-        [
-          { text: 'Recipe', onPress: () => setCreateRecipeVisible(true) },
-          { text: 'Competition Entry', onPress: () => setCreateEntryVisible(true) },
-          { text: 'Cancel', style: 'cancel' },
-        ]
-      );
+      navigation.navigate('AddRecipe');
     }
   };
 
@@ -103,7 +90,7 @@ export default function GlobalActions({
       [
         { text: 'Photo', onPress: () => onUpload?.() },
         { text: 'Video', onPress: () => onUpload?.() },
-        { text: 'Recipe', onPress: () => setCreateRecipeVisible(true) },
+        { text: 'Recipe', onPress: () => navigation.navigate('AddRecipe') },
         { text: 'Cancel', style: 'cancel' },
       ]
     );
@@ -116,7 +103,7 @@ export default function GlobalActions({
           {showSearch && (
             <Pressable 
               style={styles.actionButton} 
-              onPress={() => setSearchVisible(true)}
+              onPress={withHaptic(() => setSearchVisible(true))}
             >
               <Ionicons name="search" size={20} color={colors.text} />
               <Text style={styles.actionLabel}>Search</Text>
@@ -126,7 +113,7 @@ export default function GlobalActions({
           {showFilter && (
             <Pressable 
               style={styles.actionButton} 
-              onPress={() => setFilterVisible(true)}
+              onPress={withHaptic(() => setFilterVisible(true))}
             >
               <Ionicons name="funnel" size={20} color={colors.text} />
               <Text style={styles.actionLabel}>Filter</Text>
@@ -136,7 +123,7 @@ export default function GlobalActions({
           {showAdd && (
             <Pressable 
               style={styles.actionButton} 
-              onPress={handleAdd}
+              onPress={withHaptic(handleAdd)}
             >
               <Ionicons name="add-circle" size={20} color={colors.accent} />
               <Text style={[styles.actionLabel, { color: colors.accent }]}>Add</Text>
@@ -146,7 +133,7 @@ export default function GlobalActions({
           {showShare && (
             <Pressable 
               style={styles.actionButton} 
-              onPress={handleShare}
+              onPress={withHaptic(handleShare)}
             >
               <Ionicons name="share" size={20} color={colors.text} />
               <Text style={styles.actionLabel}>Share</Text>
@@ -156,7 +143,7 @@ export default function GlobalActions({
           {showUpload && (
             <Pressable 
               style={styles.actionButton} 
-              onPress={handleUpload}
+              onPress={withHaptic(handleUpload)}
             >
               <Ionicons name="cloud-upload" size={20} color={colors.text} />
               <Text style={styles.actionLabel}>Upload</Text>
@@ -166,7 +153,7 @@ export default function GlobalActions({
           {showDownload && (
             <Pressable 
               style={styles.actionButton} 
-              onPress={() => onDownload?.({})}
+              onPress={withHaptic(() => onDownload?.({}))}
             >
               <Ionicons name="download" size={20} color={colors.text} />
               <Text style={styles.actionLabel}>Download</Text>
@@ -193,16 +180,6 @@ export default function GlobalActions({
         }}
         currentFilters={filters}
         searchQuery={searchQuery}
-      />
-
-      {/* Create Recipe Modal */}
-      <CreateRecipeModal
-        visible={createRecipeVisible}
-        onClose={() => setCreateRecipeVisible(false)}
-        onSuccess={(recipeId) => {
-          onRecipeCreated?.(recipeId);
-          setCreateRecipeVisible(false);
-        }}
       />
 
       {/* Create Competition Entry Modal */}

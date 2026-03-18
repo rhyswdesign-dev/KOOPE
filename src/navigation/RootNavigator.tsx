@@ -7,7 +7,7 @@ import { OfflineBanner } from '../components/OfflineBanner';
 import Tabs from './Tabs';
 import AccountSetupScreen from '../screens/AccountSetupScreen';
 import EventsScreen from '../screens/EventsScreen';
-import GamesScreen from '../screens/GamesScreen';
+import HacksTipsLibraryScreen from '../screens/HacksTipsLibraryScreen';
 import BrandScreen from '../screens/BrandScreen';
 import BarThemeScreen from '../screens/BarThemeScreen';
 import BarDetailsScreen from '../screens/BarDetailsScreen';
@@ -28,7 +28,6 @@ import HostingScreen from '../screens/HostingScreen';
 import BarOptimizerScreen from '../screens/BarOptimizerScreen';
 
 import EditProfileScreen from '../screens/EditProfileScreen';
-import NonAlcoholicScreen from '../screens/NonAlcoholicScreen';
 import VaultScreen from '../screens/vault/VaultScreen';
 // Vault screens
 import VaultEarnXPScreen from '../screens/vault/VaultEarnXPScreen';
@@ -41,9 +40,7 @@ import ConsentScreen from '../screens/onboarding/ConsentScreen';
 import SurveyScreen from '../screens/onboarding/SurveyScreen';
 import SurveyResultsScreen from '../screens/onboarding/SurveyResultsScreen';
 import RefineYourTasteScreen from '../screens/RefineYourTasteScreen';
-// Lesson screens
-import LessonEngineScreen from '../screens/lessons/LessonEngineScreen';
-import LessonSummaryScreen from '../screens/lessons/LessonSummaryScreen';
+import OnboardingPreviewScreen from '../screens/onboarding/OnboardingPreviewScreen';
 // Commerce screens
 import PricingScreen from '../screens/commerce/PricingScreen';
 // Auth screens
@@ -51,7 +48,6 @@ import OAuthSignInScreen from '../screens/OAuthSignInScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import RecipeDetailScreen from '../screens/RecipeDetailScreen';
 import { withScreenTour } from '../components/tour/withScreenTour';
-import RecipeEditorScreen from '../screens/RecipeEditorScreen';
 import AIRecipeGeneratorScreen from '../screens/AIRecipeGeneratorScreen';
 import CartScreen from '../screens/commerce/CartScreen';
 import CheckoutScreen from '../screens/commerce/CheckoutScreen';
@@ -67,6 +63,7 @@ import HomeBarScreen from '../screens/HomeBarScreen';
 import RecipesScreen from '../screens/RecipesScreen';
 import SpiritRecognitionScreen from '../screens/SpiritRecognitionScreen';
 import ShoppingCartScreen from '../screens/ShoppingCartScreen';
+import InventoryInsightsScreen from '../screens/InventoryInsightsScreen';
 import AchievementsScreen from '../screens/AchievementsScreen';
 import SubscriptionDebugScreen from '../screens/SubscriptionDebugScreen';
 import PaywallScreen from '../screens/PaywallScreen';
@@ -79,6 +76,7 @@ import ManageSubscriptionScreen from '../screens/ManageSubscriptionScreen';
 import NotificationCenterScreen from '../screens/NotificationCenterScreen';
 import ReferralScreen from '../screens/ReferralScreen';
 import TutorialsScreen from '../screens/TutorialsScreen';
+import UnlockDeckScreen from '../screens/UnlockDeckScreen';
 import { useCartSync } from '../hooks/useCartSync';
 import TutorialIconButton from '../components/tour/TutorialIconButton';
 import type { ScreenTourId } from '../config/screenTours';
@@ -88,8 +86,7 @@ export type RootStackParamList = {
   Main: undefined;
   Bars: undefined;
   Events: undefined;
-  Games: undefined;
-  GamesScreen: undefined;
+  HacksTipsLibrary: undefined;
   Brand: { brand: string };
   BarTheme: { theme: string };
   BarDetails: { name: string; subtitle: string; image: string; city?: string; address?: string };
@@ -132,7 +129,6 @@ export type RootStackParamList = {
   EditProfile: undefined;
   Profile: undefined;
   OAuthSignIn: undefined;
-  NonAlcoholic: undefined;
   Vault: undefined;
   VaultEarnXP: undefined;
   VaultCategory: { category: VaultCategory };
@@ -145,6 +141,7 @@ export type RootStackParamList = {
   Survey: undefined;
   SurveyResults: { answers: any };
   RefineYourTaste: undefined;
+  OnboardingPreview: undefined;
   // Commerce screens
   Pricing: undefined;
   Cart: undefined;
@@ -156,7 +153,7 @@ export type RootStackParamList = {
   OrderHistory: undefined;
   Billing: undefined;
   AddAddress: { addressId?: string };
-  AddRecipe: undefined;
+  AddRecipe: { recipe?: any; isEdit?: boolean } | undefined;
 
   RecipeDetail: { recipe: any };
   RecipeEditor: { recipe: any };
@@ -168,6 +165,7 @@ export type RootStackParamList = {
   HomeBar: undefined;
   SpiritRecognition: undefined;
   ShoppingCart: undefined;
+  InventoryInsights: { mode: 'expiry' | 'health' };
   Achievements: undefined;
   SubscriptionDebug: undefined;
   Paywall: { offering?: string | null; displayCloseButton?: boolean };
@@ -178,6 +176,7 @@ export type RootStackParamList = {
   NotificationCenter: undefined;
   Referral: undefined;
   Tutorials: { contextTourId?: ScreenTourId } | undefined;
+  UnlockDeck: { assetSlug: string; title?: string };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -185,10 +184,9 @@ const RecipeDetailWithTour = withScreenTour(RecipeDetailScreen, 'feature_recipe_
 
 interface RootNavigatorProps {
   initialRouteName?: keyof RootStackParamList;
-  onHiddenFlaskComplete?: () => void;
 }
 
-export default function RootNavigator({ initialRouteName = 'Main', onHiddenFlaskComplete }: RootNavigatorProps = {}) {
+export default function RootNavigator({ initialRouteName = 'Main' }: RootNavigatorProps = {}) {
   useCartSync();
   const showTutorialIcons = useTutorialPreferences((state) => state.showTutorialIcons);
   const LegacyRemovedContentScreen = RecipesScreen;
@@ -218,7 +216,7 @@ export default function RootNavigator({ initialRouteName = 'Main', onHiddenFlask
       <Stack.Screen name="Main" component={Tabs} />
       <Stack.Screen name="Bars" component={LegacyRemovedContentScreen} options={{ headerShown: true, title: 'Recipes' }} />
       <Stack.Screen name="Events" component={EventsScreen} options={{ headerShown: true, title: 'Events' }} />
-      <Stack.Screen name="Games" component={GamesScreen} options={{ headerShown: true, title: 'Games' }} />
+      <Stack.Screen name="HacksTipsLibrary" component={HacksTipsLibraryScreen} options={{ headerShown: true, title: 'Hacks & Tips' }} />
       <Stack.Screen name="Brand" component={BrandScreen} options={({ route }) => ({ headerShown: true, title: route.params.brand })} />
       <Stack.Screen name="BarTheme" component={BarThemeScreen} options={({ route }) => ({ headerShown: true, title: route.params.theme })} />
       <Stack.Screen name="BarDetails" component={BarDetailsScreen} options={({ route }) => ({ headerShown: true, title: route.params.name })} />
@@ -386,7 +384,6 @@ export default function RootNavigator({ initialRouteName = 'Main', onHiddenFlask
       <Stack.Screen name="EditProfile" component={EditProfileScreen} options={{ headerShown: true, title: 'Edit Profile' }} />
       <Stack.Screen name="Profile" component={ProfileScreen} options={{ headerShown: true, title: 'Profile' }} />
       <Stack.Screen name="OAuthSignIn" component={OAuthSignInScreen} options={{ headerShown: false }} />
-      <Stack.Screen name="NonAlcoholic" component={NonAlcoholicScreen} options={{ headerShown: true, title: 'Non-Alcoholic' }} />
     <Stack.Screen name="Vault" component={VaultScreen} options={{ headerShown: true, title: 'Vault' }} />
     {/* Vault Economy Screens */}
     <Stack.Screen name="VaultEarnXP" component={VaultEarnXPScreen} options={{ headerShown: true, title: 'Earn XP' }} />
@@ -400,6 +397,7 @@ export default function RootNavigator({ initialRouteName = 'Main', onHiddenFlask
     <Stack.Screen name="Survey" component={SurveyScreen} options={{ headerShown: false }} />
     <Stack.Screen name="SurveyResults" component={SurveyResultsScreen} options={{ headerShown: false }} />
     <Stack.Screen name="RefineYourTaste" component={RefineYourTasteScreen} options={{ headerShown: false }} />
+    <Stack.Screen name="OnboardingPreview" component={OnboardingPreviewScreen} options={{ headerShown: true, title: 'Full Onboarding Preview' }} />
     {/* Lesson screens */}
     {/* Commerce screens */}
     <Stack.Screen name="Pricing" component={PricingScreen} options={{ headerShown: true, title: 'Premium' }} />
@@ -410,12 +408,12 @@ export default function RootNavigator({ initialRouteName = 'Main', onHiddenFlask
     <Stack.Screen name="AddRecipe" component={AddRecipeScreen} options={{ headerShown: true, title: 'Add Recipe' }} />
 
     <Stack.Screen name="RecipeDetail" component={RecipeDetailWithTour} options={{ headerShown: true, title: 'Recipe' }} />
-    <Stack.Screen name="RecipeEditor" component={RecipeEditorScreen} options={{ headerShown: false, presentation: 'modal' }} />
+    <Stack.Screen name="RecipeEditor" component={AddRecipeScreen} options={{ headerShown: true, title: 'Edit Recipe' }} />
     <Stack.Screen name="AIRecipeGenerator" component={AIRecipeGeneratorScreen} options={{ headerShown: false }} />
     <Stack.Screen name="AIRecipeFormat" options={{ headerShown: true, title: 'AI Recipe Formatting' }}>
-      {(props) => (
+      {() => (
         <RequirePro>
-          <AIRecipeFormatScreen {...props} />
+          <AIRecipeFormatScreen />
         </RequirePro>
       )}
     </Stack.Screen>
@@ -425,6 +423,7 @@ export default function RootNavigator({ initialRouteName = 'Main', onHiddenFlask
     <Stack.Screen name="HomeBar" component={HomeBarScreen} options={{ headerShown: false }} />
     <Stack.Screen name="SpiritRecognition" component={SpiritRecognitionScreen} options={{ headerShown: true, title: 'Scan Spirit' }} />
     <Stack.Screen name="ShoppingCart" component={ShoppingCartScreen} options={{ headerShown: false }} />
+    <Stack.Screen name="InventoryInsights" component={InventoryInsightsScreen} options={{ headerShown: false }} />
       <Stack.Screen name="Achievements" component={AchievementsScreen} options={{ headerShown: true, title: 'Achievements' }} />
       <Stack.Screen name="SubscriptionDebug" component={SubscriptionDebugScreen} options={{ headerShown: true, title: 'Subscription Debug' }} />
       <Stack.Screen name="Paywall" component={PaywallScreen} options={{ headerShown: false, presentation: 'modal' }} />
@@ -435,6 +434,7 @@ export default function RootNavigator({ initialRouteName = 'Main', onHiddenFlask
       <Stack.Screen name="NotificationCenter" component={NotificationCenterScreen} options={{ headerShown: true, title: 'Notifications' }} />
       <Stack.Screen name="Referral" component={ReferralScreen} options={{ headerShown: true, title: 'Invite Friends' }} />
       <Stack.Screen name="Tutorials" component={TutorialsScreen} options={{ headerShown: true, title: 'Tutorials' }} />
+      <Stack.Screen name="UnlockDeck" component={UnlockDeckScreen} options={{ headerShown: false }} />
     </Stack.Navigator>
     </View>
   );

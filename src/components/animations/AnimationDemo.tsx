@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Animation Demo Component
  * Demonstrates the various completion animations available

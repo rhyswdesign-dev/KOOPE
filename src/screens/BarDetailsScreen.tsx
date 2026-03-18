@@ -191,7 +191,7 @@ export default function BarDetailsScreen() {
           <Text style={{ color: colors.text }}>
             The Velvet Curtain is a low-lit, cocktail-forward speakeasy known for its floral gin sours
             and bourbon smokes. Live jazz on weekends, a compact small-plates menu after 10 PM, and
-            a quietly buzzing crowd. Pro-tip: reserve early for corner booths.
+            a quietly buzzing crowd. Pro-tip: reserve early for a corner table.
           </Text>
 
           <Divider />

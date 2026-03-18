@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useSubscription } from '../contexts/SubscriptionContext';
+import { useUserTier } from '../store/useUserTier';
 import { log } from '../lib/logger';
 
 export interface SavedItem {
@@ -23,28 +23,43 @@ export interface SavedItemsState {
 }
 
 const STORAGE_KEY = 'savedItems';
+const initialSavedItemsState: SavedItemsState = {
+  savedBars: [],
+  savedSpirits: [],
+  savedCocktails: [],
+  savedEvents: [],
+  followedCommunities: [],
+  savedVaultItems: [],
+  savedGames: [],
+  savedDrinks: [],
+};
+let globalSavedItemsState: SavedItemsState = initialSavedItemsState;
+let hasHydratedSavedItems = false;
+const savedItemsSubscribers = new Set<(next: SavedItemsState) => void>();
 
-const FREE_RECIPE_LIMIT = 5;
+const publishSavedItems = (next: SavedItemsState) => {
+  globalSavedItemsState = next;
+  savedItemsSubscribers.forEach((fn) => fn(next));
+};
+
+export const FREE_RECIPE_LIMIT = 5;
 
 export function useSavedItems() {
-  const { isSubscriber } = useSubscription();
-  const [savedItems, setSavedItems] = useState<SavedItemsState>({
-    savedBars: [],
-    savedSpirits: [],
-    savedCocktails: [],
-    savedEvents: [],
-    followedCommunities: [],
-    savedVaultItems: [],
-    savedGames: [],
-    savedDrinks: [],
-  });
+  const tier = useUserTier((state) => state.tier);
+  const [savedItems, setSavedItems] = useState<SavedItemsState>(globalSavedItemsState);
 
   // Load saved items from AsyncStorage on mount
   useEffect(() => {
+    const subscriber = (next: SavedItemsState) => setSavedItems(next);
+    savedItemsSubscribers.add(subscriber);
     loadSavedItems();
+    return () => {
+      savedItemsSubscribers.delete(subscriber);
+    };
   }, []);
 
   const loadSavedItems = async () => {
+    if (hasHydratedSavedItems) return;
     try {
       const stored = await AsyncStorage.getItem(STORAGE_KEY);
       if (stored) {
@@ -62,11 +77,12 @@ export function useSavedItems() {
           savedGames: parsedItems.savedGames || [],
           savedDrinks: parsedItems.savedDrinks || [],
         };
-        
-        setSavedItems(mergedItems);
+        publishSavedItems(mergedItems);
       }
+      hasHydratedSavedItems = true;
     } catch (error) {
       log.warn('useSavedItems', 'Error loading saved items', { error });
+      hasHydratedSavedItems = true;
     }
   };
 
@@ -82,16 +98,7 @@ export function useSavedItems() {
   const clearStorage = async () => {
     try {
       await AsyncStorage.removeItem(STORAGE_KEY);
-      setSavedItems({
-        savedBars: [],
-        savedSpirits: [],
-        savedCocktails: [],
-        savedEvents: [],
-        followedCommunities: [],
-        savedVaultItems: [],
-        savedGames: [],
-        savedDrinks: [],
-      });
+      publishSavedItems(initialSavedItemsState);
       log.info('useSavedItems', 'Storage cleared');
     } catch (error) {
       log.warn('useSavedItems', 'Error clearing storage', { error });
@@ -101,149 +108,135 @@ export function useSavedItems() {
   const toggleSavedBar = (item: SavedItem | { id: string; name: string; subtitle?: string; image?: string }) => {
     const barItem: SavedItem = { ...item, type: 'bar' };
     log.debug('useSavedItems', 'Toggling bar', { barId: barItem.id, name: barItem.name });
-    setSavedItems(prev => {
-      const exists = prev.savedBars.find(b => b.id === barItem.id);
+    {
+      const exists = globalSavedItemsState.savedBars.find(b => b.id === barItem.id);
       const newItems = {
-        ...prev,
+        ...globalSavedItemsState,
         savedBars: exists
-          ? prev.savedBars.filter(b => b.id !== barItem.id)
-          : [...prev.savedBars, barItem]
+          ? globalSavedItemsState.savedBars.filter(b => b.id !== barItem.id)
+          : [...globalSavedItemsState.savedBars, barItem]
       };
       log.debug('useSavedItems', 'Updated saved bars', { count: newItems.savedBars.length });
+      publishSavedItems(newItems);
       saveToStorage(newItems);
-      return newItems;
-    });
+    }
   };
 
   const toggleSavedSpirit = (item: SavedItem | { id: string; name: string; subtitle?: string; image?: string }) => {
     const spiritItem: SavedItem = { ...item, type: 'spirit' };
-    setSavedItems(prev => {
-      const exists = prev.savedSpirits.find(s => s.id === spiritItem.id);
+    {
+      const exists = globalSavedItemsState.savedSpirits.find(s => s.id === spiritItem.id);
       const newItems = {
-        ...prev,
+        ...globalSavedItemsState,
         savedSpirits: exists
-          ? prev.savedSpirits.filter(s => s.id !== spiritItem.id)
-          : [...prev.savedSpirits, spiritItem]
+          ? globalSavedItemsState.savedSpirits.filter(s => s.id !== spiritItem.id)
+          : [...globalSavedItemsState.savedSpirits, spiritItem]
       };
+      publishSavedItems(newItems);
       saveToStorage(newItems);
-      return newItems;
-    });
+    }
   };
 
   const toggleSavedCocktail = (item: SavedItem | { id: string; name: string; subtitle?: string; image?: string }): 'success' | 'limit_reached' | 'removed' => {
     const cocktailItem: SavedItem = { ...item, type: 'cocktail' };
-    const exists = savedItems.savedCocktails.find(c => c.id === cocktailItem.id);
+    const exists = globalSavedItemsState.savedCocktails.find(c => c.id === cocktailItem.id);
 
     // If removing, allow it
     if (exists) {
-      setSavedItems(prev => {
-        const newItems = {
-          ...prev,
-          savedCocktails: prev.savedCocktails.filter(c => c.id !== cocktailItem.id)
-        };
-        saveToStorage(newItems);
-        return newItems;
-      });
+      const newItems = {
+        ...globalSavedItemsState,
+        savedCocktails: globalSavedItemsState.savedCocktails.filter(c => c.id !== cocktailItem.id)
+      };
+      publishSavedItems(newItems);
+      saveToStorage(newItems);
       return 'removed';
     }
 
     // If adding, check free user limit
-    if (!isSubscriber && savedItems.savedCocktails.length >= FREE_RECIPE_LIMIT) {
+    if (tier === 'FREE' && globalSavedItemsState.savedCocktails.length >= FREE_RECIPE_LIMIT) {
       log.info('useSavedItems', 'Free user recipe limit reached - cannot save more', {
         limit: FREE_RECIPE_LIMIT,
-        currentCount: savedItems.savedCocktails.length
+        currentCount: globalSavedItemsState.savedCocktails.length
       });
       return 'limit_reached';
     }
 
     // Save the cocktail
-    setSavedItems(prev => {
-      const newItems = {
-        ...prev,
-        savedCocktails: [...prev.savedCocktails, cocktailItem]
-      };
-      saveToStorage(newItems);
-      return newItems;
-    });
+    const newItems = {
+      ...globalSavedItemsState,
+      savedCocktails: [...globalSavedItemsState.savedCocktails, cocktailItem]
+    };
+    publishSavedItems(newItems);
+    saveToStorage(newItems);
     return 'success';
   };
 
   const toggleSavedEvent = (item: SavedItem | { id: string; name: string; subtitle?: string; image?: string }) => {
     const eventItem: SavedItem = { ...item, type: 'event' };
-    setSavedItems(prev => {
-      const exists = prev.savedEvents.find(e => e.id === eventItem.id);
-      const newItems = {
-        ...prev,
-        savedEvents: exists
-          ? prev.savedEvents.filter(e => e.id !== eventItem.id)
-          : [...prev.savedEvents, eventItem]
-      };
-      saveToStorage(newItems);
-      return newItems;
-    });
+    const exists = globalSavedItemsState.savedEvents.find(e => e.id === eventItem.id);
+    const newItems = {
+      ...globalSavedItemsState,
+      savedEvents: exists
+        ? globalSavedItemsState.savedEvents.filter(e => e.id !== eventItem.id)
+        : [...globalSavedItemsState.savedEvents, eventItem]
+    };
+    publishSavedItems(newItems);
+    saveToStorage(newItems);
   };
 
   const toggleFollowedCommunity = (item: SavedItem | { id: string; name: string; subtitle?: string; image?: string }) => {
     const communityItem: SavedItem = { ...item, type: 'community' };
-    setSavedItems(prev => {
-      const exists = prev.followedCommunities.find(c => c.id === communityItem.id);
-      const newItems = {
-        ...prev,
-        followedCommunities: exists
-          ? prev.followedCommunities.filter(c => c.id !== communityItem.id)
-          : [...prev.followedCommunities, communityItem]
-      };
-      saveToStorage(newItems);
-      return newItems;
-    });
+    const exists = globalSavedItemsState.followedCommunities.find(c => c.id === communityItem.id);
+    const newItems = {
+      ...globalSavedItemsState,
+      followedCommunities: exists
+        ? globalSavedItemsState.followedCommunities.filter(c => c.id !== communityItem.id)
+        : [...globalSavedItemsState.followedCommunities, communityItem]
+    };
+    publishSavedItems(newItems);
+    saveToStorage(newItems);
   };
 
   const toggleSavedVaultItem = (item: SavedItem | { id: string; name: string; subtitle?: string; image?: string }) => {
     const vaultItem: SavedItem = { ...item, type: 'vault' };
-    setSavedItems(prev => {
-      const savedVaultItems = prev.savedVaultItems || [];
-      const exists = savedVaultItems.find(v => v.id === vaultItem.id);
-      const newItems = {
-        ...prev,
-        savedVaultItems: exists
-          ? savedVaultItems.filter(v => v.id !== vaultItem.id)
-          : [...savedVaultItems, vaultItem]
-      };
-      saveToStorage(newItems);
-      return newItems;
-    });
+    const savedVaultItems = globalSavedItemsState.savedVaultItems || [];
+    const exists = savedVaultItems.find(v => v.id === vaultItem.id);
+    const newItems = {
+      ...globalSavedItemsState,
+      savedVaultItems: exists
+        ? savedVaultItems.filter(v => v.id !== vaultItem.id)
+        : [...savedVaultItems, vaultItem]
+    };
+    publishSavedItems(newItems);
+    saveToStorage(newItems);
   };
 
   const toggleSavedGame = (item: SavedItem | { id: string; name: string; subtitle?: string; image?: string }) => {
     const gameItem: SavedItem = { ...item, type: 'game' };
-    setSavedItems(prev => {
-      const savedGames = prev.savedGames || [];
-      const exists = savedGames.find(g => g.id === gameItem.id);
-      const newItems = {
-        ...prev,
-        savedGames: exists
-          ? savedGames.filter(g => g.id !== gameItem.id)
-          : [...savedGames, gameItem]
-      };
-      saveToStorage(newItems);
-      return newItems;
-    });
+    const savedGames = globalSavedItemsState.savedGames || [];
+    const exists = savedGames.find(g => g.id === gameItem.id);
+    const newItems = {
+      ...globalSavedItemsState,
+      savedGames: exists
+        ? savedGames.filter(g => g.id !== gameItem.id)
+        : [...savedGames, gameItem]
+    };
+    publishSavedItems(newItems);
+    saveToStorage(newItems);
   };
 
   const toggleSavedDrink = (item: SavedItem | { id: string; name: string; subtitle?: string; image?: string }) => {
     const drinkItem: SavedItem = { ...item, type: 'drink' };
-    setSavedItems(prev => {
-      const savedDrinks = prev.savedDrinks || [];
-      const exists = savedDrinks.find(d => d.id === drinkItem.id);
-      const newItems = {
-        ...prev,
-        savedDrinks: exists
-          ? savedDrinks.filter(d => d.id !== drinkItem.id)
-          : [...savedDrinks, drinkItem]
-      };
-      saveToStorage(newItems);
-      return newItems;
-    });
+    const savedDrinks = globalSavedItemsState.savedDrinks || [];
+    const exists = savedDrinks.find(d => d.id === drinkItem.id);
+    const newItems = {
+      ...globalSavedItemsState,
+      savedDrinks: exists
+        ? savedDrinks.filter(d => d.id !== drinkItem.id)
+        : [...savedDrinks, drinkItem]
+    };
+    publishSavedItems(newItems);
+    saveToStorage(newItems);
   };
 
   // Helper functions to check if items are saved
@@ -281,6 +274,8 @@ export function useSavedItems() {
     isVaultItemSaved,
     isGameSaved,
     isDrinkSaved,
+    savedCocktailCount: savedItems.savedCocktails?.length || 0,
+    canSaveMoreCocktails: tier !== 'FREE' || (savedItems.savedCocktails?.length || 0) < FREE_RECIPE_LIMIT,
     clearStorage, // For debugging
   };
 }

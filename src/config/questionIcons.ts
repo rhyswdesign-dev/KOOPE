@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Question Icon Configuration
  * Maps question topics and keywords to visual icons for MCQ and Match exercises

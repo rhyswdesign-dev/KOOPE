@@ -78,7 +78,7 @@ export const CheckboxExercise: React.FC<CheckboxExerciseProps> = ({ item, onResu
         correct: isCorrect,
         msToAnswer
       });
-    }, 800);
+    }, 280);
   };
 
   const isOptionSelected = (option: string) => selectedOptions.includes(option);

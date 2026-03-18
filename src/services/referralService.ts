@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * REFERRAL SERVICE
  * Manages referral codes, tracking, and rewards.

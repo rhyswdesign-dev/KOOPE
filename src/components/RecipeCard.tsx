@@ -7,11 +7,12 @@ import {
   StyleSheet,
   Pressable,
 } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, radii } from '../theme/tokens';
 import { getCocktailImage } from '../../assets/images/cocktails';
 import { Heading } from './ui';
+import { withHaptic } from '../lib/haptics';
 
 interface RecipeCardProps {
   recipe: {
@@ -21,7 +22,7 @@ interface RecipeCardProps {
     subtitle?: string;
     description?: string;
     category?: string;
-    image: string | number; // string for URI, number for require()
+    image?: string | number; // string for URI, number for require()
     difficulty?: string;
     time?: string;
     rating?: number;
@@ -89,22 +90,24 @@ const RecipeCard = React.memo(({
 
   // GLOBAL IMAGE RESOLVER: Always use local images if available
   const resolvedImage = useMemo(() => {
+    const fallbackImage = 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=240&h=160&fit=crop';
+    if (!recipe.image) return fallbackImage;
     if (typeof recipe.image === 'string') {
-      return getCocktailImage(recipe.id, recipe.image);
+      return getCocktailImage(recipe.id, recipe.image) || fallbackImage;
     }
-    return recipe.image;
+    return recipe.image || fallbackImage;
   }, [recipe.id, recipe.image]);
 
   return (
     <Animated.View style={[animatedStyle, style]}>
       <Pressable
         style={styles.verticalCard}
-        onPress={() => onPress(recipe)}
+        onPress={withHaptic(() => onPress(recipe), 'selection')}
         onPressIn={() => {
-          scale.value = withSpring(0.95, { damping: 15, stiffness: 300 });
+          scale.value = withTiming(0.985, { duration: 120, easing: Easing.out(Easing.quad) });
         }}
         onPressOut={() => {
-          scale.value = withSpring(1, { damping: 15, stiffness: 300 });
+          scale.value = withTiming(1, { duration: 160, easing: Easing.out(Easing.quad) });
         }}
       >
         <Image
@@ -132,10 +135,10 @@ const RecipeCard = React.memo(({
             <TouchableOpacity
               style={styles.shoppingCartButton}
               activeOpacity={0.7}
-              onPress={(e) => {
+              onPress={withHaptic((e) => {
                 e.stopPropagation();
                 onAddToCart(recipe);
-              }}
+              }, 'selection')}
             >
               <Ionicons
                 name="basket"
@@ -150,10 +153,10 @@ const RecipeCard = React.memo(({
             <TouchableOpacity
               style={styles.deleteButton}
               activeOpacity={0.7}
-              onPress={(e) => {
+              onPress={withHaptic((e) => {
                 e.stopPropagation();
                 onDelete(recipe);
-              }}
+              }, 'selection')}
             >
               <Ionicons name="trash-outline" size={18} color={colors.white} />
             </TouchableOpacity>
@@ -164,10 +167,10 @@ const RecipeCard = React.memo(({
             <TouchableOpacity
               style={styles.saveButton}
               activeOpacity={0.7}
-              onPress={(e) => {
+              onPress={withHaptic((e) => {
                 e.stopPropagation();
                 onSave(recipe);
-              }}
+              }, 'selection')}
             >
               <Ionicons
                 name={isSaved ? "bookmark" : "bookmark-outline"}

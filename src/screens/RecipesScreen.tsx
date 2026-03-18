@@ -25,7 +25,7 @@ import SectionHeader from '../components/SectionHeader';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/RootNavigator';
-import { useSavedItems } from '../hooks/useSavedItems';
+import { FREE_RECIPE_LIMIT, useSavedItems } from '../hooks/useSavedItems';
 import { recipeService } from '../lib/supabaseData';
 import { useAuth } from '../contexts/AuthContext';
 import GroceryListModal from '../components/GroceryListModal';
@@ -64,6 +64,10 @@ import { getCocktailsOfTheWeek } from '../utils/weeklyRotation';
 import MainPageHeader from '../components/ui/MainPageHeader';
 import { cocktailVariations } from '../config/vaultContent';
 import { getVaultVariationThumbnail } from '../data/vaultImages';
+import { useScrollHaptic, withHaptic } from '../lib/haptics';
+import { ingredientListToSearchText } from '../utils/ingredientFormatting';
+import { curriculumData } from '../utils/curriculumAdapter';
+import { getCurriculumUnlockForRecipeId } from '../config/unlockContent';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 const { width } = Dimensions.get('window');
@@ -574,10 +578,10 @@ const sampleRecipes = [
     ice: 'Crushed',
     method: 'Build',
     ingredients: [
-      { name: 'Fresh Lime Juice', note: '0.75 oz freshly squeezed' },
-      { name: 'Simple Syrup', note: '0.5 oz' },
+      { name: 'Fresh Lime Juice', note: '3/4 oz freshly squeezed' },
+      { name: 'Simple Syrup', note: '1/2 oz' },
       { name: 'Fresh Mint Leaves', note: '8-10 leaves' },
-      { name: 'Non-Alcoholic Rum', note: '1.5 oz (optional)' },
+      { name: 'Non-Alcoholic Rum', note: '1 1/2 oz (optional)' },
       { name: 'Soda Water', note: 'top' },
     ],
     garnish: 'Mint bouquet + lime wheel',
@@ -650,7 +654,7 @@ const sampleRecipes = [
     ingredients: [
       { name: 'Seedlip Garden 108', note: '2 oz' },
       { name: 'Elderflower Tonic or Sparkling Water', note: '3 oz' },
-      { name: 'Fresh Lemon Juice', note: '0.5 oz' },
+      { name: 'Fresh Lemon Juice', note: '1/2 oz' },
       { name: 'Rosemary Sprig', note: 'for garnish' },
       { name: 'Grapefruit Twist', note: 'for garnish' },
     ],
@@ -686,8 +690,8 @@ const sampleRecipes = [
     method: 'Shake',
     ingredients: [
       { name: 'Seedlip Garden 108', note: '2 oz' },
-      { name: 'Fresh Lime Juice', note: '0.75 oz' },
-      { name: 'Simple Syrup', note: '0.5 oz' },
+      { name: 'Fresh Lime Juice', note: '3/4 oz' },
+      { name: 'Simple Syrup', note: '1/2 oz' },
       { name: 'Cucumber Wheel', note: 'for garnish' },
       { name: 'Fresh Basil Leaf', note: 'for garnish' },
     ],
@@ -723,7 +727,7 @@ const sampleRecipes = [
     method: 'Stir',
     ingredients: [
       { name: 'Lyre\'s American Malt', note: '2 oz' },
-      { name: 'Maple Syrup', note: '0.25 oz (or 1 sugar cube)' },
+      { name: 'Maple Syrup', note: '1/4 oz (or 1 sugar cube)' },
       { name: 'Angostura Bitters', note: '2 dashes' },
       { name: 'Orange Bitters', note: '1 dash' },
       { name: 'Orange Peel', note: 'for garnish' },
@@ -794,9 +798,9 @@ const sampleRecipes = [
     method: 'Shake',
     ingredients: [
       { name: 'Lyre\'s American Malt', note: '2 oz' },
-      { name: 'Fresh Lemon Juice', note: '0.75 oz' },
-      { name: 'Maple Syrup', note: '0.5 oz' },
-      { name: 'Egg White', note: '1 (or 0.5 oz aquafaba for vegan)' },
+      { name: 'Fresh Lemon Juice', note: '3/4 oz' },
+      { name: 'Maple Syrup', note: '1/2 oz' },
+      { name: 'Egg White', note: '1 (or 1/2 oz aquafaba for vegan)' },
       { name: 'Angostura Bitters', note: '3 drops for garnish' },
     ],
     garnish: 'Angostura bitters (3-drop pattern on foam)',
@@ -900,8 +904,8 @@ const sampleRecipes = [
     method: 'Build',
     ingredients: [
       { name: 'GT\'s Gingerade Kombucha', note: '6 oz' },
-      { name: 'Fresh Lime Juice', note: '0.5 oz' },
-      { name: 'Agave Syrup', note: '0.25 oz (optional, to taste)' },
+      { name: 'Fresh Lime Juice', note: '1/2 oz' },
+      { name: 'Agave Syrup', note: '1/4 oz (optional, to taste)' },
       { name: 'Fresh Mint Sprig', note: 'for garnish' },
       { name: 'Candied Ginger', note: 'for garnish' },
       { name: 'Lime Wheel', note: 'for garnish' },
@@ -936,7 +940,7 @@ const sampleRecipes = [
     ice: 'Cubed',
     method: 'Build',
     ingredients: [
-      { name: 'Non-Alcoholic Gin', note: '1.5 oz' },
+      { name: 'Non-Alcoholic Gin', note: '1 1/2 oz' },
       { name: 'Chamomile Tea', note: '3 oz (strong, chilled)' },
       { name: 'Soda Water', note: '2 oz' },
       { name: 'Edible Flower', note: 'for garnish' },
@@ -972,8 +976,8 @@ const sampleRecipes = [
     ice: 'Cubed',
     method: 'Build',
     ingredients: [
-      { name: 'Hemp Syrup', note: '0.5 oz' },
-      { name: 'Fresh Lemon Juice', note: '0.75 oz' },
+      { name: 'Hemp Syrup', note: '1/2 oz' },
+      { name: 'Fresh Lemon Juice', note: '3/4 oz' },
       { name: 'Soda Water', note: '4 oz' },
       { name: 'Lemon Wheel', note: 'for garnish' },
     ],
@@ -1042,8 +1046,8 @@ const sampleRecipes = [
     ice: 'Stirred',
     method: 'Stir',
     ingredients: [
-      { name: 'Ritual Gin Alternative', note: '2.5 oz' },
-      { name: 'Dry Vermouth', note: '0.5 oz' },
+      { name: 'Ritual Gin Alternative', note: '2 1/2 oz' },
+      { name: 'Dry Vermouth', note: '1/2 oz' },
       { name: 'Orange Bitters', note: '2 dashes' },
       { name: 'Lemon Twist', note: 'for garnish' },
     ],
@@ -1079,8 +1083,8 @@ const sampleRecipes = [
     method: 'Stir',
     ingredients: [
       { name: 'Wilderton Earthen', note: '2 oz' },
-      { name: 'Honey Syrup', note: '0.5 oz (2:1 honey to water)' },
-      { name: 'Fresh Lemon Juice', note: '0.5 oz' },
+      { name: 'Honey Syrup', note: '1/2 oz (2:1 honey to water)' },
+      { name: 'Fresh Lemon Juice', note: '1/2 oz' },
       { name: 'Sage Leaf', note: 'for garnish' },
       { name: 'Dried Lavender', note: 'pinch for garnish' },
     ],
@@ -1115,7 +1119,7 @@ const sampleRecipes = [
     method: 'Build',
     ingredients: [
       { name: 'Cold Brew Coffee', note: '2 oz' },
-      { name: 'Vanilla Syrup', note: '0.25 oz' },
+      { name: 'Vanilla Syrup', note: '1/4 oz' },
       { name: 'Soda Water', note: '3 oz' },
       { name: 'Coffee Beans', note: 'for garnish' },
       { name: 'Orange Peel', note: 'for garnish (optional)' },
@@ -1151,8 +1155,8 @@ const sampleRecipes = [
     method: 'Shake',
     ingredients: [
       { name: 'Cold Brew Coffee', note: '2 oz' },
-      { name: 'Coffee Syrup', note: '0.75 oz' },
-      { name: 'Aquafaba', note: '0.75 oz (chickpea liquid)' },
+      { name: 'Coffee Syrup', note: '3/4 oz' },
+      { name: 'Aquafaba', note: '3/4 oz (chickpea liquid)' },
       { name: 'Coffee Beans', note: '3 for garnish' },
     ],
     garnish: 'Three coffee beans',
@@ -1220,7 +1224,7 @@ const sampleRecipes = [
     method: 'Build',
     ingredients: [
       { name: 'Seedlip Spice 94', note: '2 oz' },
-      { name: 'Fresh Lime Juice', note: '0.5 oz' },
+      { name: 'Fresh Lime Juice', note: '1/2 oz' },
       { name: 'Ginger Beer', note: '4-5 oz (top)' },
       { name: 'Lime Wheel', note: 'for garnish' },
       { name: 'Candied Ginger', note: 'for garnish' },
@@ -1256,8 +1260,8 @@ const sampleRecipes = [
     method: 'Shake',
     ingredients: [
       { name: 'Spiced Botanical Tea', note: '2 oz (clove, cinnamon, cardamom, chilled)' },
-      { name: 'Honey Syrup', note: '0.5 oz' },
-      { name: 'Lemon Juice', note: '0.75 oz' },
+      { name: 'Honey Syrup', note: '1/2 oz' },
+      { name: 'Lemon Juice', note: '3/4 oz' },
       { name: 'Star Anise', note: 'for garnish' },
       { name: 'Cinnamon Stick', note: 'for garnish (alternative)' },
     ],
@@ -1327,7 +1331,7 @@ const sampleRecipes = [
     ingredients: [
       { name: 'Lyre\'s Italian Orange', note: '2 oz' },
       { name: 'Fresh Grapefruit Juice', note: '1 oz' },
-      { name: 'Honey Syrup', note: '0.5 oz' },
+      { name: 'Honey Syrup', note: '1/2 oz' },
       { name: 'Sparkling Water', note: 'top' },
       { name: 'Grapefruit Twist', note: 'for garnish' },
     ],
@@ -1397,7 +1401,7 @@ const sampleRecipes = [
     method: 'Build',
     ingredients: [
       { name: 'Ginger Kombucha', note: '4 oz' },
-      { name: 'Fresh Lemon Juice', note: '0.5 oz' },
+      { name: 'Fresh Lemon Juice', note: '1/2 oz' },
       { name: 'Lemon Wheel', note: 'for garnish' },
       { name: 'Ginger Slice', note: 'for garnish' },
     ],
@@ -1468,7 +1472,7 @@ const sampleRecipes = [
     ingredients: [
       { name: 'Oat Milk', note: '6 oz' },
       { name: 'Turmeric Blend', note: '0.5 tsp' },
-      { name: 'Honey', note: '0.5 oz' },
+      { name: 'Honey', note: '1/2 oz' },
       { name: 'Cinnamon Dust', note: 'for garnish' },
     ],
     garnish: 'Cinnamon dust',
@@ -1527,8 +1531,8 @@ function MoodCard({ title, image, subtitle, onPress, index = 0 }: { title: strin
   const w = Math.min(0.78 * width, 300);
   const h = Math.round(w * 0.66);
   return (
-    <Animated.View entering={FadeInRight.delay(index * 100).duration(500).springify()}>
-      <Pressable onPress={onPress} style={{ width: w, marginRight: spacing(1.25) }}>
+    <Animated.View entering={FadeInRight.delay(index * 100).duration(500)}>
+      <Pressable onPress={onPress ? withHaptic(onPress) : undefined} style={{ width: w, marginRight: spacing(1.25) }}>
         <Image source={{ uri: image }} style={{ width: '100%', height: h, borderRadius: radii.lg }} />
         <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
           <Text style={{ color: colors.text, fontWeight: '900', fontSize: 18 }}>{title}</Text>
@@ -1550,7 +1554,7 @@ function HeroCard({ cocktail, onPress }: { cocktail: typeof COCKTAIL_OF_THE_WEEK
 
   return (
     <Animated.View entering={FadeIn.duration(600)} style={{ marginHorizontal: spacing(2), borderRadius: radii.xl, overflow: 'hidden', backgroundColor: colors.card, marginBottom: spacing(1.5) }}>
-      <Pressable onPress={onPress} style={{ width: cardW, height: cardH }}>
+      <Pressable onPress={withHaptic(onPress)} style={{ width: cardW, height: cardH }}>
         <Image
           source={typeof resolvedImage === 'string' ? { uri: resolvedImage } : resolvedImage}
           style={{ width: '100%', height: '100%' }}
@@ -1574,11 +1578,12 @@ function HeroCard({ cocktail, onPress }: { cocktail: typeof COCKTAIL_OF_THE_WEEK
 
 export default function RecipesScreen() {
   const navigation = useNavigation<Nav>();
-  const { savedItems, toggleSavedCocktail, isCocktailSaved } = useSavedItems();
+  const { savedItems, toggleSavedCocktail, isCocktailSaved, savedCocktailCount, canSaveMoreCocktails } = useSavedItems();
   const { credits, isPremium, getActionCost } = useAICredits();
   const { getPersonalizedMoodOrder, getFeaturedCocktails, scoreMoodCategory, recordInteraction, profile } = usePersonalization();
   const { recipes: userRecipes, loadRecipes } = useUserRecipes();
   const { toast, showToast, hideToast } = useToast();
+  const onScrollHaptic = useScrollHaptic('selection', 800);
 
   // Tier-based access control
   const tier = useUserTier((state) => state.tier);
@@ -1632,7 +1637,8 @@ export default function RecipesScreen() {
     sortOrder: 'alphabetical-asc',
   });
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const [showFilterModal, setShowFilterModal] = useState(false);
+  const [showBasicFilterModal, setShowBasicFilterModal] = useState(false);
+  const [showAdvancedFilterModal, setShowAdvancedFilterModal] = useState(false);
   const [showSearchInput, setShowSearchInput] = useState(false);
   const [showOnlyUnlocked, setShowOnlyUnlocked] = useState(false);
   const [browseQuickFilter, setBrowseQuickFilter] = useState<'all' | 'variations'>('all');
@@ -1723,7 +1729,7 @@ export default function RecipesScreen() {
     },
     var_nitro_espresso_martini: {
       time: '7 min',
-      ingredients: ['1.5 oz vodka', '1 oz fresh espresso', '3/4 oz coffee liqueur', '1/4 oz simple syrup', 'Nitro charger system'],
+      ingredients: ['1 1/2 oz vodka', '1 oz fresh espresso', '3/4 oz coffee liqueur', '1/4 oz simple syrup', 'Nitro charger system'],
       instructions: ['Shake ingredients hard with ice.', 'Fine strain into nitro vessel and charge.', 'Dispense into chilled coupe.', 'Finish with espresso crema and coffee bean garnish.'],
     },
     var_oleo_saccharum_daiquiri: {
@@ -1743,7 +1749,7 @@ export default function RecipesScreen() {
     },
     var_fermented_pineapple_margarita: {
       time: '7 min',
-      ingredients: ['1.5 oz tequila', '1/2 oz mezcal', '3/4 oz lime juice', '3/4 oz fermented pineapple syrup', 'Pinch of salt'],
+      ingredients: ['1 1/2 oz tequila', '1/2 oz mezcal', '3/4 oz lime juice', '3/4 oz fermented pineapple syrup', 'Pinch of salt'],
       instructions: ['Shake all ingredients with ice.', 'Double strain over fresh ice.', 'Add pinch of salt to sharpen fruit.', 'Garnish with pineapple leaf or lime wheel.'],
     },
     var_winter_spiced_negroni: {
@@ -1847,8 +1853,11 @@ export default function RecipesScreen() {
   const handleSaveRecipe = useCallback((cocktail: any) => {
     const wasSaved = isCocktailSaved(cocktail.id);
 
-    // T3: Gate save attempts for free users (unsaving is always allowed)
-    if (!wasSaved && !saveGate('T3')) return;
+    // Soft cap: FREE can save first 5 cocktails, 6th save triggers T3 paywall.
+    if (!wasSaved && !canSaveMoreCocktails) {
+      saveGate('T3');
+      return;
+    }
 
     const cocktailData = {
       id: cocktail.id,
@@ -1856,17 +1865,43 @@ export default function RecipesScreen() {
       subtitle: cocktail.description || cocktail.subtitle || '',
       image: getCocktailImage(cocktail.id, cocktail.image),
     };
-    toggleSavedCocktail(cocktailData);
-    showToast(
-      wasSaved ? 'Removed from saved' : 'Saved!',
-      'success'
-    );
-  }, [toggleSavedCocktail, isCocktailSaved, showToast, saveGate]);
+    const result = toggleSavedCocktail(cocktailData);
+    if (result === 'limit_reached') {
+      saveGate('T3');
+      return;
+    }
+    showToast(wasSaved ? 'Removed from saved' : 'Saved!', 'success');
+  }, [toggleSavedCocktail, isCocktailSaved, showToast, saveGate, canSaveMoreCocktails]);
 
   const handleAddToGroceryList = useCallback((cocktail: any) => {
     setSelectedRecipe(cocktail);
     setGroceryListVisible(true);
   }, []);
+
+  const isRecipeVisibleInSearch = useCallback((recipe: any) => {
+    return true;
+  }, []);
+
+  const getRecipeUnlockHint = useCallback((recipe: any) => {
+    if (!recipe?.id) return 'Unlock to view the full recipe';
+
+    if (recipe.isVaultVariation) {
+      return 'Unlock in Vault';
+    }
+
+    const curriculumUnlock = getCurriculumUnlockForRecipeId(recipe.id);
+    if (curriculumUnlock) {
+      const lesson = curriculumData.lessons.find((entry) => entry.id === curriculumUnlock.lessonId);
+      return lesson ? `Unlock in ${lesson.title}` : `Unlock in ${curriculumUnlock.lessonId}`;
+    }
+
+    const xpCost = getCocktailCost(recipe.id);
+    if (xpCost > 0) {
+      return `Unlock with ${xpCost} XP or KOOPE+`;
+    }
+
+    return 'Unlock with KOOPE+';
+  }, [getCocktailCost]);
 
   // Get saved recipe IDs for ForYouFeed (as a Set for efficient lookup)
   const savedRecipeIds = useMemo(() => {
@@ -1908,19 +1943,7 @@ export default function RecipesScreen() {
             })
             .filter(Boolean)
             .filter(recipe => recipe.category?.toLowerCase() !== 'syrups')
-            .filter(recipe => {
-              const isUnlockedVariation = unlockedVaultItems?.includes(recipe.id);
-              if (isUnlockedVariation) return true;
-              // Filter by tier access for FREE users
-              if (tier === 'FREE') {
-                const isTierAccessible = isCocktailAccessible(recipe.id, tier);
-                const isXPUnlocked = isCocktailUnlockedWithXP(recipe.id);
-                const isEngagementUnlocked = isRecipeUnlockedWithEngagement(recipe.id);
-                return isTierAccessible || isXPUnlocked || isEngagementUnlocked;
-              }
-              // PLUS and PRO users can see all results
-              return true;
-            });
+            .filter(isRecipeVisibleInSearch);
 
           setSearchResults(recipeResults);
         } catch (searchError) {
@@ -1928,19 +1951,9 @@ export default function RecipesScreen() {
           // Fallback: Direct string matching
           const queryLower = query.toLowerCase();
           const directResults = DISCOVER_COCKTAILS.filter(cocktail => {
-            const searchText = `${cocktail.name} ${cocktail.subtitle || ''} ${cocktail.description || ''} ${(cocktail.ingredients || []).join(' ')}`.toLowerCase();
+            const searchText = `${cocktail.name} ${cocktail.subtitle || ''} ${cocktail.description || ''} ${ingredientListToSearchText(cocktail.ingredients || [])}`.toLowerCase();
             if (!searchText.includes(queryLower)) return false;
-
-            const isUnlockedVariation = unlockedVaultItems?.includes(cocktail.id);
-            if (isUnlockedVariation) return true;
-            // Filter by tier access for FREE users
-            if (tier === 'FREE') {
-              const isTierAccessible = isCocktailAccessible(cocktail.id, tier);
-              const isXPUnlocked = isCocktailUnlockedWithXP(cocktail.id);
-              const isEngagementUnlocked = isRecipeUnlockedWithEngagement(cocktail.id);
-              return isTierAccessible || isXPUnlocked || isEngagementUnlocked;
-            }
-            return true;
+            return isRecipeVisibleInSearch(cocktail);
           });
           setSearchResults(directResults);
         }
@@ -1951,7 +1964,7 @@ export default function RecipesScreen() {
         setIsSearching(false);
       }
     }, 300); // 300ms debounce
-  }, [currentFilters, DISCOVER_COCKTAILS, unlockedVaultItems, tier, isCocktailUnlockedWithXP, isRecipeUnlockedWithEngagement]);
+  }, [currentFilters, DISCOVER_COCKTAILS, isRecipeVisibleInSearch]);
 
   // Cleanup search timeout on unmount
   useEffect(() => {
@@ -2034,6 +2047,12 @@ export default function RecipesScreen() {
 
   // Get current displayed recipes
   const getCurrentRecipes = () => {
+    const toFilterArray = (value?: string[] | string): string[] => {
+      if (Array.isArray(value)) return value.filter(Boolean);
+      if (typeof value === 'string' && value.trim()) return [value.trim()];
+      return [];
+    };
+
     if (searchQuery.trim()) {
       return searchResults;
     }
@@ -2042,10 +2061,10 @@ export default function RecipesScreen() {
     let recipes = [...DISCOVER_COCKTAILS];
 
     // Filter by ingredients/spirits
-    const selectedIngredients = currentFilters.ingredients ?? [];
+    const selectedIngredients = toFilterArray(currentFilters.ingredients);
     if (selectedIngredients.length > 0) {
       recipes = recipes.filter(recipe => {
-        const recipeText = `${recipe.name} ${recipe.subtitle || ''} ${recipe.description || ''} ${(recipe.ingredients || []).join(' ')}`.toLowerCase();
+        const recipeText = `${recipe.name} ${recipe.subtitle || ''} ${recipe.description || ''} ${ingredientListToSearchText(recipe.ingredients || [])}`.toLowerCase();
         return selectedIngredients.some(ingredient =>
           recipeText.includes(ingredient.toLowerCase())
         );
@@ -2053,7 +2072,7 @@ export default function RecipesScreen() {
     }
 
     // Filter by difficulty
-    const selectedDifficulties = currentFilters.difficulty ?? [];
+    const selectedDifficulties = toFilterArray(currentFilters.difficulty ?? currentFilters.difficulties);
     if (selectedDifficulties.length > 0) {
       recipes = recipes.filter(recipe => {
         const recipeDifficulty = recipe.difficulty?.toLowerCase();
@@ -2062,7 +2081,7 @@ export default function RecipesScreen() {
     }
 
     // Filter by category
-    const selectedCategories = currentFilters.category ?? [];
+    const selectedCategories = toFilterArray(currentFilters.category ?? currentFilters.categories);
     if (selectedCategories.length > 0) {
       recipes = recipes.filter(recipe => {
         const recipeCategory = recipe.category?.toLowerCase();
@@ -2087,7 +2106,7 @@ export default function RecipesScreen() {
     }
 
     // Filter by mood
-    const selectedMoods = currentFilters.mood ?? [];
+    const selectedMoods = toFilterArray(currentFilters.mood);
     if (selectedMoods.length > 0) {
       recipes = recipes.filter(recipe => {
         // Find which moods this recipe belongs to
@@ -2140,7 +2159,7 @@ export default function RecipesScreen() {
     const isUnlockedVariation = unlockedVaultItems?.includes(item.id);
     const isAccessible = isUnlockedVariation || isTierAccessible || isXPUnlocked || isEngagementUnlocked;
 
-    // If locked, show LockedRecipeCard with thumbnail only (no name) and XP unlock option
+    // If locked, show LockedRecipeCard with unlock context
     if (!isAccessible) {
       const xpCost = getCocktailCost(item.id);
       const canAfford = canAffordCocktail(item.id);
@@ -2152,13 +2171,15 @@ export default function RecipesScreen() {
       };
 
       return (
-        <Animated.View entering={FadeInDown.delay((index || 0) * 80).duration(500).springify()}>
+        <Animated.View entering={FadeInDown.delay((index || 0) * 80).duration(500)}>
           <LockedRecipeCard
             image={typeof item.image === 'string' ? { uri: item.image } : item.image}
             onPress={handleUpgradePress}
             style={{ width: (width - spacing(2) * 2 - GUTTER) / 2, marginBottom: spacing(2) }}
             xpCost={tier === 'FREE' ? xpCost : undefined} // Only show XP for FREE tier
             canAfford={canAfford}
+            title={searchQuery.trim() ? (item.name || item.title) : undefined}
+            subtitle={searchQuery.trim() ? getRecipeUnlockHint(item) : undefined}
           />
         </Animated.View>
       );
@@ -2177,12 +2198,12 @@ export default function RecipesScreen() {
     });
     if (item.isVaultVariation) {
       cardProps.onPress = () => {
-        navigation.navigate('RecipeDetail', { recipe: item } as any);
+        navigation.navigate('CocktailDetail', { cocktailId: item.id, cocktail: item } as any);
       };
     }
 
     return (
-      <Animated.View entering={FadeInDown.delay((index || 0) * 80).duration(500).springify()}>
+      <Animated.View entering={FadeInDown.delay((index || 0) * 80).duration(500)}>
         <RecipeCard
           {...cardProps}
           style={{ width: (width - spacing(2) * 2 - GUTTER) / 2, marginBottom: spacing(2) }}
@@ -2194,10 +2215,15 @@ export default function RecipesScreen() {
   // Render empty state
   const renderEmptyState = () => {
     const currentRecipes = getCurrentRecipes() || [];
-    const hasFilters = (currentFilters.ingredients && currentFilters.ingredients.length > 0) ||
-      (currentFilters.difficulty && currentFilters.difficulty.length > 0) ||
-      (currentFilters.category && currentFilters.category.length > 0) ||
-      (currentFilters.mood && currentFilters.mood.length > 0);
+    const toFilterArray = (value?: string[] | string): string[] => {
+      if (Array.isArray(value)) return value.filter(Boolean);
+      if (typeof value === 'string' && value.trim()) return [value.trim()];
+      return [];
+    };
+    const hasFilters = toFilterArray(currentFilters.ingredients).length > 0 ||
+      toFilterArray(currentFilters.difficulty ?? currentFilters.difficulties).length > 0 ||
+      toFilterArray(currentFilters.category ?? currentFilters.categories).length > 0 ||
+      toFilterArray(currentFilters.mood).length > 0;
 
     if (searchQuery.trim()) {
       return (
@@ -2223,6 +2249,7 @@ export default function RecipesScreen() {
               ingredients: [],
               difficulty: [],
               category: [],
+              mood: [],
               sortOrder: 'alphabetical-asc',
             });
           }}
@@ -2260,6 +2287,13 @@ export default function RecipesScreen() {
       <MainPageHeader
         title="Discover"
         subtitle="Cocktails & recipes"
+        rightActions={[
+          {
+            icon: 'add',
+            onPress: () => navigation.navigate('AddRecipe'),
+            accessibilityLabel: 'Add new recipe',
+          },
+        ]}
       />
       <FlatList
         data={viewMode === 'browse' ? (getCurrentRecipes() || []) : []}
@@ -2267,6 +2301,7 @@ export default function RecipesScreen() {
         renderItem={renderRecipeItem}
         numColumns={2}
         showsVerticalScrollIndicator={false}
+        onScrollBeginDrag={onScrollHaptic}
         contentContainerStyle={{ paddingBottom: spacing(8), flexGrow: 1 }}
         refreshControl={
           <RefreshControl
@@ -2291,7 +2326,7 @@ export default function RecipesScreen() {
                 padding: 4,
               }}>
                 <Pressable
-                  onPress={() => setViewMode('browse')}
+                  onPress={withHaptic(() => setViewMode('browse'), 'selection')}
                   style={{
                     flex: 1,
                     paddingVertical: spacing(1),
@@ -2309,7 +2344,7 @@ export default function RecipesScreen() {
                   </Text>
                 </Pressable>
                 <Pressable
-                  onPress={() => predictiveEngineGate('T9', () => setViewMode('personalized'))}
+                  onPress={withHaptic(() => predictiveEngineGate('T9', () => setViewMode('personalized')), 'selection')}
                   style={{
                     flex: 1,
                     paddingVertical: spacing(1),
@@ -2341,7 +2376,7 @@ export default function RecipesScreen() {
                     <View style={{ marginTop: spacing(1) }}>
                       <HeroCard
                         cocktail={COCKTAIL_OF_THE_WEEK}
-                        onPress={() => navigation.navigate('CocktailDetail', { cocktailId: COCKTAIL_OF_THE_WEEK.id })}
+                        onPress={withHaptic(() => navigation.navigate('CocktailDetail', { cocktailId: COCKTAIL_OF_THE_WEEK.id }))}
                       />
                     </View>
 
@@ -2373,7 +2408,7 @@ export default function RecipesScreen() {
                           showDeleteButton: false,
                         });
                         return (
-                          <Animated.View key={shot.id} entering={FadeInRight.delay(index * 100).duration(500).springify()}>
+                          <Animated.View key={shot.id} entering={FadeInRight.delay(index * 100).duration(500)}>
                             <RecipeCard {...cardProps} style={{ width: 240, marginRight: 16 }} />
                           </Animated.View>
                         );
@@ -2407,7 +2442,7 @@ export default function RecipesScreen() {
                           showDeleteButton: false,
                         });
                         return (
-                          <Animated.View key={mocktail.id} entering={FadeInRight.delay(index * 100).duration(500).springify()}>
+                          <Animated.View key={mocktail.id} entering={FadeInRight.delay(index * 100).duration(500)}>
                             <RecipeCard {...cardProps} style={{ width: 240, marginRight: 16 }} />
                           </Animated.View>
                         );
@@ -2433,7 +2468,7 @@ export default function RecipesScreen() {
                         return (
                           <Animated.View
                             key={syrup.id}
-                            entering={FadeInRight.delay(index * 100).duration(500).springify()}
+                            entering={FadeInRight.delay(index * 100).duration(500)}
                             style={{ width: (width - spacing(2) * 2 - GUTTER) / 2, marginRight: 16 }}
                           >
                             <RecipeCard {...cardProps} />
@@ -2450,13 +2485,21 @@ export default function RecipesScreen() {
                     <ScrollView horizontal nestedScrollEnabled showsHorizontalScrollIndicator={false} style={{ paddingLeft: spacing(2), marginBottom: spacing(2) }}>
                       {userRecipes.length > 0 ? (
                         userRecipes.slice(0, 5).map((recipe, index) => {
+                          const firstAmount = recipe.ingredients?.[0]?.amount?.trim?.() || '';
+                          const amountLabel = firstAmount
+                            ? /\b(oz|ml|dash|dashes|tsp|tbsp|cl|cup|part|parts)\b/i.test(firstAmount)
+                              ? firstAmount
+                              : `${firstAmount} oz`
+                            : '';
                           // Convert UserRecipe to cocktail format for createRecipeCardProps
                           const cocktailData = {
                             id: recipe.id,
                             name: recipe.name,
-                            subtitle: recipe.type === 'ai_generated' ? 'AI Generated' : recipe.type === 'modified' ? 'Modified Recipe' : 'My Creation',
+                            subtitle: amountLabel
+                              ? `${amountLabel} • ${recipe.type === 'ai_generated' ? 'AI Generated' : recipe.type === 'modified' ? 'Modified Recipe' : 'My Creation'}`
+                              : recipe.type === 'ai_generated' ? 'AI Generated' : recipe.type === 'modified' ? 'Modified Recipe' : 'My Creation',
                             description: recipe.description || 'Custom recipe',
-                            image: recipe.image || 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=240&h=160&fit=crop',
+                            image: recipe.thumbnailImage || recipe.headerImage || recipe.image || 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=240&h=160&fit=crop',
                             tags: recipe.tags || [],
                           };
 
@@ -2471,13 +2514,13 @@ export default function RecipesScreen() {
                             showDeleteButton: false,
                           });
 
-                          // Override the onPress to navigate to RecipeDetail with user recipe data
+                          // Keep user-created recipes on the unified CocktailDetail template
                           cardProps.onPress = () => {
-                            navigation.navigate('RecipeDetail', { recipe });
+                            navigation.navigate('CocktailDetail', { cocktailId: recipe.id, cocktail: recipe } as any);
                           };
 
                           return (
-                            <Animated.View key={recipe.id} entering={FadeInRight.delay(index * 100).duration(500).springify()}>
+                            <Animated.View key={recipe.id} entering={FadeInRight.delay(index * 100).duration(500)}>
                               <RecipeCard {...cardProps} style={{ width: 240, marginRight: 16 }} />
                             </Animated.View>
                           );
@@ -2496,7 +2539,7 @@ export default function RecipesScreen() {
                             borderColor: colors.border,
                             borderStyle: 'dashed'
                           }}
-                          onPress={() => navigation.navigate('AddRecipe')}
+                          onPress={withHaptic(() => navigation.navigate('AddRecipe'))}
                         >
                           <Ionicons name="add-circle-outline" size={32} color={colors.muted} />
                           <Text style={{ color: colors.muted, marginTop: 8, textAlign: 'center' }}>
@@ -2555,7 +2598,7 @@ export default function RecipesScreen() {
                     contentContainerStyle={{ gap: spacing(1) }}
                   >
                     <Pressable
-                      onPress={() => setShowSearchInput(true)}
+                      onPress={withHaptic(() => setShowSearchInput(true), 'selection')}
                       style={{
                         flexDirection: 'row',
                         alignItems: 'center',
@@ -2578,7 +2621,7 @@ export default function RecipesScreen() {
                     </Pressable>
 
                     <Pressable
-                      onPress={() => advancedFilterGate('T2', () => setShowFilterModal(true))}
+                      onPress={withHaptic(() => setShowBasicFilterModal(true), 'selection')}
                       style={{
                         flexDirection: 'row',
                         alignItems: 'center',
@@ -2596,12 +2639,40 @@ export default function RecipesScreen() {
                         fontSize: 14,
                         fontWeight: '600'
                       }}>
-                        Filter
+                        Basic Filter
                       </Text>
                     </Pressable>
 
                     <Pressable
-                      onPress={() => setBrowseQuickFilter(prev => prev === 'variations' ? 'all' : 'variations')}
+                      onPress={withHaptic(() => advancedFilterGate('T2', () => setShowAdvancedFilterModal(true)), 'selection')}
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        backgroundColor: colors.bg,
+                        paddingHorizontal: spacing(2),
+                        paddingVertical: spacing(1),
+                        borderRadius: radii.pill,
+                        borderWidth: 1,
+                        borderColor: colors.line
+                      }}
+                    >
+                      <Ionicons
+                        name={tier === 'FREE' ? 'lock-closed' : 'options'}
+                        size={16}
+                        color={colors.accent}
+                        style={{ marginRight: spacing(0.5) }}
+                      />
+                      <Text style={{
+                        color: colors.text,
+                        fontSize: 14,
+                        fontWeight: '600'
+                      }}>
+                        Advanced
+                      </Text>
+                    </Pressable>
+
+                    <Pressable
+                      onPress={withHaptic(() => setBrowseQuickFilter(prev => prev === 'variations' ? 'all' : 'variations'), 'selection')}
                       style={{
                         flexDirection: 'row',
                         alignItems: 'center',
@@ -2630,7 +2701,7 @@ export default function RecipesScreen() {
 
                     {tier === 'FREE' && (
                       <Pressable
-                        onPress={() => setShowOnlyUnlocked(!showOnlyUnlocked)}
+                        onPress={withHaptic(() => setShowOnlyUnlocked(!showOnlyUnlocked), 'selection')}
                         style={{
                           flexDirection: 'row',
                           alignItems: 'center',
@@ -2657,13 +2728,42 @@ export default function RecipesScreen() {
                         </Text>
                       </Pressable>
                     )}
+
+                    {tier === 'FREE' && (
+                      <View
+                        style={{
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          backgroundColor: colors.bg,
+                          paddingHorizontal: spacing(2),
+                          paddingVertical: spacing(1),
+                          borderRadius: radii.pill,
+                          borderWidth: 1,
+                          borderColor: colors.line
+                        }}
+                      >
+                        <Ionicons
+                          name="bookmark-outline"
+                          size={16}
+                          color={colors.accent}
+                          style={{ marginRight: spacing(0.5) }}
+                        />
+                        <Text style={{
+                          color: colors.text,
+                          fontSize: 14,
+                          fontWeight: '600'
+                        }}>
+                          Saves {savedCocktailCount}/{FREE_RECIPE_LIMIT}
+                        </Text>
+                      </View>
+                    )}
                   </ScrollView>
                 )}
               </View>
             )}
 
-            {/* Filter Modal */}
-            <Modal visible={showFilterModal} transparent animationType="fade">
+            {/* Advanced Filter Modal */}
+            <Modal visible={showAdvancedFilterModal} transparent animationType="fade">
               <View style={{
                 flex: 1,
                 backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -2692,8 +2792,8 @@ export default function RecipesScreen() {
                       fontSize: 20,
                       fontWeight: '600',
                       color: colors.text
-                    }}>Filters</Text>
-                    <Pressable onPress={() => setShowFilterModal(false)}>
+                    }}>Advanced Filters</Text>
+                    <Pressable onPress={() => setShowAdvancedFilterModal(false)}>
                       <Ionicons name="close" size={24} color={colors.text} />
                     </Pressable>
                   </View>
@@ -2982,7 +3082,7 @@ export default function RecipesScreen() {
                         borderWidth: 1,
                         borderColor: colors.border
                       }}
-                      onPress={() => setCurrentFilters({})}
+                      onPress={() => setCurrentFilters({ sortOrder: 'alphabetical-asc' })}
                     >
                       <Text style={{
                         color: colors.text,
@@ -3000,7 +3100,7 @@ export default function RecipesScreen() {
                       alignItems: 'center',
                       marginTop: spacing(2)
                     }}
-                    onPress={() => setShowFilterModal(false)}
+                    onPress={() => setShowAdvancedFilterModal(false)}
                   >
                     <Text style={{
                       color: colors.white,
@@ -3050,11 +3150,11 @@ export default function RecipesScreen() {
 
       {/* Filter Modal */}
       <FilterModal
-        visible={showFilterModal}
-        onClose={() => setShowFilterModal(false)}
+        visible={showBasicFilterModal}
+        onClose={() => setShowBasicFilterModal(false)}
         filters={currentFilters}
         onApplyFilters={(filters) => {
-          setCurrentFilters(filters);
+          setCurrentFilters((prev) => ({ ...prev, ...filters }));
           // Re-trigger search with new filters if there's a query
           if (searchQuery.trim()) {
             handleSearch(searchQuery);
@@ -3335,6 +3435,7 @@ export default function RecipesScreen() {
           setSelectedCocktailForUnlock(null);
         }}
         cocktailName={selectedCocktailForUnlock?.name || 'This Cocktail'}
+        unlockHint={selectedCocktailForUnlock ? getRecipeUnlockHint(selectedCocktailForUnlock) : undefined}
         xpCost={selectedCocktailForUnlock ? getCocktailCost(selectedCocktailForUnlock.id) : 0}
         currentXP={xpBalance}
         canAfford={selectedCocktailForUnlock ? canAffordCocktail(selectedCocktailForUnlock.id) : false}

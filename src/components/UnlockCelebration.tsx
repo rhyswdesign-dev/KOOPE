@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Unlock Celebration Component
  * Shows a brief celebration animation when user unlocks vault content

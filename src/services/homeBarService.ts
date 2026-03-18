@@ -1,4 +1,5 @@
 import { log } from '../lib/logger';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export interface BarIngredient {
   id: string;
@@ -122,12 +123,15 @@ export class HomeBarService {
       const existingIngredients = await this.getStoredIngredients();
       const updatedIngredients = [...existingIngredients, ingredient];
 
-      const AsyncStorage = await import('@react-native-async-storage/async-storage');
-      await AsyncStorage.default.setItem(this.STORAGE_KEY, JSON.stringify(updatedIngredients));
+      await AsyncStorage.setItem(this.STORAGE_KEY, JSON.stringify(updatedIngredients));
 
       // Track achievement for adding to home bar
-      const { achievementService } = await import('./achievementService');
-      await achievementService.trackAction('homeBarIngredients', 1);
+      try {
+        const { achievementService } = require('./achievementService');
+        await achievementService.trackAction('homeBarIngredients', 1);
+      } catch {
+        // Achievement tracking should never block inventory writes.
+      }
     } catch (error) {
       log.error('HomeBarService', 'Failed to add ingredient to home bar', error);
       throw new Error('Failed to add ingredient to home bar');
@@ -139,8 +143,7 @@ export class HomeBarService {
    */
   static async getStoredIngredients(): Promise<BarIngredient[]> {
     try {
-      const AsyncStorage = await import('@react-native-async-storage/async-storage');
-      const stored = await AsyncStorage.default.getItem(this.STORAGE_KEY);
+      const stored = await AsyncStorage.getItem(this.STORAGE_KEY);
 
       if (!stored) return [];
 
@@ -161,10 +164,31 @@ export class HomeBarService {
    */
   static async clearStoredIngredients(): Promise<void> {
     try {
-      const AsyncStorage = await import('@react-native-async-storage/async-storage');
-      await AsyncStorage.default.removeItem(this.STORAGE_KEY);
+      await AsyncStorage.removeItem(this.STORAGE_KEY);
     } catch (error) {
       log.error('HomeBarService', 'Failed to clear stored ingredients', error);
+    }
+  }
+
+  /**
+   * Remove ingredient(s) from local home bar storage by name and optional category.
+   */
+  static async removeIngredientByName(name: string, category?: string): Promise<void> {
+    try {
+      const existingIngredients = await this.getStoredIngredients();
+      const targetName = name.trim().toLowerCase();
+      const targetCategory = category?.trim().toLowerCase();
+
+      const filtered = existingIngredients.filter((item) => {
+        const sameName = item.name.trim().toLowerCase() === targetName;
+        const sameCategory = !targetCategory || (item.category || '').toLowerCase() === targetCategory;
+        return !(sameName && sameCategory);
+      });
+
+      await AsyncStorage.setItem(this.STORAGE_KEY, JSON.stringify(filtered));
+    } catch (error) {
+      log.error('HomeBarService', 'Failed to remove ingredient from local storage', error);
+      throw new Error('Failed to remove ingredient from local storage');
     }
   }
 
@@ -173,8 +197,7 @@ export class HomeBarService {
    */
   static async loadComprehensiveMockInventory(): Promise<void> {
     try {
-      const AsyncStorage = await import('@react-native-async-storage/async-storage');
-      await AsyncStorage.default.setItem(this.STORAGE_KEY, JSON.stringify(COMPREHENSIVE_MOCK_INVENTORY));
+      await AsyncStorage.setItem(this.STORAGE_KEY, JSON.stringify(COMPREHENSIVE_MOCK_INVENTORY));
       log.info('HomeBarService', 'Comprehensive mock inventory loaded', { count: COMPREHENSIVE_MOCK_INVENTORY.length });
     } catch (error) {
       log.error('HomeBarService', 'Failed to load comprehensive mock inventory', error);

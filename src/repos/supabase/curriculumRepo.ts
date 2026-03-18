@@ -39,6 +39,8 @@ export interface Item {
   orderTarget?: string[];
   answerText?: string;
   acceptableAnswers?: string[];
+  validationMode?: 'exact' | 'contains' | 'keywords';
+  requiredKeywords?: string[];
   correct?: string[];
   pairs?: any;
   roleplay?: any;
@@ -50,6 +52,24 @@ export interface Item {
   createdAt: string;
   updatedAt: string;
 }
+
+const normalizeExerciseType = (value: unknown): string => {
+  const t = String(value || 'mcq').toLowerCase();
+  if (t === 'multiple_choice' || t === 'mcp' || t === 'roleplay') return 'mcq';
+  if (t === 'multi_select') return 'checkbox';
+  if (t === 'short_answer') return 'short';
+  if (t === 'ordering') return 'order';
+  if (t === 'matching') return 'match';
+  return t;
+};
+
+const fallbackPromptByType: Record<string, string> = {
+  mcq: 'Choose the best answer.',
+  checkbox: 'Select all correct options.',
+  order: 'Place the process in order.',
+  match: 'Match each item to the best pair.',
+  short: 'Enter your answer.',
+};
 
 export class CurriculumRepository {
   /**
@@ -180,18 +200,70 @@ export class CurriculumRepository {
    * Map database item
    */
   private static mapItemFromDatabase(data: any): Item {
+    const itemLabels = Array.isArray(data.items) ? data.items.map((v: unknown) => String(v)) : [];
+    const optionLabels = Array.isArray(data.options) ? data.options.map((v: unknown) => String(v)) : [];
+    const labelsPool = itemLabels.length > 0 ? itemLabels : optionLabels;
+    const orderTargetCandidates = [
+      data.order_target,
+      data.expected_order,
+      data.correct_order,
+      data.sequence,
+      data.correct,
+    ];
+    let normalizedOrderTarget: string[] = [];
+    for (const candidate of orderTargetCandidates) {
+      if (!Array.isArray(candidate) || candidate.length === 0) continue;
+
+      if (labelsPool.length > 0 && candidate.every((v: unknown) => typeof v === 'number' || /^\d+$/.test(String(v)))) {
+        const mapped = candidate
+          .map((v: unknown) => labelsPool[Number(v)])
+          .filter((v: unknown): v is string => typeof v === 'string' && v.length > 0);
+        if (mapped.length > 0) {
+          normalizedOrderTarget = mapped;
+          break;
+        }
+      }
+
+      const labels = candidate.map((v: unknown) => String(v)).filter(Boolean);
+      if (labels.length > 0 && labels.every((v) => /^\d+$/.test(v))) {
+        continue;
+      }
+      if (labels.length > 0) {
+        normalizedOrderTarget = labels;
+        break;
+      }
+    }
+    if (normalizedOrderTarget.length === 0 && labelsPool.length > 0) {
+      normalizedOrderTarget = labelsPool;
+    }
+
+    const normalizedType = normalizeExerciseType(data.type);
+    const resolvedPrompt = [data.prompt, data.question, data.stem]
+      .map((v) => (typeof v === 'string' ? v.trim() : ''))
+      .find((v) => v.length > 0) || fallbackPromptByType[normalizedType] || 'Answer the question.';
+    const normalizedAnswerIndex =
+      typeof data.answer_index === 'number'
+        ? data.answer_index
+        : typeof data.correct === 'number'
+          ? data.correct
+          : undefined;
+
     return {
       id: data.id,
-      type: data.type,
-      prompt: data.prompt,
+      type: normalizedType,
+      prompt: resolvedPrompt,
       options: data.options || [],
-      answerIndex: data.answer_index,
-      orderTarget: data.order_target || [],
+      answerIndex: normalizedAnswerIndex,
+      orderTarget: normalizedOrderTarget,
       answerText: data.answer_text,
       acceptableAnswers: data.acceptable_answers || [],
+      validationMode: data.validation_mode === 'exact' || data.validation_mode === 'contains' || data.validation_mode === 'keywords'
+        ? data.validation_mode
+        : undefined,
+      requiredKeywords: data.required_keywords || [],
       correct: data.correct || [],
       pairs: data.pairs,
-      roleplay: data.roleplay,
+      roleplay: data.roleplay || (String(data.type || '').toLowerCase() === 'roleplay' ? { mode: 'scenario' } : undefined),
       tags: data.tags || [],
       conceptId: data.concept_id,
       difficulty: data.difficulty ? parseFloat(data.difficulty) : undefined,

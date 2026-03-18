@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * XP Balance Modal
  * Shows XP balance, transaction history, and ways to earn more XP

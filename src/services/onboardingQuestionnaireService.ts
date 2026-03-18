@@ -18,6 +18,15 @@ export type AlcoholFree = 'yes' | 'no' | 'both';
 export type BudgetRange = 'budget' | 'mid' | 'premium' | 'luxury' | 'varies';
 export type BottleCountRange = 'none' | '1_5' | '6_15' | '16_30' | '30_plus';
 export type ComplexityPreference = 'simple' | 'moderate' | 'advanced' | 'variety';
+export type DiscoverySource =
+  | 'tiktok'
+  | 'instagram'
+  | 'youtube'
+  | 'friend'
+  | 'app_store'
+  | 'google'
+  | 'event'
+  | 'other';
 
 export type SpiritKey =
   | 'vodka'
@@ -54,6 +63,8 @@ export interface OnboardingQuestionnaireAnswers {
   currentBottleCount?: BottleCountRange;
   complexityPreference?: ComplexityPreference;
   thirtyDayGoal?: string;
+  heardAboutUs?: DiscoverySource;
+  appRating?: number;
 }
 
 export interface LearningProfile {
@@ -69,6 +80,8 @@ export interface LearningProfile {
   currentBottleCount?: BottleCountRange;
   complexityPreference?: ComplexityPreference;
   thirtyDayGoal?: string;
+  heardAboutUs?: DiscoverySource;
+  appRating?: number;
 }
 
 const SPIRIT_KEYS: SpiritKey[] = [
@@ -127,6 +140,8 @@ export function buildInitialLearningProfile(answers: OnboardingQuestionnaireAnsw
     currentBottleCount: answers.currentBottleCount,
     complexityPreference: answers.complexityPreference,
     thirtyDayGoal: answers.thirtyDayGoal,
+    heardAboutUs: answers.heardAboutUs,
+    appRating: answers.appRating,
   };
 }
 
@@ -195,6 +210,7 @@ export function getTrialHeadline(goal: OnboardingGoal): string {
 
 export function getTrialBenefits(goal: OnboardingGoal): string[] {
   const base = [
+    'Vault access',
     'Unlimited bottle inventory',
     'Smart inventory management',
     'Advanced cocktail filters',

@@ -4,13 +4,15 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Pressable, TouchableOpacity, Platform } from 'react-native';
+import { View, Text, StyleSheet, Pressable, TouchableOpacity, Platform, ScrollView } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Item } from '../../types/domain';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, radii } from '../../theme/tokens';
 import { LinearGradient } from 'expo-linear-gradient';
 import { log } from '../../lib/logger';
+
+const SLOT_TRACK_OFFSET = 32 + spacing(2);
 
 export type ExerciseCommonProps = {
   item: Item;
@@ -49,7 +51,13 @@ export default function OrderExercise({ item, onResult, disabled = false }: Exer
         const newSlots = [...slots];
         newSlots[emptySlotIndex] = itemText;
         setSlots(newSlots);
-        setAvailableItems(availableItems.filter(i => i !== itemText));
+        const removeIndex = availableItems.findIndex((i) => i === itemText);
+        if (removeIndex >= 0) {
+          setAvailableItems([
+            ...availableItems.slice(0, removeIndex),
+            ...availableItems.slice(removeIndex + 1),
+          ]);
+        }
       }
     } else if (fromSlotIndex !== undefined) {
       // Item clicked from a slot - return it to available pool
@@ -102,7 +110,7 @@ export default function OrderExercise({ item, onResult, disabled = false }: Exer
 
     setTimeout(() => {
       onResult({ correct: isCorrect, msToAnswer: timeToAnswer });
-    }, 800);
+    }, 280);
   };
 
   const arraysEqual = (a: string[], b: string[]): boolean => {
@@ -118,11 +126,22 @@ export default function OrderExercise({ item, onResult, disabled = false }: Exer
   }
 
   const allSlotsFilled = slots.every(slot => slot !== null);
+  const promptText = item.prompt?.trim() || 'Place the process in order.';
 
   return (
     <GestureHandlerRootView style={styles.gestureRoot}>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        bounces={false}
+        keyboardShouldPersistTaps="handled"
+      >
       <View style={styles.container}>
-        <Text style={styles.prompt}>{item.prompt}</Text>
+        <View style={styles.questionCard}>
+          <Text style={styles.questionLabel}>Question</Text>
+          <Text style={styles.prompt}>{promptText}</Text>
+        </View>
 
         {/* Ordered Slots */}
         <View style={styles.slotsSection}>
@@ -215,6 +234,7 @@ export default function OrderExercise({ item, onResult, disabled = false }: Exer
           </Pressable>
         )}
       </View>
+      </ScrollView>
     </GestureHandlerRootView>
   );
 }
@@ -222,18 +242,44 @@ export default function OrderExercise({ item, onResult, disabled = false }: Exer
 const styles = StyleSheet.create({
   gestureRoot: {
     width: '100%',
+    flex: 1,
+  },
+  scrollView: {
+    width: '100%',
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: spacing(4),
   },
   container: {
     width: '100%',
   },
+  questionCard: {
+    borderRadius: radii.lg,
+    paddingHorizontal: spacing(2),
+    paddingVertical: spacing(2),
+    marginBottom: spacing(2.5),
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  questionLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.gold,
+    textTransform: 'uppercase',
+    letterSpacing: 1.1,
+    textAlign: 'center',
+    marginBottom: spacing(1),
+  },
   prompt: {
-    fontSize: 24,
+    fontSize: 18,
     fontWeight: '400',
     fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
     color: colors.text,
     textAlign: 'center',
-    marginBottom: spacing(5),
-    lineHeight: 30,
+    lineHeight: 24,
+    paddingHorizontal: spacing(0.5),
   },
   sectionLabel: {
     fontSize: 14,
@@ -311,6 +357,8 @@ const styles = StyleSheet.create({
   },
   availableContainer: {
     gap: spacing(2),
+    // Align available item chips with the slot column.
+    marginLeft: SLOT_TRACK_OFFSET,
   },
   availableItem: {
     borderRadius: 30,

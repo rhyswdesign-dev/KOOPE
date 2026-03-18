@@ -4,9 +4,10 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Pressable, ScrollView, Alert, SafeAreaView, useWindowDimensions, Animated } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { CompositeNavigationProp, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/RootNavigator';
+import { LessonsStackParamList } from '../navigation/LessonsStack';
 import { colors, spacing, radii, serif } from '../theme/tokens';
 import { Heading, MainPageHeader } from '../components/ui';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -28,8 +29,73 @@ import { TOOLTIP_CONFIGS } from '../config/tooltipContent';
 import { useFeatureAccess } from '../hooks/useFeatureAccess';
 import { useAuth } from '../contexts/AuthContext';
 import { useUserTier } from '../store/useUserTier';
+import ContextBriefModal from '../components/lessons/ContextBriefModal';
+import { useLessonBriefPreferences } from '../store/useLessonBriefPreferences';
+import { getUnlocksForModule } from '../config/unlockContent';
 
-type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
+type NavigationProp = CompositeNavigationProp<
+  NativeStackNavigationProp<LessonsStackParamList, 'LessonsMain'>,
+  NativeStackNavigationProp<RootStackParamList>
+>;
+
+const MODULE_VISUALS: Record<string, { icon: keyof typeof Ionicons.glyphMap; tint: string; label: string; glow: string }> = {
+  'ch1-bartending-basics': {
+    icon: 'sparkles-outline',
+    tint: '#E2A14A',
+    label: 'Foundations',
+    glow: 'rgba(226, 161, 74, 0.18)',
+  },
+  'ch3-techniques-prep': {
+    icon: 'construct-outline',
+    tint: '#D87A5C',
+    label: 'Technique',
+    glow: 'rgba(216, 122, 92, 0.18)',
+  },
+  'ch5-classics-remix': {
+    icon: 'wine-outline',
+    tint: '#D6B06E',
+    label: 'Classics',
+    glow: 'rgba(214, 176, 110, 0.18)',
+  },
+  'ch6-flavor-logic': {
+    icon: 'color-palette-outline',
+    tint: '#E6C36A',
+    label: 'Flavor',
+    glow: 'rgba(230, 195, 106, 0.18)',
+  },
+  'ch5b-batching-punches': {
+    icon: 'people-outline',
+    tint: '#B99A64',
+    label: 'Hosting',
+    glow: 'rgba(185, 154, 100, 0.18)',
+  },
+  'ch7-mocktails-zero-proof': {
+    icon: 'leaf-outline',
+    tint: '#78B38A',
+    label: 'Zero-Proof',
+    glow: 'rgba(120, 179, 138, 0.18)',
+  },
+  'ch6-hosting-vibes': {
+    icon: 'earth-outline',
+    tint: '#87A9C6',
+    label: 'Culture',
+    glow: 'rgba(135, 169, 198, 0.18)',
+  },
+  'ch4-spirits-pairing': {
+    icon: 'flask-outline',
+    tint: '#C9A35F',
+    label: 'Mastery',
+    glow: 'rgba(201, 163, 95, 0.18)',
+  },
+};
+
+const getModuleVisual = (moduleId: string) =>
+  MODULE_VISUALS[moduleId] || {
+    icon: 'library-outline' as keyof typeof Ionicons.glyphMap,
+    tint: colors.accent,
+    label: 'Module',
+    glow: 'rgba(214, 138, 56, 0.16)',
+  };
 
 // Lazy evaluation - only compute when StyleSheet is created (after runtime ready)
 const getSerifFont = () => serif;
@@ -522,13 +588,64 @@ function LessonsView() {
   const { lives, completedLessons, checkLifeRefresh, completeLesson: completeUserLesson } = useUser();
   const tier = useUserTier((s) => s.tier);
   const { hasAccess: hasMasteryAccess, gateWithTrigger: masteryGate } = useFeatureAccess('mastery_lessons');
+  const { gateWithTrigger: lessonsGate, hasAccess: hasLessonsUnlimitedAccess } = useFeatureAccess('lessons_unlimited');
+  const {
+    seenModuleBriefs,
+    seenLessonBriefs,
+    alwaysSkipBriefs,
+    markModuleBriefSeen,
+    markLessonBriefSeen,
+  } = useLessonBriefPreferences();
   const ALWAYS_OPEN_MODULE_IDS = new Set(['ch7-mocktails-zero-proof']);
   const MASTERY_MODULE_IDS = new Set(['ch4-spirits-pairing']);
   const [modules, setModules] = useState<any[]>([]);
   const [selectedModule, setSelectedModule] = useState<any | null>(null);
   const [moduleLessons, setModuleLessons] = useState<any[]>([]);
+  const [briefTarget, setBriefTarget] = useState<
+    | { mode: 'module'; module: any }
+    | { mode: 'lesson'; lesson: any; module?: any }
+    | null
+  >(null);
   const isTipsLesson = (lesson: any): boolean => Array.isArray(lesson.tags) && lesson.tags.includes('tips_lesson');
   const hasPlayableContent = (lesson: any): boolean => isTipsLesson(lesson) || (lesson.itemIds?.length || 0) > 0;
+  const selectedModuleDeckPreview = selectedModule
+    ? getUnlocksForModule(selectedModule.id).find(
+        (unlock) => unlock.format === 'mini_deck' && unlock.status === 'ready' && unlock.assetSlug
+      )
+    : undefined;
+
+  const getModuleGate = (module: any) => {
+    if (module.requiredTier === 'PRO' || MASTERY_MODULE_IDS.has(module.id)) {
+      return {
+        locked: tier !== 'PRO',
+        label: 'PRO',
+        open: () => masteryGate('T10'),
+      };
+    }
+    if (module.requiredTier === 'PLUS') {
+      return {
+        locked: !hasLessonsUnlimitedAccess,
+        label: 'PLUS',
+        open: () => lessonsGate('T2'),
+      };
+    }
+    return {
+      locked: false,
+      label: null as string | null,
+      open: () => true,
+    };
+  };
+
+  const shouldShowModuleBrief = (module: any) =>
+    !alwaysSkipBriefs &&
+    !seenModuleBriefs.includes(module.id) &&
+    Boolean(module.brief || module.whyItMatters || module.contextBrief || module.unlockReward);
+
+  const shouldShowLessonBrief = (lesson: any) =>
+    !alwaysSkipBriefs &&
+    Boolean(lesson.showLessonBrief) &&
+    !seenLessonBriefs.includes(lesson.id) &&
+    Boolean(lesson.brief || lesson.contextBrief || lesson.practiceFocus || lesson.commonMistake);
 
   useEffect(() => {
     // Check for life refresh on screen load
@@ -554,23 +671,20 @@ function LessonsView() {
 
     const sortedModules = visibleModules.map((module) => ({
       ...module,
+      paywallLocked: getModuleGate(module).locked,
+      paywallLabel: getModuleGate(module).label,
       locked: ALWAYS_OPEN_MODULE_IDS.has(module.id)
         ? false
-        : (firstVisibleContentModuleId ? module.id !== firstVisibleContentModuleId : module.chapterIndex > 1),
+        : (
+          getModuleGate(module).locked ||
+          (firstVisibleContentModuleId ? module.id !== firstVisibleContentModuleId : module.chapterIndex > 1)
+        ),
     }));
 
     setModules(sortedModules);
-  }, [checkLifeRefresh, tier]);
+  }, [checkLifeRefresh, tier, hasLessonsUnlimitedAccess]);
 
-  const handleModulePress = (module: any) => {
-    if (module.locked) {
-      if (MASTERY_MODULE_IDS.has(module.id) && tier !== 'PRO') {
-        masteryGate('T10');
-      }
-      return;
-    }
-
-    // Load lessons for selected module
+  const openModule = (module: any) => {
     const lessons = curriculumData.lessons.filter(lesson => lesson.moduleId === module.id);
     const availableLessons = lessons.filter(lesson => hasPlayableContent(lesson));
     if (availableLessons.length === 0) {
@@ -579,6 +693,56 @@ function LessonsView() {
     }
     setSelectedModule(module);
     setModuleLessons(availableLessons);
+  };
+
+  const openLesson = (lesson: any) => {
+    const isMasteryLesson = MASTERY_MODULE_IDS.has(lesson.moduleId);
+    if (isMasteryLesson && tier !== 'PRO') {
+      masteryGate('T10');
+      return;
+    }
+
+    if (isTipsLesson(lesson)) {
+      const xpReward = Math.max(0, Number(lesson.xpReward ?? 40));
+      const canClaimXP = !completedLessons.includes(lesson.id);
+      Alert.alert(
+        lesson.title,
+        `${lesson.description || 'Review this lesson for practical tips and workflows.'}\n\nReward: +${xpReward} XP`,
+        [
+          { text: 'Close', style: 'cancel' },
+          ...(canClaimXP ? [{
+            text: `Mark Complete (+${xpReward} XP)`,
+            onPress: () => completeUserLesson(lesson.id, xpReward),
+          }] : []),
+        ]
+      );
+      return;
+    }
+
+    log.nav('LessonsScreen', 'LessonEngine', { lessonId: lesson.id, title: lesson.title });
+    navigation.navigate('LessonEngine', {
+      lessonId: lesson.id,
+      isFirstLesson: false
+    });
+  };
+
+  const handleModulePress = (module: any) => {
+    const gate = getModuleGate(module);
+    if (gate.locked) {
+      gate.open();
+      return;
+    }
+
+    if (module.locked && !ALWAYS_OPEN_MODULE_IDS.has(module.id)) {
+      return;
+    }
+
+    if (shouldShowModuleBrief(module)) {
+      setBriefTarget({ mode: 'module', module });
+      return;
+    }
+
+    openModule(module);
   };
 
   const handleBackToModules = () => {
@@ -616,61 +780,12 @@ function LessonsView() {
   };
 
   const handleLessonPress = (lesson: any) => {
-    const isMasteryLesson = MASTERY_MODULE_IDS.has(lesson.moduleId);
-    if (isMasteryLesson && tier !== 'PRO') {
-      masteryGate('T10');
+    if (shouldShowLessonBrief(lesson)) {
+      setBriefTarget({ mode: 'lesson', lesson, module: selectedModule });
       return;
     }
 
-    const isAlwaysOpenModule = ALWAYS_OPEN_MODULE_IDS.has(lesson.moduleId);
-    if (isAlwaysOpenModule) {
-      if (isTipsLesson(lesson)) {
-        const xpReward = Math.max(0, Number(lesson.xpReward ?? 40));
-        const canClaimXP = !completedLessons.includes(lesson.id);
-        Alert.alert(
-          lesson.title,
-          `${lesson.description || 'Review this lesson for practical tips and workflows.'}\n\nReward: +${xpReward} XP`,
-          [
-            { text: 'Close', style: 'cancel' },
-            ...(canClaimXP ? [{
-              text: `Mark Complete (+${xpReward} XP)`,
-              onPress: () => completeUserLesson(lesson.id, xpReward),
-            }] : []),
-          ]
-        );
-        return;
-      }
-
-      log.nav('LessonsScreen', 'LessonEngine', { lessonId: lesson.id, title: lesson.title, alwaysOpen: true });
-      navigation.navigate('LessonEngine', {
-        lessonId: lesson.id,
-        isFirstLesson: false
-      });
-      return;
-    }
-
-    if (isTipsLesson(lesson)) {
-      const xpReward = Math.max(0, Number(lesson.xpReward ?? 40));
-      const canClaimXP = !completedLessons.includes(lesson.id);
-      Alert.alert(
-        lesson.title,
-        `${lesson.description || 'Review this lesson for practical tips and workflows.'}\n\nReward: +${xpReward} XP`,
-        [
-          { text: 'Close', style: 'cancel' },
-          ...(canClaimXP ? [{
-            text: `Mark Complete (+${xpReward} XP)`,
-            onPress: () => completeUserLesson(lesson.id, xpReward),
-          }] : []),
-        ]
-      );
-      return;
-    }
-
-    log.nav('LessonsScreen', 'LessonEngine', { lessonId: lesson.id, title: lesson.title });
-    navigation.navigate('LessonEngine', {
-      lessonId: lesson.id,
-      isFirstLesson: false
-    });
+    openLesson(lesson);
   };
 
   const renderModule = (module: any, index: number) => {
@@ -678,6 +793,14 @@ function LessonsView() {
     const isCompleted = module.completed;
     const isLocked = module.locked;
     const isLast = index === modules.length - 1;
+    const visual = getModuleVisual(module.id);
+    const statusText = module.paywallLocked
+      ? `${module.paywallLabel} Access`
+      : isCompleted
+        ? 'Completed'
+        : isNext
+          ? 'In Progress'
+          : 'Locked';
 
     return (
       <View key={module.id} style={styles.timelineRow}>
@@ -698,20 +821,35 @@ function LessonsView() {
 
         {/* Content Container */}
         <Pressable
-          style={styles.timelineContent}
-          disabled={module.locked}
+          style={[
+            styles.timelineContent,
+            styles.moduleTimelineCard,
+            {
+              borderColor: isLocked ? 'rgba(255,255,255,0.06)' : visual.glow,
+              backgroundColor: isLocked ? 'rgba(255,255,255,0.02)' : visual.glow,
+            }
+          ]}
+          disabled={module.locked && !module.paywallLocked}
           onPress={() => handleModulePress(module)}
         >
+          <View style={styles.moduleTimelineHeader}>
+            <View style={[styles.moduleIconChip, { borderColor: visual.glow, backgroundColor: 'rgba(15,10,8,0.52)' }]}>
+              <Ionicons name={visual.icon} size={16} color={visual.tint} />
+              <Text style={[styles.moduleIconChipText, { color: visual.tint }]}>{visual.label}</Text>
+            </View>
+            <Text style={styles.moduleChapterIndex}>Chapter {module.chapterIndex}</Text>
+          </View>
           <Text style={[styles.timelineTitle, isLocked && styles.timelineTitleLocked]}>
             {module.title}
           </Text>
           <Text style={[
             styles.timelineSubtitle,
-            isCompleted && styles.subtitleCompleted,
-            isNext && styles.subtitleNext,
-            isLocked && styles.subtitleLocked
+            module.paywallLocked ? styles.subtitlePaywall : undefined,
+            !module.paywallLocked && isCompleted && styles.subtitleCompleted,
+            !module.paywallLocked && isNext && styles.subtitleNext,
+            !module.paywallLocked && isLocked && styles.subtitleLocked
           ]}>
-            {isCompleted ? 'Completed' : isNext ? 'In Progress' : 'Locked'}
+            {statusText}
           </Text>
         </Pressable>
       </View>
@@ -774,6 +912,16 @@ function LessonsView() {
             {statusText}
           </Text>
 
+          {lesson.showLessonBrief && (
+            <Pressable
+              style={styles.whyChip}
+              onPress={() => setBriefTarget({ mode: 'lesson', lesson, module: selectedModule })}
+            >
+              <Ionicons name="information-circle-outline" size={12} color={colors.accent} />
+              <Text style={styles.whyChipText}>Why This Matters</Text>
+            </Pressable>
+          )}
+
           {/* Optional: Show Duration if not locked */}
           {!isLocked && (
             <Text style={{ fontSize: 12, color: colors.subtext, marginTop: 2, opacity: 0.6 }}>
@@ -805,6 +953,27 @@ function LessonsView() {
             <Text style={styles.sectionSubtitle}>
               Professional bartending course designed by industry experts
             </Text>
+            <Pressable
+              style={styles.featuredDeckCard}
+              onPress={() =>
+                navigation.navigate('UnlockDeck', {
+                  assetSlug: 'simple-rich-syrup-basics',
+                  title: 'Simple Syrup + Rich Syrup Basics',
+                })
+              }
+            >
+              <View style={styles.featuredDeckHeader}>
+                <View style={styles.featuredDeckBadge}>
+                  <Ionicons name="sparkles-outline" size={14} color={colors.accent} />
+                  <Text style={styles.featuredDeckBadgeText}>Field Guide Preview</Text>
+                </View>
+                <Ionicons name="arrow-forward" size={16} color={colors.accent} />
+              </View>
+              <Text style={styles.featuredDeckTitle}>Simple Syrup + Rich Syrup Basics</Text>
+              <Text style={styles.featuredDeckBody}>
+                Preview the first premium mini deck system directly in the app, without needing to unlock the chapter flow first.
+              </Text>
+            </Pressable>
             {modules.map(renderModule)}
           </View>
         ) : (
@@ -815,7 +984,51 @@ function LessonsView() {
               <Text style={styles.backButtonText}>Back to Chapters</Text>
             </Pressable>
 
-            <Text style={styles.sectionTitle}>{selectedModule.title}</Text>
+            <View
+              style={[
+                styles.selectedModuleHero,
+                {
+                  borderColor: getModuleVisual(selectedModule.id).glow,
+                  backgroundColor: getModuleVisual(selectedModule.id).glow,
+                }
+              ]}
+            >
+              <View style={styles.selectedModuleHeroHeader}>
+                <View style={[styles.moduleIconChip, { borderColor: getModuleVisual(selectedModule.id).glow, backgroundColor: 'rgba(15,10,8,0.55)' }]}>
+                  <Ionicons name={getModuleVisual(selectedModule.id).icon} size={16} color={getModuleVisual(selectedModule.id).tint} />
+                  <Text style={[styles.moduleIconChipText, { color: getModuleVisual(selectedModule.id).tint }]}>
+                    {getModuleVisual(selectedModule.id).label}
+                  </Text>
+                </View>
+                <Text style={styles.moduleChapterIndex}>Chapter {selectedModule.chapterIndex}</Text>
+              </View>
+              <Text style={styles.sectionTitle}>{selectedModule.title}</Text>
+              {(selectedModule.brief || selectedModule.contextBrief || selectedModule.whyItMatters) && (
+                <View style={styles.moduleChipRow}>
+                  <Pressable
+                    style={styles.moduleWhyChip}
+                    onPress={() => setBriefTarget({ mode: 'module', module: selectedModule })}
+                  >
+                    <Ionicons name="book-outline" size={14} color={colors.accent} />
+                    <Text style={styles.moduleWhyChipText}>Why This Matters</Text>
+                  </Pressable>
+                  {selectedModuleDeckPreview ? (
+                    <Pressable
+                      style={styles.modulePreviewChip}
+                      onPress={() =>
+                        navigation.navigate('UnlockDeck', {
+                          assetSlug: selectedModuleDeckPreview.assetSlug!,
+                          title: selectedModuleDeckPreview.assetName,
+                        })
+                      }
+                    >
+                      <Ionicons name="sparkles-outline" size={14} color="#1A120D" />
+                      <Text style={styles.modulePreviewChipText}>Preview Unlock</Text>
+                    </Pressable>
+                  ) : null}
+                </View>
+              )}
+            </View>
             <Text style={styles.sectionSubtitle}>
               Chapter {selectedModule.chapterIndex} • {moduleLessons.length} lessons • {selectedModule.estimatedMinutes} min
             </Text>
@@ -823,6 +1036,39 @@ function LessonsView() {
           </View>
         )}
       </ScrollView>
+
+      <ContextBriefModal
+        visible={!!briefTarget}
+        mode={briefTarget?.mode || 'module'}
+        title={briefTarget?.mode === 'module' ? briefTarget.module.title : briefTarget?.lesson?.title || ''}
+        estimatedMinutes={briefTarget?.mode === 'module' ? briefTarget.module.estimatedMinutes : briefTarget?.lesson?.estimatedMinutes}
+        label={briefTarget?.mode === 'module'
+          ? `Chapter ${briefTarget.module.chapterIndex}`
+          : briefTarget?.module?.title}
+        brief={briefTarget?.mode === 'module' ? briefTarget.module.brief : briefTarget?.lesson?.brief}
+        whyItMatters={briefTarget?.mode === 'module' ? briefTarget.module.whyItMatters : briefTarget?.lesson?.description}
+        unlockReward={briefTarget?.mode === 'module' ? briefTarget.module.unlockReward : undefined}
+        bestFor={briefTarget?.mode === 'module' ? briefTarget.module.bestFor : undefined}
+        practiceFocus={briefTarget?.mode === 'lesson' ? briefTarget.lesson.practiceFocus : undefined}
+        commonMistake={briefTarget?.mode === 'lesson' ? briefTarget.lesson.commonMistake : undefined}
+        contextBrief={briefTarget?.mode === 'module' ? briefTarget.module.contextBrief : briefTarget?.lesson?.contextBrief}
+        onClose={() => setBriefTarget(null)}
+        onSkip={() => setBriefTarget(null)}
+        onStart={() => {
+          if (!briefTarget) return;
+          if (briefTarget.mode === 'module') {
+            markModuleBriefSeen(briefTarget.module.id);
+            const moduleToOpen = briefTarget.module;
+            setBriefTarget(null);
+            openModule(moduleToOpen);
+            return;
+          }
+          markLessonBriefSeen(briefTarget.lesson.id);
+          const lessonToOpen = briefTarget.lesson;
+          setBriefTarget(null);
+          openLesson(lessonToOpen);
+        }}
+      />
     </SafeAreaView>
   );
 }
@@ -1095,6 +1341,51 @@ const styles = StyleSheet.create({
     marginBottom: spacing(3),
     lineHeight: 22,
     opacity: 0.8,
+  },
+  featuredDeckCard: {
+    marginBottom: spacing(2.25),
+    padding: spacing(2),
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(214, 138, 56, 0.14)',
+    backgroundColor: 'rgba(214, 138, 56, 0.08)',
+  },
+  featuredDeckHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing(1.2),
+  },
+  featuredDeckBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(0.6),
+    paddingHorizontal: spacing(1),
+    paddingVertical: spacing(0.6),
+    borderRadius: radii.pill,
+    backgroundColor: 'rgba(15,10,8,0.42)',
+    borderWidth: 1,
+    borderColor: 'rgba(214, 138, 56, 0.18)',
+  },
+  featuredDeckBadgeText: {
+    color: colors.accent,
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+  },
+  featuredDeckTitle: {
+    color: colors.text,
+    fontSize: 24,
+    lineHeight: 30,
+    fontFamily: serif,
+    fontWeight: '700',
+    marginBottom: spacing(0.8),
+  },
+  featuredDeckBody: {
+    color: colors.subtext,
+    fontSize: 14,
+    lineHeight: 21,
   },
   curriculumHeaderRow: {
     flexDirection: 'row',
@@ -1638,6 +1929,57 @@ const styles = StyleSheet.create({
     paddingTop: 2,
     paddingBottom: spacing(3),
   },
+  moduleTimelineCard: {
+    borderWidth: 1,
+    borderRadius: radii.lg,
+    paddingHorizontal: spacing(2),
+    paddingTop: spacing(1.25),
+    paddingBottom: spacing(2),
+    marginBottom: spacing(2),
+  },
+  moduleTimelineHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing(1.25),
+    gap: spacing(1),
+  },
+  moduleIconChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(0.75),
+    borderWidth: 1,
+    borderRadius: radii.pill,
+    paddingHorizontal: spacing(1.1),
+    paddingVertical: spacing(0.65),
+  },
+  moduleIconChipText: {
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  moduleChapterIndex: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.subtext,
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
+  },
+  selectedModuleHero: {
+    borderWidth: 1,
+    borderRadius: radii.xl,
+    paddingHorizontal: spacing(2),
+    paddingVertical: spacing(1.5),
+    marginBottom: spacing(1.5),
+  },
+  selectedModuleHeroHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing(1),
+    marginBottom: spacing(1.25),
+  },
   timelineTitle: {
     fontSize: 18,
     fontWeight: '700',
@@ -1663,5 +2005,66 @@ const styles = StyleSheet.create({
   subtitleLocked: {
     color: '#D4C5A9', // Beige-ish
     opacity: 0.6,
+  },
+  subtitlePaywall: {
+    color: colors.accent,
+    opacity: 0.95,
+  },
+  whyChip: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(0.5),
+    marginTop: spacing(0.9),
+    paddingHorizontal: spacing(1),
+    paddingVertical: spacing(0.55),
+    borderRadius: radii.pill,
+    backgroundColor: 'rgba(214, 138, 56, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(214, 138, 56, 0.18)',
+  },
+  whyChipText: {
+    color: colors.accent,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  moduleWhyChip: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(0.6),
+    marginTop: spacing(0.3),
+    paddingHorizontal: spacing(1.1),
+    paddingVertical: spacing(0.7),
+    borderRadius: radii.pill,
+    backgroundColor: 'rgba(15, 10, 8, 0.48)',
+    borderWidth: 1,
+    borderColor: 'rgba(214, 138, 56, 0.18)',
+  },
+  moduleWhyChipText: {
+    color: colors.accent,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  moduleChipRow: {
+    marginTop: spacing(1.5),
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing(1),
+  },
+  modulePreviewChip: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(0.5),
+    paddingHorizontal: spacing(1.15),
+    paddingVertical: spacing(0.8),
+    borderRadius: radii.pill,
+    backgroundColor: colors.accent,
+  },
+  modulePreviewChipText: {
+    color: '#1A120D',
+    fontSize: 12,
+    fontWeight: '800',
   },
 });

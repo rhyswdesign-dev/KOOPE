@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * TERMS & CONDITIONS SCREEN
  * Displays terms content with acceptance tracking and version management

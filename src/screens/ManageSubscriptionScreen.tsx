@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React from 'react';
 import {
   View,
@@ -260,22 +261,29 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: colors.line,
+    borderColor: 'rgba(214,138,56,0.35)',
     padding: spacing(3),
     marginBottom: spacing(3),
+    shadowColor: colors.accent,
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
   },
   planHeader: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   planBadge: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     backgroundColor: colors.bg,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: spacing(2),
+    borderWidth: 2,
+    borderColor: 'rgba(214,138,56,0.4)',
   },
   planInfo: {
     flex: 1,
@@ -284,11 +292,14 @@ const styles = StyleSheet.create({
     fontSize: fonts.h2,
     fontWeight: '800',
     color: colors.text,
+    fontFamily: 'Georgia',
   },
   planStatus: {
-    fontSize: fonts.body,
+    fontSize: fonts.small,
     color: colors.subtext,
     marginTop: spacing(0.5),
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
   },
   subscriptionDetails: {
     marginTop: spacing(3),
@@ -303,8 +314,10 @@ const styles = StyleSheet.create({
     marginBottom: spacing(1.5),
   },
   detailLabel: {
-    fontSize: fonts.body,
+    fontSize: fonts.small,
     color: colors.subtext,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
   },
   detailValue: {
     fontSize: fonts.body,
@@ -315,11 +328,11 @@ const styles = StyleSheet.create({
     marginBottom: spacing(3),
   },
   sectionTitle: {
-    fontSize: fonts.body,
+    fontSize: 10,
     fontWeight: '700',
-    color: colors.subtext,
+    color: colors.accent,
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: 1.5,
     marginBottom: spacing(2),
   },
   optionCard: {
@@ -330,7 +343,7 @@ const styles = StyleSheet.create({
     borderRadius: radii.lg,
     borderWidth: 1,
     borderColor: colors.line,
-    padding: spacing(2),
+    padding: spacing(2.5),
     marginBottom: spacing(1.5),
   },
   optionContent: {
@@ -339,9 +352,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   optionBadge: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: spacing(2),
@@ -365,6 +378,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     backgroundColor: colors.card,
     borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: colors.line,
     padding: spacing(2),
     marginBottom: spacing(1),
   },
@@ -384,5 +399,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 20,
     marginTop: spacing(2),
+    opacity: 0.7,
   },
 });

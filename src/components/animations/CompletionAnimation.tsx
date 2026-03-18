@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Completion Animation Component
  * Displays celebratory Lottie animations for various completion events

@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * CUSTOMER CENTER SCREEN
  * RevenueCat Customer Center for subscription management

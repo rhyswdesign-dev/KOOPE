@@ -20,6 +20,15 @@ export const FREE_TIER_COCKTAILS = [
   'moscow-mule',
 ] as const;
 
+// Temporary dev-only preview list for lesson-linked unlock recipes.
+// These remain locked in production unless the user actually unlocks them.
+export const DEV_PREVIEW_UNLOCK_COCKTAILS = [
+  'house-daiquiri-spec',
+  'stirred-house-martini',
+  'boulevardier',
+  'tom-collins-house-spec',
+] as const;
+
 /**
  * Tier limits — numeric caps for gating logic
  */
@@ -287,6 +296,10 @@ export const TIER_FEATURES = {
 export function isCocktailAccessible(cocktailId: string, tier: UserTier): boolean {
   if (tier === 'PLUS' || tier === 'PRO') {
     return true; // All cocktails accessible
+  }
+
+  if (__DEV__ && DEV_PREVIEW_UNLOCK_COCKTAILS.includes(cocktailId as any)) {
+    return true;
   }
 
   // FREE tier: only 9 classics (plus any XP-unlocked, checked separately)

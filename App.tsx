@@ -35,6 +35,7 @@ import AppAlertRenderer, { installAppAlert } from './src/components/AppAlertRend
 import { notificationService } from './src/services/notificationService';
 import { setupDeepLinking } from './src/lib/deepLinking';
 import { useShareIntent } from 'expo-share-intent';
+import type { AgeVerificationPayload } from './src/services/ageVerificationService';
 // import { StripeProvider } from './src/providers/StripeProvider'; // Disabled until Xcode is installed
 
 // Override native Alert.alert with branded modals
@@ -258,7 +259,7 @@ export default function App() {
 
   // Show bartending welcome (first step)
   if (appState === 'age_gate') {
-    return <AgeGateScreen onVerified={completeAgeGate} />;
+    return <AgeGateScreen onVerified={(payload: AgeVerificationPayload) => completeAgeGate(payload)} />;
   }
 
   // Show bartending welcome (first step)

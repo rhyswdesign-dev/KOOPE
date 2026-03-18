@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   Modal,
   View,
@@ -83,39 +83,42 @@ export default function GroceryListModal({
 
     resolve();
   }, [visible]);
-  const [groceryList] = useState<Omit<GroceryList, 'id' | 'createdAt' | 'updatedAt' | 'userId'>>(() =>
-    GroceryListService.generateGroceryList(recipeName, ingredients, recipeId)
+  const groceryList = useMemo<Omit<GroceryList, 'id' | 'createdAt' | 'updatedAt' | 'userId'>>(
+    () => GroceryListService.generateGroceryList(recipeName, ingredients, recipeId),
+    [recipeName, ingredients, recipeId]
   );
 
-  // Pre-select items based on missing ingredients
-  const [checkedItems, setCheckedItems] = useState<Set<string>>(() => {
-    if (preSelectedIngredients.length === 0) {
-      // If no pre-selected ingredients, select all items by default
-      return new Set(groceryList.items.map(item => item.id));
-    }
+  const buildInitialCheckedItems = useCallback(
+    (list: Omit<GroceryList, 'id' | 'createdAt' | 'updatedAt' | 'userId'>) => {
+      if (preSelectedIngredients.length === 0) {
+        return new Set(list.items.map(item => item.id));
+      }
 
-    // Pre-select only items that match the missing ingredient names
-    const preSelected = new Set<string>();
-    groceryList.items.forEach(item => {
-      // Check if this grocery item matches any of the pre-selected ingredient names
-      const matchesPreSelected = preSelectedIngredients.some(preSelectedName => {
-        // Normalize both names for comparison (lowercase, remove extra spaces)
-        const normalizedItemName = item.name.toLowerCase().trim();
-        const normalizedPreSelected = preSelectedName.toLowerCase().trim();
+      const preSelected = new Set<string>();
+      list.items.forEach(item => {
+        const matchesPreSelected = preSelectedIngredients.some(preSelectedName => {
+          const normalizedItemName = item.name.toLowerCase().trim();
+          const normalizedPreSelected = preSelectedName.toLowerCase().trim();
+          return normalizedItemName.includes(normalizedPreSelected) ||
+            normalizedPreSelected.includes(normalizedItemName);
+        });
 
-        // Check if the grocery item name contains the pre-selected ingredient name
-        // or vice versa (to handle cases like "2 oz Vodka" matching "Vodka")
-        return normalizedItemName.includes(normalizedPreSelected) ||
-               normalizedPreSelected.includes(normalizedItemName);
+        if (matchesPreSelected) {
+          preSelected.add(item.id);
+        }
       });
 
-      if (matchesPreSelected) {
-        preSelected.add(item.id);
-      }
-    });
+      return preSelected;
+    },
+    [preSelectedIngredients]
+  );
 
-    return preSelected;
-  });
+  const [checkedItems, setCheckedItems] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (!visible) return;
+    setCheckedItems(buildInitialCheckedItems(groceryList));
+  }, [visible, groceryList, buildInitialCheckedItems]);
 
   const groupedItems = useMemo(() => {
     const mockGroceryList = {

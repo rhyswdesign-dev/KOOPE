@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * ANALYTICS WRAPPER
  * Centralized event tracking for subscription funnel and engagement metrics

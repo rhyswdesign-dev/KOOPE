@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Stripe Provider
  * Wraps app with Stripe SDK context

@@ -2,7 +2,7 @@
  * Lesson Summary Screen - Level Up Dashboard
  */
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -13,7 +13,8 @@ import {
   StatusBar,
   Platform,
   SafeAreaView,
-  ScrollView
+  ScrollView,
+  Alert,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp, CompositeNavigationProp } from '@react-navigation/native';
@@ -26,6 +27,10 @@ import { curriculumData } from '../../utils/curriculumAdapter';
 import { log } from '../../lib/logger';
 import { useUser } from '../../store/useUser';
 import { useXPSystem } from '../../store/useXPSystem';
+import { useEngagement } from '../../store/useEngagement';
+import { getLessonRecipeReward } from '../../config/lessonRewards';
+import { ALL_COCKTAILS } from '../../data/cocktails';
+import { getUnlocksForLesson } from '../../config/unlockContent';
 
 type LessonSummaryScreenProps = {
   navigation: CompositeNavigationProp<
@@ -46,12 +51,24 @@ export default function LessonSummaryScreen({ navigation, route }: LessonSummary
     masteryDelta = 0,
     moduleId,
     lessonId,
-    isFirstLesson
+    isFirstLesson,
+    firstCompletion = false,
   } = route.params;
 
   // Store hooks - use XPSystem for actual XP balance
   const { completedLessons } = useUser();
   const { balance: totalXP } = useXPSystem();
+  const { unlockRecipe, isRecipeUnlocked } = useEngagement();
+  const [newlyUnlockedRecipeIds, setNewlyUnlockedRecipeIds] = useState<string[]>([]);
+  const lessonReward = useMemo(() => getLessonRecipeReward(lessonId), [lessonId]);
+  const deckReward = useMemo(
+    () => getUnlocksForLesson(lessonId).find((unlock) => unlock.status === 'ready' && unlock.format === 'mini_deck' && unlock.assetSlug),
+    [lessonId]
+  );
+  const unlockedRewardRecipes = useMemo(
+    () => ALL_COCKTAILS.filter((cocktail) => newlyUnlockedRecipeIds.includes(cocktail.id)),
+    [newlyUnlockedRecipeIds]
+  );
 
   // Calculate level from XP (100 XP per level)
   const XP_PER_LEVEL = 100;
@@ -127,6 +144,28 @@ export default function LessonSummaryScreen({ navigation, route }: LessonSummary
       }),
     ]).start();
   }, []);
+
+  useEffect(() => {
+    if (!firstCompletion || !lessonReward) return;
+
+    const toUnlock = lessonReward.recipeIds.filter((recipeId) => !isRecipeUnlocked(recipeId));
+    if (toUnlock.length === 0) return;
+
+    toUnlock.forEach((recipeId) => unlockRecipe(recipeId));
+    setNewlyUnlockedRecipeIds(toUnlock);
+
+    const unlockedNames = ALL_COCKTAILS
+      .filter((cocktail) => toUnlock.includes(cocktail.id))
+      .map((cocktail) => cocktail.name)
+      .join(', ');
+
+    Alert.alert(
+      'Recipe Unlocked',
+      unlockedNames
+        ? `You unlocked ${unlockedNames} from this checkpoint.`
+        : 'You unlocked a new recipe from this checkpoint.'
+    );
+  }, [firstCompletion, isRecipeUnlocked, lessonReward, unlockRecipe]);
 
   const handleContinue = () => {
     if (isFirstLesson) {
@@ -260,6 +299,67 @@ export default function LessonSummaryScreen({ navigation, route }: LessonSummary
               <Text style={styles.insightLabel}>Accuracy</Text>
             </View>
           </View>
+
+          {unlockedRewardRecipes.length > 0 && (
+            <>
+              <Text style={[styles.sectionTitle, { fontFamily: serifFont }]}>Unlocked</Text>
+              <View style={styles.rewardCard}>
+                <View style={styles.rewardHeader}>
+                  <View style={styles.rewardBadge}>
+                    <Ionicons name="sparkles-outline" size={18} color={colors.accent} />
+                    <Text style={styles.rewardBadgeText}>Flavor Reward</Text>
+                  </View>
+                </View>
+                <Text style={styles.rewardTitle}>
+                  {unlockedRewardRecipes.map((recipe) => recipe.name).join(', ')}
+                </Text>
+                <Text style={styles.rewardDescription}>
+                  Completing this checkpoint unlocked a recipe tied to clean balance and flavor structure.
+                </Text>
+                <Pressable
+                  style={styles.rewardButton}
+                  onPress={() => {
+                    const recipe = unlockedRewardRecipes[0];
+                    if (!recipe) return;
+                    navigation.navigate('CocktailDetail', {
+                      cocktailId: recipe.id,
+                      cocktail: recipe,
+                    } as any);
+                  }}
+                >
+                  <Text style={styles.rewardButtonText}>View Unlocked Recipe</Text>
+                </Pressable>
+              </View>
+            </>
+          )}
+
+          {deckReward ? (
+            <>
+              <Text style={[styles.sectionTitle, { fontFamily: serifFont }]}>Field Guide</Text>
+              <View style={styles.rewardCard}>
+                <View style={styles.rewardHeader}>
+                  <View style={styles.rewardBadge}>
+                    <Ionicons name="library-outline" size={18} color={colors.accent} />
+                    <Text style={styles.rewardBadgeText}>Mini Deck Unlock</Text>
+                  </View>
+                </View>
+                <Text style={styles.rewardTitle}>{deckReward.assetName}</Text>
+                <Text style={styles.rewardDescription}>{deckReward.description}</Text>
+                <Pressable
+                  style={styles.rewardButton}
+                  onPress={() => {
+                    if (!deckReward.assetSlug) return;
+                    navigation.navigate('UnlockDeck', {
+                      assetSlug: deckReward.assetSlug,
+                      title: deckReward.assetName,
+                    });
+                  }}
+                >
+                  <Text style={styles.rewardButtonText}>Open Field Guide</Text>
+                </Pressable>
+              </View>
+            </>
+          ) : null}
 
           <View style={{ flex: 1 }} />
 
@@ -425,6 +525,64 @@ const styles = StyleSheet.create({
     color: colors.subtext,
     fontWeight: '500',
     lineHeight: 18,
+  },
+  rewardCard: {
+    backgroundColor: colors.card,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.line,
+    padding: spacing(2),
+    marginBottom: spacing(4),
+  },
+  rewardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing(1.25),
+  },
+  rewardBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(0.75),
+    paddingHorizontal: spacing(1.2),
+    paddingVertical: spacing(0.75),
+    borderRadius: radii.pill,
+    backgroundColor: 'rgba(214, 138, 56, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(214, 138, 56, 0.22)',
+    alignSelf: 'flex-start',
+  },
+  rewardBadgeText: {
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.4,
+    color: colors.accent,
+    textTransform: 'uppercase',
+  },
+  rewardTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: spacing(0.75),
+  },
+  rewardDescription: {
+    fontSize: 14,
+    lineHeight: 21,
+    color: colors.subtext,
+    marginBottom: spacing(2),
+  },
+  rewardButton: {
+    alignSelf: 'flex-start',
+    borderRadius: radii.pill,
+    backgroundColor: colors.accent,
+    paddingHorizontal: spacing(2),
+    paddingVertical: spacing(1.1),
+  },
+  rewardButtonText: {
+    color: colors.bg,
+    fontSize: 13,
+    fontWeight: '800',
+    letterSpacing: 0.3,
   },
   actions: {
     paddingBottom: spacing(4),

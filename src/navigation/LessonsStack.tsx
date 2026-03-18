@@ -8,7 +8,7 @@ import { withScreenTour } from '../components/tour/withScreenTour';
 export type LessonsStackParamList = {
   LessonsMain: undefined;
   LessonEngine: { moduleId?: string; lessonId?: string; isFirstLesson?: boolean };
-  LessonSummary: { xpAwarded: number; correctCount: number; totalCount: number; masteryDelta: number; moduleId?: string; lessonId?: string; isFirstLesson?: boolean };
+  LessonSummary: { xpAwarded: number; correctCount: number; totalCount: number; masteryDelta: number; moduleId?: string; lessonId?: string; isFirstLesson?: boolean; firstCompletion?: boolean };
   Spirits: undefined;
 };
 

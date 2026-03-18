@@ -34,6 +34,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { useFeatureAccess } from '../hooks/useFeatureAccess';
 import { useUserTier } from '../store/useUserTier';
 import { TIER_LIMITS } from '../config/tierAccess';
+import { useMultiBar } from '../store/useMultiBar';
+import { useScrollHaptic, withHaptic } from '../lib/haptics';
 
 // Import images from assets
 import * as Images from '../../assets/images';
@@ -86,6 +88,8 @@ const CATEGORY_OPTIONS: Record<string, string[]> = {
     'Maple Syrup',
   ],
   ingredient: [
+    'Egg White',
+    'Egg',
     'Sugar',
     'Salt',
     'Black Pepper',
@@ -97,6 +101,22 @@ const CATEGORY_OPTIONS: Record<string, string[]> = {
     'Espresso',
     'Egg Whites',
     'Honey',
+    'Lemon Juice',
+    'Lime Juice',
+    'Orange Juice',
+    'Grapefruit Juice',
+    'Pineapple',
+    'Orange',
+    'Lemon',
+    'Lime',
+    'Strawberry',
+    'Blueberry',
+    'Raspberry',
+    'Blackberry',
+    'Mango',
+    'Passionfruit',
+    'Peach',
+    'Apple',
     'Hot Sauce',
     'Worcestershire Sauce',
     'Tabasco',
@@ -528,14 +548,32 @@ const mockHomeBar: HomeBar = {
   updatedAt: new Date(),
   isDefault: true,
 };
+const sortAlpha = (items: string[]) => [...items].sort((a, b) => a.localeCompare(b));
+const MANUAL_ENTRY_CATEGORIES = [
+  { value: 'spirit', label: 'Spirit' },
+  { value: 'liqueur', label: 'Liqueur' },
+  { value: 'bitters', label: 'Bitters' },
+  { value: 'syrup', label: 'Syrup' },
+  { value: 'ingredient', label: 'Ingredient' },
+  { value: 'garnish', label: 'Garnish' },
+  { value: 'other', label: 'Other' },
+];
 
 export default function HomeBarScreen() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { gateWithTrigger: inventoryGate } = useFeatureAccess('inventory_unlimited');
   const { tier } = useUserTier();
-  const { gateWithTrigger: optimizeBarGate } = useFeatureAccess('optimize_my_bar');
   const { gateWithTrigger: hostingBasicGate } = useFeatureAccess('hosting_basic');
-  const { gateWithTrigger: predictiveRestockGate } = useFeatureAccess('predictive_restock');
+  const { gate: expiryAlertsGate } = useFeatureAccess('expiry_alerts');
+  const { gate: barHealthGate } = useFeatureAccess('bar_health_score');
+  const { gate: multiBarGate } = useFeatureAccess('multi_bar');
+  const { gate: multiBarUnlimitedGate } = useFeatureAccess('multi_bar_unlimited');
+  const bars = useMultiBar((state) => state.bars);
+  const activeBarId = useMultiBar((state) => state.activeBarId);
+  const setActiveBar = useMultiBar((state) => state.setActiveBar);
+  const createBar = useMultiBar((state) => state.createBar);
+  const canCreateBar = useMultiBar((state) => state.canCreateBar);
+  const getBarLimit = useMultiBar((state) => state.getBarLimit);
   const { user } = useAuth();
   const [showSearchModal, setShowSearchModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -552,6 +590,8 @@ export default function HomeBarScreen() {
   const [showAddOptionsModal, setShowAddOptionsModal] = useState(false);
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
   const [showItemOptionsModal, setShowItemOptionsModal] = useState(false);
+  const [showBarSwitcherModal, setShowBarSwitcherModal] = useState(false);
+  const onScrollHaptic = useScrollHaptic('selection', 800);
 
   useLayoutEffect(() => {
     nav.setOptions({
@@ -571,17 +611,32 @@ export default function HomeBarScreen() {
       if (!user) return;
 
       const remoteItems = await InventoryService.getUserInventory(user.id);
-      const mappedRemote: BarIngredient[] = remoteItems.map((item) => ({
-        id: item.id,
-        name: item.item_name,
-        category: (item.category as BarIngredient['category']) || 'other',
-        subcategory: item.subcategory || undefined,
-        brand: item.brand || undefined,
-        volume: 750,
-        addedAt: item.added_at ? new Date(item.added_at) : new Date(),
-        isFavorite: false,
-        tags: [],
-      }));
+      const mappedRemote: BarIngredient[] = remoteItems.map((item) => {
+        const rawName = String(item.item_name || '').trim();
+        let parsedName = rawName;
+        let parsedBrand = item.brand || undefined;
+
+        if (!parsedBrand && rawName.includes(' - ')) {
+          const [maybeBrand, ...rest] = rawName.split(' - ');
+          const remainingName = rest.join(' - ').trim();
+          if (maybeBrand?.trim() && remainingName) {
+            parsedBrand = maybeBrand.trim();
+            parsedName = remainingName;
+          }
+        }
+
+        return {
+          id: item.id,
+          name: parsedName,
+          category: (item.category as BarIngredient['category']) || 'other',
+          subcategory: item.subcategory || undefined,
+          brand: parsedBrand,
+          volume: 750,
+          addedAt: item.added_at ? new Date(item.added_at) : new Date(),
+          isFavorite: false,
+          tags: [],
+        };
+      });
 
       const storedIngredients = await HomeBarService.getStoredIngredients();
       const combined = [...mappedRemote];
@@ -600,9 +655,34 @@ export default function HomeBarScreen() {
         ingredients: combined,
       }));
 
-      await HomeBarService.clearStoredIngredients();
     } catch (error) {
       log.error('HomeBarScreen', 'Failed to load stored ingredients', error as Error);
+    }
+  };
+
+  const activeBarName = useMemo(
+    () => bars.find((bar) => bar.id === activeBarId)?.name || 'My Home Bar',
+    [bars, activeBarId]
+  );
+
+  const handleAddBarProfile = () => {
+    if (tier === 'FREE') {
+      multiBarGate();
+      return;
+    }
+
+    if (!canCreateBar(tier as any)) {
+      if (tier === 'PLUS') {
+        multiBarUnlimitedGate();
+      } else {
+        Alert.alert('Bar Limit Reached', 'You have reached your bar profile limit.');
+      }
+      return;
+    }
+
+    const newBarId = createBar(`Bar ${bars.length + 1}`, tier as any);
+    if (newBarId) {
+      setActiveBar(newBarId);
     }
   };
 
@@ -617,15 +697,11 @@ export default function HomeBarScreen() {
   const getFilteredInventory = () => {
     let filtered = homeBar.ingredients;
 
-    // FREE tier visibility cap mirrors the hard add limit.
-    if (tier === 'FREE') {
-      filtered = filtered.slice(0, TIER_LIMITS.FREE.maxBottles);
-    }
-
     // Filter by category
     if (activeCategory !== 'all') {
       if (activeCategory === 'spirits') {
-        filtered = filtered.filter(item => item.category === 'spirit');
+        // "Spirits" tab intentionally includes liqueurs for discoverability.
+        filtered = filtered.filter(item => item.category === 'spirit' || item.category === 'liqueur');
       } else if (activeCategory === 'mixers') {
         filtered = filtered.filter(item => item.category === 'mixer');
       } else if (activeCategory === 'garnishes') {
@@ -642,6 +718,11 @@ export default function HomeBarScreen() {
       filtered = filtered.filter(item =>
         item.name.toLowerCase().includes(searchQuery.toLowerCase())
       );
+    }
+
+    // FREE tier visibility cap mirrors the hard add limit, applied after filters.
+    if (tier === 'FREE') {
+      filtered = filtered.slice(0, TIER_LIMITS.FREE.maxBottles);
     }
 
     return { lowStock: [], rest: filtered, all: filtered };
@@ -668,6 +749,16 @@ export default function HomeBarScreen() {
     garnish: 'e.g., Lemon',
     ingredient: 'e.g., Cinnamon',
     other: 'e.g., House Blend',
+  };
+  const brandPlaceholderMap: Record<string, string> = {
+    spirit: 'e.g., Tito\'s',
+    liqueur: 'e.g., Cointreau',
+    mixer: 'e.g., Fever-Tree',
+    bitters: 'e.g., Angostura',
+    syrup: 'e.g., Monin',
+    garnish: 'e.g., Local Market',
+    ingredient: 'e.g., Organic Valley',
+    other: 'e.g., House Brand',
   };
 
   const normalizeSearchValue = (value: string | string[] | undefined) => {
@@ -796,7 +887,22 @@ export default function HomeBarScreen() {
     nav.navigate('WhatCanIMake');
   };
 
-  const handleAddIngredient = () => {
+  const handleAddIngredient = async () => {
+    if (!user) {
+      Alert.alert('Sign In Required', 'Please sign in to add items to your inventory');
+      return;
+    }
+
+    // Trigger T1 as soon as user taps "+" when Free tier is at/over cap.
+    if (tier === 'FREE') {
+      const count = await InventoryService.getInventoryCount(user.id);
+      const localCount = homeBar.ingredients.length;
+      if (Math.max(count, localCount) >= TIER_LIMITS.FREE.maxBottles) {
+        inventoryGate('T1');
+        return;
+      }
+    }
+
     openManualEntryWizard();
   };
 
@@ -814,7 +920,8 @@ export default function HomeBarScreen() {
     // Enforce Free tier cap against server truth so tier toggle is reliable.
     if (tier === 'FREE') {
       const count = await InventoryService.getInventoryCount(user.id);
-      if (count >= TIER_LIMITS.FREE.maxBottles) {
+      const localCount = homeBar.ingredients.length;
+      if (Math.max(count, localCount) >= TIER_LIMITS.FREE.maxBottles) {
         inventoryGate('T1');
         return;
       }
@@ -834,13 +941,27 @@ export default function HomeBarScreen() {
 
       try {
         // Add to Supabase
-        await InventoryService.addToInventory({
+        const result = await InventoryService.addToInventory({
           userId: user.id,
           itemType: manualEntryCategory === 'spirit' ? 'spirit' : 'ingredient',
           itemName: manualEntryName.trim(),
           category: manualEntryCategory,
           brand: manualEntryBrand.trim() || undefined,
         });
+
+        if (result.duplicate) {
+          Alert.alert('Already Added', 'This ingredient is already in your inventory.');
+          return;
+        }
+
+        if (!result.success) {
+          // Keep item locally if remote schema/network blocks insert.
+          await HomeBarService.addIngredient(newIngredient);
+          log.warn('HomeBarScreen', 'Saved ingredient locally after remote insert failed', {
+            item: manualEntryName.trim(),
+            category: manualEntryCategory,
+          });
+        }
 
         // Update local state
         setHomeBar(prev => ({
@@ -894,9 +1015,6 @@ export default function HomeBarScreen() {
     if (!selectedItem) return;
 
     try {
-      // T13: soft upsell for predictive restock while still allowing the action.
-      predictiveRestockGate('T13');
-
       // Map BarIngredient category to GroceryItem category
       const mapCategory = (barCategory: string): 'spirits_liquors' | 'mixers' | 'garnish' | 'bitters' | 'syrup' | 'other' => {
         switch (barCategory) {
@@ -923,7 +1041,6 @@ export default function HomeBarScreen() {
           category: mapCategory(selectedItem.category),
           subcategory: selectedItem.subcategory,
           brand: selectedItem.brand,
-          checked: false,
         },
         'Inventory Restock'
       );
@@ -950,21 +1067,36 @@ export default function HomeBarScreen() {
     return null;
   };
 
-  const getCategoryIcon = (category: string, subcategory?: string) => {
+  const getCategoryIcon = (category: string, subcategory?: string, name?: string) => {
+    const haystack = `${subcategory || ''} ${name || ''}`.toLowerCase();
+
     switch (category) {
       case 'spirit':
         return 'wine';
       case 'liqueur':
         return 'wine-outline';
-      case 'mixer':
-        return 'water';
+      case 'bitters':
+        return 'flask-outline';
       case 'syrup':
         return 'water-outline';
-      case 'bitters':
-        return 'flask';
+      case 'mixer':
+        if (/(milk|cream|coconut cream)/.test(haystack)) return 'cafe-outline';
+        if (/(juice|lemon|lime|orange|grapefruit|pineapple|passionfruit|berry|strawberry|blueberry|raspberry|blackberry|peach|apple|mango|fruit)/.test(haystack)) {
+          return 'nutrition-outline';
+        }
+        return 'water';
       case 'garnish':
-        return 'leaf';
+        if (/(lemon|lime|orange|grapefruit|pineapple|passionfruit|berry|strawberry|blueberry|raspberry|blackberry|peach|apple|mango|fruit)/.test(haystack)) {
+          return 'nutrition-outline';
+        }
+        return 'leaf-outline';
       case 'ingredient':
+        if (/(egg|egg white)/.test(haystack)) return 'egg-outline';
+        if (/(salt|pepper|cinnamon|nutmeg|spice)/.test(haystack)) return 'restaurant-outline';
+        if (/(sugar|honey|agave|syrup|grenadine|orgeat)/.test(haystack)) return 'water-outline';
+        if (/(lemon|lime|orange|grapefruit|pineapple|passionfruit|berry|strawberry|blueberry|raspberry|blackberry|peach|apple|mango|fruit|juice)/.test(haystack)) {
+          return 'nutrition-outline';
+        }
         return 'nutrition';
       default:
         return 'cube';
@@ -976,11 +1108,11 @@ export default function HomeBarScreen() {
       <TouchableOpacity
         key={item.id}
         style={styles.inventoryCard}
-        onPress={() => handleItemPress(item)}
+        onPress={withHaptic(() => handleItemPress(item))}
       >
         <View style={styles.cardImageContainer}>
           <Ionicons
-            name={getCategoryIcon(item.category, item.subcategory)}
+            name={getCategoryIcon(item.category, item.subcategory, item.name)}
             size={40}
             color={colors.gold}
           />
@@ -1002,13 +1134,14 @@ export default function HomeBarScreen() {
     <SafeAreaView style={styles.container}>
       <MainPageHeader
         title="Inventory"
-        subtitle={`${all.length} item${all.length !== 1 ? 's' : ''}`}
+        subtitle={`${activeBarName} • ${all.length} item${all.length !== 1 ? 's' : ''}`}
+        onTitlePress={withHaptic(() => setShowBarSwitcherModal((prev) => !prev), 'selection')}
+        leftContent={(
+          <TouchableOpacity style={styles.headerSearchButton} onPress={withHaptic(openSearchModal, 'selection')}>
+            <Ionicons name="search" size={18} color={colors.text} />
+          </TouchableOpacity>
+        )}
         rightActions={[
-          {
-            icon: 'search',
-            onPress: openSearchModal,
-            accessibilityLabel: 'Search inventory',
-          },
           {
             icon: 'add',
             onPress: handleAddIngredient,
@@ -1021,9 +1154,98 @@ export default function HomeBarScreen() {
           },
         ]}
       />
+      {showBarSwitcherModal && (
+        <View style={styles.barDropdown}>
+          <Text style={styles.barDropdownSubtitle}>
+            {bars.length}/{getBarLimit(tier as any)} bars used
+          </Text>
+          {bars.map((bar) => {
+            const isActive = bar.id === activeBarId;
+            return (
+              <TouchableOpacity
+                key={bar.id}
+                style={[styles.barDropdownItem, isActive && styles.activeBarOption]}
+                onPress={withHaptic(() => {
+                  setActiveBar(bar.id);
+                  setShowBarSwitcherModal(false);
+                }, 'selection')}
+              >
+                <Ionicons name={isActive ? 'checkmark-circle' : 'wine-outline'} size={18} color={colors.gold} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.barDropdownItemTitle}>{bar.name}</Text>
+                  <Text style={styles.barDropdownItemMeta}>
+                    {bar.ingredients.length} ingredient{bar.ingredients.length === 1 ? '' : 's'}
+                  </Text>
+                </View>
+                {isActive ? <Text style={styles.activeBarLabel}>Active</Text> : null}
+              </TouchableOpacity>
+            );
+          })}
+          <TouchableOpacity
+            style={[styles.barDropdownItem, styles.barDropdownAdd]}
+            onPress={withHaptic(() => {
+              handleAddBarProfile();
+              setShowBarSwitcherModal(false);
+            }, 'selection')}
+          >
+            <Ionicons name="add-circle-outline" size={18} color={colors.gold} />
+            <Text style={styles.barDropdownItemTitle}>Add Bar</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
-      {/* Category Filters */}
-      <View style={styles.filtersWrap}>
+      {/* Inventory Content */}
+      <ScrollView
+        style={styles.content}
+        contentContainerStyle={styles.contentContainer}
+        showsVerticalScrollIndicator={false}
+        onScrollBeginDrag={onScrollHaptic}
+      >
+        {/* Feature Cards — horizontal scroll */}
+        {all.length > 0 && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.featureCardsScroll}
+            contentContainerStyle={styles.featureCardsContent}
+          >
+            <TouchableOpacity
+              style={styles.featureCard}
+              onPress={withHaptic(() => hostingBasicGate('T6', () => nav.navigate('Hosting')))}
+            >
+              <View style={styles.featureCardIconWrap}>
+                <Ionicons name="people-outline" size={26} color={colors.accent} />
+              </View>
+              <Text style={styles.featureCardTitle}>Hosting</Text>
+              <Text style={styles.featureCardSubtitle}>Guest menu planner</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.featureCard}
+              onPress={withHaptic(() => expiryAlertsGate(() => nav.navigate('InventoryInsights', { mode: 'expiry' })))}
+            >
+              <View style={styles.featureCardIconWrap}>
+                <Ionicons name="time-outline" size={26} color={colors.accent} />
+              </View>
+              <Text style={styles.featureCardTitle}>Expiry Alerts</Text>
+              <Text style={styles.featureCardSubtitle}>Use-first list</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.featureCard}
+              onPress={withHaptic(() => barHealthGate(() => nav.navigate('InventoryInsights', { mode: 'health' })))}
+            >
+              <View style={styles.featureCardIconWrap}>
+                <Ionicons name="analytics-outline" size={26} color={colors.accent} />
+              </View>
+              <Text style={styles.featureCardTitle}>Bar Health</Text>
+              <Text style={styles.featureCardSubtitle}>Coverage score</Text>
+            </TouchableOpacity>
+
+          </ScrollView>
+        )}
+
+        {/* Category Filters — above inventory list */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -1034,7 +1256,7 @@ export default function HomeBarScreen() {
             <TouchableOpacity
               key={cat.key}
               style={[styles.categoryChip, activeCategory === cat.key && styles.activeCategoryChip]}
-              onPress={() => setActiveCategory(cat.key)}
+              onPress={withHaptic(() => setActiveCategory(cat.key), 'selection')}
             >
               <Ionicons
                 name={cat.icon}
@@ -1047,45 +1269,6 @@ export default function HomeBarScreen() {
             </TouchableOpacity>
           ))}
         </ScrollView>
-      </View>
-
-      {/* Inventory Content */}
-      <ScrollView
-        style={styles.content}
-        contentContainerStyle={styles.contentContainer}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* AI Inventory Suggestions */}
-        {all.length > 0 && (
-          <View style={styles.aiInventoryCard}>
-            <View style={styles.aiInventoryActionRow}>
-              <TouchableOpacity
-                style={[styles.aiInventoryActionCard, styles.aiInventoryActionCardHorizontal]}
-                onPress={() => optimizeBarGate('T4', () => nav.navigate('BarOptimizer'))}
-              >
-                <View style={styles.aiInventoryTileIconWrap}>
-                  <Ionicons name="bulb-outline" size={28} color={colors.accent} />
-                </View>
-                <View style={styles.aiInventoryActionText}>
-                  <Text style={styles.aiInventoryActionTitle} numberOfLines={2}>What should I buy next?</Text>
-                  <Text style={styles.aiInventoryActionSubtitle} numberOfLines={1}>Smart buy list</Text>
-                </View>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.aiInventoryActionCard, styles.aiInventoryActionCardHorizontal]}
-                onPress={() => hostingBasicGate('T6', () => nav.navigate('Hosting'))}
-              >
-                <View style={styles.aiInventoryTileIconWrap}>
-                  <Ionicons name="people-outline" size={28} color={colors.accent} />
-                </View>
-                <View style={styles.aiInventoryActionText}>
-                  <Text style={styles.aiInventoryActionTitle} numberOfLines={2}>Hosting</Text>
-                  <Text style={styles.aiInventoryActionSubtitle} numberOfLines={1}>Guest menu planner</Text>
-                </View>
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
 
         {/* Low Stock Section */}
         {lowStock.length > 0 && (
@@ -1134,7 +1317,7 @@ export default function HomeBarScreen() {
 
       {/* Bottom Action Buttons */}
       <View style={styles.bottomActions}>
-        <TouchableOpacity style={styles.recipesButton} onPress={handleSeeRecipes}>
+        <TouchableOpacity style={styles.recipesButton} onPress={withHaptic(handleSeeRecipes)}>
           <Text style={styles.recipesButtonText}>See What You Can Make →</Text>
         </TouchableOpacity>
       </View>
@@ -1150,7 +1333,7 @@ export default function HomeBarScreen() {
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Heading level={2} style={styles.modalTitle}>{selectedItem?.name}</Heading>
-              <TouchableOpacity onPress={() => setShowItemOptionsModal(false)}>
+              <TouchableOpacity onPress={withHaptic(() => setShowItemOptionsModal(false), 'selection')}>
                 <Ionicons name="close" size={24} color={colors.text} />
               </TouchableOpacity>
             </View>
@@ -1164,7 +1347,7 @@ export default function HomeBarScreen() {
             <View style={styles.optionsContainer}>
               <TouchableOpacity
                 style={styles.optionButton}
-                onPress={handleAddToShoppingList}
+                onPress={withHaptic(handleAddToShoppingList)}
               >
                 <View style={styles.optionIconContainer}>
                   <Ionicons name="cart" size={28} color={colors.gold} />
@@ -1178,7 +1361,7 @@ export default function HomeBarScreen() {
 
               <TouchableOpacity
                 style={[styles.optionButton, styles.deleteOptionButton]}
-                onPress={handleDeleteItem}
+                onPress={withHaptic(handleDeleteItem)}
               >
                 <View style={[styles.optionIconContainer, styles.deleteIconContainer]}>
                   <Ionicons name="trash" size={28} color={colors.error || '#ff4444'} />
@@ -1193,7 +1376,7 @@ export default function HomeBarScreen() {
 
             <TouchableOpacity
               style={styles.cancelButton}
-              onPress={() => setShowItemOptionsModal(false)}
+              onPress={withHaptic(() => setShowItemOptionsModal(false), 'selection')}
             >
               <Text style={styles.cancelButtonText}>Cancel</Text>
             </TouchableOpacity>
@@ -1212,7 +1395,7 @@ export default function HomeBarScreen() {
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Heading level={2} style={styles.modalTitle}>Add Ingredient</Heading>
-              <TouchableOpacity onPress={() => setShowAddOptionsModal(false)}>
+              <TouchableOpacity onPress={withHaptic(() => setShowAddOptionsModal(false), 'selection')}>
                 <Ionicons name="close" size={24} color={colors.text} />
               </TouchableOpacity>
             </View>
@@ -1222,10 +1405,10 @@ export default function HomeBarScreen() {
             <View style={styles.optionsContainer}>
               <TouchableOpacity
                 style={styles.optionButton}
-                onPress={() => {
+                onPress={withHaptic(() => {
                   setShowAddOptionsModal(false);
                   nav.navigate('SpiritRecognition');
-                }}
+                })}
               >
                 <View style={styles.optionIconContainer}>
                   <Ionicons name="camera" size={28} color={colors.gold} />
@@ -1239,10 +1422,10 @@ export default function HomeBarScreen() {
 
               <TouchableOpacity
                 style={styles.optionButton}
-                onPress={() => {
+                onPress={withHaptic(() => {
                   setShowAddOptionsModal(false);
                   setShowManualEntryModal(true);
-                }}
+                }, 'selection')}
               >
                 <View style={styles.optionIconContainer}>
                   <Ionicons name="create" size={28} color={colors.gold} />
@@ -1257,7 +1440,7 @@ export default function HomeBarScreen() {
 
             <TouchableOpacity
               style={styles.cancelButton}
-              onPress={() => setShowAddOptionsModal(false)}
+              onPress={withHaptic(() => setShowAddOptionsModal(false), 'selection')}
             >
               <Text style={styles.cancelButtonText}>Cancel</Text>
             </TouchableOpacity>
@@ -1305,16 +1488,7 @@ export default function HomeBarScreen() {
                   </View>
                   <Text style={styles.formLabel}>Category *</Text>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryPicker}>
-                    {[
-                      { value: 'spirit', label: 'Spirit' },
-                      { value: 'liqueur', label: 'Liqueur' },
-                      { value: 'mixer', label: 'Mixer' },
-                      { value: 'bitters', label: 'Bitters' },
-                      { value: 'syrup', label: 'Syrup' },
-                      { value: 'garnish', label: 'Garnish' },
-                      { value: 'ingredient', label: 'Ingredient' },
-                      { value: 'other', label: 'Other' },
-                    ].map((cat) => (
+                    {MANUAL_ENTRY_CATEGORIES.map((cat) => (
                       <TouchableOpacity
                         key={cat.value}
                         style={[
@@ -1349,7 +1523,7 @@ export default function HomeBarScreen() {
                     <Text style={styles.formLabel}>Name *</Text>
                     {CATEGORY_OPTIONS[manualEntryCategory] && !showCustomInput ? (
                       <ScrollView style={styles.dropdownContainer} nestedScrollEnabled>
-                        {CATEGORY_OPTIONS[manualEntryCategory].map((option) => (
+                        {sortAlpha(CATEGORY_OPTIONS[manualEntryCategory]).map((option) => (
                           <TouchableOpacity
                             key={option}
                             style={[
@@ -1402,7 +1576,7 @@ export default function HomeBarScreen() {
                     <Text style={styles.formLabel}>Brand (Optional)</Text>
                     <TextInput
                       style={styles.formInput}
-                      placeholder="e.g., Tito's"
+                      placeholder={brandPlaceholderMap[manualEntryCategory] || 'e.g., Brand'}
                       placeholderTextColor={colors.muted}
                       value={manualEntryBrand}
                       onChangeText={setManualEntryBrand}
@@ -1446,7 +1620,7 @@ export default function HomeBarScreen() {
           >
             <View style={styles.searchScreenHeader}>
               <Text style={styles.searchScreenTitle}>Search Inventory</Text>
-              <TouchableOpacity style={styles.searchHeaderCloseButton} onPress={closeSearchModal}>
+              <TouchableOpacity style={styles.searchHeaderCloseButton} onPress={withHaptic(closeSearchModal, 'selection')}>
                 <Ionicons name="close" size={22} color={colors.text} />
               </TouchableOpacity>
             </View>
@@ -1470,7 +1644,7 @@ export default function HomeBarScreen() {
                   blurOnSubmit={false}
                 />
                 {searchModalQuery.length > 0 && (
-                  <TouchableOpacity onPress={() => setSearchModalQuery('')}>
+                  <TouchableOpacity onPress={withHaptic(() => setSearchModalQuery(''), 'selection')}>
                     <Ionicons name="close-circle" size={20} color={colors.muted} />
                   </TouchableOpacity>
                 )}
@@ -1487,10 +1661,10 @@ export default function HomeBarScreen() {
                         <TouchableOpacity
                           key={`${suggestion.text}-${index}`}
                           style={styles.searchSuggestionItem}
-                          onPress={() => {
+                          onPress={withHaptic(() => {
                             setSearchModalQuery(suggestion.text);
                             recordSearchHistory(suggestion.text);
-                          }}
+                          }, 'selection')}
                         >
                           <Ionicons
                             name={
@@ -1521,7 +1695,7 @@ export default function HomeBarScreen() {
                       {hasActiveSearch ? `Results for "${searchModalQuery}"` : 'Popular & Trending'}
                     </Text>
                     {hasActiveSearch && (
-                      <TouchableOpacity onPress={() => setSearchModalQuery('')}>
+                      <TouchableOpacity onPress={withHaptic(() => setSearchModalQuery(''), 'selection')}>
                         <Text style={styles.searchClearText}>Clear</Text>
                       </TouchableOpacity>
                     )}
@@ -1532,15 +1706,15 @@ export default function HomeBarScreen() {
                       <TouchableOpacity
                         key={item.id}
                         style={styles.searchResultItem}
-                        onPress={() => {
+                        onPress={withHaptic(() => {
                           recordSearchHistory(item.name);
                           handleItemPress(item);
                           closeSearchModal();
-                        }}
+                        })}
                       >
                         <View style={styles.searchResultIcon}>
                           <Ionicons
-                            name={getCategoryIcon(item.category, item.subcategory)}
+                            name={getCategoryIcon(item.category, item.subcategory, item.name)}
                             size={22}
                             color={colors.gold}
                           />
@@ -1579,17 +1753,110 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.bg,
   },
-  filtersWrap: {
-    paddingHorizontal: spacing(3),
-    paddingBottom: spacing(2),
+  headerSearchButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.card,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
+  barDropdown: {
+    position: 'relative',
+    marginHorizontal: spacing(2.5),
+    marginTop: spacing(1),
+    marginBottom: spacing(1),
+    backgroundColor: colors.card,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.line,
+    padding: spacing(1.25),
+    gap: spacing(0.75),
+    zIndex: 20,
+    elevation: 8,
+  },
+  barDropdownSubtitle: {
+    fontSize: 12,
+    color: colors.subtext,
+    marginBottom: spacing(0.25),
+    paddingHorizontal: spacing(0.5),
+  },
+  barDropdownItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(1),
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: radii.md,
+    paddingVertical: spacing(1),
+    paddingHorizontal: spacing(1),
     backgroundColor: colors.bg,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.line,
+  },
+  barDropdownItemTitle: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  barDropdownItemMeta: {
+    color: colors.subtext,
+    fontSize: 11,
+    marginTop: 1,
+  },
+  barDropdownAdd: {
+    marginTop: spacing(0.25),
+  },
+  featureCardsScroll: {
+    marginTop: spacing(2),
+  },
+  featureCardsContent: {
+    paddingHorizontal: spacing(3),
+    gap: spacing(1.5),
+    paddingBottom: spacing(0.5),
+  },
+  featureCard: {
+    width: 148,
+    backgroundColor: colors.card,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.10)',
+    paddingVertical: spacing(2),
+    paddingHorizontal: spacing(1.75),
+    alignItems: 'center',
+    gap: spacing(0.75),
+  },
+  featureCardLast: {
+    marginRight: 0,
+  },
+  featureCardIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: `${colors.accent}14`,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing(0.5),
+  },
+  featureCardTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.text,
+    textAlign: 'center',
+    lineHeight: 16,
+  },
+  featureCardSubtitle: {
+    fontSize: 11,
+    color: colors.subtext,
+    textAlign: 'center',
+    lineHeight: 14,
   },
   categoryFilters: {
-    marginTop: spacing(1),
+    marginTop: spacing(2.5),
+    marginBottom: spacing(0.5),
   },
   categoryFiltersContent: {
+    paddingHorizontal: spacing(3),
     paddingRight: spacing(3),
     gap: spacing(1.5),
   },
@@ -2029,6 +2296,15 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.line,
   },
+  activeBarOption: {
+    borderColor: colors.gold,
+    backgroundColor: `${colors.gold}14`,
+  },
+  activeBarLabel: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: colors.gold,
+  },
   optionIconContainer: {
     width: 48,
     height: 48,
@@ -2273,65 +2549,6 @@ const styles = StyleSheet.create({
   searchHintText: {
     fontSize: 12,
     color: colors.subtext,
-    textAlign: 'center',
-  },
-  aiInventoryCard: {
-    padding: 0,
-    marginHorizontal: spacing(3),
-    marginTop: spacing(2),
-  },
-  aiInventoryActionRow: {
-    flexDirection: 'row',
-    gap: spacing(1.25),
-  },
-  aiInventoryActionCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: colors.bg,
-    borderRadius: radii.lg,
-    padding: spacing(1.4),
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
-  },
-  aiInventoryActionCardHorizontal: {
-    flex: 1,
-    minHeight: 104,
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing(0.8),
-    paddingVertical: spacing(1.1),
-  },
-  aiInventoryTileIconWrap: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: `${colors.accent}12`,
-  },
-  aiInventoryActionContent: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing(1.5),
-  },
-  aiInventoryActionText: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  aiInventoryActionTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: spacing(0.15),
-    textAlign: 'center',
-  },
-  aiInventoryActionSubtitle: {
-    fontSize: 11,
-    color: colors.subtext,
-    lineHeight: 14,
     textAlign: 'center',
   },
 });

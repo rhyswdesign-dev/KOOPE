@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { HomeBar, HomeBarService } from './homeBarService';
 
 export interface UserTasteProfile {

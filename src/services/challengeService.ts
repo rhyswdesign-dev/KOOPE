@@ -3,11 +3,22 @@
  * Manages challenge rotation, progress tracking, and rewards
  */
 
-import { Challenge, UserChallengeProgress, ChallengeFrequency } from '../types/challenge';
+import { Challenge, ChallengeFrequency } from '../types/challenge';
 import { supabase } from '../lib/supabase';
 import { log } from '../lib/logger';
 
 class ChallengeService {
+  private isTransientNetworkError(error: any): boolean {
+    const message = String(error?.message || '').toLowerCase();
+    const details = String(error?.details || '').toLowerCase();
+    return (
+      message.includes('network request failed') ||
+      message.includes('failed to fetch') ||
+      message.includes('loadbundlefromserverrequesterror') ||
+      details.includes('network request failed')
+    );
+  }
+
   /**
    * Get active challenges for a user
    */
@@ -74,7 +85,11 @@ class ChallengeService {
 
       return challengesWithProgress;
     } catch (error) {
-      log.error('challengeService', 'Error loading challenges', error);
+      if (this.isTransientNetworkError(error)) {
+        log.warn('challengeService', 'Network unavailable while loading challenges');
+      } else {
+        log.error('challengeService', 'Error loading challenges', error);
+      }
       return [];
     }
   }

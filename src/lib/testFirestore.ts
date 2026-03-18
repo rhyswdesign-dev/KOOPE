@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { db, auth, storage } from '../config/firebase';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';

@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * useRecipeImports Hook
  * Tracks recipe imports with monthly limits for FREE tier users

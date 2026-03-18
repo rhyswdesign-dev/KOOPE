@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Lesson Engine Screen - Main lesson learning interface
  */

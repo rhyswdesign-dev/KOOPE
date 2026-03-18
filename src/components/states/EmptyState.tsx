@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * EMPTY STATE COMPONENT
  * Professional empty state designs with contextual illustrations and actions

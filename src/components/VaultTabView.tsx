@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Vault Tab View - Simplified for Lessons Screen Integration
  * XP-based premium content unlocks

@@ -32,6 +32,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing } from '../../theme/tokens';
 import ScanCounter from './ScanCounter';
+import { withHaptic } from '../../lib/haptics';
 
 const { width } = Dimensions.get('window');
 
@@ -174,20 +175,20 @@ export default function CameraCapture({
 
             <TouchableOpacity
               style={styles.permissionPrimaryButton}
-              onPress={async () => {
+              onPress={withHaptic(async () => {
                 if (canAskAgain) {
                   await requestPermission();
                   return;
                 }
                 await Linking.openSettings();
-              }}
+              }, 'medium')}
             >
               <Text style={styles.permissionPrimaryText}>
                 {canAskAgain ? 'Allow Camera Access' : 'Open Settings'}
               </Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.permissionSecondaryButton} onPress={onClose}>
+            <TouchableOpacity style={styles.permissionSecondaryButton} onPress={withHaptic(onClose, 'selection')}>
               <Text style={styles.permissionSecondaryText}>Not Now</Text>
             </TouchableOpacity>
           </View>
@@ -225,7 +226,7 @@ export default function CameraCapture({
 
             {/* Top Bar */}
             <View style={styles.topBar}>
-              <TouchableOpacity onPress={onClose} style={styles.iconButton}>
+              <TouchableOpacity onPress={withHaptic(onClose, 'selection')} style={styles.iconButton}>
                 <Ionicons name="close" size={28} color={colors.white} />
               </TouchableOpacity>
 
@@ -237,7 +238,7 @@ export default function CameraCapture({
                 barcodeOnly={barcodeOnly}
               />
 
-              <TouchableOpacity onPress={() => setFlashMode(f => f === 'off' ? 'on' : 'off')} style={styles.iconButton}>
+              <TouchableOpacity onPress={withHaptic(() => setFlashMode(f => f === 'off' ? 'on' : 'off'), 'selection')} style={styles.iconButton}>
                 <Ionicons name={flashMode === 'on' ? 'flash' : 'flash-off'} size={24} color={colors.white} />
               </TouchableOpacity>
             </View>
@@ -266,7 +267,7 @@ export default function CameraCapture({
                       <TouchableOpacity
                         key={m.id}
                         style={[styles.modeTab, isActive && styles.modeTabActive]}
-                        onPress={() => setCurrentMode(m.id as any)}
+                        onPress={withHaptic(() => setCurrentMode(m.id as any), 'selection')}
                       >
                         <Ionicons
                           name={m.icon as any}
@@ -295,7 +296,7 @@ export default function CameraCapture({
               {/* Shutter Row */}
               <View style={styles.shutterRow}>
                 {!barcodeOnly && allowGallery && (
-                  <TouchableOpacity onPress={pickFromGallery} style={styles.sideButton}>
+                  <TouchableOpacity onPress={withHaptic(pickFromGallery, 'selection')} style={styles.sideButton}>
                     <Ionicons name="images-outline" size={26} color={colors.white} />
                   </TouchableOpacity>
                 )}
@@ -304,7 +305,7 @@ export default function CameraCapture({
 
                 <TouchableOpacity
                   style={styles.shutterButton}
-                  onPress={capturePhoto}
+                  onPress={withHaptic(capturePhoto, 'medium')}
                   disabled={!isCameraReady || isCapturing}
                 >
                   {isCapturing ? (
@@ -317,7 +318,7 @@ export default function CameraCapture({
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  onPress={() => setCameraType(t => t === 'back' ? 'front' : 'back')}
+                  onPress={withHaptic(() => setCameraType(t => t === 'back' ? 'front' : 'back'), 'selection')}
                   style={styles.sideButton}
                 >
                   <Ionicons name="camera-reverse-outline" size={26} color={colors.white} />

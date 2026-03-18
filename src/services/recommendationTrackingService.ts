@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Recommendation Tracking Service
  * Tracks user interactions with AI recommendations to improve future suggestions

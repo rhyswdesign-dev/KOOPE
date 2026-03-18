@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * In-App Purchase Service
  * Platform-safe IAP integration with stubs

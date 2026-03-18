@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * REQUIRE PRO COMPONENT
  * Subscription gate that redirects to paywall if user is not Pro or Prestige

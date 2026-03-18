@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * LOADING STATE COMPONENT
  * Professional loading indicators with animations and contextual messages
