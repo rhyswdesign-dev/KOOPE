@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Lesson Engine Screen - Main lesson learning interface
  */
@@ -7,15 +6,15 @@ import React, { useLayoutEffect } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
-import { RootStackParamList } from '../../navigation/RootNavigator';
+import { LessonsStackParamList } from '../../navigation/LessonsStack';
 import { LessonEngine } from '../../components/engine/LessonEngine';
 import { useUser } from '../../store/useUser';
 import RequirePro from '../../components/RequirePro';
 import { colors } from '../../theme/tokens';
 
 type LessonEngineScreenProps = {
-  navigation: NativeStackNavigationProp<RootStackParamList, 'LessonEngine'>;
-  route: RouteProp<RootStackParamList, 'LessonEngine'>;
+  navigation: NativeStackNavigationProp<LessonsStackParamList, 'LessonEngine'>;
+  route: RouteProp<LessonsStackParamList, 'LessonEngine'>;
 };
 
 export default function LessonEngineScreen({ navigation, route }: LessonEngineScreenProps) {

@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Lesson Engine Component
  * Main component for running lessons with exercises
@@ -18,6 +17,7 @@ import {
   TouchableOpacity
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSession } from '../../store/useSession';
 import { useUser } from '../../store/useUser';
 import { SupabaseContentRepository } from '../../repos/supabase/contentRepository';
@@ -43,6 +43,7 @@ import { log } from '../../lib/logger';
 import { lessonProgressService } from '../../services/lessonProgressService';
 import { achievementService } from '../../services/achievementService';
 import { normalizeOrderTarget, normalizeShortAnswer } from '../../utils/exerciseValidation';
+import type { RootStackParamList } from '../../navigation/RootNavigator';
 
 interface LessonEngineProps {
   lessonId: string;
@@ -54,7 +55,7 @@ const supabaseContentRepo = new SupabaseContentRepository();
 const memoryContentRepo = new MemoryContentRepository();
 
 export const LessonEngine: React.FC<LessonEngineProps> = ({ lessonId, onComplete, onExit }) => {
-  const navigation = useNavigation();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showFeedback, setShowFeedback] = useState(false);
@@ -388,7 +389,6 @@ export const LessonEngine: React.FC<LessonEngineProps> = ({ lessonId, onComplete
       durationMs: sessionResults.totalTime || 0,
       itemsAttempted: totalCount,
       correctCount,
-      accuracy
     });
 
     // Track XP awarded

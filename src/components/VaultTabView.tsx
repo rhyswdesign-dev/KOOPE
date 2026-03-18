@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Vault Tab View - Simplified for Lessons Screen Integration
  * XP-based premium content unlocks
@@ -44,7 +43,7 @@ export default function VaultTabView() {
       xpCost: 150,
       description: 'Perfect balance of bitter and sweet',
       icon: 'wine',
-      unlocked: state.unlockedItemIds?.includes('1') || false,
+      unlocked: state.userProfile.ownedItemIds?.includes('1') || false,
     },
     {
       id: '2',
@@ -53,7 +52,7 @@ export default function VaultTabView() {
       xpCost: 200,
       description: 'Master the art of proper dilution',
       icon: 'flask',
-      unlocked: state.unlockedItemIds?.includes('2') || false,
+      unlocked: state.userProfile.ownedItemIds?.includes('2') || false,
     },
     {
       id: '3',
@@ -62,7 +61,7 @@ export default function VaultTabView() {
       xpCost: 100,
       description: 'Exclusive bar recommendations',
       icon: 'location',
-      unlocked: state.unlockedItemIds?.includes('3') || false,
+      unlocked: state.userProfile.ownedItemIds?.includes('3') || false,
     },
   ];
 

@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Unlock Celebration Component
  * Shows a brief celebration animation when user unlocks vault content
@@ -35,34 +34,31 @@ export default function UnlockCelebration({
   const rotation = useSharedValue(0);
 
   useEffect(() => {
-    if (visible) {
-      // Start animation
-      scale.value = 0;
-      opacity.value = 0;
-      rotation.value = 0;
+    if (!visible) return;
 
-      // Animate in
-      scale.value = withSequence(
-        withSpring(1.2, { damping: 8, stiffness: 100 }),
-        withSpring(1, { damping: 10, stiffness: 150 })
-      );
+    scale.value = 0;
+    opacity.value = 0;
+    rotation.value = 0;
 
-      opacity.value = withTiming(1, { duration: 300 });
+    scale.value = withSequence(
+      withSpring(1.2, { damping: 8, stiffness: 100 }),
+      withSpring(1, { damping: 10, stiffness: 150 })
+    );
 
-      rotation.value = withSequence(
-        withTiming(360, { duration: 600, easing: Easing.out(Easing.quad) }),
-        withTiming(360, { duration: 1000 }) // Hold
-      );
+    opacity.value = withTiming(1, { duration: 300 });
 
-      // Auto-dismiss after 2 seconds
-      const timeout = setTimeout(() => {
-        opacity.value = withTiming(0, { duration: 300 }, () => {
-          runOnJS(onComplete)();
-        });
-      }, 2000);
+    rotation.value = withSequence(
+      withTiming(360, { duration: 600, easing: Easing.out(Easing.quad) }),
+      withTiming(360, { duration: 1000 })
+    );
 
-      return () => clearTimeout(timeout);
-    }
+    const timeout = setTimeout(() => {
+      opacity.value = withTiming(0, { duration: 300 }, () => {
+        runOnJS(onComplete)();
+      });
+    }, 2000);
+
+    return () => clearTimeout(timeout);
   }, [visible]);
 
   const animatedStyle = useAnimatedStyle(() => ({
