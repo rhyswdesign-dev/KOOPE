@@ -4,6 +4,7 @@ import {
   View, Text, ScrollView, Image, TouchableOpacity, StyleSheet, Share, Alert, Pressable, RefreshControl,
   Platform, Dimensions, StatusBar, Modal, TextInput, ActivityIndicator
 } from 'react-native';
+import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -40,7 +41,7 @@ import { loadUserProfile, updateUserProfileFields } from '../services/userProfil
 import type { RecipeCompletionDetails } from '../types/userProfile';
 import { useScrollHaptic, withHaptic } from '../lib/haptics';
 import { useUserRecipes } from '../store/useUserRecipes';
-import { formatIngredientDisplay } from '../utils/ingredientFormatting';
+import { formatIngredientAmount, formatIngredientDisplay } from '../utils/ingredientFormatting';
 
 type CocktailDetailScreenRouteProp = {
   params: {
@@ -48,6 +49,20 @@ type CocktailDetailScreenRouteProp = {
     cocktail?: any; // Optional: Pass full cocktail object for local recipes
   };
 };
+
+const REFERENCE_DEVICE_WIDTH = 390;
+const REFERENCE_SCALE = Math.min(Dimensions.get('window').width / REFERENCE_DEVICE_WIDTH, 1.02);
+const rs = (value: number) => Math.round(value * REFERENCE_SCALE);
+const referenceDisplayFont = Platform.select({
+  ios: 'Georgia-Bold',
+  android: 'serif',
+  default: 'serif',
+});
+const referenceSerifFont = Platform.select({
+  ios: 'Georgia',
+  android: 'serif',
+  default: 'serif',
+});
 
 // Non-alcoholic beverages data (complete dataset matching NonAlcoholicScreen)
 const nonAlcoholicBeverages = [
@@ -821,6 +836,25 @@ const cocktailData = {
   }
 };
 
+const AMARETTO_SOUR_REFERENCE_CONTENT = {
+  badge: 'Recipe',
+  categoryLabel: 'MODERN • MIXED-BASED',
+  edition: 'KOOPE House Spec',
+  ingredients: [
+    { name: 'Amaretto', note: '1.5 oz' },
+    { name: 'Bourbon', note: '0.75 oz' },
+    { name: 'Fresh lemon juice', note: '1 oz' },
+    { name: 'Simple syrup', note: '0.5 oz' },
+  ],
+  instructions: [
+    'Shake all ingredients hard with cold ice until the tin feels tight and fully frosted.',
+    'Double strain over fresh ice in a rocks glass to keep the texture polished and bright.',
+    'Finish with cherry and orange for a sweeter nose before the first sip.',
+  ],
+  tastingNote:
+    'Nutty almond up front, bright lemon through the middle, and a firmer bourbon-backed finish that keeps the sweetness disciplined.',
+};
+
 // Function to get non-alcoholic recipe data
 const getNonAlcoholicRecipeData = (recipeId: string) => {
   for (const beverage of nonAlcoholicBeverages) {
@@ -1216,6 +1250,9 @@ export default function CocktailDetailScreen() {
   // Parse ingredients into consistent format for rendering
   const parsedIngredients = React.useMemo(() => {
     if (!cocktail || !cocktail.ingredients) return [];
+    if (cocktail.id === 'amaretto-sour' || cocktail.title === 'Amaretto Sour') {
+      return AMARETTO_SOUR_REFERENCE_CONTENT.ingredients;
+    }
 
     if (typeof cocktail.ingredients === 'string') {
       // Supabase format: split string but preserve original formatting for display
@@ -1241,6 +1278,14 @@ export default function CocktailDetailScreen() {
       })),
     [parsedIngredients]
   );
+
+  const ownedIngredientNames = React.useMemo(() => {
+    return new Set(
+      parsedIngredients
+        .filter((ingredient: any) => hasIngredient(userInventory, String(ingredient.name || '')))
+        .map((ingredient: any) => String(ingredient.name || ''))
+    );
+  }, [parsedIngredients, userInventory]);
 
   const normalizeText = (value: string): string =>
     value.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
@@ -1420,6 +1465,9 @@ export default function CocktailDetailScreen() {
   // Parse instructions into consistent format for rendering
   const parsedInstructions = React.useMemo(() => {
     if (!cocktail || !cocktail.instructions) return [];
+    if (cocktail.id === 'amaretto-sour' || cocktail.title === 'Amaretto Sour') {
+      return AMARETTO_SOUR_REFERENCE_CONTENT.instructions;
+    }
 
     if (typeof cocktail.instructions === 'string') {
       // Supabase format: split string into array of steps
@@ -1497,6 +1545,23 @@ export default function CocktailDetailScreen() {
     : null;
 
   const isSaved = isCocktailSaved(route.params.cocktailId);
+  const showProTips = tier !== 'FREE';
+  const isReferenceRecipe =
+    cocktail?.id === 'amaretto-sour' || cocktail?.title === 'Amaretto Sour';
+  const detailEyebrow = cocktail?.isVaultVariation
+    ? 'Variation'
+    : cocktail?.isNonAlcoholic
+    ? 'Zero-Proof Recipe'
+    : isReferenceRecipe
+    ? AMARETTO_SOUR_REFERENCE_CONTENT.badge
+    : 'Recipe';
+  const heroKicker = isReferenceRecipe
+    ? AMARETTO_SOUR_REFERENCE_CONTENT.categoryLabel
+    : cocktail?.category || cocktail?.subtitle || 'Curated Pour';
+  const tastingNote =
+    isReferenceRecipe
+      ? AMARETTO_SOUR_REFERENCE_CONTENT.tastingNote
+      : cocktail?.description || cocktail?.subtitle || '';
 
   const handleShare = async () => {
     if (!cocktail) return;
@@ -1641,14 +1706,42 @@ export default function CocktailDetailScreen() {
             style={styles.heroImage}
           />
           <LinearGradient
-            colors={['transparent', 'transparent', 'rgba(26, 18, 13, 0.8)', '#1A120D']}
+            colors={
+              ['transparent', 'transparent', 'rgba(26, 18, 13, 0.8)', '#1A120D']
+            }
             style={styles.heroGradient}
           >
-            <Text style={[styles.heroTitle, { fontFamily: serifFont }]}>
+            <View style={styles.heroLabelRow}>
+              <View style={styles.heroTypePill}>
+                <Ionicons
+                  name={cocktail.isVaultVariation ? 'sparkles-outline' : 'ribbon-outline'}
+                  size={12}
+                  color={colors.accent}
+                />
+                <Text style={styles.heroTypePillText}>
+                  {detailEyebrow}
+                </Text>
+              </View>
+              <Text style={styles.heroWatermark}>KOOPE</Text>
+            </View>
+
+            <Text
+              style={[
+                styles.heroKicker,
+                { fontFamily: serifFont },
+              ]}
+            >
+              {heroKicker}
+            </Text>
+            <Text
+              style={[
+                styles.heroTitle,
+                { fontFamily: serifFont },
+              ]}
+            >
               {cocktail.title}
             </Text>
 
-            {/* Metadata Row */}
             <View style={styles.metaRow}>
               <View style={styles.metaItem}>
                 <MaterialCommunityIcons name="clock-outline" size={16} color={colors.subtext} />
@@ -1666,13 +1759,14 @@ export default function CocktailDetailScreen() {
                   <Text style={styles.metaDot}>•</Text>
                   <View style={styles.metaItem}>
                     <MaterialCommunityIcons name="glass-cocktail" size={16} color={colors.subtext} />
-                    <Text style={styles.metaText}>{cocktail.glassware || cocktail.glass}</Text>
+                    <Text style={styles.metaText}>
+                      {cocktail.glassware || cocktail.glass}
+                    </Text>
                   </View>
                 </>
               )}
             </View>
 
-            {/* Ingredient Ownership Indicator */}
             {ingredientStats.total > 0 && (
               <View style={styles.ingredientStatsRow}>
                 <MaterialCommunityIcons
@@ -1680,10 +1774,12 @@ export default function CocktailDetailScreen() {
                   size={16}
                   color={ingredientStats.owned === ingredientStats.total ? colors.success : colors.accent}
                 />
-                <Text style={[
-                  styles.ingredientStatsText,
-                  ingredientStats.owned === ingredientStats.total && { color: colors.success }
-                ]}>
+                <Text
+                  style={[
+                    styles.ingredientStatsText,
+                    ingredientStats.owned === ingredientStats.total && { color: colors.success },
+                  ]}
+                >
                   You have {ingredientStats.owned}/{ingredientStats.total} ingredients
                 </Text>
               </View>
@@ -1691,16 +1787,25 @@ export default function CocktailDetailScreen() {
           </LinearGradient>
 
           {/* Back Button (Absolute) */}
-          <TouchableOpacity style={styles.backButtonAbsolute} onPress={withHaptic(() => nav.goBack(), 'selection')}>
+          <TouchableOpacity
+            style={styles.backButtonAbsolute}
+            onPress={withHaptic(() => nav.goBack(), 'selection')}
+          >
             <Ionicons name="arrow-back" size={24} color={colors.white} />
           </TouchableOpacity>
 
           {/* Actions (Absolute Top Right) */}
           <View style={styles.topActionsAbsolute}>
-            <TouchableOpacity style={styles.iconButton} onPress={withHaptic(handleShare)}>
+            <TouchableOpacity
+              style={styles.iconButton}
+              onPress={withHaptic(handleShare)}
+            >
               <Ionicons name="share-outline" size={22} color={colors.white} />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.iconButton} onPress={withHaptic(handleSave)}>
+            <TouchableOpacity
+              style={styles.iconButton}
+              onPress={withHaptic(handleSave)}
+            >
               <Ionicons name={isSaved ? "bookmark" : "bookmark-outline"} size={22} color={colors.white} />
             </TouchableOpacity>
             {Boolean((route.params as any)?.cocktail?.id?.startsWith?.('recipe_') || (route.params as any)?.cocktail?.type) && (
@@ -1714,94 +1819,160 @@ export default function CocktailDetailScreen() {
           </View>
         </View>
 
-        {/* --- Action Buttons --- */}
-        <View style={styles.actionButtonsContainer}>
-          {cocktail.kitAvailable ? (
-            <TouchableOpacity style={styles.primaryButton} onPress={handleAddToCart}>
-              <Text style={styles.primaryButtonText}>
-                {ingredientStats.missing.length === 0
-                  ? 'Add All Ingredients to Cart'
-                  : ingredientStats.missing.length === ingredientStats.total
-                  ? 'Add All Ingredients to Cart'
-                  : `Add Missing Ingredients (${ingredientStats.missing.length})`}
-              </Text>
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity style={styles.primaryButton} onPress={handleMadeIt} disabled={hasMadeIt}>
-              <Text style={styles.primaryButtonText}>{hasMadeIt ? "You Made It!" : "I made this drink"}</Text>
-            </TouchableOpacity>
-          )}
-
-          {cocktail.kitAvailable && (
-            <TouchableOpacity style={styles.secondaryButton} onPress={handleMadeIt} disabled={hasMadeIt}>
-              <Text style={styles.secondaryButtonText}>{hasMadeIt ? "You Made It!" : "How did you make it?"}</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-
-        {/* --- Ingredients --- */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionHeader, { fontFamily: serifFont }]}>Ingredients</Text>
-          <View style={styles.ingredientsList}>
-            {parsedIngredients && parsedIngredients.length > 0 ? (
-              parsedIngredients.map((ingredient, index) => {
-                const userHasIt = hasIngredient(userInventory, ingredient.name);
-                const name = ingredient.name;
-                const note = ingredient.note;
-
-                // Simple icon logic based on keywords
-                let iconName: any = 'bottle-tonic-plus';
-                const lowerName = name.toLowerCase();
-                if (lowerName.includes('gin')) iconName = 'bottle-tonic';
-                else if (lowerName.includes('vermouth')) iconName = 'bottle-wine';
-                else if (lowerName.includes('campari')) iconName = 'bottle-wine';
-                else if (lowerName.includes('orange') || lowerName.includes('lemon') || lowerName.includes('lime')) iconName = 'fruit-citrus';
-                else if (lowerName.includes('ice')) iconName = 'cube-outline';
-                else if (lowerName.includes('syrup')) iconName = 'water-outline';
-                else if (lowerName.includes('garnish')) iconName = 'leaf';
-                else if (lowerName.includes('bitters')) iconName = 'water';
-
-                return (
-                  <View key={`ingredient-${index}`} style={styles.ingredientRow}>
-                    <View style={styles.ingredientIconBox}>
-                      <MaterialCommunityIcons name={iconName} size={20} color={userHasIt ? colors.success : colors.accent} />
-                    </View>
-                    <View style={styles.ingredientInfo}>
-                      <Text style={styles.ingredientName}>{name}</Text>
-                      {note && <Text style={styles.ingredientDetail}>{note}</Text>}
-                    </View>
-                    {userHasIt && (
-                      <Ionicons name="checkmark-circle" size={20} color={colors.success} style={{ marginLeft: 8 }} />
-                    )}
-                  </View>
-                );
-              })
+        <View style={isReferenceRecipe && styles.referenceContentShell}>
+          {/* --- Action Buttons --- */}
+          <View style={[styles.actionButtonsContainer, isReferenceRecipe && styles.referenceActionButtonsContainer]}>
+            {cocktail.kitAvailable ? (
+              <TouchableOpacity style={[styles.primaryButton, isReferenceRecipe && styles.referencePrimaryButton]} onPress={handleAddToCart}>
+                <Text style={[styles.primaryButtonText, isReferenceRecipe && styles.referencePrimaryButtonText]}>
+                  {ingredientStats.missing.length === 0
+                    ? 'Add All Ingredients to Cart'
+                    : ingredientStats.missing.length === ingredientStats.total
+                    ? 'Add All Ingredients to Cart'
+                    : `Add Missing Ingredients (${ingredientStats.missing.length})`}
+                </Text>
+              </TouchableOpacity>
             ) : (
-              <Text style={{ color: colors.subtext }}>No ingredients listed.</Text>
+              <TouchableOpacity
+                style={[styles.primaryButton, isReferenceRecipe && styles.referencePrimaryButton]}
+                onPress={handleMadeIt}
+                disabled={hasMadeIt}
+              >
+                <Text style={[styles.primaryButtonText, isReferenceRecipe && styles.referencePrimaryButtonText]}>
+                  {hasMadeIt ? "You Made It!" : "I made this drink"}
+                </Text>
+              </TouchableOpacity>
+            )}
+
+            {cocktail.kitAvailable && (
+              <TouchableOpacity
+                style={[styles.secondaryButton, isReferenceRecipe && styles.referenceSecondaryButton]}
+                onPress={handleMadeIt}
+                disabled={hasMadeIt}
+              >
+                <Text style={[styles.secondaryButtonText, isReferenceRecipe && styles.referenceSecondaryButtonText]}>
+                  {hasMadeIt ? "You Made It!" : "How did you make it?"}
+                </Text>
+              </TouchableOpacity>
             )}
           </View>
-        </View>
 
-        {/* --- Instructions --- */}
-        {parsedInstructions.length > 0 && (
-          <View style={styles.section}>
-            <Text style={[styles.sectionHeader, { fontFamily: serifFont }]}>Instructions</Text>
-            <View style={styles.instructionsList}>
-              {parsedInstructions.map((step, index) => (
-                <View key={`step-${index}`} style={styles.instructionRow}>
-                  <Text style={[styles.stepNumber, { fontFamily: serifFont }]}>
-                    {String(index + 1).padStart(2, '0')}
-                  </Text>
-                  <Text style={styles.stepText}>{step}</Text>
+          <View style={[styles.recipeEditorialShell, isReferenceRecipe && styles.referenceRecipeEditorialShell]}>
+            <View style={[styles.recipeEditorialInner, isReferenceRecipe && styles.referenceRecipeEditorialInner]}>
+              {isReferenceRecipe ? (
+                <View style={styles.referenceSectionHeaderRow}>
+                  <Text style={styles.referenceSectionEyebrow}>Ingredients</Text>
+                  <View style={styles.referenceSectionRule} />
                 </View>
-              ))}
+              ) : null}
+              <View style={[styles.specTable, isReferenceRecipe && styles.referenceSpecTable]}>
+                {parsedIngredients && parsedIngredients.length > 0 ? (
+                  parsedIngredients.map((ingredient, index) => {
+                    const isOwnedIngredient = ownedIngredientNames.has(String(ingredient.name || ''));
+                    const formattedAmount = formatIngredientAmount(String(ingredient.note || ''));
+                    return (
+                    <View
+                      key={`ingredient-${index}`}
+                      style={[
+                        styles.specRow,
+                        isReferenceRecipe && styles.referenceSpecRow,
+                        isOwnedIngredient && styles.specRowOwned,
+                        isOwnedIngredient && isReferenceRecipe && styles.referenceSpecRowOwned,
+                        index === parsedIngredients.length - 1 && styles.specRowLast,
+                      ]}
+                    >
+                      <View style={styles.specNameWrap}>
+                        <Text
+                          style={[
+                            styles.specName,
+                            isReferenceRecipe && styles.referenceSpecName,
+                            isOwnedIngredient && styles.specNameOwned,
+                            isOwnedIngredient && isReferenceRecipe && styles.referenceSpecNameOwned,
+                          ]}
+                        >
+                          {ingredient.name}
+                        </Text>
+                        {isOwnedIngredient ? (
+                          <MaterialCommunityIcons
+                            name="check-circle"
+                            size={16}
+                            color={colors.success}
+                            style={styles.specOwnedIcon}
+                          />
+                        ) : null}
+                      </View>
+                      <View style={styles.specAmountWrap}>
+                        <Text
+                          style={[
+                            styles.specAmount,
+                            isReferenceRecipe && styles.referenceSpecAmount,
+                            isOwnedIngredient && styles.specAmountOwned,
+                            isOwnedIngredient && isReferenceRecipe && styles.referenceSpecAmountOwned,
+                          ]}
+                        >
+                          {formattedAmount}
+                        </Text>
+                      </View>
+                    </View>
+                    );
+                  })
+                ) : (
+                  <Text style={styles.emptyRecipeCardText}>No ingredients listed.</Text>
+                )}
+              </View>
+
+              {parsedInstructions.length > 0 && (
+                <View style={[styles.recipeEditorialSection, isReferenceRecipe && styles.referenceRecipeEditorialSection]}>
+                  <Text
+                    style={[
+                      styles.recipeEditorialTitle,
+                      { fontFamily: isReferenceRecipe ? referenceSerifFont : serifFont },
+                      isReferenceRecipe && styles.referenceRecipeEditorialTitle,
+                    ]}
+                  >
+                    Method
+                  </Text>
+                  <View style={[styles.methodList, isReferenceRecipe && styles.referenceMethodList]}>
+                    {parsedInstructions.map((step, index) => (
+                      <View key={`step-${index}`} style={[styles.methodRow, isReferenceRecipe && styles.referenceMethodRow]}>
+                        <Text
+                          style={[
+                            styles.methodIndex,
+                            { fontFamily: isReferenceRecipe ? referenceDisplayFont : serifFont },
+                            isReferenceRecipe && styles.referenceMethodIndex,
+                          ]}
+                        >
+                          {String(index + 1).padStart(2, '0')}
+                        </Text>
+                        <Text style={[styles.methodText, isReferenceRecipe && styles.referenceMethodText]}>{step}</Text>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              )}
+
+              {tastingNote ? (
+                <View style={[styles.recipeEditorialSection, styles.recipeEditorialSectionLast]}>
+                  <Text
+                    style={[
+                      styles.recipeEditorialTitle,
+                      { fontFamily: isReferenceRecipe ? referenceSerifFont : serifFont },
+                      isReferenceRecipe && styles.referenceRecipeEditorialTitle,
+                    ]}
+                  >
+                    Tasting Note
+                  </Text>
+                  <Text style={[styles.tastingNoteText, isReferenceRecipe && styles.referenceTastingNoteText]}>{tastingNote}</Text>
+                </View>
+              ) : null}
             </View>
           </View>
-        )}
+        </View>
 
         {/* --- Pro Tips --- */}
         {parsedTips.length > 0 && (
           <View style={styles.section}>
+            <Text style={styles.sectionEyebrow}>Notes</Text>
             <View style={styles.proTipsContainer}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
                 <MaterialCommunityIcons name="lightbulb-on" size={20} color={colors.accent} />
@@ -1812,6 +1983,23 @@ export default function CocktailDetailScreen() {
               {parsedTips.map((tip, idx) => (
                 <Text key={idx} style={styles.proTipsText}>• {tip}</Text>
               ))}
+              {!showProTips ? (
+                <View style={styles.proTipsGate}>
+                  <BlurView intensity={42} tint="dark" style={StyleSheet.absoluteFill} />
+                  <View style={styles.proTipsGateContent}>
+                    <Text style={styles.proTipsGateTitle}>Available on PLUS and PRO</Text>
+                    <Text style={styles.proTipsGateBody}>
+                      Unlock bartender notes, technique guidance, and finishing tips.
+                    </Text>
+                    <TouchableOpacity
+                      style={styles.proTipsGateButton}
+                      onPress={withHaptic(() => nav.navigate('Paywall', { source: 'pro_tips_gate' } as any), 'selection')}
+                    >
+                      <Text style={styles.proTipsGateButtonText}>Unlock Pro Tips</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ) : null}
             </View>
           </View>
         )}
@@ -2028,6 +2216,7 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 480,
     position: 'relative',
+    overflow: 'hidden',
   },
   heroImage: {
     width: '100%',
@@ -2044,21 +2233,149 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing(3),
     paddingBottom: spacing(4),
   },
-  heroTitle: {
-    fontSize: 36,
-    color: colors.text,
-    textAlign: 'center',
+  referenceHeroContainer: {
+    height: rs(450),
+    backgroundColor: '#120D0A',
+  },
+  referenceHeroImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  referenceHeroScrim: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(16, 10, 7, 0.12)',
+  },
+  referenceHeroGradient: {
+    height: rs(238),
+    justifyContent: 'flex-end',
+    paddingBottom: rs(28),
+    paddingHorizontal: rs(20),
+  },
+  referenceEditionRow: {
+    marginBottom: rs(8),
+  },
+  referenceEditionChip: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: rs(10),
+    paddingVertical: rs(5),
+    borderRadius: rs(999),
+    backgroundColor: 'rgba(18, 12, 9, 0.58)',
+    borderWidth: 1,
+    borderColor: 'rgba(214, 165, 102, 0.14)',
+  },
+  referenceEditionChipText: {
+    color: '#CFA66E',
+    fontSize: rs(10),
+    fontWeight: '700',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+  },
+  heroLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: spacing(2),
+  },
+  referenceHeroLabelRow: {
+    marginBottom: rs(10),
+    alignItems: 'center',
+  },
+  heroTypePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(0.75),
+    paddingHorizontal: spacing(1.5),
+    paddingVertical: spacing(0.75),
+    borderRadius: radii.full,
+    borderWidth: 1,
+    borderColor: 'rgba(214,138,56,0.2)',
+    backgroundColor: 'rgba(20,15,12,0.76)',
+    alignSelf: 'flex-start',
+  },
+  referenceHeroTypePill: {
+    paddingHorizontal: rs(12),
+    paddingVertical: rs(7),
+    borderRadius: 999,
+    borderColor: 'rgba(214,165,102,0.3)',
+    backgroundColor: 'rgba(22, 16, 13, 0.82)',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  heroTypePillText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.accent,
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
+  },
+  referenceHeroTypePillText: {
+    fontSize: rs(11),
+    letterSpacing: 0.9,
+    color: '#D8A45D',
+  },
+  heroWatermark: {
+    fontSize: 10,
+    color: colors.text,
+    opacity: 0.78,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+  },
+  referenceHeroWatermark: {
+    fontSize: rs(11),
+    letterSpacing: rs(1.6),
+    opacity: 0.62,
+  },
+  heroKicker: {
+    fontSize: 13,
+    color: colors.subtext,
+    marginBottom: spacing(1),
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+  },
+  referenceHeroKicker: {
+    fontSize: rs(13),
+    lineHeight: rs(18),
+    color: 'rgba(246, 235, 221, 0.82)',
+    letterSpacing: 1.2,
+    marginBottom: rs(6),
+    textShadowColor: 'rgba(0,0,0,0.18)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 1,
+  },
+  heroTitle: {
+    fontSize: 42,
+    lineHeight: 46,
+    color: colors.text,
+    textAlign: 'left',
+    marginBottom: spacing(2.5),
     fontWeight: '700',
     textShadowColor: 'rgba(0,0,0,0.5)',
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 4,
   },
+  referenceHeroTitle: {
+    fontSize: rs(37),
+    lineHeight: rs(41),
+    letterSpacing: -0.5,
+    marginBottom: rs(10),
+    color: '#F2E6D8',
+    textShadowColor: 'rgba(0,0,0,0.18)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 2,
+  },
   metaRow: {
     flexDirection: 'row',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
+    flexWrap: 'wrap',
     alignItems: 'center',
     gap: spacing(1),
+  },
+  referenceMetaRow: {
+    marginBottom: rs(12),
   },
   metaItem: {
     flexDirection: 'row',
@@ -2070,10 +2387,22 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
   },
+  referenceMetaText: {
+    fontSize: rs(14),
+    color: '#E0D2C1',
+  },
   metaDot: {
     color: colors.subtext,
     fontSize: 14,
     marginHorizontal: 4,
+  },
+  referenceMetaDot: {
+    fontSize: rs(13),
+    color: '#C2B09C',
+  },
+  referenceBackButtonAbsolute: {
+    top: rs(58),
+    left: rs(14),
   },
   backButtonAbsolute: {
     position: 'absolute',
@@ -2086,12 +2415,28 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.3)',
     borderRadius: 20,
   },
+  referenceTopIconButton: {
+    width: rs(40),
+    height: rs(40),
+    borderRadius: rs(20),
+    backgroundColor: 'rgba(7, 7, 8, 0.4)',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 1,
+  },
   topActionsAbsolute: {
     position: 'absolute',
     top: 60,
     right: spacing(3),
     flexDirection: 'row',
     gap: spacing(2),
+  },
+  referenceTopActionsAbsolute: {
+    top: rs(58),
+    right: rs(14),
+    gap: rs(8),
   },
   iconButton: {
     width: 40,
@@ -2105,13 +2450,25 @@ const styles = StyleSheet.create({
   // Actions
   actionButtonsContainer: {
     paddingHorizontal: spacing(3),
-    marginTop: spacing(2),
+    marginTop: spacing(2.5),
     gap: spacing(2),
+  },
+  referenceContentShell: {
+    marginTop: rs(-2),
+    paddingTop: rs(4),
+    borderTopLeftRadius: rs(28),
+    borderTopRightRadius: rs(28),
+    backgroundColor: '#17100D',
+  },
+  referenceActionButtonsContainer: {
+    marginTop: 0,
+    paddingHorizontal: rs(16),
+    gap: rs(6),
   },
   primaryButton: {
     backgroundColor: colors.accent,
     borderRadius: radii.pill,
-    height: 52,
+    height: 54,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: colors.accent,
@@ -2120,24 +2477,50 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
   },
+  referencePrimaryButton: {
+    height: rs(58),
+    borderRadius: rs(18),
+    backgroundColor: '#D89A46',
+    borderWidth: 0,
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+  },
   primaryButtonText: {
-    color: '#FFF',
-    fontSize: 18,
+    color: colors.goldText,
+    fontSize: 16,
     fontWeight: '700',
   },
+  referencePrimaryButtonText: {
+    fontSize: rs(15),
+    fontWeight: '800',
+    letterSpacing: -0.2,
+    color: '#19110C',
+  },
   secondaryButton: {
-    backgroundColor: 'transparent',
+    backgroundColor: 'rgba(242,229,213,0.03)',
     borderRadius: radii.pill,
-    height: 52,
+    height: 54,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
+    borderColor: 'rgba(214,138,56,0.18)',
+  },
+  referenceSecondaryButton: {
+    height: rs(54),
+    borderRadius: rs(18),
+    backgroundColor: 'rgba(31, 21, 16, 0.88)',
+    borderColor: 'rgba(177,123,64,0.28)',
+    borderWidth: 1,
   },
   secondaryButtonText: {
     color: colors.text,
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
+  },
+  referenceSecondaryButtonText: {
+    fontSize: rs(14),
+    fontWeight: '600',
+    color: '#EADCCB',
   },
   customizeButton: {
     flexDirection: 'row',
@@ -2159,15 +2542,231 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 
+  recipeEditorialShell: {
+    paddingHorizontal: spacing(2.5),
+    marginTop: spacing(3.25),
+    marginBottom: spacing(1),
+  },
+  referenceRecipeEditorialShell: {
+    paddingHorizontal: rs(14),
+    marginTop: rs(10),
+  },
+  recipeEditorialInner: {
+    paddingHorizontal: spacing(2),
+    paddingTop: spacing(0.75),
+    paddingBottom: spacing(0.5),
+  },
+  referenceRecipeEditorialInner: {
+    paddingHorizontal: rs(14),
+    paddingTop: rs(8),
+    paddingBottom: rs(16),
+    borderRadius: rs(22),
+    backgroundColor: '#1A1310',
+    borderWidth: 1,
+    borderColor: 'rgba(214,165,102,0.035)',
+  },
+  referenceSectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: rs(12),
+    marginBottom: rs(8),
+    paddingTop: rs(2),
+  },
+  referenceSectionEyebrow: {
+    color: '#AF8150',
+    fontSize: rs(11),
+    fontWeight: '700',
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+  },
+  referenceSectionRule: {
+    flex: 1,
+    height: 1,
+    backgroundColor: 'rgba(214,165,102,0.08)',
+  },
+  recipeEditorialSection: {
+    paddingTop: spacing(2.9),
+  },
+  referenceRecipeEditorialSection: {
+    paddingTop: rs(14),
+  },
+  recipeEditorialSectionLast: {
+    paddingBottom: 0,
+  },
+  recipeEditorialTitle: {
+    fontSize: 31,
+    lineHeight: 36,
+    color: '#F6EBDD',
+    marginBottom: spacing(1.5),
+    fontWeight: '500',
+  },
+  referenceRecipeEditorialTitle: {
+    fontSize: rs(22),
+    lineHeight: rs(26),
+    marginBottom: rs(8),
+    color: '#EEDFCF',
+  },
+  specTable: {
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(229, 209, 189, 0.09)',
+    overflow: 'hidden',
+    backgroundColor: '#34241C',
+  },
+  referenceSpecTable: {
+    borderRadius: rs(22),
+    backgroundColor: '#261A15',
+    borderColor: 'rgba(214,165,102,0.08)',
+  },
+  specRow: {
+    minHeight: 92,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing(2),
+    paddingHorizontal: spacing(1.95),
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(229, 209, 189, 0.06)',
+  },
+  specRowOwned: {
+    backgroundColor: 'rgba(74, 122, 89, 0.08)',
+  },
+  referenceSpecRow: {
+    minHeight: rs(66),
+    paddingHorizontal: rs(14),
+    borderBottomColor: 'rgba(214,165,102,0.06)',
+  },
+  referenceSpecRowOwned: {
+    backgroundColor: 'rgba(74, 122, 89, 0.1)',
+  },
+  specRowLast: {
+    borderBottomWidth: 0,
+  },
+  specNameWrap: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(1),
+  },
+  specAmountWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: spacing(0.75),
+    marginLeft: spacing(1),
+  },
+  specOwnedIcon: {
+    marginTop: 1,
+  },
+  specName: {
+    flexShrink: 1,
+    color: '#F5EBDC',
+    fontSize: 21,
+    lineHeight: 28,
+    fontWeight: '400',
+  },
+  specNameOwned: {
+    color: '#DDF3E1',
+  },
+  referenceSpecName: {
+    fontSize: rs(18),
+    lineHeight: rs(22),
+    color: '#EADDCF',
+  },
+  referenceSpecNameOwned: {
+    color: '#E2F4E6',
+  },
+  specAmount: {
+    color: '#F5EBDC',
+    fontSize: 21,
+    lineHeight: 28,
+    fontWeight: '800',
+    textAlign: 'right',
+  },
+  specAmountOwned: {
+    color: '#DDF3E1',
+  },
+  referenceSpecAmount: {
+    fontSize: rs(18),
+    lineHeight: rs(22),
+    color: '#F0E4D6',
+  },
+  referenceSpecAmountOwned: {
+    color: '#E2F4E6',
+  },
+  emptyRecipeCardText: {
+    color: '#D6C3AE',
+    fontSize: 16,
+    paddingHorizontal: spacing(2),
+    paddingVertical: spacing(2),
+  },
+  methodList: {
+    gap: spacing(2.5),
+  },
+  referenceMethodList: {
+    gap: rs(10),
+  },
+  methodRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing(1.7),
+  },
+  referenceMethodRow: {
+    gap: rs(12),
+  },
+  methodIndex: {
+    width: 44,
+    color: '#D59C58',
+    fontSize: 19,
+    lineHeight: 27,
+    fontWeight: '700',
+  },
+  referenceMethodIndex: {
+    width: rs(36),
+    fontSize: rs(16),
+    lineHeight: rs(22),
+    color: '#C98E4B',
+  },
+  methodText: {
+    flex: 1,
+    color: '#EDE0D0',
+    fontSize: 20,
+    lineHeight: 31,
+    fontWeight: '400',
+  },
+  referenceMethodText: {
+    fontSize: rs(16),
+    lineHeight: rs(22),
+    color: '#DDD0C1',
+  },
+  tastingNoteText: {
+    color: '#E7D7C7',
+    fontSize: 20,
+    lineHeight: 32,
+    fontWeight: '400',
+  },
+  referenceTastingNoteText: {
+    fontSize: rs(16),
+    lineHeight: rs(22),
+    color: '#DDD0C1',
+  },
+
   // Section
   section: {
     paddingHorizontal: spacing(3),
     marginTop: spacing(4),
   },
+  sectionEyebrow: {
+    fontSize: 11,
+    color: colors.subtext,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    marginBottom: spacing(0.75),
+  },
   sectionHeader: {
-    fontSize: 28,
+    fontSize: 32,
     color: colors.text,
-    marginBottom: spacing(2.5),
+    marginBottom: spacing(2),
     fontWeight: '600',
   },
 
@@ -2178,9 +2777,11 @@ const styles = StyleSheet.create({
   ingredientRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#261C16',
+    backgroundColor: 'rgba(38,28,22,0.88)',
     padding: spacing(2),
-    borderRadius: radii.xl,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(214,138,56,0.12)',
   },
   ingredientIconBox: {
     width: 40,
@@ -2207,11 +2808,16 @@ const styles = StyleSheet.create({
 
   // Instructions
   instructionsList: {
-    gap: spacing(3),
+    gap: spacing(2),
   },
   instructionRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
+    backgroundColor: 'rgba(38,28,22,0.72)',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(214,138,56,0.1)',
+    padding: spacing(2),
   },
   stepNumber: {
     fontSize: 32,
@@ -2222,16 +2828,20 @@ const styles = StyleSheet.create({
   stepText: {
     flex: 1,
     fontSize: 16,
-    color: colors.textMuted,
+    color: colors.subtext,
     lineHeight: 24,
     paddingTop: 8,
   },
 
   // Pro Tips
   proTipsContainer: {
-    backgroundColor: '#261C16',
+    backgroundColor: 'rgba(38,28,22,0.84)',
     padding: spacing(3),
-    borderRadius: radii.lg,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: 'rgba(214,138,56,0.12)',
+    overflow: 'hidden',
+    position: 'relative',
   },
   proTipsTitle: {
     fontSize: 18,
@@ -2243,6 +2853,48 @@ const styles = StyleSheet.create({
     color: colors.subtext,
     lineHeight: 22,
     marginBottom: 8,
+  },
+  proTipsGate: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing(3),
+  },
+  proTipsGateContent: {
+    width: '100%',
+    borderRadius: 20,
+    padding: spacing(2.5),
+    alignItems: 'center',
+    backgroundColor: 'rgba(20,15,12,0.58)',
+    borderWidth: 1,
+    borderColor: 'rgba(214,138,56,0.16)',
+  },
+  proTipsGateTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: spacing(0.75),
+    textAlign: 'center',
+  },
+  proTipsGateBody: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: colors.subtext,
+    textAlign: 'center',
+    marginBottom: spacing(2),
+  },
+  proTipsGateButton: {
+    minHeight: 42,
+    paddingHorizontal: spacing(2.5),
+    borderRadius: radii.full,
+    backgroundColor: colors.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  proTipsGateButtonText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.goldText,
   },
 
   // AI Support
@@ -2264,14 +2916,14 @@ const styles = StyleSheet.create({
   },
   aiButton: {
     flex: 1,
-    backgroundColor: '#261C16',
-    borderRadius: radii.xl,
+    backgroundColor: 'rgba(38,28,22,0.84)',
+    borderRadius: 22,
     padding: spacing(2.5),
     height: 120,
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
+    borderColor: 'rgba(214,138,56,0.1)',
   },
   aiButtonTitle: {
     fontSize: 16,
@@ -2419,18 +3071,31 @@ const styles = StyleSheet.create({
   ingredientStatsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     gap: 6,
     marginTop: spacing(1.5),
     paddingHorizontal: spacing(2),
     paddingVertical: spacing(1),
     backgroundColor: 'rgba(214, 138, 56, 0.15)',
     borderRadius: radii.md,
-    alignSelf: 'center',
+    alignSelf: 'flex-start',
+  },
+  referenceIngredientStatsRow: {
+    minHeight: rs(44),
+    borderRadius: rs(18),
+    paddingHorizontal: rs(14),
+    paddingVertical: rs(8),
+    backgroundColor: 'rgba(116, 71, 27, 0.42)',
+    borderWidth: 1,
+    borderColor: 'rgba(214,138,56,0.12)',
   },
   ingredientStatsText: {
     color: colors.accent,
     fontSize: 14,
     fontWeight: '600',
+  },
+  referenceIngredientStatsText: {
+    fontSize: rs(14),
+    lineHeight: rs(18),
   },
 });
