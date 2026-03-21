@@ -3,8 +3,9 @@
  * Handles UPC/EAN barcode lookups for bottle identification.
  * Uses Open Food Facts API — free, no API key required, zero cost.
  *
- * Free tier users get barcode scanning instead of Google Vision (which costs money).
- * This service does the product lookup from a scanned barcode number.
+ * Barcode lookup is the first step in the smart-scan waterfall for all tiers.
+ * This service resolves a scanned barcode into product metadata and, when possible,
+ * matches it to our local spirits database.
  */
 
 import { SPIRITS_DATABASE } from '../data/spiritsDatabase';

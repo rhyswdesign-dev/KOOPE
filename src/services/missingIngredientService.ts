@@ -75,14 +75,15 @@ export function getMissingIngredients(
   const missing: string[] = [];
 
   for (const ingredient of recipe.ingredients) {
-    const name = ingredient.name.toLowerCase();
+    const rawName = typeof ingredient === 'string' ? ingredient : ingredient?.name || '';
+    const name = rawName.toLowerCase();
 
     const hasIt = inventoryNames.some(invName =>
       areIngredientsEquivalent(name, invName)
     );
 
     if (!hasIt) {
-      missing.push(ingredient.name);
+      missing.push(rawName);
     }
   }
 

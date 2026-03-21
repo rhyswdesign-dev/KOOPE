@@ -27,22 +27,14 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
+import { Asset } from 'expo-asset';
 import { colors, spacing, radii } from '../theme/tokens';
 import type { CameraStackParamList } from '../navigation/CameraStack';
 import { withHaptic } from '../lib/haptics';
 
 const serifFont = Platform.select({ ios: 'Georgia', android: 'serif', default: 'serif' });
 
-function shuffleArray<T>(arr: T[]): T[] {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
-}
-
-const BACKGROUNDS: ImageSourcePropType[] = shuffleArray([
+const BACKGROUNDS: ImageSourcePropType[] = [
   require('../../assets/images/backgrounds/camera/bg-01.png'),
   require('../../assets/images/backgrounds/camera/bg-02.png'),
   require('../../assets/images/backgrounds/camera/bg-03.png'),
@@ -77,7 +69,7 @@ const BACKGROUNDS: ImageSourcePropType[] = shuffleArray([
   require('../../assets/images/backgrounds/camera/bg-33.png'),
   require('../../assets/images/backgrounds/camera/bg-34.png'),
   require('../../assets/images/backgrounds/camera/bg-35.png'),
-]);
+];
 
 export default function CameraHubScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<CameraStackParamList>>();
@@ -88,14 +80,41 @@ export default function CameraHubScreen() {
   const [layerBIndex, setLayerBIndex] = useState(1);
   const layerAOpacity = useRef(new Animated.Value(1)).current;
   const layerBOpacity = useRef(new Animated.Value(0)).current;
+  const layerAScale = useRef(new Animated.Value(1.01)).current;
+  const layerBScale = useRef(new Animated.Value(1.04)).current;
+  const [assetsReady, setAssetsReady] = useState(false);
   const activeLayerRef = useRef<0 | 1>(0);
   const currentIndexRef = useRef(0);
+  const pendingTransitionRef = useRef<{ currentLayer: 0 | 1; nextLayer: 0 | 1; incoming: number } | null>(null);
+  const transitionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const layerALoadedIndexRef = useRef<number | null>(null);
+  const layerBLoadedIndexRef = useRef<number | null>(null);
+  const queueNextTransitionRef = useRef<(() => void) | null>(null);
+  const runPendingTransitionRef = useRef<(() => void) | null>(null);
 
   // URL Input State
   const [showUrlInput, setShowUrlInput] = useState(false);
   const [urlText, setUrlText] = useState('');
 
   useEffect(() => {
+    let cancelled = false;
+
+    Promise.all(
+      BACKGROUNDS.map((background) => Asset.fromModule(background).downloadAsync().catch(() => null))
+    ).finally(() => {
+      if (!cancelled) {
+        setAssetsReady(true);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!assetsReady) return;
+
     const pulse = Animated.loop(
       Animated.sequence([
         Animated.timing(pulseAnim, {
@@ -113,66 +132,143 @@ export default function CameraHubScreen() {
     pulse.start();
 
     let isMounted = true;
-    let transitionTimer: ReturnType<typeof setTimeout> | null = null;
     const HOLD_MS = 4200;
-    const FADE_MS = 1800;
+    const FADE_MS = 1600;
+    const ACTIVE_DRIFT_MS = HOLD_MS + FADE_MS;
+    const DRIFT_START = 1.01;
+    const DRIFT_END = 1.05;
+    const INCOMING_START = 1.045;
+    const INCOMING_SETTLE = 1.02;
+    const OUTGOING_END = 1.06;
+
+    const animateDrift = (scale: Animated.Value, from: number, to: number, duration: number) => {
+      scale.setValue(from);
+      return Animated.timing(scale, {
+        toValue: to,
+        duration,
+        easing: Easing.inOut(Easing.quad),
+        useNativeDriver: true,
+      });
+    };
+
+    animateDrift(layerAScale, DRIFT_START, DRIFT_END, ACTIVE_DRIFT_MS).start();
+
+    const runPendingTransition = () => {
+      const pending = pendingTransitionRef.current;
+      if (!pending) return;
+
+      const readyIndex = pending.nextLayer === 0 ? layerALoadedIndexRef.current : layerBLoadedIndexRef.current;
+      if (readyIndex !== pending.incoming) return;
+
+      pendingTransitionRef.current = null;
+
+      requestAnimationFrame(() =>
+        requestAnimationFrame(() => {
+          const fadeIn = pending.nextLayer === 0 ? layerAOpacity : layerBOpacity;
+          const fadeOut = pending.currentLayer === 0 ? layerAOpacity : layerBOpacity;
+          const incomingScale = pending.nextLayer === 0 ? layerAScale : layerBScale;
+          const outgoingScale = pending.currentLayer === 0 ? layerAScale : layerBScale;
+
+          Animated.parallel([
+            Animated.timing(fadeIn, {
+              toValue: 1,
+              duration: FADE_MS,
+              easing: Easing.inOut(Easing.cubic),
+              useNativeDriver: true,
+            }),
+            Animated.timing(fadeOut, {
+              toValue: 0,
+              duration: FADE_MS,
+              easing: Easing.inOut(Easing.cubic),
+              useNativeDriver: true,
+            }),
+            Animated.timing(incomingScale, {
+              toValue: INCOMING_SETTLE,
+              duration: FADE_MS,
+              easing: Easing.out(Easing.cubic),
+              useNativeDriver: true,
+            }),
+            Animated.timing(outgoingScale, {
+              toValue: OUTGOING_END,
+              duration: FADE_MS,
+              easing: Easing.inOut(Easing.quad),
+              useNativeDriver: true,
+            }),
+          ]).start(({ finished }) => {
+            if (!finished || !isMounted) return;
+            activeLayerRef.current = pending.nextLayer;
+            currentIndexRef.current = pending.incoming;
+            animateDrift(incomingScale, INCOMING_SETTLE, DRIFT_END, ACTIVE_DRIFT_MS).start();
+            queueNextTransitionRef.current?.();
+          });
+        })
+      );
+    };
+    runPendingTransitionRef.current = runPendingTransition;
 
     const queueNextTransition = () => {
-      transitionTimer = setTimeout(() => {
+      transitionTimerRef.current = setTimeout(() => {
         if (!isMounted) return;
 
         const incoming = (currentIndexRef.current + 1) % BACKGROUNDS.length;
         const currentLayer = activeLayerRef.current;
         const nextLayer: 0 | 1 = currentLayer === 0 ? 1 : 0;
+        pendingTransitionRef.current = { currentLayer, nextLayer, incoming };
 
         if (nextLayer === 0) {
           setLayerAIndex(incoming);
           layerAOpacity.setValue(0);
+          layerAScale.setValue(INCOMING_START);
+          runPendingTransitionRef.current?.();
         } else {
           setLayerBIndex(incoming);
           layerBOpacity.setValue(0);
+          layerBScale.setValue(INCOMING_START);
+          runPendingTransitionRef.current?.();
         }
-
-        // Wait for image source swap to paint before animating.
-        requestAnimationFrame(() =>
-          requestAnimationFrame(() => {
-            const fadeIn = nextLayer === 0 ? layerAOpacity : layerBOpacity;
-            const fadeOut = currentLayer === 0 ? layerAOpacity : layerBOpacity;
-
-            Animated.parallel([
-              Animated.timing(fadeIn, {
-                toValue: 1,
-                duration: FADE_MS,
-                easing: Easing.inOut(Easing.cubic),
-                useNativeDriver: true,
-              }),
-              Animated.timing(fadeOut, {
-                toValue: 0,
-                duration: FADE_MS,
-                easing: Easing.inOut(Easing.cubic),
-                useNativeDriver: true,
-              }),
-            ]).start(({ finished }) => {
-              if (!finished || !isMounted) return;
-              activeLayerRef.current = nextLayer;
-              currentIndexRef.current = incoming;
-              queueNextTransition();
-            });
-          })
-        );
       }, HOLD_MS);
     };
+    queueNextTransitionRef.current = queueNextTransition;
 
-    queueNextTransition();
+    if (layerALoadedIndexRef.current === 0) {
+      queueNextTransition();
+    }
 
     return () => {
       isMounted = false;
       pulse.stop();
-      if (transitionTimer) clearTimeout(transitionTimer);
+      if (transitionTimerRef.current) clearTimeout(transitionTimerRef.current);
+      pendingTransitionRef.current = null;
       layerAOpacity.stopAnimation();
       layerBOpacity.stopAnimation();
+      layerAScale.stopAnimation();
+      layerBScale.stopAnimation();
+      queueNextTransitionRef.current = null;
+      runPendingTransitionRef.current = null;
     };
-  }, [pulseAnim, layerAOpacity, layerBOpacity]);
+  }, [assetsReady, pulseAnim, layerAOpacity, layerBOpacity, layerAScale, layerBScale]);
+
+  const handleLayerLoaded = (layer: 0 | 1, index: number) => {
+    if (layer === 0) {
+      layerALoadedIndexRef.current = index;
+    } else {
+      layerBLoadedIndexRef.current = index;
+    }
+
+    if (!assetsReady) return;
+
+    const pending = pendingTransitionRef.current;
+    if (!pending) {
+      if (layer === 0 && index === currentIndexRef.current && !transitionTimerRef.current) {
+        queueNextTransitionRef.current?.();
+      }
+      return;
+    }
+
+    const readyIndex = pending.nextLayer === 0 ? layerALoadedIndexRef.current : layerBLoadedIndexRef.current;
+    if (readyIndex !== pending.incoming) return;
+    runPendingTransitionRef.current?.();
+  };
 
   const handleUrlSubmit = () => {
     if (urlText.trim()) {
@@ -198,16 +294,24 @@ export default function CameraHubScreen() {
       {/* Background Layer A — always visible */}
       <Animated.Image
         source={BACKGROUNDS[layerAIndex]}
+        onLoadEnd={() => handleLayerLoaded(0, layerAIndex)}
         resizeMode="cover"
         blurRadius={0}
-        style={[styles.backgroundImage, { opacity: layerAOpacity }]}
+        style={[
+          styles.backgroundImage,
+          { opacity: layerAOpacity, transform: [{ scale: layerAScale }] },
+        ]}
       />
       {/* Background Layer B — crossfades in over A */}
       <Animated.Image
         source={BACKGROUNDS[layerBIndex]}
+        onLoadEnd={() => handleLayerLoaded(1, layerBIndex)}
         resizeMode="cover"
         blurRadius={0}
-        style={[styles.backgroundImage, { opacity: layerBOpacity }]}
+        style={[
+          styles.backgroundImage,
+          { opacity: layerBOpacity, transform: [{ scale: layerBScale }] },
+        ]}
       />
 
       <LinearGradient

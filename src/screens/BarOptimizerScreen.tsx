@@ -8,114 +8,124 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
-  Pressable,
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { colors, radii, serif, spacing } from '../theme/tokens';
+import { colors, radii, spacing } from '../theme/tokens';
 import MainPageHeader from '../components/ui/MainPageHeader';
 import EmptyState from '../components/EmptyState';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { useAuth } from '../contexts/AuthContext';
 import { InventoryService } from '../services/inventoryService';
-import {
-  type BarIngredient,
-  type HomeBar,
-  type IngredientSuggestion,
-  HomeBarService,
-} from '../services/homeBarService';
-import { useSavedItems } from '../hooks/useSavedItems';
-import { usePersonalization } from '../store/usePersonalization';
+import { HomeBarService } from '../services/homeBarService';
 import { ShoppingListStore } from '../services/shoppingListStore';
+import { RecipesRepository } from '../repos/supabase';
+import { generateOptimizationReport, type BarOptimizationReport } from '../services/optimizeMyBarService';
+import { toBottle, type Bottle, type UserInventoryItem } from '../types/database';
 import { useUserTier } from '../store/useUserTier';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
-type PrioritizedSuggestion = IngredientSuggestion & {
-  score: number;
-  reasons: string[];
-  savedRecipeHits: string[];
-  preferenceMatch: boolean;
-};
-
-function mapItemToBarIngredient(item: any, index: number): BarIngredient {
+function mapStoredIngredientToBottle(item: any, index: number, userId: string): Bottle {
   return {
-    id: item?.id || `inventory-${index}`,
-    name: item?.item_name || item?.name || 'Unknown',
-    category:
-      item?.item_type === 'spirit' || item?.category === 'spirit'
-        ? 'spirit'
-        : item?.category === 'mixer'
-          ? 'mixer'
-          : item?.category === 'garnish'
-            ? 'garnish'
-            : item?.category === 'bitters'
-              ? 'bitters'
-              : item?.category === 'syrup'
-                ? 'syrup'
-                : item?.category === 'liqueur'
-                  ? 'liqueur'
-                  : 'ingredient',
+    id: item?.id || `stored-${index}`,
+    userId,
+    name: item?.name || 'Unknown',
+    category: item?.category || 'other',
     subcategory: item?.subcategory || undefined,
     brand: item?.brand || undefined,
-    addedAt: item?.added_at ? new Date(item.added_at) : new Date(),
+    flavorTags: [],
+    quantity: 'full',
+    imageUrl: item?.imageUrl || undefined,
+    addedAt: item?.addedAt ? new Date(item.addedAt).toISOString() : new Date().toISOString(),
+    scanCount: 0,
     isFavorite: false,
-    tags: [],
   };
 }
 
-function getSuggestionIcon(category: IngredientSuggestion['category']): keyof typeof Ionicons.glyphMap {
-  switch (category) {
-    case 'spirit':
-      return 'wine-outline';
-    case 'mixer':
-      return 'water-outline';
-    case 'syrup':
-      return 'flask-outline';
-    case 'bitters':
-      return 'color-filter-outline';
-    case 'garnish':
-      return 'leaf-outline';
-    case 'liqueur':
-      return 'sparkles-outline';
-    default:
-      return 'cube-outline';
+function mapCategoryToShoppingList(category: string): 'spirits_liquors' | 'mixers' | 'garnish' | 'bitters' | 'syrup' | 'other' {
+  const normalized = category.toLowerCase();
+  if (normalized === 'spirit' || normalized === 'liqueur') return 'spirits_liquors';
+  if (normalized === 'mixer') return 'mixers';
+  if (normalized === 'garnish') return 'garnish';
+  if (normalized === 'bitters') return 'bitters';
+  if (normalized === 'syrup') return 'syrup';
+  return 'other';
+}
+
+function getHealthNarrative(score: number): { label: string; body: string } {
+  if (score >= 80) {
+    return {
+      label: 'Balanced',
+      body: 'Your bar can already cover a strong spread of classics and riffs. Focus on a few high-impact additions instead of broad restocking.',
+    };
   }
+  if (score >= 55) {
+    return {
+      label: 'Growing',
+      body: 'You have a solid base. One or two smart additions can noticeably widen what you can make for yourself or guests.',
+    };
+  }
+  return {
+    label: 'Foundational',
+    body: 'You are still building the core. Prioritize versatile staples first so every purchase increases cocktail reach quickly.',
+  };
 }
 
 export default function BarOptimizerScreen() {
   const nav = useNavigation<Nav>();
   const { user } = useAuth();
-  const { savedItems } = useSavedItems();
   const tier = useUserTier((state) => state.tier);
-  const getSpiritPreferences = usePersonalization((s) => s.getSpiritPreferences);
-
   const [loading, setLoading] = useState(true);
-  const [inventory, setInventory] = useState<BarIngredient[]>([]);
-  const [expandedItemName, setExpandedItemName] = useState<string | null>(null);
+  const [report, setReport] = useState<BarOptimizationReport | null>(null);
+  const [inventoryCount, setInventoryCount] = useState(0);
 
   useEffect(() => {
     let mounted = true;
+
     (async () => {
       try {
-        const stored = await HomeBarService.getStoredIngredients();
-        let mergedInventory: BarIngredient[] = [...stored];
+        setLoading(true);
+        const storedIngredients = await HomeBarService.getStoredIngredients();
+        const localInventory = storedIngredients.map((item, index) =>
+          mapStoredIngredientToBottle(item, index, user?.id || 'local')
+        );
 
+        let remoteInventory: Bottle[] = [];
         if (user?.id) {
           const userInventory = await InventoryService.getUserInventory(user.id);
-          const mapped = userInventory.map(mapItemToBarIngredient);
-
-          const deduped = new Map<string, BarIngredient>();
-          [...stored, ...mapped].forEach((item) => {
-            deduped.set(item.name.toLowerCase(), item);
-          });
-          mergedInventory = Array.from(deduped.values());
+          remoteInventory = userInventory.map((item: UserInventoryItem) =>
+            toBottle(item, {
+              subcategory: item.subcategory || undefined,
+              brand: item.brand || undefined,
+              abv: item.abv || undefined,
+              volume: item.volume || undefined,
+              quantity: (item.quantity as any) || 'full',
+              isFavorite: item.is_favorite || false,
+              notes: item.notes || undefined,
+              expiryDate: item.expiry_date || undefined,
+              scanCount: item.scan_count || 1,
+            })
+          );
         }
 
+        const deduped = new Map<string, Bottle>();
+        [...remoteInventory, ...localInventory].forEach((item) => {
+          deduped.set(`${item.name.toLowerCase()}|${item.category.toLowerCase()}`, item);
+        });
+
+        const inventory = Array.from(deduped.values());
+        const recipes = await RecipesRepository.getAllRecipes(0, 300);
+        const optimizationReport = generateOptimizationReport(inventory, recipes as any);
+
+        if (!mounted) return;
+        setInventoryCount(inventory.length);
+        setReport(optimizationReport);
+      } catch (error) {
         if (mounted) {
-          setInventory(mergedInventory);
+          setReport(null);
         }
       } finally {
         if (mounted) {
@@ -129,124 +139,77 @@ export default function BarOptimizerScreen() {
     };
   }, [user?.id]);
 
-  const prioritized = useMemo<PrioritizedSuggestion[]>(() => {
-    const preferredSpirits = getSpiritPreferences?.() || [];
-    const savedCocktailNames = (savedItems.savedCocktails || []).map((c) => c.name.toLowerCase());
+  const previewMode = tier === 'FREE';
+  const healthNarrative = useMemo(
+    () => getHealthNarrative(report?.completenessScore || 0),
+    [report?.completenessScore]
+  );
 
-    const homeBar: HomeBar = {
-      id: 'optimizer',
-      userId: user?.id || 'local',
-      name: 'My Bar',
-      ingredients: inventory,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      isDefault: true,
-    };
+  const shoppingPlan = useMemo(() => {
+    if (!report) return [];
+    return previewMode ? report.shoppingPlan.slice(0, 1) : report.shoppingPlan.slice(0, 5);
+  }, [previewMode, report]);
 
-    return HomeBarService.getIngredientSuggestions(homeBar)
-      .map((suggestion) => {
-        const reasons: string[] = [];
-        const savedRecipeHits = savedCocktailNames.filter((savedName) =>
-          suggestion.usedInCocktails.some((cocktail) =>
-            savedName.includes(cocktail.toLowerCase()) || cocktail.toLowerCase().includes(savedName)
-          )
-        );
+  const topPurchases = useMemo(() => {
+    if (!report) return [];
+    return previewMode ? report.topPurchases.slice(0, 2) : report.topPurchases.slice(0, 6);
+  }, [previewMode, report]);
 
-        let score = 0;
-        const essentialWeight =
-          suggestion.essentialLevel === 'must-have'
-            ? 50
-            : suggestion.essentialLevel === 'recommended'
-              ? 30
-              : 15;
-        score += essentialWeight;
-        score += suggestion.usedInCocktails.length * 2;
+  const gaps = useMemo(() => {
+    if (!report) return [];
+    return previewMode ? report.gaps.slice(0, 2) : report.gaps.slice(0, 4);
+  }, [previewMode, report]);
 
-        reasons.push(`${suggestion.usedInCocktails.length} cocktails use this`);
-
-        const preferenceMatch = preferredSpirits.some((spirit) => {
-          const spiritLower = String(spirit).toLowerCase();
-          return (
-            suggestion.name.toLowerCase().includes(spiritLower) ||
-            String(suggestion.subcategory || '').toLowerCase().includes(spiritLower)
-          );
-        });
-
-        if (preferenceMatch) {
-          score += 20;
-          reasons.push('Matches your spirit preferences');
-        }
-
-        if (savedRecipeHits.length > 0) {
-          score += Math.min(savedRecipeHits.length * 10, 25);
-          reasons.push(`Supports saved recipes: ${savedRecipeHits.slice(0, 2).join(', ')}`);
-        }
-
-        return {
-          ...suggestion,
-          score,
-          reasons,
-          savedRecipeHits,
-          preferenceMatch,
-        };
-      })
-      .sort((a, b) => b.score - a.score);
-  }, [getSpiritPreferences, inventory, savedItems.savedCocktails, user?.id]);
-
-  const isPreviewMode = tier === 'FREE';
-  const top3 = isPreviewMode ? prioritized.slice(0, 1) : prioritized.slice(0, 3);
-  const nextUp = isPreviewMode ? [] : prioritized.slice(3, 12);
-
-  const mapCategoryToGrocery = (
-    category: IngredientSuggestion['category']
-  ): 'spirits_liquors' | 'mixers' | 'garnish' | 'bitters' | 'syrup' | 'other' => {
-    switch (category) {
-      case 'spirit':
-      case 'liqueur':
-        return 'spirits_liquors';
-      case 'mixer':
-        return 'mixers';
-      case 'garnish':
-        return 'garnish';
-      case 'bitters':
-        return 'bitters';
-      case 'syrup':
-        return 'syrup';
-      default:
-        return 'other';
-    }
-  };
-
-  const handleAddToCart = async (item: PrioritizedSuggestion) => {
+  const addToShoppingList = async (item: { name: string; category?: string }) => {
     try {
       await ShoppingListStore.addItemToShoppingList(
         {
           name: item.name,
-          category: mapCategoryToGrocery(item.category),
-          subcategory: item.subcategory,
-          brand: item.commonBrands?.[0] || undefined,
-          checked: false,
+          category: mapCategoryToShoppingList(item.category || 'other'),
         },
-        'Bar Optimizer',
+        'Optimize My Bar',
         user?.id || 'default'
       );
 
-      Alert.alert('Added to Cart', `${item.name} was added to your shopping list.`);
-    } catch (error) {
-      Alert.alert('Could Not Add', 'Please try again.');
+      Alert.alert('Added to Shopping List', `${item.name} is ready for your next bar run.`);
+    } catch {
+      Alert.alert('Could Not Add Item', 'Please try again.');
     }
   };
 
-  const toggleExpanded = (itemName: string) => {
-    setExpandedItemName((prev) => (prev === itemName ? null : itemName));
+  const buildNextBarRun = async () => {
+    const nextRun = topPurchases.slice(0, 3);
+    if (!nextRun.length) {
+      Alert.alert('Nothing To Add', 'Your optimizer did not find a next bar run yet.');
+      return;
+    }
+
+    try {
+      await Promise.all(
+        nextRun.map((item) =>
+          ShoppingListStore.addItemToShoppingList(
+            {
+              name: item.ingredient,
+              category: mapCategoryToShoppingList(item.category || 'other'),
+            },
+            'Optimize My Bar',
+            user?.id || 'default'
+          )
+        )
+      );
+
+      Alert.alert('Next Bar Run Ready', `${nextRun.length} high-impact items were added to your shopping list.`);
+    } catch {
+      Alert.alert('Could Not Build Run', 'Please try again.');
+    }
   };
 
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
         <MainPageHeader
-          title="What To Buy Next"
-          subtitle="Analyzing your bar..."
+          title="Optimize My Bar"
+          subtitle="Analyzing your bar"
           showBackButton
           onBackPress={() => nav.goBack()}
         />
@@ -257,20 +220,20 @@ export default function BarOptimizerScreen() {
     );
   }
 
-  if (prioritized.length === 0) {
+  if (!report) {
     return (
       <SafeAreaView style={styles.container}>
         <MainPageHeader
-          title="What To Buy Next"
-          subtitle="No suggestions yet"
+          title="Optimize My Bar"
+          subtitle="We couldn't build your report"
           showBackButton
           onBackPress={() => nav.goBack()}
         />
         <EmptyState
-          icon="glass-cocktail"
-          title="No Recommendations Yet"
-          message="Add ingredients to your inventory and we will recommend what to buy next."
-          actionLabel="Go To Inventory"
+          icon="bar-chart"
+          title="No Optimization Report Yet"
+          message="Add a few bottles to your bar and we will show what to buy next for the biggest cocktail reach."
+          actionLabel="Go To Home Bar"
           onAction={() => nav.goBack()}
         />
       </SafeAreaView>
@@ -280,8 +243,8 @@ export default function BarOptimizerScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <MainPageHeader
-        title="What To Buy Next"
-        subtitle={`${inventory.length} items analyzed`}
+        title="Optimize My Bar"
+        subtitle={`${inventoryCount} items analyzed`}
         showBackButton
         onBackPress={() => nav.goBack()}
         rightActions={[
@@ -293,138 +256,121 @@ export default function BarOptimizerScreen() {
         ]}
       />
 
-      <ScrollView
-        style={styles.content}
-        contentContainerStyle={styles.contentContainer}
-        showsVerticalScrollIndicator={false}
-      >
+      <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer} showsVerticalScrollIndicator={false}>
+        <View style={styles.heroCard}>
+          <View style={styles.heroRow}>
+            <View>
+              <Text style={styles.heroLabel}>Bar Health</Text>
+              <Text style={styles.heroValue}>{report.completenessScore}%</Text>
+              <Text style={styles.heroStatus}>{healthNarrative.label}</Text>
+            </View>
+            <View style={styles.heroPill}>
+              <Text style={styles.heroPillText}>{report.makeableRecipeCount} makeable now</Text>
+            </View>
+          </View>
+          <Text style={styles.heroBody}>
+            {report.makeablePercent}% of the analyzed library is currently within reach. The plan below is ranked for the biggest unlock impact.
+          </Text>
+          <Text style={styles.heroSupport}>{healthNarrative.body}</Text>
+          {previewMode && (
+            <Text style={styles.previewNote}>
+              Free preview: KOOPE+ unlocks the full plan, full purchase ranking, and deeper bar-health coverage.
+            </Text>
+          )}
+        </View>
+
+        {!previewMode && (
+          <View style={styles.quickActionsRow}>
+            <TouchableOpacity style={styles.quickActionCard} onPress={buildNextBarRun}>
+              <Ionicons name="cart-outline" size={18} color={colors.accent} />
+              <Text style={styles.quickActionTitle}>Build Next Bar Run</Text>
+              <Text style={styles.quickActionBody}>Add the top 3 highest-impact buys to your list.</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.quickActionCard} onPress={() => nav.navigate('InventoryInsights', { mode: 'health' })}>
+              <Ionicons name="analytics-outline" size={18} color={colors.accent} />
+              <Text style={styles.quickActionTitle}>Review Bar Health</Text>
+              <Text style={styles.quickActionBody}>See category gaps and what they are costing you.</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.quickActionCard} onPress={() => nav.navigate('Hosting')}>
+              <Ionicons name="people-outline" size={18} color={colors.accent} />
+              <Text style={styles.quickActionTitle}>Plan A Small Host Night</Text>
+              <Text style={styles.quickActionBody}>Use your current bar for a 1-4 guest menu.</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Buy Now</Text>
-          <Text style={styles.sectionSubtitle}>Highest impact additions for your next cocktails.</Text>
-          {top3.map((item) => (
-            <View key={item.name} style={[styles.card, styles.cardTop]}>
+          <Text style={styles.sectionTitle}>What To Buy Next</Text>
+          <Text style={styles.sectionSubtitle}>Highest-impact additions for maximum cocktail reach.</Text>
+          {shoppingPlan.map((item) => (
+            <View key={`${item.priority}-${item.name}`} style={styles.card}>
               <View style={styles.cardHeader}>
-                <View style={styles.iconWrap}>
-                  <Ionicons name={getSuggestionIcon(item.category)} size={18} color={colors.accent} />
+                <View style={styles.rankBadge}>
+                  <Text style={styles.rankBadgeText}>{item.priority}</Text>
                 </View>
                 <View style={styles.cardTitleWrap}>
                   <Text style={styles.cardTitle}>{item.name}</Text>
-                  <Text style={styles.cardMeta}>
-                    {item.essentialLevel.replace('-', ' ')} • ${item.averagePrice} avg
-                  </Text>
+                  <Text style={styles.cardMeta}>{item.unlockCount} new cocktails • {item.priceRange}</Text>
                 </View>
               </View>
-
-              {item.reasons.map((reason) => (
-                <Text key={`${item.name}-${reason}`} style={styles.reasonText}>
-                  • {reason}
-                </Text>
-              ))}
-
-              <View style={styles.cardActions}>
-                <TouchableOpacity
-                  style={styles.addToCartButton}
-                  onPress={() => handleAddToCart(item)}
-                  activeOpacity={0.85}
-                >
-                  <Ionicons name="cart-outline" size={14} color={colors.bg} />
-                  <Text style={styles.addToCartText}>Add to Cart</Text>
-                </TouchableOpacity>
-                <Pressable
-                  style={styles.expandHint}
-                  onPress={() => toggleExpanded(item.name)}
-                >
-                  <Text style={styles.expandHintText}>
-                    {expandedItemName === item.name ? 'Tap to hide cocktails' : 'Tap to show cocktails'}
-                  </Text>
-                </Pressable>
-              </View>
-
-              {expandedItemName === item.name && (
-                <ScrollView
-                  horizontal
-                  nestedScrollEnabled
-                  showsHorizontalScrollIndicator={false}
-                  style={styles.cocktailsRow}
-                  contentContainerStyle={styles.cocktailsRowContent}
-                >
-                  {item.usedInCocktails.map((cocktail) => (
-                    <View key={`${item.name}-${cocktail}`} style={styles.cocktailPill}>
-                      <Text style={styles.cocktailPillText}>{cocktail}</Text>
-                    </View>
-                  ))}
-                </ScrollView>
+              <Text style={styles.cardBody}>{item.reason}</Text>
+              {!previewMode && (
+                <Text style={styles.impactNote}>Buying this first gives you one of the fastest reach gains in your current bar.</Text>
               )}
+              <TouchableOpacity style={styles.inlineButton} onPress={() => addToShoppingList({ name: item.name })}>
+                <Ionicons name="cart-outline" size={16} color={colors.accent} />
+                <Text style={styles.inlineButtonText}>Add to shopping list</Text>
+              </TouchableOpacity>
             </View>
           ))}
         </View>
 
-        {nextUp.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Next Up</Text>
-            {nextUp.map((item) => (
-              <View key={item.name} style={styles.card}>
-                <View style={styles.cardHeader}>
-                  <View style={styles.iconWrap}>
-                    <Ionicons name={getSuggestionIcon(item.category)} size={16} color={colors.subtext} />
-                  </View>
-                  <View style={styles.cardTitleWrap}>
-                    <Text style={styles.cardTitleSmall}>{item.name}</Text>
-                    <Text style={styles.cardMetaSmall}>
-                      {item.usedInCocktails.length} cocktails • {item.commonBrands.slice(0, 2).join(', ')}
-                    </Text>
-                  </View>
-                  <TouchableOpacity
-                    style={styles.addMiniButton}
-                    onPress={() => handleAddToCart(item)}
-                    activeOpacity={0.85}
-                  >
-                    <Ionicons name="cart-outline" size={14} color={colors.accent} />
-                  </TouchableOpacity>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Top Purchase Ranking</Text>
+          <Text style={styles.sectionSubtitle}>Ranked by unlock potential across the library.</Text>
+          {topPurchases.map((item, index) => (
+            <View key={`${item.ingredient}-${index}`} style={styles.rowCard}>
+              <View style={styles.rowMain}>
+                <Text style={styles.rowTitle}>{item.ingredient}</Text>
+                <Text style={styles.rowMeta}>{item.unlockCount} recipes unlocked</Text>
+              </View>
+              <TouchableOpacity style={styles.rowAction} onPress={() => addToShoppingList({ name: item.ingredient, category: item.category })}>
+                <Ionicons name="add-circle-outline" size={18} color={colors.accent} />
+              </TouchableOpacity>
+            </View>
+          ))}
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Current Gaps</Text>
+          <Text style={styles.sectionSubtitle}>The biggest holes reducing your cocktail coverage today.</Text>
+          {gaps.map((gap, index) => (
+            <View key={`${gap.category}-${index}`} style={styles.card}>
+              <View style={styles.gapHeader}>
+                <Text style={styles.cardTitle}>{gap.category}</Text>
+                <View style={[styles.severityBadge, gap.severity === 'critical' ? styles.severityCritical : gap.severity === 'moderate' ? styles.severityModerate : styles.severityMinor]}>
+                  <Text style={styles.severityBadgeText}>{gap.severity.toUpperCase()}</Text>
                 </View>
+              </View>
+              <Text style={styles.cardMeta}>{gap.blockedRecipeCount} recipes blocked</Text>
+              <Text style={styles.cardBody}>{gap.suggestion}</Text>
+            </View>
+          ))}
+        </View>
 
-                <Pressable style={styles.nextUpToggle} onPress={() => toggleExpanded(item.name)}>
-                  <Text style={styles.expandHintText}>
-                    {expandedItemName === item.name ? 'Tap to hide cocktails' : 'Tap to show cocktails'}
-                  </Text>
-                </Pressable>
-
-                {expandedItemName === item.name && (
-                  <ScrollView
-                    horizontal
-                    nestedScrollEnabled
-                    showsHorizontalScrollIndicator={false}
-                    style={styles.cocktailsRow}
-                    contentContainerStyle={styles.cocktailsRowContent}
-                  >
-                    {item.usedInCocktails.map((cocktail) => (
-                      <View key={`${item.name}-${cocktail}`} style={styles.cocktailPill}>
-                        <Text style={styles.cocktailPillText}>{cocktail}</Text>
-                      </View>
-                    ))}
-                  </ScrollView>
-                )}
+        {!previewMode && report.underusedBottles.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Use These More</Text>
+            <Text style={styles.sectionSubtitle}>Bottles in your bar with unused reach.</Text>
+            {report.underusedBottles.slice(0, 4).map((item, index) => (
+              <View key={`${item.bottle.id}-${index}`} style={styles.rowCard}>
+                <View style={styles.rowMain}>
+                  <Text style={styles.rowTitle}>{item.bottle.name}</Text>
+                  <Text style={styles.rowMeta}>{item.recipeCount} recipes available</Text>
+                </View>
+                <Text style={styles.rowHint}>{item.suggestion}</Text>
               </View>
             ))}
-          </View>
-        )}
-
-        {isPreviewMode && prioritized.length > 1 && (
-          <View style={styles.previewGateCard}>
-            <View style={styles.previewGateHeader}>
-              <Ionicons name="lock-closed" size={16} color={colors.accent} />
-              <Text style={styles.previewGateTitle}>Preview Mode</Text>
-            </View>
-            <Text style={styles.previewGateBody}>
-              Upgrade to KŌOPE+ to unlock your full optimizer report and complete buy priority list.
-            </Text>
-            <TouchableOpacity
-              style={styles.previewGateButton}
-              onPress={() => nav.navigate('Paywall', { displayCloseButton: true, offering: null })}
-              activeOpacity={0.85}
-            >
-              <Text style={styles.previewGateButtonText}>Unlock Full Report</Text>
-            </TouchableOpacity>
           </View>
         )}
       </ScrollView>
@@ -446,180 +392,217 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   contentContainer: {
-    paddingHorizontal: spacing(2.5),
-    paddingBottom: spacing(5),
-    paddingTop: spacing(2),
+    padding: spacing(2),
+    gap: spacing(2),
+  },
+  heroCard: {
+    backgroundColor: `${colors.accent}12`,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: `${colors.accent}28`,
+    padding: spacing(2),
+    gap: spacing(1.25),
+  },
+  heroRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: spacing(2),
+  },
+  heroLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.subtext,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+  },
+  heroValue: {
+    fontSize: 30,
+    fontWeight: '800',
+    color: colors.text,
+  },
+  heroStatus: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.accent,
+    marginTop: spacing(0.25),
+  },
+  heroPill: {
+    backgroundColor: colors.card,
+    borderRadius: radii.pill,
+    paddingHorizontal: spacing(1.5),
+    paddingVertical: spacing(0.75),
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
+  heroPillText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.accent,
+  },
+  heroBody: {
+    fontSize: 14,
+    color: colors.text,
+    lineHeight: 20,
+  },
+  heroSupport: {
+    fontSize: 13,
+    color: colors.subtext,
+    lineHeight: 19,
+  },
+  previewNote: {
+    fontSize: 12,
+    color: colors.accent,
+    lineHeight: 18,
+  },
+  quickActionsRow: {
+    gap: spacing(1.25),
+  },
+  quickActionCard: {
+    backgroundColor: colors.card,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.line,
+    padding: spacing(2),
+    gap: spacing(0.75),
+  },
+  quickActionTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: colors.text,
+  },
+  quickActionBody: {
+    fontSize: 13,
+    lineHeight: 18,
+    color: colors.subtext,
   },
   section: {
-    marginBottom: spacing(3),
+    gap: spacing(1.25),
   },
   sectionTitle: {
-    fontSize: 22,
-    fontWeight: '700',
+    fontSize: 18,
+    fontWeight: '800',
     color: colors.text,
-    fontFamily: serif,
   },
   sectionSubtitle: {
     fontSize: 13,
     color: colors.subtext,
-    marginTop: spacing(0.5),
-    marginBottom: spacing(1.5),
   },
   card: {
     backgroundColor: colors.card,
+    borderRadius: radii.lg,
     borderWidth: 1,
     borderColor: colors.line,
-    borderRadius: radii.lg,
-    padding: spacing(1.75),
-    marginBottom: spacing(1.25),
-  },
-  cardTop: {
-    borderColor: 'rgba(214, 138, 56, 0.35)',
+    padding: spacing(2),
+    gap: spacing(1),
   },
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: spacing(1.5),
   },
-  iconWrap: {
+  rankBadge: {
     width: 28,
     height: 28,
-    borderRadius: radii.full,
+    borderRadius: 14,
+    backgroundColor: colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(214, 138, 56, 0.12)',
-    marginRight: spacing(1),
+  },
+  rankBadgeText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: colors.white,
   },
   cardTitleWrap: {
     flex: 1,
+    gap: spacing(0.25),
   },
   cardTitle: {
     fontSize: 16,
     fontWeight: '700',
     color: colors.text,
   },
-  cardTitleSmall: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: colors.text,
-  },
   cardMeta: {
     fontSize: 12,
     color: colors.subtext,
-    marginTop: spacing(0.25),
   },
-  cardMetaSmall: {
-    fontSize: 12,
-    color: colors.subtext,
-    marginTop: spacing(0.25),
-  },
-  reasonText: {
-    marginTop: spacing(0.75),
-    fontSize: 12,
-    color: colors.subtext,
-    lineHeight: 18,
-  },
-  cardActions: {
-    marginTop: spacing(1.25),
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing(1),
-  },
-  addToCartButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing(0.5),
-    backgroundColor: colors.accent,
-    borderRadius: radii.pill,
-    paddingHorizontal: spacing(1.5),
-    paddingVertical: spacing(0.75),
-  },
-  addToCartText: {
-    color: colors.bg,
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  expandHint: {
-    flex: 1,
-    alignItems: 'flex-end',
-    paddingVertical: spacing(0.5),
-  },
-  expandHintText: {
-    fontSize: 11,
-    color: colors.subtext,
-  },
-  nextUpToggle: {
-    marginTop: spacing(1),
-    alignItems: 'flex-end',
-  },
-  cocktailsRow: {
-    marginTop: spacing(1.25),
-  },
-  cocktailsRowContent: {
-    gap: spacing(0.75),
-    paddingRight: spacing(1),
-  },
-  cocktailPill: {
-    paddingHorizontal: spacing(1.5),
-    paddingVertical: spacing(0.75),
-    borderRadius: radii.pill,
-    backgroundColor: colors.bg,
-    borderWidth: 1,
-    borderColor: colors.line,
-  },
-  cocktailPillText: {
-    fontSize: 12,
+  cardBody: {
+    fontSize: 14,
     color: colors.text,
-    fontWeight: '600',
+    lineHeight: 20,
   },
-  previewGateCard: {
+  impactNote: {
+    fontSize: 12,
+    color: colors.accent,
+    lineHeight: 17,
+  },
+  inlineButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(0.75),
+    alignSelf: 'flex-start',
+  },
+  inlineButtonText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.accent,
+  },
+  rowCard: {
     backgroundColor: colors.card,
     borderRadius: radii.lg,
     borderWidth: 1,
     borderColor: colors.line,
     padding: spacing(2),
-    marginTop: spacing(1),
-    marginBottom: spacing(4),
-  },
-  previewGateHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing(1),
-    marginBottom: spacing(1),
   },
-  previewGateTitle: {
+  rowMain: {
+    flex: 1,
+    gap: spacing(0.25),
+  },
+  rowTitle: {
+    fontSize: 15,
+    fontWeight: '700',
     color: colors.text,
-    fontWeight: '800',
-    fontSize: 14,
-    letterSpacing: 0.2,
   },
-  previewGateBody: {
+  rowMeta: {
+    fontSize: 12,
     color: colors.subtext,
-    fontSize: 13,
-    lineHeight: 18,
   },
-  previewGateButton: {
-    marginTop: spacing(1.5),
-    backgroundColor: colors.accent,
-    borderRadius: radii.md,
-    paddingVertical: spacing(1.2),
+  rowAction: {
+    padding: spacing(0.5),
+  },
+  rowHint: {
+    flex: 1,
+    fontSize: 12,
+    color: colors.subtext,
+    textAlign: 'right',
+  },
+  gapHeader: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
+    gap: spacing(1),
   },
-  previewGateButtonText: {
-    color: colors.bg,
-    fontSize: 14,
+  severityBadge: {
+    paddingHorizontal: spacing(1),
+    paddingVertical: spacing(0.5),
+    borderRadius: radii.pill,
+  },
+  severityCritical: {
+    backgroundColor: 'rgba(220, 68, 55, 0.18)',
+  },
+  severityModerate: {
+    backgroundColor: 'rgba(236, 166, 54, 0.18)',
+  },
+  severityMinor: {
+    backgroundColor: 'rgba(95, 153, 102, 0.18)',
+  },
+  severityBadgeText: {
+    fontSize: 10,
     fontWeight: '800',
-    letterSpacing: 0.2,
-  },
-  addMiniButton: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.bg,
-    borderWidth: 1,
-    borderColor: colors.line,
+    color: colors.text,
   },
 });

@@ -33,6 +33,56 @@ export interface VisionResult {
   confidence: number;
 }
 
+const DEMO_BOTTLE_RESULTS: Record<string, VisionResult> = {
+  bacardi: {
+    labels: ['bottle', 'rum', 'white rum', 'alcohol', 'spirits', 'bacardi'],
+    text: ['BACARDI', 'SUPERIOR', 'WHITE RUM', '40% ALC/VOL', 'PUERTO RICO'],
+    confidence: 0.93,
+  },
+  hendricks: {
+    labels: ['bottle', 'gin', 'spirits', 'cucumber', 'scottish'],
+    text: ['HENDRICK\'S', 'GIN', 'DISTILLED', '44% ALC/VOL', 'SCOTLAND', 'CUCUMBER', 'ROSE'],
+    confidence: 0.92,
+  },
+  woodford: {
+    labels: ['bottle', 'bourbon', 'whiskey', 'barrel', 'american'],
+    text: ['WOODFORD', 'RESERVE', 'KENTUCKY', 'STRAIGHT', 'BOURBON', '45.2% ALC/VOL'],
+    confidence: 0.9,
+  },
+  johnnie: {
+    labels: ['bottle', 'scotch', 'whiskey', 'spirits', 'smoky'],
+    text: ['JOHNNIE', 'WALKER', 'BLACK LABEL', 'BLENDED SCOTCH WHISKY', '40% ALC/VOL'],
+    confidence: 0.91,
+  },
+  donJulio: {
+    labels: ['bottle', 'tequila', 'agave', 'spirits', 'mexican'],
+    text: ['DON JULIO', 'BLANCO', 'TEQUILA', '100% DE AGAVE', '40% ALC/VOL'],
+    confidence: 0.92,
+  },
+};
+
+function chooseDemoBottleResult(imageUri: string): VisionResult {
+  const normalizedUri = imageUri.toLowerCase();
+  const keywordMap: Array<{ patterns: string[]; key: keyof typeof DEMO_BOTTLE_RESULTS }> = [
+    { patterns: ['bacardi', 'rum'], key: 'bacardi' },
+    { patterns: ['hendrick', 'gin'], key: 'hendricks' },
+    { patterns: ['woodford', 'bourbon'], key: 'woodford' },
+    { patterns: ['johnnie', 'scotch', 'whisky', 'whiskey'], key: 'johnnie' },
+    { patterns: ['donjulio', 'don-julio', 'tequila', 'agave'], key: 'donJulio' },
+  ];
+
+  const keywordMatch = keywordMap.find((entry) =>
+    entry.patterns.some((pattern) => normalizedUri.includes(pattern))
+  );
+  if (keywordMatch) {
+    return DEMO_BOTTLE_RESULTS[keywordMatch.key];
+  }
+
+  const demoKeys = Object.keys(DEMO_BOTTLE_RESULTS) as Array<keyof typeof DEMO_BOTTLE_RESULTS>;
+  const hash = normalizedUri.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0);
+  return DEMO_BOTTLE_RESULTS[demoKeys[hash % demoKeys.length]];
+}
+
 export class GoogleVisionService {
   private static API_ENDPOINT = 'https://vision.googleapis.com/v1/images:annotate';
 
@@ -163,38 +213,10 @@ export class GoogleVisionService {
     // Simulate API delay
     await new Promise(resolve => setTimeout(resolve, 1500));
 
-    // Simple hash-based mock for demonstration
-    const hash = imageUri.length % 5;
-
-    const mockResults: VisionResult[] = [
-      {
-        labels: ['bottle', 'vodka', 'alcohol', 'spirits', 'clear liquid'],
-        text: ['TITO\'S', 'HANDMADE', 'VODKA', '40% ALC/VOL', 'DISTILLED', 'AUSTIN TEXAS'],
-        confidence: 0.85,
-      },
-      {
-        labels: ['gin', 'bottle', 'spirits', 'cucumber', 'scottish'],
-        text: ['HENDRICK\'S', 'GIN', 'DISTILLED', '44% ALC/VOL', 'SCOTLAND', 'CUCUMBER', 'ROSE'],
-        confidence: 0.92,
-      },
-      {
-        labels: ['whiskey', 'bourbon', 'american', 'barrel'],
-        text: ['BUFFALO', 'TRACE', 'KENTUCKY', 'STRAIGHT BOURBON', 'WHISKEY', '45% ALC/VOL'],
-        confidence: 0.78,
-      },
-      {
-        labels: ['rum', 'white rum', 'caribbean', 'bacardi'],
-        text: ['BACARDI', 'SUPERIOR', 'WHITE RUM', '40% ALC/VOL', 'PUERTO RICO'],
-        confidence: 0.81,
-      },
-      {
-        labels: ['bottle', 'glass', 'liquid', 'container'],
-        text: ['PREMIUM', 'SPIRIT', 'ALCOHOL'],
-        confidence: 0.45,
-      },
-    ];
-
-    return mockResults[hash];
+    // Demo mode should show believable, recognized bottle detail flows instead of
+    // random unknown results. We use filename hints when available and otherwise
+    // fall back to a deterministic curated set of sample bottles.
+    return chooseDemoBottleResult(imageUri);
   }
 
   /**

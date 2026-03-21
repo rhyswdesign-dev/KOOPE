@@ -16,6 +16,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, radii, serif } from '../theme/tokens';
+import Svg, { Circle, G, Line, Polygon, Text as SvgText } from 'react-native-svg';
 import { usePersonalization } from '../store/usePersonalization';
 import { ALL_COCKTAILS } from '../data/cocktails';
 import RecipeCard from './RecipeCard';
@@ -25,6 +26,116 @@ import { getTrendingCocktails, getCurrentSeason, getSeasonDisplayName } from '..
 import { useUserTier } from '../store/useUserTier';
 import InPageTabBar from './ui/InPageTabBar';
 import { withHaptic } from '../lib/haptics';
+import { useAuth } from '../contexts/AuthContext';
+import { loadUserProfile } from '../services/userProfileService';
+import { generateRadarChart, initializeTasteGraph } from '../services/tasteGraphService';
+
+const FLAVOR_ORDER = ['Citrus', 'Herbal', 'Bitter', 'Sweet', 'Smoky', 'Floral', 'Spiced'];
+const RADAR_SIZE = 220;
+const RADAR_CENTER = RADAR_SIZE / 2;
+const RADAR_MAX_RADIUS = 76;
+
+function polarPoint(index: number, total: number, radius: number) {
+  const angle = (-Math.PI / 2) + (index / total) * Math.PI * 2;
+  return {
+    x: RADAR_CENTER + Math.cos(angle) * radius,
+    y: RADAR_CENTER + Math.sin(angle) * radius,
+  };
+}
+
+function formatLabel(value: string) {
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+function buildTasteSummary(radar: any) {
+  const flavors = [...(radar?.flavorPoints || [])].sort((a, b) => b.value - a.value);
+  const spirits = [...(radar?.spiritPoints || [])].sort((a, b) => b.value - a.value);
+
+  const topFlavor = flavors[0]?.label || 'balanced';
+  const secondFlavor = flavors[1]?.label || 'rounded';
+  const topSpirit = spirits[0]?.label || 'mixed';
+  const secondSpirit = spirits[1]?.label || 'spirits';
+
+  return {
+    headline: `${topFlavor} and ${secondFlavor} are leading your palate right now.`,
+    support: `${topSpirit} and ${secondSpirit} are the strongest spirit signals shaping your For You feed.`,
+    flavorHighlights: flavors.slice(0, 3).map((item) => ({ label: item.label, value: Math.round(item.value * 100) })),
+  };
+}
+
+function TasteRadar({ radar }: { radar: any }) {
+  const points = FLAVOR_ORDER.map((label) => radar?.flavorPoints?.find((item: any) => item.label === label) || { label, value: 0 });
+  const polygonPoints = points
+    .map((point, index) => {
+      const coords = polarPoint(index, points.length, RADAR_MAX_RADIUS * point.value);
+      return `${coords.x},${coords.y}`;
+    })
+    .join(' ');
+
+  return (
+    <View style={styles.radarWrap}>
+      <Svg width={RADAR_SIZE} height={RADAR_SIZE}>
+        <G>
+          {[0.25, 0.5, 0.75, 1].map((scale) => (
+            <Polygon
+              key={`grid-${scale}`}
+              points={points
+                .map((_, index) => {
+                  const coords = polarPoint(index, points.length, RADAR_MAX_RADIUS * scale);
+                  return `${coords.x},${coords.y}`;
+                })
+                .join(' ')}
+              fill="none"
+              stroke="rgba(216, 203, 185, 0.12)"
+              strokeWidth={1}
+            />
+          ))}
+
+          {points.map((point, index) => {
+            const end = polarPoint(index, points.length, RADAR_MAX_RADIUS);
+            const labelPoint = polarPoint(index, points.length, RADAR_MAX_RADIUS + 22);
+            return (
+              <G key={point.label}>
+                <Line
+                  x1={RADAR_CENTER}
+                  y1={RADAR_CENTER}
+                  x2={end.x}
+                  y2={end.y}
+                  stroke="rgba(216, 203, 185, 0.15)"
+                  strokeWidth={1}
+                />
+                <SvgText
+                  x={labelPoint.x}
+                  y={labelPoint.y}
+                  fill="rgba(242, 230, 216, 0.78)"
+                  fontSize="11"
+                  fontWeight="700"
+                  textAnchor="middle"
+                >
+                  {point.label}
+                </SvgText>
+              </G>
+            );
+          })}
+
+          <Polygon
+            points={polygonPoints}
+            fill="rgba(216, 154, 70, 0.24)"
+            stroke="#D89A46"
+            strokeWidth={2}
+          />
+
+          {points.map((point, index) => {
+            const coords = polarPoint(index, points.length, RADAR_MAX_RADIUS * point.value);
+            return <Circle key={`dot-${point.label}`} cx={coords.x} cy={coords.y} r={4} fill="#F6EBDD" />;
+          })}
+
+          <Circle cx={RADAR_CENTER} cy={RADAR_CENTER} r={3} fill="rgba(242, 230, 216, 0.7)" />
+        </G>
+      </Svg>
+    </View>
+  );
+}
 
 interface ForYouFeedProps {
   onCocktailPress: (cocktail: any) => void;
@@ -43,7 +154,9 @@ export default function ForYouFeed({
 }: ForYouFeedProps) {
   const { profile, getFeaturedCocktails, scoreCocktail } = usePersonalization();
   const { tier } = useUserTier();
+  const { user } = useAuth();
   const [selectedRecommendTab, setSelectedRecommendTab] = useState<'matched' | 'beginner' | 'challenge' | 'trending'>('matched');
+  const [proIdentity, setProIdentity] = useState<{ occasionMode: string; confidence: number; engagement: number; radar: any } | null>(null);
   const tabTransitionAnim = useRef(new Animated.Value(1)).current;
 
   // Check if user has completed taste profile (must be declared before useMemo that depends on it)
@@ -192,6 +305,38 @@ export default function ForYouFeed({
     };
   }, [profile, hasProfile]);
 
+  useEffect(() => {
+    let mounted = true;
+
+    (async () => {
+      if (tier !== 'PRO' || !user?.id) {
+        if (mounted) setProIdentity(null);
+        return;
+      }
+
+      try {
+        const dbProfile = await loadUserProfile(user.id).catch(() => null);
+        if (!dbProfile?.tasteProfile || !mounted) return;
+
+        const radar = generateRadarChart(initializeTasteGraph(dbProfile.tasteProfile));
+        setProIdentity({
+          occasionMode: dbProfile?.moodPreferences?.forYouOccasionMode || 'casual',
+          confidence: Math.round(radar.dataConfidence * 100),
+          engagement: radar.engagementScore,
+          radar,
+        });
+      } catch {
+        if (mounted) setProIdentity(null);
+      }
+    })();
+
+    return () => {
+      mounted = false;
+    };
+  }, [tier, user?.id]);
+
+  const proSummary = useMemo(() => (proIdentity?.radar ? buildTasteSummary(proIdentity.radar) : null), [proIdentity]);
+
 
   useEffect(() => {
     tabTransitionAnim.setValue(0);
@@ -288,6 +433,66 @@ export default function ForYouFeed({
               >
                 <Ionicons name="settings-outline" size={18} color={colors.accent} />
                 <Text style={styles.refineButtonText}>Refine Your Taste Profile</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
+
+        {tier === 'PRO' && proIdentity && proSummary && (
+          <View style={styles.proIdentityCard}>
+            <View style={styles.inlineHeading}>
+              <Ionicons name="pulse-outline" size={18} color={colors.accent} />
+              <Text style={styles.proIdentityTitle}>Taste Graph</Text>
+            </View>
+            <Text style={styles.proIdentityEyebrow}>Live preference map</Text>
+
+            <View style={styles.proIdentityTopRow}>
+              <TasteRadar radar={proIdentity.radar} />
+
+              <View style={styles.proIdentityNarrativeColumn}>
+                <Text style={styles.proIdentityHeadline}>{proSummary.headline}</Text>
+                <Text style={styles.proIdentityBody}>{proSummary.support}</Text>
+
+                <View style={styles.proFlavorChipGroup}>
+                  {proSummary.flavorHighlights.map((item) => (
+                    <View key={item.label} style={styles.proFlavorChip}>
+                      <Text style={styles.proFlavorChipLabel}>{item.label}</Text>
+                      <Text style={styles.proFlavorChipValue}>{item.value}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            </View>
+
+            <View style={styles.proMetricsRow}>
+              <View style={styles.proMetricCard}>
+                <Text style={styles.proMetricLabel}>Mode</Text>
+                <Text style={styles.proMetricValue}>{formatLabel(proIdentity.occasionMode)}</Text>
+              </View>
+              <View style={styles.proMetricCard}>
+                <Text style={styles.proMetricLabel}>Confidence</Text>
+                <Text style={styles.proMetricValue}>{proIdentity.confidence}%</Text>
+              </View>
+              <View style={styles.proMetricCard}>
+                <Text style={styles.proMetricLabel}>Driving Pick</Text>
+                <Text style={styles.proMetricValue} numberOfLines={2}>
+                  {recommendedCocktails.matched[0]?.name || 'Building'}
+                </Text>
+              </View>
+            </View>
+
+            <Text style={styles.proIdentityMicrocopy}>
+              Your recommendations are being shaped by the strongest flavor axes above, not just broad category tags.
+            </Text>
+
+            {onRefineProfile && (
+              <TouchableOpacity
+                style={styles.proIdentityButton}
+                onPress={withHaptic(onRefineProfile, 'selection')}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.proIdentityButtonText}>Adjust Taste Graph</Text>
+                <Ionicons name="arrow-forward" size={16} color={colors.bg} />
               </TouchableOpacity>
             )}
           </View>
@@ -472,6 +677,137 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: colors.accent,
+  },
+  proIdentityCard: {
+    marginHorizontal: spacing(3),
+    marginTop: 0,
+    marginBottom: spacing(3),
+    backgroundColor: '#1E1410',
+    borderRadius: radii.xl,
+    padding: spacing(2.5),
+    borderWidth: 1,
+    borderColor: 'rgba(216, 154, 70, 0.26)',
+    gap: spacing(1.4),
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.18,
+    shadowRadius: 16,
+    elevation: 6,
+  },
+  proIdentityTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: colors.text,
+    fontFamily: serif,
+    letterSpacing: -0.2,
+  },
+  proIdentityEyebrow: {
+    color: colors.accent,
+    fontSize: 11,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  proIdentityTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(2),
+  },
+  radarWrap: {
+    width: RADAR_SIZE,
+    height: RADAR_SIZE,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.015)',
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(242, 230, 216, 0.06)',
+  },
+  proIdentityNarrativeColumn: {
+    flex: 1,
+    gap: spacing(1.25),
+  },
+  proIdentityHeadline: {
+    fontSize: 18,
+    lineHeight: 24,
+    color: colors.text,
+    fontWeight: '800',
+  },
+  proIdentityBody: {
+    fontSize: 14,
+    color: colors.subtext,
+    lineHeight: 20,
+  },
+  proFlavorChipGroup: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing(0.75),
+  },
+  proFlavorChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(0.5),
+    paddingVertical: spacing(0.75),
+    paddingHorizontal: spacing(1),
+    borderRadius: radii.pill,
+    backgroundColor: 'rgba(216, 154, 70, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(216, 154, 70, 0.22)',
+  },
+  proFlavorChipLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  proFlavorChipValue: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: colors.accent,
+  },
+  proMetricsRow: {
+    flexDirection: 'row',
+    gap: spacing(1),
+  },
+  proMetricCard: {
+    flex: 1,
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: 'rgba(242, 230, 216, 0.06)',
+    padding: spacing(1.2),
+  },
+  proMetricLabel: {
+    color: colors.subtext,
+    fontSize: 10,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: spacing(0.4),
+  },
+  proMetricValue: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  proIdentityMicrocopy: {
+    color: colors.subtext,
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  proIdentityButton: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(0.75),
+    paddingVertical: spacing(1),
+    paddingHorizontal: spacing(1.5),
+    borderRadius: radii.pill,
+    backgroundColor: colors.accent,
+  },
+  proIdentityButtonText: {
+    color: colors.bg,
+    fontSize: 13,
+    fontWeight: '800',
   },
   section: {
     marginBottom: spacing(3),

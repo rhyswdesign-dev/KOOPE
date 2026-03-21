@@ -1,18 +1,18 @@
 import React, { useMemo } from 'react';
 import {
-  View,
   Text,
   Image,
   TouchableOpacity,
   StyleSheet,
   Pressable,
+  View,
 } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
-import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, radii } from '../theme/tokens';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { colors, spacing, radii, serif } from '../theme/tokens';
 import { getCocktailImage } from '../../assets/images/cocktails';
-import { Heading } from './ui';
 import { withHaptic } from '../lib/haptics';
+import { LinearGradient } from 'expo-linear-gradient';
 
 interface RecipeCardProps {
   recipe: {
@@ -22,7 +22,7 @@ interface RecipeCardProps {
     subtitle?: string;
     description?: string;
     category?: string;
-    image?: string | number; // string for URI, number for require()
+    image?: string | number;
     difficulty?: string;
     time?: string;
     rating?: number;
@@ -44,12 +44,10 @@ interface RecipeCardProps {
   showSaveButton?: boolean;
   showCartButton?: boolean;
   showDeleteButton?: boolean;
-  /** If set, shows a 'Featured' badge indicating a sponsored brand for this ingredient category */
   featuredBrandLabel?: string;
   style?: any;
 }
 
-// Optimized with React.memo to prevent unnecessary re-renders in recipe lists
 const RecipeCard = React.memo(({
   recipe,
   onPress,
@@ -69,26 +67,19 @@ const RecipeCard = React.memo(({
     transform: [{ scale: scale.value }],
   }));
 
-  // Get historical fact or insight to display on card
-  // Priority: history.story > tags > subtitle > description
-  // useMemo ensures the same text is shown consistently for this recipe
   const displayText = useMemo(() => {
-    // Priority 1: If recipe has historical story, show that
     if (recipe.history?.story) {
       return recipe.history.story;
     }
 
-    // Priority 2: If recipe has tags (pro tips/facts), show a random one
     if (recipe.tags && Array.isArray(recipe.tags) && recipe.tags.length > 0) {
       const randomIndex = Math.floor(Math.random() * recipe.tags.length);
       return recipe.tags[randomIndex];
     }
 
-    // Fallback to subtitle or description
     return recipe.subtitle || recipe.description || '';
   }, [recipe.id, recipe.history, recipe.tags, recipe.subtitle, recipe.description]);
 
-  // GLOBAL IMAGE RESOLVER: Always use local images if available
   const resolvedImage = useMemo(() => {
     const fallbackImage = 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=240&h=160&fit=crop';
     if (!recipe.image) return fallbackImage;
@@ -114,71 +105,78 @@ const RecipeCard = React.memo(({
           source={typeof resolvedImage === 'string' ? { uri: resolvedImage } : resolvedImage}
           style={styles.cocktailImage}
         />
-        {featuredBrandLabel && (
-          <View style={styles.featuredBadge}>
-            <Text style={styles.featuredBadgeText}>⭐ {featuredBrandLabel}</Text>
+        <LinearGradient
+          colors={['rgba(9,7,6,0.08)', 'rgba(9,7,6,0.22)', 'rgba(15,11,9,0.7)', '#1A120D']}
+          style={styles.imageShade}
+        />
+
+        <View style={styles.topRow}>
+          <View style={styles.heroBadge}>
+            <Ionicons name="ribbon-outline" size={12} color={colors.accent} />
+            <Text style={styles.heroBadgeText}>{featuredBrandLabel ? 'Featured' : 'Recipe'}</Text>
           </View>
-        )}
-        <View style={styles.cocktailInfo}>
-          <Heading level={3} style={styles.cardTitle}>{recipe.name || recipe.title}</Heading>
-          <Text style={styles.cardSub}>{displayText}</Text>
-          <View style={styles.cocktailMeta}>
-            <Text style={styles.cocktailDifficulty}>{recipe.difficulty || 'Medium'}</Text>
-            <Text style={styles.cocktailTime}>{recipe.time || '5 min'}</Text>
+
+          <View style={styles.recipeActions}>
+            {showCartButton && onAddToCart && (
+              <TouchableOpacity
+                style={styles.iconButton}
+                activeOpacity={0.7}
+                onPress={withHaptic((e) => {
+                  e.stopPropagation();
+                  onAddToCart(recipe);
+                }, 'selection')}
+              >
+                <Ionicons name="basket-outline" size={17} color={colors.white} />
+              </TouchableOpacity>
+            )}
+
+            {showDeleteButton && onDelete && (
+              <TouchableOpacity
+                style={styles.deleteButton}
+                activeOpacity={0.7}
+                onPress={withHaptic((e) => {
+                  e.stopPropagation();
+                  onDelete(recipe);
+                }, 'selection')}
+              >
+                <Ionicons name="trash-outline" size={17} color={colors.white} />
+              </TouchableOpacity>
+            )}
+
+            {showSaveButton && onSave && (
+              <TouchableOpacity
+                style={styles.iconButton}
+                activeOpacity={0.7}
+                onPress={withHaptic((e) => {
+                  e.stopPropagation();
+                  onSave(recipe);
+                }, 'selection')}
+              >
+                <Ionicons
+                  name={isSaved ? "bookmark" : "bookmark-outline"}
+                  size={18}
+                  color={isSaved ? colors.accent : colors.white}
+                />
+              </TouchableOpacity>
+            )}
           </View>
         </View>
 
-        {/* Action buttons */}
-        <View style={styles.recipeActions}>
-          {/* Shopping cart button */}
-          {showCartButton && onAddToCart && (
-            <TouchableOpacity
-              style={styles.shoppingCartButton}
-              activeOpacity={0.7}
-              onPress={withHaptic((e) => {
-                e.stopPropagation();
-                onAddToCart(recipe);
-              }, 'selection')}
-            >
-              <Ionicons
-                name="basket"
-                size={18}
-                color={colors.white}
-              />
-            </TouchableOpacity>
-          )}
-
-          {/* Delete button */}
-          {showDeleteButton && onDelete && (
-            <TouchableOpacity
-              style={styles.deleteButton}
-              activeOpacity={0.7}
-              onPress={withHaptic((e) => {
-                e.stopPropagation();
-                onDelete(recipe);
-              }, 'selection')}
-            >
-              <Ionicons name="trash-outline" size={18} color={colors.white} />
-            </TouchableOpacity>
-          )}
-
-          {/* Save/Bookmark button */}
-          {showSaveButton && onSave && (
-            <TouchableOpacity
-              style={styles.saveButton}
-              activeOpacity={0.7}
-              onPress={withHaptic((e) => {
-                e.stopPropagation();
-                onSave(recipe);
-              }, 'selection')}
-            >
-              <Ionicons
-                name={isSaved ? "bookmark" : "bookmark-outline"}
-                size={20}
-                color={isSaved ? colors.accent : colors.text}
-              />
-            </TouchableOpacity>
-          )}
+        <View style={styles.cocktailInfo}>
+          <Text style={styles.cardEyebrow}>{(recipe.category || 'Recipe').toUpperCase()}</Text>
+          <Text style={styles.cardTitle}>{recipe.name || recipe.title}</Text>
+          <Text style={styles.cardSub} numberOfLines={2}>{displayText}</Text>
+          <View style={styles.cocktailMeta}>
+            <View style={styles.metaItem}>
+              <MaterialCommunityIcons name="clock-outline" size={14} color="#D8CBB9" />
+              <Text style={styles.metaText}>{recipe.time || '5 min'}</Text>
+            </View>
+            <Text style={styles.metaDot}>•</Text>
+            <View style={styles.metaItem}>
+              <MaterialCommunityIcons name="chart-bar" size={14} color="#D8CBB9" />
+              <Text style={styles.metaText}>{recipe.difficulty || 'beginner'}</Text>
+            </View>
+          </View>
         </View>
       </Pressable>
     </Animated.View>
@@ -188,97 +186,121 @@ const RecipeCard = React.memo(({
 export default RecipeCard;
 
 const styles = StyleSheet.create({
-  // Vertical Cards - Full width matching Old Fashioned styling
   verticalCard: {
-    backgroundColor: colors.card,
-    borderRadius: radii.lg,
+    backgroundColor: '#201611',
+    borderRadius: radii.xl,
     borderWidth: 1,
-    borderColor: colors.line,
+    borderColor: 'rgba(214,138,56,0.14)',
     overflow: 'hidden',
     position: 'relative',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.22,
+    shadowRadius: 16,
+    elevation: 6,
+    minHeight: 320,
   },
   cocktailImage: {
+    ...StyleSheet.absoluteFillObject,
     width: '100%',
-    height: 180,
+    height: '100%',
     resizeMode: 'cover',
     backgroundColor: colors.card,
   },
-  featuredBadge: {
-    position: 'absolute',
-    bottom: 188,  // Sits just above the card info area, over the image
-    left: spacing(1.5),
-    backgroundColor: 'rgba(214, 138, 56, 0.92)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: radii.sm,
+  imageShade: {
+    ...StyleSheet.absoluteFillObject,
   },
-  featuredBadgeText: {
-    color: '#fff',
+  topRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    paddingHorizontal: spacing(1.5),
+    paddingTop: spacing(1.5),
+  },
+  heroBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(0.5),
+    paddingHorizontal: spacing(1.2),
+    paddingVertical: spacing(0.7),
+    borderRadius: radii.full,
+    borderWidth: 1,
+    borderColor: 'rgba(214,138,56,0.22)',
+    backgroundColor: 'rgba(20,15,12,0.76)',
+  },
+  heroBadgeText: {
+    color: colors.accent,
     fontSize: 11,
     fontWeight: '700',
-    letterSpacing: 0.3,
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
   },
   cocktailInfo: {
-    padding: spacing(2),
+    flex: 1,
+    justifyContent: 'flex-end',
+    paddingHorizontal: spacing(1.75),
+    paddingBottom: spacing(1.75),
+    paddingTop: spacing(8),
+  },
+  cardEyebrow: {
+    fontSize: 11,
+    color: 'rgba(246, 235, 221, 0.82)',
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    marginBottom: spacing(0.75),
   },
   cocktailMeta: {
     flexDirection: 'row',
-    gap: spacing(2),
+    alignItems: 'center',
+    gap: spacing(0.75),
     marginTop: spacing(1),
   },
-  cocktailDifficulty: {
-    fontSize: 12,
-    color: colors.accent,
-    fontWeight: '600',
+  cardTitle: {
+    color: '#F2E6D8',
+    fontSize: 28,
+    lineHeight: 31,
+    marginBottom: spacing(0.75),
+    fontFamily: serif,
   },
-  cocktailTime: {
+  cardSub: {
+    color: '#DDD0C1',
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  metaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  metaText: {
+    color: '#E0D2C1',
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  metaDot: {
+    color: '#C2B09C',
     fontSize: 12,
-    color: colors.subtext,
-    fontWeight: '600',
   },
   recipeActions: {
-    position: 'absolute',
-    top: spacing(1),
-    right: spacing(1),
     flexDirection: 'row',
-    gap: spacing(1),
+    gap: spacing(0.75),
   },
-  shoppingCartButton: {
-    width: 36,
-    height: 36,
-    borderRadius: radii.full,
-    backgroundColor: colors.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: colors.accent,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 2,
-    elevation: 3,
-  },
-  saveButton: {
-    width: 36,
-    height: 36,
-    borderRadius: radii.full,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+  iconButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: 'rgba(8,8,10,0.4)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   deleteButton: {
-    width: 36,
-    height: 36,
-    borderRadius: radii.full,
-    backgroundColor: `${colors.error}CC`, // Red background with CC (80%) opacity
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: 'rgba(130,31,31,0.92)',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-
-  // Text styles matching Old Fashioned card
-  cardTitle: {
-    marginBottom: spacing(0.5),
-  },
-  cardSub: {
-    color: colors.muted,
-    marginTop: 2,
   },
 });

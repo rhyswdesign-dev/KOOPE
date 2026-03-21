@@ -1,5 +1,6 @@
 import React, { useMemo, useRef, useState } from 'react';
 import {
+  Alert,
   Dimensions,
   NativeScrollEvent,
   NativeSyntheticEvent,
@@ -17,10 +18,12 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { RootStackParamList } from '../navigation/RootNavigator';
-import { getUnlockDeck, type UnlockDeckSlide } from '../content/unlockDecks';
+import { getUnlockDeck, getUnlockDeckTheme, type UnlockDeckSlide } from '../content/unlockDecks';
 import { getUnlockByAssetSlug } from '../config/unlockContent';
 import { colors, radii, serif, spacing } from '../theme/tokens';
 import { triggerHaptic } from '../lib/haptics';
+import { useUser } from '../store/useUser';
+import { useUserTier } from '../store/useUserTier';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'UnlockDeck'>;
 type UnlockDeckRoute = RouteProp<RootStackParamList, 'UnlockDeck'>;
@@ -28,6 +31,7 @@ type UnlockDeckRoute = RouteProp<RootStackParamList, 'UnlockDeck'>;
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const HORIZONTAL_PADDING = 24;
 const PAGE_WIDTH = SCREEN_WIDTH;
+const CARD_HEIGHT = Math.min(SCREEN_HEIGHT * 0.7, 690);
 const INNER_CARD_WIDTH = SCREEN_WIDTH - HORIZONTAL_PADDING * 2;
 
 export default function UnlockDeckScreen() {
@@ -35,10 +39,16 @@ export default function UnlockDeckScreen() {
   const route = useRoute<UnlockDeckRoute>();
   const scrollRef = useRef<ScrollView>(null);
   const [activeIndex, setActiveIndex] = useState(0);
+  const { completedLessons } = useUser();
+  const { tier } = useUserTier();
 
   const deck = useMemo(() => getUnlockDeck(route.params.assetSlug), [route.params.assetSlug]);
+  const deckTheme = useMemo(() => getUnlockDeckTheme(route.params.assetSlug), [route.params.assetSlug]);
   const unlock = useMemo(() => getUnlockByAssetSlug(route.params.assetSlug), [route.params.assetSlug]);
   const title = route.params.title || deck?.title || unlock?.assetName || 'Unlock Deck';
+  const isProLockedDeck = unlock?.tier === 'PRO';
+  const hasCompletedUnlockLesson = unlock?.lessonId ? completedLessons.includes(unlock.lessonId) : true;
+  const isDeckAccessible = !isProLockedDeck || (tier === 'PRO' && hasCompletedUnlockLesson);
 
   const goToIndex = (nextIndex: number) => {
     if (!deck) return;
@@ -77,11 +87,46 @@ export default function UnlockDeckScreen() {
     );
   }
 
+  if (!isDeckAccessible && unlock) {
+    const needsTierUpgrade = unlock.tier === 'PRO' && tier !== 'PRO';
+
+    return (
+      <SafeAreaView style={styles.missingContainer}>
+        <StatusBar barStyle="light-content" />
+        <Pressable style={styles.backButton} onPress={() => navigation.goBack()}>
+          <Ionicons name="arrow-back" size={20} color={colors.text} />
+          <Text style={styles.backText}>Back</Text>
+        </Pressable>
+        <View style={styles.missingCard}>
+          <Text style={styles.missingEyebrow}>{needsTierUpgrade ? 'PRO Mastery Only' : 'Finish Mastery Lesson First'}</Text>
+          <Text style={styles.missingTitle}>{unlock.assetName}</Text>
+          <Text style={styles.missingBody}>
+            {needsTierUpgrade
+              ? 'This technical field guide is reserved for KOOPE PRO and unlocks through the mastery lesson path.'
+              : 'This field guide unlocks after you complete its mastery lesson. Finish the lesson first, then come back here.'}
+          </Text>
+          <Pressable
+            style={styles.lockedPrimaryButton}
+            onPress={() => {
+              if (needsTierUpgrade) {
+                navigation.navigate('Paywall', { source: 'mastery_lessons' });
+                return;
+              }
+              Alert.alert('Locked Until Completed', 'Complete the assigned mastery lesson to unlock this deck.');
+            }}
+          >
+            <Text style={styles.lockedPrimaryButtonText}>{needsTierUpgrade ? 'Unlock PRO' : 'Understood'}</Text>
+          </Pressable>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" />
       <LinearGradient
-        colors={['#090605', '#1A120D', '#120B08']}
+        colors={deckTheme?.gradient ?? ['#090605', '#1A120D', '#120B08']}
         style={StyleSheet.absoluteFillObject}
         start={{ x: 0.05, y: 0 }}
         end={{ x: 0.8, y: 1 }}
@@ -97,6 +142,12 @@ export default function UnlockDeckScreen() {
           <View style={styles.headerCopy}>
             <Text style={styles.headerEyebrow}>{unlock?.watermark.label || deck.rewardLabel}</Text>
             <Text numberOfLines={1} style={styles.headerTitle}>{title}</Text>
+            {deckTheme ? (
+              <View style={[styles.categoryPill, { backgroundColor: deckTheme.accentSoft, borderColor: deckTheme.accent }]}>
+                <Ionicons name={deckTheme.icon} size={12} color={deckTheme.accent} />
+                <Text style={[styles.categoryPillText, { color: deckTheme.accent }]}>{deckTheme.label}</Text>
+              </View>
+            ) : null}
           </View>
           <Pressable
             style={[styles.iconButton, activeIndex >= deck.slides.length - 1 && styles.iconButtonDisabled]}
@@ -114,7 +165,15 @@ export default function UnlockDeckScreen() {
           </Text>
         </View>
         <View style={styles.progressTrack}>
-          <View style={[styles.progressFill, { width: `${((activeIndex + 1) / deck.slides.length) * 100}%` }]} />
+          <View
+            style={[
+              styles.progressFill,
+              {
+                width: `${((activeIndex + 1) / deck.slides.length) * 100}%`,
+                backgroundColor: deckTheme?.accent ?? colors.accent,
+              },
+            ]}
+          />
         </View>
 
         <ScrollView
@@ -129,7 +188,13 @@ export default function UnlockDeckScreen() {
         >
           {deck.slides.map((slide, index) => (
             <View key={slide.id} style={styles.page}>
-              <DeckSlide slide={slide} watermark={unlock?.watermark.label || deck.watermark} index={index} />
+              <DeckSlide
+                slide={slide}
+                watermark={unlock?.watermark.label || deck.watermark}
+                index={index}
+                accent={deckTheme?.accent ?? colors.accent}
+                accentSoft={deckTheme?.accentSoft ?? 'rgba(214,138,56,0.16)'}
+              />
             </View>
           ))}
         </ScrollView>
@@ -145,7 +210,7 @@ export default function UnlockDeckScreen() {
             ))}
           </View>
           <Text style={styles.footerHint}>
-            Swipe through the field guide. This unlock is designed to be saved and revisited later.
+            Swipe through the field guide. Longer slides can be scrolled vertically without leaving the card.
           </Text>
         </View>
       </SafeAreaView>
@@ -153,40 +218,70 @@ export default function UnlockDeckScreen() {
   );
 }
 
-function DeckSlide({ slide, watermark, index }: { slide: UnlockDeckSlide; watermark: string; index: number }) {
+function DeckSlide({
+  slide,
+  watermark,
+  index,
+  accent,
+  accentSoft,
+}: {
+  slide: UnlockDeckSlide;
+  watermark: string;
+  index: number;
+  accent: string;
+  accentSoft: string;
+}) {
   return (
     <View style={styles.slideFrame}>
       <LinearGradient
         colors={slide.kind === 'field_notes' ? ['#130D09', '#24160F'] : ['#110B08', '#26170F']}
-        style={styles.slideCard}
+        style={[styles.slideCard, { borderColor: accentSoft }]}
         start={{ x: 0.05, y: 0 }}
         end={{ x: 0.95, y: 1 }}
       >
-        {slide.kind === 'cover' ? (
-          <CoverSlide slide={slide} watermark={watermark} />
-        ) : slide.kind === 'spec' ? (
-          <SpecSlide slide={slide} watermark={watermark} />
-        ) : slide.kind === 'comparison' ? (
-          <ComparisonSlide slide={slide} watermark={watermark} />
-        ) : (
-          <FieldNotesSlide slide={slide} watermark={watermark} />
-        )}
+        <ScrollView
+          style={styles.slideScrollView}
+          contentContainerStyle={styles.slideScrollContent}
+          showsVerticalScrollIndicator={false}
+          nestedScrollEnabled
+          bounces={false}
+        >
+          {slide.kind === 'cover' ? (
+            <CoverSlide slide={slide} watermark={watermark} accent={accent} accentSoft={accentSoft} />
+          ) : slide.kind === 'spec' ? (
+            <SpecSlide slide={slide} watermark={watermark} accent={accent} accentSoft={accentSoft} />
+          ) : slide.kind === 'comparison' ? (
+            <ComparisonSlide slide={slide} watermark={watermark} accent={accent} accentSoft={accentSoft} />
+          ) : (
+            <FieldNotesSlide slide={slide} watermark={watermark} accent={accent} />
+          )}
+        </ScrollView>
         <Text style={styles.slideCountMark}>SLIDE {String(index + 1).padStart(2, '0')}</Text>
       </LinearGradient>
     </View>
   );
 }
 
-function CoverSlide({ slide, watermark }: { slide: UnlockDeckSlide; watermark: string }) {
+function CoverSlide({
+  slide,
+  watermark,
+  accent,
+  accentSoft,
+}: {
+  slide: UnlockDeckSlide;
+  watermark: string;
+  accent: string;
+  accentSoft: string;
+}) {
   return (
     <>
       <View style={styles.coverTopRow}>
-        <View style={styles.rewardPill}>
-          <Text style={styles.rewardPillText}>{slide.eyebrow}</Text>
+        <View style={[styles.rewardPill, { borderColor: accentSoft, backgroundColor: accentSoft }]}>
+          <Text style={[styles.rewardPillText, { color: accent }]}>{slide.eyebrow}</Text>
         </View>
         <Text style={styles.watermarkTiny}>{watermark}</Text>
       </View>
-      <View style={styles.coverBottleGlow} />
+      <View style={[styles.coverBottleGlow, { backgroundColor: accentSoft, borderColor: accentSoft, shadowColor: accent }]} />
       <View style={styles.coverCopyWrap}>
         <Text style={styles.coverTitle}>{slide.title}</Text>
         {slide.subtitle ? <Text style={styles.coverSubtitle}>{slide.subtitle}</Text> : null}
@@ -203,25 +298,35 @@ function CoverSlide({ slide, watermark }: { slide: UnlockDeckSlide; watermark: s
   );
 }
 
-function SpecSlide({ slide, watermark }: { slide: UnlockDeckSlide; watermark: string }) {
+function SpecSlide({
+  slide,
+  watermark,
+  accent,
+  accentSoft,
+}: {
+  slide: UnlockDeckSlide;
+  watermark: string;
+  accent: string;
+  accentSoft: string;
+}) {
   return (
     <>
       <View style={styles.specHeader}>
-        <Text style={styles.slideEyebrow}>{slide.eyebrow}</Text>
+        <Text style={[styles.slideEyebrow, { color: accent }]}>{slide.eyebrow}</Text>
         <Text style={styles.specTitle}>{slide.title}</Text>
         <View style={styles.specRatioRow}>
-          <Text style={styles.specRatio}>{slide.ratio}</Text>
+          <Text style={[styles.specRatio, { color: accent }]}>{slide.ratio}</Text>
           <Text style={styles.specRatioSub}>{slide.subtitle}</Text>
         </View>
       </View>
       <View style={styles.specSections}>
         {slide.sections?.map((section) => (
-          <View key={section.label} style={styles.specPanel}>
-            <Text style={styles.specPanelLabel}>{section.label}</Text>
+          <View key={section.label} style={[styles.specPanel, { borderColor: accentSoft }]}>
+            <Text style={[styles.specPanelLabel, { color: accent }]}>{section.label}</Text>
             {section.value ? <Text style={styles.specPanelText}>{section.value}</Text> : null}
             {section.bullets?.map((bullet) => (
               <View key={bullet} style={styles.bulletRow}>
-                <View style={styles.bulletDot} />
+                <View style={[styles.bulletDot, { backgroundColor: accent }]} />
                 <Text style={styles.bulletText}>{bullet}</Text>
               </View>
             ))}
@@ -236,26 +341,36 @@ function SpecSlide({ slide, watermark }: { slide: UnlockDeckSlide; watermark: st
   );
 }
 
-function ComparisonSlide({ slide, watermark }: { slide: UnlockDeckSlide; watermark: string }) {
+function ComparisonSlide({
+  slide,
+  watermark,
+  accent,
+  accentSoft,
+}: {
+  slide: UnlockDeckSlide;
+  watermark: string;
+  accent: string;
+  accentSoft: string;
+}) {
   return (
     <>
-      <Text style={styles.slideEyebrow}>{slide.eyebrow}</Text>
+      <Text style={[styles.slideEyebrow, { color: accent }]}>{slide.eyebrow}</Text>
       <Text style={styles.comparisonTitle}>{slide.title}</Text>
       <View style={styles.comparisonColumns}>
         {slide.columns?.map((column) => (
-          <View key={column.title} style={styles.comparisonCard}>
+          <View key={column.title} style={[styles.comparisonCard, { borderColor: accentSoft }]}>
             <Text style={styles.comparisonCardTitle}>{column.title}</Text>
-            {column.subtitle ? <Text style={styles.comparisonCardSub}>{column.subtitle}</Text> : null}
+            {column.subtitle ? <Text style={[styles.comparisonCardSub, { color: accent }]}>{column.subtitle}</Text> : null}
             {column.bullets.map((bullet) => (
               <View key={bullet} style={styles.comparisonBulletRow}>
-                <Text style={styles.comparisonBulletMark}>•</Text>
+                <Text style={[styles.comparisonBulletMark, { color: accent }]}>•</Text>
                 <Text style={styles.comparisonBulletText}>{bullet}</Text>
               </View>
             ))}
           </View>
         ))}
       </View>
-      <View style={styles.comparisonFooterCard}>
+      <View style={[styles.comparisonFooterCard, { backgroundColor: accentSoft, borderColor: accentSoft }]}>
         <Text style={styles.comparisonFooterText}>{slide.footer}</Text>
       </View>
       <Text style={styles.watermarkBottom}>{watermark}</Text>
@@ -263,17 +378,25 @@ function ComparisonSlide({ slide, watermark }: { slide: UnlockDeckSlide; waterma
   );
 }
 
-function FieldNotesSlide({ slide, watermark }: { slide: UnlockDeckSlide; watermark: string }) {
+function FieldNotesSlide({
+  slide,
+  watermark,
+  accent,
+}: {
+  slide: UnlockDeckSlide;
+  watermark: string;
+  accent: string;
+}) {
   return (
     <View style={styles.notesOuter}>
-      <View style={styles.notesSheet}>
-        <Text style={styles.notesEyebrow}>{slide.eyebrow}</Text>
+      <View style={[styles.notesSheet, { borderLeftColor: accent }]}>
+        <Text style={[styles.notesEyebrow, { color: accent }]}>{slide.eyebrow}</Text>
         <Text style={styles.notesTitle}>{slide.title}</Text>
-        <View style={styles.notesDivider} />
+        <View style={[styles.notesDivider, { backgroundColor: accent }]} />
         <Text style={styles.notesSectionLabel}>Common Pitfalls</Text>
         {slide.notes?.map((note, index) => (
           <View key={note} style={styles.noteRow}>
-            <Text style={styles.noteIndex}>{String(index + 1).padStart(2, '0')}</Text>
+            <Text style={[styles.noteIndex, { color: accent }]}>{String(index + 1).padStart(2, '0')}</Text>
             <Text style={styles.noteText}>{note}</Text>
           </View>
         ))}
@@ -287,6 +410,7 @@ function FieldNotesSlide({ slide, watermark }: { slide: UnlockDeckSlide; waterma
     </View>
   );
 }
+
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#090605' },
@@ -312,6 +436,22 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     marginTop: 4,
+  },
+  categoryPill: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 8,
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  categoryPillText: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.4,
   },
   iconButton: {
     width: 40,
@@ -357,10 +497,11 @@ const styles = StyleSheet.create({
   page: {
     width: PAGE_WIDTH,
     paddingHorizontal: HORIZONTAL_PADDING,
+    justifyContent: 'center',
   },
   slideFrame: {
     width: INNER_CARD_WIDTH,
-    height: Math.min(SCREEN_HEIGHT * 0.7, 690),
+    height: CARD_HEIGHT,
     borderRadius: 28,
     backgroundColor: 'rgba(0,0,0,0.28)',
     borderWidth: 1,
@@ -378,7 +519,14 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: 'rgba(214,138,56,0.14)',
+  },
+  slideScrollView: {
+    flex: 1,
+  },
+  slideScrollContent: {
+    flexGrow: 1,
     padding: 20,
+    paddingBottom: 48,
   },
   slideCountMark: {
     position: 'absolute',
@@ -804,5 +952,19 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 24,
     marginTop: spacing(1.5),
+  },
+  lockedPrimaryButton: {
+    marginTop: spacing(2),
+    alignSelf: 'flex-start',
+    borderRadius: radii.pill,
+    backgroundColor: colors.accent,
+    paddingHorizontal: spacing(1.5),
+    paddingVertical: spacing(1),
+  },
+  lockedPrimaryButtonText: {
+    color: colors.bg,
+    fontSize: 14,
+    fontWeight: '800',
+    letterSpacing: 0.3,
   },
 });

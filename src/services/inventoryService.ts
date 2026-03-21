@@ -33,11 +33,11 @@ export class InventoryService {
 
   /**
    * Check if a user can scan.
-   * Scan count is no longer a hard gate — scan TYPE is the gate:
-   *   FREE tier  → barcode + manual only (no Google Vision API cost)
-   *   PLUS/PRO   → full AI waterfall (barcode → OCR → visual recognition → manual)
-   * This method now always returns canScan: true; the caller is responsible for
-   * checking tier to decide which scan path to offer.
+   * Scan count is no longer a hard gate.
+   * All tiers use the full smart-scan waterfall:
+   *   barcode -> OCR/label analysis -> visual recognition -> manual fallback
+   * This method now always returns canScan: true; inventory capacity and
+   * downstream feature access are the relevant monetization checks.
    * getMonthlyScanCount is preserved for analytics/brand-data purposes.
    */
   static async canUserScan(_userId: string | null, _isPaidUser: boolean = false): Promise<{
@@ -306,6 +306,68 @@ export class InventoryService {
       return true;
     } catch (error) {
       log.error('InventoryService', 'Exception removing from inventory', error);
+      return false;
+    }
+  }
+
+  /**
+   * Update optional inventory metadata for an existing item.
+   * Falls back gracefully if some environments are missing columns.
+   */
+  static async updateInventoryItem(
+    itemId: string,
+    updates: {
+      isFavorite?: boolean;
+      notes?: string;
+    }
+  ): Promise<boolean> {
+    try {
+      const updatePayload: Record<string, any> = {};
+
+      if (updates.isFavorite !== undefined) {
+        updatePayload.is_favorite = updates.isFavorite;
+      }
+      if (updates.notes !== undefined) {
+        updatePayload.notes = updates.notes || null;
+      }
+
+      if (Object.keys(updatePayload).length === 0) {
+        return true;
+      }
+
+      let error: any = null;
+      for (let attempt = 0; attempt < 4; attempt++) {
+        const result = await supabase
+          .from('user_inventory')
+          .update(updatePayload)
+          .eq('id', itemId);
+
+        error = result.error;
+        if (!error) break;
+
+        const missingColumnMatch =
+          error?.code === 'PGRST204' &&
+          typeof error?.message === 'string'
+            ? error.message.match(/Could not find the '([^']+)' column/i)
+            : null;
+
+        const missingColumn = missingColumnMatch?.[1];
+        if (missingColumn && Object.prototype.hasOwnProperty.call(updatePayload, missingColumn)) {
+          delete updatePayload[missingColumn];
+          if (Object.keys(updatePayload).length === 0) return true;
+          continue;
+        }
+        break;
+      }
+
+      if (error) {
+        log.error('InventoryService', 'Error updating inventory item', error, { itemId });
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      log.error('InventoryService', 'Exception updating inventory item', error, { itemId });
       return false;
     }
   }

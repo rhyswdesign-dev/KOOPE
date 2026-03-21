@@ -11,19 +11,65 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 
 import type { RootStackParamList } from '../navigation/RootNavigator';
+import { DECK_CATEGORY_THEMES, getUnlockDeck, getUnlockDeckTheme, type DeckCategoryKey } from '../content/unlockDecks';
 import { colors, radii, serif, spacing } from '../theme/tokens';
 import { useUser } from '../store/useUser';
 import { useUserTier } from '../store/useUserTier';
 import { triggerHaptic } from '../lib/haptics';
 import {
-  getEarnableMiniDeckLibraryItems,
-  getLockedMiniDeckLibraryItems,
-  getPlannedMiniDeckLibraryItems,
+  getAllMiniDeckLibraryItems,
   getUnlockedMiniDeckLibraryItems,
   type HacksTipsLibraryItem,
 } from '../features/unlocks/hacksTipsLibrary';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
+const DECK_CATEGORY_ORDER: DeckCategoryKey[] = ['prep', 'technique', 'flavor', 'zero_proof', 'hosting', 'pro'];
+const PROGRESSION_DECK_ORDER = [
+  'shopping-cart-smart-buy-guide',
+  'simple-rich-syrup-basics',
+  'glassware-cheat-sheet',
+  'shake-vs-stir',
+  'citrus-balance-fixes',
+  'easy-flavor-pairing-matrix',
+  'how-to-fix-an-unbalanced-cocktail',
+  'dilution-control',
+  'fresh-citrus-storage-hacks',
+  'herb-garnish-preservation-hacks',
+  'syrup-storage-shelf-life',
+  'infusion-basics',
+  'bitters-hack-guide',
+  'flavor-bible-citrus-pairings',
+  'texture-hacks',
+  'build-better-mocktails',
+  'seasonal-riff-build-sheet',
+  'batching-for-4-8-and-12-guests',
+  '10-guest-citrus-punch',
+  'low-abv-hosting-punch',
+  'how-to-make-drinks-look-premium',
+  'global-tour-recipe-pack',
+  'home-bar-emergency-substitutions',
+  'flavor-bible-herb-pairings',
+  'low-effort-high-impact-hosting-hacks',
+  'party-punch-hacks',
+  'speed-garnish-moves',
+  'fortified-wine-hacks',
+  'label-reading-like-a-pro',
+  'gin-botanical-comparison-card',
+  'modifier-and-liqueur-build-notes',
+  'advanced-balance-sweetness-vs-weight',
+  'bitter-and-tincture-basics',
+  'taste-spirits-like-a-pro',
+] as const;
+const DECK_ORDER_INDEX = new Map<string, number>(PROGRESSION_DECK_ORDER.map((slug, index) => [slug, index]));
+
+function sortDecks(items: HacksTipsLibraryItem[]) {
+  return [...items].sort((left, right) => {
+    const leftIndex = DECK_ORDER_INDEX.get(left.assetSlug) ?? Number.MAX_SAFE_INTEGER;
+    const rightIndex = DECK_ORDER_INDEX.get(right.assetSlug) ?? Number.MAX_SAFE_INTEGER;
+    if (leftIndex !== rightIndex) return leftIndex - rightIndex;
+    return left.assetName.localeCompare(right.assetName);
+  });
+}
 
 export default function HacksTipsLibraryScreen() {
   const nav = useNavigation<Nav>();
@@ -40,117 +86,95 @@ export default function HacksTipsLibraryScreen() {
     });
   }, [nav]);
 
+  const allDecks = useMemo(() => getAllMiniDeckLibraryItems(), []);
   const unlocked = useMemo(() => getUnlockedMiniDeckLibraryItems(completedLessons, tier), [completedLessons, tier]);
-  const readyToEarn = useMemo(() => getEarnableMiniDeckLibraryItems(completedLessons, tier), [completedLessons, tier]);
-  const premiumLocked = useMemo(() => getLockedMiniDeckLibraryItems(tier), [tier]);
-  const planned = useMemo(() => getPlannedMiniDeckLibraryItems(tier), [tier]);
+  const heroDeck = unlocked.length > 0
+    ? unlocked[unlocked.length - 1]
+    : allDecks.find((item) => item.hasDeckContent) || null;
+  const categoryShelves = useMemo(() => {
+    return DECK_CATEGORY_ORDER.map((key) => {
+      const theme = DECK_CATEGORY_THEMES[key];
+      const items = sortDecks(allDecks.filter((item) => {
+        const deck = getUnlockDeck(item.assetSlug);
+        return deck?.category === key;
+      }));
+      return { key, theme, items };
+    }).filter((section) => section.items.length > 0);
+  }, [allDecks]);
 
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.heroCard}>
+        <Pressable
+          style={[styles.heroCard, heroDeck && styles.heroCardInteractive]}
+          onPress={() => {
+            if (!heroDeck) return;
+            triggerHaptic('selection');
+            nav.navigate('UnlockDeck', { assetSlug: heroDeck.assetSlug, title: heroDeck.assetName });
+          }}
+          disabled={!heroDeck}
+        >
           <View style={styles.heroBadge}>
-            <Text style={styles.heroBadgeText}>Bartender Hacks</Text>
+            <Text style={styles.heroBadgeText}>Field Guide Archive</Text>
           </View>
-          <Text style={styles.heroTitle}>Your lesson-earned field guide library.</Text>
-          <Text style={styles.heroBody}>
-            Finish the linked lesson, open the deck right away, and come back here any time for a quick refresher.
-          </Text>
+          <Text style={styles.heroTitle}>Hacks & Tips Collection</Text>
+          <Text style={styles.heroBody}>A quieter archive of field guides for prep, service, flavor, and hosting.</Text>
+          <View style={styles.heroRule} />
           <View style={styles.heroStats}>
             <HeroStat label="Unlocked" value={String(unlocked.length)} />
-            <HeroStat label="Ready Next" value={String(readyToEarn.length)} />
-            <HeroStat label="Built Now" value={String(unlocked.length + readyToEarn.length + premiumLocked.length)} />
+            <HeroStat label="Total Decks" value={String(allDecks.length)} />
+            <HeroStat label="Built Now" value={String(allDecks.filter((item) => item.hasDeckContent).length)} />
           </View>
-        </View>
+        </Pressable>
 
         <SectionTitle
-          title="Unlocked"
-          subtitle={unlocked.length > 0 ? 'These decks are already in your library.' : 'Complete the linked lessons to unlock your first deck.'}
+          title="Field Guides"
+          subtitle="Browse the collection by category, with each shelf ordered from early fundamentals into later mastery."
         />
-        {unlocked.length > 0 ? (
-          unlocked.map((item) => (
-            <LibraryCard
-              key={item.id}
-              item={item}
-              variant="unlocked"
-              ctaLabel="Open Deck"
-              onPress={() => {
-                triggerHaptic('selection');
-                nav.navigate('UnlockDeck', { assetSlug: item.assetSlug, title: item.assetName });
-              }}
-            />
+        {categoryShelves.length > 0 ? (
+          categoryShelves.map((section) => (
+            <View key={section.key} style={styles.shelfSection}>
+              <View style={styles.shelfHeader}>
+                <View style={styles.shelfTitleRow}>
+                  <View style={[styles.shelfIconWrap, { backgroundColor: section.theme.accentSoft, borderColor: section.theme.accentSoft }]}>
+                    <Ionicons name={section.theme.icon} size={16} color={section.theme.accent} />
+                  </View>
+                  <View>
+                    <Text style={styles.shelfTitle}>{section.theme.label}</Text>
+                    <Text style={styles.shelfSubtitle}>{section.items.length} deck{section.items.length === 1 ? '' : 's'}</Text>
+                  </View>
+                </View>
+              </View>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.shelfScrollContent}
+              >
+                {section.items.map((item) => (
+                  item.hasDeckContent ? (
+                    <DeckShelfCard
+                      key={item.id}
+                      item={item}
+                      onPress={() => {
+                        triggerHaptic('selection');
+                        nav.navigate('UnlockDeck', { assetSlug: item.assetSlug, title: item.assetName });
+                      }}
+                    />
+                  ) : (
+                    <EmptyShelfCard key={item.id} item={item} theme={section.theme} />
+                  )
+                ))}
+              </ScrollView>
+            </View>
           ))
         ) : (
           <EmptyCard
             icon="sparkles-outline"
-            title="No unlocked decks yet"
-            body="Your first live decks unlock from lessons like Shaking vs Stirring, Syrups 101, and Adjusting Balance."
+            title="No mini decks yet"
+            body="As we create mini decks, they will appear here automatically for review."
           />
         )}
 
-        <SectionTitle
-          title="Ready to Earn"
-          subtitle="These decks are built and unlock automatically when you finish the lesson."
-        />
-        {readyToEarn.length > 0 ? (
-          readyToEarn.map((item) => (
-            <LibraryCard
-              key={item.id}
-              item={item}
-              variant="earnable"
-              ctaLabel="Go to Lessons"
-              onPress={() => {
-                triggerHaptic('selection');
-                nav.navigate('Main');
-              }}
-            />
-          ))
-        ) : (
-          <EmptyCard
-            icon="checkmark-circle-outline"
-            title="Everything live is already unlocked"
-            body="As new ready decks ship, they will appear here automatically."
-          />
-        )}
-
-        {premiumLocked.length > 0 ? (
-          <>
-            <SectionTitle
-              title="Premium Locked"
-              subtitle="These decks are built, but your tier does not include them yet."
-            />
-            {premiumLocked.map((item) => (
-              <LibraryCard
-                key={item.id}
-                item={item}
-                variant="locked"
-                ctaLabel="View Access"
-                onPress={() => {
-                  triggerHaptic('selection');
-                  nav.navigate('Paywall', { displayCloseButton: true });
-                }}
-              />
-            ))}
-          </>
-        ) : null}
-
-        {planned.length > 0 ? (
-          <>
-            <SectionTitle
-              title="Coming Next"
-              subtitle="These unlocks are mapped into the curriculum and waiting on deck production."
-            />
-            {planned.map((item) => (
-              <LibraryCard
-                key={item.id}
-                item={item}
-                variant="planned"
-                ctaLabel="Planned"
-                onPress={() => {}}
-              />
-            ))}
-          </>
-        ) : null}
       </ScrollView>
     </View>
   );
@@ -184,63 +208,103 @@ function EmptyCard({ icon, title, body }: { icon: keyof typeof Ionicons.glyphMap
   );
 }
 
-function LibraryCard({
+function DeckShelfCard({
   item,
-  variant,
-  ctaLabel,
   onPress,
 }: {
   item: HacksTipsLibraryItem;
-  variant: 'unlocked' | 'earnable' | 'locked' | 'planned';
-  ctaLabel: string;
   onPress: () => void;
 }) {
-  const badgeText = {
-    unlocked: 'Unlocked',
-    earnable: 'Lesson Reward',
-    locked: item.tier,
-    planned: 'Planned',
-  }[variant];
-
-  const borderColor = {
-    unlocked: 'rgba(214,138,56,0.35)',
-    earnable: colors.line,
-    locked: 'rgba(192,192,192,0.22)',
-    planned: 'rgba(255,255,255,0.06)',
-  }[variant];
-
-  const buttonDisabled = variant === 'planned';
+  const deck = getUnlockDeck(item.assetSlug);
+  const theme = getUnlockDeckTheme(item.assetSlug);
+  if (!deck || !theme) return null;
 
   return (
-    <View style={[styles.card, { borderColor }]}>
-      <View style={styles.cardHeader}>
-        <View style={styles.badge}>
-          <Text style={styles.badgeText}>{badgeText}</Text>
-        </View>
-        <Text style={styles.phaseText}>{formatRewardPhase(item.rewardPhase)}</Text>
-      </View>
-
-      <Text style={styles.cardTitle}>{item.assetName}</Text>
-      <Text style={styles.cardDescription}>{item.description}</Text>
-
-      <View style={styles.metaRow}>
-        <View style={styles.metaItem}>
-          <Ionicons name="book-outline" size={14} color={colors.accent} />
-          <Text style={styles.metaText}>{item.moduleTitle}</Text>
-        </View>
-        <View style={styles.metaItem}>
-          <Ionicons name="checkmark-done-outline" size={14} color={colors.accent} />
-          <Text style={styles.metaText}>{item.lessonTitle}</Text>
+    <Pressable style={styles.shelfCard} onPress={onPress}>
+      <LinearCover theme={theme} title={deck.title} kicker={deck.kicker} rewardPhase={formatRewardPhase(item.rewardPhase)} />
+      <View style={styles.shelfCardMeta}>
+        <Text style={styles.shelfCardTitle}>{item.assetName}</Text>
+        <View style={styles.shelfMetaInline}>
+          <Text style={styles.shelfMetaText}>{item.moduleTitle}</Text>
+          <Text style={styles.shelfMetaDivider}>•</Text>
+          <Text style={styles.shelfMetaText}>{item.lessonTitle}</Text>
         </View>
       </View>
+    </Pressable>
+  );
+}
 
-      <Pressable
-        style={[styles.cardButton, buttonDisabled && styles.cardButtonDisabled]}
-        onPress={onPress}
-        disabled={buttonDisabled}
-      >
-        <Text style={[styles.cardButtonText, buttonDisabled && styles.cardButtonTextDisabled]}>{ctaLabel}</Text>
-      </Pressable>
+function EmptyShelfCard({
+  item,
+  theme,
+}: {
+  item: HacksTipsLibraryItem;
+  theme: typeof DECK_CATEGORY_THEMES[DeckCategoryKey];
+}) {
+  return (
+    <View style={styles.shelfCard}>
+      <View style={styles.emptyCoverShell}>
+        <View style={styles.emptyCover}>
+          <View style={styles.coverSpine} />
+          <View style={styles.emptyTopRule} />
+          <View style={styles.coverTopMeta}>
+            <View style={styles.emptyCategoryPill}>
+              <Ionicons name={theme.icon} size={12} color="rgba(242,229,213,0.28)" />
+              <Text style={styles.emptyCategoryText}>{theme.label}</Text>
+            </View>
+          </View>
+          <View style={styles.coverBody}>
+            <Text style={styles.emptyCoverSeries}>{formatRewardPhase(item.rewardPhase)}</Text>
+            <Text style={styles.emptyCoverTitle}>{item.assetName}</Text>
+          </View>
+          <Text style={styles.emptyCoverMark}>Reserved</Text>
+        </View>
+      </View>
+      <View style={styles.shelfCardMeta}>
+        <Text style={[styles.shelfCardTitle, styles.emptyShelfTitle]}>{item.assetName}</Text>
+        <View style={styles.shelfMetaInline}>
+          <Text style={styles.shelfMetaText}>{item.moduleTitle}</Text>
+          <Text style={styles.shelfMetaDivider}>•</Text>
+          <Text style={styles.shelfMetaText}>{item.lessonTitle}</Text>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+function LinearCover({
+  theme,
+  title,
+  kicker,
+  rewardPhase,
+}: {
+  theme: NonNullable<ReturnType<typeof getUnlockDeckTheme>>;
+  title: string;
+  kicker: string;
+  rewardPhase: string;
+}) {
+  return (
+    <View style={styles.coverShell}>
+      <View style={[styles.coverGradient, { backgroundColor: theme.gradient[1], borderColor: theme.accentSoft }]}>
+        <View style={styles.coverSpine} />
+        <View style={[styles.coverTopRule, { backgroundColor: theme.accentSoft }]} />
+        <View style={styles.coverGlowWrap}>
+          <View style={[styles.coverGlow, { backgroundColor: theme.accentSoft }]} />
+        </View>
+        <View style={[styles.coverOrbitalRing, { borderColor: theme.accentSoft }]} />
+        <View style={styles.coverTopMeta}>
+          <View style={[styles.coverCategoryPill, { borderColor: theme.accentSoft, backgroundColor: theme.accentSoft }]}>
+            <Ionicons name={theme.icon} size={12} color={theme.accent} />
+            <Text style={[styles.coverCategoryText, { color: theme.accent }]}>{theme.label}</Text>
+          </View>
+          <Text style={styles.coverKicker}>{kicker}</Text>
+        </View>
+        <View style={styles.coverBody}>
+          <Text style={styles.coverSeries}>{rewardPhase}</Text>
+          <Text style={styles.coverDisplayTitle}>{title}</Text>
+        </View>
+        <Text style={styles.coverMark}>KOOPE</Text>
+      </View>
     </View>
   );
 }
@@ -274,57 +338,75 @@ const styles = StyleSheet.create({
     borderRadius: radii.xl,
     borderWidth: 1,
     borderColor: 'rgba(214,138,56,0.24)',
-    padding: spacing(3),
+    padding: spacing(2.5),
     marginBottom: spacing(3),
+  },
+  heroCardInteractive: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.18,
+    shadowRadius: 20,
+    elevation: 8,
   },
   heroBadge: {
     alignSelf: 'flex-start',
-    backgroundColor: 'rgba(214,138,56,0.14)',
+    backgroundColor: 'rgba(214,138,56,0.1)',
     borderRadius: 999,
-    paddingHorizontal: spacing(1.5),
-    paddingVertical: spacing(0.75),
-    marginBottom: spacing(1.5),
+    paddingHorizontal: spacing(1.25),
+    paddingVertical: spacing(0.6),
+    marginBottom: spacing(1.1),
   },
   heroBadgeText: {
     color: colors.accent,
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700',
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
   },
   heroTitle: {
     color: colors.text,
-    fontSize: 28,
-    lineHeight: 32,
+    fontSize: 24,
+    lineHeight: 28,
     fontFamily: serif,
-    marginBottom: spacing(1),
+    marginBottom: spacing(0.75),
   },
   heroBody: {
     color: colors.subtext,
-    fontSize: 14,
-    lineHeight: 21,
+    fontSize: 13,
+    lineHeight: 19,
+    maxWidth: 300,
+  },
+  heroRule: {
+    height: 1,
+    width: '100%',
+    backgroundColor: 'rgba(242,229,213,0.08)',
+    marginTop: spacing(1.5),
   },
   heroStats: {
     flexDirection: 'row',
     gap: spacing(1),
-    marginTop: spacing(2.5),
+    marginTop: spacing(1.5),
   },
   heroStatCard: {
     flex: 1,
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    backgroundColor: 'rgba(255,255,255,0.03)',
     borderRadius: radii.lg,
-    paddingVertical: spacing(1.5),
+    paddingVertical: spacing(1.2),
     paddingHorizontal: spacing(1),
     borderWidth: 1,
     borderColor: colors.line,
   },
   heroStatValue: {
     color: colors.text,
-    fontSize: 22,
+    fontSize: 20,
     fontFamily: serif,
-    marginBottom: spacing(0.5),
+    marginBottom: spacing(0.25),
   },
   heroStatLabel: {
     color: colors.subtext,
-    fontSize: 12,
+    fontSize: 11,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   sectionHeader: {
     marginBottom: spacing(1.5),
@@ -340,6 +422,165 @@ const styles = StyleSheet.create({
     color: colors.subtext,
     fontSize: 13,
     lineHeight: 19,
+    marginBottom: spacing(0.25),
+  },
+  shelfSection: {
+    marginBottom: spacing(3),
+  },
+  shelfHeader: {
+    marginBottom: spacing(1),
+  },
+  shelfTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(1),
+  },
+  shelfIconWrap: {
+    width: 34,
+    height: 34,
+    borderRadius: 999,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  shelfTitle: {
+    color: colors.text,
+    fontSize: 18,
+    fontFamily: serif,
+  },
+  shelfSubtitle: {
+    color: colors.subtext,
+    fontSize: 12,
+    marginTop: 2,
+  },
+  shelfScrollContent: {
+    paddingRight: spacing(2),
+  },
+  shelfCard: {
+    width: 232,
+    marginRight: spacing(1.5),
+  },
+  coverShell: {
+    marginBottom: spacing(1),
+  },
+  coverGradient: {
+    height: 308,
+    borderRadius: 24,
+    borderWidth: 1,
+    overflow: 'hidden',
+    padding: spacing(1.5),
+    justifyContent: 'space-between',
+  },
+  coverSpine: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 10,
+    backgroundColor: 'rgba(0,0,0,0.12)',
+  },
+  coverTopRule: {
+    position: 'absolute',
+    left: 18,
+    right: 18,
+    top: 18,
+    height: 1,
+  },
+  coverGlowWrap: {
+    position: 'absolute',
+    right: -32,
+    top: 72,
+  },
+  coverGlow: {
+    width: 158,
+    height: 214,
+    borderRadius: 120,
+    opacity: 0.78,
+  },
+  coverOrbitalRing: {
+    position: 'absolute',
+    right: -10,
+    top: 86,
+    width: 160,
+    height: 200,
+    borderRadius: 120,
+    borderWidth: 1,
+    opacity: 0.14,
+  },
+  coverTopMeta: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: spacing(1),
+  },
+  coverCategoryPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(0.5),
+    borderWidth: 1,
+    borderRadius: radii.pill,
+    paddingHorizontal: spacing(0.9),
+    paddingVertical: spacing(0.55),
+  },
+  coverCategoryText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  coverKicker: {
+    color: 'rgba(242,229,213,0.56)',
+    fontSize: 10,
+    textTransform: 'uppercase',
+    letterSpacing: 1.3,
+    textAlign: 'right',
+    maxWidth: 92,
+  },
+  coverBody: {
+    marginTop: 'auto',
+  },
+  coverSeries: {
+    color: 'rgba(242,229,213,0.54)',
+    fontSize: 10,
+    textTransform: 'uppercase',
+    letterSpacing: 1.1,
+    marginBottom: spacing(0.7),
+  },
+  coverDisplayTitle: {
+    color: '#F3E8D8',
+    fontSize: 31,
+    lineHeight: 35,
+    fontFamily: serif,
+    fontWeight: '700',
+    maxWidth: 162,
+  },
+  coverMark: {
+    color: 'rgba(242,229,213,0.32)',
+    fontSize: 10,
+    letterSpacing: 1.6,
+    textTransform: 'uppercase',
+  },
+  shelfCardMeta: {
+    gap: spacing(0.45),
+  },
+  shelfCardTitle: {
+    color: colors.text,
+    fontSize: 16,
+    lineHeight: 21,
+    fontFamily: serif,
+  },
+  shelfMetaInline: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(0.5),
+    marginTop: spacing(0.2),
+  },
+  shelfMetaText: {
+    color: colors.subtext,
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  shelfMetaDivider: {
+    color: 'rgba(242,229,213,0.28)',
+    fontSize: 12,
   },
   emptyCard: {
     backgroundColor: colors.card,
@@ -360,76 +601,64 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
   },
-  card: {
-    backgroundColor: colors.card,
-    borderRadius: radii.xl,
+  emptyCoverShell: {
+    marginBottom: spacing(1),
+  },
+  emptyCover: {
+    height: 308,
+    borderRadius: 24,
     borderWidth: 1,
-    padding: spacing(2.5),
-    marginBottom: spacing(2),
-  },
-  cardHeader: {
-    flexDirection: 'row',
+    borderColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    padding: spacing(1.5),
     justifyContent: 'space-between',
+  },
+  emptyTopRule: {
+    position: 'absolute',
+    left: 18,
+    right: 18,
+    top: 18,
+    height: 1,
+    backgroundColor: 'rgba(242,229,213,0.06)',
+  },
+  emptyCategoryPill: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: spacing(1.25),
+    gap: spacing(0.5),
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    borderRadius: radii.pill,
+    paddingHorizontal: spacing(0.9),
+    paddingVertical: spacing(0.55),
+    backgroundColor: 'rgba(255,255,255,0.02)',
   },
-  badge: {
-    backgroundColor: 'rgba(214,138,56,0.14)',
-    borderRadius: 999,
-    paddingHorizontal: spacing(1.25),
-    paddingVertical: spacing(0.5),
-  },
-  badgeText: {
-    color: colors.accent,
+  emptyCategoryText: {
+    color: 'rgba(242,229,213,0.34)',
     fontSize: 11,
     fontWeight: '700',
   },
-  phaseText: {
-    color: colors.subtext,
-    fontSize: 12,
-  },
-  cardTitle: {
-    color: colors.text,
-    fontSize: 20,
+  emptyCoverTitle: {
+    color: 'rgba(242,229,213,0.46)',
+    fontSize: 29,
+    lineHeight: 34,
     fontFamily: serif,
-    marginBottom: spacing(0.75),
-  },
-  cardDescription: {
-    color: colors.subtext,
-    fontSize: 14,
-    lineHeight: 20,
-    marginBottom: spacing(1.5),
-  },
-  metaRow: {
-    gap: spacing(0.75),
-    marginBottom: spacing(2),
-  },
-  metaItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing(0.75),
-  },
-  metaText: {
-    color: colors.text,
-    fontSize: 13,
-    flex: 1,
-  },
-  cardButton: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: spacing(1.25),
-    borderRadius: radii.lg,
-    backgroundColor: colors.accent,
-  },
-  cardButtonDisabled: {
-    backgroundColor: 'rgba(255,255,255,0.06)',
-  },
-  cardButtonText: {
-    color: colors.bg,
     fontWeight: '700',
-    fontSize: 14,
+    maxWidth: 168,
   },
-  cardButtonTextDisabled: {
-    color: colors.subtext,
+  emptyCoverSeries: {
+    color: 'rgba(242,229,213,0.26)',
+    fontSize: 10,
+    textTransform: 'uppercase',
+    letterSpacing: 1.1,
+    marginBottom: spacing(0.7),
+  },
+  emptyCoverMark: {
+    color: 'rgba(242,229,213,0.22)',
+    fontSize: 10,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+  },
+  emptyShelfTitle: {
+    color: 'rgba(242,229,213,0.68)',
   },
 });

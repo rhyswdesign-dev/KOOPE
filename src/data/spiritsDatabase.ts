@@ -6,6 +6,31 @@
 
 export type PriceTier = 'budget' | 'mid-range' | 'premium' | 'ultra-premium';
 export type SpiritType = 'gin' | 'vodka' | 'rum' | 'whiskey' | 'tequila' | 'mezcal' | 'brandy' | 'liqueur' | 'other';
+export type ServeMode = 'neat' | 'water-drops' | 'large-rock' | 'cocktail';
+export type ServePriority = 'cocktail-first' | 'balanced' | 'serve-first';
+export type ServeSpiritFamily =
+  | 'scotch'
+  | 'bourbon'
+  | 'rye'
+  | 'tequila'
+  | 'mezcal'
+  | 'cognac'
+  | 'aged-rum'
+  | 'irish-whiskey'
+  | 'japanese-whisky';
+
+export interface ServeGuidance {
+  priority: ServePriority;
+  premiumScore?: number;
+  spiritFamily?: ServeSpiritFamily;
+  recommendedModes: ServeMode[];
+  firstPour: ServeMode;
+  shouldDeprioritizeCocktails: boolean;
+  why: string;
+  tastingNotesShort?: string;
+  cocktailUse?: 'best-neat' | 'good-spirit-forward' | 'great-for-cocktails';
+  educationSlug?: string;
+}
 
 export interface Spirit {
   id: string;
@@ -23,6 +48,7 @@ export interface Spirit {
   tastingNotes: string;
   origin: string;
   searchTerms: string[]; // Alternative names/spellings for matching
+  serveGuidance?: ServeGuidance;
 }
 
 export const SPIRITS_DATABASE: Spirit[] = [
@@ -234,6 +260,17 @@ export const SPIRITS_DATABASE: Spirit[] = [
     tastingNotes: 'Aged Cuban rum with rich vanilla, cocoa, tobacco, and oak. Perfect for sipping or in aged rum cocktails.',
     origin: 'Cuba',
     searchTerms: ['havana club', 'cuban rum', '7 year'],
+    serveGuidance: {
+      priority: 'balanced',
+      premiumScore: 68,
+      spiritFamily: 'aged-rum',
+      recommendedModes: ['neat', 'large-rock', 'cocktail'],
+      firstPour: 'neat',
+      shouldDeprioritizeCocktails: false,
+      why: 'This aged rum is worth tasting on its own first, then it can move into spirit-forward rum drinks if you want to mix.',
+      cocktailUse: 'good-spirit-forward',
+      educationSlug: 'aged-rum-serve',
+    },
   },
 
   // ===== WHISKEY =====
@@ -321,6 +358,17 @@ export const SPIRITS_DATABASE: Spirit[] = [
     tastingNotes: 'Small-batch bourbon with rich dried fruit, mint, cocoa, and spice. Complex and full-bodied.',
     origin: 'United States',
     searchTerms: ['woodford reserve', 'woodford', 'small batch bourbon'],
+    serveGuidance: {
+      priority: 'serve-first',
+      premiumScore: 82,
+      spiritFamily: 'bourbon',
+      recommendedModes: ['neat', 'water-drops', 'large-rock', 'cocktail'],
+      firstPour: 'neat',
+      shouldDeprioritizeCocktails: true,
+      why: 'Start neat to understand the bottle first. A few drops of water can open cocoa, spice, and oak before you decide whether it belongs in a drink.',
+      cocktailUse: 'good-spirit-forward',
+      educationSlug: 'premium-bourbon-serve',
+    },
   },
   {
     id: 'johnnie-walker-black',
@@ -338,6 +386,17 @@ export const SPIRITS_DATABASE: Spirit[] = [
     tastingNotes: '12-year blended Scotch with layers of smoke, vanilla, dried fruit, and sweet spice. Complex and smooth.',
     origin: 'Scotland',
     searchTerms: ['johnnie walker', 'black label', 'blended scotch'],
+    serveGuidance: {
+      priority: 'serve-first',
+      premiumScore: 80,
+      spiritFamily: 'scotch',
+      recommendedModes: ['neat', 'water-drops', 'large-rock', 'cocktail'],
+      firstPour: 'neat',
+      shouldDeprioritizeCocktails: true,
+      why: 'Start neat so the smoke, fruit, and oak register clearly. Then add a few drops of water only if you want to open aroma and soften the edges.',
+      cocktailUse: 'good-spirit-forward',
+      educationSlug: 'premium-scotch-serve',
+    },
   },
 
   // ===== TEQUILA =====
@@ -357,6 +416,17 @@ export const SPIRITS_DATABASE: Spirit[] = [
     tastingNotes: '100% blue agave. Fresh agave, citrus, and white pepper. Smooth and clean, perfect for margaritas or sipping.',
     origin: 'Mexico',
     searchTerms: ['patron', 'silver tequila', 'blanco'],
+    serveGuidance: {
+      priority: 'serve-first',
+      premiumScore: 84,
+      spiritFamily: 'tequila',
+      recommendedModes: ['neat', 'large-rock', 'cocktail'],
+      firstPour: 'neat',
+      shouldDeprioritizeCocktails: true,
+      why: 'This is worth tasting neat before mixing so the agave, citrus, and pepper stay in focus.',
+      cocktailUse: 'good-spirit-forward',
+      educationSlug: 'premium-tequila-serve',
+    },
   },
   {
     id: 'don-julio-blanco',
@@ -374,6 +444,17 @@ export const SPIRITS_DATABASE: Spirit[] = [
     tastingNotes: 'Crisp agave flavor with hints of citrus and lime. Clean, smooth, and perfect for premium margaritas.',
     origin: 'Mexico',
     searchTerms: ['don julio', 'blanco', '1942'],
+    serveGuidance: {
+      priority: 'serve-first',
+      premiumScore: 86,
+      spiritFamily: 'tequila',
+      recommendedModes: ['neat', 'large-rock', 'cocktail'],
+      firstPour: 'neat',
+      shouldDeprioritizeCocktails: true,
+      why: 'Try this neat first so the agave purity and citrus lift are clear before you chill or mix it.',
+      cocktailUse: 'good-spirit-forward',
+      educationSlug: 'premium-tequila-serve',
+    },
   },
   {
     id: 'espolon-blanco',
@@ -408,6 +489,17 @@ export const SPIRITS_DATABASE: Spirit[] = [
     tastingNotes: 'Ultra-smooth with sweet agave, vanilla, and hints of coconut. Crisp and clean finish.',
     origin: 'Mexico',
     searchTerms: ['casamigos', 'george clooney tequila'],
+    serveGuidance: {
+      priority: 'serve-first',
+      premiumScore: 80,
+      spiritFamily: 'tequila',
+      recommendedModes: ['neat', 'large-rock', 'cocktail'],
+      firstPour: 'neat',
+      shouldDeprioritizeCocktails: true,
+      why: 'This bottle reads best neat first, then on a large rock if you want a softer texture.',
+      cocktailUse: 'good-spirit-forward',
+      educationSlug: 'premium-tequila-serve',
+    },
   },
 
   // ===== MEZCAL =====
@@ -427,6 +519,17 @@ export const SPIRITS_DATABASE: Spirit[] = [
     tastingNotes: 'Artisanal mezcal with balanced smoke, roasted agave, and citrus. Versatile for cocktails or sipping.',
     origin: 'Mexico',
     searchTerms: ['del maguey', 'vida', 'mezcal'],
+    serveGuidance: {
+      priority: 'balanced',
+      premiumScore: 72,
+      spiritFamily: 'mezcal',
+      recommendedModes: ['neat', 'water-drops', 'cocktail'],
+      firstPour: 'neat',
+      shouldDeprioritizeCocktails: false,
+      why: 'Taste this neat first for smoke and roasted agave, then use it in cocktails where mezcal is meant to stay obvious.',
+      cocktailUse: 'good-spirit-forward',
+      educationSlug: 'mezcal-serve',
+    },
   },
   {
     id: 'montelobos-mezcal',
@@ -480,6 +583,17 @@ export const SPIRITS_DATABASE: Spirit[] = [
     tastingNotes: 'Fine champagne cognac with apricot, vanilla, and toasted oak. Rich and smooth.',
     origin: 'France',
     searchTerms: ['remy martin', 'rémy', 'vsop', 'cognac'],
+    serveGuidance: {
+      priority: 'serve-first',
+      premiumScore: 88,
+      spiritFamily: 'cognac',
+      recommendedModes: ['neat', 'water-drops', 'large-rock', 'cocktail'],
+      firstPour: 'neat',
+      shouldDeprioritizeCocktails: true,
+      why: 'This is best approached as a sipping bottle first so the fruit, oak, and richness show before any dilution or mixing.',
+      cocktailUse: 'good-spirit-forward',
+      educationSlug: 'premium-cognac-serve',
+    },
   },
 
   // ===== LIQUEURS =====
@@ -635,10 +749,10 @@ export function getSpiritsByPriceTier(tier: PriceTier): Spirit[] {
  */
 export function getPriceTierDisplay(tier: PriceTier): string {
   const tiers: Record<PriceTier, string> = {
-    'budget': '💰 Budget',
-    'mid-range': '💰💰 Mid-Range',
-    'premium': '💰💰💰 Premium',
-    'ultra-premium': '💰💰💰💰 Ultra-Premium',
+    'budget': 'Budget',
+    'mid-range': 'Mid-Range',
+    'premium': 'Premium',
+    'ultra-premium': 'Ultra-Premium',
   };
   return tiers[tier];
 }

@@ -77,6 +77,7 @@ import NotificationCenterScreen from '../screens/NotificationCenterScreen';
 import ReferralScreen from '../screens/ReferralScreen';
 import TutorialsScreen from '../screens/TutorialsScreen';
 import UnlockDeckScreen from '../screens/UnlockDeckScreen';
+import RecipeCardDetailScreen from '../screens/RecipeCardDetailScreen';
 import { useCartSync } from '../hooks/useCartSync';
 import TutorialIconButton from '../components/tour/TutorialIconButton';
 import type { ScreenTourId } from '../config/screenTours';
@@ -168,7 +169,12 @@ export type RootStackParamList = {
   InventoryInsights: { mode: 'expiry' | 'health' };
   Achievements: undefined;
   SubscriptionDebug: undefined;
-  Paywall: { offering?: string | null; displayCloseButton?: boolean };
+  Paywall: {
+    offering?: string | null;
+    displayCloseButton?: boolean;
+    source?: string;
+    triggerId?: string;
+  };
   CustomerCenter: undefined;
 
   ProfileSavedItems: undefined;
@@ -177,6 +183,7 @@ export type RootStackParamList = {
   Referral: undefined;
   Tutorials: { contextTourId?: ScreenTourId } | undefined;
   UnlockDeck: { assetSlug: string; title?: string };
+  RecipeCardDetail: { cardId: string };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -435,6 +442,7 @@ export default function RootNavigator({ initialRouteName = 'Main' }: RootNavigat
       <Stack.Screen name="Referral" component={ReferralScreen} options={{ headerShown: true, title: 'Invite Friends' }} />
       <Stack.Screen name="Tutorials" component={TutorialsScreen} options={{ headerShown: true, title: 'Tutorials' }} />
       <Stack.Screen name="UnlockDeck" component={UnlockDeckScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="RecipeCardDetail" component={RecipeCardDetailScreen} options={{ headerShown: false }} />
     </Stack.Navigator>
     </View>
   );

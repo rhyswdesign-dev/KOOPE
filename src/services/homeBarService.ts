@@ -193,6 +193,37 @@ export class HomeBarService {
   }
 
   /**
+   * Update a locally stored ingredient by name/category.
+   */
+  static async updateStoredIngredient(
+    name: string,
+    category: string | undefined,
+    updates: Partial<Pick<BarIngredient, 'notes' | 'isFavorite' | 'tags' | 'brand' | 'volume' | 'abv'>>
+  ): Promise<void> {
+    try {
+      const existingIngredients = await this.getStoredIngredients();
+      const targetName = name.trim().toLowerCase();
+      const targetCategory = category?.trim().toLowerCase();
+
+      const updatedIngredients = existingIngredients.map((item) => {
+        const sameName = item.name.trim().toLowerCase() === targetName;
+        const sameCategory = !targetCategory || (item.category || '').toLowerCase() === targetCategory;
+        if (!sameName || !sameCategory) return item;
+
+        return {
+          ...item,
+          ...updates,
+        };
+      });
+
+      await AsyncStorage.setItem(this.STORAGE_KEY, JSON.stringify(updatedIngredients));
+    } catch (error) {
+      log.error('HomeBarService', 'Failed to update local ingredient', error);
+      throw new Error('Failed to update local ingredient');
+    }
+  }
+
+  /**
    * Load comprehensive mock inventory (for testing all icon variations)
    */
   static async loadComprehensiveMockInventory(): Promise<void> {

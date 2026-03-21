@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * What Can I Make Screen
  * Shows cocktails user can make based on their inventory

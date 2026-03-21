@@ -1,7 +1,7 @@
 /**
  * Locked Recipe Card
  * Shows a beautiful thumbnail preview of a locked cocktail
- * Displays lock icon and upgrade prompt - NO NAME SHOWN
+ * Displays lock icon and upgrade prompt
  * Supports XP unlock option
  */
 
@@ -12,11 +12,11 @@ import { colors, spacing, radii } from '../theme/tokens';
 import { LinearGradient } from 'expo-linear-gradient';
 
 interface LockedRecipeCardProps {
-  image: any; // Cocktail thumbnail image
-  onPress?: () => void; // Tap to show upgrade prompt
-  style?: ViewStyle; // Allow custom styling for different layouts
-  xpCost?: number; // XP cost to unlock (if undefined, XP unlock not available)
-  canAfford?: boolean; // Whether user has enough XP
+  image: any;
+  onPress?: () => void;
+  style?: ViewStyle;
+  xpCost?: number;
+  canAfford?: boolean;
   title?: string;
   subtitle?: string;
 }
@@ -45,13 +45,11 @@ export default function LockedRecipeCard({
         style={styles.imageBackground}
         imageStyle={styles.image}
       >
-        {/* Subtle overlay - cocktail image clearly visible */}
         <LinearGradient
           colors={['rgba(0,0,0,0.05)', 'rgba(0,0,0,0.15)']}
           style={StyleSheet.absoluteFillObject}
         />
 
-        {/* Lock icon watermark - centered, grey tone, semi-transparent */}
         <View style={styles.lockOverlay}>
           <View style={styles.lockIconContainer}>
             <Ionicons name="lock-closed" size={32} color="#808080" />
@@ -66,13 +64,11 @@ export default function LockedRecipeCard({
           </View>
         )}
 
-        {/* Premium badge */}
         <View style={styles.premiumBadge}>
           <Ionicons name="diamond-outline" size={14} color={colors.gold} />
           <Text style={styles.premiumText}>KOOPE+</Text>
         </View>
 
-        {/* XP Cost badge - shown at bottom if XP unlock available */}
         {xpCost !== undefined && (
           <View style={[styles.xpBadge, !canAfford && styles.xpBadgeUnaffordable]}>
             <Ionicons name="star" size={14} color={canAfford ? colors.gold : colors.textMuted} />
@@ -123,9 +119,9 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: 'rgba(255, 255, 255, 0.5)', // Semi-transparent white watermark
+    backgroundColor: 'rgba(255, 255, 255, 0.5)',
     borderWidth: 2,
-    borderColor: 'rgba(128, 128, 128, 0.4)', // Semi-transparent grey border
+    borderColor: 'rgba(128, 128, 128, 0.4)',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing(1),
@@ -138,9 +134,9 @@ const styles = StyleSheet.create({
   upgradeText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#808080', // Grey watermark text
+    color: '#808080',
     textAlign: 'center',
-    textShadowColor: 'rgba(255,255,255,0.8)', // Light shadow for contrast
+    textShadowColor: 'rgba(255,255,255,0.8)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
     opacity: 0.9,

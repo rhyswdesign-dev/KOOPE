@@ -93,6 +93,8 @@ export function useFeatureAccess(featureKey: FeatureKey): FeatureAccessResult {
       navigation.navigate('Paywall', {
         displayCloseButton: true,
         offering: (trigger?.requiredPlan ?? feature.paywallTarget) === 'pro' ? 'pro' : null,
+        source: resolvedTriggerId ?? featureKey,
+        triggerId: resolvedTriggerId,
       });
 
       return false;

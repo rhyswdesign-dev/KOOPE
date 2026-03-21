@@ -3,18 +3,19 @@
  * Shows detailed information about a scanned spirit bottle
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
+  FlatList,
   TouchableOpacity,
-  SafeAreaView,
   Alert,
   Linking,
   Image,
 } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp, CompositeNavigationProp } from '@react-navigation/native';
@@ -35,6 +36,10 @@ import { useUserTier } from '../store/useUserTier';
 import { isCocktailAccessible, TIER_LIMITS } from '../config/tierAccess';
 import { useFeatureAccess } from '../hooks/useFeatureAccess';
 import type { UserInventoryItem } from '../types/database';
+import { BottleServeService } from '../services/bottleServeService';
+import { useEngagement } from '../store/useEngagement';
+import { getCocktailImage } from '../../assets/images/cocktails';
+import RecipeCard from '../components/RecipeCard';
 
 type BottleDetailScreenNavigationProp = CompositeNavigationProp<
   NativeStackNavigationProp<CameraStackParamList, 'BottleDetail'>,
@@ -55,18 +60,75 @@ function normalizeSpiritToken(value: string | undefined | null): string {
   return SPIRIT_ALIAS_MAP[token] || token;
 }
 
+function getRespectThisBottleScore(
+  recipe: any,
+  spiritName: string,
+  bottle: any,
+  serveRecommendation: ReturnType<typeof BottleServeService.getRecommendation>
+): number {
+  const tags = Array.isArray(recipe.tags) ? recipe.tags.map((tag: string) => String(tag).toLowerCase()) : [];
+  const category = String(recipe.category || '').toLowerCase();
+  const name = String(recipe.name || '').toLowerCase();
+  const description = String(recipe.description || '').toLowerCase();
+  const difficulty = String(recipe.difficulty || '').toLowerCase();
+  const ingredientsCount = Array.isArray(recipe.ingredients)
+    ? recipe.ingredients.length
+    : typeof recipe.ingredients === 'string'
+      ? recipe.ingredients.split(/[,|]/).filter(Boolean).length
+      : 0;
+
+  let score = 0;
+
+  if (tags.includes('classic')) score += 10;
+  if (tags.includes('stirred')) score += 12;
+  if (tags.includes('spirit-forward')) score += 18;
+  if (tags.includes('smoky') && serveRecommendation.spiritFamily === 'scotch') score += 10;
+  if (tags.includes('agave') && serveRecommendation.spiritFamily === 'tequila') score += 10;
+  if (['old fashioned', 'manhattan', 'sazerac'].some((needle) => name.includes(needle))) score += 18;
+  if (['boozy', 'spirit-forward', 'minimal dilution'].some((needle) => description.includes(needle))) score += 10;
+  if (category.includes('old fashioned') || category.includes('martini')) score += 8;
+  if (difficulty === 'easy') score += 4;
+  if (ingredientsCount > 0 && ingredientsCount <= 4) score += 10;
+  if (ingredientsCount >= 7) score -= 15;
+  if (tags.includes('tiki')) score -= 25;
+  if (tags.includes('tropical')) score -= 20;
+  if (tags.includes('creamy')) score -= 18;
+  if (tags.includes('frozen')) score -= 25;
+  if (tags.includes('brunch')) score -= 10;
+  if (tags.includes('dessert')) score -= 12;
+  if (tags.includes('equal-parts')) score -= 8;
+  if (tags.includes('sour')) score -= 6;
+  if (tags.includes('highball')) score -= 4;
+
+  if (spiritName === 'whiskey' && tags.includes('whiskey')) score += 6;
+  if (spiritName === 'tequila' && tags.includes('tequila')) score += 6;
+  if (spiritName === 'mezcal' && tags.includes('mezcal')) score += 8;
+  if (spiritName === 'brandy' && (tags.includes('cognac') || tags.includes('brandy'))) score += 8;
+  if (String(bottle.name || '').toLowerCase().includes('scotch') && tags.includes('scotch')) score += 10;
+
+  return score;
+}
+
 export default function BottleDetailScreen() {
   const navigation = useNavigation<BottleDetailScreenNavigationProp>();
   const route = useRoute<RouteProp<CameraStackParamList, 'BottleDetail'>>();
-  const { earnScanXP } = useXPSystem();
+  const insets = useSafeAreaInsets();
+  const { earnScanXP, isCocktailUnlockedWithXP } = useXPSystem();
+  const { isRecipeUnlocked: isRecipeUnlockedWithEngagement } = useEngagement();
   const { user } = useAuth();
   const { tier } = useUserTier();
   const { gateWithTrigger: inventoryGate } = useFeatureAccess('inventory_unlimited');
+  const { hasAccess: hasPremiumServeEducation } = useFeatureAccess('premium_serve_education');
+  const { hasAccess: hasPremiumServePersonalization } = useFeatureAccess('premium_serve_personalization');
   const { bottle, imageUri } = route.params;
   const [userCurrency, setUserCurrency] = useState<'USD' | 'CAD' | 'GBP'>('USD');
   const [userRegion, setUserRegion] = useState<string>('');
   const [suggestedCocktails, setSuggestedCocktails] = useState<Array<any & { match: RecipeMatch }>>([]);
   const [loadingCocktails, setLoadingCocktails] = useState(true);
+  const serveRecommendation = useMemo(
+    () => BottleServeService.getRecommendation(bottle, tier),
+    [bottle, tier]
+  );
 
   useEffect(() => {
     // Detect user's currency based on locale
@@ -85,7 +147,8 @@ export default function BottleDetailScreen() {
   }, []);
 
   useEffect(() => {
-    // Fetch cocktails: 2 classics + 3 based on user's inventory (80% match)
+    // Show recipes relevant to the scanned bottle from the user's currently
+    // accessible pool. Free sees up to 3 suggestions; paid tiers see more.
     const fetchCocktails = async () => {
       setLoadingCocktails(true);
       try {
@@ -174,16 +237,33 @@ export default function BottleDetailScreen() {
           console.log('Sample matched recipes:', matchedData.slice(0, 3).map(r => ({ name: r.name, baseSpirit: r.baseSpirit })));
         }
 
-        // 3.5. Filter by tier access (FREE users only see unlocked recipes)
+        // 3.5. Filter by the user's accessible recipe pool.
         if (tier === 'FREE') {
           matchedData = matchedData.filter(recipe =>
-            isCocktailAccessible(recipe.id, tier)
+            isCocktailAccessible(recipe.id, tier) ||
+            isCocktailUnlockedWithXP(recipe.id) ||
+            isRecipeUnlockedWithEngagement(recipe.id)
           );
         }
 
-        // 4. Sort by match percentage with combined inventory (includes scanned bottle)
+        // 4. Sort by match percentage, then favor "respectful" cocktails for serve-first bottles
         const cocktailsWithMatch = sortByMatch(matchedData as any[], combinedInventory);
-        const topMatches = cocktailsWithMatch.slice(0, 5);
+        const rankedMatches = [...cocktailsWithMatch].sort((a, b) => {
+          if (serveRecommendation.cocktailPlacement !== 'secondary') {
+            return b.match.matchPercentage - a.match.matchPercentage;
+          }
+
+          const aRespect = getRespectThisBottleScore(a, spiritName, bottle, serveRecommendation);
+          const bRespect = getRespectThisBottleScore(b, spiritName, bottle, serveRecommendation);
+
+          if (bRespect !== aRespect) return bRespect - aRespect;
+          if (b.match.matchPercentage !== a.match.matchPercentage) {
+            return b.match.matchPercentage - a.match.matchPercentage;
+          }
+
+          return String(a.name || '').localeCompare(String(b.name || ''));
+        });
+        const topMatches = rankedMatches.slice(0, tier === 'FREE' ? 3 : 5);
 
         setSuggestedCocktails(topMatches);
       } catch (error) {
@@ -195,7 +275,7 @@ export default function BottleDetailScreen() {
     };
 
     fetchCocktails();
-  }, [bottle.type, bottle.name, user, tier]);
+  }, [bottle, bottle.type, bottle.name, user, tier, isCocktailUnlockedWithXP, isRecipeUnlockedWithEngagement, serveRecommendation]);
 
   const handleAddToInventory = async () => {
     // Check if user is signed in
@@ -321,8 +401,13 @@ export default function BottleDetailScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: Math.max(insets.bottom, spacing(3)) + spacing(8) },
+        ]}
+      >
         {/* Header Badge */}
         <View style={styles.header}>
           <View style={styles.headerBadge}>
@@ -389,6 +474,74 @@ export default function BottleDetailScreen() {
           </Text>
         </View>
 
+        <View style={[
+          styles.serveCard,
+          serveRecommendation.isPremiumExperience && styles.serveCardPremium,
+        ]}>
+          <View style={styles.serveHeader}>
+            <View style={styles.serveHeaderCopy}>
+              <Text style={styles.serveEyebrow}>
+                {serveRecommendation.isPremiumExperience ? 'Premium Bottle Guidance' : 'Serve Guidance'}
+              </Text>
+              <Text style={styles.serveTitle}>{serveRecommendation.heroTitle}</Text>
+              <Text style={styles.serveSubtitle}>{serveRecommendation.heroSubtitle}</Text>
+            </View>
+            <View style={styles.firstPourBadge}>
+              <Text style={styles.firstPourLabel}>Start With</Text>
+              <Text style={styles.firstPourValue}>
+                {serveRecommendation.serveModes.find((mode) => mode.mode === serveRecommendation.firstPour)?.label || 'Neat'}
+              </Text>
+            </View>
+          </View>
+
+          <Text style={styles.serveWhy}>{serveRecommendation.why}</Text>
+
+          <FlatList
+            horizontal
+            data={serveRecommendation.serveModes}
+            keyExtractor={(mode) => mode.mode}
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.serveModesRail}
+            ItemSeparatorComponent={() => <View style={styles.serveModeSeparator} />}
+            renderItem={({ item: mode }) => (
+              <View style={styles.serveModeCard}>
+                <View style={styles.serveModeIcon}>
+                  <Ionicons
+                    name={
+                      mode.mode === 'neat'
+                        ? 'wine-outline'
+                        : mode.mode === 'water-drops'
+                          ? 'water-outline'
+                          : mode.mode === 'large-rock'
+                            ? 'cube-outline'
+                            : 'sparkles-outline'
+                    }
+                    size={18}
+                    color={colors.gold}
+                  />
+                </View>
+                <Text style={styles.serveModeLabel}>{mode.label}</Text>
+                <Text style={styles.serveModeDescription}>{mode.description}</Text>
+              </View>
+            )}
+          />
+
+          <View style={styles.serveFootnote}>
+            <Ionicons name="information-circle-outline" size={16} color={colors.accent} />
+            <Text style={styles.serveFootnoteText}>{serveRecommendation.cocktailUse}</Text>
+          </View>
+
+          {serveRecommendation.upgradePrompt && (
+            <Text style={styles.serveUpgradeText}>
+              {hasPremiumServePersonalization
+                ? 'Personalized bottle guidance is active for your profile.'
+                : hasPremiumServeEducation
+                  ? 'PLUS tasting education is active. Upgrade to PRO for personalization.'
+                  : serveRecommendation.upgradePrompt}
+            </Text>
+          )}
+        </View>
+
         {/* Flavor Profile */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Flavor Profile</Text>
@@ -412,69 +565,56 @@ export default function BottleDetailScreen() {
           <View style={styles.section}>
             <View style={styles.cocktailsHeader}>
               <Ionicons name="sparkles" size={24} color={colors.gold} />
-              <Text style={styles.cocktailsTitle}>Cocktails You Can Make</Text>
+              <View style={styles.cocktailsHeaderCopy}>
+                <Text style={styles.cocktailsTitle}>
+                  {serveRecommendation.cocktailPlacement === 'secondary'
+                    ? 'Cocktails That Respect This Bottle'
+                    : 'Cocktails You Can Make'}
+                </Text>
+                <Text style={styles.cocktailsSubtitle}>
+                  {tier === 'FREE'
+                    ? 'Up to 3 matches from your free and unlocked recipe pool.'
+                    : 'Best matches from your current recipe access.'}
+                </Text>
+              </View>
             </View>
-            <View style={styles.cocktailsList}>
-              {suggestedCocktails.map((cocktail, index) => {
-                const isClassic = index < 2; // First 2 are classics
+            <FlatList
+              horizontal
+              data={suggestedCocktails}
+              keyExtractor={(cocktail) => cocktail.id}
+              renderItem={({ item: cocktail }) => {
+                const displayRecipe = {
+                  ...cocktail,
+                  image: getCocktailImage(cocktail.id, cocktail.image),
+                  subtitle: cocktail.match?.canMake
+                    ? 'You can make this'
+                    : cocktail.match?.almostCanMake
+                      ? getMatchMessage(cocktail.match)
+                      : cocktail.subtitle || 'Worth a closer look',
+                };
+
                 return (
-                  <TouchableOpacity
-                    key={cocktail.id}
-                    style={styles.cocktailCard}
+                  <RecipeCard
+                    recipe={displayRecipe}
                     onPress={() => navigation.navigate('CocktailDetail', { cocktailId: cocktail.id })}
-                  >
-                    <View style={styles.cocktailIcon}>
-                      <Ionicons name="wine" size={24} color={colors.gold} />
-                    </View>
-                    <View style={styles.cocktailInfo}>
-                      <View style={styles.cocktailNameRow}>
-                        <Text style={styles.cocktailName}>{cocktail.name}</Text>
-                        {isClassic && (
-                          <View style={styles.classicBadge}>
-                            <Text style={styles.classicBadgeText}>CLASSIC</Text>
-                          </View>
-                        )}
-                      </View>
-                      <Text style={styles.cocktailCategory}>{cocktail.category}</Text>
-
-                      {/* Match Status */}
-                      {cocktail.match && (
-                        <View style={styles.matchInfo}>
-                          {cocktail.match.canMake ? (
-                            <View style={styles.matchBadge}>
-                              <Ionicons name="checkmark-circle" size={14} color={colors.gold} />
-                              <Text style={styles.matchText}>You can make this!</Text>
-                            </View>
-                          ) : cocktail.match.almostCanMake ? (
-                            <View style={styles.missingBadge}>
-                              <Ionicons name="cart-outline" size={14} color={colors.accent} />
-                              <Text style={styles.missingText}>
-                                {getMatchMessage(cocktail.match)}
-                              </Text>
-                            </View>
-                          ) : null}
-                        </View>
-                      )}
-
-                      <View style={styles.cocktailMeta}>
-                        <Text style={styles.cocktailDifficulty}>{cocktail.difficulty?.toUpperCase()}</Text>
-                        {cocktail.rating && (
-                          <>
-                            <Ionicons name="star" size={12} color={colors.gold} />
-                            <Text style={styles.cocktailRating}>{cocktail.rating}</Text>
-                          </>
-                        )}
-                      </View>
-                    </View>
-                  </TouchableOpacity>
+                    showSaveButton={false}
+                    showCartButton={false}
+                    showDeleteButton={false}
+                    style={styles.discoveryRecipeCard}
+                  />
                 );
-              })}
-            </View>
+              }}
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.cocktailsRail}
+              ItemSeparatorComponent={() => <View style={styles.cocktailRailSeparator} />}
+              nestedScrollEnabled
+              removeClippedSubviews={false}
+            />
           </View>
         )}
 
         {/* Actions */}
-        <View style={styles.actions}>
+        <View style={[styles.actions, { marginBottom: Math.max(insets.bottom, spacing(2)) }]}>
           <TouchableOpacity
             style={styles.primaryButton}
             onPress={handleAddToInventory}
@@ -509,9 +649,6 @@ export default function BottleDetailScreen() {
             </TouchableOpacity>
           </View>
         </View>
-
-        {/* Bottom Spacing */}
-        <View style={{ height: spacing(4) }} />
       </ScrollView>
     </SafeAreaView>
   );
@@ -651,6 +788,122 @@ const styles = StyleSheet.create({
     marginTop: spacing(1),
     fontStyle: 'italic',
   },
+  serveCard: {
+    backgroundColor: colors.card,
+    borderRadius: radii.lg,
+    padding: spacing(2),
+    marginBottom: spacing(3),
+    borderWidth: 1,
+    borderColor: colors.line,
+    gap: spacing(1.5),
+  },
+  serveCardPremium: {
+    backgroundColor: `${colors.gold}10`,
+    borderColor: `${colors.gold}35`,
+  },
+  serveHeader: {
+    flexDirection: 'row',
+    gap: spacing(2),
+    alignItems: 'flex-start',
+  },
+  serveHeaderCopy: {
+    flex: 1,
+    gap: spacing(0.5),
+  },
+  serveEyebrow: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.gold,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  serveTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  serveSubtitle: {
+    fontSize: 13,
+    color: colors.subtext,
+    lineHeight: 18,
+  },
+  firstPourBadge: {
+    minWidth: 92,
+    paddingHorizontal: spacing(1.5),
+    paddingVertical: spacing(1),
+    borderRadius: radii.md,
+    backgroundColor: `${colors.gold}18`,
+    borderWidth: 1,
+    borderColor: `${colors.gold}30`,
+    alignItems: 'flex-start',
+  },
+  firstPourLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: colors.gold,
+    textTransform: 'uppercase',
+  },
+  firstPourValue: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.text,
+    marginTop: spacing(0.25),
+  },
+  serveWhy: {
+    fontSize: 14,
+    color: colors.text,
+    lineHeight: 21,
+  },
+  serveModesRail: {
+    paddingRight: spacing(1),
+  },
+  serveModeSeparator: {
+    width: spacing(1.5),
+  },
+  serveModeCard: {
+    width: 188,
+    backgroundColor: `${colors.bg}90`,
+    borderRadius: radii.md,
+    padding: spacing(1.5),
+    borderWidth: 1,
+    borderColor: colors.line,
+    gap: spacing(0.5),
+  },
+  serveModeIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: `${colors.gold}12`,
+    marginBottom: spacing(0.5),
+  },
+  serveModeLabel: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  serveModeDescription: {
+    fontSize: 13,
+    color: colors.subtext,
+    lineHeight: 18,
+  },
+  serveFootnote: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(0.75),
+  },
+  serveFootnoteText: {
+    flex: 1,
+    fontSize: 12,
+    color: colors.subtext,
+    lineHeight: 17,
+  },
+  serveUpgradeText: {
+    fontSize: 12,
+    color: colors.accent,
+    lineHeight: 17,
+  },
   section: {
     marginBottom: spacing(3),
   },
@@ -683,104 +936,32 @@ const styles = StyleSheet.create({
   },
   cocktailsHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: spacing(1),
     marginBottom: spacing(2),
+  },
+  cocktailsHeaderCopy: {
+    flex: 1,
   },
   cocktailsTitle: {
     fontSize: 17,
     fontWeight: '700',
     color: colors.text,
   },
-  cocktailsList: {
-    gap: spacing(2),
-  },
-  cocktailCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.card,
-    borderRadius: radii.lg,
-    padding: spacing(2),
-    borderWidth: 1,
-    borderColor: colors.line,
-    gap: spacing(2),
-  },
-  cocktailIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: `${colors.gold}20`,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cocktailInfo: {
-    flex: 1,
-    gap: spacing(0.5),
-  },
-  cocktailNameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing(1),
-  },
-  cocktailName: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.text,
-    flex: 1,
-  },
-  classicBadge: {
-    backgroundColor: colors.gold,
-    paddingHorizontal: spacing(1),
-    paddingVertical: spacing(0.25),
-    borderRadius: radii.sm,
-  },
-  classicBadgeText: {
-    fontSize: 9,
-    fontWeight: '700',
-    color: colors.goldText,
-  },
-  cocktailCategory: {
-    fontSize: 13,
+  cocktailsSubtitle: {
+    marginTop: spacing(0.5),
+    fontSize: 12,
     color: colors.subtext,
   },
-  matchInfo: {
-    marginTop: spacing(0.5),
+  cocktailsRail: {
+    paddingLeft: spacing(0.25),
+    paddingRight: spacing(2),
   },
-  matchBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing(0.5),
+  cocktailRailSeparator: {
+    width: spacing(2),
   },
-  matchText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.gold,
-  },
-  missingBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing(0.5),
-  },
-  missingText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.accent,
-  },
-  cocktailMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing(1),
-    marginTop: spacing(0.5),
-  },
-  cocktailDifficulty: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: colors.gold,
-  },
-  cocktailRating: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.text,
+  discoveryRecipeCard: {
+    width: 240,
   },
   actions: {
     gap: spacing(2),

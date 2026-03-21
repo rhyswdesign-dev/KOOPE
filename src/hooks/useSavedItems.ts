@@ -7,8 +7,8 @@ export interface SavedItem {
   id: string;
   name: string;
   subtitle?: string;
-  image?: string;
-  type: 'bar' | 'spirit' | 'cocktail' | 'event' | 'community' | 'vault' | 'game' | 'drink';
+  image?: any;
+  type: 'bar' | 'spirit' | 'cocktail' | 'event' | 'community' | 'vault' | 'game' | 'drink' | 'recipe_card';
 }
 
 export interface SavedItemsState {
@@ -20,6 +20,7 @@ export interface SavedItemsState {
   savedVaultItems: SavedItem[];
   savedGames: SavedItem[];
   savedDrinks: SavedItem[];
+  savedRecipeCards: SavedItem[];
 }
 
 const STORAGE_KEY = 'savedItems';
@@ -32,6 +33,7 @@ const initialSavedItemsState: SavedItemsState = {
   savedVaultItems: [],
   savedGames: [],
   savedDrinks: [],
+  savedRecipeCards: [],
 };
 let globalSavedItemsState: SavedItemsState = initialSavedItemsState;
 let hasHydratedSavedItems = false;
@@ -76,6 +78,7 @@ export function useSavedItems() {
           savedVaultItems: parsedItems.savedVaultItems || [],
           savedGames: parsedItems.savedGames || [],
           savedDrinks: parsedItems.savedDrinks || [],
+          savedRecipeCards: parsedItems.savedRecipeCards || [],
         };
         publishSavedItems(mergedItems);
       }
@@ -239,6 +242,20 @@ export function useSavedItems() {
     saveToStorage(newItems);
   };
 
+  const toggleSavedRecipeCard = (item: SavedItem | { id: string; name: string; subtitle?: string; image?: string }) => {
+    const recipeCardItem: SavedItem = { ...item, type: 'recipe_card' };
+    const savedRecipeCards = globalSavedItemsState.savedRecipeCards || [];
+    const exists = savedRecipeCards.find(card => card.id === recipeCardItem.id);
+    const newItems = {
+      ...globalSavedItemsState,
+      savedRecipeCards: exists
+        ? savedRecipeCards.filter(card => card.id !== recipeCardItem.id)
+        : [...savedRecipeCards, recipeCardItem]
+    };
+    publishSavedItems(newItems);
+    saveToStorage(newItems);
+  };
+
   // Helper functions to check if items are saved
   const isBarSaved = (barId: string) => {
     if (!savedItems.savedBars || !Array.isArray(savedItems.savedBars)) return false;
@@ -257,6 +274,7 @@ export function useSavedItems() {
   const isVaultItemSaved = (vaultId: string) => savedItems.savedVaultItems?.some(v => v.id === vaultId) || false;
   const isGameSaved = (gameId: string) => savedItems.savedGames?.some(g => g.id === gameId) || false;
   const isDrinkSaved = (drinkId: string) => savedItems.savedDrinks?.some(d => d.id === drinkId) || false;
+  const isRecipeCardSaved = (cardId: string) => savedItems.savedRecipeCards?.some(card => card.id === cardId) || false;
 
   return {
     savedItems,
@@ -267,6 +285,7 @@ export function useSavedItems() {
     toggleSavedVaultItem,
     toggleSavedGame,
     toggleSavedDrink,
+    toggleSavedRecipeCard,
     isBarSaved,
     isSpiritSaved,
     isCocktailSaved,
@@ -274,6 +293,7 @@ export function useSavedItems() {
     isVaultItemSaved,
     isGameSaved,
     isDrinkSaved,
+    isRecipeCardSaved,
     savedCocktailCount: savedItems.savedCocktails?.length || 0,
     canSaveMoreCocktails: tier !== 'FREE' || (savedItems.savedCocktails?.length || 0) < FREE_RECIPE_LIMIT,
     clearStorage, // For debugging

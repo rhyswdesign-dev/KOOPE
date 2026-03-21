@@ -31,7 +31,6 @@ import { useAuth } from '../contexts/AuthContext';
 import { useUserTier } from '../store/useUserTier';
 import ContextBriefModal from '../components/lessons/ContextBriefModal';
 import { useLessonBriefPreferences } from '../store/useLessonBriefPreferences';
-import { getUnlocksForModule } from '../config/unlockContent';
 
 type NavigationProp = CompositeNavigationProp<
   NativeStackNavigationProp<LessonsStackParamList, 'LessonsMain'>,
@@ -608,12 +607,6 @@ function LessonsView() {
   >(null);
   const isTipsLesson = (lesson: any): boolean => Array.isArray(lesson.tags) && lesson.tags.includes('tips_lesson');
   const hasPlayableContent = (lesson: any): boolean => isTipsLesson(lesson) || (lesson.itemIds?.length || 0) > 0;
-  const selectedModuleDeckPreview = selectedModule
-    ? getUnlocksForModule(selectedModule.id).find(
-        (unlock) => unlock.format === 'mini_deck' && unlock.status === 'ready' && unlock.assetSlug
-      )
-    : undefined;
-
   const getModuleGate = (module: any) => {
     if (module.requiredTier === 'PRO' || MASTERY_MODULE_IDS.has(module.id)) {
       return {
@@ -695,14 +688,50 @@ function LessonsView() {
     setModuleLessons(availableLessons);
   };
 
-  const openLesson = (lesson: any) => {
+  const getLessonLockState = (lesson: any) => {
+    const lessonIndex = moduleLessons.findIndex((entry) => entry.id === lesson.id);
+    const hasContent = hasPlayableContent(lesson);
+    const isTips = isTipsLesson(lesson);
+    const previousLesson = lessonIndex > 0 ? moduleLessons[lessonIndex - 1] : null;
+    const sequenceLocked = lessonIndex > 0 && previousLesson ? !completedLessons.includes(previousLesson.id) : false;
     const isMasteryLesson = MASTERY_MODULE_IDS.has(lesson.moduleId);
-    if (isMasteryLesson && tier !== 'PRO') {
+    const tierLocked = isMasteryLesson && tier !== 'PRO';
+    const outOfLives = lives <= 0 && !isTips;
+
+    return {
+      hasContent,
+      isTips,
+      sequenceLocked,
+      tierLocked,
+      outOfLives,
+      isLocked: !hasContent || sequenceLocked || tierLocked,
+    };
+  };
+
+  const openLesson = (lesson: any) => {
+    const { hasContent, isTips, sequenceLocked, tierLocked, outOfLives } = getLessonLockState(lesson);
+
+    if (tierLocked) {
       masteryGate('T10');
       return;
     }
 
-    if (isTipsLesson(lesson)) {
+    if (!hasContent) {
+      Alert.alert('Coming Soon', 'This lesson is still being built.');
+      return;
+    }
+
+    if (sequenceLocked) {
+      Alert.alert('Lesson Locked', 'Complete the previous lesson first to unlock this one.');
+      return;
+    }
+
+    if (outOfLives) {
+      Alert.alert('Out of Lives', 'You need more lives before starting this lesson.');
+      return;
+    }
+
+    if (isTips) {
       const xpReward = Math.max(0, Number(lesson.xpReward ?? 40));
       const canClaimXP = !completedLessons.includes(lesson.id);
       Alert.alert(
@@ -857,11 +886,8 @@ function LessonsView() {
   };
 
   const renderLesson = (lesson: any, index: number) => {
-    const isTips = isTipsLesson(lesson);
-    const hasContent = hasPlayableContent(lesson);
+    const { hasContent, isTips, isLocked, outOfLives } = getLessonLockState(lesson);
     const isCompleted = completedLessons.includes(lesson.id);
-    const isLocked = !hasContent || (index > 0 && !completedLessons.includes(moduleLessons[index - 1]?.id));
-    const outOfLives = lives <= 0 && !isTips;
     const isNext = !isCompleted && !isLocked;
     const isLast = index === moduleLessons.length - 1;
 
@@ -914,11 +940,12 @@ function LessonsView() {
 
           {lesson.showLessonBrief && (
             <Pressable
-              style={styles.whyChip}
+              style={[styles.whyChip, isLocked && styles.whyChipDisabled]}
+              disabled={isLocked}
               onPress={() => setBriefTarget({ mode: 'lesson', lesson, module: selectedModule })}
             >
-              <Ionicons name="information-circle-outline" size={12} color={colors.accent} />
-              <Text style={styles.whyChipText}>Why This Matters</Text>
+              <Ionicons name="information-circle-outline" size={12} color={isLocked ? 'rgba(242,229,213,0.36)' : colors.accent} />
+              <Text style={[styles.whyChipText, isLocked && styles.whyChipTextDisabled]}>Why This Matters</Text>
             </Pressable>
           )}
 
@@ -954,26 +981,39 @@ function LessonsView() {
               Professional bartending course designed by industry experts
             </Text>
             <Pressable
-              style={styles.featuredDeckCard}
-              onPress={() =>
-                navigation.navigate('UnlockDeck', {
-                  assetSlug: 'simple-rich-syrup-basics',
-                  title: 'Simple Syrup + Rich Syrup Basics',
-                })
-              }
+              style={styles.libraryEntryCard}
+              onPress={() => navigation.navigate('HacksTipsLibrary')}
             >
-              <View style={styles.featuredDeckHeader}>
-                <View style={styles.featuredDeckBadge}>
-                  <Ionicons name="sparkles-outline" size={14} color={colors.accent} />
-                  <Text style={styles.featuredDeckBadgeText}>Field Guide Preview</Text>
+              <View style={styles.libraryEntryHeader}>
+                <View style={styles.libraryEntryBadge}>
+                  <Ionicons name="library-outline" size={14} color={colors.accent} />
+                  <Text style={styles.libraryEntryBadgeText}>Hacks & Tips Library</Text>
                 </View>
                 <Ionicons name="arrow-forward" size={16} color={colors.accent} />
               </View>
-              <Text style={styles.featuredDeckTitle}>Simple Syrup + Rich Syrup Basics</Text>
-              <Text style={styles.featuredDeckBody}>
-                Preview the first premium mini deck system directly in the app, without needing to unlock the chapter flow first.
+              <Text style={styles.libraryEntryTitle}>Open your field guide library.</Text>
+              <Text style={styles.libraryEntryBody}>
+                Every mini deck you unlock from lessons lives here automatically for quick revisit and review.
               </Text>
             </Pressable>
+            {!hasMasteryAccess && (
+              <Pressable
+                style={styles.libraryEntryCard}
+                onPress={() => masteryGate('T10')}
+              >
+                <View style={styles.libraryEntryHeader}>
+                  <View style={styles.libraryEntryBadge}>
+                    <Ionicons name="ribbon-outline" size={14} color={colors.accent} />
+                    <Text style={styles.libraryEntryBadgeText}>Certification Preview</Text>
+                  </View>
+                  <Ionicons name="lock-closed-outline" size={16} color={colors.accent} />
+                </View>
+                <Text style={styles.libraryEntryTitle}>Your first spirit certification is waiting in Pro.</Text>
+                <Text style={styles.libraryEntryBody}>
+                  Finish the core path, then unlock mastery lessons, category badges, and prestige progression with KŌOPE Pro.
+                </Text>
+              </Pressable>
+            )}
             {modules.map(renderModule)}
           </View>
         ) : (
@@ -1012,20 +1052,6 @@ function LessonsView() {
                     <Ionicons name="book-outline" size={14} color={colors.accent} />
                     <Text style={styles.moduleWhyChipText}>Why This Matters</Text>
                   </Pressable>
-                  {selectedModuleDeckPreview ? (
-                    <Pressable
-                      style={styles.modulePreviewChip}
-                      onPress={() =>
-                        navigation.navigate('UnlockDeck', {
-                          assetSlug: selectedModuleDeckPreview.assetSlug!,
-                          title: selectedModuleDeckPreview.assetName,
-                        })
-                      }
-                    >
-                      <Ionicons name="sparkles-outline" size={14} color="#1A120D" />
-                      <Text style={styles.modulePreviewChipText}>Preview Unlock</Text>
-                    </Pressable>
-                  ) : null}
                 </View>
               )}
             </View>
@@ -1054,6 +1080,26 @@ function LessonsView() {
         contextBrief={briefTarget?.mode === 'module' ? briefTarget.module.contextBrief : briefTarget?.lesson?.contextBrief}
         onClose={() => setBriefTarget(null)}
         onSkip={() => setBriefTarget(null)}
+        startDisabled={
+          briefTarget?.mode === 'lesson'
+            ? (() => {
+                const state = getLessonLockState(briefTarget.lesson);
+                return state.isLocked || state.outOfLives;
+              })()
+            : false
+        }
+        startLabel={
+          briefTarget?.mode === 'lesson'
+            ? (() => {
+                const state = getLessonLockState(briefTarget.lesson);
+                if (!state.hasContent) return 'Coming Soon';
+                if (state.tierLocked) return 'PRO Only';
+                if (state.sequenceLocked) return 'Locked';
+                if (state.outOfLives) return 'Out of Lives';
+                return 'Start Lesson';
+              })()
+            : 'Start Module'
+        }
         onStart={() => {
           if (!briefTarget) return;
           if (briefTarget.mode === 'module') {
@@ -1342,39 +1388,39 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     opacity: 0.8,
   },
-  featuredDeckCard: {
+  libraryEntryCard: {
     marginBottom: spacing(2.25),
     padding: spacing(2),
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: 'rgba(214, 138, 56, 0.14)',
-    backgroundColor: 'rgba(214, 138, 56, 0.08)',
+    borderColor: 'rgba(214, 138, 56, 0.18)',
+    backgroundColor: colors.card,
   },
-  featuredDeckHeader: {
+  libraryEntryHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: spacing(1.2),
   },
-  featuredDeckBadge: {
+  libraryEntryBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing(0.6),
     paddingHorizontal: spacing(1),
     paddingVertical: spacing(0.6),
     borderRadius: radii.pill,
-    backgroundColor: 'rgba(15,10,8,0.42)',
+    backgroundColor: 'rgba(214, 138, 56, 0.08)',
     borderWidth: 1,
     borderColor: 'rgba(214, 138, 56, 0.18)',
   },
-  featuredDeckBadgeText: {
+  libraryEntryBadgeText: {
     color: colors.accent,
     fontSize: 11,
     fontWeight: '800',
     letterSpacing: 0.6,
     textTransform: 'uppercase',
   },
-  featuredDeckTitle: {
+  libraryEntryTitle: {
     color: colors.text,
     fontSize: 24,
     lineHeight: 30,
@@ -1382,7 +1428,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginBottom: spacing(0.8),
   },
-  featuredDeckBody: {
+  libraryEntryBody: {
     color: colors.subtext,
     fontSize: 14,
     lineHeight: 21,
@@ -2023,10 +2069,17 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(214, 138, 56, 0.18)',
   },
+  whyChipDisabled: {
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderColor: 'rgba(255,255,255,0.06)',
+  },
   whyChipText: {
     color: colors.accent,
     fontSize: 11,
     fontWeight: '700',
+  },
+  whyChipTextDisabled: {
+    color: 'rgba(242,229,213,0.36)',
   },
   moduleWhyChip: {
     alignSelf: 'flex-start',
@@ -2051,20 +2104,5 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing(1),
-  },
-  modulePreviewChip: {
-    alignSelf: 'flex-start',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing(0.5),
-    paddingHorizontal: spacing(1.15),
-    paddingVertical: spacing(0.8),
-    borderRadius: radii.pill,
-    backgroundColor: colors.accent,
-  },
-  modulePreviewChipText: {
-    color: '#1A120D',
-    fontSize: 12,
-    fontWeight: '800',
   },
 });

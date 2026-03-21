@@ -68,6 +68,12 @@ import { useScrollHaptic, withHaptic } from '../lib/haptics';
 import { ingredientListToSearchText } from '../utils/ingredientFormatting';
 import { curriculumData } from '../utils/curriculumAdapter';
 import { getCurriculumUnlockForRecipeId } from '../config/unlockContent';
+import { loadUserProfile } from '../services/userProfileService';
+import { createDefaultUserProfile, getABVRangeForPreference } from '../types/userProfile';
+import { initializeTasteGraph } from '../services/tasteGraphService';
+import { detectSeason, detectTimeOfDay, getPredictiveRecommendations } from '../services/predictiveEngine';
+import { InventoryService } from '../services/inventoryService';
+import { toBottle } from '../types/database';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 const { width } = Dimensions.get('window');
@@ -155,6 +161,87 @@ const COCKTAIL_MOODS = [
     cocktails: ['grasshopper', 'b-52', 'black-russian', 'baby-guinness', 'slippery-nipple', 'buttery-nipple', 'brain-hemorrhage', 'sambuca-con-la-mosca']
   },
 ];
+
+function buildTasteProfileFromPersonalization(personalizationProfile: any) {
+  const flavorWeights = {
+    citrus: 0,
+    herbal: 0,
+    bitter: 0,
+    sweet: 0,
+    smoky: 0,
+    floral: 0,
+    spiced: 0,
+  };
+
+  const spiritWeights = {
+    tequila: 0,
+    whiskey: 0,
+    rum: 0,
+    gin: 0,
+    vodka: 0,
+    brandy: 0,
+    liqueurs: 0,
+    'gin-alternative': 0,
+    'rum-alternative': 0,
+    none: 0,
+  };
+
+  (personalizationProfile?.favoriteSpirits || []).forEach((spirit: string, index: number) => {
+    if (Object.prototype.hasOwnProperty.call(spiritWeights, spirit)) {
+      spiritWeights[spirit as keyof typeof spiritWeights] = Math.max(
+        0.15,
+        ((personalizationProfile?.spiritScores?.[spirit] ?? 90 - index * 10) / 100)
+      );
+    }
+  });
+
+  (personalizationProfile?.flavorPreferences || []).forEach((flavor: string, index: number) => {
+    if (Object.prototype.hasOwnProperty.call(flavorWeights, flavor)) {
+      flavorWeights[flavor as keyof typeof flavorWeights] = Math.max(
+        0.15,
+        ((personalizationProfile?.flavorScores?.[flavor] ?? 85 - index * 5) / 100)
+      );
+    }
+  });
+
+  return {
+    flavorWeights,
+    spiritWeights,
+    preferredABV: getABVRangeForPreference(personalizationProfile?.preferredABV || 'alcoholic'),
+    preferredComplexity: Math.max(0, Math.min(1, (personalizationProfile?.complexityScore ?? 50) / 100)),
+  };
+}
+
+function buildEnhancedProfileFallback(userId: string | undefined, personalizationProfile: any, savedItems: any) {
+  const profile = createDefaultUserProfile(userId || 'guest');
+  const savedRecipeIds = (savedItems?.savedCocktails || []).map((item: any) => item.id).filter(Boolean);
+  const preferredSpirits = (personalizationProfile?.favoriteSpirits || []).filter((spirit: string) =>
+    ['tequila', 'whiskey', 'rum', 'gin', 'vodka', 'brandy', 'liqueurs', 'gin-alternative', 'rum-alternative', 'none'].includes(spirit)
+  );
+  const preferredFlavors = (personalizationProfile?.flavorPreferences || []).filter((flavor: string) =>
+    ['citrus', 'herbal', 'bitter', 'sweet', 'smoky', 'floral', 'spiced'].includes(flavor)
+  );
+
+  profile.savedRecipes = savedRecipeIds;
+  profile.favoriteRecipes = savedRecipeIds;
+  profile.favoriteSpirit = preferredSpirits[0];
+  profile.spiritPreferences = preferredSpirits as any;
+  profile.flavorProfiles = preferredFlavors as any;
+  profile.skillLevel = personalizationProfile?.skillLevel || profile.skillLevel;
+  profile.preferredABVRange = getABVRangeForPreference(personalizationProfile?.preferredABV || 'alcoholic');
+  profile.tasteProfile = buildTasteProfileFromPersonalization(personalizationProfile);
+
+  return profile;
+}
+
+function uniqueById(items: any[]) {
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    if (!item?.id || seen.has(item.id)) return false;
+    seen.add(item.id);
+    return true;
+  });
+}
 
 // Fun Party Shots (25 shots)
 const PARTY_SHOTS = [
@@ -1578,6 +1665,7 @@ function HeroCard({ cocktail, onPress }: { cocktail: typeof COCKTAIL_OF_THE_WEEK
 
 export default function RecipesScreen() {
   const navigation = useNavigation<Nav>();
+  const { user } = useAuth();
   const { savedItems, toggleSavedCocktail, isCocktailSaved, savedCocktailCount, canSaveMoreCocktails } = useSavedItems();
   const { credits, isPremium, getActionCost } = useAICredits();
   const { getPersonalizedMoodOrder, getFeaturedCocktails, scoreMoodCategory, recordInteraction, profile } = usePersonalization();
@@ -1977,53 +2065,124 @@ export default function RecipesScreen() {
 
   // Load personalized recommendations when switching to "For You" mode
   useEffect(() => {
-    if (viewMode === 'personalized') {
-      try {
-        // Get featured cocktails from personalization store
-        const featured = getFeaturedCocktails();
-        const moodOrder = getPersonalizedMoodOrder();
+    if (viewMode !== 'personalized') {
+      return undefined;
+    }
 
-        // Format recommendations into sections
+    let cancelled = false;
+
+    const loadPersonalizedRecommendations = async () => {
+      try {
         const formattedSections: Array<{
           title: string;
           reason: string;
           cocktails: any[];
         }> = [];
 
-        // Add top picks section if we have featured cocktails
-        if (featured && featured.length > 0) {
-          formattedSections.push({
-            title: 'Top Picks For You',
-            reason: 'Based on your taste profile and preferences',
-            cocktails: featured.slice(0, 8)
-          });
-        }
+        if (tier === 'PRO') {
+          const loadedProfile = user?.id ? await loadUserProfile(user.id).catch(() => null) : null;
+          const enhancedProfile = loadedProfile || buildEnhancedProfileFallback(user?.id, profile, savedItems);
+          enhancedProfile.tasteProfile = enhancedProfile.tasteProfile || buildTasteProfileFromPersonalization(profile);
 
-        // Add mood-based sections based on personalized mood order
-        if (moodOrder && moodOrder.length > 0) {
-          // Get top 3 mood categories
-          moodOrder.slice(0, 3).forEach(moodTitle => {
-            const mood = COCKTAIL_MOODS.find(m => m.title === moodTitle);
-            if (mood) {
-              const cocktails = mood.cocktails
-                .slice(0, 6)
-                .map(id => ALL_COCKTAILS.find(c => c.id === id))
-                .filter(Boolean);
+          let inventoryBottles: any[] = [];
+          if (user?.id) {
+            const userInventory = await InventoryService.getUserInventory(user.id);
+            inventoryBottles = userInventory.map((item: any) =>
+              toBottle(item, {
+                subcategory: item.subcategory || undefined,
+                brand: item.brand || undefined,
+                abv: item.abv || undefined,
+                volume: item.volume || undefined,
+                quantity: (item.quantity as any) || 'full',
+                isFavorite: item.is_favorite || false,
+                notes: item.notes || undefined,
+                expiryDate: item.expiry_date || undefined,
+                scanCount: item.scan_count || 1,
+              })
+            );
+          }
 
-              if (cocktails.length > 0) {
-                formattedSections.push({
-                  title: `${moodTitle} Favorites`,
-                  reason: `Based on your preference for ${moodTitle.toLowerCase()} cocktails`,
-                  cocktails
-                });
+          const tasteGraph = initializeTasteGraph(enhancedProfile.tasteProfile);
+          const predictions = getPredictiveRecommendations(
+            ALL_COCKTAILS as any,
+            enhancedProfile as any,
+            tasteGraph,
+            {
+              timeOfDay: detectTimeOfDay(),
+              season: detectSeason(),
+              inventory: inventoryBottles,
+              recentScans: inventoryBottles.slice(0, 5),
+            },
+            18
+          );
+
+          const topPredictions = uniqueById(predictions.slice(0, 8));
+          const makeTonight = uniqueById(
+            predictions.filter((item) => item.signals?.some((signal) => signal.source === 'inventoryMatch')).slice(0, 6)
+          );
+          const useYourBar = uniqueById(
+            predictions.filter((item) =>
+              item.signals?.some((signal) => signal.source === 'recentScans' || signal.source === 'quantityUrgency')
+            ).slice(0, 6)
+          );
+
+          if (topPredictions.length > 0) {
+            formattedSections.push({
+              title: 'Top Picks For You',
+              reason: 'Predicted from your taste profile, scans, and inventory.',
+              cocktails: topPredictions,
+            });
+          }
+
+          if (makeTonight.length > 0) {
+            formattedSections.push({
+              title: 'Make Tonight',
+              reason: 'High-fit recommendations based on what you already have.',
+              cocktails: makeTonight,
+            });
+          }
+
+          if (useYourBar.length > 0) {
+            formattedSections.push({
+              title: 'Use Your Bottles',
+              reason: 'Suggestions boosted by recent scans and inventory context.',
+              cocktails: useYourBar,
+            });
+          }
+        } else {
+          const featured = getFeaturedCocktails();
+          const moodOrder = getPersonalizedMoodOrder();
+
+          if (featured && featured.length > 0) {
+            formattedSections.push({
+              title: 'Top Picks For You',
+              reason: 'Based on your taste profile and preferences',
+              cocktails: featured.slice(0, 8)
+            });
+          }
+
+          if (moodOrder && moodOrder.length > 0) {
+            moodOrder.slice(0, 3).forEach(moodTitle => {
+              const mood = COCKTAIL_MOODS.find(m => m.title === moodTitle);
+              if (mood) {
+                const cocktails = mood.cocktails
+                  .slice(0, 6)
+                  .map(id => ALL_COCKTAILS.find(c => c.id === id))
+                  .filter(Boolean);
+
+                if (cocktails.length > 0) {
+                  formattedSections.push({
+                    title: `${moodTitle} Favorites`,
+                    reason: `Based on your preference for ${moodTitle.toLowerCase()} cocktails`,
+                    cocktails
+                  });
+                }
               }
-            }
-          });
+            });
+          }
         }
 
-        // If no personalized content, show some general recommendations
         if (formattedSections.length === 0) {
-          // Show top rated cocktails as fallback
           const topRated = [...ALL_COCKTAILS]
             .sort((a, b) => (b.rating || 0) - (a.rating || 0))
             .slice(0, 8);
@@ -2037,13 +2196,23 @@ export default function RecipesScreen() {
           }
         }
 
-        setPersonalizedRecommendations(formattedSections);
+        if (!cancelled) {
+          setPersonalizedRecommendations(formattedSections);
+        }
       } catch (error) {
         log.error('RecipesScreen', 'Error loading personalized recommendations', error);
-        setPersonalizedRecommendations([]);
+        if (!cancelled) {
+          setPersonalizedRecommendations([]);
+        }
       }
-    }
-  }, [viewMode, getFeaturedCocktails, getPersonalizedMoodOrder]);
+    };
+
+    loadPersonalizedRecommendations();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [viewMode, tier, user?.id, profile, savedItems, ALL_COCKTAILS, getFeaturedCocktails, getPersonalizedMoodOrder]);
 
   // Get current displayed recipes
   const getCurrentRecipes = () => {
@@ -2565,13 +2734,42 @@ export default function RecipesScreen() {
 
             {/* Personalized Feed - For You View */}
             {viewMode === 'personalized' && (
-              <ForYouFeed
-                onCocktailPress={handleCocktailPress}
-                onSaveCocktail={handleSaveRecipe}
-                onAddToCart={handleAddToGroceryList}
-                savedRecipeIds={savedRecipeIds}
-                onRefineProfile={() => flavorControlsGate('T12', () => navigation.navigate('RefineYourTaste'))}
-              />
+              <>
+                {tier !== 'PRO' && (
+                  <Pressable
+                    onPress={withHaptic(() => predictiveEngineGate('T9'), 'selection')}
+                    style={{
+                      marginHorizontal: spacing(2),
+                      marginBottom: spacing(1.5),
+                      padding: spacing(2),
+                      borderRadius: radii.lg,
+                      backgroundColor: colors.card,
+                      borderWidth: 1,
+                      borderColor: colors.line,
+                    }}
+                  >
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing(0.75) }}>
+                      <Ionicons name="pulse-outline" size={16} color={colors.accent} style={{ marginRight: spacing(0.75) }} />
+                      <Text style={{ color: colors.accent, fontSize: 12, fontWeight: '800', letterSpacing: 0.6, textTransform: 'uppercase' }}>
+                        Craft Identity Preview
+                      </Text>
+                    </View>
+                    <Text style={{ color: colors.text, fontSize: 18, fontWeight: '800', marginBottom: spacing(0.5) }}>
+                      Your Taste Graph is building
+                    </Text>
+                    <Text style={{ color: colors.subtext, fontSize: 14, lineHeight: 20 }}>
+                      Keep scanning and saving. Pro unlocks full predictive picks, deeper reasons behind each match, and flavor controls that shape your For You feed.
+                    </Text>
+                  </Pressable>
+                )}
+                <ForYouFeed
+                  onCocktailPress={handleCocktailPress}
+                  onSaveCocktail={handleSaveRecipe}
+                  onAddToCart={handleAddToGroceryList}
+                  savedRecipeIds={savedRecipeIds}
+                  onRefineProfile={() => flavorControlsGate('T12', () => navigation.navigate('RefineYourTaste'))}
+                />
+              </>
             )}
 
             {/* All Cocktails Header - Only show in Browse mode or when searching */}

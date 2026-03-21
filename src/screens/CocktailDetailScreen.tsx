@@ -4,7 +4,6 @@ import {
   View, Text, ScrollView, Image, TouchableOpacity, StyleSheet, Share, Alert, Pressable, RefreshControl,
   Platform, Dimensions, StatusBar, Modal, TextInput, ActivityIndicator
 } from 'react-native';
-import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -63,6 +62,256 @@ const referenceSerifFont = Platform.select({
   android: 'serif',
   default: 'serif',
 });
+
+function trimSentence(value: string, maxLength: number): string {
+  const normalized = String(value || '').trim().replace(/\s+/g, ' ');
+  if (!normalized) return '';
+  if (normalized.length <= maxLength) return normalized;
+
+  const sentenceBreak = normalized.slice(0, maxLength).match(/^(.*?[.!?])\s/);
+  if (sentenceBreak?.[1]) return sentenceBreak[1];
+
+  const truncated = normalized.slice(0, maxLength).trimEnd();
+  const lastSpace = truncated.lastIndexOf(' ');
+  return `${(lastSpace > 0 ? truncated.slice(0, lastSpace) : truncated).trimEnd()}...`;
+}
+
+const DETAIL_FALLBACK_IMAGE =
+  'https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?auto=format&fit=crop&w=1400&q=80';
+const DETAIL_AMOUNT_PREFIX_REGEX =
+  /^\s*((?:\d+\s+)?(?:\d+\/\d+|\d*\.?\d+)\s*(?:oz|ml|dash(?:es)?|drop(?:s)?|tsp|tbsp|cl|cup(?:s)?|part(?:s)?)?)\s+(.+)$/i;
+const DETAIL_AMOUNT_ONLY_REGEX =
+  /^\s*((?:\d+\s+)?(?:\d+\/\d+|\d*\.?\d+)\s*(?:oz|ml|dash(?:es)?|drop(?:s)?|tsp|tbsp|cl|cup(?:s)?|part(?:s)?|top)?)\s*$/i;
+
+function slugifyRecipeKey(value: string): string {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/['’]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+function splitIngredientAmount(displayName: string): { amount: string; name: string } | null {
+  const match = String(displayName || '').trim().match(DETAIL_AMOUNT_PREFIX_REGEX);
+  if (!match) return null;
+
+  return {
+    amount: formatIngredientAmount(match[1]),
+    name: match[2].trim(),
+  };
+}
+
+function splitAmountOnlyNote(note: string): { amount: string; note?: string } | null {
+  const trimmed = String(note || '').trim();
+  if (!trimmed) return null;
+
+  const amountOnly = trimmed.match(DETAIL_AMOUNT_ONLY_REGEX);
+  if (amountOnly) {
+    return { amount: formatIngredientAmount(amountOnly[1]) };
+  }
+
+  const prefixed = trimmed.match(DETAIL_AMOUNT_PREFIX_REGEX);
+  if (!prefixed) return null;
+
+  return {
+    amount: formatIngredientAmount(prefixed[1]),
+    note: prefixed[2].trim() || undefined,
+  };
+}
+
+function normalizeDetailIngredient(item: any) {
+  const formatted = formatIngredientDisplay(item);
+  const splitName = splitIngredientAmount(formatted.name);
+  const splitNote = !splitName ? splitAmountOnlyNote(String(formatted.note || '')) : null;
+
+  return {
+    name: splitName?.name || formatted.name || '',
+    amount: splitName?.amount || splitNote?.amount || '',
+    note: splitName ? formatted.note : splitNote?.note || formatted.note || '',
+    matchName: splitName?.name || formatted.name || '',
+  };
+}
+
+function isWeakTastingNote(value: string): boolean {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (!normalized) return true;
+
+  return [
+    'a classic cocktail recipe.',
+    'a classic cocktail recipe',
+    'custom cocktail recipe',
+    'custom recipe',
+    'ai generated',
+    'classic',
+    'modern',
+  ].includes(normalized);
+}
+
+function titleCaseLabel(value: string): string {
+  return String(value || '')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join(' ');
+}
+
+function buildHeroKicker(cocktail: any): string {
+  if (!cocktail) return 'Curated Pour';
+  if (cocktail.isNonAlcoholic) return 'Mocktails';
+  if (cocktail.category) return String(cocktail.category);
+
+  const era = String(cocktail.era || '').trim();
+  const base = String(cocktail.base || cocktail.baseSpirit || '').trim();
+  if (era && base) {
+    return `${titleCaseLabel(era)} • ${titleCaseLabel(base)}-based`;
+  }
+
+  const subtitle = String(cocktail.subtitle || '').trim();
+  if (subtitle && !isWeakTastingNote(subtitle)) return subtitle;
+
+  return 'Curated Pour';
+}
+
+function ensureSentenceEnding(value: string): string {
+  const trimmed = String(value || '').trim().replace(/\s+/g, ' ');
+  if (!trimmed) return '';
+  if (/[.!?]$/.test(trimmed)) return trimmed;
+  return `${trimmed}.`;
+}
+
+function sentenceCase(value: string): string {
+  const trimmed = String(value || '').trim();
+  if (!trimmed) return '';
+  return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
+}
+
+function normalizeMethodStep(step: string): string {
+  const cleaned = sentenceCase(String(step || '').replace(/^\d+[\.\)]\s*/, '').trim());
+  if (!cleaned) return '';
+
+  const lower = cleaned.toLowerCase();
+  if (lower === 'shake vigorously') {
+    return 'Shake vigorously with ice until the drink is thoroughly chilled.';
+  }
+  if (lower === 'stir gently') {
+    return 'Stir gently just to combine and keep the texture clean.';
+  }
+  if (lower === 'top with club soda') {
+    return 'Top with club soda and stir lightly to preserve the lift.';
+  }
+  if (lower === 'top with prosecco') {
+    return 'Top with prosecco and keep the stir light so the bubbles stay lively.';
+  }
+  if (lower === 'top with soda water') {
+    return 'Top with soda water and give it a short, gentle stir.';
+  }
+
+  if (/^strain into .*glass$/i.test(cleaned) && !/chilled/i.test(cleaned)) {
+    return ensureSentenceEnding(cleaned.replace(/glass$/i, 'glass for a cleaner serve'));
+  }
+
+  if (/^garnish with /i.test(cleaned) && !/before serving/i.test(cleaned)) {
+    return ensureSentenceEnding(`${cleaned} before serving`);
+  }
+
+  return ensureSentenceEnding(cleaned);
+}
+
+function hasAnyText(haystack: string, needles: string[]): boolean {
+  const normalized = haystack.toLowerCase();
+  return needles.some((needle) => normalized.includes(needle));
+}
+
+function deriveTastingNote(cocktail: any, parsedIngredients: any[], parsedInstructions: string[], parsedTips: string[]): string {
+  const infoText = [
+    cocktail?.title,
+    cocktail?.subtitle,
+    cocktail?.description,
+    ...(parsedIngredients || []).map((ingredient: any) => `${ingredient.name} ${ingredient.amount} ${ingredient.note}`),
+    ...(parsedInstructions || []),
+    ...(parsedTips || []),
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+
+  if (hasAnyText(infoText, ['campari', 'aperol', 'vermouth', 'aperitif'])) {
+    return 'Bitter citrus leads up front, a softer sweet middle follows, and the finish stays brisk and appetite-sharpening.';
+  }
+  if (hasAnyText(infoText, ['mint', 'lime', 'mojito'])) {
+    return 'Bright lime lands first, fresh mint keeps the middle cool, and the finish stays crisp, lifted, and clean.';
+  }
+  if (hasAnyText(infoText, ['cream', 'crème', 'cacao', 'nutmeg'])) {
+    return 'Silky and dessert-leaning up front, with a rounded middle and a soft, lingering finish.';
+  }
+  if (hasAnyText(infoText, ['coffee', 'espresso'])) {
+    return 'Roasted coffee opens first, balanced by gentle sweetness and a smooth, lingering finish.';
+  }
+  if (hasAnyText(infoText, ['pineapple', 'coconut', 'tropical', 'rum'])) {
+    return 'Tropical fruit arrives first, sweetness stays rounded through the middle, and the finish remains bright rather than heavy.';
+  }
+  if (hasAnyText(infoText, ['gin', 'juniper'])) {
+    return 'Botanical lift opens the drink, citrus keeps the middle focused, and the finish lands crisp and structured.';
+  }
+  if (hasAnyText(infoText, ['whiskey', 'bourbon', 'rye', 'cognac', 'brandy'])) {
+    return 'Warm spirit character leads, the middle stays rounded and composed, and the finish lands dry and polished.';
+  }
+  if (hasAnyText(infoText, ['sparkling', 'soda', 'prosecco', 'tonic'])) {
+    return 'Light aromatics show first, a clean middle keeps the drink easygoing, and the finish stays lifted and refreshing.';
+  }
+
+  return `${cocktail?.title || 'This drink'} lands balanced, polished, and easy to come back to.`;
+}
+
+function enhanceTips(cocktail: any, parsedIngredients: any[], parsedInstructions: string[], parsedTips: string[]): string[] {
+  const existing = (parsedTips || [])
+    .map((tip) => ensureSentenceEnding(sentenceCase(String(tip || ''))))
+    .filter(Boolean);
+
+  const infoText = [
+    cocktail?.title,
+    cocktail?.subtitle,
+    ...(parsedIngredients || []).map((ingredient: any) => `${ingredient.name} ${ingredient.amount} ${ingredient.note}`),
+    ...(parsedInstructions || []),
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+
+  const suggestions: string[] = [];
+
+  if (hasAnyText(infoText, ['shake'])) {
+    suggestions.push('Shake until the tin feels cold and tight so the drink lands properly chilled and diluted.');
+  }
+  if (hasAnyText(infoText, ['stir'])) {
+    suggestions.push('Stir only until chilled and integrated so the texture stays clean instead of overworked.');
+  }
+  if (hasAnyText(infoText, ['club soda', 'soda water', 'prosecco', 'tonic', 'sparkling'])) {
+    suggestions.push('Add sparkling ingredients last and stir lightly so you keep the lift in the glass.');
+  }
+  if (hasAnyText(infoText, ['lime', 'lemon', 'grapefruit', 'orange juice', 'fresh citrus'])) {
+    suggestions.push('Fresh citrus will make the drink brighter and more precise than bottled juice.');
+  }
+  if (hasAnyText(infoText, ['mint'])) {
+    suggestions.push('Handle mint gently so it stays aromatic and fresh instead of turning bitter.');
+  }
+  if (hasAnyText(infoText, ['cream', 'egg white'])) {
+    suggestions.push('A colder shake and a well-chilled glass will help creamy builds land smoother and more refined.');
+  }
+  if (hasAnyText(infoText, ['coupe', 'martini glass'])) {
+    suggestions.push('Chill the glass before pouring so the drink stays colder and more polished from the first sip.');
+  }
+
+  const combined = [...existing, ...suggestions];
+  const seen = new Set<string>();
+  return combined.filter((tip) => {
+    const key = tip.toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  }).slice(0, 3);
+}
 
 // Non-alcoholic beverages data (complete dataset matching NonAlcoholicScreen)
 const nonAlcoholicBeverages = [
@@ -836,25 +1085,6 @@ const cocktailData = {
   }
 };
 
-const AMARETTO_SOUR_REFERENCE_CONTENT = {
-  badge: 'Recipe',
-  categoryLabel: 'MODERN • MIXED-BASED',
-  edition: 'KOOPE House Spec',
-  ingredients: [
-    { name: 'Amaretto', note: '1.5 oz' },
-    { name: 'Bourbon', note: '0.75 oz' },
-    { name: 'Fresh lemon juice', note: '1 oz' },
-    { name: 'Simple syrup', note: '0.5 oz' },
-  ],
-  instructions: [
-    'Shake all ingredients hard with cold ice until the tin feels tight and fully frosted.',
-    'Double strain over fresh ice in a rocks glass to keep the texture polished and bright.',
-    'Finish with cherry and orange for a sweeter nose before the first sip.',
-  ],
-  tastingNote:
-    'Nutty almond up front, bright lemon through the middle, and a firmer bourbon-backed finish that keeps the sweetness disciplined.',
-};
-
 // Function to get non-alcoholic recipe data
 const getNonAlcoholicRecipeData = (recipeId: string) => {
   for (const beverage of nonAlcoholicBeverages) {
@@ -1181,78 +1411,9 @@ export default function CocktailDetailScreen() {
     return firebaseCocktail || passedCocktail || localUserRecipeCocktail || null;
   })();
 
-  // Calculate ingredient ownership stats
-  const ingredientStats = React.useMemo(() => {
-    if (!cocktail || !cocktail.ingredients || cocktail.ingredients.length === 0) {
-      return { owned: 0, total: 0, missing: [] as string[] };
-    }
-
-    let owned = 0;
-    const missing: string[] = [];
-
-    // Handle different ingredient formats
-    let ingredientList: string[];
-    if (typeof cocktail.ingredients === 'string') {
-      // Supabase format: comma-separated string
-      ingredientList = parseIngredients(cocktail.ingredients);
-      log.debug('CocktailDetailScreen', 'Parsed Supabase ingredients', {
-        originalString: cocktail.ingredients,
-        parsedList: ingredientList,
-      });
-    } else if (Array.isArray(cocktail.ingredients)) {
-      // Firebase format: array of objects with .name property
-      ingredientList = cocktail.ingredients.map((ing: any) => ing.name);
-      log.debug('CocktailDetailScreen', 'Parsed Firebase ingredients', {
-        parsedList: ingredientList,
-      });
-    } else {
-      log.warn('CocktailDetailScreen', 'Unknown ingredients format', {
-        ingredientsType: typeof cocktail.ingredients,
-      });
-      return { owned: 0, total: 0, missing: [] };
-    }
-
-    log.debug('CocktailDetailScreen', 'Calculating ingredient stats', {
-      cocktailName: cocktail.title,
-      totalIngredients: ingredientList.length,
-      inventorySize: userInventory.length,
-      hasUser: !!user,
-      inventoryItems: userInventory.map(i => i.item_name).slice(0, 5),
-    });
-
-    ingredientList.forEach((ingredientName) => {
-      const hasIt = hasIngredient(userInventory, ingredientName);
-
-      log.debug('CocktailDetailScreen', `Checking ingredient: "${ingredientName}"`, {
-        hasIt,
-      });
-
-      if (hasIt) {
-        owned++;
-      } else {
-        missing.push(ingredientName);
-      }
-    });
-
-    log.debug('CocktailDetailScreen', 'Ingredient stats result', {
-      owned,
-      total: ingredientList.length,
-      missingCount: missing.length,
-    });
-
-    return {
-      owned,
-      total: ingredientList.length,
-      missing,
-    };
-  }, [cocktail, userInventory, user]);
-
   // Parse ingredients into consistent format for rendering
   const parsedIngredients = React.useMemo(() => {
     if (!cocktail || !cocktail.ingredients) return [];
-    if (cocktail.id === 'amaretto-sour' || cocktail.title === 'Amaretto Sour') {
-      return AMARETTO_SOUR_REFERENCE_CONTENT.ingredients;
-    }
 
     if (typeof cocktail.ingredients === 'string') {
       // Supabase format: split string but preserve original formatting for display
@@ -1261,20 +1422,48 @@ export default function CocktailDetailScreen() {
         .split(separator)
         .map(s => s.trim())
         .filter(s => s.length > 0);
-      return ingredientStrings.map((name) => formatIngredientDisplay(name));
+      return ingredientStrings.map((name) => normalizeDetailIngredient(name));
     } else if (Array.isArray(cocktail.ingredients)) {
-      return cocktail.ingredients.map((ingredient) => formatIngredientDisplay(ingredient));
+      return cocktail.ingredients.map((ingredient) => normalizeDetailIngredient(ingredient));
     }
 
     return [];
   }, [cocktail]);
 
+  // Calculate ingredient ownership stats from normalized ingredient rows
+  const ingredientStats = React.useMemo(() => {
+    if (!parsedIngredients.length) {
+      return { owned: 0, total: 0, missing: [] as string[] };
+    }
+
+    let owned = 0;
+    const missing: string[] = [];
+
+    parsedIngredients.forEach((ingredient: any) => {
+      const ingredientName = String(ingredient.matchName || ingredient.name || '').trim();
+      if (!ingredientName) return;
+
+      const hasIt = hasIngredient(userInventory, ingredientName);
+      if (hasIt) {
+        owned++;
+      } else {
+        missing.push(ingredientName);
+      }
+    });
+
+    return {
+      owned,
+      total: parsedIngredients.length,
+      missing,
+    };
+  }, [parsedIngredients, userInventory]);
+
   const makeFlowIngredients = React.useMemo(
     () =>
       parsedIngredients.map((ingredient: any, index: number) => ({
-        key: `${index}_${String(ingredient.name || '').toLowerCase()}`,
+        key: `${index}_${String(ingredient.matchName || ingredient.name || '').toLowerCase()}`,
         name: String(ingredient.name || ''),
-        amount: String(ingredient.note || ''),
+        amount: String(ingredient.amount || ''),
       })),
     [parsedIngredients]
   );
@@ -1282,8 +1471,8 @@ export default function CocktailDetailScreen() {
   const ownedIngredientNames = React.useMemo(() => {
     return new Set(
       parsedIngredients
-        .filter((ingredient: any) => hasIngredient(userInventory, String(ingredient.name || '')))
-        .map((ingredient: any) => String(ingredient.name || ''))
+        .filter((ingredient: any) => hasIngredient(userInventory, String(ingredient.matchName || ingredient.name || '')))
+        .map((ingredient: any) => String(ingredient.matchName || ingredient.name || ''))
     );
   }, [parsedIngredients, userInventory]);
 
@@ -1465,9 +1654,6 @@ export default function CocktailDetailScreen() {
   // Parse instructions into consistent format for rendering
   const parsedInstructions = React.useMemo(() => {
     if (!cocktail || !cocktail.instructions) return [];
-    if (cocktail.id === 'amaretto-sour' || cocktail.title === 'Amaretto Sour') {
-      return AMARETTO_SOUR_REFERENCE_CONTENT.instructions;
-    }
 
     if (typeof cocktail.instructions === 'string') {
       // Supabase format: split string into array of steps
@@ -1480,10 +1666,10 @@ export default function CocktailDetailScreen() {
           // Remove leading numbers like "1. ", "2) ", etc.
           return step.replace(/^\d+[\.\)]\s*/, '');
         });
-      return steps;
+      return steps.map((step) => normalizeMethodStep(step)).filter(Boolean);
     } else if (Array.isArray(cocktail.instructions)) {
       // Firebase format: already an array
-      return cocktail.instructions;
+      return cocktail.instructions.map((step) => normalizeMethodStep(String(step || ''))).filter(Boolean);
     }
 
     return [];
@@ -1491,22 +1677,20 @@ export default function CocktailDetailScreen() {
 
   // Parse tips into consistent format for rendering
   const parsedTips = React.useMemo(() => {
-    if (!cocktail || !cocktail.tips) return [];
+    if (!cocktail) return [];
 
+    let rawTips: string[] = [];
     if (typeof cocktail.tips === 'string') {
-      // String format: split by newlines or bullet points
-      const tips = cocktail.tips
+      rawTips = cocktail.tips
         .split(/\n+|•/)
         .map(tip => tip.trim())
         .filter(tip => tip.length > 0);
-      return tips;
     } else if (Array.isArray(cocktail.tips)) {
-      // Array format: already parsed
-      return cocktail.tips;
+      rawTips = cocktail.tips.map((tip) => String(tip || '').trim()).filter(Boolean);
     }
 
-    return [];
-  }, [cocktail]);
+    return enhanceTips(cocktail, parsedIngredients, parsedInstructions, rawTips);
+  }, [cocktail, parsedIngredients, parsedInstructions]);
 
   // Debug log to check cocktail data
   useEffect(() => {
@@ -1537,31 +1721,60 @@ export default function CocktailDetailScreen() {
   }, [loading, cocktail, isPro, isPrestige, nav]);
 
   // GLOBAL IMAGE RESOLVER: Use local images if available
-  const resolvedImage = cocktail
-    ? getCocktailImage(
-        cocktail.id,
-        cocktail.img || cocktail.image || cocktail.thumbnailImage || cocktail.headerImage || ''
-      )
-    : null;
+  const resolvedImage = React.useMemo(() => {
+    if (!cocktail) return { uri: DETAIL_FALLBACK_IMAGE };
+
+    const candidateKeys = [
+      route.params.cocktailId,
+      cocktail.id,
+      slugifyRecipeKey(cocktail.id),
+      slugifyRecipeKey(cocktail.title),
+      slugifyRecipeKey(String(cocktail.title || '').replace(/\s+shot$/i, '-shot')),
+    ].filter(Boolean) as string[];
+
+    for (const key of candidateKeys) {
+      const localImage = getCocktailImage(key);
+      if (localImage) return localImage;
+    }
+
+    const remoteImage =
+      cocktail.img || cocktail.image || cocktail.thumbnailImage || cocktail.headerImage || '';
+    return remoteImage ? { uri: remoteImage } : { uri: DETAIL_FALLBACK_IMAGE };
+  }, [cocktail, route.params.cocktailId]);
 
   const isSaved = isCocktailSaved(route.params.cocktailId);
-  const showProTips = tier !== 'FREE';
-  const isReferenceRecipe =
-    cocktail?.id === 'amaretto-sour' || cocktail?.title === 'Amaretto Sour';
+  const isFreeTier = tier === 'FREE';
+  const showProTips = !isFreeTier;
+  const useRecipeCardLayout = true;
   const detailEyebrow = cocktail?.isVaultVariation
     ? 'Variation'
     : cocktail?.isNonAlcoholic
     ? 'Zero-Proof Recipe'
-    : isReferenceRecipe
-    ? AMARETTO_SOUR_REFERENCE_CONTENT.badge
     : 'Recipe';
-  const heroKicker = isReferenceRecipe
-    ? AMARETTO_SOUR_REFERENCE_CONTENT.categoryLabel
-    : cocktail?.category || cocktail?.subtitle || 'Curated Pour';
-  const tastingNote =
-    isReferenceRecipe
-      ? AMARETTO_SOUR_REFERENCE_CONTENT.tastingNote
-      : cocktail?.description || cocktail?.subtitle || '';
+  const heroKicker = React.useMemo(() => buildHeroKicker(cocktail), [cocktail]);
+  const tastingNote = React.useMemo(() => {
+    const description = String(cocktail?.description || '').trim();
+    if (!isWeakTastingNote(description)) return description;
+
+    const subtitle = String(cocktail?.subtitle || '').trim();
+    if (subtitle && !isWeakTastingNote(subtitle)) {
+      return `${subtitle}.`;
+    }
+
+    return deriveTastingNote(cocktail, parsedIngredients, parsedInstructions, parsedTips);
+  }, [cocktail, parsedIngredients, parsedInstructions, parsedTips]);
+  const displayedInstructions = React.useMemo(() => {
+    if (!isFreeTier) return parsedInstructions;
+
+    return parsedInstructions
+      .slice(0, 2)
+      .map((step) => trimSentence(String(step || ''), 96))
+      .filter(Boolean);
+  }, [isFreeTier, parsedInstructions]);
+  const displayedTastingNote = React.useMemo(() => {
+    if (!tastingNote) return '';
+    return isFreeTier ? trimSentence(tastingNote, 120) : tastingNote;
+  }, [isFreeTier, tastingNote]);
 
   const handleShare = async () => {
     if (!cocktail) return;
@@ -1819,12 +2032,12 @@ export default function CocktailDetailScreen() {
           </View>
         </View>
 
-        <View style={isReferenceRecipe && styles.referenceContentShell}>
+        <View style={useRecipeCardLayout && styles.referenceContentShell}>
           {/* --- Action Buttons --- */}
-          <View style={[styles.actionButtonsContainer, isReferenceRecipe && styles.referenceActionButtonsContainer]}>
+          <View style={[styles.actionButtonsContainer, useRecipeCardLayout && styles.referenceActionButtonsContainer]}>
             {cocktail.kitAvailable ? (
-              <TouchableOpacity style={[styles.primaryButton, isReferenceRecipe && styles.referencePrimaryButton]} onPress={handleAddToCart}>
-                <Text style={[styles.primaryButtonText, isReferenceRecipe && styles.referencePrimaryButtonText]}>
+              <TouchableOpacity style={[styles.primaryButton, useRecipeCardLayout && styles.referencePrimaryButton]} onPress={handleAddToCart}>
+                <Text style={[styles.primaryButtonText, useRecipeCardLayout && styles.referencePrimaryButtonText]}>
                   {ingredientStats.missing.length === 0
                     ? 'Add All Ingredients to Cart'
                     : ingredientStats.missing.length === ingredientStats.total
@@ -1834,11 +2047,11 @@ export default function CocktailDetailScreen() {
               </TouchableOpacity>
             ) : (
               <TouchableOpacity
-                style={[styles.primaryButton, isReferenceRecipe && styles.referencePrimaryButton]}
+                style={[styles.primaryButton, useRecipeCardLayout && styles.referencePrimaryButton]}
                 onPress={handleMadeIt}
                 disabled={hasMadeIt}
               >
-                <Text style={[styles.primaryButtonText, isReferenceRecipe && styles.referencePrimaryButtonText]}>
+                <Text style={[styles.primaryButtonText, useRecipeCardLayout && styles.referencePrimaryButtonText]}>
                   {hasMadeIt ? "You Made It!" : "I made this drink"}
                 </Text>
               </TouchableOpacity>
@@ -1846,38 +2059,38 @@ export default function CocktailDetailScreen() {
 
             {cocktail.kitAvailable && (
               <TouchableOpacity
-                style={[styles.secondaryButton, isReferenceRecipe && styles.referenceSecondaryButton]}
+                style={[styles.secondaryButton, useRecipeCardLayout && styles.referenceSecondaryButton]}
                 onPress={handleMadeIt}
                 disabled={hasMadeIt}
               >
-                <Text style={[styles.secondaryButtonText, isReferenceRecipe && styles.referenceSecondaryButtonText]}>
+                <Text style={[styles.secondaryButtonText, useRecipeCardLayout && styles.referenceSecondaryButtonText]}>
                   {hasMadeIt ? "You Made It!" : "How did you make it?"}
                 </Text>
               </TouchableOpacity>
             )}
           </View>
 
-          <View style={[styles.recipeEditorialShell, isReferenceRecipe && styles.referenceRecipeEditorialShell]}>
-            <View style={[styles.recipeEditorialInner, isReferenceRecipe && styles.referenceRecipeEditorialInner]}>
-              {isReferenceRecipe ? (
+          <View style={[styles.recipeEditorialShell, useRecipeCardLayout && styles.referenceRecipeEditorialShell]}>
+            <View style={[styles.recipeEditorialInner, useRecipeCardLayout && styles.referenceRecipeEditorialInner]}>
+              {useRecipeCardLayout ? (
                 <View style={styles.referenceSectionHeaderRow}>
                   <Text style={styles.referenceSectionEyebrow}>Ingredients</Text>
                   <View style={styles.referenceSectionRule} />
                 </View>
               ) : null}
-              <View style={[styles.specTable, isReferenceRecipe && styles.referenceSpecTable]}>
+              <View style={[styles.specTable, useRecipeCardLayout && styles.referenceSpecTable]}>
                 {parsedIngredients && parsedIngredients.length > 0 ? (
                   parsedIngredients.map((ingredient, index) => {
-                    const isOwnedIngredient = ownedIngredientNames.has(String(ingredient.name || ''));
-                    const formattedAmount = formatIngredientAmount(String(ingredient.note || ''));
+                    const isOwnedIngredient = ownedIngredientNames.has(String(ingredient.matchName || ingredient.name || ''));
+                    const rightSideValue = String(ingredient.amount || ingredient.note || '').trim();
                     return (
                     <View
                       key={`ingredient-${index}`}
                       style={[
                         styles.specRow,
-                        isReferenceRecipe && styles.referenceSpecRow,
+                        useRecipeCardLayout && styles.referenceSpecRow,
                         isOwnedIngredient && styles.specRowOwned,
-                        isOwnedIngredient && isReferenceRecipe && styles.referenceSpecRowOwned,
+                        isOwnedIngredient && useRecipeCardLayout && styles.referenceSpecRowOwned,
                         index === parsedIngredients.length - 1 && styles.specRowLast,
                       ]}
                     >
@@ -1885,9 +2098,9 @@ export default function CocktailDetailScreen() {
                         <Text
                           style={[
                             styles.specName,
-                            isReferenceRecipe && styles.referenceSpecName,
+                            useRecipeCardLayout && styles.referenceSpecName,
                             isOwnedIngredient && styles.specNameOwned,
-                            isOwnedIngredient && isReferenceRecipe && styles.referenceSpecNameOwned,
+                            isOwnedIngredient && useRecipeCardLayout && styles.referenceSpecNameOwned,
                           ]}
                         >
                           {ingredient.name}
@@ -1905,12 +2118,12 @@ export default function CocktailDetailScreen() {
                         <Text
                           style={[
                             styles.specAmount,
-                            isReferenceRecipe && styles.referenceSpecAmount,
+                            useRecipeCardLayout && styles.referenceSpecAmount,
                             isOwnedIngredient && styles.specAmountOwned,
-                            isOwnedIngredient && isReferenceRecipe && styles.referenceSpecAmountOwned,
+                            isOwnedIngredient && useRecipeCardLayout && styles.referenceSpecAmountOwned,
                           ]}
                         >
-                          {formattedAmount}
+                          {rightSideValue}
                         </Text>
                       </View>
                     </View>
@@ -1921,48 +2134,48 @@ export default function CocktailDetailScreen() {
                 )}
               </View>
 
-              {parsedInstructions.length > 0 && (
-                <View style={[styles.recipeEditorialSection, isReferenceRecipe && styles.referenceRecipeEditorialSection]}>
+              {displayedInstructions.length > 0 && (
+                <View style={[styles.recipeEditorialSection, useRecipeCardLayout && styles.referenceRecipeEditorialSection]}>
                   <Text
                     style={[
                       styles.recipeEditorialTitle,
-                      { fontFamily: isReferenceRecipe ? referenceSerifFont : serifFont },
-                      isReferenceRecipe && styles.referenceRecipeEditorialTitle,
+                      { fontFamily: useRecipeCardLayout ? referenceSerifFont : serifFont },
+                      useRecipeCardLayout && styles.referenceRecipeEditorialTitle,
                     ]}
                   >
                     Method
                   </Text>
-                  <View style={[styles.methodList, isReferenceRecipe && styles.referenceMethodList]}>
-                    {parsedInstructions.map((step, index) => (
-                      <View key={`step-${index}`} style={[styles.methodRow, isReferenceRecipe && styles.referenceMethodRow]}>
+                  <View style={[styles.methodList, useRecipeCardLayout && styles.referenceMethodList]}>
+                    {displayedInstructions.map((step, index) => (
+                      <View key={`step-${index}`} style={[styles.methodRow, useRecipeCardLayout && styles.referenceMethodRow]}>
                         <Text
                           style={[
                             styles.methodIndex,
-                            { fontFamily: isReferenceRecipe ? referenceDisplayFont : serifFont },
-                            isReferenceRecipe && styles.referenceMethodIndex,
+                            { fontFamily: useRecipeCardLayout ? referenceDisplayFont : serifFont },
+                            useRecipeCardLayout && styles.referenceMethodIndex,
                           ]}
                         >
                           {String(index + 1).padStart(2, '0')}
                         </Text>
-                        <Text style={[styles.methodText, isReferenceRecipe && styles.referenceMethodText]}>{step}</Text>
+                        <Text style={[styles.methodText, useRecipeCardLayout && styles.referenceMethodText]}>{step}</Text>
                       </View>
                     ))}
                   </View>
                 </View>
               )}
 
-              {tastingNote ? (
+              {displayedTastingNote ? (
                 <View style={[styles.recipeEditorialSection, styles.recipeEditorialSectionLast]}>
                   <Text
                     style={[
                       styles.recipeEditorialTitle,
-                      { fontFamily: isReferenceRecipe ? referenceSerifFont : serifFont },
-                      isReferenceRecipe && styles.referenceRecipeEditorialTitle,
+                      { fontFamily: useRecipeCardLayout ? referenceSerifFont : serifFont },
+                      useRecipeCardLayout && styles.referenceRecipeEditorialTitle,
                     ]}
                   >
                     Tasting Note
                   </Text>
-                  <Text style={[styles.tastingNoteText, isReferenceRecipe && styles.referenceTastingNoteText]}>{tastingNote}</Text>
+                  <Text style={[styles.tastingNoteText, useRecipeCardLayout && styles.referenceTastingNoteText]}>{displayedTastingNote}</Text>
                 </View>
               ) : null}
             </View>
@@ -1970,7 +2183,7 @@ export default function CocktailDetailScreen() {
         </View>
 
         {/* --- Pro Tips --- */}
-        {parsedTips.length > 0 && (
+        {showProTips && parsedTips.length > 0 && (
           <View style={styles.section}>
             <Text style={styles.sectionEyebrow}>Notes</Text>
             <View style={styles.proTipsContainer}>
@@ -1983,23 +2196,6 @@ export default function CocktailDetailScreen() {
               {parsedTips.map((tip, idx) => (
                 <Text key={idx} style={styles.proTipsText}>• {tip}</Text>
               ))}
-              {!showProTips ? (
-                <View style={styles.proTipsGate}>
-                  <BlurView intensity={42} tint="dark" style={StyleSheet.absoluteFill} />
-                  <View style={styles.proTipsGateContent}>
-                    <Text style={styles.proTipsGateTitle}>Available on PLUS and PRO</Text>
-                    <Text style={styles.proTipsGateBody}>
-                      Unlock bartender notes, technique guidance, and finishing tips.
-                    </Text>
-                    <TouchableOpacity
-                      style={styles.proTipsGateButton}
-                      onPress={withHaptic(() => nav.navigate('Paywall', { source: 'pro_tips_gate' } as any), 'selection')}
-                    >
-                      <Text style={styles.proTipsGateButtonText}>Unlock Pro Tips</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              ) : null}
             </View>
           </View>
         )}

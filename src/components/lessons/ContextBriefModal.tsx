@@ -24,6 +24,8 @@ interface ContextBriefModalProps {
   commonMistake?: string;
   contextBrief?: string;
   onStart: () => void;
+  startDisabled?: boolean;
+  startLabel?: string;
   onSkip: () => void;
   onClose: () => void;
 }
@@ -42,6 +44,8 @@ export default function ContextBriefModal({
   commonMistake,
   contextBrief,
   onStart,
+  startDisabled = false,
+  startLabel,
   onSkip,
   onClose,
 }: ContextBriefModalProps) {
@@ -151,8 +155,14 @@ export default function ContextBriefModal({
             <Pressable style={styles.ghostButton} onPress={onSkip}>
               <Text style={styles.ghostButtonText}>Skip for now</Text>
             </Pressable>
-            <Pressable style={styles.primaryButton} onPress={onStart}>
-              <Text style={styles.primaryButtonText}>{mode === 'module' ? 'Start Module' : 'Start Lesson'}</Text>
+            <Pressable
+              style={[styles.primaryButton, startDisabled && styles.primaryButtonDisabled]}
+              onPress={onStart}
+              disabled={startDisabled}
+            >
+              <Text style={[styles.primaryButtonText, startDisabled && styles.primaryButtonTextDisabled]}>
+                {startLabel || (mode === 'module' ? 'Start Module' : 'Start Lesson')}
+              </Text>
             </Pressable>
           </View>
         </View>
@@ -348,10 +358,18 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 8,
   },
+  primaryButtonDisabled: {
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    shadowOpacity: 0,
+    elevation: 0,
+  },
   primaryButtonText: {
     color: colors.bg,
     fontSize: 15,
     fontWeight: '800',
     letterSpacing: 0.3,
+  },
+  primaryButtonTextDisabled: {
+    color: 'rgba(242,229,213,0.42)',
   },
 });

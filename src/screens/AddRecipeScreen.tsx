@@ -20,6 +20,7 @@ import { useUserRecipes } from '../store/useUserRecipes';
 import { log } from '../lib/logger';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
+import * as FileSystem from 'expo-file-system/legacy';
 import { useScrollHaptic, withHaptic } from '../lib/haptics';
 
 type RecipeType = 'cocktail' | 'syrup' | 'bitter' | 'infusion' | 'shrub' | 'cordial' | 'tincture';
@@ -59,6 +60,7 @@ const glasswareOptions = [
 const difficultyOptions = ['Easy', 'Intermediate', 'Advanced'];
 
 const AMOUNT_PREFIX_REGEX = /^\s*(\d*\.?\d+)\s*(oz|ml|dash|dashes|tsp|tbsp|cl|cup|part|parts)?\s+/i;
+const RECIPE_MEDIA_DIR = `${FileSystem.documentDirectory || ''}recipe_media/`;
 
 const normalizeAmount = (raw: string): string => {
   const trimmed = String(raw || '').trim();
@@ -66,6 +68,23 @@ const normalizeAmount = (raw: string): string => {
   if (/\b(oz|ml|dash|dashes|tsp|tbsp|cl|cup|part|parts)\b/i.test(trimmed)) return trimmed;
   if (/^\d*\.?\d+$/.test(trimmed)) return `${trimmed} oz`;
   return trimmed;
+};
+
+const ensureRecipeMediaDir = async () => {
+  const dirInfo = await FileSystem.getInfoAsync(RECIPE_MEDIA_DIR);
+  if (!dirInfo.exists) {
+    await FileSystem.makeDirectoryAsync(RECIPE_MEDIA_DIR, { intermediates: true });
+  }
+};
+
+const persistRecipeImage = async (sourceUri: string, suffix: 'original' | 'thumb' | 'header') => {
+  if (!sourceUri) return sourceUri;
+  if (sourceUri.startsWith(RECIPE_MEDIA_DIR)) return sourceUri;
+  await ensureRecipeMediaDir();
+  const filename = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}_${suffix}.jpg`;
+  const destinationUri = `${RECIPE_MEDIA_DIR}${filename}`;
+  await FileSystem.copyAsync({ from: sourceUri, to: destinationUri });
+  return destinationUri;
 };
 
 export default function AddRecipeScreen() {
@@ -234,7 +253,7 @@ export default function AddRecipeScreen() {
     ]);
 
     setRecipeMedia({
-      original: uri,
+      original: base.uri,
       thumbnail: thumb.uri,
       header: header.uri,
     });
@@ -396,6 +415,12 @@ export default function AddRecipeScreen() {
 
     setLoading(true);
     try {
+      const [persistentOriginal, persistentThumbnail, persistentHeader] = await Promise.all([
+        recipeMedia.original ? persistRecipeImage(recipeMedia.original, 'original') : Promise.resolve(undefined),
+        recipeMedia.thumbnail ? persistRecipeImage(recipeMedia.thumbnail, 'thumb') : Promise.resolve(undefined),
+        recipeMedia.header ? persistRecipeImage(recipeMedia.header, 'header') : Promise.resolve(undefined),
+      ]);
+
       const mappedDifficulty: 'Easy' | 'Medium' | 'Hard' =
         recipe.tags[0] === 'Intermediate'
           ? 'Medium'
@@ -419,9 +444,9 @@ export default function AddRecipeScreen() {
         difficulty: mappedDifficulty,
         prepTime: parseInt(recipe.time) || 5,
         servings: recipe.servings,
-        image: recipeMedia.thumbnail,
-        thumbnailImage: recipeMedia.thumbnail,
-        headerImage: recipeMedia.header,
+        image: persistentThumbnail,
+        thumbnailImage: persistentThumbnail,
+        headerImage: persistentHeader || persistentOriginal,
         notes: `Garnish: ${recipe.garnish || 'None'}, Glass: ${recipe.glassware}`,
       };
 

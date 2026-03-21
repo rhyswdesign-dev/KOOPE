@@ -43,6 +43,46 @@ interface PersonalizationState {
 
 const STORAGE_KEY = 'user_personalization_profile';
 
+function createDefaultProfile(): UserPersonalizationProfile {
+  return {
+    favoriteSpirits: [],
+    flavorPreferences: [],
+    skillLevel: 'beginner',
+    preferredABV: 'alcoholic',
+    learningGoals: [],
+    availableTools: [],
+    sessionLength: 5,
+    preferredDifficulty: ['Easy'],
+    cocktailMoodAffinities: [],
+    brandAffinities: [],
+    lessonTrack: 'fundamentals',
+    spiritScores: {},
+    flavorScores: {},
+    complexityScore: 0,
+    experienceScore: 0,
+  };
+}
+
+function normalizeProfile(profile?: Partial<UserPersonalizationProfile> | null): UserPersonalizationProfile {
+  const base = createDefaultProfile();
+  const merged = { ...base, ...(profile || {}) } as UserPersonalizationProfile;
+
+  return {
+    ...merged,
+    favoriteSpirits: Array.isArray(merged.favoriteSpirits) ? merged.favoriteSpirits : base.favoriteSpirits,
+    flavorPreferences: Array.isArray(merged.flavorPreferences) ? merged.flavorPreferences : base.flavorPreferences,
+    learningGoals: Array.isArray(merged.learningGoals) ? merged.learningGoals : base.learningGoals,
+    availableTools: Array.isArray(merged.availableTools) ? merged.availableTools : base.availableTools,
+    preferredDifficulty: Array.isArray(merged.preferredDifficulty) && merged.preferredDifficulty.length > 0
+      ? merged.preferredDifficulty
+      : base.preferredDifficulty,
+    cocktailMoodAffinities: Array.isArray(merged.cocktailMoodAffinities) ? merged.cocktailMoodAffinities : base.cocktailMoodAffinities,
+    brandAffinities: Array.isArray(merged.brandAffinities) ? merged.brandAffinities : base.brandAffinities,
+    spiritScores: merged.spiritScores && typeof merged.spiritScores === 'object' ? merged.spiritScores : base.spiritScores,
+    flavorScores: merged.flavorScores && typeof merged.flavorScores === 'object' ? merged.flavorScores : base.flavorScores,
+  };
+}
+
 export const usePersonalization = create<PersonalizationState>((set, get) => ({
   profile: null,
   recommendations: null,
@@ -127,7 +167,7 @@ export const usePersonalization = create<PersonalizationState>((set, get) => ({
       });
 
       // If no profile exists, create a new one with the updates
-      const updatedProfile = profile ? { ...profile, ...updates } : updates as UserPersonalizationProfile;
+      const updatedProfile = normalizeProfile(profile ? { ...profile, ...updates } : updates);
       const recommendations = personalizedExperience.generateRecommendations(updatedProfile);
 
       log.info('PersonalizationStore', 'Setting new profile state', {
@@ -400,7 +440,7 @@ export const loadPersonalizationFromStorage = async () => {
 
       if (isRecent && data.profile) {
         usePersonalization.setState({
-          profile: data.profile,
+          profile: normalizeProfile(data.profile),
           recommendations: data.recommendations,
           isInitialized: true
         });

@@ -564,6 +564,7 @@ export default function HomeBarScreen() {
   const { gateWithTrigger: inventoryGate } = useFeatureAccess('inventory_unlimited');
   const { tier } = useUserTier();
   const { gateWithTrigger: hostingBasicGate } = useFeatureAccess('hosting_basic');
+  const { gateWithTrigger: optimizeMyBarGate } = useFeatureAccess('optimize_my_bar');
   const { gate: expiryAlertsGate } = useFeatureAccess('expiry_alerts');
   const { gate: barHealthGate } = useFeatureAccess('bar_health_score');
   const { gate: multiBarGate } = useFeatureAccess('multi_bar');
@@ -589,6 +590,7 @@ export default function HomeBarScreen() {
   const [showCustomInput, setShowCustomInput] = useState(false);
   const [showAddOptionsModal, setShowAddOptionsModal] = useState(false);
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
+  const [itemNoteDraft, setItemNoteDraft] = useState('');
   const [showItemOptionsModal, setShowItemOptionsModal] = useState(false);
   const [showBarSwitcherModal, setShowBarSwitcherModal] = useState(false);
   const onScrollHaptic = useScrollHaptic('selection', 800);
@@ -631,9 +633,10 @@ export default function HomeBarScreen() {
           category: (item.category as BarIngredient['category']) || 'other',
           subcategory: item.subcategory || undefined,
           brand: parsedBrand,
+          notes: item.notes || undefined,
           volume: 750,
           addedAt: item.added_at ? new Date(item.added_at) : new Date(),
-          isFavorite: false,
+          isFavorite: item.is_favorite || false,
           tags: [],
         };
       });
@@ -849,6 +852,11 @@ export default function HomeBarScreen() {
     return [...recent, ...trending];
   }, [searchModalQuery, homeBar.ingredients, searchHistory, popularInventoryItems]);
 
+  const favoriteItems = useMemo(
+    () => homeBar.ingredients.filter((item) => item.isFavorite).slice(0, 6),
+    [homeBar.ingredients]
+  );
+
   const recordSearchHistory = (value: string) => {
     const normalized = value.trim();
     if (!normalized) return;
@@ -996,7 +1004,43 @@ export default function HomeBarScreen() {
 
   const handleItemPress = (item: InventoryItem) => {
     setSelectedItem(item);
+    setItemNoteDraft(item.notes || '');
     setShowItemOptionsModal(true);
+  };
+
+  const syncItemMetadata = async (item: InventoryItem, updates: Partial<InventoryItem>) => {
+    const nextItem = { ...item, ...updates };
+
+    setHomeBar((prev) => ({
+      ...prev,
+      ingredients: prev.ingredients.map((entry) => entry.id === item.id ? nextItem : entry),
+    }));
+    setSelectedItem(nextItem);
+
+    const remoteUpdated = user?.id ? await InventoryService.updateInventoryItem(item.id, {
+      isFavorite: updates.isFavorite,
+      notes: updates.notes,
+    }) : false;
+
+    if (!remoteUpdated) {
+      await HomeBarService.updateStoredIngredient(item.name, item.category, {
+        isFavorite: updates.isFavorite,
+        notes: updates.notes,
+      }).catch(() => undefined);
+    }
+  };
+
+  const handleToggleFavorite = async () => {
+    if (!selectedItem) return;
+    const nextFavorite = !selectedItem.isFavorite;
+    await syncItemMetadata(selectedItem, { isFavorite: nextFavorite });
+  };
+
+  const handleSaveItemNotes = async () => {
+    if (!selectedItem) return;
+    const trimmedNotes = itemNoteDraft.trim();
+    await syncItemMetadata(selectedItem, { notes: trimmedNotes || undefined });
+    Alert.alert('Notes Saved', trimmedNotes ? 'Your bar note was updated.' : 'Your note was cleared.');
   };
 
   const handleDeleteItem = () => {
@@ -1119,12 +1163,20 @@ export default function HomeBarScreen() {
         </View>
 
         <View style={styles.cardContent}>
-          <Text style={styles.cardTitle} numberOfLines={2}>
-            {item.name}
-          </Text>
+          <View style={styles.cardTitleRow}>
+            <Text style={styles.cardTitle} numberOfLines={2}>
+              {item.name}
+            </Text>
+            {item.isFavorite && <Ionicons name="star" size={14} color={colors.gold} />}
+          </View>
           <Text style={styles.cardSubtitle}>
             {item.volume}ml{item.brand ? ` • ${item.brand}` : ''}
           </Text>
+          {!!item.notes && (
+            <Text style={styles.cardNote} numberOfLines={1}>
+              {item.notes}
+            </Text>
+          )}
         </View>
       </TouchableOpacity>
     );
@@ -1222,6 +1274,17 @@ export default function HomeBarScreen() {
 
             <TouchableOpacity
               style={styles.featureCard}
+              onPress={withHaptic(() => optimizeMyBarGate('T4', () => nav.navigate('BarOptimizer')))}
+            >
+              <View style={styles.featureCardIconWrap}>
+                <Ionicons name="bar-chart-outline" size={26} color={colors.accent} />
+              </View>
+              <Text style={styles.featureCardTitle}>Optimize</Text>
+              <Text style={styles.featureCardSubtitle}>What to buy next</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.featureCard}
               onPress={withHaptic(() => expiryAlertsGate(() => nav.navigate('InventoryInsights', { mode: 'expiry' })))}
             >
               <View style={styles.featureCardIconWrap}>
@@ -1269,6 +1332,19 @@ export default function HomeBarScreen() {
             </TouchableOpacity>
           ))}
         </ScrollView>
+
+        {favoriteItems.length > 0 && activeCategory === 'all' && !searchQuery.trim() && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Ionicons name="star" size={16} color={colors.gold} />
+              <Heading level={3} style={styles.sectionTitle}>Bar Favorites</Heading>
+            </View>
+            <Text style={styles.sectionBodyText}>Keep your go-to bottles, mixers, and garnish staples easy to find.</Text>
+            <View style={styles.grid}>
+              {favoriteItems.map(renderInventoryCard)}
+            </View>
+          </View>
+        )}
 
         {/* Low Stock Section */}
         {lowStock.length > 0 && (
@@ -1342,6 +1418,39 @@ export default function HomeBarScreen() {
               <Text style={styles.itemDetail}>Brand: {selectedItem?.brand || 'Unknown'}</Text>
               <Text style={styles.itemDetail}>Volume: {selectedItem?.volume}ml</Text>
               {selectedItem?.abv && <Text style={styles.itemDetail}>ABV: {selectedItem.abv}%</Text>}
+            </View>
+
+            <TouchableOpacity
+              style={styles.favoriteToggle}
+              onPress={withHaptic(handleToggleFavorite, 'selection')}
+            >
+              <Ionicons
+                name={selectedItem?.isFavorite ? 'star' : 'star-outline'}
+                size={20}
+                color={colors.gold}
+              />
+              <Text style={styles.favoriteToggleText}>
+                {selectedItem?.isFavorite ? 'Pinned as a bar favorite' : 'Pin as a bar favorite'}
+              </Text>
+            </TouchableOpacity>
+
+            <View style={styles.noteBlock}>
+              <Text style={styles.noteLabel}>Bar Note</Text>
+              <TextInput
+                style={styles.noteInput}
+                value={itemNoteDraft}
+                onChangeText={setItemNoteDraft}
+                placeholder="Add a quick note like low stock, guest favorite, or replace soon"
+                placeholderTextColor={colors.muted}
+                multiline
+              />
+              <TouchableOpacity
+                style={styles.noteSaveButton}
+                onPress={withHaptic(handleSaveItemNotes, 'selection')}
+              >
+                <Ionicons name="create-outline" size={16} color={colors.accent} />
+                <Text style={styles.noteSaveButtonText}>Save note</Text>
+              </TouchableOpacity>
             </View>
 
             <View style={styles.optionsContainer}>
@@ -1899,6 +2008,12 @@ const styles = StyleSheet.create({
     gap: spacing(1),
     marginBottom: spacing(2),
   },
+  sectionBodyText: {
+    fontSize: 13,
+    color: colors.subtext,
+    lineHeight: 18,
+    marginBottom: spacing(1.5),
+  },
   sectionTitle: {
     fontSize: 16,
     fontWeight: '700',
@@ -1969,16 +2084,27 @@ const styles = StyleSheet.create({
   cardContent: {
     padding: spacing(2),
   },
+  cardTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(0.75),
+    marginBottom: spacing(0.5),
+  },
   cardTitle: {
+    flex: 1,
     fontSize: 14,
     fontWeight: '600',
     color: colors.text,
-    marginBottom: spacing(0.5),
   },
   cardSubtitle: {
     fontSize: 12,
     color: colors.subtext,
     marginBottom: spacing(0.5),
+  },
+  cardNote: {
+    fontSize: 11,
+    color: colors.muted,
+    lineHeight: 15,
   },
   cardFooter: {
     fontSize: 11,
@@ -2344,13 +2470,70 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bg,
     padding: spacing(2.5),
     borderRadius: radii.lg,
-    marginBottom: spacing(3),
+    marginBottom: spacing(2),
     gap: spacing(1),
   },
   itemDetail: {
     fontSize: 14,
     color: colors.text,
     fontWeight: '500',
+  },
+  favoriteToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(1),
+    backgroundColor: colors.bg,
+    borderRadius: radii.lg,
+    paddingHorizontal: spacing(2),
+    paddingVertical: spacing(1.5),
+    borderWidth: 1,
+    borderColor: colors.line,
+    marginBottom: spacing(2),
+  },
+  favoriteToggleText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  noteBlock: {
+    backgroundColor: colors.bg,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.line,
+    padding: spacing(2),
+    marginBottom: spacing(2),
+  },
+  noteLabel: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: colors.subtext,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    marginBottom: spacing(1),
+  },
+  noteInput: {
+    minHeight: 88,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.card,
+    paddingHorizontal: spacing(1.5),
+    paddingVertical: spacing(1.25),
+    color: colors.text,
+    fontSize: 14,
+    textAlignVertical: 'top',
+    marginBottom: spacing(1.25),
+  },
+  noteSaveButton: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(0.75),
+  },
+  noteSaveButtonText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.accent,
   },
   deleteOptionButton: {
     borderColor: (colors.error || '#ff4444') + '40',

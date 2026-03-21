@@ -207,6 +207,13 @@ export interface RecipeFilters {
   recipeType?: ('spirit-forward' | 'cocktail' | 'mocktail' | 'highball' | 'sour' | 'other')[]; // Spirit-forward filter
 }
 
+function getIngredientName(ingredient: Ingredient | string | null | undefined): string {
+  if (!ingredient) return '';
+  if (typeof ingredient === 'string') return ingredient.toLowerCase();
+  if (typeof ingredient.name === 'string') return ingredient.name.toLowerCase();
+  return '';
+}
+
 // Helper function to calculate ABV for a recipe
 export function calculateRecipeABV(ingredients: Ingredient[]): number {
   // Simplified ABV calculation
@@ -215,8 +222,8 @@ export function calculateRecipeABV(ingredients: Ingredient[]): number {
   let totalVolume = 0;
 
   ingredients.forEach(ingredient => {
-    const name = ingredient.name.toLowerCase();
-    const amount = parseFloat(ingredient.amount) || 0;
+    const name = getIngredientName(ingredient);
+    const amount = parseFloat((ingredient as any)?.amount) || 0;
 
     // Estimate ABV based on ingredient type
     let ingredientABV = 0;
@@ -277,7 +284,7 @@ export function extractBaseSpirit(ingredients: Ingredient[]): Spirit | undefined
 
   // Look for the first spirit ingredient
   for (const ingredient of ingredients) {
-    const name = ingredient.name.toLowerCase();
+    const name = getIngredientName(ingredient);
 
     for (const [spirit, keywords] of Object.entries(spiritKeywords)) {
       if (keywords.some(keyword => name.includes(keyword))) {
@@ -304,7 +311,7 @@ export function extractAllSpirits(ingredients: Ingredient[]): Spirit[] {
   const foundSpirits = new Set<Spirit>();
 
   for (const ingredient of ingredients) {
-    const name = ingredient.name.toLowerCase();
+    const name = getIngredientName(ingredient);
 
     for (const [spirit, keywords] of Object.entries(spiritKeywords)) {
       if (keywords.some(keyword => name.includes(keyword))) {
@@ -331,7 +338,7 @@ export function extractFlavorProfiles(ingredients: Ingredient[]): FlavorProfile[
   const foundProfiles = new Set<FlavorProfile>();
 
   for (const ingredient of ingredients) {
-    const name = ingredient.name.toLowerCase();
+    const name = getIngredientName(ingredient);
 
     for (const [profile, keywords] of Object.entries(flavorKeywords)) {
       if (keywords.some(keyword => name.includes(keyword))) {
@@ -370,7 +377,7 @@ export function computeFlavorVector(ingredients: Ingredient[]): FlavorVector {
     let matchCount = 0;
 
     for (const ingredient of ingredients) {
-      const name = ingredient.name.toLowerCase();
+      const name = getIngredientName(ingredient);
       if (keywords.some(keyword => name.includes(keyword))) {
         matchCount++;
       }
@@ -401,7 +408,7 @@ export function estimateSugarLevel(ingredients: Ingredient[]): 'none' | 'low' | 
 
   let sweetCount = 0;
   for (const ingredient of ingredients) {
-    const name = ingredient.name.toLowerCase();
+    const name = getIngredientName(ingredient);
     if (sweetKeywords.some(keyword => name.includes(keyword))) {
       sweetCount++;
     }

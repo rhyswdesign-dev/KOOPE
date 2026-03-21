@@ -26,8 +26,10 @@ import { handleRecipeView } from '../utils/recipeActions';
 import { log } from '../lib/logger';
 import InPageTabBar from '../components/ui/InPageTabBar';
 import { useScrollHaptic, withHaptic } from '../lib/haptics';
+import { COLLECTIBLE_RECIPE_CARDS, getCollectibleRecipeCard } from '../data/recipeCards';
+import RecipeCardCollectionTile from '../components/recipe-cards/RecipeCardCollectionTile';
 
-type TabType = 'saved' | 'created' | 'imported' | 'vault';
+type TabType = 'saved' | 'recipe_cards' | 'created' | 'imported' | 'vault';
 
 interface TabConfig {
   key: TabType;
@@ -37,6 +39,7 @@ interface TabConfig {
 
 const TABS: TabConfig[] = [
   { key: 'saved', label: 'Saved', icon: 'bookmark-outline' },
+  { key: 'recipe_cards', label: 'Recipe Cards', icon: 'albums-outline' },
   { key: 'created', label: 'Created', icon: 'create-outline' },
   { key: 'imported', label: 'Imported', icon: 'download-outline' },
   { key: 'vault', label: 'Playbooks', icon: 'book-outline' },
@@ -80,6 +83,17 @@ export default function ProfileSavedItemsScreen() {
     return userRecipes.filter((r) => r.type === 'created' || r.type === 'ai_generated');
   };
 
+  const getSavedRecipeCards = () => {
+    return (savedItems.savedRecipeCards || [])
+      .map((item) => getCollectibleRecipeCard(item.id))
+      .filter(Boolean);
+  };
+
+  const getRecipeCardLibrary = () => {
+    const savedCards = getSavedRecipeCards();
+    return savedCards.length > 0 ? savedCards : COLLECTIBLE_RECIPE_CARDS;
+  };
+
   const getImportedRecipes = (): UserRecipe[] => {
     return userRecipes.filter((r) => (r.type as string) === 'imported');
   };
@@ -92,6 +106,8 @@ export default function ProfileSavedItemsScreen() {
     switch (activeTab) {
       case 'saved':
         return getSavedRecipes();
+      case 'recipe_cards':
+        return getRecipeCardLibrary();
       case 'created':
         return getCreatedRecipes();
       case 'imported':
@@ -107,6 +123,8 @@ export default function ProfileSavedItemsScreen() {
     switch (tab) {
       case 'saved':
         return getSavedRecipes().length;
+      case 'recipe_cards':
+        return getRecipeCardLibrary().length;
       case 'created':
         return getCreatedRecipes().length;
       case 'imported':
@@ -185,6 +203,15 @@ export default function ProfileSavedItemsScreen() {
     );
   };
 
+  const renderRecipeCard = ({ item }: { item: any }) => {
+    return (
+      <RecipeCardCollectionTile
+        card={item}
+        onPress={() => nav.navigate('RecipeCardDetail', { cardId: item.id })}
+      />
+    );
+  };
+
   const handleDelete = (recipe: UserRecipe) => {
     deleteRecipe(recipe.id);
     log.info('ProfileSavedItems', 'Recipe deleted', { id: recipe.id });
@@ -213,6 +240,13 @@ export default function ProfileSavedItemsScreen() {
         subtitle: 'Browse recipes and tap the bookmark icon to save them here',
         action: 'Browse Recipes',
         onAction: () => (nav as any).navigate('Main', { screen: 'Recipes' }),
+      },
+      recipe_cards: {
+        icon: 'albums-outline',
+        title: 'No collectible recipe cards yet',
+        subtitle: 'Premium and mixology cards will live here once unlocked and saved',
+        action: 'Browse Cards',
+        onAction: () => nav.navigate('RecipeCardDetail', { cardId: COLLECTIBLE_RECIPE_CARDS[0].id }),
       },
       created: {
         icon: 'create-outline',
@@ -255,7 +289,12 @@ export default function ProfileSavedItemsScreen() {
   };
 
   const activeData = getActiveData();
-  const totalCount = getSavedRecipes().length + getCreatedRecipes().length + getImportedRecipes().length + getPlaybookItems().length;
+  const totalCount =
+    getSavedRecipes().length +
+    getRecipeCardLibrary().length +
+    getCreatedRecipes().length +
+    getImportedRecipes().length +
+    getPlaybookItems().length;
 
   return (
     <SafeAreaView style={styles.container} edges={['left', 'right', 'bottom']}>
@@ -286,6 +325,7 @@ export default function ProfileSavedItemsScreen() {
           data={activeData as any[]}
           renderItem={
             activeTab === 'saved' ? renderSavedItem
+            : activeTab === 'recipe_cards' ? renderRecipeCard
             : activeTab === 'vault' ? renderVaultItem
             : renderUserRecipe
           }

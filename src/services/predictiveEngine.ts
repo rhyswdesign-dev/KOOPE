@@ -72,6 +72,17 @@ const SIGNAL_WEIGHTS = {
   hostingFit: 5,        // Party-appropriate
 };
 
+function getRecipeFlavorProfiles(recipe: Recipe): FlavorProfile[] {
+  return Array.isArray((recipe as any).flavorProfiles) ? (recipe as any).flavorProfiles : [];
+}
+
+function getIngredientName(ingredient: any): string {
+  if (!ingredient) return '';
+  if (typeof ingredient === 'string') return ingredient.toLowerCase();
+  if (typeof ingredient.name === 'string') return ingredient.name.toLowerCase();
+  return '';
+}
+
 // ============================================================================
 // ENGINE
 // ============================================================================
@@ -255,7 +266,7 @@ function calculateTimeBoost(recipe: Recipe, timeOfDay: TimeOfDay): number {
   }
   if (timeOfDay === 'afternoon') {
     // Favor refreshing, moderate
-    const refreshing = recipe.flavorProfiles.includes('citrus');
+    const refreshing = getRecipeFlavorProfiles(recipe).includes('citrus');
     return refreshing ? SIGNAL_WEIGHTS.timeOfDay * 0.7 : SIGNAL_WEIGHTS.timeOfDay * 0.3;
   }
   if (timeOfDay === 'evening') {
@@ -263,7 +274,7 @@ function calculateTimeBoost(recipe: Recipe, timeOfDay: TimeOfDay): number {
     return SIGNAL_WEIGHTS.timeOfDay * 0.5;
   }
   // Late night: favor strong, bold
-  if (recipe.abv > 25 || recipe.flavorProfiles.includes('smoky')) {
+  if (recipe.abv > 25 || getRecipeFlavorProfiles(recipe).includes('smoky')) {
     return SIGNAL_WEIGHTS.timeOfDay * 0.8;
   }
   return SIGNAL_WEIGHTS.timeOfDay * 0.3;
@@ -311,8 +322,8 @@ function calculateSeasonBoost(recipe: Recipe, season: Season): number {
     winter: ['smoky', 'spiced', 'sweet'],
   };
 
-  const seasonalFlavors = seasonMap[season];
-  const matchCount = recipe.flavorProfiles.filter(f => seasonalFlavors.includes(f)).length;
+  const seasonalFlavors = seasonMap[season] || [];
+  const matchCount = getRecipeFlavorProfiles(recipe).filter(f => seasonalFlavors.includes(f)).length;
 
   if (matchCount >= 2) return SIGNAL_WEIGHTS.seasonMatch;
   if (matchCount >= 1) return SIGNAL_WEIGHTS.seasonMatch * 0.5;
@@ -328,7 +339,7 @@ function calculateInventoryBoost(recipe: Recipe, inventory: Bottle[]): number {
 
   let matched = 0;
   for (const ing of recipe.ingredients) {
-    const name = ing.name.toLowerCase();
+    const name = getIngredientName(ing);
     if (invNames.some(inv => inv.includes(name) || name.includes(inv))) {
       matched++;
     }
@@ -345,7 +356,7 @@ function calculateQuantityUrgency(recipe: Recipe, inventory: Bottle[]): number {
 
   const lowNames = lowBottles.map(b => b.name.toLowerCase());
   const usesLow = recipe.ingredients.some(ing => {
-    const name = ing.name.toLowerCase();
+    const name = getIngredientName(ing);
     return lowNames.some(low => name.includes(low) || low.includes(name));
   });
 
@@ -367,7 +378,7 @@ function calculateHostingBoost(recipe: Recipe, _guestCount?: number): number {
 
   // Favor crowd-pleasing flavors
   const crowdPleasingFlavors: FlavorProfile[] = ['citrus', 'sweet'];
-  if (recipe.flavorProfiles.some(f => crowdPleasingFlavors.includes(f))) {
+  if (getRecipeFlavorProfiles(recipe).some(f => crowdPleasingFlavors.includes(f))) {
     boost += SIGNAL_WEIGHTS.hostingFit * 0.2;
   }
 

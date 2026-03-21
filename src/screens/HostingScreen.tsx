@@ -929,10 +929,10 @@ export default function HostingScreen() {
           </View>
 
           {!hasAdvancedHosting && (
-            <View style={styles.lockRow}>
+            <TouchableOpacity style={styles.lockRow} onPress={() => advancedHostingGate('T7')}>
               <Ionicons name="lock-closed-outline" size={14} color={colors.accent} />
               <Text style={styles.lockText}>5+ guests requires PRO (advanced hosting).</Text>
-            </View>
+            </TouchableOpacity>
           )}
 
           <TouchableOpacity style={styles.primaryCta} onPress={() => { hapticSelection(); setStep(1); }}>

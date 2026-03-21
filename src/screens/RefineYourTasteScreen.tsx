@@ -1,487 +1,281 @@
 // @ts-nocheck
-/**
- * REFINE YOUR TASTE SCREEN
- * Allows users to update their taste profile after onboarding
- * Focuses on key personalization questions: spirits, flavors, goals
- */
-
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  Pressable,
-  ScrollView,
-  SafeAreaView,
   ActivityIndicator,
   Alert,
-  Image,
+  Pressable,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
   TouchableOpacity,
+  View,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../navigation/RootNavigator';
-import { colors, spacing, radii, fonts } from '../theme/tokens';
 import { Ionicons } from '@expo/vector-icons';
+import { RootStackParamList } from '../navigation/RootNavigator';
+import { colors, spacing, radii, fonts, serif } from '../theme/tokens';
 import { usePersonalization } from '../store/usePersonalization';
-import { SurveyAnswers } from '../services/placement';
+import { useAuth } from '../contexts/AuthContext';
+import { useUserTier } from '../store/useUserTier';
 import { trackEvent } from '../lib/analytics';
 import { log } from '../lib/logger';
 import { ALL_COCKTAILS } from '../data/cocktails';
 import RecipeCard from '../components/RecipeCard';
 import { createRecipeCardProps, handleRecipeView } from '../utils/recipeActions';
-
-// Import spirit and flavor images directly
-const spiritImages = {
-  tequila: require('../../assets/images/spirits/koope-tequila.png'),
-  whiskey: require('../../assets/images/spirits/koope-whiskey.png'),
-  rum: require('../../assets/images/spirits/koope-rum.png'),
-  gin: require('../../assets/images/spirits/koope-gin.png'),
-  vodka: require('../../assets/images/spirits/koope-vodka.png'),
-  brandy: require('../../assets/images/spirits/koope-brandy.png'),
-  liqueurs: require('../../assets/images/spirits/koope-mezcal.png'),
-};
-
-const flavorImages = {
-  sweet: require('../../assets/images/flavors/Sweet.png'),
-  sour: require('../../assets/images/flavors/Sour.png'),
-  bitter: require('../../assets/images/flavors/Bitter.png'),
-  spicy: require('../../assets/images/flavors/Spicy.png'),
-  salty: require('../../assets/images/flavors/Salty.png'),
-  herbal: require('../../assets/images/flavors/Herbal.png'),
-  fruity: require('../../assets/images/flavors/Fruity.png'),
-  boozy: require('../../assets/images/flavors/Boozy.png'),
-  umami: require('../../assets/images/flavors/Umami.png'),
-  floral: require('../../assets/images/flavors/Floral.png'),
-};
+import { createDefaultUserProfile, getABVRangeForPreference } from '../types/userProfile';
+import {
+  clearOverrides,
+  generateRadarChart,
+  getEffectiveTasteProfile,
+  initializeTasteGraph,
+  setFlavorOverride,
+  setSpiritOverride,
+} from '../services/tasteGraphService';
+import { detectSeason, detectTimeOfDay, getPredictiveRecommendations } from '../services/predictiveEngine';
+import { loadUserProfile, updateUserProfileFields } from '../services/userProfileService';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'RefineYourTaste'>;
 
-// Option type with optional image keys
-type QuestionOption = {
-  value: string;
-  label: string;
-  emoji: string;
-  spiritKey?: 'tequila' | 'whiskey' | 'rum' | 'gin' | 'vodka' | 'brandy' | 'liqueurs';
-  flavorKey?: 'fruity' | 'herbal' | 'bitter' | 'sweet' | 'boozy' | 'floral' | 'spicy';
-};
-
-// Focused survey questions for taste refinement
-// NOTE: Store spiritKey instead of resolved image to defer loading
-const TASTE_QUESTIONS: Array<{
-  id: string;
-  section: string;
-  type: 'mcq' | 'multi-select';
-  question: string;
-  subtitle?: string;
-  options: QuestionOption[];
-}> = [
-  {
-    id: 'q8',
-    section: 'Spirit Preferences',
-    type: 'multi-select',
-    question: 'Which spirits interest you most?',
-    subtitle: 'Select all that apply',
-    options: [
-      { value: 'tequila', label: 'Tequila', emoji: '🌵', spiritKey: 'tequila' as const },
-      { value: 'whiskey', label: 'Whiskey', emoji: '🥃', spiritKey: 'whiskey' as const },
-      { value: 'rum', label: 'Rum', emoji: '🏝️', spiritKey: 'rum' as const },
-      { value: 'gin', label: 'Gin', emoji: '🌿', spiritKey: 'gin' as const },
-      { value: 'vodka', label: 'Vodka', emoji: '❄️', spiritKey: 'vodka' as const },
-      { value: 'brandy', label: 'Brandy', emoji: '🍇', spiritKey: 'brandy' as const },
-      { value: 'liqueurs', label: 'Liqueurs', emoji: '🍯', spiritKey: 'liqueurs' as const },
-    ],
-  },
-  {
-    id: 'q11',
-    section: 'Flavor Preferences',
-    type: 'multi-select',
-    question: 'What flavor profiles do you prefer?',
-    subtitle: 'Pick your top 3-4 favorites',
-    options: [
-      { value: 'citrus', label: 'Citrus & Fresh', emoji: '🍋', flavorKey: 'fruity' as const },
-      { value: 'herbal', label: 'Herbal & Green', emoji: '🌿', flavorKey: 'herbal' as const },
-      { value: 'bitter', label: 'Bitter & Complex', emoji: '☕', flavorKey: 'bitter' as const },
-      { value: 'sweet', label: 'Sweet & Fruity', emoji: '🍓', flavorKey: 'sweet' as const },
-      { value: 'smoky', label: 'Smoky & Bold', emoji: '🔥', flavorKey: 'boozy' as const },
-      { value: 'floral', label: 'Floral & Light', emoji: '🌸', flavorKey: 'floral' as const },
-      { value: 'spiced', label: 'Spiced & Warm', emoji: '🌶️', flavorKey: 'spicy' as const },
-    ],
-  },
-  {
-    id: 'q9',
-    section: 'Alcohol Preference',
-    type: 'mcq',
-    question: 'What\'s your preferred alcohol content?',
-    subtitle: 'This helps us recommend the right cocktails',
-    options: [
-      { value: 'alcoholic', label: 'Alcoholic', emoji: '🍸' },
-      { value: 'low-abv', label: 'Low-ABV (lighter drinks)', emoji: '🍾' },
-      { value: 'zero-proof', label: 'Zero-proof (mocktails)', emoji: '🥤' },
-    ],
-  },
+const FLAVOR_KEYS = [
+  { key: 'citrus', label: 'Citrus' },
+  { key: 'herbal', label: 'Herbal' },
+  { key: 'bitter', label: 'Bitter' },
+  { key: 'sweet', label: 'Sweet' },
+  { key: 'smoky', label: 'Smoky' },
+  { key: 'floral', label: 'Floral' },
+  { key: 'spiced', label: 'Spiced' },
 ];
+
+const SPIRIT_KEYS = [
+  { key: 'tequila', label: 'Tequila' },
+  { key: 'whiskey', label: 'Whiskey' },
+  { key: 'rum', label: 'Rum' },
+  { key: 'gin', label: 'Gin' },
+  { key: 'vodka', label: 'Vodka' },
+  { key: 'brandy', label: 'Brandy' },
+  { key: 'liqueurs', label: 'Liqueurs' },
+];
+
+const OCCASION_MODES = [
+  { key: 'casual', title: 'Casual', body: 'Easygoing picks for a normal night in.' },
+  { key: 'hosting', title: 'Hosting', body: 'Recommendations that play well for guests and shared menus.' },
+  { key: 'adventurous', title: 'Adventurous', body: 'Pushes the feed toward bolder, more surprising builds.' },
+];
+
+const ABV_MODES = [
+  { key: 'zero-proof', title: 'Zero-Proof' },
+  { key: 'low-abv', title: 'Low ABV' },
+  { key: 'alcoholic', title: 'Standard' },
+];
+
+function clamp(value: number) {
+  return Math.max(0, Math.min(1, value));
+}
+
+function orderedTopKeys(weights: Record<string, number>, limit: number) {
+  return Object.entries(weights)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, limit)
+    .map(([key]) => key);
+}
+
+function abvPreferenceFromRange(range: { min: number; max: number }) {
+  if (range.max <= 0.5) return 'zero-proof';
+  if (range.max <= 15) return 'low-abv';
+  return 'alcoholic';
+}
+
+function buildGraphFromPersonalization(profile: any) {
+  return initializeTasteGraph({
+    flavorWeights: {
+      citrus: (profile?.flavorScores?.citrus || 35) / 100,
+      herbal: (profile?.flavorScores?.herbal || 35) / 100,
+      bitter: (profile?.flavorScores?.bitter || 35) / 100,
+      sweet: (profile?.flavorScores?.sweet || 35) / 100,
+      smoky: (profile?.flavorScores?.smoky || 35) / 100,
+      floral: (profile?.flavorScores?.floral || 35) / 100,
+      spiced: (profile?.flavorScores?.spiced || 35) / 100,
+    },
+    spiritWeights: {
+      tequila: (profile?.spiritScores?.tequila || 25) / 100,
+      whiskey: (profile?.spiritScores?.whiskey || 25) / 100,
+      rum: (profile?.spiritScores?.rum || 25) / 100,
+      gin: (profile?.spiritScores?.gin || 25) / 100,
+      vodka: (profile?.spiritScores?.vodka || 25) / 100,
+      brandy: (profile?.spiritScores?.brandy || 25) / 100,
+      liqueurs: (profile?.spiritScores?.liqueurs || 25) / 100,
+      'gin-alternative': 0,
+      'rum-alternative': 0,
+      none: 0,
+    },
+    preferredABV: getABVRangeForPreference(profile?.preferredABV || 'alcoholic'),
+    preferredComplexity: clamp((profile?.complexityScore || 55) / 100),
+  });
+}
 
 export default function RefineYourTasteScreen({ navigation }: Props) {
   const { profile, updateProfile } = usePersonalization();
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [answers, setAnswers] = useState<SurveyAnswers>({});
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [previewCocktails, setPreviewCocktails] = useState<any[]>([]);
-  const [showPreview, setShowPreview] = useState(false);
-  const scrollViewRef = React.useRef<ScrollView>(null);
+  const { user } = useAuth();
+  const { tier } = useUserTier();
+  const [graphData, setGraphData] = useState<any | null>(null);
+  const [occasionMode, setOccasionMode] = useState('casual');
+  const [abvPreference, setAbvPreference] = useState<'zero-proof' | 'low-abv' | 'alcoholic'>('alcoholic');
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
-  const currentQuestion = TASTE_QUESTIONS[currentQuestionIndex];
-  const isLastQuestion = currentQuestionIndex === TASTE_QUESTIONS.length - 1;
-  const progress = ((currentQuestionIndex + 1) / TASTE_QUESTIONS.length) * 100;
-
-  // Scroll to top when question changes
   useEffect(() => {
-    scrollViewRef.current?.scrollTo({ y: 0, animated: true });
-  }, [currentQuestionIndex]);
+    let mounted = true;
 
-  // Pre-fill answers from existing profile
-  useEffect(() => {
-    if (profile) {
-      const prefilledAnswers: SurveyAnswers = {};
+    (async () => {
+      try {
+        setLoading(true);
+        const dbProfile = user?.id ? await loadUserProfile(user.id).catch(() => null) : null;
+        const baseGraph =
+          dbProfile?.tasteProfile
+            ? initializeTasteGraph(dbProfile.tasteProfile)
+            : buildGraphFromPersonalization(profile);
 
-      if (profile.favoriteSpirits?.length) {
-        prefilledAnswers['q8'] = profile.favoriteSpirits;
+        if (!mounted) return;
+        setGraphData(baseGraph);
+        setOccasionMode(dbProfile?.moodPreferences?.forYouOccasionMode || 'casual');
+        setAbvPreference(
+          dbProfile?.tasteProfile?.preferredABV
+            ? abvPreferenceFromRange(dbProfile.tasteProfile.preferredABV)
+            : (profile?.preferredABV || 'alcoholic')
+        );
+      } finally {
+        if (mounted) setLoading(false);
       }
-      if (profile.flavorPreferences?.length) {
-        prefilledAnswers['q11'] = profile.flavorPreferences;
-      }
-      if (profile.preferredABV) {
-        prefilledAnswers['q9'] = profile.preferredABV;
-      }
+    })();
 
-      setAnswers(prefilledAnswers);
-    }
-  }, [profile]);
-
-  const handleAnswer = (value: string | string[]) => {
-    const newAnswers = {
-      ...answers,
-      [currentQuestion.id]: value,
+    return () => {
+      mounted = false;
     };
-    setAnswers(newAnswers);
+  }, [profile, user?.id]);
 
-    // Auto-advance for single-select questions
-    if (currentQuestion.type === 'mcq') {
-      setTimeout(() => {
-        if (isLastQuestion) {
-          // Generate preview before completing
-          generatePreview(newAnswers);
-        } else {
-          setCurrentQuestionIndex((prev) => prev + 1);
-        }
-      }, 400);
-    }
-  };
+  const radar = useMemo(() => (graphData ? generateRadarChart(graphData) : null), [graphData]);
+  const effectiveProfile = useMemo(() => (graphData ? getEffectiveTasteProfile(graphData) : null), [graphData]);
 
-  const handleMultiSelectToggle = (value: string) => {
-    const currentAnswers = Array.isArray(answers[currentQuestion.id]) ? answers[currentQuestion.id] as string[] : [];
-    let newAnswers: string[];
+  const previewCocktails = useMemo(() => {
+    if (!graphData || !effectiveProfile) return [];
 
-    if (currentAnswers.includes(value)) {
-      newAnswers = currentAnswers.filter((v) => v !== value);
-    } else {
-      newAnswers = [...currentAnswers, value];
-    }
+    const previewProfile = createDefaultUserProfile(user?.id || 'guest');
+    previewProfile.tasteProfile = effectiveProfile;
+    previewProfile.preferredABVRange = effectiveProfile.preferredABV;
+    previewProfile.favoriteSpirit = orderedTopKeys(effectiveProfile.spiritWeights, 1)[0] as any;
+    previewProfile.spiritPreferences = orderedTopKeys(effectiveProfile.spiritWeights, 3) as any;
+    previewProfile.flavorProfiles = orderedTopKeys(effectiveProfile.flavorWeights, 3) as any;
 
-    setAnswers((prev) => ({
-      ...prev,
-      [currentQuestion.id]: newAnswers,
-    }));
-  };
+    const predictions = getPredictiveRecommendations(
+      ALL_COCKTAILS as any,
+      previewProfile as any,
+      graphData,
+      {
+        timeOfDay: detectTimeOfDay(),
+        season: detectSeason(),
+        inventory: [],
+        recentScans: [],
+      },
+      8
+    );
 
-  // Generate preview cocktails based on current answers
-  const generatePreview = (currentAnswers: SurveyAnswers) => {
-    const spiritPrefs = (currentAnswers['q8'] as string[]) || [];
-    const flavorPrefs = (currentAnswers['q11'] as string[]) || [];
-    const abvPref = (currentAnswers['q9'] as string) || '';
-
-    log.info('RefineYourTaste', 'Generating preview', { spiritPrefs, flavorPrefs, abvPref, totalCocktails: ALL_COCKTAILS.length });
-
-    // Score cocktails based on available answers
-    const scoredCocktails = ALL_COCKTAILS.map(cocktail => {
-      let score = 0;
-
-      // Spirit matching (if spirits selected)
-      if (spiritPrefs.length > 0) {
-        const cocktailSpirit = cocktail.base?.toLowerCase();
-        if (cocktailSpirit && spiritPrefs.includes(cocktailSpirit)) {
-          const index = spiritPrefs.indexOf(cocktailSpirit);
-          score += (90 - index * 10); // 90 for first choice, 80 for second, etc.
-        }
-      }
-
-      // Flavor matching (if flavors selected)
-      if (flavorPrefs.length > 0) {
-        flavorPrefs.forEach(flavor => {
-          const flavorInDescription = cocktail.description?.toLowerCase().includes(flavor) ||
-                                     cocktail.subtitle?.toLowerCase().includes(flavor);
-          if (flavorInDescription) {
-            score += 15;
-          }
-        });
-      }
-
-      // ABV matching (if selected)
-      if (abvPref) {
-        const isLowABV = cocktail.description?.toLowerCase().includes('low') ||
-                         cocktail.subtitle?.toLowerCase().includes('light');
-        const isMocktail = cocktail.description?.toLowerCase().includes('non-alcoholic') ||
-                           cocktail.tags?.includes('mocktail');
-
-        if (abvPref === 'zero-proof' && isMocktail) score += 20;
-        else if (abvPref === 'low-abv' && isLowABV) score += 20;
-        else if (abvPref === 'alcoholic' && !isMocktail && !isLowABV) score += 20;
-      }
-
-      return { cocktail, score };
+    const ranked = predictions.slice().sort((a, b) => {
+      const aOccasionBoost = String(a.description || a.subtitle || '').toLowerCase().includes(occasionMode) ? 1 : 0;
+      const bOccasionBoost = String(b.description || b.subtitle || '').toLowerCase().includes(occasionMode) ? 1 : 0;
+      return bOccasionBoost - aOccasionBoost;
     });
 
-    // Get top 3 cocktails
-    const topCocktails = scoredCocktails
-      .filter(item => item.score > 0)
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 3)
-      .map(item => item.cocktail);
+    return ranked.slice(0, 4);
+  }, [graphData, effectiveProfile, user?.id, occasionMode]);
 
-    log.info('RefineYourTaste', 'Preview generated', {
-      cocktailCount: topCocktails.length,
-      cocktails: topCocktails.map(c => ({ name: c.name || c.title, score: scoredCocktails.find(s => s.cocktail === c)?.score }))
-    });
+  const topFlavors = useMemo(
+    () => (effectiveProfile ? orderedTopKeys(effectiveProfile.flavorWeights, 3) : []),
+    [effectiveProfile]
+  );
 
-    if (topCocktails.length > 0) {
-      setPreviewCocktails(topCocktails);
-      setShowPreview(true);
-    } else {
-      // If no matches found, just complete without preview
-      log.warn('RefineYourTaste', 'No cocktails matched preferences, skipping preview');
-      handleComplete(currentAnswers);
-    }
-    // Preview will stay visible until user clicks "Continue"
+  const topSpirits = useMemo(
+    () => (effectiveProfile ? orderedTopKeys(effectiveProfile.spiritWeights, 3) : []),
+    [effectiveProfile]
+  );
+
+  const adjustFlavor = (flavor: string, delta: number) => {
+    if (!graphData) return;
+    const current = graphData.overrides?.flavors?.[flavor] ?? graphData.rawProfile.flavorWeights?.[flavor] ?? 0.3;
+    setGraphData(setFlavorOverride(graphData, flavor as any, clamp(current + delta)));
   };
 
-  const canProceed = () => {
-    const answer = answers[currentQuestion.id];
-    if (!answer) return false;
-
-    if (currentQuestion.type === 'multi-select') {
-      return Array.isArray(answer) && answer.length > 0;
-    }
-
-    return true;
+  const adjustSpirit = (spirit: string, delta: number) => {
+    if (!graphData) return;
+    const current = graphData.overrides?.spirits?.[spirit] ?? graphData.rawProfile.spiritWeights?.[spirit] ?? 0.25;
+    setGraphData(setSpiritOverride(graphData, spirit as any, clamp(current + delta)));
   };
 
-  const handleNext = () => {
-    if (isLastQuestion) {
-      // Generate preview after last question
-      generatePreview(answers);
-    } else {
-      setCurrentQuestionIndex((prev) => prev + 1);
-    }
-  };
-
-  const handleBack = () => {
-    if (currentQuestionIndex > 0) {
-      setCurrentQuestionIndex((prev) => prev - 1);
-    } else if (navigation.canGoBack()) {
-      navigation.goBack();
-    }
-  };
-
-  const handleComplete = async (finalAnswers: SurveyAnswers) => {
-    setIsSubmitting(true);
+  const handleSave = async () => {
+    if (!graphData || !effectiveProfile) return;
+    setSaving(true);
 
     try {
-      // Extract values from survey answers
-      const spiritPrefs = (finalAnswers['q8'] as string[]) || [];
-      const flavorPrefs = (finalAnswers['q11'] as string[]) || [];
-      const abvPref = (finalAnswers['q9'] as string) || 'alcoholic';
+      const nextABV = getABVRangeForPreference(abvPreference);
+      const finalTasteProfile = {
+        ...effectiveProfile,
+        preferredABV: nextABV,
+      };
 
-      // Build flavor scores (equal weight for now, Phase 2 will enhance this)
-      const flavorScores: Record<string, number> = {};
-      flavorPrefs.forEach((flavor) => {
-        flavorScores[flavor] = 80; // Base preference score
-      });
-
-      // Build spirit scores
-      const spiritScores: Record<string, number> = {};
-      spiritPrefs.forEach((spirit, index) => {
-        // Higher score for earlier selections (user's top choices)
-        spiritScores[spirit] = 90 - index * 10;
-      });
-
-      // Update personalization profile
-      log.info('RefineYourTaste', 'Updating profile with new preferences', {
-        favoriteSpirits: spiritPrefs,
-        flavorPreferences: flavorPrefs,
-        preferredABV: abvPref,
-      });
+      const favoriteSpirits = orderedTopKeys(finalTasteProfile.spiritWeights, 3);
+      const flavorPreferences = orderedTopKeys(finalTasteProfile.flavorWeights, 4);
+      const flavorScores = Object.fromEntries(
+        Object.entries(finalTasteProfile.flavorWeights).map(([key, value]) => [key, Math.round((value as number) * 100)])
+      );
+      const spiritScores = Object.fromEntries(
+        Object.entries(finalTasteProfile.spiritWeights).map(([key, value]) => [key, Math.round((value as number) * 100)])
+      );
 
       await updateProfile({
-        favoriteSpirits: spiritPrefs,
-        flavorPreferences: flavorPrefs,
+        favoriteSpirits,
+        flavorPreferences,
         flavorScores,
         spiritScores,
-        preferredABV: abvPref as any,
-        preferredDifficulty: ['Easy', 'Medium'], // Default difficulty preferences
+        preferredABV: abvPreference,
+        complexityScore: Math.round(finalTasteProfile.preferredComplexity * 100),
         lastSurveyUpdate: Date.now(),
       });
 
-      log.info('RefineYourTaste', 'Profile updated successfully');
+      if (user?.id) {
+        await updateUserProfileFields(user.id, {
+          tasteProfile: finalTasteProfile as any,
+          preferredABVRange: nextABV as any,
+          favoriteSpirit: favoriteSpirits[0] as any,
+          spiritPreferences: favoriteSpirits as any,
+          flavorProfiles: flavorPreferences as any,
+          moodPreferences: {
+            forYouOccasionMode: occasionMode,
+          } as any,
+        } as any);
+      }
 
-      // Track analytics
-      trackEvent('taste_profile_updated', {
-        spirits_count: spiritPrefs.length,
-        flavors_count: flavorPrefs.length,
-        abv_preference: abvPref,
+      trackEvent('taste_graph_updated', {
+        occasion_mode: occasionMode,
+        top_spirit: favoriteSpirits[0],
+        top_flavor: flavorPreferences[0],
+        abv_preference: abvPreference,
       });
 
-      // Navigate back without alert
       navigation.goBack();
     } catch (error) {
-      log.error('RefineYourTasteScreen', 'Failed to update taste profile', error as Error);
-      Alert.alert(
-        'Error',
-        'Failed to update your taste profile. Please try again.',
-        [{ text: 'OK' }]
-      );
+      log.error('RefineYourTasteScreen', 'Failed to save Pro taste settings', error as Error);
+      Alert.alert('Error', 'We could not save your Pro taste settings. Please try again.');
     } finally {
-      setIsSubmitting(false);
+      setSaving(false);
     }
   };
 
-  const renderQuestion = () => {
-    const currentAnswer = answers[currentQuestion.id];
-
-    // Safety check - ensure options exist
-    if (!currentQuestion.options || !Array.isArray(currentQuestion.options)) {
-      return null;
-    }
-
-    switch (currentQuestion.type) {
-      case 'mcq':
-        return (
-          <View style={styles.optionsContainer}>
-            {currentQuestion.options.map((option) => (
-              <Pressable
-                key={option.value}
-                style={[
-                  styles.option,
-                  currentAnswer === option.value && styles.selectedOption,
-                ]}
-                onPress={() => handleAnswer(option.value)}
-              >
-                {/* Show image if available, otherwise show emoji */}
-                {option.spiritKey && spiritImages[option.spiritKey] ? (
-                  <Image
-                    source={spiritImages[option.spiritKey]}
-                    style={styles.optionImage}
-                  />
-                ) : option.flavorKey && flavorImages[option.flavorKey] ? (
-                  <Image
-                    source={flavorImages[option.flavorKey]}
-                    style={styles.optionImage}
-                  />
-                ) : (
-                  <Text style={styles.optionEmoji}>{option.emoji}</Text>
-                )}
-                <Text
-                  style={[
-                    styles.optionText,
-                    currentAnswer === option.value && styles.selectedOptionText,
-                  ]}
-                >
-                  {option.label}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-        );
-
-      case 'multi-select':
-        const multiAnswers = Array.isArray(currentAnswer) ? currentAnswer : [];
-        return (
-          <>
-            <View style={styles.optionsContainer}>
-              {currentQuestion.options.map((option) => {
-                const isSelected = multiAnswers.includes(option.value);
-                return (
-                  <Pressable
-                    key={option.value}
-                    style={[styles.option, isSelected && styles.selectedOption]}
-                    onPress={() => handleMultiSelectToggle(option.value)}
-                  >
-                    {/* Show image if available, otherwise show emoji */}
-                    {option.spiritKey && spiritImages[option.spiritKey] ? (
-                      <Image
-                        source={spiritImages[option.spiritKey]}
-                        style={styles.optionImage}
-                      />
-                    ) : option.flavorKey && flavorImages[option.flavorKey] ? (
-                      <Image
-                        source={flavorImages[option.flavorKey]}
-                        style={styles.optionImage}
-                      />
-                    ) : (
-                      <Text style={styles.optionEmoji}>{option.emoji}</Text>
-                    )}
-                    <Text
-                      style={[
-                        styles.optionText,
-                        isSelected && styles.selectedOptionText,
-                      ]}
-                    >
-                      {option.label}
-                    </Text>
-                    <View style={styles.checkboxContainer}>
-                      {isSelected && (
-                        <Ionicons name="checkmark-circle" size={24} color={colors.accent} />
-                      )}
-                      {!isSelected && (
-                        <Ionicons
-                          name="checkmark-circle-outline"
-                          size={24}
-                          color={colors.line}
-                        />
-                      )}
-                    </View>
-                  </Pressable>
-                );
-              })}
-            </View>
-
-            <Pressable
-              style={[styles.nextButton, !canProceed() && styles.disabledButton]}
-              onPress={handleNext}
-              disabled={!canProceed()}
-            >
-              <Text style={styles.nextButtonText}>
-                {isLastQuestion ? 'Complete' : 'Next Question'}
-              </Text>
-              <Ionicons
-                name={isLastQuestion ? 'checkmark' : 'arrow-forward'}
-                size={20}
-                color={colors.white}
-              />
-            </Pressable>
-          </>
-        );
-
-      default:
-        return null;
-    }
-  };
-
-  // Guard against undefined currentQuestion
-  if (!currentQuestion) {
+  if (loading || !graphData || !radar) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.loadingOverlay}>
+        <View style={styles.loadingWrap}>
           <ActivityIndicator size="large" color={colors.accent} />
+          <Text style={styles.loadingText}>Building your Taste Graph...</Text>
         </View>
       </SafeAreaView>
     );
@@ -489,108 +283,182 @@ export default function RefineYourTasteScreen({ navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
-        <Pressable onPress={handleBack} style={styles.backButton}>
+        <Pressable onPress={() => navigation.goBack()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color={colors.text} />
         </Pressable>
-        <Text style={styles.headerTitle}>Refine Your Taste</Text>
-        <View style={styles.headerSpacer} />
-      </View>
-
-      {/* Progress Bar */}
-      <View style={styles.progressBarContainer}>
-        <View style={[styles.progressBar, { width: `${progress}%` }]} />
-      </View>
-      <Text style={styles.progressText}>
-        Question {currentQuestionIndex + 1} of {TASTE_QUESTIONS.length}
-      </Text>
-
-      {/* Question Content */}
-      <ScrollView
-        ref={scrollViewRef}
-        style={styles.content}
-        contentContainerStyle={styles.contentContainer}
-        showsVerticalScrollIndicator={false}
-      >
-        <Text style={styles.sectionLabel}>{currentQuestion.section}</Text>
-        <Text style={styles.questionText}>{currentQuestion.question}</Text>
-        {currentQuestion.subtitle && (
-          <Text style={styles.subtitleText}>{currentQuestion.subtitle}</Text>
-        )}
-
-        {renderQuestion()}
-      </ScrollView>
-
-      {/* Loading Overlay */}
-      {isSubmitting && (
-        <View style={styles.loadingOverlay}>
-          <ActivityIndicator size="large" color={colors.accent} />
-          <Text style={styles.loadingText}>Updating your profile...</Text>
+        <Text style={styles.headerTitle}>Taste Graph</Text>
+        <View style={styles.headerPill}>
+          <Text style={styles.headerPillText}>{tier === 'PRO' ? 'Craft Identity' : 'Profile'}</Text>
         </View>
-      )}
+      </View>
 
-      {/* Preview Screen - Full Screen After Completion */}
-      {showPreview && previewCocktails.length > 0 && (
-        <View style={styles.previewOverlay}>
-          <View style={styles.previewFullContainer}>
-            <Text style={styles.previewHeader}>Your Recommended Cocktails</Text>
-            <Text style={styles.previewSubheader}>
-              Based on your taste profile
-            </Text>
-
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.previewScrollContent}
-              style={styles.previewScroll}
-            >
-              {previewCocktails.map((cocktail, index) => {
-                const recipeCardData = {
-                  id: cocktail.id || `preview-${index}`,
-                  name: cocktail.name || cocktail.title,
-                  title: cocktail.title || cocktail.name,
-                  subtitle: cocktail.subtitle || cocktail.description,
-                  description: cocktail.description || cocktail.subtitle,
-                  image: cocktail.image,
-                  difficulty: cocktail.difficulty || 'Medium',
-                  time: cocktail.time || '5 min',
-                  category: cocktail.category || 'cocktail',
-                  ingredients: cocktail.ingredients || [],
-                  instructions: cocktail.instructions || [],
-                  base: cocktail.base,
-                  tags: cocktail.tags || [],
-                };
-
-                return (
-                  <View key={index} style={styles.previewCardWrapper}>
-                    <RecipeCard
-                      {...createRecipeCardProps(recipeCardData, navigation, {
-                        showSaveButton: false,
-                        showCartButton: false,
-                        showDeleteButton: false,
-                      })}
-                      onPress={() => handleRecipeView(recipeCardData, navigation)}
-                    />
-                  </View>
-                );
-              })}
-            </ScrollView>
-
-            <TouchableOpacity
-              style={styles.previewContinueButton}
-              onPress={() => {
-                setShowPreview(false);
-                handleComplete(answers);
-              }}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.previewContinueText}>Continue</Text>
-              <Ionicons name="arrow-forward" size={20} color={colors.white} />
-            </TouchableOpacity>
+      <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer} showsVerticalScrollIndicator={false}>
+        <View style={styles.heroCard}>
+          <Text style={styles.heroEyebrow}>KOOPE Pro</Text>
+          <Text style={styles.heroTitle}>Shape how KOOPE thinks your palate works.</Text>
+          <Text style={styles.heroBody}>
+            Adjust your flavor graph, choose the mode you are drinking for, and your For You feed will lean into that identity.
+          </Text>
+          <View style={styles.heroStatsRow}>
+            <View style={styles.heroStatCard}>
+              <Text style={styles.heroStatLabel}>Confidence</Text>
+              <Text style={styles.heroStatValue}>{Math.round(radar.dataConfidence * 100)}%</Text>
+            </View>
+            <View style={styles.heroStatCard}>
+              <Text style={styles.heroStatLabel}>Engagement</Text>
+              <Text style={styles.heroStatValue}>{radar.engagementScore}</Text>
+            </View>
+            <View style={styles.heroStatCard}>
+              <Text style={styles.heroStatLabel}>ABV Mode</Text>
+              <Text style={styles.heroStatValueSmall}>{ABV_MODES.find((item) => item.key === abvPreference)?.title}</Text>
+            </View>
           </View>
         </View>
-      )}
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Tonight's Mode</Text>
+          <Text style={styles.sectionSubtitle}>Use occasion modes to shift the tone of your recommendations before you even search.</Text>
+          {OCCASION_MODES.map((mode) => {
+            const active = occasionMode === mode.key;
+            return (
+              <TouchableOpacity
+                key={mode.key}
+                style={[styles.modeCard, active && styles.modeCardActive]}
+                onPress={() => setOccasionMode(mode.key)}
+              >
+                <View style={styles.modeHeader}>
+                  <Text style={[styles.modeTitle, active && styles.modeTitleActive]}>{mode.title}</Text>
+                  {active && <Ionicons name="checkmark-circle" size={18} color={colors.accent} />}
+                </View>
+                <Text style={styles.modeBody}>{mode.body}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Flavor Sliders</Text>
+          <Text style={styles.sectionSubtitle}>Manual controls sit on top of what KOOPE has learned, so your graph stays personal instead of generic.</Text>
+          {FLAVOR_KEYS.map((item) => {
+            const point = radar.flavorPoints.find((entry) => entry.label.toLowerCase() === item.label.toLowerCase());
+            const value = point?.value || 0;
+            return (
+              <View key={item.key} style={styles.sliderCard}>
+                <View style={styles.sliderHeader}>
+                  <Text style={styles.sliderLabel}>{item.label}</Text>
+                  <Text style={styles.sliderValue}>{Math.round(value * 100)}%</Text>
+                </View>
+                <View style={styles.sliderTrack}>
+                  <View style={[styles.sliderFill, { width: `${Math.max(6, Math.round(value * 100))}%` }]} />
+                </View>
+                <View style={styles.sliderActions}>
+                  <TouchableOpacity style={styles.adjustButton} onPress={() => adjustFlavor(item.key, -0.08)}>
+                    <Ionicons name="remove" size={16} color={colors.text} />
+                  </TouchableOpacity>
+                  <Text style={styles.sliderHint}>{point?.isOverridden ? 'Manual override active' : 'Learned from your behavior'}</Text>
+                  <TouchableOpacity style={styles.adjustButton} onPress={() => adjustFlavor(item.key, 0.08)}>
+                    <Ionicons name="add" size={16} color={colors.text} />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            );
+          })}
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Spirit Bias</Text>
+          <Text style={styles.sectionSubtitle}>Give more weight to the spirits you want KOOPE to privilege in your feed.</Text>
+          {SPIRIT_KEYS.map((item) => {
+            const point = radar.spiritPoints.find((entry) => entry.label.toLowerCase() === item.label.toLowerCase());
+            const value = point?.value || 0;
+            return (
+              <View key={item.key} style={styles.sliderCard}>
+                <View style={styles.sliderHeader}>
+                  <Text style={styles.sliderLabel}>{item.label}</Text>
+                  <Text style={styles.sliderValue}>{Math.round(value * 100)}%</Text>
+                </View>
+                <View style={styles.sliderTrack}>
+                  <View style={[styles.sliderFill, { width: `${Math.max(6, Math.round(value * 100))}%` }]} />
+                </View>
+                <View style={styles.sliderActions}>
+                  <TouchableOpacity style={styles.adjustButton} onPress={() => adjustSpirit(item.key, -0.08)}>
+                    <Ionicons name="remove" size={16} color={colors.text} />
+                  </TouchableOpacity>
+                  <Text style={styles.sliderHint}>Confidence {Math.round((point?.confidence || 0) * 100)}%</Text>
+                  <TouchableOpacity style={styles.adjustButton} onPress={() => adjustSpirit(item.key, 0.08)}>
+                    <Ionicons name="add" size={16} color={colors.text} />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            );
+          })}
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>ABV Preference</Text>
+          <View style={styles.abvRow}>
+            {ABV_MODES.map((item) => {
+              const active = abvPreference === item.key;
+              return (
+                <TouchableOpacity
+                  key={item.key}
+                  style={[styles.abvChip, active && styles.abvChipActive]}
+                  onPress={() => setAbvPreference(item.key as any)}
+                >
+                  <Text style={[styles.abvChipText, active && styles.abvChipTextActive]}>{item.title}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Your Current Identity</Text>
+          <View style={styles.identityCard}>
+            <Text style={styles.identityLine}>Top spirits: {topSpirits.map((item) => item.charAt(0).toUpperCase() + item.slice(1)).join(', ') || 'Still learning'}</Text>
+            <Text style={styles.identityLine}>Top flavors: {topFlavors.map((item) => item.charAt(0).toUpperCase() + item.slice(1)).join(', ') || 'Still learning'}</Text>
+            <Text style={styles.identityLine}>Occasion mode: {occasionMode.charAt(0).toUpperCase() + occasionMode.slice(1)}</Text>
+          </View>
+        </View>
+
+        {previewCocktails.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Preview Your Next For You Drop</Text>
+            <Text style={styles.sectionSubtitle}>These are the kinds of cocktails your current graph is pushing to the top.</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.previewScroll}>
+              {previewCocktails.map((cocktail, index) => (
+                <View key={cocktail.id || index} style={styles.previewCardWrap}>
+                  <RecipeCard
+                    {...createRecipeCardProps(cocktail, navigation, {
+                      showSaveButton: false,
+                      showCartButton: false,
+                      showDeleteButton: false,
+                    })}
+                    onPress={() => handleRecipeView(cocktail, navigation)}
+                  />
+                </View>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
+        <View style={styles.footerActions}>
+          <TouchableOpacity style={styles.secondaryButton} onPress={() => setGraphData(clearOverrides(graphData))}>
+            <Text style={styles.secondaryButtonText}>Reset Overrides</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.primaryButton} onPress={handleSave} disabled={saving}>
+            {saving ? (
+              <ActivityIndicator size="small" color={colors.white} />
+            ) : (
+              <>
+                <Text style={styles.primaryButtonText}>Save Taste Graph</Text>
+                <Ionicons name="arrow-forward" size={18} color={colors.white} />
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -599,6 +467,16 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.bg,
+  },
+  loadingWrap: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing(1.5),
+  },
+  loadingText: {
+    color: colors.subtext,
+    fontSize: 15,
   },
   header: {
     flexDirection: 'row',
@@ -614,189 +492,267 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: fonts.h3,
-    fontWeight: '700',
+    fontWeight: '800',
     color: colors.text,
   },
-  headerSpacer: {
-    width: 40,
+  headerPill: {
+    paddingHorizontal: spacing(1.25),
+    paddingVertical: spacing(0.65),
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: `${colors.accent}55`,
+    backgroundColor: `${colors.accent}12`,
   },
-  progressBarContainer: {
-    height: 4,
-    backgroundColor: colors.line,
-    marginHorizontal: spacing(2),
-    marginTop: spacing(2),
-    borderRadius: 2,
-    overflow: 'hidden',
-  },
-  progressBar: {
-    height: '100%',
-    backgroundColor: colors.accent,
-    borderRadius: 2,
-  },
-  progressText: {
-    fontSize: fonts.caption,
-    color: colors.subtext,
-    textAlign: 'center',
-    marginTop: spacing(1),
-    marginBottom: spacing(2),
+  headerPillText: {
+    color: colors.accent,
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
   },
   content: {
     flex: 1,
   },
   contentContainer: {
-    paddingHorizontal: spacing(2),
-    paddingBottom: spacing(4),
+    padding: spacing(2),
+    gap: spacing(2.25),
+    paddingBottom: spacing(6),
   },
-  sectionLabel: {
-    fontSize: fonts.caption,
+  heroCard: {
+    backgroundColor: colors.card,
+    borderRadius: radii.xl,
+    borderWidth: 1,
+    borderColor: `${colors.accent}40`,
+    padding: spacing(2.5),
+    gap: spacing(1.25),
+  },
+  heroEyebrow: {
     color: colors.accent,
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+  },
+  heroTitle: {
+    color: colors.text,
+    fontSize: 28,
+    fontWeight: '800',
+    fontFamily: serif,
+    lineHeight: 34,
+  },
+  heroBody: {
+    color: colors.subtext,
+    fontSize: 14,
+    lineHeight: 21,
+  },
+  heroStatsRow: {
+    flexDirection: 'row',
+    gap: spacing(1),
+  },
+  heroStatCard: {
+    flex: 1,
+    backgroundColor: colors.bg,
+    borderRadius: radii.lg,
+    padding: spacing(1.5),
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
+  heroStatLabel: {
+    color: colors.subtext,
+    fontSize: 11,
     fontWeight: '700',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
-    marginBottom: spacing(1),
+    marginBottom: spacing(0.5),
   },
-  questionText: {
-    fontSize: fonts.h2,
-    fontWeight: '800',
+  heroStatValue: {
     color: colors.text,
-    marginBottom: spacing(1),
-    lineHeight: 32,
+    fontSize: 22,
+    fontWeight: '800',
   },
-  subtitleText: {
-    fontSize: fonts.body,
+  heroStatValueSmall: {
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  section: {
+    gap: spacing(1),
+  },
+  sectionTitle: {
+    color: colors.text,
+    fontSize: 20,
+    fontWeight: '800',
+  },
+  sectionSubtitle: {
     color: colors.subtext,
-    marginBottom: spacing(3),
-    lineHeight: 22,
+    fontSize: 13,
+    lineHeight: 18,
   },
-  optionsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-  },
-  option: {
-    flexDirection: 'column',
-    alignItems: 'center',
+  modeCard: {
     backgroundColor: colors.card,
     borderRadius: radii.lg,
-    padding: spacing(2),
-    borderWidth: 2,
+    borderWidth: 1,
     borderColor: colors.line,
-    width: '48.5%',
-    aspectRatio: 0.85,
-    marginBottom: spacing(1.5),
+    padding: spacing(1.75),
+    gap: spacing(0.5),
   },
-  selectedOption: {
-    backgroundColor: colors.accentBg,
+  modeCardActive: {
+    borderColor: colors.accent,
+    backgroundColor: `${colors.accent}12`,
+  },
+  modeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  modeTitle: {
+    color: colors.text,
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  modeTitleActive: {
+    color: colors.accent,
+  },
+  modeBody: {
+    color: colors.subtext,
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  sliderCard: {
+    backgroundColor: colors.card,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.line,
+    padding: spacing(1.5),
+    gap: spacing(0.9),
+  },
+  sliderHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  sliderLabel: {
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  sliderValue: {
+    color: colors.accent,
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  sliderTrack: {
+    height: 8,
+    borderRadius: radii.pill,
+    backgroundColor: colors.line,
+    overflow: 'hidden',
+  },
+  sliderFill: {
+    height: '100%',
+    borderRadius: radii.pill,
+    backgroundColor: colors.accent,
+  },
+  sliderActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing(1),
+  },
+  adjustButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: colors.bg,
+    borderWidth: 1,
+    borderColor: colors.line,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sliderHint: {
+    flex: 1,
+    textAlign: 'center',
+    color: colors.subtext,
+    fontSize: 12,
+  },
+  abvRow: {
+    flexDirection: 'row',
+    gap: spacing(0.75),
+  },
+  abvChip: {
+    flex: 1,
+    paddingVertical: spacing(1.1),
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: colors.line,
+    alignItems: 'center',
+    backgroundColor: colors.card,
+  },
+  abvChipActive: {
+    backgroundColor: colors.accent,
     borderColor: colors.accent,
   },
-  optionEmoji: {
-    fontSize: 64,
-    marginTop: spacing(2),
-  },
-  optionImage: {
-    width: '100%',
-    flex: 1,
-    resizeMode: 'cover',
-  },
-  optionText: {
-    fontSize: fonts.body,
-    fontWeight: '600',
+  abvChipText: {
     color: colors.text,
-    textAlign: 'center',
-    marginTop: spacing(1.5),
-  },
-  selectedOptionText: {
-    color: colors.accent,
+    fontSize: 12,
     fontWeight: '700',
   },
-  checkboxContainer: {
-    position: 'absolute',
-    top: spacing(1.5),
-    right: spacing(1.5),
+  abvChipTextActive: {
+    color: colors.white,
   },
-  nextButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.accent,
+  identityCard: {
+    backgroundColor: colors.card,
     borderRadius: radii.lg,
-    paddingVertical: spacing(2),
-    paddingHorizontal: spacing(3),
-    marginTop: spacing(3),
-    gap: spacing(1),
+    borderWidth: 1,
+    borderColor: colors.line,
+    padding: spacing(1.75),
+    gap: spacing(0.75),
   },
-  disabledButton: {
-    backgroundColor: colors.line,
-    opacity: 0.5,
-  },
-  nextButtonText: {
-    fontSize: fonts.body,
-    fontWeight: '700',
-    color: colors.white,
-  },
-  loadingOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing(2),
-  },
-  loadingText: {
-    fontSize: fonts.body,
-    fontWeight: '600',
-    color: colors.white,
-  },
-  previewOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: colors.bg,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: spacing(3),
-  },
-  previewFullContainer: {
-    width: '100%',
-    flex: 1,
-    justifyContent: 'center',
-  },
-  previewHeader: {
-    fontSize: fonts.h2,
-    fontWeight: '700',
+  identityLine: {
     color: colors.text,
-    textAlign: 'center',
-    marginBottom: spacing(1),
-  },
-  previewSubheader: {
-    fontSize: fonts.body,
-    color: colors.subtext,
-    textAlign: 'center',
-    marginBottom: spacing(3),
+    fontSize: 14,
+    lineHeight: 20,
   },
   previewScroll: {
-    flexGrow: 0,
+    gap: spacing(1.5),
+    paddingRight: spacing(1),
   },
-  previewScrollContent: {
-    paddingHorizontal: spacing(2),
-    gap: spacing(2),
+  previewCardWrap: {
+    width: 270,
+    marginRight: spacing(1.5),
   },
-  previewCardWrapper: {
-    width: 280,
-    marginRight: spacing(2),
-  },
-  previewContinueButton: {
+  footerActions: {
     flexDirection: 'row',
+    gap: spacing(1),
+    marginTop: spacing(1),
+  },
+  secondaryButton: {
+    flex: 1,
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: colors.line,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: spacing(1),
-    backgroundColor: colors.accent,
-    paddingVertical: spacing(2),
-    paddingHorizontal: spacing(3),
-    borderRadius: radii.lg,
-    marginTop: spacing(4),
-    marginHorizontal: spacing(2),
+    paddingVertical: spacing(1.5),
+    backgroundColor: colors.card,
   },
-  previewContinueText: {
-    fontSize: fonts.body,
+  secondaryButtonText: {
+    color: colors.text,
+    fontSize: 14,
     fontWeight: '700',
+  },
+  primaryButton: {
+    flex: 1.3,
+    borderRadius: radii.pill,
+    backgroundColor: colors.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing(1.5),
+    flexDirection: 'row',
+    gap: spacing(0.75),
+  },
+  primaryButtonText: {
     color: colors.white,
+    fontSize: 14,
+    fontWeight: '800',
   },
 });

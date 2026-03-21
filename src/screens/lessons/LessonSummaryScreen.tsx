@@ -31,6 +31,8 @@ import { useEngagement } from '../../store/useEngagement';
 import { getLessonRecipeReward } from '../../config/lessonRewards';
 import { ALL_COCKTAILS } from '../../data/cocktails';
 import { getUnlocksForLesson } from '../../config/unlockContent';
+import { getCollectibleRecipeCardBySlug } from '../../data/recipeCards';
+import { useSavedItems } from '../../hooks/useSavedItems';
 
 type LessonSummaryScreenProps = {
   navigation: CompositeNavigationProp<
@@ -59,11 +61,26 @@ export default function LessonSummaryScreen({ navigation, route }: LessonSummary
   const { completedLessons } = useUser();
   const { balance: totalXP } = useXPSystem();
   const { unlockRecipe, isRecipeUnlocked } = useEngagement();
+  const { toggleSavedRecipeCard, isRecipeCardSaved } = useSavedItems();
   const [newlyUnlockedRecipeIds, setNewlyUnlockedRecipeIds] = useState<string[]>([]);
   const lessonReward = useMemo(() => getLessonRecipeReward(lessonId), [lessonId]);
   const deckReward = useMemo(
     () => getUnlocksForLesson(lessonId).find((unlock) => unlock.status === 'ready' && unlock.format === 'mini_deck' && unlock.assetSlug),
     [lessonId]
+  );
+  const recipeCardReward = useMemo(
+    () =>
+      getUnlocksForLesson(lessonId).find(
+        (unlock) =>
+          unlock.status === 'ready' &&
+          (unlock.format === 'premium_recipe_card' || unlock.format === 'mixology_recipe_card') &&
+          unlock.assetSlug
+      ),
+    [lessonId]
+  );
+  const collectibleRecipeCard = useMemo(
+    () => getCollectibleRecipeCardBySlug(recipeCardReward?.assetSlug),
+    [recipeCardReward?.assetSlug]
   );
   const unlockedRewardRecipes = useMemo(
     () => ALL_COCKTAILS.filter((cocktail) => newlyUnlockedRecipeIds.includes(cocktail.id)),
@@ -166,6 +183,18 @@ export default function LessonSummaryScreen({ navigation, route }: LessonSummary
         : 'You unlocked a new recipe from this checkpoint.'
     );
   }, [firstCompletion, isRecipeUnlocked, lessonReward, unlockRecipe]);
+
+  useEffect(() => {
+    if (!firstCompletion || !collectibleRecipeCard) return;
+    if (isRecipeCardSaved(collectibleRecipeCard.id)) return;
+
+    toggleSavedRecipeCard({
+      id: collectibleRecipeCard.id,
+      name: collectibleRecipeCard.title,
+      subtitle: collectibleRecipeCard.subtitle,
+      image: collectibleRecipeCard.heroImage,
+    });
+  }, [collectibleRecipeCard, firstCompletion, isRecipeCardSaved, toggleSavedRecipeCard]);
 
   const handleContinue = () => {
     if (isFirstLesson) {
@@ -356,6 +385,30 @@ export default function LessonSummaryScreen({ navigation, route }: LessonSummary
                   }}
                 >
                   <Text style={styles.rewardButtonText}>Open Field Guide</Text>
+                </Pressable>
+              </View>
+            </>
+          ) : null}
+
+          {collectibleRecipeCard ? (
+            <>
+              <Text style={[styles.sectionTitle, { fontFamily: serifFont }]}>Collectible Card</Text>
+              <View style={styles.rewardCard}>
+                <View style={styles.rewardHeader}>
+                  <View style={styles.rewardBadge}>
+                    <Ionicons name={collectibleRecipeCard.type === 'mixology' ? 'flask-outline' : 'ribbon-outline'} size={18} color={colors.accent} />
+                    <Text style={styles.rewardBadgeText}>
+                      {collectibleRecipeCard.type === 'mixology' ? 'Mixology Recipe Card' : 'Premium Recipe Card'}
+                    </Text>
+                  </View>
+                </View>
+                <Text style={styles.rewardTitle}>{collectibleRecipeCard.title}</Text>
+                <Text style={styles.rewardDescription}>{recipeCardReward?.description || collectibleRecipeCard.unlockLabel}</Text>
+                <Pressable
+                  style={styles.rewardButton}
+                  onPress={() => navigation.navigate('RecipeCardDetail', { cardId: collectibleRecipeCard.id })}
+                >
+                  <Text style={styles.rewardButtonText}>Open Premium Card</Text>
                 </Pressable>
               </View>
             </>

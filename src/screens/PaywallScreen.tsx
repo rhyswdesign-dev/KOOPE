@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * KOOPE PREMIUM PAYWALL
  *
@@ -29,6 +28,7 @@ import { useSubscription } from '../contexts/SubscriptionContext';
 import { trackEvent, ANALYTICS_EVENTS, ANALYTICS_PROPS } from '../lib/analytics';
 import { log } from '../lib/logger';
 import { PRICING_DISPLAY, SUBSCRIPTION_PRODUCTS } from '../constants/subscriptions';
+import { PAYWALL_TRIGGERS } from '../config/paywallTriggers';
 
 const getSafeAreaTop = () => Platform.OS === 'ios' ? 50 : (StatusBar.currentHeight || 24);
 const HERO_IMAGE = require('../../assets/images/branding/MMS Backsplash.png');
@@ -64,6 +64,7 @@ interface PaywallScreenProps {
       offering?: string | null;
       displayCloseButton?: boolean;
       source?: string;
+      triggerId?: string;
     };
   };
 }
@@ -87,6 +88,13 @@ interface FeatureBenefit {
   icon: keyof typeof Ionicons.glyphMap;
   title: string;
   description: string;
+}
+
+interface TierNarrative {
+  tierLabel: string;
+  roleLabel: string;
+  headline: string;
+  subtitle: string;
 }
 
 // ============================================================================
@@ -183,6 +191,21 @@ const PRO_FEATURES: FeatureBenefit[] = [
   },
 ];
 
+const TIER_NARRATIVES: Record<TierTab, TierNarrative> = {
+  koope_plus: {
+    tierLabel: 'KŌOPE+',
+    roleLabel: 'Bar Builder',
+    headline: 'Build the bar you actually run through the app',
+    subtitle: 'Unlimited inventory, full recipe access, bar health, optimizer tools, and hosting basics for real habit-forming use.',
+  },
+  koope_pro: {
+    tierLabel: 'KŌOPE PRO',
+    roleLabel: 'Craft Identity',
+    headline: 'Give your bar a taste identity and premium intelligence',
+    subtitle: 'Taste Graph, predictive recommendations, advanced hosting, mastery, and prestige layers that make KŌOPE feel personal.',
+  },
+};
+
 const getAnnualSavingsPercent = (plans: PlanOption[]): number | null => {
   const annual = plans.find((p) => p.billingPeriod === 'yearly');
   const monthly = plans.find((p) => p.billingPeriod === 'monthly');
@@ -217,6 +240,7 @@ export default function PaywallScreen({ route }: PaywallScreenProps) {
 
   const displayCloseButton = route?.params?.displayCloseButton !== false;
   const source = route?.params?.source || 'unknown';
+  const trigger = route?.params?.triggerId ? PAYWALL_TRIGGERS[route.params.triggerId] : undefined;
 
   const plansFromOfferings = useMemo(() => {
     const packages = offerings?.current?.availablePackages || [];
@@ -309,7 +333,8 @@ export default function PaywallScreen({ route }: PaywallScreenProps) {
   const plans = selectedTier === 'koope_plus' ? plansFromOfferings.plusPlans : plansFromOfferings.proPlans;
   const features = selectedTier === 'koope_plus' ? PLUS_FEATURES : PRO_FEATURES;
   const tierColor = colors.gold;
-  const tierName = selectedTier === 'koope_plus' ? 'KŌOPE+' : 'KŌOPE PRO';
+  const narrative = TIER_NARRATIVES[selectedTier];
+  const tierName = narrative.tierLabel;
   const isLoading = subscriptionLoading && !offerings;
   const annualSavingsPercent = useMemo(() => getAnnualSavingsPercent(plans), [plans]);
   const usingLivePlans = useMemo(
@@ -333,7 +358,9 @@ export default function PaywallScreen({ route }: PaywallScreenProps) {
         pkg.identifier === productId ||
         pkg.identifier?.toLowerCase?.().includes(productId.toLowerCase())
     );
-    return Boolean(yearlyPkg?.product?.introductoryPrice);
+    return Boolean(
+      (yearlyPkg?.product as { introductoryPrice?: unknown } | undefined)?.introductoryPrice
+    );
   }, [offerings, selectedTier]);
 
   const isTrialEligible = hasTrialAvailable && selectedPlan.billingPeriod === 'yearly';
@@ -537,7 +564,7 @@ export default function PaywallScreen({ route }: PaywallScreenProps) {
             styles.tierTabText,
             selectedTier === 'koope_plus' && { color: colors.gold },
           ]}>
-            KŌOPE+
+            Scanner to Bar Builder
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -548,7 +575,7 @@ export default function PaywallScreen({ route }: PaywallScreenProps) {
             styles.tierTabText,
             selectedTier === 'koope_pro' && { color: colors.gold },
           ]}>
-            KŌOPE PRO
+            Craft Identity
           </Text>
         </TouchableOpacity>
       </View>
@@ -562,18 +589,26 @@ export default function PaywallScreen({ route }: PaywallScreenProps) {
         <View style={styles.heroSection}>
           <ImageBackground source={HERO_IMAGE} style={styles.heroImageCard} imageStyle={styles.heroImage}>
             <View style={styles.heroOverlay} />
+            <View style={styles.heroPill}>
+              <Text style={styles.heroPillText}>{narrative.roleLabel}</Text>
+            </View>
             <Text style={styles.heroTitle}>
-              {selectedTier === 'koope_plus'
-                ? 'Build your ideal home bar'
-                : 'Level up your bartending'}
+              {narrative.headline}
             </Text>
-            <Text style={styles.heroSubtitle}>
-              {selectedTier === 'koope_plus'
-                ? 'Scan, track, and get personalized cocktails instantly.'
-                : 'Master recipes, hosting, and advanced taste intelligence.'}
-            </Text>
+            <Text style={styles.heroSubtitle}>{narrative.subtitle}</Text>
           </ImageBackground>
         </View>
+
+        {trigger && (
+          <View style={styles.contextCard}>
+            <View style={styles.contextHeader}>
+              <Ionicons name="sparkles-outline" size={16} color={colors.gold} />
+              <Text style={styles.contextEyebrow}>Why you are seeing this</Text>
+            </View>
+            <Text style={styles.contextTitle}>{trigger.ctaText}</Text>
+            <Text style={styles.contextBody}>{trigger.message}</Text>
+          </View>
+        )}
 
         {/* Founders Urgency Banner — shown when fewer than 300 founders have subscribed */}
         {founderCount !== undefined && founderCount < 300 && (
@@ -723,6 +758,23 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(20,13,9,0.38)',
   },
+  heroPill: {
+    alignSelf: 'center',
+    marginBottom: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: 'rgba(26,18,13,0.64)',
+    borderWidth: 1,
+    borderColor: 'rgba(242,229,213,0.22)',
+  },
+  heroPillText: {
+    color: colors.gold,
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+  },
   heroTitle: {
     fontSize: 36,
     fontWeight: '800',
@@ -737,6 +789,38 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.85)',
     lineHeight: 21,
     textAlign: 'center',
+  },
+  contextCard: {
+    marginHorizontal: 20,
+    marginTop: 14,
+    padding: 16,
+    borderRadius: 18,
+    backgroundColor: 'rgba(242,229,213,0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(242,229,213,0.12)',
+    gap: 6,
+  },
+  contextHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  contextEyebrow: {
+    fontSize: 11,
+    color: colors.gold,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  contextTitle: {
+    fontSize: 18,
+    color: colors.text,
+    fontWeight: '800',
+  },
+  contextBody: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: colors.subtext,
   },
 
   // Founders Banner

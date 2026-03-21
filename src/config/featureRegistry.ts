@@ -89,7 +89,10 @@ export type FeatureKey =
 
   // Education
   | 'education_full'
-  | 'lessons_unlimited';
+  | 'lessons_unlimited'
+  | 'premium_serve_guidance'
+  | 'premium_serve_education'
+  | 'premium_serve_personalization';
 
 export interface FeatureDefinition {
   /** Minimum tier required to access this feature */
@@ -532,6 +535,27 @@ export const FEATURE_REGISTRY: Record<FeatureKey, FeatureDefinition> = {
     displayName: 'Unlimited Lessons',
     description: 'Access all cocktail lessons and masterclasses.',
     paywallTarget: 'plus',
+    category: 'education',
+  },
+  premium_serve_guidance: {
+    minTier: 'FREE',
+    displayName: 'Premium Serve Guidance',
+    description: 'Get basic guidance for how to enjoy premium bottles after scanning.',
+    paywallTarget: 'plus',
+    category: 'education',
+  },
+  premium_serve_education: {
+    minTier: 'PLUS',
+    displayName: 'Premium Tasting Education',
+    description: 'Unlock deeper serving and tasting guidance for premium spirits.',
+    paywallTarget: 'plus',
+    category: 'education',
+  },
+  premium_serve_personalization: {
+    minTier: 'PRO',
+    displayName: 'Personalized Serve Intelligence',
+    description: 'Get premium bottle guidance tailored to your preferences and palate.',
+    paywallTarget: 'pro',
     category: 'education',
   },
 };

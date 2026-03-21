@@ -53,7 +53,8 @@ export default function ProfileScreen() {
   const unlockedAchievementCount = achievements.filter(a => a.unlocked).length;
   const savedCocktailCount = savedItems.savedCocktails?.length || 0;
   const savedDrinkCount = savedItems.savedDrinks?.length || 0;
-  const savedTotalCount = savedCocktailCount + savedDrinkCount;
+  const savedRecipeCardCount = savedItems.savedRecipeCards?.length || 0;
+  const savedTotalCount = savedCocktailCount + savedDrinkCount + savedRecipeCardCount;
   const createdRecipeCount = recipes.filter(r => r.type === 'created' || r.type === 'ai_generated').length;
   const importedRecipeCount = recipes.filter(r => (r.type as string) === 'imported').length;
 

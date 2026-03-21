@@ -238,6 +238,8 @@ function ExpiryView({
   onToggleNotify,
   onOpenHacks,
   onRemoveItem,
+  onUpgrade,
+  onPlanUseFirst,
 }: {
   hasAccess: boolean;
   candidates: ExpiryCandidate[];
@@ -245,6 +247,8 @@ function ExpiryView({
   onToggleNotify: (next: boolean) => void;
   onOpenHacks: (item: ExpiryCandidate) => void;
   onRemoveItem: (item: ExpiryCandidate) => void;
+  onUpgrade: () => void;
+  onPlanUseFirst: () => void;
 }) {
   const urgentCount = candidates.filter((c) => c.daysLeft <= 2).length;
 
@@ -272,6 +276,17 @@ function ExpiryView({
           thumbColor={notifyEnabled ? colors.accent : colors.subtext}
         />
       </View>
+
+      <Pressable style={styles.actionCard} onPress={onPlanUseFirst}>
+        <View style={styles.actionCardHeader}>
+          <Ionicons name="sparkles-outline" size={16} color={colors.accent} />
+          <Text style={styles.actionCardEyebrow}>Use-first move</Text>
+        </View>
+        <Text style={styles.actionCardTitle}>Turn expiring ingredients into a small-host menu.</Text>
+        <Text style={styles.actionCardBody}>
+          Use Hosting to build a 1-4 guest plan around what should be poured first, not forgotten in the back of the bar.
+        </Text>
+      </Pressable>
 
       <Text style={styles.sectionLabel}>USE FIRST</Text>
       {candidates.length === 0 && (
@@ -321,10 +336,10 @@ function ExpiryView({
       })}
 
       {!hasAccess && (
-        <View style={styles.upgradeCard}>
+        <Pressable style={styles.upgradeCard} onPress={onUpgrade}>
           <Ionicons name="lock-closed" size={20} color={colors.accent} />
           <Text style={styles.upgradeText}>Upgrade to PLUS to unlock full shelf-life guidance and suggestions.</Text>
-        </View>
+        </Pressable>
       )}
     </>
   );
@@ -340,11 +355,16 @@ function HealthView({
   hasAccess,
   coverage,
   onAddPossibleAddition,
+  onUpgrade,
+  onOpenOptimizer,
 }: {
   hasAccess: boolean;
   coverage: ReturnType<typeof buildCoverage>;
   onAddPossibleAddition: (name: string) => void;
+  onUpgrade: () => void;
+  onOpenOptimizer: () => void;
 }) {
+  const topAddition = coverage.essentials[0];
   return (
     <>
       <View style={styles.scoreHeroCard}>
@@ -360,6 +380,27 @@ function HealthView({
           </View>
         </View>
       </View>
+
+      {topAddition && (
+        <Pressable style={styles.actionCard} onPress={hasAccess ? () => onAddPossibleAddition(topAddition.name) : onUpgrade}>
+          <View style={styles.actionCardHeader}>
+            <Ionicons name="bar-chart-outline" size={16} color={colors.accent} />
+            <Text style={styles.actionCardEyebrow}>Best next move</Text>
+          </View>
+          <Text style={styles.actionCardTitle}>{topAddition.name} is your clearest reach unlock right now.</Text>
+          <Text style={styles.actionCardBody}>
+            {hasAccess
+              ? `Add it to your shopping list now and unlock roughly ${topAddition.unlocks} more recipe paths.`
+              : 'KŌOPE+ shows which additions give your bar the biggest jump in cocktail reach.'}
+          </Text>
+          {hasAccess && (
+            <TouchableOpacity style={styles.actionInlineButton} onPress={onOpenOptimizer}>
+              <Ionicons name="arrow-forward-circle-outline" size={16} color={colors.accent} />
+              <Text style={styles.actionInlineButtonText}>Open full optimizer</Text>
+            </TouchableOpacity>
+          )}
+        </Pressable>
+      )}
 
       <Text style={styles.sectionLabel}>COVERAGE BY CATEGORY</Text>
       {coverage.categories.map((cat) => (
@@ -404,10 +445,10 @@ function HealthView({
       )}
 
       {!hasAccess && (
-        <View style={styles.upgradeCard}>
+        <Pressable style={styles.upgradeCard} onPress={onUpgrade}>
           <Ionicons name="lock-closed" size={20} color={colors.accent} />
           <Text style={styles.upgradeText}>Upgrade to PLUS to unlock possible additions and full optimization.</Text>
-        </View>
+        </Pressable>
       )}
     </>
   );
@@ -419,8 +460,8 @@ export default function InventoryInsightsScreen() {
   const mode: InsightMode = route.params?.mode ?? 'health';
   const { user } = useAuth();
 
-  const { hasAccess: hasExpiryAccess } = useFeatureAccess('expiry_alerts');
-  const { hasAccess: hasHealthAccess } = useFeatureAccess('bar_health_score');
+  const { hasAccess: hasExpiryAccess, gateWithTrigger: expiryGate } = useFeatureAccess('expiry_alerts');
+  const { hasAccess: hasHealthAccess, gateWithTrigger: healthGate } = useFeatureAccess('bar_health_score');
 
   const [loading, setLoading] = useState(true);
   const [inventory, setInventory] = useState<InventoryLite[]>([]);
@@ -592,9 +633,11 @@ export default function InventoryInsightsScreen() {
               hasAccess={hasAccess}
               candidates={expiryCandidates}
               notifyEnabled={notifyEnabled}
-              onToggleNotify={handleToggleNotify}
+            onToggleNotify={handleToggleNotify}
               onOpenHacks={(item) => setSelectedHackItem(item)}
               onRemoveItem={handleRemoveItem}
+              onUpgrade={() => expiryGate('T4')}
+              onPlanUseFirst={() => nav.navigate('Hosting')}
             />
           )}
           {mode === 'health' && (
@@ -602,6 +645,8 @@ export default function InventoryInsightsScreen() {
               hasAccess={hasAccess}
               coverage={coverage}
               onAddPossibleAddition={handleAddPossibleAddition}
+              onUpgrade={() => healthGate('T4')}
+              onOpenOptimizer={() => nav.navigate('BarOptimizer')}
             />
           )}
           <View style={{ height: spacing(4) }} />
@@ -695,6 +740,49 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing(1.5),
     marginBottom: spacing(0.5),
+  },
+  actionCard: {
+    backgroundColor: colors.card,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: colors.line,
+    padding: spacing(1.75),
+    gap: spacing(0.75),
+    marginBottom: spacing(0.5),
+  },
+  actionCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(0.75),
+  },
+  actionCardEyebrow: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: colors.accent,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+  },
+  actionCardTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: colors.text,
+  },
+  actionCardBody: {
+    fontSize: 13,
+    color: colors.subtext,
+    lineHeight: 18,
+  },
+  actionInlineButton: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(0.5),
+    marginTop: spacing(0.25),
+  },
+  actionInlineButtonText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: colors.accent,
   },
   notifyTitle: {
     color: colors.text,

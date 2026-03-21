@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * REQUIRE PRESTIGE COMPONENT
  * Subscription gate that redirects to paywall if user is not Prestige
@@ -6,8 +5,10 @@
 
 import React, { useEffect, useRef } from 'react';
 import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSubscription } from '../contexts/SubscriptionContext';
 import { log } from '../lib/logger';
+import type { RootStackParamList } from '../navigation/RootNavigator';
 
 interface RequirePrestigeProps {
   children: React.ReactNode;
@@ -28,7 +29,7 @@ interface RequirePrestigeProps {
  * ```
  */
 export default function RequirePrestige({ children }: RequirePrestigeProps) {
-  const navigation = useNavigation();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { isPrestige, isLoading } = useSubscription();
   const hasNavigatedRef = useRef(false);
 
@@ -45,14 +46,15 @@ export default function RequirePrestige({ children }: RequirePrestigeProps) {
     }
 
     // Get current route name to prevent loops
-    const currentRoute = navigation.getState().routes[navigation.getState().index];
+    const navState = navigation.getState();
+    const currentRoute = navState.routes[navState.index];
     const isOnPaywall = currentRoute?.name === 'Paywall';
 
     // User doesn't have access - redirect to paywall (if not already there)
     if (!hasNavigatedRef.current && !isOnPaywall) {
       hasNavigatedRef.current = true;
       log.info('RequirePrestige', 'Access denied - redirecting to Paywall');
-      navigation.navigate('Paywall' as never, { source: 'prestige_gate' } as never);
+      navigation.navigate('Paywall', { source: 'prestige_gate' });
     }
   }, [isPrestige, isLoading, navigation]);
 

@@ -83,6 +83,13 @@ const TITLE_CASE_WHITELIST = new Set([
   'garnish',
 ]);
 
+const INGREDIENT_PHRASE_REPLACEMENTS: Array<[RegExp, string]> = [
+  [/\bcreme de cacao\b/gi, 'Crème de cacao'],
+  [/\bcreme de menthe\b/gi, 'Crème de menthe'],
+  [/\bcreme de violette\b/gi, 'Crème de violette'],
+  [/\bcafe\b/gi, 'Cafe'],
+];
+
 function titleCaseToken(token: string): string {
   if (!token) return token;
   if (/^\d/.test(token)) return token;
@@ -100,7 +107,7 @@ function normalizeIngredientName(raw: string): string {
   const trimmed = raw.trim().replace(/\s+/g, ' ');
   if (!trimmed) return trimmed;
 
-  return trimmed
+  const titleCased = trimmed
     .split(' ')
     .map((part) => {
       if (part.includes('-')) {
@@ -112,16 +119,28 @@ function normalizeIngredientName(raw: string): string {
       return titleCaseToken(part);
     })
     .join(' ');
+
+  return INGREDIENT_PHRASE_REPLACEMENTS.reduce(
+    (value, [pattern, replacement]) => value.replace(pattern, replacement),
+    titleCased
+  );
 }
 
 function normalizeIngredientNote(rawNote: string | undefined): string | undefined {
   if (!rawNote) return rawNote;
-  return rawNote
+  const normalized = rawNote
     .replace(/^for garnish\b/i, 'For garnish')
     .replace(/^optional\b/i, 'Optional')
     .replace(/^freshly squeezed\b/i, 'Freshly squeezed')
     .replace(/^quality matters\b/i, 'Quality matters')
+    .replace(/^fresh only\b/i, 'Fresh only')
+    .replace(/^to sweeten\b/i, 'To sweeten')
+    .replace(/^for glass\b/i, 'For glass')
     .trim();
+
+  if (!normalized) return undefined;
+  if (/^\(.*\)$/.test(normalized)) return normalized;
+  return normalized;
 }
 
 function parseFractionToken(value: string): number | null {

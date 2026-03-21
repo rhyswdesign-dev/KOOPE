@@ -10,7 +10,7 @@ import ProfileStack from './ProfileStack';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/tokens';
 import OfflineIndicator from '../components/OfflineIndicator';
-import { useNavigation } from '@react-navigation/native';
+import { getFocusedRouteNameFromRoute, useNavigation } from '@react-navigation/native';
 import TutorialIconButton from '../components/tour/TutorialIconButton';
 import { triggerHaptic } from '../lib/haptics';
 import type { ScreenTourId } from '../config/screenTours';
@@ -24,6 +24,12 @@ type TabsParamList = {
   Profile: undefined;
 };
 const Tab = createBottomTabNavigator<TabsParamList>();
+
+const CAMERA_FULLSCREEN_ROUTES = new Set([
+  'SmartScan',
+  'BottleDetail',
+  'ManualBottleEntry',
+]);
 
 export default function Tabs() {
   const navigation = useNavigation();
@@ -74,7 +80,20 @@ export default function Tabs() {
       >
         <Tab.Screen name="Lessons" component={LessonsStack} />
         <Tab.Screen name="Recipes" component={RecipesStack} options={{ tabBarLabel: 'Discover' }} />
-        <Tab.Screen name="Camera" component={CameraStack} />
+        <Tab.Screen
+          name="Camera"
+          component={CameraStack}
+          options={({ route }) => {
+            const focusedRoute = getFocusedRouteNameFromRoute(route) ?? 'CameraHub';
+            const hideTabBar = CAMERA_FULLSCREEN_ROUTES.has(focusedRoute);
+
+            return {
+              tabBarStyle: hideTabBar
+                ? { display: 'none' }
+                : { backgroundColor: colors.card, borderTopColor: 'transparent' },
+            };
+          }}
+        />
         <Tab.Screen name="Inventory" component={InventoryStack} />
         <Tab.Screen name="Profile" component={ProfileStack} />
       </Tab.Navigator>
