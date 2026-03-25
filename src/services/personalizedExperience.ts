@@ -310,10 +310,22 @@ function generateCocktailRecommendations(profile: UserPersonalizationProfile): A
     }
 
     // ABV preference (20% weight)
-    const isLowABV = cocktail.description?.toLowerCase().includes('low') ||
-                     cocktail.subtitle?.toLowerCase().includes('light');
-    const isMocktail = cocktail.description?.toLowerCase().includes('non-alcoholic') ||
-                       cocktail.tags?.includes('mocktail');
+    const description = String(cocktail.description || '').toLowerCase();
+    const subtitle = String(cocktail.subtitle || '').toLowerCase();
+    const base = String(cocktail.base || cocktail.baseSpirit || '').toLowerCase();
+    const recipeType = String(cocktail.recipeType || '').toLowerCase();
+    const tags = Array.isArray(cocktail.tags) ? cocktail.tags.map((tag: string) => String(tag).toLowerCase()) : [];
+
+    const isLowABV = description.includes('low') || subtitle.includes('light');
+    const isMocktail =
+      base === 'zero-proof' ||
+      recipeType === 'mocktail' ||
+      tags.includes('mocktail') ||
+      description.includes('non-alcoholic') ||
+      description.includes('alcohol-free') ||
+      description.includes('zero-proof') ||
+      subtitle.includes('zero-proof') ||
+      cocktail.abv === 0;
 
     if (profile.preferredABV === 'zero-proof' && isMocktail) {
       score += 20;

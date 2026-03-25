@@ -54,6 +54,7 @@ const DEFAULT_TRIGGER_BY_FEATURE: Partial<Record<FeatureKey, string>> = {
   predictive_engine: 'T9',
   mastery_lessons: 'T10',
   vault_pro_drops: 'T11',
+  cellar_mode: 'T11',
   adjustable_flavor_controls: 'T12',
   predictive_restock: 'T13',
 };

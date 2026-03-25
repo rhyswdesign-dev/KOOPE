@@ -139,7 +139,7 @@ export default function VaultScreen() {
             onPress={() => {
               Alert.alert(
                 'How the Vault Works',
-                'XP (Experience Points):\n• Earn XP by completing lessons and challenges\n• Use XP to unlock exclusive recipes, techniques, and games\n\nSubscription Tiers:\n• FREE: Limited access, earn XP to unlock select items\n• KOOPE+ ($8.99/mo): Unlock ALL Vault content with XP\n• KOOPE PRO ($17.99/mo): PLUS benefits + accelerated XP earning\n\nTip: Complete daily lessons to maximize your XP earnings!',
+                'XP (Experience Points):\n• Earn XP by completing lessons, challenges, and identity-track progress\n• Use XP to unlock master recipes, advanced technique playbooks, and collector-tier drops\n\nSubscription Tiers:\n• FREE: Limited access, earn XP to unlock select Vault items\n• KOOPE+ ($8.99/mo): Unlock the full Vault library with XP\n• KOOPE PRO ($17.99/mo): PLUS benefits + accelerated XP earning, elite drops, and early-access prestige content\n\nTip: Claiming your weekly Pro drops and finishing lessons helps your Vault identity compound faster.',
                 [{ text: 'Got it!', style: 'default' }]
               );
             }}
@@ -229,13 +229,16 @@ export default function VaultScreen() {
     <View>
       {/* Collection Header */}
       <View style={styles.collectionHeader}>
-        <View style={styles.collectionInfo}>
+          <View style={styles.collectionInfo}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5), marginBottom: spacing(0.5) }}>
             <Text style={styles.collectionTitle}>{currentVaultCycle.name}</Text>
             <TierBadge tier={tier} size="small" />
           </View>
           <Text style={styles.collectionSubtitle}>
             Resets in {countdown.days}D {countdown.hours}H {countdown.minutes}M
+          </Text>
+          <Text style={styles.collectionSupportText}>
+            Master recipes, rotating elite drops, and premium playbooks built for serious collectors.
           </Text>
         </View>
         
@@ -895,6 +898,14 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.accent,
     fontWeight: '600',
+  },
+  
+  collectionSupportText: {
+    fontSize: 13,
+    lineHeight: 18,
+    color: colors.subtext,
+    marginTop: spacing(1),
+    maxWidth: '92%',
   },
   
   quickStats: {

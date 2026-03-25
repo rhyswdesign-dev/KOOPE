@@ -78,6 +78,8 @@ import ReferralScreen from '../screens/ReferralScreen';
 import TutorialsScreen from '../screens/TutorialsScreen';
 import UnlockDeckScreen from '../screens/UnlockDeckScreen';
 import RecipeCardDetailScreen from '../screens/RecipeCardDetailScreen';
+import TheCellarScreen from '../screens/TheCellarScreen';
+import CellarBottleDetailScreen from '../screens/CellarBottleDetailScreen';
 import { useCartSync } from '../hooks/useCartSync';
 import TutorialIconButton from '../components/tour/TutorialIconButton';
 import type { ScreenTourId } from '../config/screenTours';
@@ -100,6 +102,7 @@ export type RootStackParamList = {
   SkylineLounge: undefined;
   TheTikiHut: undefined;
   TheWineCellar: undefined;
+  CellarBottleDetail: { inventoryItemId: string };
   TheHiddenFlask: undefined;
   CopperMoon: undefined;
   NeonNights: undefined;
@@ -142,7 +145,7 @@ export type RootStackParamList = {
   Survey: undefined;
   SurveyResults: { answers: any };
   RefineYourTaste: undefined;
-  OnboardingPreview: undefined;
+  OnboardingPreview: { preview?: boolean } | undefined;
   // Commerce screens
   Pricing: undefined;
   Cart: undefined;
@@ -296,13 +299,16 @@ export default function RootNavigator({ initialRouteName = 'Main' }: RootNavigat
         headerTitleStyle: components.headerText,
         headerShadowVisible: false,
       })} />
-      <Stack.Screen name="TheWineCellar" component={LegacyRemovedContentScreen} options={() => ({ 
+      <Stack.Screen name="TheWineCellar" component={TheCellarScreen} options={() => ({ 
         headerShown: true, 
-        title: 'The Wine Cellar',
+        title: 'The Cellar',
         headerStyle: components.header,
         headerTintColor: colors.headerText,
         headerTitleStyle: components.headerText,
         headerShadowVisible: false,
+      })} />
+      <Stack.Screen name="CellarBottleDetail" component={CellarBottleDetailScreen} options={() => ({
+        headerShown: false,
       })} />
       <Stack.Screen name="TheHiddenFlask" options={() => ({
         headerShown: true,

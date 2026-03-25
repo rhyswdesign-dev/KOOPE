@@ -142,6 +142,12 @@ export class InventoryService {
     imageUrl?: string;
     subcategory?: string;
     brand?: string;
+    abv?: number;
+    volume?: number;
+    region?: string;
+    flavorTags?: string[];
+    tastingNotes?: string;
+    serveGuidance?: string;
     notes?: string;
   }): Promise<{ success: boolean; duplicate: boolean }> {
     try {
@@ -163,6 +169,12 @@ export class InventoryService {
         image_url: params.imageUrl || null,
         subcategory: params.subcategory || null,
         brand: params.brand || null,
+        abv: params.abv ?? null,
+        volume: params.volume ?? null,
+        region: params.region || null,
+        flavor_tags: params.flavorTags || null,
+        tasting_notes: params.tastingNotes || null,
+        serve_guidance: params.serveGuidance || null,
         notes: params.notes || null,
       };
 
@@ -179,7 +191,7 @@ export class InventoryService {
         const missingColumnMatch =
           error?.code === 'PGRST204' &&
           typeof error?.message === 'string'
-            ? error.message.match(/Could not find the '([^']+)' column/i)
+            ? error.message.match(/Could not find the ['"]([^'"]+)['"] column/i)
             : null;
 
         const missingColumn = missingColumnMatch?.[1];
@@ -319,6 +331,14 @@ export class InventoryService {
     updates: {
       isFavorite?: boolean;
       notes?: string;
+      quantity?: string;
+      expiryDate?: string;
+      purchasePrice?: number | null;
+      acquiredAt?: string | null;
+      drinkingWindowStart?: string | null;
+      drinkingWindowEnd?: string | null;
+      cellarNotes?: string | null;
+      valuationEstimate?: number | null;
     }
   ): Promise<boolean> {
     try {
@@ -329,6 +349,30 @@ export class InventoryService {
       }
       if (updates.notes !== undefined) {
         updatePayload.notes = updates.notes || null;
+      }
+      if (updates.quantity !== undefined) {
+        updatePayload.quantity = updates.quantity || null;
+      }
+      if (updates.expiryDate !== undefined) {
+        updatePayload.expiry_date = updates.expiryDate || null;
+      }
+      if (updates.purchasePrice !== undefined) {
+        updatePayload.purchase_price = updates.purchasePrice ?? null;
+      }
+      if (updates.acquiredAt !== undefined) {
+        updatePayload.acquired_at = updates.acquiredAt || null;
+      }
+      if (updates.drinkingWindowStart !== undefined) {
+        updatePayload.drinking_window_start = updates.drinkingWindowStart || null;
+      }
+      if (updates.drinkingWindowEnd !== undefined) {
+        updatePayload.drinking_window_end = updates.drinkingWindowEnd || null;
+      }
+      if (updates.cellarNotes !== undefined) {
+        updatePayload.cellar_notes = updates.cellarNotes || null;
+      }
+      if (updates.valuationEstimate !== undefined) {
+        updatePayload.valuation_estimate = updates.valuationEstimate ?? null;
       }
 
       if (Object.keys(updatePayload).length === 0) {

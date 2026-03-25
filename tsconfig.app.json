@@ -1,0 +1,33 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "skipLibCheck": true
+  },
+  "include": [
+    "App.tsx",
+    "index.tsx",
+    "src/**/*.ts",
+    "src/**/*.tsx"
+  ],
+  "exclude": [
+    "node_modules",
+    "android",
+    "ios",
+    "dist",
+    "docs",
+    "scripts",
+    "supabase/functions",
+    "firebase",
+    "@firebase",
+    "MixMind",
+    "src/tests",
+    "src/components/__tests__",
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "**/*.spec.ts",
+    "**/*.spec.tsx",
+    "App.test-backup.tsx",
+    "EXAMPLE_WHAT_CAN_I_MAKE_BUTTON.tsx",
+    "VAULT_EXAMPLE_USAGE.tsx"
+  ]
+}

@@ -14,6 +14,9 @@ import {
   Alert,
   Linking,
   Image,
+  Modal,
+  TextInput,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -109,6 +112,65 @@ function getRespectThisBottleScore(
   return score;
 }
 
+function normalizeInventoryName(value: string): string {
+  return value.toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
+function formatDisplayDate(value?: string | null): string {
+  if (!value) return 'Not set';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
+}
+
+function getSuggestedDrinkingWindow(bottle: any): { start: string; end: string; note: string } {
+  const bottleType = String(bottle.type || bottle.category || '').toLowerCase();
+  const priceTier = String(bottle.priceTier || '').toLowerCase();
+
+  if (['vermouth', 'cream liqueur', 'liqueur'].some((token) => bottleType.includes(token))) {
+    return {
+      start: 'Now',
+      end: 'Within 6 months',
+      note: 'Best enjoyed on the fresher side. Once opened, keep an eye on oxidation and sweetness flattening.',
+    };
+  }
+
+  if (priceTier === 'luxury' || priceTier === 'premium') {
+    return {
+      start: 'Now',
+      end: '2-5 years',
+      note: 'This bottle can sit in the cellar for special pours. Track fill level and heat exposure more than age.',
+    };
+  }
+
+  return {
+    start: 'Now',
+    end: '1-3 years',
+    note: 'Most spirits are shelf-stable, but premium texture and aromatics hold best when stored upright and cool.',
+  };
+}
+
+function getCellarValuation(bottle: any, currency: 'USD' | 'CAD' | 'GBP', purchasePrice?: number | null): number {
+  const estimate = bottle?.priceEstimate?.[currency];
+  const midpoint = estimate ? (estimate.min + estimate.max) / 2 : 0;
+  const priceTier = String(bottle?.priceTier || '').toLowerCase();
+  const multiplier =
+    priceTier === 'luxury' ? 1.16 :
+    priceTier === 'premium' ? 1.08 :
+    priceTier === 'mid' ? 1.02 :
+    0.96;
+
+  if (purchasePrice && purchasePrice > 0) {
+    return Number((purchasePrice * multiplier).toFixed(2));
+  }
+
+  return Number((midpoint * multiplier).toFixed(2));
+}
+
 export default function BottleDetailScreen() {
   const navigation = useNavigation<BottleDetailScreenNavigationProp>();
   const route = useRoute<RouteProp<CameraStackParamList, 'BottleDetail'>>();
@@ -120,15 +182,91 @@ export default function BottleDetailScreen() {
   const { gateWithTrigger: inventoryGate } = useFeatureAccess('inventory_unlimited');
   const { hasAccess: hasPremiumServeEducation } = useFeatureAccess('premium_serve_education');
   const { hasAccess: hasPremiumServePersonalization } = useFeatureAccess('premium_serve_personalization');
+  const { hasAccess: hasCellarMode, gateWithTrigger: cellarModeGate } = useFeatureAccess('cellar_mode');
   const { bottle, imageUri } = route.params;
   const [userCurrency, setUserCurrency] = useState<'USD' | 'CAD' | 'GBP'>('USD');
   const [userRegion, setUserRegion] = useState<string>('');
   const [suggestedCocktails, setSuggestedCocktails] = useState<Array<any & { match: RecipeMatch }>>([]);
   const [loadingCocktails, setLoadingCocktails] = useState(true);
+  const [inventoryItem, setInventoryItem] = useState<UserInventoryItem | null>(null);
+  const [cellarModalVisible, setCellarModalVisible] = useState(false);
+  const [savingCellar, setSavingCellar] = useState(false);
+  const [cellarExpanded, setCellarExpanded] = useState(false);
+  const [purchasePriceInput, setPurchasePriceInput] = useState('');
+  const [acquiredAtInput, setAcquiredAtInput] = useState('');
+  const [windowStartInput, setWindowStartInput] = useState('');
+  const [windowEndInput, setWindowEndInput] = useState('');
+  const [cellarNotesInput, setCellarNotesInput] = useState('');
+  const [selectedQuantity, setSelectedQuantity] = useState<'full' | 'half' | 'low' | 'empty'>('full');
   const serveRecommendation = useMemo(
     () => BottleServeService.getRecommendation(bottle, tier),
     [bottle, tier]
   );
+  const suggestedCellarWindow = useMemo(() => getSuggestedDrinkingWindow(bottle), [bottle]);
+  const cellarValuation = useMemo(
+    () => getCellarValuation(bottle, userCurrency, inventoryItem?.purchase_price ?? null),
+    [bottle, userCurrency, inventoryItem?.purchase_price]
+  );
+
+  const openCellarModal = () => {
+    if (!inventoryItem) return;
+    setPurchasePriceInput(
+      inventoryItem.purchase_price !== null && inventoryItem.purchase_price !== undefined
+        ? String(inventoryItem.purchase_price)
+        : ''
+    );
+    setAcquiredAtInput(
+      inventoryItem.acquired_at
+        ? String(inventoryItem.acquired_at).slice(0, 10)
+        : String(inventoryItem.added_at || '').slice(0, 10)
+    );
+    setWindowStartInput(inventoryItem.drinking_window_start || suggestedCellarWindow.start);
+    setWindowEndInput(inventoryItem.drinking_window_end || suggestedCellarWindow.end);
+    setCellarNotesInput(inventoryItem.cellar_notes || '');
+    setSelectedQuantity(((inventoryItem.quantity as any) || 'full') as 'full' | 'half' | 'low' | 'empty');
+    setCellarModalVisible(true);
+  };
+
+  const handleSaveCellar = async () => {
+    if (!inventoryItem) return;
+
+    const parsedPrice = purchasePriceInput.trim().length > 0 ? Number(purchasePriceInput) : null;
+    if (parsedPrice !== null && Number.isNaN(parsedPrice)) {
+      Alert.alert('Invalid Price', 'Enter a valid number for purchase price.');
+      return;
+    }
+
+    setSavingCellar(true);
+    const nextValuation = getCellarValuation(bottle, userCurrency, parsedPrice);
+    const success = await InventoryService.updateInventoryItem(inventoryItem.id, {
+      quantity: selectedQuantity,
+      purchasePrice: parsedPrice,
+      acquiredAt: acquiredAtInput.trim() || null,
+      drinkingWindowStart: windowStartInput.trim() || null,
+      drinkingWindowEnd: windowEndInput.trim() || null,
+      cellarNotes: cellarNotesInput.trim() || null,
+      valuationEstimate: nextValuation,
+    });
+    setSavingCellar(false);
+
+    if (!success) {
+      Alert.alert('Save Failed', 'Unable to update this bottle in Cellar Mode right now.');
+      return;
+    }
+
+    setInventoryItem((prev) => prev ? {
+      ...prev,
+      quantity: selectedQuantity,
+      purchase_price: parsedPrice,
+      acquired_at: acquiredAtInput.trim() || null,
+      drinking_window_start: windowStartInput.trim() || null,
+      drinking_window_end: windowEndInput.trim() || null,
+      cellar_notes: cellarNotesInput.trim() || null,
+      valuation_estimate: nextValuation,
+    } : prev);
+    setCellarModalVisible(false);
+    Alert.alert('Cellar Updated', 'Your collector details have been saved for this bottle.');
+  };
 
   useEffect(() => {
     // Detect user's currency based on locale
@@ -154,6 +292,10 @@ export default function BottleDetailScreen() {
       try {
         // 1. Fetch user's inventory
         const userInventory = user ? await InventoryService.getUserInventory(user.id) : [];
+        const matchedInventoryItem = userInventory.find((item) =>
+          normalizeInventoryName(item.item_name) === normalizeInventoryName(bottle.name)
+        ) || null;
+        setInventoryItem(matchedInventoryItem);
 
         // 1.5. Create combined inventory including the scanned bottle
         // This allows match calculation to consider cocktails you can make WITH this bottle
@@ -268,6 +410,7 @@ export default function BottleDetailScreen() {
         setSuggestedCocktails(topMatches);
       } catch (error) {
         console.error('Error fetching cocktails:', error);
+        setInventoryItem(null);
         setSuggestedCocktails([]);
       } finally {
         setLoadingCocktails(false);
@@ -305,8 +448,16 @@ export default function BottleDetailScreen() {
       userId: user.id,
       itemType: 'spirit',
       itemName: bottle.name,
-      category: bottle.type,
+      category: bottle.type === 'liqueur' ? 'liqueur' : 'spirit',
       imageUrl: imageUri || undefined,
+      subcategory: bottle.type,
+      brand: bottle.brand,
+      abv: bottle.abv,
+      volume: 750,
+      region: bottle.origin,
+      flavorTags: bottle.flavorProfile,
+      tastingNotes: bottle.tastingNotes,
+      serveGuidance: `${serveRecommendation.heroTitle}. ${serveRecommendation.why} ${serveRecommendation.cocktailUse}`.trim(),
     });
 
     if (result.duplicate) {
@@ -649,7 +800,237 @@ export default function BottleDetailScreen() {
             </TouchableOpacity>
           </View>
         </View>
+
+        <View style={[
+          styles.cellarCard,
+          hasCellarMode ? styles.cellarCardActive : styles.cellarCardLocked,
+        ]}>
+          <View style={styles.cellarHeader}>
+            <View style={styles.cellarHeaderCopy}>
+              <Text style={styles.cellarEyebrow}>Collector Layer</Text>
+              <Text style={styles.cellarTitle}>Cellar Mode</Text>
+              <Text style={styles.cellarSubtitle}>
+                {hasCellarMode
+                  ? 'A secondary collector view for bottles you want to track more deliberately.'
+                  : 'Optional PRO tracking for value, drinking windows, and collector notes once a bottle is in inventory.'}
+              </Text>
+            </View>
+            <View style={styles.cellarHeaderActions}>
+              <View style={styles.cellarBadge}>
+                <Text style={styles.cellarBadgeText}>{hasCellarMode ? 'PRO Active' : 'PRO'}</Text>
+              </View>
+              <TouchableOpacity
+                style={styles.cellarCollapseButton}
+                activeOpacity={0.85}
+                onPress={() => setCellarExpanded((value) => !value)}
+              >
+                <Text style={styles.cellarCollapseButtonText}>
+                  {cellarExpanded ? 'Hide' : 'Expand'}
+                </Text>
+                <Ionicons
+                  name={cellarExpanded ? 'chevron-up' : 'chevron-down'}
+                  size={16}
+                  color={colors.accent}
+                />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {hasCellarMode ? (
+            inventoryItem ? (
+              <>
+                <View style={styles.cellarSummaryRow}>
+                  <View style={styles.cellarSummaryPill}>
+                    <Text style={styles.cellarSummaryLabel}>Value</Text>
+                    <Text style={styles.cellarSummaryValue}>
+                      {userCurrency === 'GBP' ? '£' : '$'}{(inventoryItem.valuation_estimate ?? cellarValuation).toFixed(0)}
+                    </Text>
+                  </View>
+                  <View style={styles.cellarSummaryPill}>
+                    <Text style={styles.cellarSummaryLabel}>Window</Text>
+                    <Text style={styles.cellarSummaryValue}>
+                      {(inventoryItem.drinking_window_end || suggestedCellarWindow.end)}
+                    </Text>
+                  </View>
+                  <View style={styles.cellarSummaryPill}>
+                    <Text style={styles.cellarSummaryLabel}>Qty</Text>
+                    <Text style={styles.cellarSummaryValue}>{String(inventoryItem.quantity || 'full').toUpperCase()}</Text>
+                  </View>
+                </View>
+
+                {cellarExpanded ? (
+                  <>
+                    <View style={styles.cellarMetricsRow}>
+                      <View style={styles.cellarMetric}>
+                        <Text style={styles.cellarMetricLabel}>Estimated Value</Text>
+                        <Text style={styles.cellarMetricValue}>
+                          {userCurrency === 'GBP' ? '£' : '$'}{(inventoryItem.valuation_estimate ?? cellarValuation).toFixed(0)}
+                        </Text>
+                      </View>
+                      <View style={styles.cellarMetric}>
+                        <Text style={styles.cellarMetricLabel}>Acquired</Text>
+                        <Text style={styles.cellarMetricValue}>{formatDisplayDate(inventoryItem.acquired_at || inventoryItem.added_at)}</Text>
+                      </View>
+                      <View style={styles.cellarMetric}>
+                        <Text style={styles.cellarMetricLabel}>Quantity</Text>
+                        <Text style={styles.cellarMetricValue}>{String(inventoryItem.quantity || 'full').toUpperCase()}</Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.cellarWindowCard}>
+                      <Text style={styles.cellarWindowTitle}>Suggested Drinking Window</Text>
+                      <Text style={styles.cellarWindowValue}>
+                        {(inventoryItem.drinking_window_start || suggestedCellarWindow.start)} to {(inventoryItem.drinking_window_end || suggestedCellarWindow.end)}
+                      </Text>
+                      <Text style={styles.cellarWindowNote}>{suggestedCellarWindow.note}</Text>
+                    </View>
+
+                    <View style={styles.cellarNotesCard}>
+                      <Text style={styles.cellarNotesTitle}>Collector Notes</Text>
+                      <Text style={styles.cellarNotesBody}>
+                        {inventoryItem.cellar_notes || 'No collector notes yet. Use Cellar Mode to log purchase context, special occasions, or why this bottle is worth holding.'}
+                      </Text>
+                    </View>
+                  </>
+                ) : null}
+
+                <TouchableOpacity style={styles.cellarButton} onPress={openCellarModal}>
+                  <Ionicons name="library-outline" size={18} color={colors.white} />
+                  <Text style={styles.cellarButtonText}>
+                    {cellarExpanded ? 'Update Cellar Record' : 'Open Cellar Record'}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.cellarSecondaryButton}
+                  onPress={() => navigation.navigate('TheWineCellar')}
+                >
+                  <Ionicons name="wine-outline" size={18} color={colors.accent} />
+                  <Text style={styles.cellarSecondaryButtonText}>Open Cellar Portfolio</Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <View style={styles.cellarEmptyState}>
+                <Text style={styles.cellarEmptyTitle}>Add this bottle to inventory first</Text>
+                <Text style={styles.cellarEmptyBody}>
+                  Once it’s in your bar, Cellar Mode can track acquisition date, value, drinking window, and collector notes.
+                </Text>
+              </View>
+            )
+          ) : (
+            <>
+              {cellarExpanded ? (
+                <View style={styles.cellarWindowCard}>
+                  <Text style={styles.cellarWindowTitle}>Why it matters</Text>
+                  <Text style={styles.cellarWindowNote}>
+                    PRO turns premium bottles into tracked collector references with purchase context, value, and opening guidance.
+                  </Text>
+                </View>
+              ) : null}
+              <TouchableOpacity
+                style={styles.cellarUpgradeButton}
+                onPress={() => cellarModeGate('T11')}
+              >
+                <Ionicons name="diamond-outline" size={18} color={colors.accent} />
+                <Text style={styles.cellarUpgradeButtonText}>Unlock Cellar Mode</Text>
+              </TouchableOpacity>
+            </>
+          )}
+        </View>
       </ScrollView>
+
+      <Modal visible={cellarModalVisible} transparent animationType="fade" onRequestClose={() => setCellarModalVisible(false)}>
+        <View style={styles.cellarModalBackdrop}>
+          <View style={styles.cellarModalCard}>
+            <Text style={styles.cellarModalTitle}>Update Cellar Record</Text>
+            <Text style={styles.cellarModalSubtitle}>
+              Capture what you paid, when you bought it, and how you want to treat this bottle in your collection.
+            </Text>
+
+            <Text style={styles.cellarInputLabel}>Purchase Price ({userCurrency})</Text>
+            <TextInput
+              value={purchasePriceInput}
+              onChangeText={setPurchasePriceInput}
+              placeholder="e.g. 68"
+              placeholderTextColor={colors.subtext}
+              keyboardType="decimal-pad"
+              style={styles.cellarInput}
+            />
+
+            <Text style={styles.cellarInputLabel}>Acquired Date</Text>
+            <TextInput
+              value={acquiredAtInput}
+              onChangeText={setAcquiredAtInput}
+              placeholder="YYYY-MM-DD"
+              placeholderTextColor={colors.subtext}
+              style={styles.cellarInput}
+            />
+
+            <Text style={styles.cellarInputLabel}>Drinking Window</Text>
+            <View style={styles.cellarWindowInputs}>
+              <TextInput
+                value={windowStartInput}
+                onChangeText={setWindowStartInput}
+                placeholder="Start"
+                placeholderTextColor={colors.subtext}
+                style={[styles.cellarInput, styles.cellarWindowInput]}
+              />
+              <TextInput
+                value={windowEndInput}
+                onChangeText={setWindowEndInput}
+                placeholder="End"
+                placeholderTextColor={colors.subtext}
+                style={[styles.cellarInput, styles.cellarWindowInput]}
+              />
+            </View>
+
+            <Text style={styles.cellarInputLabel}>Quantity</Text>
+            <View style={styles.quantityRow}>
+              {(['full', 'half', 'low', 'empty'] as const).map((level) => (
+                <TouchableOpacity
+                  key={level}
+                  style={[
+                    styles.quantityChip,
+                    selectedQuantity === level && styles.quantityChipActive,
+                  ]}
+                  onPress={() => setSelectedQuantity(level)}
+                >
+                  <Text
+                    style={[
+                      styles.quantityChipText,
+                      selectedQuantity === level && styles.quantityChipTextActive,
+                    ]}
+                  >
+                    {level.toUpperCase()}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <Text style={styles.cellarInputLabel}>Collector Notes</Text>
+            <TextInput
+              value={cellarNotesInput}
+              onChangeText={setCellarNotesInput}
+              placeholder="Why you bought it, when to open it, who it’s for..."
+              placeholderTextColor={colors.subtext}
+              multiline
+              style={[styles.cellarInput, styles.cellarNotesInput]}
+            />
+
+            <View style={styles.cellarModalActions}>
+              <TouchableOpacity style={styles.cellarModalSecondary} onPress={() => setCellarModalVisible(false)}>
+                <Text style={styles.cellarModalSecondaryText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.cellarModalPrimary} onPress={handleSaveCellar} disabled={savingCellar}>
+                {savingCellar ? (
+                  <ActivityIndicator color={colors.white} />
+                ) : (
+                  <Text style={styles.cellarModalPrimaryText}>Save</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -933,6 +1314,346 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: colors.subtext,
     lineHeight: 22,
+  },
+  cellarCard: {
+    borderRadius: radii.lg,
+    padding: spacing(2),
+    marginBottom: spacing(3),
+    borderWidth: 1,
+    gap: spacing(1.5),
+  },
+  cellarCardActive: {
+    backgroundColor: `${colors.gold}10`,
+    borderColor: `${colors.gold}36`,
+  },
+  cellarCardLocked: {
+    backgroundColor: colors.card,
+    borderColor: colors.line,
+  },
+  cellarHeader: {
+    flexDirection: 'row',
+    gap: spacing(1.5),
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  cellarHeaderActions: {
+    alignItems: 'flex-end',
+    gap: spacing(0.75),
+  },
+  cellarHeaderCopy: {
+    flex: 1,
+    gap: spacing(0.5),
+  },
+  cellarEyebrow: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.accent,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  cellarTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  cellarSubtitle: {
+    fontSize: 13,
+    lineHeight: 18,
+    color: colors.subtext,
+  },
+  cellarBadge: {
+    paddingHorizontal: spacing(1.25),
+    paddingVertical: spacing(0.75),
+    borderRadius: radii.full,
+    backgroundColor: `${colors.bg}99`,
+    borderWidth: 1,
+    borderColor: `${colors.gold}28`,
+  },
+  cellarBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.gold,
+  },
+  cellarCollapseButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(0.4),
+    paddingHorizontal: spacing(1),
+    paddingVertical: spacing(0.55),
+    borderRadius: radii.full,
+    borderWidth: 1,
+    borderColor: `${colors.accent}35`,
+    backgroundColor: `${colors.accent}10`,
+  },
+  cellarCollapseButtonText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.accent,
+  },
+  cellarSummaryRow: {
+    flexDirection: 'row',
+    gap: spacing(0.9),
+  },
+  cellarSummaryPill: {
+    flex: 1,
+    backgroundColor: `${colors.bg}88`,
+    borderRadius: radii.full,
+    borderWidth: 1,
+    borderColor: colors.line,
+    paddingHorizontal: spacing(1.2),
+    paddingVertical: spacing(1),
+    gap: spacing(0.3),
+  },
+  cellarSummaryLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: colors.subtext,
+    textTransform: 'uppercase',
+    letterSpacing: 0.7,
+  },
+  cellarSummaryValue: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  cellarMetricsRow: {
+    flexDirection: 'row',
+    gap: spacing(1.25),
+  },
+  cellarMetric: {
+    flex: 1,
+    backgroundColor: `${colors.bg}90`,
+    borderRadius: radii.md,
+    padding: spacing(1.5),
+    borderWidth: 1,
+    borderColor: colors.line,
+    gap: spacing(0.5),
+  },
+  cellarMetricLabel: {
+    fontSize: 10,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    fontWeight: '700',
+    color: colors.subtext,
+  },
+  cellarMetricValue: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  cellarWindowCard: {
+    backgroundColor: `${colors.bg}85`,
+    borderRadius: radii.md,
+    padding: spacing(1.5),
+    borderWidth: 1,
+    borderColor: colors.line,
+    gap: spacing(0.5),
+  },
+  cellarWindowTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.accent,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+  },
+  cellarWindowValue: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  cellarWindowNote: {
+    fontSize: 13,
+    lineHeight: 18,
+    color: colors.subtext,
+  },
+  cellarNotesCard: {
+    backgroundColor: `${colors.bg}70`,
+    borderRadius: radii.md,
+    padding: spacing(1.5),
+    borderWidth: 1,
+    borderColor: colors.line,
+    gap: spacing(0.5),
+  },
+  cellarNotesTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  cellarNotesBody: {
+    fontSize: 13,
+    lineHeight: 18,
+    color: colors.subtext,
+  },
+  cellarButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing(1),
+    backgroundColor: colors.accent,
+    borderRadius: radii.lg,
+    paddingVertical: spacing(1.75),
+  },
+  cellarButtonText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.white,
+  },
+  cellarSecondaryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing(0.75),
+    borderRadius: radii.lg,
+    paddingVertical: spacing(1.5),
+    borderWidth: 1,
+    borderColor: `${colors.accent}40`,
+    backgroundColor: `${colors.accent}10`,
+  },
+  cellarSecondaryButtonText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.accent,
+  },
+  cellarUpgradeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing(0.75),
+    borderRadius: radii.lg,
+    paddingVertical: spacing(1.5),
+    borderWidth: 1,
+    borderColor: `${colors.accent}50`,
+    backgroundColor: `${colors.accent}10`,
+  },
+  cellarUpgradeButtonText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.accent,
+  },
+  cellarEmptyState: {
+    gap: spacing(0.75),
+  },
+  cellarEmptyTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  cellarEmptyBody: {
+    fontSize: 13,
+    lineHeight: 18,
+    color: colors.subtext,
+  },
+  cellarModalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    padding: spacing(3),
+  },
+  cellarModalCard: {
+    backgroundColor: colors.card,
+    borderRadius: radii.lg,
+    padding: spacing(3),
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
+  cellarModalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: spacing(0.5),
+  },
+  cellarModalSubtitle: {
+    fontSize: 13,
+    lineHeight: 18,
+    color: colors.subtext,
+    marginBottom: spacing(2),
+  },
+  cellarInputLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.accent,
+    marginBottom: spacing(0.75),
+    marginTop: spacing(1.25),
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+  },
+  cellarInput: {
+    backgroundColor: colors.bg,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: colors.line,
+    paddingHorizontal: spacing(1.5),
+    paddingVertical: spacing(1.25),
+    color: colors.text,
+    fontSize: 15,
+  },
+  cellarWindowInputs: {
+    flexDirection: 'row',
+    gap: spacing(1),
+  },
+  cellarWindowInput: {
+    flex: 1,
+  },
+  quantityRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing(1),
+  },
+  quantityChip: {
+    paddingHorizontal: spacing(1.25),
+    paddingVertical: spacing(0.9),
+    borderRadius: radii.full,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.bg,
+  },
+  quantityChipActive: {
+    borderColor: `${colors.accent}50`,
+    backgroundColor: `${colors.accent}15`,
+  },
+  quantityChipText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.subtext,
+  },
+  quantityChipTextActive: {
+    color: colors.accent,
+  },
+  cellarNotesInput: {
+    minHeight: 96,
+    textAlignVertical: 'top',
+  },
+  cellarModalActions: {
+    flexDirection: 'row',
+    gap: spacing(1.5),
+    marginTop: spacing(2.5),
+  },
+  cellarModalSecondary: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radii.lg,
+    paddingVertical: spacing(1.5),
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
+  cellarModalSecondaryText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  cellarModalPrimary: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radii.lg,
+    paddingVertical: spacing(1.5),
+    backgroundColor: colors.accent,
+  },
+  cellarModalPrimaryText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.white,
   },
   cocktailsHeader: {
     flexDirection: 'row',

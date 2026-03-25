@@ -138,6 +138,8 @@ export const ANALYTICS_EVENTS = {
   ONBOARDING_STARTED: 'Onboarding Started',
   ONBOARDING_STEP_COMPLETED: 'Onboarding Step Completed',
   ONBOARDING_COMPLETED: 'Onboarding Completed',
+  AGE_GATE_PASSED: 'Age Gate Passed',
+  AGE_GATE_FAILED: 'Age Gate Failed',
 
   // Paywall & Monetization
   PAYWALL_VIEWED: 'Paywall Viewed',
@@ -151,6 +153,10 @@ export const ANALYTICS_EVENTS = {
   RESTORE_PURCHASES_FAILED: 'Restore Purchases Failed',
   UPGRADE_VIEWED: 'Upgrade Viewed', // In-context upgrade prompt (distinct from paywall)
   UPGRADE_COMPLETED: 'Upgrade Completed', // Tier change event
+  PAYWALL_OFFER_SELECTED: 'Paywall Offer Selected',
+  PAYWALL_OFFER_CONFIRMED: 'Paywall Offer Confirmed',
+  PAYWALL_SKIPPED: 'Paywall Skipped',
+  PAYWALL_FOUNDERS_TOGGLED: 'Paywall Founders Toggled',
 
   // Feature Gating (universal gate tracking)
   FEATURE_GATED: 'Feature Gated', // Fires on any gate block: { feature, required_tier, user_tier }

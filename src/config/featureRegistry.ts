@@ -86,6 +86,7 @@ export type FeatureKey =
   | 'practice_mode'
   | 'vault_pro_drops'
   | 'certifications'
+  | 'cellar_mode'
 
   // Education
   | 'education_full'
@@ -518,6 +519,13 @@ export const FEATURE_REGISTRY: Record<FeatureKey, FeatureDefinition> = {
     minTier: 'PRO',
     displayName: 'Certifications',
     description: 'Earn certifications to showcase your bartending skills.',
+    paywallTarget: 'pro',
+    category: 'mastery',
+  },
+  cellar_mode: {
+    minTier: 'PRO',
+    displayName: 'Cellar Mode',
+    description: 'Track collector bottles with value, drinking windows, and personal cellar notes.',
     paywallTarget: 'pro',
     category: 'mastery',
   },

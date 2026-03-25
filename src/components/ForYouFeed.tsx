@@ -27,8 +27,11 @@ import { useUserTier } from '../store/useUserTier';
 import InPageTabBar from './ui/InPageTabBar';
 import { withHaptic } from '../lib/haptics';
 import { useAuth } from '../contexts/AuthContext';
-import { loadUserProfile } from '../services/userProfileService';
+import { loadUserProfile, saveRecipeToProfile } from '../services/userProfileService';
 import { generateRadarChart, initializeTasteGraph } from '../services/tasteGraphService';
+import { getWeeklyDropsForProfile } from '../config/weeklyForYouDrops';
+import { getWeeklyForYouDropRecipe } from '../data/weeklyForYouDropRecipes';
+import { useSavedItems } from '../hooks/useSavedItems';
 
 const FLAVOR_ORDER = ['Citrus', 'Herbal', 'Bitter', 'Sweet', 'Smoky', 'Floral', 'Spiced'];
 const RADAR_SIZE = 220;
@@ -61,6 +64,10 @@ function buildTasteSummary(radar: any) {
     support: `${topSpirit} and ${secondSpirit} are the strongest spirit signals shaping your For You feed.`,
     flavorHighlights: flavors.slice(0, 3).map((item) => ({ label: item.label, value: Math.round(item.value * 100) })),
   };
+}
+
+function isZeroProofPreference(profile: any) {
+  return profile?.preferredABV === 'zero-proof';
 }
 
 function TasteRadar({ radar }: { radar: any }) {
@@ -155,12 +162,16 @@ export default function ForYouFeed({
   const { profile, getFeaturedCocktails, scoreCocktail } = usePersonalization();
   const { tier } = useUserTier();
   const { user } = useAuth();
+  const { toggleSavedCocktail, isCocktailSaved } = useSavedItems();
   const [selectedRecommendTab, setSelectedRecommendTab] = useState<'matched' | 'beginner' | 'challenge' | 'trending'>('matched');
-  const [proIdentity, setProIdentity] = useState<{ occasionMode: string; confidence: number; engagement: number; radar: any } | null>(null);
+  const [tasteIdentity, setTasteIdentity] = useState<{ occasionMode: string; confidence: number; engagement: number; radar: any } | null>(null);
   const tabTransitionAnim = useRef(new Animated.Value(1)).current;
 
   // Check if user has completed taste profile (must be declared before useMemo that depends on it)
   const hasProfile = profile && profile.favoriteSpirits && profile.favoriteSpirits.length > 0;
+  const isFree = tier === 'FREE';
+  const isPlus = tier === 'PLUS';
+  const isPro = tier === 'PRO';
 
   // Get current season info for trending tab
   const currentSeason = getCurrentSeason();
@@ -309,33 +320,107 @@ export default function ForYouFeed({
     let mounted = true;
 
     (async () => {
-      if (tier !== 'PRO' || !user?.id) {
-        if (mounted) setProIdentity(null);
-        return;
-      }
-
       try {
-        const dbProfile = await loadUserProfile(user.id).catch(() => null);
-        if (!dbProfile?.tasteProfile || !mounted) return;
+        if (!mounted) return;
 
-        const radar = generateRadarChart(initializeTasteGraph(dbProfile.tasteProfile));
-        setProIdentity({
-          occasionMode: dbProfile?.moodPreferences?.forYouOccasionMode || 'casual',
-          confidence: Math.round(radar.dataConfidence * 100),
-          engagement: radar.engagementScore,
-          radar,
-        });
+        if (user?.id) {
+          const dbProfile = await loadUserProfile(user.id).catch(() => null);
+          if (dbProfile?.tasteProfile) {
+            const radar = generateRadarChart(initializeTasteGraph(dbProfile.tasteProfile));
+            if (!mounted) return;
+            setTasteIdentity({
+              occasionMode: dbProfile?.moodPreferences?.forYouOccasionMode || 'casual',
+              confidence: Math.round(radar.dataConfidence * 100),
+              engagement: radar.engagementScore,
+              radar,
+            });
+            return;
+          }
+        }
+
+        if (hasProfile) {
+          const radar = generateRadarChart(initializeTasteGraph({
+            flavorWeights: {
+              citrus: (profile?.flavorScores?.citrus || 35) / 100,
+              herbal: (profile?.flavorScores?.herbal || 35) / 100,
+              bitter: (profile?.flavorScores?.bitter || 35) / 100,
+              sweet: (profile?.flavorScores?.sweet || 35) / 100,
+              smoky: (profile?.flavorScores?.smoky || 35) / 100,
+              floral: (profile?.flavorScores?.floral || 35) / 100,
+              spiced: (profile?.flavorScores?.spiced || 35) / 100,
+            },
+            spiritWeights: {
+              tequila: (profile?.spiritScores?.tequila || 25) / 100,
+              whiskey: (profile?.spiritScores?.whiskey || 25) / 100,
+              rum: (profile?.spiritScores?.rum || 25) / 100,
+              gin: (profile?.spiritScores?.gin || 25) / 100,
+              vodka: (profile?.spiritScores?.vodka || 25) / 100,
+              brandy: (profile?.spiritScores?.brandy || 25) / 100,
+              liqueurs: (profile?.spiritScores?.liqueurs || 25) / 100,
+              'gin-alternative': 0,
+              'rum-alternative': 0,
+              none: 0,
+            },
+            preferredABV: { min: 0, max: 40 },
+            preferredComplexity: ((profile?.complexityScore || 55) / 100),
+          }));
+          setTasteIdentity({
+            occasionMode: 'casual',
+            confidence: Math.round(radar.dataConfidence * 100),
+            engagement: radar.engagementScore,
+            radar,
+          });
+          return;
+        }
+
+        setTasteIdentity(null);
       } catch {
-        if (mounted) setProIdentity(null);
+        if (mounted) setTasteIdentity(null);
       }
     })();
 
     return () => {
       mounted = false;
     };
-  }, [tier, user?.id]);
+  }, [user?.id, hasProfile, profile]);
 
-  const proSummary = useMemo(() => (proIdentity?.radar ? buildTasteSummary(proIdentity.radar) : null), [proIdentity]);
+  const proSummary = useMemo(() => (tasteIdentity?.radar ? buildTasteSummary(tasteIdentity.radar) : null), [tasteIdentity]);
+  const weeklyDrop = recommendedCocktails.matched[0] || null;
+  const weeklyDropProfileTags = useMemo(() => {
+    if (!hasProfile || !profile) return [];
+    return [
+      ...(profile.favoriteSpirits || []),
+      ...(profile.flavorPreferences || []),
+      ...(isZeroProofPreference(profile) ? ['zero-proof'] : []),
+      ...(tasteIdentity?.occasionMode ? [tasteIdentity.occasionMode] : []),
+    ].filter(Boolean);
+  }, [hasProfile, profile, tasteIdentity?.occasionMode]);
+  const weeklyDrops = useMemo(() => {
+    if (!isPro || !hasProfile) return [];
+    return getWeeklyDropsForProfile(weeklyDropProfileTags, new Date(), 'PRO')
+      .map((drop) => {
+        const recipe = getWeeklyForYouDropRecipe(drop.recipeId);
+        return recipe ? { drop, recipe } : null;
+      })
+      .filter(Boolean);
+  }, [isPro, hasProfile, weeklyDropProfileTags]);
+  const preferenceSummary = useMemo(() => {
+    if (!userProfile) return null;
+    const spirits = userProfile.spiritPreferences
+      .slice(0, 2)
+      .map((s) => formatLabel(s))
+      .join(' + ');
+    const flavors = userProfile.flavorProfiles
+      .slice(0, 3)
+      .map((f) => formatLabel(f))
+      .join(', ');
+
+    return {
+      eyebrow: isPlus ? 'Personalized for plus' : 'Taste profile',
+      title: isPlus ? 'Your For You profile is active.' : 'Your preferences are shaping the feed.',
+      body: `Recommendations are leaning into ${spirits || 'your saved spirits'} with ${flavors || 'your strongest flavor signals'} in the lead.`,
+    };
+  }, [userProfile, isPlus]);
 
 
   useEffect(() => {
@@ -346,6 +431,23 @@ export default function ForYouFeed({
       useNativeDriver: true,
     }).start();
   }, [selectedRecommendTab]);
+
+  const handleClaimWeeklyDrop = async (recipe: any) => {
+    const result = toggleSavedCocktail({
+      id: recipe.id,
+      name: recipe.name,
+      subtitle: recipe.subtitle || recipe.description || '',
+      image: recipe.image,
+    });
+
+    if (result === 'success' && user?.id) {
+      try {
+        await saveRecipeToProfile(user.id, recipe.id);
+      } catch {
+        // Local collection save is the primary UX path here.
+      }
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -397,48 +499,56 @@ export default function ForYouFeed({
           </View>
         )}
 
-        {/* Personalization Stats - Only show if profile exists */}
-        {hasProfile && userProfile && (
+        {hasProfile && userProfile && !isPro && preferenceSummary && (
           <View style={styles.statsCard}>
-            <View style={styles.inlineHeading}>
-              <Ionicons name="analytics-outline" size={18} color={colors.text} />
-              <Text style={styles.statsTitle}>Your Preferences</Text>
+            <Text style={styles.statsEyebrow}>{preferenceSummary.eyebrow}</Text>
+            <Text style={styles.statsTitle}>{preferenceSummary.title}</Text>
+            <Text style={styles.statsNarrative}>{preferenceSummary.body}</Text>
+
+            <View style={styles.preferenceChipRow}>
+              {userProfile.spiritPreferences.slice(0, 2).map((item) => (
+                <View key={`spirit-${item}`} style={styles.preferenceChip}>
+                  <Text style={styles.preferenceChipText}>{formatLabel(item)}</Text>
+                </View>
+              ))}
+              {userProfile.flavorProfiles.slice(0, 2).map((item) => (
+                <View key={`flavor-${item}`} style={styles.preferenceChipAlt}>
+                  <Text style={styles.preferenceChipText}>{formatLabel(item)}</Text>
+                </View>
+              ))}
             </View>
-            <Text style={styles.statsNarrative}>
-              {'Curated around '}
-              <Text style={styles.statsHighlight}>
-                {userProfile.spiritPreferences.slice(0, 2).map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' & ')}
-              </Text>
-              {' — '}
-              {userProfile.flavorProfiles.slice(0, 2).map(f => f.charAt(0).toUpperCase() + f.slice(1)).join(' & ')}
-              {' flavors, '}
-              <Text style={styles.statsHighlight}>
-                {userProfile.skillLevel.charAt(0).toUpperCase() + userProfile.skillLevel.slice(1)}
-              </Text>
-              {' level.'}
-            </Text>
+
             <View style={styles.inlineHeading}>
-              <Ionicons name="bulb-outline" size={14} color={colors.subtext} />
+              <Ionicons name="sparkles-outline" size={14} color={colors.subtext} />
               <Text style={styles.statsNote}>
-                These update as you interact with recipes
+                Learns from what you save, open, make, and keep stocked.
               </Text>
             </View>
 
-            {/* Refine Taste Profile Button */}
+            {isPlus && weeklyDrop && (
+              <View style={styles.plusDropCard}>
+                <Text style={styles.plusDropEyebrow}>For You right now</Text>
+                <Text style={styles.plusDropTitle}>{weeklyDrop.name}</Text>
+                <Text style={styles.plusDropBody} numberOfLines={2}>
+                  {weeklyDrop.subtitle || weeklyDrop.description || 'A strong match based on your recent taste signals.'}
+                </Text>
+              </View>
+            )}
+
             {onRefineProfile && (
               <TouchableOpacity
                 style={styles.refineButton}
                 onPress={withHaptic(onRefineProfile, 'selection')}
                 activeOpacity={0.7}
               >
-                <Ionicons name="settings-outline" size={18} color={colors.accent} />
-                <Text style={styles.refineButtonText}>Refine Your Taste Profile</Text>
+                <Ionicons name="options-outline" size={18} color={colors.accent} />
+                <Text style={styles.refineButtonText}>{isPlus ? 'Refine Preferences' : 'Update Taste Profile'}</Text>
               </TouchableOpacity>
             )}
           </View>
         )}
 
-        {tier === 'PRO' && proIdentity && proSummary && (
+        {hasProfile && isPro && tasteIdentity && proSummary && (
           <View style={styles.proIdentityCard}>
             <View style={styles.inlineHeading}>
               <Ionicons name="pulse-outline" size={18} color={colors.accent} />
@@ -447,7 +557,7 @@ export default function ForYouFeed({
             <Text style={styles.proIdentityEyebrow}>Live preference map</Text>
 
             <View style={styles.proIdentityTopRow}>
-              <TasteRadar radar={proIdentity.radar} />
+              <TasteRadar radar={tasteIdentity.radar} />
 
               <View style={styles.proIdentityNarrativeColumn}>
                 <Text style={styles.proIdentityHeadline}>{proSummary.headline}</Text>
@@ -467,22 +577,20 @@ export default function ForYouFeed({
             <View style={styles.proMetricsRow}>
               <View style={styles.proMetricCard}>
                 <Text style={styles.proMetricLabel}>Mode</Text>
-                <Text style={styles.proMetricValue}>{formatLabel(proIdentity.occasionMode)}</Text>
+                <Text style={styles.proMetricValue}>{formatLabel(tasteIdentity.occasionMode)}</Text>
               </View>
               <View style={styles.proMetricCard}>
                 <Text style={styles.proMetricLabel}>Confidence</Text>
-                <Text style={styles.proMetricValue}>{proIdentity.confidence}%</Text>
+                <Text style={styles.proMetricValue}>{tasteIdentity.confidence}%</Text>
               </View>
               <View style={styles.proMetricCard}>
-                <Text style={styles.proMetricLabel}>Driving Pick</Text>
-                <Text style={styles.proMetricValue} numberOfLines={2}>
-                  {recommendedCocktails.matched[0]?.name || 'Building'}
-                </Text>
+                <Text style={styles.proMetricLabel}>Signals</Text>
+                <Text style={styles.proMetricValue}>{tasteIdentity.engagement}</Text>
               </View>
             </View>
 
             <Text style={styles.proIdentityMicrocopy}>
-              Your recommendations are being shaped by the strongest flavor axes above, not just broad category tags.
+              Your recommendations are being shaped by the strongest flavor axes above. Confidence grows as you save, view, make, and tune more drinks.
             </Text>
 
             {onRefineProfile && (
@@ -495,6 +603,76 @@ export default function ForYouFeed({
                 <Ionicons name="arrow-forward" size={16} color={colors.bg} />
               </TouchableOpacity>
             )}
+          </View>
+        )}
+
+        {isPro && weeklyDrops.length > 0 && (
+          <View style={styles.weeklyDropsSection}>
+            <View style={styles.inlineHeading}>
+              <Ionicons name="gift-outline" size={18} color={colors.accent} />
+              <Text style={styles.weeklyDropsTitle}>This Week&apos;s For You Drops</Text>
+            </View>
+            <Text style={styles.weeklyDropsSubtitle}>
+              Two editorial drops each week, ranked against your current taste signals.
+            </Text>
+
+            {weeklyDrops.slice(0, 2).map(({ drop, recipe }: any) => (
+              <View
+                key={drop.id}
+                style={styles.weeklyDropCard}
+              >
+                <View style={styles.weeklyDropHeader}>
+                  <View style={styles.weeklyDropPill}>
+                    <Text style={styles.weeklyDropPillText}>{drop.eyebrow}</Text>
+                  </View>
+                  <Text style={styles.weeklyDropSlot}>{formatLabel(drop.slot)}</Text>
+                </View>
+
+                <Text style={styles.weeklyDropName}>{drop.title}</Text>
+                <Text style={styles.weeklyDropRecipe}>{recipe.name}</Text>
+                <Text style={styles.weeklyDropReason}>{drop.reason}</Text>
+
+                <View style={styles.weeklyDropTags}>
+                  {drop.profileTags.slice(0, 4).map((tag: string) => (
+                    <View key={`${drop.id}-${tag}`} style={styles.weeklyDropTag}>
+                      <Text style={styles.weeklyDropTagText}>{formatLabel(tag)}</Text>
+                    </View>
+                  ))}
+                </View>
+
+                <View style={styles.weeklyDropActions}>
+                  <TouchableOpacity
+                    style={styles.weeklyDropOpenButton}
+                    activeOpacity={0.85}
+                    onPress={withHaptic(() => onCocktailPress(recipe))}
+                  >
+                    <Text style={styles.weeklyDropOpenText}>Open Drop</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.weeklyDropClaimButton,
+                      isCocktailSaved(recipe.id) && styles.weeklyDropClaimedButton,
+                    ]}
+                    activeOpacity={0.85}
+                    onPress={withHaptic(() => handleClaimWeeklyDrop(recipe), 'medium')}
+                  >
+                    <Ionicons
+                      name={isCocktailSaved(recipe.id) ? 'checkmark-circle' : 'download-outline'}
+                      size={16}
+                      color={isCocktailSaved(recipe.id) ? colors.success : colors.bg}
+                    />
+                    <Text
+                      style={[
+                        styles.weeklyDropClaimText,
+                        isCocktailSaved(recipe.id) && styles.weeklyDropClaimedText,
+                      ]}
+                    >
+                      {isCocktailSaved(recipe.id) ? 'Saved To My Collection' : 'Claim Drop'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ))}
           </View>
         )}
 
@@ -637,18 +815,26 @@ const styles = StyleSheet.create({
     padding: spacing(2.5),
     borderWidth: 1,
     borderColor: colors.line,
+    gap: spacing(1.2),
+  },
+  statsEyebrow: {
+    color: colors.accent,
+    fontSize: 11,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
   },
   statsTitle: {
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: 24,
+    fontWeight: '800',
     color: colors.text,
-    marginBottom: spacing(2),
+    fontFamily: serif,
+    letterSpacing: -0.2,
   },
   statsNarrative: {
     fontSize: 15,
     color: colors.subtext,
     lineHeight: 22,
-    marginBottom: spacing(1.5),
   },
   statsHighlight: {
     color: colors.text,
@@ -658,6 +844,58 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.subtext,
     fontStyle: 'italic',
+  },
+  preferenceChipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing(0.75),
+  },
+  preferenceChip: {
+    paddingVertical: spacing(0.7),
+    paddingHorizontal: spacing(1.15),
+    borderRadius: radii.pill,
+    backgroundColor: colors.accent + '15',
+    borderWidth: 1,
+    borderColor: colors.accent + '40',
+  },
+  preferenceChipAlt: {
+    paddingVertical: spacing(0.7),
+    paddingHorizontal: spacing(1.15),
+    borderRadius: radii.pill,
+    backgroundColor: colors.line,
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
+  preferenceChipText: {
+    color: colors.text,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  plusDropCard: {
+    backgroundColor: 'rgba(216, 154, 70, 0.08)',
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: 'rgba(216, 154, 70, 0.22)',
+    padding: spacing(1.5),
+    gap: spacing(0.4),
+  },
+  plusDropEyebrow: {
+    fontSize: 10,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    color: colors.accent,
+  },
+  plusDropTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: colors.text,
+    fontFamily: serif,
+  },
+  plusDropBody: {
+    fontSize: 13,
+    lineHeight: 18,
+    color: colors.subtext,
   },
   refineButton: {
     flexDirection: 'row',
@@ -808,6 +1046,132 @@ const styles = StyleSheet.create({
     color: colors.bg,
     fontSize: 13,
     fontWeight: '800',
+  },
+  weeklyDropsSection: {
+    marginHorizontal: spacing(3),
+    marginBottom: spacing(3),
+    gap: spacing(1),
+  },
+  weeklyDropsTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: colors.text,
+    fontFamily: serif,
+    letterSpacing: -0.2,
+  },
+  weeklyDropsSubtitle: {
+    color: colors.subtext,
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  weeklyDropCard: {
+    backgroundColor: '#1B120F',
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(216, 154, 70, 0.24)',
+    padding: spacing(2),
+    gap: spacing(0.8),
+  },
+  weeklyDropHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  weeklyDropPill: {
+    paddingVertical: spacing(0.55),
+    paddingHorizontal: spacing(1),
+    borderRadius: radii.pill,
+    backgroundColor: 'rgba(216, 154, 70, 0.14)',
+    borderWidth: 1,
+    borderColor: 'rgba(216, 154, 70, 0.24)',
+  },
+  weeklyDropPillText: {
+    color: colors.accent,
+    fontSize: 10,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  weeklyDropSlot: {
+    color: colors.subtext,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  weeklyDropName: {
+    color: colors.text,
+    fontSize: 22,
+    fontWeight: '800',
+    fontFamily: serif,
+  },
+  weeklyDropRecipe: {
+    color: colors.accent,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  weeklyDropReason: {
+    color: colors.subtext,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  weeklyDropTags: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing(0.6),
+  },
+  weeklyDropTag: {
+    paddingVertical: spacing(0.55),
+    paddingHorizontal: spacing(0.9),
+    borderRadius: radii.pill,
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderWidth: 1,
+    borderColor: 'rgba(242, 230, 216, 0.08)',
+  },
+  weeklyDropTagText: {
+    color: colors.text,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  weeklyDropActions: {
+    marginTop: spacing(0.5),
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(0.8),
+  },
+  weeklyDropOpenButton: {
+    paddingVertical: spacing(0.9),
+    paddingHorizontal: spacing(1.2),
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: 'rgba(242, 230, 216, 0.12)',
+    backgroundColor: 'rgba(255,255,255,0.03)',
+  },
+  weeklyDropOpenText: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  weeklyDropClaimButton: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(0.75),
+    paddingVertical: spacing(0.9),
+    paddingHorizontal: spacing(1.25),
+    borderRadius: radii.pill,
+    backgroundColor: colors.accent,
+  },
+  weeklyDropClaimedButton: {
+    backgroundColor: colors.success + '16',
+    borderWidth: 1,
+    borderColor: colors.success + '55',
+  },
+  weeklyDropClaimText: {
+    color: colors.bg,
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  weeklyDropClaimedText: {
+    color: colors.success,
   },
   section: {
     marginBottom: spacing(3),

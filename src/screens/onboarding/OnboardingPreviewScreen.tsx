@@ -1,8 +1,9 @@
 // @ts-nocheck
 import React from 'react';
 import { Alert, StyleSheet, Text, View } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { RouteProp } from '@react-navigation/native';
 import AgeGateScreen from '../AgeGateScreen';
 import WelcomeCarouselScreen from '../WelcomeCarouselScreen';
 import OAuthSignInScreen from '../OAuthSignInScreen';
@@ -17,12 +18,25 @@ type PreviewStep = 'age_gate' | 'welcome' | 'oauth' | 'xp_reminder' | 'bartendin
 
 export default function OnboardingPreviewScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const route = useRoute<RouteProp<RootStackParamList, 'OnboardingPreview'>>();
+  const isPreview = route.params?.preview ?? false;
   const [step, setStep] = React.useState<PreviewStep>('age_gate');
 
+  React.useLayoutEffect(() => {
+    navigation.setOptions({
+      headerShown: isPreview,
+      title: isPreview ? 'Full Onboarding Preview' : 'Onboarding',
+    });
+  }, [navigation, isPreview]);
+
   const handleFinish = React.useCallback(() => {
-    Alert.alert('Preview complete', 'Returning to Settings.');
-    navigation.goBack();
-  }, [navigation]);
+    if (isPreview) {
+      Alert.alert('Preview complete', 'Returning to Settings.');
+      navigation.goBack();
+      return;
+    }
+    navigation.navigate('Main');
+  }, [navigation, isPreview]);
 
   const handleViewMasteryLessons = React.useCallback(() => {
     navigation.navigate('Main' as never, { screen: 'Lessons' } as never);
@@ -30,12 +44,14 @@ export default function OnboardingPreviewScreen() {
 
   return (
     <View style={styles.container}>
-      <View pointerEvents="none" style={styles.bannerWrap}>
-        <View style={styles.banner}>
-          <Text style={styles.bannerTitle}>Preview Mode</Text>
-          <Text style={styles.bannerText}>You are viewing the onboarding flow safely. No account, profile, XP, or trial changes will be saved.</Text>
+      {isPreview ? (
+        <View pointerEvents="none" style={styles.bannerWrap}>
+          <View style={styles.banner}>
+            <Text style={styles.bannerTitle}>Preview Mode</Text>
+            <Text style={styles.bannerText}>You are viewing the onboarding flow safely. No account, profile, XP, or trial changes will be saved.</Text>
+          </View>
         </View>
-      </View>
+      ) : null}
 
       {step === 'age_gate' ? (
         <AgeGateScreen onVerified={(_payload: AgeVerificationPayload) => setStep('welcome')} />
@@ -47,7 +63,7 @@ export default function OnboardingPreviewScreen() {
 
       {step === 'oauth' ? (
         <OAuthSignInScreen
-          previewMode
+          previewMode={isPreview}
           onComplete={() => setStep('bartending_welcome')}
           onSkip={() => setStep('xp_reminder')}
         />
@@ -66,7 +82,7 @@ export default function OnboardingPreviewScreen() {
 
       {step === 'questionnaire' ? (
         <OnboardingQuestionnaireScreen
-          previewMode
+          previewMode={isPreview}
           onViewMasteryLessons={handleViewMasteryLessons}
           onComplete={handleFinish}
         />

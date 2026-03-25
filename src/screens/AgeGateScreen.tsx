@@ -13,6 +13,7 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, radii, spacing, serif } from '../theme/tokens';
 import {
   AgeVerificationPayload,
@@ -23,6 +24,7 @@ import {
   evaluateAgeEligibility,
   getMinimumLegalAge,
 } from '../services/ageVerificationService';
+import { trackEvent, ANALYTICS_EVENTS } from '../lib/analytics';
 
 interface AgeGateScreenProps {
   onVerified: (payload: AgeVerificationPayload) => void;
@@ -41,6 +43,9 @@ function parseDate(year: string, month: string, day: string): Date | null {
 
 export default function AgeGateScreen({ onVerified }: AgeGateScreenProps) {
   const { width } = useWindowDimensions();
+  const pageWidth = width - spacing(6);
+  const insets = useSafeAreaInsets();
+  const keyboardVerticalOffset = insets.top + spacing(4);
   const [country, setCountry] = useState<SupportedCountryCode | 'OTHER'>('US');
   const [subdivision, setSubdivision] = useState<SupportedSubdivisionCode | undefined>(undefined);
   const [year, setYear] = useState('');
@@ -48,6 +53,7 @@ export default function AgeGateScreen({ onVerified }: AgeGateScreenProps) {
   const [day, setDay] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [restrictedReason, setRestrictedReason] = useState<string | null>(null);
+  const [countryPageIndex, setCountryPageIndex] = useState(0);
 
   const requiresSubdivision = country === 'CA';
   const minimumAge = useMemo(
@@ -84,6 +90,10 @@ export default function AgeGateScreen({ onVerified }: AgeGateScreenProps) {
     const dob = parseDate(year, month, day);
     if (country === 'OTHER') {
       setRestrictedReason('KOOPE is not available in your region yet.');
+      trackEvent(ANALYTICS_EVENTS.AGE_GATE_FAILED, {
+        reason: 'unsupported_region',
+        country: country,
+      });
       return;
     }
     if (!dob || !minimumAge) {
@@ -103,9 +113,18 @@ export default function AgeGateScreen({ onVerified }: AgeGateScreenProps) {
         setRestrictedReason(
           'KOOPE is only available to people of legal drinking age in their selected region.'
         );
+        trackEvent(ANALYTICS_EVENTS.AGE_GATE_FAILED, {
+          reason: 'underage',
+          country: verification.country,
+          subdivision: verification.subdivision,
+        });
         return;
       }
 
+      trackEvent(ANALYTICS_EVENTS.AGE_GATE_PASSED, {
+        country: verification.country,
+        subdivision: verification.subdivision,
+      });
       onVerified(verification);
     } finally {
       setSubmitting(false);
@@ -115,26 +134,36 @@ export default function AgeGateScreen({ onVerified }: AgeGateScreenProps) {
   if (restrictedReason) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.restrictedWrap}>
-          <View style={styles.restrictedIcon}>
-            <Ionicons name="shield-checkmark-outline" size={28} color={colors.accent} />
+        <KeyboardAvoidingView
+          style={styles.container}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={keyboardVerticalOffset}
+        >
+          <View style={styles.restrictedWrap}>
+            <View style={styles.restrictedIcon}>
+              <Ionicons name="shield-checkmark-outline" size={28} color={colors.accent} />
+            </View>
+            <Text style={styles.restrictedTitle}>Restricted Access</Text>
+            <Text style={styles.restrictedBody}>{restrictedReason}</Text>
+            <Text style={styles.restrictedMeta}>
+              Alcohol-related features stay locked until legal age is confirmed in a supported region.
+            </Text>
+            <Pressable style={styles.primaryButton} onPress={resetRestriction}>
+              <Text style={styles.primaryButtonText}>Update Region or Date of Birth</Text>
+            </Pressable>
           </View>
-          <Text style={styles.restrictedTitle}>Restricted Access</Text>
-          <Text style={styles.restrictedBody}>{restrictedReason}</Text>
-          <Text style={styles.restrictedMeta}>
-            Alcohol-related features stay locked until legal age is confirmed in a supported region.
-          </Text>
-          <Pressable style={styles.primaryButton} onPress={resetRestriction}>
-            <Text style={styles.primaryButtonText}>Update Region or Date of Birth</Text>
-          </Pressable>
-        </View>
+        </KeyboardAvoidingView>
       </SafeAreaView>
     );
   }
 
   return (
     <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={keyboardVerticalOffset}
+      >
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <View style={styles.hero}>
             <Text style={styles.eyebrow}>Legal Access Check</Text>
@@ -152,9 +181,13 @@ export default function AgeGateScreen({ onVerified }: AgeGateScreenProps) {
               decelerationRate="fast"
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.countryPager}
+              onMomentumScrollEnd={(e) => {
+                const nextIndex = Math.round(e.nativeEvent.contentOffset.x / pageWidth);
+                setCountryPageIndex(Math.max(0, Math.min(countryPages.length - 1, nextIndex)));
+              }}
             >
               {countryPages.map((page, pageIndex) => (
-                <View key={`page-${pageIndex}`} style={[styles.countryPage, { width: width - spacing(6) }]}>
+                <View key={`page-${pageIndex}`} style={[styles.countryPage, { width: pageWidth }]}>
                   <View style={styles.countryGrid}>
                     {page.map((option) => {
                       const selected = option.code === country;
@@ -169,11 +202,11 @@ export default function AgeGateScreen({ onVerified }: AgeGateScreenProps) {
                             if (option.code !== 'CA') setSubdivision(undefined);
                           }}
                         >
-                          <Text style={[styles.countryCardTitle, selected && styles.countryCardTitleSelected]}>
+                          <Text style={[styles.countryCardTitle, styles.countryCardTitleCentered, selected && styles.countryCardTitleSelected]}>
                             {option.label}
                           </Text>
                           {isOtherRegion ? (
-                            <Text style={[styles.countryCardHint, selected && styles.countryCardHintSelected]}>
+                            <Text style={[styles.countryCardHint, styles.countryCardTitleCentered, selected && styles.countryCardHintSelected]}>
                               Unsupported right now
                             </Text>
                           ) : null}
@@ -185,9 +218,14 @@ export default function AgeGateScreen({ onVerified }: AgeGateScreenProps) {
               ))}
             </ScrollView>
 
-            <Text style={styles.countryHelpText}>
-              If your region is not listed yet, choose `Other region`.
-            </Text>
+            <View style={styles.pagerDots}>
+              {countryPages.map((_, idx) => (
+                <View
+                  key={`dot-${idx}`}
+                  style={[styles.pagerDot, idx === countryPageIndex && styles.pagerDotActive]}
+                />
+              ))}
+            </View>
 
             {requiresSubdivision ? (
               <>
@@ -275,13 +313,13 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bg,
   },
   content: {
-    paddingHorizontal: spacing(3),
-    paddingVertical: spacing(4),
-    gap: spacing(2),
+    paddingHorizontal: spacing(2),
+    paddingVertical: spacing(2),
+    gap: spacing(1.5),
   },
   hero: {
-    gap: spacing(1),
-    marginTop: spacing(1),
+    gap: spacing(0.75),
+    marginTop: spacing(0.75),
   },
   eyebrow: {
     color: colors.accent,
@@ -293,41 +331,35 @@ const styles = StyleSheet.create({
   title: {
     color: colors.text,
     fontFamily: serif,
-    fontSize: 32,
+    fontSize: 30,
     fontWeight: '800',
-    lineHeight: 38,
+    lineHeight: 34,
   },
   subtitle: {
     color: colors.subtext,
-    fontSize: 15,
-    lineHeight: 22,
+    fontSize: 14,
+    lineHeight: 20,
   },
   card: {
     backgroundColor: '#201510',
-    borderRadius: radii.lg,
+    borderRadius: radii.md,
     borderWidth: 1,
     borderColor: colors.line,
-    padding: spacing(2),
+    padding: spacing(1.25),
+    gap: spacing(1),
   },
   sectionLabel: {
     color: colors.text,
     fontSize: 13,
-    fontWeight: '800',
-    marginBottom: spacing(1),
+    fontWeight: '700',
   },
   subdivisionLabel: {
     marginTop: spacing(2),
   },
-  countryPager: {
-    paddingRight: spacing(2),
-  },
-  countryPage: {
-    marginRight: spacing(1.5),
-  },
   countryGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: spacing(1),
+    gap: spacing(0.3),
   },
   countryCard: {
     width: '48%',
@@ -335,9 +367,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.line,
     borderRadius: radii.md,
-    paddingVertical: spacing(1.25),
-    paddingHorizontal: spacing(1.25),
-    minHeight: 72,
+    paddingVertical: spacing(0.55),
+    paddingHorizontal: spacing(0.7),
+    minHeight: 50,
     justifyContent: 'center',
   },
   countryCardSelected: {
@@ -346,8 +378,11 @@ const styles = StyleSheet.create({
   },
   countryCardTitle: {
     color: colors.text,
-    fontSize: 14,
-    fontWeight: '700',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  countryCardTitleCentered: {
+    textAlign: 'center',
   },
   countryCardTitleSelected: {
     color: colors.accent,
@@ -361,11 +396,26 @@ const styles = StyleSheet.create({
   countryCardHintSelected: {
     color: colors.accent + 'CC',
   },
-  countryHelpText: {
-    color: colors.subtext,
-    fontSize: 12,
-    lineHeight: 17,
-    marginTop: spacing(1),
+  countryPager: {
+    paddingHorizontal: spacing(0.5),
+  },
+  countryPage: {
+    marginRight: spacing(0.5),
+  },
+  pagerDots: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: spacing(0.75),
+    marginTop: spacing(0.75),
+  },
+  pagerDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: 'rgba(255,255,255,0.22)',
+  },
+  pagerDotActive: {
+    backgroundColor: colors.accent,
   },
   subdivisionGrid: {
     gap: spacing(0.75),

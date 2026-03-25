@@ -34,8 +34,10 @@ import { useAuth } from '../contexts/AuthContext';
 import { useFeatureAccess } from '../hooks/useFeatureAccess';
 import { useUserTier } from '../store/useUserTier';
 import { TIER_LIMITS } from '../config/tierAccess';
-import { useMultiBar } from '../store/useMultiBar';
 import { useScrollHaptic, withHaptic } from '../lib/haptics';
+import { SPIRITS_DATABASE } from '../data/spiritsDatabase';
+import { BottleServeService } from '../services/bottleServeService';
+import { CellarService } from '../services/cellarService';
 
 // Import images from assets
 import * as Images from '../../assets/images';
@@ -43,7 +45,28 @@ import * as Images from '../../assets/images';
 // Category definitions
 type InventoryCategory = 'spirits' | 'mixers' | 'garnishes' | 'ingredients' | 'liqueur' | 'bitters' | 'syrup' | 'other';
 
-interface InventoryItem extends BarIngredient { }
+interface InventoryItem extends BarIngredient {
+  purchase_price?: number | null;
+  valuation_estimate?: number | null;
+  drinking_window_start?: string | null;
+  drinking_window_end?: string | null;
+  cellar_notes?: string | null;
+  scanned_at?: string | null;
+  region?: string | null;
+  flavor_tags?: string[] | null;
+  tasting_notes?: string | null;
+  serve_guidance?: string | null;
+}
+
+function hasCellarRecord(item: InventoryItem): boolean {
+  return Boolean(
+    item.purchase_price != null ||
+    item.valuation_estimate != null ||
+    item.drinking_window_start ||
+    item.drinking_window_end ||
+    item.cellar_notes
+  );
+}
 
 // Predefined options for each category
 const CATEGORY_OPTIONS: Record<string, string[]> = {
@@ -565,16 +588,9 @@ export default function HomeBarScreen() {
   const { tier } = useUserTier();
   const { gateWithTrigger: hostingBasicGate } = useFeatureAccess('hosting_basic');
   const { gateWithTrigger: optimizeMyBarGate } = useFeatureAccess('optimize_my_bar');
+  const { hasAccess: hasCellarMode, gateWithTrigger: cellarModeGate } = useFeatureAccess('cellar_mode');
   const { gate: expiryAlertsGate } = useFeatureAccess('expiry_alerts');
   const { gate: barHealthGate } = useFeatureAccess('bar_health_score');
-  const { gate: multiBarGate } = useFeatureAccess('multi_bar');
-  const { gate: multiBarUnlimitedGate } = useFeatureAccess('multi_bar_unlimited');
-  const bars = useMultiBar((state) => state.bars);
-  const activeBarId = useMultiBar((state) => state.activeBarId);
-  const setActiveBar = useMultiBar((state) => state.setActiveBar);
-  const createBar = useMultiBar((state) => state.createBar);
-  const canCreateBar = useMultiBar((state) => state.canCreateBar);
-  const getBarLimit = useMultiBar((state) => state.getBarLimit);
   const { user } = useAuth();
   const [showSearchModal, setShowSearchModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -592,7 +608,7 @@ export default function HomeBarScreen() {
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
   const [itemNoteDraft, setItemNoteDraft] = useState('');
   const [showItemOptionsModal, setShowItemOptionsModal] = useState(false);
-  const [showBarSwitcherModal, setShowBarSwitcherModal] = useState(false);
+  const [showInventorySwitcher, setShowInventorySwitcher] = useState(false);
   const onScrollHaptic = useScrollHaptic('selection', 800);
 
   useLayoutEffect(() => {
@@ -613,10 +629,16 @@ export default function HomeBarScreen() {
       if (!user) return;
 
       const remoteItems = await InventoryService.getUserInventory(user.id);
-      const mappedRemote: BarIngredient[] = remoteItems.map((item) => {
+      const mappedRemote: InventoryItem[] = remoteItems.map((item) => {
         const rawName = String(item.item_name || '').trim();
         let parsedName = rawName;
         let parsedBrand = item.brand || undefined;
+        const rawSubcategory = item.subcategory || undefined;
+        const validCategories: BarIngredient['category'][] = ['spirit', 'liqueur', 'mixer', 'bitters', 'syrup', 'garnish', 'ingredient', 'other'];
+        const rawCategory = String(item.category || '').toLowerCase();
+        const inferredCategory = validCategories.includes(rawCategory as BarIngredient['category'])
+          ? (rawCategory as BarIngredient['category'])
+          : (item.item_type === 'spirit' ? 'spirit' : 'ingredient');
 
         if (!parsedBrand && rawName.includes(' - ')) {
           const [maybeBrand, ...rest] = rawName.split(' - ');
@@ -627,17 +649,36 @@ export default function HomeBarScreen() {
           }
         }
 
+        if (!parsedBrand && rawSubcategory) {
+          const withoutSubcategory = rawName.replace(new RegExp(`\\b${rawSubcategory}\\b`, 'i'), '').trim();
+          if (withoutSubcategory && withoutSubcategory !== rawName) {
+            parsedBrand = withoutSubcategory.replace(/\s{2,}/g, ' ').trim();
+          }
+        }
+
         return {
           id: item.id,
           name: parsedName,
-          category: (item.category as BarIngredient['category']) || 'other',
-          subcategory: item.subcategory || undefined,
+          category: inferredCategory,
+          subcategory: rawSubcategory,
           brand: parsedBrand,
+          abv: item.abv || undefined,
           notes: item.notes || undefined,
-          volume: 750,
+          volume: item.volume || 750,
+          imageUrl: item.image_url || undefined,
           addedAt: item.added_at ? new Date(item.added_at) : new Date(),
           isFavorite: item.is_favorite || false,
-          tags: [],
+          tags: item.flavor_tags || [],
+          region: item.region,
+          flavor_tags: item.flavor_tags,
+          tasting_notes: item.tasting_notes,
+          serve_guidance: item.serve_guidance,
+          purchase_price: item.purchase_price,
+          valuation_estimate: item.valuation_estimate,
+          drinking_window_start: item.drinking_window_start,
+          drinking_window_end: item.drinking_window_end,
+          cellar_notes: item.cellar_notes,
+          scanned_at: item.scanned_at,
         };
       });
 
@@ -660,32 +701,6 @@ export default function HomeBarScreen() {
 
     } catch (error) {
       log.error('HomeBarScreen', 'Failed to load stored ingredients', error as Error);
-    }
-  };
-
-  const activeBarName = useMemo(
-    () => bars.find((bar) => bar.id === activeBarId)?.name || 'My Home Bar',
-    [bars, activeBarId]
-  );
-
-  const handleAddBarProfile = () => {
-    if (tier === 'FREE') {
-      multiBarGate();
-      return;
-    }
-
-    if (!canCreateBar(tier as any)) {
-      if (tier === 'PLUS') {
-        multiBarUnlimitedGate();
-      } else {
-        Alert.alert('Bar Limit Reached', 'You have reached your bar profile limit.');
-      }
-      return;
-    }
-
-    const newBarId = createBar(`Bar ${bars.length + 1}`, tier as any);
-    if (newBarId) {
-      setActiveBar(newBarId);
     }
   };
 
@@ -914,6 +929,10 @@ export default function HomeBarScreen() {
     openManualEntryWizard();
   };
 
+  const handleInventoryHeaderMenu = () => {
+    setShowInventorySwitcher((prev) => !prev);
+  };
+
   const handleSaveManualEntry = async () => {
     if (!manualEntryName.trim()) {
       Alert.alert('Missing Information', 'Please enter an ingredient name');
@@ -1043,6 +1062,75 @@ export default function HomeBarScreen() {
     Alert.alert('Notes Saved', trimmedNotes ? 'Your bar note was updated.' : 'Your note was cleared.');
   };
 
+  const handleAddToCellar = async () => {
+    if (!selectedItem || !user) return;
+
+    const existingCellar = hasCellarRecord(selectedItem);
+    const cellarNotes = selectedItem.cellar_notes || 'Added from inventory for collector tracking.';
+    const drinkingWindowStart = selectedItem.drinking_window_start || 'Now';
+    const drinkingWindowEnd = selectedItem.drinking_window_end || 'Review';
+    const valuationEstimate = selectedItem.valuation_estimate ?? 0;
+
+    try {
+      await CellarService.saveRecord({
+        inventoryItemId: selectedItem.id,
+        itemName: selectedItem.name,
+        createdAt: new Date().toISOString(),
+        imageUrl: selectedItem.imageUrl || null,
+        brand: selectedItem.brand || null,
+        type: selectedBottleDetails?.type || selectedItem.subcategory || selectedItem.category || null,
+        abv: selectedBottleDetails?.abv || selectedItem.abv || null,
+        region: selectedBottleDetails?.region || selectedItem.region || null,
+        flavorProfile: selectedBottleDetails?.flavorProfile || selectedItem.flavor_tags || [],
+        tastingNotes: selectedBottleDetails?.tastingNotes || selectedItem.tasting_notes || null,
+        serveGuidance: selectedBottleDetails?.serveGuidance || selectedItem.serve_guidance || null,
+        quantity: (selectedItem as any).quantity || null,
+        purchasePrice: selectedItem.purchase_price ?? null,
+        valuationEstimate,
+        drinkingWindowStart,
+        drinkingWindowEnd,
+        cellarNotes,
+      });
+    } catch {
+      Alert.alert('Unable to Add', 'We could not create a cellar record for this item right now.');
+      return;
+    }
+
+    const nextItem: InventoryItem = {
+      ...selectedItem,
+      cellar_notes: cellarNotes,
+      drinking_window_start: drinkingWindowStart,
+      drinking_window_end: drinkingWindowEnd,
+      valuation_estimate: valuationEstimate,
+    };
+
+    setHomeBar((prev) => ({
+      ...prev,
+      ingredients: prev.ingredients.map((entry) => entry.id === selectedItem.id ? nextItem : entry),
+    }));
+    setSelectedItem(nextItem);
+
+    void InventoryService.updateInventoryItem(selectedItem.id, {
+      cellarNotes,
+      drinkingWindowStart,
+      drinkingWindowEnd,
+      valuationEstimate,
+    }).then((success) => {
+      if (!success) {
+        log.info('HomeBarScreen', 'Cellar record saved locally after remote inventory update failed', { itemId: selectedItem.id });
+      }
+    }).catch(() => {
+      log.info('HomeBarScreen', 'Cellar record saved locally after remote inventory update errored', { itemId: selectedItem.id });
+    });
+
+    Alert.alert(
+      existingCellar ? 'Cellar Record Updated' : 'Added to Cellar',
+      existingCellar
+        ? 'This bottle is already tracked in The Cellar.'
+        : 'This bottle is now part of your cellar collection.',
+    );
+  };
+
   const handleDeleteItem = () => {
     if (!selectedItem) return;
 
@@ -1102,10 +1190,53 @@ export default function HomeBarScreen() {
   const getIngredientImage = (item: BarIngredient) => {
     if (item.imageUrl) return { uri: item.imageUrl };
 
-    // Try to get image from assets based on subcategory
-    const subcategory = item.subcategory?.toLowerCase();
-    if (subcategory && Images.spirits[subcategory as keyof typeof Images.spirits]) {
-      return Images.spirits[subcategory as keyof typeof Images.spirits];
+    const haystack = `${item.category || ''} ${item.subcategory || ''} ${item.name || ''} ${item.brand || ''}`.toLowerCase();
+
+    const spiritFamilyMap: Array<{ pattern: RegExp; key: keyof typeof Images.spirits }> = [
+      { pattern: /(gin|juniper)/, key: 'gin' },
+      { pattern: /(scotch)/, key: 'scotch' },
+      { pattern: /(whiskey|whisky|bourbon|rye)/, key: 'whiskey' },
+      { pattern: /(vodka)/, key: 'vodka' },
+      { pattern: /(rum|rhum|cachaca)/, key: 'rum' },
+      { pattern: /(tequila)/, key: 'tequila' },
+      { pattern: /(mezcal)/, key: 'mezcal' },
+      { pattern: /(brandy|cognac)/, key: 'brandy' },
+    ];
+
+    for (const entry of spiritFamilyMap) {
+      if (entry.pattern.test(haystack)) {
+        return Images.spirits[entry.key];
+      }
+    }
+
+    const ingredientFamilyMap: Array<{ pattern: RegExp; key: keyof typeof Images.ingredients }> = [
+      { pattern: /(lemon)/, key: 'lemon' },
+      { pattern: /(lime)/, key: 'lime' },
+      { pattern: /(orange|triple sec|cointreau|curacao)/, key: 'orange' },
+      { pattern: /(grapefruit)/, key: 'grapefruit' },
+      { pattern: /(pineapple)/, key: 'pineapple' },
+      { pattern: /(cherry|maraschino)/, key: 'cherry' },
+      { pattern: /(strawberry)/, key: 'strawberry' },
+      { pattern: /(raspberry)/, key: 'raspberry' },
+      { pattern: /(blueberry)/, key: 'blueberry' },
+      { pattern: /(watermelon)/, key: 'watermelon' },
+      { pattern: /(mint|mojito)/, key: 'mint' },
+      { pattern: /(basil)/, key: 'basil' },
+      { pattern: /(lavender)/, key: 'lavender' },
+      { pattern: /(rose)/, key: 'rose' },
+      { pattern: /(amaro|aperol|campari)/, key: 'amaro' },
+      { pattern: /(anise|pastis|absinthe|sambuca)/, key: 'aniseLiquor' },
+      { pattern: /(creme de cacao|cacao)/, key: 'cremeDeCacao' },
+      { pattern: /(elderflower|st-germain)/, key: 'elderflowerLiquor' },
+      { pattern: /(coffee liqueur|espresso liqueur|kahlua|mr black|espresso)/, key: 'espressoLiquor' },
+      { pattern: /(orange liqueur|grand marnier)/, key: 'orangeLiquor' },
+      { pattern: /(bitters|angostura|peychaud)/, key: 'bitters' },
+    ];
+
+    for (const entry of ingredientFamilyMap) {
+      if (entry.pattern.test(haystack)) {
+        return Images.ingredients[entry.key];
+      }
     }
 
     return null;
@@ -1147,7 +1278,96 @@ export default function HomeBarScreen() {
     }
   };
 
+  const getCategoryDisplay = (item: InventoryItem) => {
+    const base = item.subcategory || item.category;
+    return String(base)
+      .replace(/_/g, ' ')
+      .replace(/\b\w/g, (letter) => letter.toUpperCase());
+  };
+
+  const isBottleLike = (item: InventoryItem) => {
+    const haystack = `${item.category || ''} ${item.subcategory || ''} ${item.name || ''}`.toLowerCase();
+    return /(vodka|gin|whiskey|whisky|bourbon|scotch|rum|tequila|mezcal|brandy|cognac|liqueur|vermouth|campari|amaro)/.test(haystack);
+  };
+
+  const isCellarEligible = (item: InventoryItem) => item.category === 'spirit' || item.category === 'liqueur' || isBottleLike(item);
+
+  const getInventoryInsight = (item: InventoryItem) => {
+    if (item.category === 'spirit') {
+      return item.abv ? `${item.abv}% ABV bottle for base pours and spirit-forward serves.` : 'Core bottle for builds, stirred drinks, and house pours.';
+    }
+    if (item.category === 'liqueur') {
+      return 'Modifier bottle that adds sweetness, bitterness, or depth to recipes.';
+    }
+    if (item.category === 'mixer') {
+      return /juice|citrus|fruit/i.test(`${item.subcategory || ''} ${item.name}`) ? 'Freshens drinks and supports sours, spritzes, and lengthened builds.' : 'Supports highballs, spritzes, and longer refreshing serves.';
+    }
+    if (item.category === 'garnish') {
+      return 'Finishing ingredient that changes aroma, freshness, and first impression.';
+    }
+    if (item.category === 'syrup') {
+      return 'Sweetening and texture tool for balancing spirit-forward and citrus builds.';
+    }
+    if (item.category === 'bitters') {
+      return 'Seasoning bottle that sharpens structure with just a few dashes.';
+    }
+    return 'Supporting ingredient used to round out prep, balance, or presentation.';
+  };
+
+  const getInventoryPills = (item: InventoryItem) => {
+    const pills: string[] = [getCategoryDisplay(item)];
+    if (item.brand) pills.push(item.brand);
+    if (item.volume) pills.push(`${item.volume}ml`);
+    else if (item.category === 'garnish' || item.category === 'ingredient') pills.push('Fresh item');
+    if (item.isFavorite) pills.push('Favorite');
+    return pills.slice(0, 3);
+  };
+
+  const matchedSpiritProfile = useMemo(() => {
+    if (!selectedItem) return null;
+    const itemName = selectedItem.name.toLowerCase().trim();
+    const itemBrand = (selectedItem.brand || '').toLowerCase().trim();
+    return SPIRITS_DATABASE.find((spirit) => {
+      const spiritName = spirit.name.toLowerCase();
+      const spiritBrand = spirit.brand.toLowerCase();
+      return (
+        spiritName === itemName ||
+        spiritName.includes(itemName) ||
+        itemName.includes(spiritName) ||
+        (itemBrand && spiritBrand === itemBrand) ||
+        spirit.searchTerms.some((term) => itemName.includes(term.toLowerCase()))
+      );
+    }) || null;
+  }, [selectedItem]);
+
+  const selectedBottleDetails = useMemo(() => {
+    if (!selectedItem || !isCellarEligible(selectedItem)) return null;
+    const flavorProfile = selectedItem.flavor_tags?.length
+      ? selectedItem.flavor_tags
+      : matchedSpiritProfile?.flavorProfile || [];
+    const tastingNotes = selectedItem.tasting_notes || matchedSpiritProfile?.tastingNotes || '';
+    const region = selectedItem.region || matchedSpiritProfile?.origin || '';
+    const type = selectedItem.subcategory || matchedSpiritProfile?.type || getCategoryDisplay(selectedItem);
+    const brand = selectedItem.brand || matchedSpiritProfile?.brand || '';
+    const abv = selectedItem.abv || matchedSpiritProfile?.abv || null;
+    const serveGuidance = selectedItem.serve_guidance || (matchedSpiritProfile
+      ? `${BottleServeService.getRecommendation(matchedSpiritProfile, tier).heroTitle}. ${BottleServeService.getRecommendation(matchedSpiritProfile, tier).why}`
+      : '');
+
+    return {
+      brand,
+      type,
+      abv,
+      region,
+      flavorProfile,
+      tastingNotes,
+      serveGuidance,
+    };
+  }, [selectedItem, matchedSpiritProfile, tier]);
+
   const renderInventoryCard = (item: InventoryItem) => {
+    const pills = getInventoryPills(item);
+    const ingredientImage = getIngredientImage(item);
     return (
       <TouchableOpacity
         key={item.id}
@@ -1155,11 +1375,17 @@ export default function HomeBarScreen() {
         onPress={withHaptic(() => handleItemPress(item))}
       >
         <View style={styles.cardImageContainer}>
-          <Ionicons
-            name={getCategoryIcon(item.category, item.subcategory, item.name)}
-            size={40}
-            color={colors.gold}
-          />
+          {item.imageUrl ? (
+            <Image source={{ uri: item.imageUrl }} style={styles.cardImage} resizeMode="cover" />
+          ) : ingredientImage ? (
+            <Image source={ingredientImage as any} style={styles.cardImage} resizeMode="cover" />
+          ) : (
+            <Ionicons
+              name={getCategoryIcon(item.category, item.subcategory, item.name)}
+              size={40}
+              color={colors.gold}
+            />
+          )}
         </View>
 
         <View style={styles.cardContent}>
@@ -1170,8 +1396,15 @@ export default function HomeBarScreen() {
             {item.isFavorite && <Ionicons name="star" size={14} color={colors.gold} />}
           </View>
           <Text style={styles.cardSubtitle}>
-            {item.volume}ml{item.brand ? ` • ${item.brand}` : ''}
+            {getInventoryInsight(item)}
           </Text>
+          <View style={styles.cardPillRow}>
+            {pills.map((pill) => (
+              <View key={`${item.id}-${pill}`} style={styles.cardPill}>
+                <Text style={styles.cardPillText}>{pill}</Text>
+              </View>
+            ))}
+          </View>
           {!!item.notes && (
             <Text style={styles.cardNote} numberOfLines={1}>
               {item.notes}
@@ -1186,8 +1419,8 @@ export default function HomeBarScreen() {
     <SafeAreaView style={styles.container}>
       <MainPageHeader
         title="Inventory"
-        subtitle={`${activeBarName} • ${all.length} item${all.length !== 1 ? 's' : ''}`}
-        onTitlePress={withHaptic(() => setShowBarSwitcherModal((prev) => !prev), 'selection')}
+        subtitle={`${all.length} item${all.length !== 1 ? 's' : ''}`}
+        onTitlePress={withHaptic(handleInventoryHeaderMenu, 'selection')}
         leftContent={(
           <TouchableOpacity style={styles.headerSearchButton} onPress={withHaptic(openSearchModal, 'selection')}>
             <Ionicons name="search" size={18} color={colors.text} />
@@ -1206,52 +1439,61 @@ export default function HomeBarScreen() {
           },
         ]}
       />
-      {showBarSwitcherModal && (
-        <View style={styles.barDropdown}>
-          <Text style={styles.barDropdownSubtitle}>
-            {bars.length}/{getBarLimit(tier as any)} bars used
-          </Text>
-          {bars.map((bar) => {
-            const isActive = bar.id === activeBarId;
-            return (
-              <TouchableOpacity
-                key={bar.id}
-                style={[styles.barDropdownItem, isActive && styles.activeBarOption]}
-                onPress={withHaptic(() => {
-                  setActiveBar(bar.id);
-                  setShowBarSwitcherModal(false);
-                }, 'selection')}
-              >
-                <Ionicons name={isActive ? 'checkmark-circle' : 'wine-outline'} size={18} color={colors.gold} />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.barDropdownItemTitle}>{bar.name}</Text>
-                  <Text style={styles.barDropdownItemMeta}>
-                    {bar.ingredients.length} ingredient{bar.ingredients.length === 1 ? '' : 's'}
-                  </Text>
-                </View>
-                {isActive ? <Text style={styles.activeBarLabel}>Active</Text> : null}
-              </TouchableOpacity>
-            );
-          })}
+
+      <Modal
+        visible={showInventorySwitcher}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowInventorySwitcher(false)}
+      >
+        <View style={styles.inventorySwitcherOverlay}>
           <TouchableOpacity
-            style={[styles.barDropdownItem, styles.barDropdownAdd]}
-            onPress={withHaptic(() => {
-              handleAddBarProfile();
-              setShowBarSwitcherModal(false);
-            }, 'selection')}
-          >
-            <Ionicons name="add-circle-outline" size={18} color={colors.gold} />
-            <Text style={styles.barDropdownItemTitle}>Add Bar</Text>
-          </TouchableOpacity>
+            style={StyleSheet.absoluteFillObject}
+            activeOpacity={1}
+            onPress={() => setShowInventorySwitcher(false)}
+          />
+          <View style={styles.inventorySwitcherMenu}>
+            <Text style={styles.barDropdownSubtitle}>Choose your inventory view</Text>
+            <TouchableOpacity
+              style={[styles.barDropdownItem, styles.activeBarOption]}
+              onPress={withHaptic(() => setShowInventorySwitcher(false), 'selection')}
+            >
+              <Ionicons name="layers-outline" size={18} color={colors.gold} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.barDropdownItemTitle}>Inventory</Text>
+                <Text style={styles.barDropdownItemMeta}>Everyday bottles, mixers, garnish, and ingredients</Text>
+              </View>
+              <Text style={styles.activeBarLabel}>Current</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.barDropdownItem}
+              onPress={withHaptic(() => {
+                setShowInventorySwitcher(false);
+                setTimeout(() => {
+                  cellarModeGate('T11', () => nav.navigate('TheWineCellar'));
+                }, 140);
+              }, 'selection')}
+            >
+              <Ionicons name="wine-outline" size={18} color={colors.gold} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.barDropdownItemTitle}>The Cellar</Text>
+                <Text style={styles.barDropdownItemMeta}>Collector showcase, tracked bottles, and portfolio view</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={16} color={colors.subtext} />
+            </TouchableOpacity>
+          </View>
         </View>
-      )}
+      </Modal>
 
       {/* Inventory Content */}
       <ScrollView
         style={styles.content}
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
-        onScrollBeginDrag={onScrollHaptic}
+        onScrollBeginDrag={(event) => {
+          if (showInventorySwitcher) setShowInventorySwitcher(false);
+          onScrollHaptic(event);
+        }}
       >
         {/* Feature Cards — horizontal scroll */}
         {all.length > 0 && (
@@ -1407,6 +1649,7 @@ export default function HomeBarScreen() {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.modalScrollContent}>
             <View style={styles.modalHeader}>
               <Heading level={2} style={styles.modalTitle}>{selectedItem?.name}</Heading>
               <TouchableOpacity onPress={withHaptic(() => setShowItemOptionsModal(false), 'selection')}>
@@ -1414,11 +1657,55 @@ export default function HomeBarScreen() {
               </TouchableOpacity>
             </View>
 
+            {selectedItem?.imageUrl ? (
+              <Image source={{ uri: selectedItem.imageUrl }} style={styles.inventoryDetailImage} resizeMode="cover" />
+            ) : selectedItem && getIngredientImage(selectedItem) ? (
+              <Image source={getIngredientImage(selectedItem) as any} style={styles.inventoryDetailImage} resizeMode="cover" />
+            ) : null}
+
             <View style={styles.itemDetailsContainer}>
-              <Text style={styles.itemDetail}>Brand: {selectedItem?.brand || 'Unknown'}</Text>
-              <Text style={styles.itemDetail}>Volume: {selectedItem?.volume}ml</Text>
-              {selectedItem?.abv && <Text style={styles.itemDetail}>ABV: {selectedItem.abv}%</Text>}
+              <Text style={styles.itemDetail}>Brand: {selectedBottleDetails?.brand || selectedItem?.brand || 'Unknown'}</Text>
+              <Text style={styles.itemDetail}>
+                Type: {selectedBottleDetails?.type ? String(selectedBottleDetails.type).replace(/\b\w/g, (letter) => letter.toUpperCase()) : selectedItem ? getCategoryDisplay(selectedItem) : 'Unknown'}
+              </Text>
+              <Text style={styles.itemDetail}>Volume: {selectedItem?.volume ? `${selectedItem.volume}ml` : 'Not set'}</Text>
+              {selectedBottleDetails?.abv && <Text style={styles.itemDetail}>ABV: {selectedBottleDetails.abv}%</Text>}
+              {selectedBottleDetails?.region && <Text style={styles.itemDetail}>Region: {selectedBottleDetails.region}</Text>}
+              {selectedItem && (
+                <Text style={styles.itemDetail}>{getInventoryInsight(selectedItem)}</Text>
+              )}
             </View>
+
+            {selectedBottleDetails ? (
+              <View style={styles.inventoryBottleBrief}>
+                {selectedBottleDetails.flavorProfile.length ? (
+                  <>
+                    <Text style={styles.inventoryBottleBriefLabel}>Flavor Profile</Text>
+                    <View style={styles.inventoryBottleFlavorRow}>
+                      {selectedBottleDetails.flavorProfile.slice(0, 6).map((flavor) => (
+                        <View key={`${selectedItem?.id}-${flavor}`} style={styles.inventoryBottleFlavorChip}>
+                          <Text style={styles.inventoryBottleFlavorChipText}>{flavor}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  </>
+                ) : null}
+
+                {selectedBottleDetails.tastingNotes ? (
+                  <>
+                    <Text style={styles.inventoryBottleBriefLabel}>Tasting Notes</Text>
+                    <Text style={styles.inventoryBottleBriefBody}>{selectedBottleDetails.tastingNotes}</Text>
+                  </>
+                ) : null}
+
+                {selectedBottleDetails.serveGuidance ? (
+                  <>
+                    <Text style={styles.inventoryBottleBriefLabel}>Serve Guidance</Text>
+                    <Text style={styles.inventoryBottleBriefBody}>{selectedBottleDetails.serveGuidance}</Text>
+                  </>
+                ) : null}
+              </View>
+            ) : null}
 
             <TouchableOpacity
               style={styles.favoriteToggle}
@@ -1452,6 +1739,71 @@ export default function HomeBarScreen() {
                 <Text style={styles.noteSaveButtonText}>Save note</Text>
               </TouchableOpacity>
             </View>
+
+            {selectedItem && isCellarEligible(selectedItem) ? (
+              <View style={styles.inventoryCellarCard}>
+                <View style={styles.inventoryCellarHeader}>
+                  <View>
+                    <Text style={styles.inventoryCellarEyebrow}>
+                      {hasCellarMode ? 'PRO Collector Layer' : 'PRO Upgrade'}
+                    </Text>
+                    <Text style={styles.inventoryCellarTitle}>Cellar Mode</Text>
+                  </View>
+                  <View style={styles.inventoryCellarBadge}>
+                    <Text style={styles.inventoryCellarBadgeText}>
+                      {hasCellarMode ? 'Bottle Eligible' : 'Bottle Tracking'}
+                    </Text>
+                  </View>
+                </View>
+
+                <Text style={styles.inventoryCellarBody}>
+                  {hasCellarMode
+                    ? (selectedItem.cellar_notes || (hasCellarRecord(selectedItem)
+                      ? 'This bottle is already tracked in The Cellar. Open The Cellar from the Inventory header any time to revisit it.'
+                      : 'Track purchase price, opening window, and collector notes once this bottle becomes more than everyday inventory.'))
+                    : 'This bottle can be tracked in Cellar Mode with valuation, drinking window, and collector notes once you unlock PRO.'}
+                </Text>
+
+                {hasCellarMode ? (
+                  <>
+                    <View style={styles.inventoryCellarSummaryRow}>
+                      <View style={styles.inventoryCellarSummaryPill}>
+                        <Text style={styles.inventoryCellarSummaryLabel}>Value</Text>
+                        <Text style={styles.inventoryCellarSummaryValue}>
+                          {selectedItem.valuation_estimate ? `$${Math.round(selectedItem.valuation_estimate)}` : 'Open'}
+                        </Text>
+                      </View>
+                      <View style={styles.inventoryCellarSummaryPill}>
+                        <Text style={styles.inventoryCellarSummaryLabel}>Window</Text>
+                        <Text style={styles.inventoryCellarSummaryValue}>
+                          {selectedItem.drinking_window_end || 'Not tracked'}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <TouchableOpacity
+                      style={styles.inventoryCellarButton}
+                      onPress={withHaptic(async () => {
+                        await handleAddToCellar();
+                      }, 'selection')}
+                    >
+                      <Ionicons name={hasCellarRecord(selectedItem) ? 'checkmark-circle-outline' : 'add-circle-outline'} size={18} color={colors.accent} />
+                      <Text style={styles.inventoryCellarButtonText}>
+                        {hasCellarRecord(selectedItem) ? 'Saved to Cellar' : 'Add to Cellar'}
+                      </Text>
+                    </TouchableOpacity>
+                  </>
+                ) : (
+                  <TouchableOpacity
+                    style={styles.inventoryCellarButton}
+                    onPress={withHaptic(() => cellarModeGate('T11'), 'selection')}
+                  >
+                    <Ionicons name="diamond-outline" size={18} color={colors.accent} />
+                    <Text style={styles.inventoryCellarButtonText}>Unlock Cellar Mode</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            ) : null}
 
             <View style={styles.optionsContainer}>
               <TouchableOpacity
@@ -1489,6 +1841,7 @@ export default function HomeBarScreen() {
             >
               <Text style={styles.cancelButtonText}>Cancel</Text>
             </TouchableOpacity>
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -1872,19 +2225,29 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.line,
   },
-  barDropdown: {
-    position: 'relative',
-    marginHorizontal: spacing(2.5),
-    marginTop: spacing(1),
-    marginBottom: spacing(1),
+  inventorySwitcherOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(8,6,5,0.12)',
+    alignItems: 'center',
+  },
+  inventorySwitcherMenu: {
+    position: 'absolute',
+    top: spacing(11),
+    width: '78%',
+    maxWidth: 340,
+    alignSelf: 'center',
     backgroundColor: colors.card,
-    borderRadius: radii.lg,
+    borderRadius: radii.xl,
     borderWidth: 1,
     borderColor: colors.line,
     padding: spacing(1.25),
     gap: spacing(0.75),
     zIndex: 20,
     elevation: 8,
+    shadowColor: '#000',
+    shadowOpacity: 0.18,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 12 },
   },
   barDropdownSubtitle: {
     fontSize: 12,
@@ -2081,6 +2444,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  cardImage: {
+    width: '100%',
+    height: '100%',
+  },
   cardContent: {
     padding: spacing(2),
   },
@@ -2100,6 +2467,26 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.subtext,
     marginBottom: spacing(0.5),
+    lineHeight: 17,
+  },
+  cardPillRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing(0.5),
+    marginBottom: spacing(0.75),
+  },
+  cardPill: {
+    paddingHorizontal: spacing(0.9),
+    paddingVertical: spacing(0.45),
+    borderRadius: radii.full,
+    backgroundColor: `${colors.accent}12`,
+    borderWidth: 1,
+    borderColor: `${colors.accent}28`,
+  },
+  cardPillText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: colors.accent,
   },
   cardNote: {
     fontSize: 11,
@@ -2165,6 +2552,9 @@ const styles = StyleSheet.create({
     paddingBottom: spacing(4),
     maxHeight: '80%',
   },
+  modalScrollContent: {
+    paddingBottom: spacing(2),
+  },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -2186,6 +2576,164 @@ const styles = StyleSheet.create({
   },
   modalForm: {
     marginBottom: spacing(1.5),
+  },
+  itemDetailsContainer: {
+    gap: spacing(0.6),
+    marginBottom: spacing(2),
+  },
+  inventoryDetailImage: {
+    width: '100%',
+    height: 188,
+    borderRadius: radii.lg,
+    marginBottom: spacing(2),
+    backgroundColor: colors.bg,
+  },
+  itemDetail: {
+    fontSize: 13,
+    lineHeight: 18,
+    color: colors.subtext,
+  },
+  inventoryBottleBrief: {
+    marginBottom: spacing(2),
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: `${colors.bg}A5`,
+    padding: spacing(1.6),
+    gap: spacing(0.85),
+  },
+  inventoryBottleBriefLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.accent,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  inventoryBottleBriefBody: {
+    fontSize: 13,
+    lineHeight: 18,
+    color: colors.text,
+  },
+  inventoryBottleFlavorRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing(0.6),
+    marginBottom: spacing(0.4),
+  },
+  inventoryBottleFlavorChip: {
+    paddingHorizontal: spacing(0.9),
+    paddingVertical: spacing(0.5),
+    borderRadius: radii.full,
+    backgroundColor: `${colors.accent}15`,
+    borderWidth: 1,
+    borderColor: `${colors.accent}30`,
+  },
+  inventoryBottleFlavorChipText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.accent,
+  },
+  inventoryCellarCard: {
+    marginBottom: spacing(2),
+    borderRadius: radii.lg,
+    padding: spacing(1.6),
+    borderWidth: 1,
+    borderColor: `${colors.accent}28`,
+    backgroundColor: `${colors.accent}0D`,
+    gap: spacing(1.15),
+  },
+  inventoryCellarHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: spacing(1),
+    alignItems: 'flex-start',
+  },
+  inventoryCellarEyebrow: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: colors.accent,
+    textTransform: 'uppercase',
+    letterSpacing: 0.9,
+    marginBottom: spacing(0.35),
+  },
+  inventoryCellarTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  inventoryCellarBadge: {
+    paddingHorizontal: spacing(1),
+    paddingVertical: spacing(0.55),
+    borderRadius: radii.full,
+    backgroundColor: `${colors.bg}A8`,
+    borderWidth: 1,
+    borderColor: `${colors.accent}28`,
+  },
+  inventoryCellarBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: colors.gold,
+  },
+  inventoryCellarSummaryRow: {
+    flexDirection: 'row',
+    gap: spacing(0.8),
+  },
+  inventoryCellarSummaryPill: {
+    flex: 1,
+    borderRadius: radii.full,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: `${colors.bg}90`,
+    paddingHorizontal: spacing(1),
+    paddingVertical: spacing(0.9),
+  },
+  inventoryCellarSummaryLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: colors.subtext,
+    textTransform: 'uppercase',
+    letterSpacing: 0.7,
+    marginBottom: spacing(0.25),
+  },
+  inventoryCellarSummaryValue: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  inventoryCellarBody: {
+    fontSize: 12,
+    lineHeight: 18,
+    color: colors.subtext,
+  },
+  inventoryCellarButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing(0.75),
+    borderRadius: radii.lg,
+    paddingVertical: spacing(1.2),
+    borderWidth: 1,
+    borderColor: `${colors.accent}35`,
+    backgroundColor: `${colors.bg}A8`,
+  },
+  inventoryCellarButtonText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.accent,
+  },
+  inventoryCellarGhostButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radii.lg,
+    paddingVertical: spacing(1),
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: `${colors.bg}90`,
+  },
+  inventoryCellarGhostButtonText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.text,
   },
   manualModalContent: {
     maxHeight: '96%',

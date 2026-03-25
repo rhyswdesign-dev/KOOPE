@@ -35,6 +35,7 @@ import {
   toPersonalizationPatch,
 } from '../../services/onboardingQuestionnaireService';
 import { log } from '../../lib/logger';
+import { trackEvent, ANALYTICS_EVENTS } from '../../lib/analytics';
 
 type Step =
   | 'q1_goal'
@@ -72,6 +73,9 @@ const ONBOARDING_YEARLY_PRICE = PRICING_DISPLAY.FOUNDERS.PLUS.yearly;
 const ONBOARDING_YEARLY_PER_MONTH = PRICING_DISPLAY.FOUNDERS.PLUS.yearlyPerMonth;
 const ONBOARDING_YEARLY_REGULAR_PRICE = PRICING_DISPLAY.PLUS.yearly;
 const ONBOARDING_YEARLY_REGULAR_PER_MONTH = PRICING_DISPLAY.PLUS.yearlyPerMonth;
+const PRO_MONTHLY_PRICE = PRICING_DISPLAY.PRO.monthly;
+const PRO_YEARLY_PRICE = PRICING_DISPLAY.PRO.yearly;
+const PRO_YEARLY_PER_MONTH = PRICING_DISPLAY.PRO.yearlyPerMonth;
 
 function PreviewModeBanner() {
   return (
@@ -770,7 +774,16 @@ export default function OnboardingQuestionnaireScreen({ onComplete, previewMode 
     }
   };
 
+  const handleOfferSelect = (period: 'monthly' | 'yearly') => {
+    setSelectedOfferPeriod(period);
+    trackEvent(ANALYTICS_EVENTS.PAYWALL_OFFER_SELECTED, { period, preview: previewMode });
+  };
+
   const handleStartTrial = async () => {
+    trackEvent(ANALYTICS_EVENTS.PAYWALL_OFFER_CONFIRMED, {
+      period: selectedOfferPeriod,
+      preview: previewMode,
+    });
     if (!previewMode && selectedOfferPeriod === 'yearly') {
       useUserTier.getState().startTrial('PLUS', ONBOARDING_TRIAL_DAYS);
       setStartedTrial(true);
@@ -783,8 +796,9 @@ export default function OnboardingQuestionnaireScreen({ onComplete, previewMode 
   };
 
   const handleSkipTrial = async () => {
+    trackEvent(ANALYTICS_EVENTS.PAYWALL_SKIPPED, { preview: previewMode });
     await persistProfile();
-    setStep('payoff');
+    onComplete('scan');
   };
 
   // ─── Progress dots ─────────────────────────────────────────────────────────
@@ -1253,7 +1267,16 @@ export default function OnboardingQuestionnaireScreen({ onComplete, previewMode 
             </View>
           </View>
 
-          <Pressable style={styles.offerFoundersCard} onPress={() => setShowFoundersPricing((prev) => !prev)}>
+          <Pressable
+            style={styles.offerFoundersCard}
+            onPress={() =>
+              setShowFoundersPricing((prev) => {
+                const next = !prev;
+                trackEvent(ANALYTICS_EVENTS.PAYWALL_FOUNDERS_TOGGLED, { expanded: next, preview: previewMode });
+                return next;
+              })
+            }
+          >
             <View style={styles.offerFoundersRow}>
               <View style={styles.offerFoundersHeader}>
                 <Text style={styles.offerFoundersEyebrow}>Founders pricing</Text>
@@ -1261,7 +1284,7 @@ export default function OnboardingQuestionnaireScreen({ onComplete, previewMode 
                 <Text style={styles.offerFoundersSummary}>
                   {showFoundersPricing
                     ? `Founders ${ONBOARDING_YEARLY_PRICE}/year • Regular ${ONBOARDING_YEARLY_REGULAR_PRICE}/year`
-                    : `Tap to view founders pricing details`}
+                    : 'Founders pricing details'}
                 </Text>
               </View>
               <Ionicons
@@ -1285,7 +1308,7 @@ export default function OnboardingQuestionnaireScreen({ onComplete, previewMode 
           <View style={styles.planChoiceRow}>
             <Pressable
               style={[styles.offerPlanCard, selectedOfferPeriod === 'monthly' && styles.offerPlanCardSelected]}
-              onPress={() => setSelectedOfferPeriod('monthly')}
+              onPress={() => handleOfferSelect('monthly')}
             >
               <Text style={styles.offerPlanTitle}>Monthly</Text>
               <Text style={styles.offerPlanPrice}>{ONBOARDING_MONTHLY_PRICE}/mo</Text>
@@ -1294,13 +1317,38 @@ export default function OnboardingQuestionnaireScreen({ onComplete, previewMode 
 
             <Pressable
               style={[styles.offerPlanCard, selectedOfferPeriod === 'yearly' && styles.offerPlanCardSelectedStrong]}
-              onPress={() => setSelectedOfferPeriod('yearly')}
+              onPress={() => handleOfferSelect('yearly')}
             >
               <Text style={styles.offerPlanTitle}>Yearly</Text>
               <Text style={styles.offerPlanPrice}>{ONBOARDING_YEARLY_PER_MONTH}/mo</Text>
               <Text style={styles.offerPlanCaption}>Founders price • billed annually</Text>
             </Pressable>
           </View>
+
+          {!previewMode ? (
+            <View style={styles.proPricingWrap}>
+              <Text style={styles.proNote}>Pro features unlock during trial days 6–7.</Text>
+              <Text style={styles.proPricingLabel}>Pro pricing (coming soon in trial days 6-7)</Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.proPricingRow}
+                decelerationRate="fast"
+              >
+                <View style={styles.proCard}>
+                  <Text style={styles.proBadge}>PRO</Text>
+                  <Text style={styles.offerPlanTitle}>Monthly</Text>
+                  <Text style={styles.offerPlanPrice}>{PRO_MONTHLY_PRICE}/mo</Text>
+                </View>
+                <View style={styles.proCard}>
+                  <Text style={styles.proBadge}>PRO</Text>
+                  <Text style={styles.offerPlanTitle}>Yearly</Text>
+                  <Text style={styles.offerPlanPrice}>{PRO_YEARLY_PER_MONTH}/mo</Text>
+                  <Text style={styles.offerPlanCaption}>Billed annually ({PRO_YEARLY_PRICE})</Text>
+                </View>
+              </ScrollView>
+            </View>
+          ) : null}
 
           <View style={styles.paywallMiniProof}>
             <Ionicons name="star" size={14} color="#111111" />
@@ -2313,6 +2361,46 @@ const styles = StyleSheet.create({
     color: '#111111',
     fontSize: 12,
     fontWeight: '700',
+  },
+  proPricingWrap: {
+    marginBottom: spacing(2),
+    marginTop: spacing(1),
+    gap: spacing(0.75),
+  },
+  proNote: {
+    color: '#6A6057',
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.2,
+  },
+  proPricingLabel: {
+    color: '#6A6057',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  proPricingRow: {
+    gap: spacing(1),
+  },
+  proCard: {
+    width: 180,
+    backgroundColor: '#F3EDE2',
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#E3D7C4',
+    padding: spacing(1.25),
+    gap: spacing(0.25),
+  },
+  proBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#111111',
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 0.4,
+    paddingHorizontal: spacing(1),
+    paddingVertical: spacing(0.4),
+    borderRadius: 12,
+    marginBottom: spacing(0.5),
   },
   paywallStickyFooter: {
     borderTopWidth: 1,

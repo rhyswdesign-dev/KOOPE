@@ -31,6 +31,8 @@ import {
   drinkingGames,
   barFeatures,
 } from '../config/vaultContent';
+import { getProIdentityProgress, PRO_XP_MULTIPLIER } from '../config/proIdentity';
+import { WEEKLY_FOR_YOU_DROP_RECIPES } from '../data/weeklyForYouDropRecipes';
 
 const serifFont = serif;
 
@@ -57,6 +59,15 @@ export default function ProfileScreen() {
   const savedTotalCount = savedCocktailCount + savedDrinkCount + savedRecipeCardCount;
   const createdRecipeCount = recipes.filter(r => r.type === 'created' || r.type === 'ai_generated').length;
   const importedRecipeCount = recipes.filter(r => (r.type as string) === 'imported').length;
+  const claimedDropCount = useMemo(() => {
+    const weeklyDropIds = new Set(WEEKLY_FOR_YOU_DROP_RECIPES.map((recipe) => recipe.id));
+    return (savedItems.savedCocktails || []).filter((item) => weeklyDropIds.has(item.id)).length;
+  }, [savedItems.savedCocktails]);
+  const proIdentity = useMemo(() => getProIdentityProgress({
+    lessonsCompleted: completedLessons?.length || 0,
+    achievementsUnlocked: unlockedAchievementCount,
+    claimedDrops: claimedDropCount,
+  }), [completedLessons?.length, unlockedAchievementCount, claimedDropCount]);
 
   // Compute what vault content the user can currently afford with their XP.
   // Only used in the free-user affordability card; shows XP as currency, not just a score.
@@ -186,6 +197,52 @@ export default function ProfileScreen() {
                 <View style={[styles.progressBarFill, { width: `${(xpInLevel / xpForNextLevel) * 100}%` }]} />
               </View>
             </View>
+
+            {tier === 'PRO' && (
+              <View style={styles.proIdentityCard}>
+                <View style={styles.proIdentityHeader}>
+                  <View>
+                    <Text style={styles.proIdentityEyebrow}>Wave 4 Identity</Text>
+                    <Text style={styles.proIdentityTitle}>Pro Status & Certifications</Text>
+                  </View>
+                  <View style={styles.proIdentityBadge}>
+                    <Text style={styles.proIdentityBadgeText}>{proIdentity.earnedCount}/{proIdentity.totalCount}</Text>
+                  </View>
+                </View>
+
+                <View style={styles.proIdentityGrid}>
+                  <View style={styles.proIdentityMetric}>
+                    <Text style={styles.proIdentityMetricLabel}>Current Cert</Text>
+                    <Text style={styles.proIdentityMetricValue}>{proIdentity.current?.title || 'In Progress'}</Text>
+                  </View>
+                  <View style={styles.proIdentityMetric}>
+                    <Text style={styles.proIdentityMetricLabel}>XP Multiplier</Text>
+                    <Text style={styles.proIdentityMetricValue}>{PRO_XP_MULTIPLIER}x</Text>
+                  </View>
+                  <View style={styles.proIdentityMetric}>
+                    <Text style={styles.proIdentityMetricLabel}>Claimed Drops</Text>
+                    <Text style={styles.proIdentityMetricValue}>{claimedDropCount}</Text>
+                  </View>
+                </View>
+
+                <Text style={styles.proIdentityBody}>
+                  {proIdentity.current
+                    ? `${proIdentity.current.title} is active. Your profile now has both a recurring reward loop and an identity track.`
+                    : 'Your Pro identity track has started. Claim drops, complete lessons, and unlock achievements to earn your first certification.'}
+                </Text>
+
+                {proIdentity.next && (
+                  <View style={styles.proIdentityNextCard}>
+                    <Text style={styles.proIdentityNextEyebrow}>Next Certification</Text>
+                    <Text style={styles.proIdentityNextTitle}>{proIdentity.next.title}</Text>
+                    <Text style={styles.proIdentityNextBody}>{proIdentity.next.body}</Text>
+                    <Text style={styles.proIdentityChecklist}>
+                      {`${Math.min(completedLessons?.length || 0, proIdentity.next.requiredLessons)}/${proIdentity.next.requiredLessons} lessons • ${Math.min(unlockedAchievementCount, proIdentity.next.requiredAchievements)}/${proIdentity.next.requiredAchievements} achievements • ${Math.min(claimedDropCount, proIdentity.next.requiredDrops)}/${proIdentity.next.requiredDrops} drops`}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            )}
 
             {/* XP Affordability Card — free users only.
                 Makes XP feel like currency ("you can unlock X items") rather than an abstract score. */}
@@ -914,6 +971,118 @@ const styles = StyleSheet.create({
   },
   collectionArrow: {
     paddingLeft: spacing(2),
+  },
+  proIdentityCard: {
+    backgroundColor: colors.card,
+    borderRadius: radii.lg,
+    padding: spacing(3),
+    marginBottom: spacing(3),
+    borderWidth: 1,
+    borderColor: 'rgba(224, 168, 84, 0.24)',
+    gap: spacing(2),
+    shadowColor: colors.accent,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.08,
+    shadowRadius: 18,
+    elevation: 4,
+  },
+  proIdentityHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: spacing(2),
+  },
+  proIdentityEyebrow: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.accent,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginBottom: spacing(0.75),
+  },
+  proIdentityTitle: {
+    fontSize: 22,
+    color: colors.text,
+    fontFamily: serifFont,
+    fontWeight: '700',
+  },
+  proIdentityBadge: {
+    minWidth: 46,
+    height: 34,
+    paddingHorizontal: spacing(1.25),
+    borderRadius: radii.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(224, 168, 84, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(224, 168, 84, 0.28)',
+  },
+  proIdentityBadgeText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.accent,
+  },
+  proIdentityGrid: {
+    flexDirection: 'row',
+    gap: spacing(1.5),
+  },
+  proIdentityMetric: {
+    flex: 1,
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderRadius: radii.md,
+    padding: spacing(1.5),
+    borderWidth: 1,
+    borderColor: colors.line,
+    gap: spacing(0.5),
+  },
+  proIdentityMetricLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: colors.subtext,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  proIdentityMetricValue: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  proIdentityBody: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: colors.subtext,
+  },
+  proIdentityNextCard: {
+    backgroundColor: 'rgba(255,255,255,0.025)',
+    borderRadius: radii.md,
+    padding: spacing(2),
+    borderWidth: 1,
+    borderColor: colors.line,
+    gap: spacing(0.75),
+  },
+  proIdentityNextEyebrow: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: colors.accent,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  proIdentityNextTitle: {
+    fontSize: 18,
+    color: colors.text,
+    fontWeight: '700',
+    fontFamily: serifFont,
+  },
+  proIdentityNextBody: {
+    fontSize: 13,
+    lineHeight: 18,
+    color: colors.subtext,
+  },
+  proIdentityChecklist: {
+    fontSize: 12,
+    lineHeight: 17,
+    color: colors.text,
+    fontWeight: '600',
   },
 
   // XP Affordability Card (free users)

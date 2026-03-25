@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { NavigationContainer, DefaultTheme, createNavigationContainerRef } from '@react-navigation/native';
+import { KeyboardAvoidingView, Platform, Keyboard, LayoutAnimation, UIManager } from 'react-native';
 import Constants from 'expo-constants';
 import RootNavigator from './src/navigation/RootNavigator';
 import { colors } from './src/theme/tokens';
@@ -141,6 +142,10 @@ export default function App() {
   const lastHandledSharedUrlRef = React.useRef<string | null>(null);
   const [pendingSharedRecipeUrl, setPendingSharedRecipeUrl] = React.useState<string | null>(null);
   const [launchSmartScanAfterOnboarding, setLaunchSmartScanAfterOnboarding] = React.useState(false);
+  const keyboardAvoidingStyle = React.useMemo(
+    () => ({ flex: 1, backgroundColor: colors.bg }),
+    []
+  );
   const {
     isReady: isShareIntentReady,
     hasShareIntent,
@@ -151,6 +156,29 @@ export default function App() {
     debug: __DEV__,
     disabled: Constants.appOwnership === 'expo',
   });
+
+  // Smooth keyboard transitions
+  React.useEffect(() => {
+    if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+      UIManager.setLayoutAnimationEnabledExperimental(true);
+    }
+
+    const ease = LayoutAnimation.create(200, LayoutAnimation.Types.easeInEaseOut, LayoutAnimation.Properties.opacity);
+    const onShow = () => LayoutAnimation.configureNext(ease);
+    const onHide = () => LayoutAnimation.configureNext(ease);
+
+    const showSub = Keyboard.addListener('keyboardWillShow', onShow);
+    const hideSub = Keyboard.addListener('keyboardWillHide', onHide);
+    const showSubFallback = Keyboard.addListener('keyboardDidShow', onShow);
+    const hideSubFallback = Keyboard.addListener('keyboardDidHide', onHide);
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+      showSubFallback.remove();
+      hideSubFallback.remove();
+    };
+  }, []);
 
   const extractSharedUrl = React.useCallback((text: string | null | undefined): string | null => {
     if (!text) return null;
@@ -254,56 +282,123 @@ export default function App() {
 
   // Show splash screen
   if (appState === 'loading' || appState === 'splash') {
-    return <SplashScreen onFinish={handleSplashFinish} />;
+    return (
+      <KeyboardAvoidingView
+        style={keyboardAvoidingStyle}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
+      >
+        <SplashScreen onFinish={handleSplashFinish} />
+      </KeyboardAvoidingView>
+    );
   }
 
   // Show bartending welcome (first step)
   if (appState === 'age_gate') {
-    return <AgeGateScreen onVerified={(payload: AgeVerificationPayload) => completeAgeGate(payload)} />;
+    return (
+      <KeyboardAvoidingView
+        style={keyboardAvoidingStyle}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
+      >
+        <AgeGateScreen onVerified={(payload: AgeVerificationPayload) => completeAgeGate(payload)} />
+      </KeyboardAvoidingView>
+    );
   }
 
   // Show bartending welcome (first step)
   if (appState === 'bartending_welcome') {
-    return <BartendingWelcomeScreen onComplete={completeBartendingWelcome} />;
+    return (
+      <KeyboardAvoidingView
+        style={keyboardAvoidingStyle}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
+      >
+        <BartendingWelcomeScreen onComplete={completeBartendingWelcome} />
+      </KeyboardAvoidingView>
+    );
   }
 
   // Show welcome carousel
   if (appState === 'welcome') {
-    return <WelcomeCarouselScreen onComplete={completeWelcome} />;
+    return (
+      <KeyboardAvoidingView
+        style={keyboardAvoidingStyle}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
+      >
+        <WelcomeCarouselScreen onComplete={completeWelcome} />
+      </KeyboardAvoidingView>
+    );
   }
 
   // Show OAuth sign-in screen after welcome carousel
   if (appState === 'onboarding') {
-    return <OAuthSignInScreen onComplete={completeOnboarding} onSkip={skipToXPReminder} />;
+    return (
+      <KeyboardAvoidingView
+        style={keyboardAvoidingStyle}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
+      >
+        <OAuthSignInScreen onComplete={completeOnboarding} onSkip={skipToXPReminder} />
+      </KeyboardAvoidingView>
+    );
   }
 
   // Show XP reminder after skipping account setup
   if (appState === 'xp_reminder') {
-    return <XPReminderScreen onComplete={completeXPReminder} onGoBack={goBackToOnboarding} />;
+    return (
+      <KeyboardAvoidingView
+        style={keyboardAvoidingStyle}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
+      >
+        <XPReminderScreen onComplete={completeXPReminder} onGoBack={goBackToOnboarding} />
+      </KeyboardAvoidingView>
+    );
   }
 
   // Show onboarding questionnaire flow (required + optional + trial + payoff)
   if (appState === 'questionnaire') {
     return (
-      <OnboardingQuestionnaireScreen
-        onComplete={(action) => {
-          if (action === 'scan') {
-            setLaunchSmartScanAfterOnboarding(true);
-          }
-          completeQuestionnaire();
-        }}
-      />
+      <KeyboardAvoidingView
+        style={keyboardAvoidingStyle}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
+      >
+        <OnboardingQuestionnaireScreen
+          onComplete={(action) => {
+            if (action === 'scan') {
+              setLaunchSmartScanAfterOnboarding(true);
+            }
+            completeQuestionnaire();
+          }}
+        />
+      </KeyboardAvoidingView>
     );
   }
 
   // Show survey before main app
   if (appState === 'survey') {
-    return <SurveyScreen onComplete={completeSurvey} />;
+    return (
+      <KeyboardAvoidingView
+        style={keyboardAvoidingStyle}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
+      >
+        <SurveyScreen onComplete={completeSurvey} />
+      </KeyboardAvoidingView>
+    );
   }
 
   // Show main app
   return (
     <ErrorBoundary>
+      <KeyboardAvoidingView
+        style={keyboardAvoidingStyle}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
+      >
       {/* <StripeProvider> Disabled until Xcode is installed */}
         <AnalyticsProvider>
           <AuthProvider>
@@ -354,6 +449,7 @@ export default function App() {
           </AuthProvider>
         </AnalyticsProvider>
       {/* </StripeProvider> */}
+      </KeyboardAvoidingView>
     </ErrorBoundary>
   );
 }

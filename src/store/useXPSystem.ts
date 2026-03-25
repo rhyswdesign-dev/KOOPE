@@ -9,6 +9,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getCocktailXPCost as getDefaultCocktailXPCost } from '../config/cocktailXPCosts';
 import { achievementService } from '../services/achievementService';
 import { useUserTier } from './useUserTier';
+import { PRO_XP_MULTIPLIER } from '../config/proIdentity';
 
 export type XPSource =
   | 'daily-login'
@@ -209,6 +210,9 @@ export const useXPSystem = create<XPSystemState>()(
           const remaining = FREE_DAILY_XP_CAP - earnedToday;
           effectiveAmount = Math.min(amount, Math.max(0, remaining));
           if (effectiveAmount <= 0) return; // Cap already reached for today
+        }
+        if (tier === 'PRO') {
+          effectiveAmount = Math.round(effectiveAmount * PRO_XP_MULTIPLIER);
         }
 
         const transaction: XPTransaction = {

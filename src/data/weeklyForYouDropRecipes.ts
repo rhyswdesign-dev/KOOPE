@@ -1,0 +1,77 @@
+export const WEEKLY_FOR_YOU_DROP_RECIPES = [
+  {
+    id: 'drop-midnight-orchard-sour',
+    name: 'Midnight Orchard Sour',
+    title: 'Midnight Orchard Sour',
+    subtitle: 'Weekly Drop • Orchard, citrus, and velvet texture',
+    description: 'An exclusive sour that layers apple acidity, warm spice, and a calmer whiskey edge into a polished late-night spec.',
+    ingredients: [
+      { amount: '1 1/2', name: 'Bourbon' },
+      { amount: '3/4', name: 'Cloudy apple juice' },
+      { amount: '1/2', name: 'Fresh lemon juice' },
+      { amount: '1/4', name: 'Cinnamon honey syrup' },
+      { amount: '1/4', name: 'Egg white' },
+      { name: 'Thin apple fan garnish' },
+    ],
+    instructions: [
+      'Dry shake all ingredients to build texture before dilution.',
+      'Add cold ice and shake hard until the tin feels tight and frosted.',
+      'Double strain into a chilled coupe.',
+      'Finish with the apple fan so the aromatics stay clean and restrained.',
+    ],
+    difficulty: 'Medium',
+    time: '4 min',
+    image: 'https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?q=80&w=1200&auto=format&fit=crop',
+    era: 'modern',
+    base: 'whiskey',
+    glassware: 'Coupe Glass',
+    tastingNote: 'Bright orchard fruit arrives first, then warm baking spice and a softer whiskey finish that keeps the drink composed.',
+    proTips: [
+      'Apple juice should taste tart, not candy-sweet, or the sour will lose its edge.',
+      'Dry shake first so the foam tightens before you bring in dilution.',
+    ],
+    flavorProfiles: ['sweet', 'citrus', 'spiced'],
+    recipeType: 'cocktail',
+    weeklyDropExclusive: true,
+  },
+  {
+    id: 'drop-greenhouse-tonic',
+    name: 'Greenhouse Tonic',
+    title: 'Greenhouse Tonic',
+    subtitle: 'Weekly Drop • Zero-proof, lifted, and garden-bright',
+    description: 'An exclusive zero-proof highball built around cucumber, basil, and tonic tension so the finish stays adult and structured.',
+    ingredients: [
+      { amount: '1', name: 'Cucumber juice' },
+      { amount: '1/2', name: 'Fresh lime juice' },
+      { amount: '1/2', name: 'Basil syrup' },
+      { amount: '2', name: 'Zero-proof botanical spirit' },
+      { amount: '2', name: 'Dry tonic water' },
+      { name: 'Basil leaf and cucumber ribbon garnish' },
+    ],
+    instructions: [
+      'Shake cucumber juice, lime juice, basil syrup, and zero-proof spirit with ice.',
+      'Strain into a highball over fresh cold ice.',
+      'Top with dry tonic water and give one brief lift.',
+      'Garnish with basil and cucumber so the nose stays green and clean.',
+    ],
+    difficulty: 'Easy',
+    time: '3 min',
+    image: 'https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?q=80&w=1200&auto=format&fit=crop',
+    era: 'modern',
+    base: 'zero-proof',
+    glassware: 'Highball Glass',
+    tastingNote: 'Fresh cucumber and basil open the drink, while the tonic finish keeps it brisk and unsweet.',
+    proTips: [
+      'Use a dry tonic rather than a sweeter one so the cucumber stays crisp.',
+      'A quick lift is enough. Too much stirring kills the sparkle.',
+    ],
+    flavorProfiles: ['herbal', 'citrus', 'floral'],
+    recipeType: 'mocktail',
+    weeklyDropExclusive: true,
+    abv: 0,
+  },
+] as const;
+
+export function getWeeklyForYouDropRecipe(recipeId: string) {
+  return WEEKLY_FOR_YOU_DROP_RECIPES.find((recipe) => recipe.id === recipeId) || null;
+}

@@ -258,7 +258,7 @@ export default function SettingsScreen() {
 
             <TouchableOpacity
               style={styles.settingItem}
-              onPress={() => nav.navigate('OnboardingPreview')}
+              onPress={() => nav.navigate('OnboardingPreview', { preview: true })}
               activeOpacity={0.7}
             >
               <View style={styles.settingItemLeft}>

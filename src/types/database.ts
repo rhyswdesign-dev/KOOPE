@@ -80,11 +80,19 @@ export interface UserInventoryItem {
   price_range?: string | null;
   region?: string | null;
   flavor_tags?: string[] | null;
+  tasting_notes?: string | null;
+  serve_guidance?: string | null;
   quantity?: string | null;
   scan_count?: number | null;
   is_favorite?: boolean | null;
   notes?: string | null;
   expiry_date?: string | null;
+  purchase_price?: number | null;
+  acquired_at?: string | null;
+  drinking_window_start?: string | null;
+  drinking_window_end?: string | null;
+  cellar_notes?: string | null;
+  valuation_estimate?: number | null;
 }
 
 export interface UserScan {

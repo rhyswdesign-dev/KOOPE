@@ -83,6 +83,26 @@ function normalizeProfile(profile?: Partial<UserPersonalizationProfile> | null):
   };
 }
 
+function isZeroProofCocktail(cocktail: any): boolean {
+  const description = String(cocktail?.description || '').toLowerCase();
+  const subtitle = String(cocktail?.subtitle || '').toLowerCase();
+  const base = String(cocktail?.base || cocktail?.baseSpirit || '').toLowerCase();
+  const recipeType = String(cocktail?.recipeType || '').toLowerCase();
+  const tags = Array.isArray(cocktail?.tags) ? cocktail.tags.map((tag: string) => String(tag).toLowerCase()) : [];
+  const abv = typeof cocktail?.abv === 'number' ? cocktail.abv : null;
+
+  return (
+    base === 'zero-proof' ||
+    recipeType === 'mocktail' ||
+    tags.includes('mocktail') ||
+    description.includes('zero-proof') ||
+    description.includes('non-alcoholic') ||
+    description.includes('alcohol-free') ||
+    subtitle.includes('zero-proof') ||
+    abv === 0
+  );
+}
+
 export const usePersonalization = create<PersonalizationState>((set, get) => ({
   profile: null,
   recommendations: null,
@@ -392,8 +412,10 @@ export const usePersonalization = create<PersonalizationState>((set, get) => ({
     }
 
     // ABV preference (20% weight)
-    const isLowABV = cocktail.description?.toLowerCase().includes('low');
-    const isMocktail = cocktail.description?.toLowerCase().includes('non-alcoholic');
+    const description = String(cocktail.description || '').toLowerCase();
+    const subtitle = String(cocktail.subtitle || '').toLowerCase();
+    const isLowABV = description.includes('low') || subtitle.includes('light');
+    const isMocktail = isZeroProofCocktail(cocktail);
 
     if (profile.preferredABV === 'zero-proof' && isMocktail) {
       score += 20;

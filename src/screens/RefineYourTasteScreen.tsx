@@ -11,6 +11,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import Slider from '@react-native-community/slider';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { RootStackParamList } from '../navigation/RootNavigator';
@@ -84,6 +85,37 @@ function abvPreferenceFromRange(range: { min: number; max: number }) {
   if (range.max <= 0.5) return 'zero-proof';
   if (range.max <= 15) return 'low-abv';
   return 'alcoholic';
+}
+
+function isZeroProofRecipe(recipe: any) {
+  const description = String(recipe?.description || '').toLowerCase();
+  const subtitle = String(recipe?.subtitle || '').toLowerCase();
+  const base = String(recipe?.base || recipe?.baseSpirit || '').toLowerCase();
+  const recipeType = String(recipe?.recipeType || '').toLowerCase();
+  const tags = Array.isArray(recipe?.tags) ? recipe.tags.map((tag: string) => String(tag).toLowerCase()) : [];
+  const abv = typeof recipe?.abv === 'number' ? recipe.abv : null;
+
+  return (
+    base === 'zero-proof' ||
+    recipeType === 'mocktail' ||
+    tags.includes('mocktail') ||
+    description.includes('zero-proof') ||
+    description.includes('non-alcoholic') ||
+    description.includes('alcohol-free') ||
+    subtitle.includes('zero-proof') ||
+    abv === 0
+  );
+}
+
+function describeBias(label: string, value: number, isOverridden: boolean) {
+  const percent = Math.round(value * 100);
+  const prefix = isOverridden ? 'Manual bias.' : 'Learned signal.';
+
+  if (percent >= 80) return `${prefix} ${percent}% ${label.toLowerCase()} means KOOPE should lean hard into drinks where ${label.toLowerCase()} leads the experience.`;
+  if (percent >= 60) return `${prefix} ${percent}% ${label.toLowerCase()} means you consistently respond well when ${label.toLowerCase()} is a clear note, not just a background accent.`;
+  if (percent >= 40) return `${prefix} ${percent}% ${label.toLowerCase()} means you like some presence here, but it does not need to dominate the drink.`;
+  if (percent >= 20) return `${prefix} ${percent}% ${label.toLowerCase()} means this works best as a supporting note rather than the main identity.`;
+  return `${prefix} ${percent}% ${label.toLowerCase()} means KOOPE should keep this restrained unless the rest of the profile strongly supports it.`;
 }
 
 function buildGraphFromPersonalization(profile: any) {
@@ -167,8 +199,14 @@ export default function RefineYourTasteScreen({ navigation }: Props) {
     previewProfile.spiritPreferences = orderedTopKeys(effectiveProfile.spiritWeights, 3) as any;
     previewProfile.flavorProfiles = orderedTopKeys(effectiveProfile.flavorWeights, 3) as any;
 
+    const candidateRecipes = ALL_COCKTAILS.filter((recipe: any) => {
+      if (abvPreference === 'zero-proof') return isZeroProofRecipe(recipe);
+      if (abvPreference === 'low-abv') return !isZeroProofRecipe(recipe);
+      return true;
+    });
+
     const predictions = getPredictiveRecommendations(
-      ALL_COCKTAILS as any,
+      candidateRecipes as any,
       previewProfile as any,
       graphData,
       {
@@ -187,7 +225,7 @@ export default function RefineYourTasteScreen({ navigation }: Props) {
     });
 
     return ranked.slice(0, 4);
-  }, [graphData, effectiveProfile, user?.id, occasionMode]);
+  }, [graphData, effectiveProfile, user?.id, occasionMode, abvPreference]);
 
   const topFlavors = useMemo(
     () => (effectiveProfile ? orderedTopKeys(effectiveProfile.flavorWeights, 3) : []),
@@ -199,16 +237,14 @@ export default function RefineYourTasteScreen({ navigation }: Props) {
     [effectiveProfile]
   );
 
-  const adjustFlavor = (flavor: string, delta: number) => {
+  const setFlavorValue = (flavor: string, value: number) => {
     if (!graphData) return;
-    const current = graphData.overrides?.flavors?.[flavor] ?? graphData.rawProfile.flavorWeights?.[flavor] ?? 0.3;
-    setGraphData(setFlavorOverride(graphData, flavor as any, clamp(current + delta)));
+    setGraphData(setFlavorOverride(graphData, flavor as any, clamp(value)));
   };
 
-  const adjustSpirit = (spirit: string, delta: number) => {
+  const setSpiritValue = (spirit: string, value: number) => {
     if (!graphData) return;
-    const current = graphData.overrides?.spirits?.[spirit] ?? graphData.rawProfile.spiritWeights?.[spirit] ?? 0.25;
-    setGraphData(setSpiritOverride(graphData, spirit as any, clamp(current + delta)));
+    setGraphData(setSpiritOverride(graphData, spirit as any, clamp(value)));
   };
 
   const handleSave = async () => {
@@ -342,7 +378,10 @@ export default function RefineYourTasteScreen({ navigation }: Props) {
           <Text style={styles.sectionSubtitle}>Manual controls sit on top of what KOOPE has learned, so your graph stays personal instead of generic.</Text>
           {FLAVOR_KEYS.map((item) => {
             const point = radar.flavorPoints.find((entry) => entry.label.toLowerCase() === item.label.toLowerCase());
-            const value = point?.value || 0;
+            const overrideValue = graphData?.overrides?.flavors?.[item.key];
+            const value = typeof overrideValue === 'number'
+              ? overrideValue
+              : (graphData?.rawProfile?.flavorWeights?.[item.key] || 0);
             return (
               <View key={item.key} style={styles.sliderCard}>
                 <View style={styles.sliderHeader}>
@@ -352,15 +391,18 @@ export default function RefineYourTasteScreen({ navigation }: Props) {
                 <View style={styles.sliderTrack}>
                   <View style={[styles.sliderFill, { width: `${Math.max(6, Math.round(value * 100))}%` }]} />
                 </View>
-                <View style={styles.sliderActions}>
-                  <TouchableOpacity style={styles.adjustButton} onPress={() => adjustFlavor(item.key, -0.08)}>
-                    <Ionicons name="remove" size={16} color={colors.text} />
-                  </TouchableOpacity>
-                  <Text style={styles.sliderHint}>{point?.isOverridden ? 'Manual override active' : 'Learned from your behavior'}</Text>
-                  <TouchableOpacity style={styles.adjustButton} onPress={() => adjustFlavor(item.key, 0.08)}>
-                    <Ionicons name="add" size={16} color={colors.text} />
-                  </TouchableOpacity>
-                </View>
+                <Slider
+                  style={styles.sliderControl}
+                  minimumValue={0}
+                  maximumValue={1}
+                  step={0.01}
+                  value={value}
+                  minimumTrackTintColor={colors.accent}
+                  maximumTrackTintColor={`${colors.line}`}
+                  thumbTintColor={colors.accent}
+                  onValueChange={(nextValue) => setFlavorValue(item.key, nextValue)}
+                />
+                <Text style={styles.sliderHint}>{describeBias(item.label, value, !!point?.isOverridden)}</Text>
               </View>
             );
           })}
@@ -371,7 +413,10 @@ export default function RefineYourTasteScreen({ navigation }: Props) {
           <Text style={styles.sectionSubtitle}>Give more weight to the spirits you want KOOPE to privilege in your feed.</Text>
           {SPIRIT_KEYS.map((item) => {
             const point = radar.spiritPoints.find((entry) => entry.label.toLowerCase() === item.label.toLowerCase());
-            const value = point?.value || 0;
+            const overrideValue = graphData?.overrides?.spirits?.[item.key];
+            const value = typeof overrideValue === 'number'
+              ? overrideValue
+              : (graphData?.rawProfile?.spiritWeights?.[item.key] || 0);
             return (
               <View key={item.key} style={styles.sliderCard}>
                 <View style={styles.sliderHeader}>
@@ -381,15 +426,18 @@ export default function RefineYourTasteScreen({ navigation }: Props) {
                 <View style={styles.sliderTrack}>
                   <View style={[styles.sliderFill, { width: `${Math.max(6, Math.round(value * 100))}%` }]} />
                 </View>
-                <View style={styles.sliderActions}>
-                  <TouchableOpacity style={styles.adjustButton} onPress={() => adjustSpirit(item.key, -0.08)}>
-                    <Ionicons name="remove" size={16} color={colors.text} />
-                  </TouchableOpacity>
-                  <Text style={styles.sliderHint}>Confidence {Math.round((point?.confidence || 0) * 100)}%</Text>
-                  <TouchableOpacity style={styles.adjustButton} onPress={() => adjustSpirit(item.key, 0.08)}>
-                    <Ionicons name="add" size={16} color={colors.text} />
-                  </TouchableOpacity>
-                </View>
+                <Slider
+                  style={styles.sliderControl}
+                  minimumValue={0}
+                  maximumValue={1}
+                  step={0.01}
+                  value={value}
+                  minimumTrackTintColor={colors.accent}
+                  maximumTrackTintColor={`${colors.line}`}
+                  thumbTintColor={colors.accent}
+                  onValueChange={(nextValue) => setSpiritValue(item.key, nextValue)}
+                />
+                <Text style={styles.sliderHint}>{describeBias(item.label, value, !!point?.isOverridden)}</Text>
               </View>
             );
           })}
@@ -652,27 +700,16 @@ const styles = StyleSheet.create({
     borderRadius: radii.pill,
     backgroundColor: colors.accent,
   },
-  sliderActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing(1),
-  },
-  adjustButton: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: colors.bg,
-    borderWidth: 1,
-    borderColor: colors.line,
-    alignItems: 'center',
-    justifyContent: 'center',
+  sliderControl: {
+    width: '100%',
+    height: 30,
+    marginTop: -spacing(0.4),
+    marginBottom: -spacing(0.4),
   },
   sliderHint: {
-    flex: 1,
-    textAlign: 'center',
     color: colors.subtext,
     fontSize: 12,
+    marginTop: spacing(0.15),
   },
   abvRow: {
     flexDirection: 'row',
