@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   RefreshControl,
   Image,
+  Share,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -212,6 +213,23 @@ export default function TheCellarScreen() {
     [cellarItems]
   );
 
+  const handleShareCellar = useCallback(async () => {
+    const bottleWord = cellarItems.length === 1 ? 'bottle' : 'bottles';
+    const posture =
+      holdCount > readyCount ? 'leaning hold' :
+      readyCount > holdCount ? 'leaning open' :
+      'balanced';
+    const valueStr = portfolioValue > 0 ? ` · Est. portfolio ${formatMoney(portfolioValue)}` : '';
+    const spreadStr =
+      portfolioChange > 0 ? ` · +${formatMoney(portfolioChange)} gain` :
+      portfolioChange < 0 ? ` · ${formatMoney(portfolioChange).replace('$-', '-$')} spread` :
+      '';
+
+    await Share.share({
+      message: `My KOOPE Private Reserve: ${cellarItems.length} ${bottleWord} tracked${valueStr}${spreadStr} · ${posture.charAt(0).toUpperCase() + posture.slice(1)}. Built with KOOPE — the bartender's app.`,
+    });
+  }, [cellarItems.length, portfolioValue, portfolioChange, holdCount, readyCount]);
+
   if (!hasAccess) {
     return (
       <SafeAreaView style={styles.container}>
@@ -266,6 +284,13 @@ export default function TheCellarScreen() {
               <Text style={styles.heroMetricValue}>{portfolioChange >= 0 ? '+' : ''}{formatMoney(portfolioChange).replace('$-', '-$')}</Text>
             </View>
           </View>
+
+          {cellarItems.length > 0 && (
+            <TouchableOpacity style={styles.shareButton} onPress={handleShareCellar} activeOpacity={0.82}>
+              <Ionicons name="share-outline" size={16} color={colors.accent} />
+              <Text style={styles.shareButtonText}>Share my reserve</Text>
+            </TouchableOpacity>
+          )}
         </LinearGradient>
 
         {cellarItems.length === 0 ? (
@@ -473,6 +498,25 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '700',
     color: colors.text,
+  },
+  shareButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(0.75),
+    alignSelf: 'flex-start',
+    marginTop: spacing(2),
+    paddingVertical: spacing(0.9),
+    paddingHorizontal: spacing(1.5),
+    borderRadius: 99,
+    borderWidth: 1,
+    borderColor: 'rgba(214,138,56,0.3)',
+    backgroundColor: 'rgba(214,138,56,0.1)',
+  },
+  shareButtonText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.accent,
+    letterSpacing: 0.2,
   },
   sectionBlock: {
     marginBottom: spacing(3.5),

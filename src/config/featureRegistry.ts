@@ -93,7 +93,10 @@ export type FeatureKey =
   | 'lessons_unlimited'
   | 'premium_serve_guidance'
   | 'premium_serve_education'
-  | 'premium_serve_personalization';
+  | 'premium_serve_personalization'
+
+  // Content drops
+  | 'weekly_drops';
 
 export interface FeatureDefinition {
   /** Minimum tier required to access this feature */
@@ -565,6 +568,13 @@ export const FEATURE_REGISTRY: Record<FeatureKey, FeatureDefinition> = {
     description: 'Get premium bottle guidance tailored to your preferences and palate.',
     paywallTarget: 'pro',
     category: 'education',
+  },
+  weekly_drops: {
+    minTier: 'PLUS',
+    displayName: 'Weekly For You Drops',
+    description: 'Curated recipe drops delivered every week, matched to your taste profile.',
+    paywallTarget: 'plus',
+    category: 'discovery',
   },
 };
 

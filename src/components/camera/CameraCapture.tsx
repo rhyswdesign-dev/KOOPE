@@ -26,6 +26,7 @@ import {
   ActivityIndicator,
   Dimensions,
   Linking,
+  Animated,
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
@@ -76,27 +77,112 @@ export default function CameraCapture({
   const [isCapturing, setIsCapturing] = useState(false);
   const [isCameraReady, setIsCameraReady] = useState(false);
   const [currentMode, setCurrentMode] = useState(initialMode);
+  const [lockState, setLockState] = useState<'idle' | 'scanning' | 'locked'>('idle');
 
   const cameraRef = useRef<CameraView>(null);
-  // Prevent firing onBarcodeScanned multiple times for the same barcode
   const barcodeHandledRef = useRef(false);
+  const autoFireTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lockTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lockAnim = useRef(new Animated.Value(0)).current;
+  const cornerScale = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     setCurrentMode(initialMode);
   }, [initialMode]);
 
-  // Reset barcode lock when camera becomes visible again
+  // Reset state when camera becomes visible again
   useEffect(() => {
     if (visible) {
       barcodeHandledRef.current = false;
+      setLockState('idle');
+      lockAnim.setValue(0);
+      cornerScale.setValue(1);
+    } else {
+      clearAutoFireTimers();
     }
   }, [visible]);
+
+  // Reset auto-fire when mode changes
+  useEffect(() => {
+    clearAutoFireTimers();
+    setLockState('idle');
+    lockAnim.setValue(0);
+    cornerScale.setValue(1);
+    if (isCameraReady && visible && currentMode === 'bottle' && !barcodeOnly) {
+      startAutoFireSequence();
+    }
+  }, [currentMode]);
+
+  // Start auto-fire when camera becomes ready (bottle mode only)
+  useEffect(() => {
+    if (isCameraReady && visible && currentMode === 'bottle' && !barcodeOnly) {
+      startAutoFireSequence();
+    }
+    return () => clearAutoFireTimers();
+  }, [isCameraReady]);
 
   useEffect(() => {
     if (!permission) {
       requestPermission();
     }
   }, []);
+
+  const clearAutoFireTimers = () => {
+    if (autoFireTimerRef.current) {
+      clearTimeout(autoFireTimerRef.current);
+      autoFireTimerRef.current = null;
+    }
+    if (lockTimerRef.current) {
+      clearTimeout(lockTimerRef.current);
+      lockTimerRef.current = null;
+    }
+  };
+
+  const startAutoFireSequence = () => {
+    clearAutoFireTimers();
+    setLockState('scanning');
+    // After 1.8s scanning → locked state
+    autoFireTimerRef.current = setTimeout(() => {
+      setLockState('locked');
+      // Animate frame to locked state
+      Animated.parallel([
+        Animated.timing(lockAnim, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: false,
+        }),
+        Animated.sequence([
+          Animated.timing(cornerScale, { toValue: 0.92, duration: 150, useNativeDriver: true }),
+          Animated.timing(cornerScale, { toValue: 1, duration: 150, useNativeDriver: true }),
+        ]),
+      ]).start();
+      // After 0.6s locked → fire
+      lockTimerRef.current = setTimeout(() => {
+        capturePhotoAutoFire();
+      }, 600);
+    }, 1800);
+  };
+
+  const capturePhotoAutoFire = async () => {
+    if (!cameraRef.current || !isCameraReady || isCapturing) return;
+    try {
+      setIsCapturing(true);
+      const photo = await cameraRef.current.takePictureAsync({
+        quality: 0.8,
+        base64: false,
+        exif: false,
+      });
+      if (photo?.uri) {
+        onImageCaptured(photo.uri);
+        if (autoCloseOnCapture) onClose();
+      }
+    } catch (error) {
+      setLockState('idle');
+      startAutoFireSequence();
+    } finally {
+      setIsCapturing(false);
+    }
+  };
 
   const handleBarcodeScannedInternal = (result: { type: string; data: string }) => {
     if (barcodeHandledRef.current) return;
@@ -245,14 +331,52 @@ export default function CameraCapture({
 
             {/* Center - Viewfinder */}
             <View style={styles.viewfinderContainer}>
-              <View style={styles.instructionContainer}>
-                <Text style={styles.instructionText}>{instructionText}</Text>
-              </View>
+              {/* Instruction text — hidden in bottle auto-fire mode */}
+              {(barcodeOnly || currentMode !== 'bottle') && (
+                <View style={styles.instructionContainer}>
+                  <Text style={styles.instructionText}>{instructionText}</Text>
+                </View>
+              )}
 
-              <View style={[
-                styles.viewfinderFrame,
-                barcodeOnly && styles.viewfinderBarcode,
-              ]} />
+              {/* Bottle mode: animated corner-bracket frame */}
+              {!barcodeOnly && currentMode === 'bottle' ? (
+                <Animated.View style={[
+                  styles.viewfinderFrame,
+                  {
+                    borderColor: lockAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: ['rgba(214,138,56,0.45)', '#D68A38'],
+                    }),
+                  },
+                ]}>
+                  <Animated.View style={[styles.viewfinderInner, { transform: [{ scale: cornerScale }] }]}>
+                    {/* Corner brackets */}
+                    <View style={[styles.corner, styles.cornerTL]} />
+                    <View style={[styles.corner, styles.cornerTR]} />
+                    <View style={[styles.corner, styles.cornerBL]} />
+                    <View style={[styles.corner, styles.cornerBR]} />
+
+                    {/* Lock state indicator */}
+                    {lockState === 'scanning' && (
+                      <View style={styles.scanIndicator}>
+                        <ActivityIndicator size="small" color="rgba(214,138,56,0.7)" />
+                        <Text style={styles.scanIndicatorText}>Scanning</Text>
+                      </View>
+                    )}
+                    {lockState === 'locked' && (
+                      <Animated.View style={[styles.lockIndicator, { opacity: lockAnim }]}>
+                        <Ionicons name="checkmark-circle" size={22} color={colors.gold} />
+                        <Text style={styles.lockIndicatorText}>Label Locked</Text>
+                      </Animated.View>
+                    )}
+                  </Animated.View>
+                </Animated.View>
+              ) : (
+                <View style={[
+                  styles.viewfinderFrame,
+                  barcodeOnly && styles.viewfinderBarcode,
+                ]} />
+              )}
             </View>
 
             {/* Bottom Controls */}
@@ -303,19 +427,43 @@ export default function CameraCapture({
 
                 {(barcodeOnly || !allowGallery) && <View style={styles.sideButton} />}
 
-                <TouchableOpacity
-                  style={styles.shutterButton}
-                  onPress={withHaptic(capturePhoto, 'medium')}
-                  disabled={!isCameraReady || isCapturing}
-                >
-                  {isCapturing ? (
-                    <ActivityIndicator color={colors.gold} />
-                  ) : (
-                    <View style={styles.shutterRingOuter}>
-                      <View style={styles.shutterRingInner} />
+                {/* In bottle auto-fire mode, show a tap-to-retrigger button instead of shutter */}
+                {!barcodeOnly && currentMode === 'bottle' ? (
+                  isCapturing ? (
+                    <View style={styles.shutterButton}>
+                      <ActivityIndicator color={colors.gold} size="large" />
                     </View>
-                  )}
-                </TouchableOpacity>
+                  ) : (
+                    <TouchableOpacity
+                      style={styles.shutterButton}
+                      onPress={withHaptic(() => {
+                        clearAutoFireTimers();
+                        setLockState('idle');
+                        lockAnim.setValue(0);
+                        cornerScale.setValue(1);
+                        startAutoFireSequence();
+                      }, 'medium')}
+                    >
+                      <View style={[styles.shutterRingOuter, lockState === 'locked' && styles.shutterRingLocked]}>
+                        <View style={styles.shutterRingInner} />
+                      </View>
+                    </TouchableOpacity>
+                  )
+                ) : (
+                  <TouchableOpacity
+                    style={styles.shutterButton}
+                    onPress={withHaptic(capturePhoto, 'medium')}
+                    disabled={!isCameraReady || isCapturing}
+                  >
+                    {isCapturing ? (
+                      <ActivityIndicator color={colors.gold} />
+                    ) : (
+                      <View style={styles.shutterRingOuter}>
+                        <View style={styles.shutterRingInner} />
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                )}
 
                 <TouchableOpacity
                   onPress={withHaptic(() => setCameraType(t => t === 'back' ? 'front' : 'back'), 'selection')}
@@ -441,10 +589,80 @@ const styles = StyleSheet.create({
   viewfinderFrame: {
     width: width * 0.75,
     height: width * 0.9,
-    borderWidth: 2,
-    borderColor: '#D68A38',
+    borderWidth: 1.5,
+    borderColor: 'rgba(214,138,56,0.45)',
     borderRadius: 30,
     backgroundColor: 'transparent',
+  },
+  viewfinderInner: {
+    flex: 1,
+    position: 'relative',
+  },
+  corner: {
+    position: 'absolute',
+    width: 26,
+    height: 26,
+    borderColor: '#D68A38',
+  },
+  cornerTL: {
+    top: -1,
+    left: -1,
+    borderTopWidth: 3,
+    borderLeftWidth: 3,
+    borderTopLeftRadius: 10,
+  },
+  cornerTR: {
+    top: -1,
+    right: -1,
+    borderTopWidth: 3,
+    borderRightWidth: 3,
+    borderTopRightRadius: 10,
+  },
+  cornerBL: {
+    bottom: -1,
+    left: -1,
+    borderBottomWidth: 3,
+    borderLeftWidth: 3,
+    borderBottomLeftRadius: 10,
+  },
+  cornerBR: {
+    bottom: -1,
+    right: -1,
+    borderBottomWidth: 3,
+    borderRightWidth: 3,
+    borderBottomRightRadius: 10,
+  },
+  scanIndicator: {
+    position: 'absolute',
+    bottom: 18,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  scanIndicatorText: {
+    color: 'rgba(214,138,56,0.7)',
+    fontSize: 13,
+    fontWeight: '600',
+    letterSpacing: 0.5,
+  },
+  lockIndicator: {
+    position: 'absolute',
+    bottom: 18,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  lockIndicatorText: {
+    color: '#D68A38',
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
   // Narrower, landscape-ish frame for barcode scanning
   viewfinderBarcode: {
@@ -518,6 +736,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(214, 138, 56, 0.1)',
+  },
+  shutterRingLocked: {
+    borderColor: '#D68A38',
+    backgroundColor: 'rgba(214, 138, 56, 0.25)',
+    shadowColor: '#D68A38',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.6,
+    shadowRadius: 12,
+    elevation: 10,
   },
   shutterRingInner: {
     width: 56,

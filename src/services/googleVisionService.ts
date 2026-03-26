@@ -1,31 +1,14 @@
 /**
  * Google Cloud Vision API Service
- * Provides real image analysis for spirit bottle recognition
+ * Provides real image analysis for spirit bottle recognition.
+ * API calls are proxied through the vision-analyze edge function so the
+ * Google Cloud Vision API key never touches the client bundle.
  */
 
-import * as FileSystem from 'expo-file-system';
+import * as ImageManipulator from 'expo-image-manipulator';
 import { log } from '../lib/logger';
 import { findSpirit, SPIRITS_DATABASE, type Spirit } from '../data/spiritsDatabase';
-
-// You'll need to set this in your environment variables or .env file
-const GOOGLE_CLOUD_VISION_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_VISION_API_KEY || '';
-
-interface VisionAPIResponse {
-  responses: Array<{
-    textAnnotations?: Array<{
-      description: string;
-      locale?: string;
-    }>;
-    labelAnnotations?: Array<{
-      description: string;
-      score: number;
-    }>;
-    error?: {
-      code: number;
-      message: string;
-    };
-  }>;
-}
+import { supabase } from '../lib/supabase';
 
 export interface VisionResult {
   labels: string[];
@@ -84,123 +67,54 @@ function chooseDemoBottleResult(imageUri: string): VisionResult {
 }
 
 export class GoogleVisionService {
-  private static API_ENDPOINT = 'https://vision.googleapis.com/v1/images:annotate';
-
-  static isConfigured(): boolean {
-    return Boolean(GOOGLE_CLOUD_VISION_API_KEY && GOOGLE_CLOUD_VISION_API_KEY.trim().length > 0);
-  }
-
   /**
-   * Analyzes an image using Google Cloud Vision API
-   * @param imageUri - Local file URI of the image to analyze
-   * @returns Vision analysis results including labels, text, and confidence
+   * Analyzes an image via the vision-analyze edge function.
+   * The Google Cloud Vision API key is stored as a server-side secret and
+   * never exposed in the client bundle.
    */
   static async analyzeImage(imageUri: string): Promise<VisionResult> {
     try {
-      log.info('GoogleVisionService', 'Starting image analysis', { imageUri });
-
-      // If API key is missing in this build, use deterministic fallback analysis
-      // so full scanner flow remains functional in development/testing.
-      if (!GoogleVisionService.isConfigured()) {
-        return this.fallbackAnalysis(imageUri);
-      }
-
-      // Convert image to base64
       const base64Image = await this.convertImageToBase64(imageUri);
 
-      // Make API request
-      const response = await fetch(`${this.API_ENDPOINT}?key=${GOOGLE_CLOUD_VISION_API_KEY}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          requests: [
-            {
-              image: {
-                content: base64Image,
-              },
-              features: [
-                {
-                  type: 'TEXT_DETECTION',
-                  maxResults: 10,
-                },
-                {
-                  type: 'LABEL_DETECTION',
-                  maxResults: 10,
-                },
-              ],
-            },
-          ],
-        }),
+      const { data, error } = await supabase.functions.invoke('vision-analyze', {
+        body: { imageBase64: base64Image },
       });
 
-      if (!response.ok) {
-        throw new Error(`Vision API error: ${response.status} ${response.statusText}`);
+      if (error || !data) {
+        log.warn('GoogleVisionService', 'Edge function failed', error);
+        if (__DEV__) {
+          return this.fallbackAnalysis(imageUri);
+        }
+        throw new Error('Vision analysis unavailable');
       }
 
-      const data: VisionAPIResponse = await response.json();
+      log.info('GoogleVisionService', 'Parsed vision results', {
+        textCount: data.text?.length || 0,
+        labelCount: data.labels?.length || 0,
+        confidence: data.confidence,
+      });
 
-      // Check for API errors
-      if (data.responses[0]?.error) {
-        const error = data.responses[0].error;
-        throw new Error(`Vision API returned error: ${error.code} - ${error.message}`);
-      }
-
-      // Parse and return results
-      return this.parseVisionAPIResponse(data);
+      return data as VisionResult;
     } catch (error) {
       log.error('GoogleVisionService', 'Error analyzing image', error);
-      // Keep scanner usable if Vision API is temporarily unavailable.
-      return this.fallbackAnalysis(imageUri);
+      if (__DEV__) {
+        return this.fallbackAnalysis(imageUri);
+      }
+      throw error;
     }
   }
 
-  /**
-   * Converts a local image URI to base64 string
-   */
   private static async convertImageToBase64(imageUri: string): Promise<string> {
     try {
-      const base64 = await FileSystem.readAsStringAsync(imageUri, {
-        encoding: 'base64' as any,
+      const result = await ImageManipulator.manipulateAsync(imageUri, [], {
+        base64: true,
       });
-      return base64;
+      if (!result.base64) throw new Error('No base64 data returned');
+      return result.base64;
     } catch (error) {
       log.error('GoogleVisionService', 'Error converting image to base64', error);
       throw new Error('Failed to read image file');
     }
-  }
-
-  /**
-   * Parses the Google Vision API response into our simplified format
-   */
-  private static parseVisionAPIResponse(data: VisionAPIResponse): VisionResult {
-    const response = data.responses[0];
-
-    // Extract text from OCR
-    const textAnnotations = response.textAnnotations || [];
-    const detectedText = textAnnotations.map(annotation => annotation.description);
-
-    // Extract labels
-    const labelAnnotations = response.labelAnnotations || [];
-    const labels = labelAnnotations.map(label => label.description.toLowerCase());
-
-    // Calculate average confidence from label scores
-    const avgConfidence = labelAnnotations.length > 0
-      ? labelAnnotations.reduce((sum, label) => sum + label.score, 0) / labelAnnotations.length
-      : 0;
-
-    log.info('GoogleVisionService', 'Parsed vision results', {
-      textCount: detectedText.length,
-      labelCount: labels.length,
-      confidence: avgConfidence,
-    });
-
-    return {
-      labels,
-      text: detectedText,
-      confidence: avgConfidence,
-    };
   }
 
   /**
@@ -484,6 +398,77 @@ export class GoogleVisionService {
   }
 
   /**
+   * Extract the most likely bottle name from OCR text.
+   * Used as the query to spirit-lookup when local DB matching fails.
+   */
+  static extractBottleNameFromOCR(result: VisionResult): string | null {
+    const lines = (result.text || [])
+      .map(t => t.trim())
+      .filter(t => t.length > 1);
+
+    if (lines.length === 0) return null;
+
+    // The first full-text annotation from Vision is the concatenated block —
+    // skip it (often contains everything). Look for short, capitalised lines
+    // that are likely the brand or product name.
+    const candidates = lines
+      .filter(line => line.length >= 3 && line.length <= 40)
+      .filter(line => !/^(\d+(\.\d+)?%?|ALC|ABV|VOL|CL|ML|PROOF)$/i.test(line))
+      .filter(line => !/^(DISTILLED|BOTTLED|PRODUCED|EST\.|SINCE|LIMITED)/i.test(line));
+
+    // Prefer the first 1-3 candidate tokens joined — that's typically "BRAND NAME"
+    if (candidates.length === 0) return lines[0].slice(0, 60);
+    return candidates.slice(0, 3).join(' ').slice(0, 80);
+  }
+
+  /**
+   * Call the spirit-lookup edge function (cache → Claude fallback).
+   * Converts the edge function response into a Spirit-compatible object.
+   */
+  static async lookupBottleProfile(bottleName: string): Promise<Spirit | null> {
+    try {
+      const { data, error } = await supabase.functions.invoke('spirit-lookup', {
+        body: { bottleName },
+      });
+
+      if (error || !data?.profile) {
+        log.warn('GoogleVisionService', 'spirit-lookup failed', error);
+        return null;
+      }
+
+      const p = data.profile;
+      log.info('GoogleVisionService', 'spirit-lookup resolved', {
+        name: p.name,
+        source: data.source,
+      });
+
+      // Map to Spirit shape (compatible with BottleDetailScreen)
+      const spirit: Spirit = {
+        id: p.id || p.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+        name: p.name,
+        brand: p.brand,
+        type: p.type as Spirit['type'],
+        abv: p.abv ?? 40,
+        priceTier: (p.priceTier ?? 'mid-range') as Spirit['priceTier'],
+        priceEstimate: p.priceEstimate ?? {
+          USD: { min: 20, max: 35 },
+          CAD: { min: 28, max: 45 },
+          GBP: { min: 18, max: 30 },
+        },
+        flavorProfile: p.flavorProfile ?? [],
+        tastingNotes: p.tastingNotes ?? '',
+        origin: p.origin ?? '',
+        searchTerms: p.searchTerms ?? [],
+      };
+
+      return spirit;
+    } catch (err) {
+      log.error('GoogleVisionService', 'lookupBottleProfile error', err);
+      return null;
+    }
+  }
+
+  /**
    * Match a bottle to the spirits database
    * Returns detailed spirit information if found
    */
@@ -505,49 +490,9 @@ export class GoogleVisionService {
       return null;
     }
 
-    // Extract potential brand names from text
-    // Try to find spirits by searching for brand names in the text
-    const textWords = allText.split(/\s+/).filter(word => word.length > 2);
-
-    // Try exact brand matches first
-    for (const word of textWords) {
-      const spirit = findSpirit(word);
-      if (spirit) {
-        log.info('GoogleVisionService', 'Bottle matched from text', {
-          brand: spirit.brand,
-          name: spirit.name,
-        });
-        return spirit;
-      }
-    }
-
-    // Try multi-word brand names
-    for (let i = 0; i < textWords.length - 1; i++) {
-      const twoWords = `${textWords[i]} ${textWords[i + 1]}`;
-      const spirit = findSpirit(twoWords);
-      if (spirit) {
-        log.info('GoogleVisionService', 'Bottle matched from multi-word text', {
-          brand: spirit.brand,
-          name: spirit.name,
-        });
-        return spirit;
-      }
-    }
-
-    // Try label-based matching
-    const labelWords = allLabels.split(/\s+/).filter(word => word.length > 2);
-    for (const word of labelWords) {
-      const spirit = findSpirit(word);
-      if (spirit) {
-        log.info('GoogleVisionService', 'Bottle matched from label', {
-          brand: spirit.brand,
-          name: spirit.name,
-        });
-        return spirit;
-      }
-    }
-
-    // Score-based fuzzy match across full OCR text for more resilient matching.
+    // Score every spirit against the full OCR text and labels.
+    // This is more reliable than early-return word loops which can latch onto
+    // background bottles or generic words before reaching the main label text.
     let bestSpirit: Spirit | null = null;
     let bestScore = 0;
     for (const spirit of SPIRITS_DATABASE) {

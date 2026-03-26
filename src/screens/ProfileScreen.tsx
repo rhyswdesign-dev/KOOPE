@@ -1,12 +1,18 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import {
   View,
   Text,
+  Image,
   TouchableOpacity,
   StyleSheet,
   SafeAreaView,
   ScrollView,
+  Modal,
+  Animated,
+  Share,
+  Alert,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { colors, spacing, radii, serif } from '../theme/tokens';
@@ -33,6 +39,11 @@ import {
 } from '../config/vaultContent';
 import { getProIdentityProgress, PRO_XP_MULTIPLIER } from '../config/proIdentity';
 import { WEEKLY_FOR_YOU_DROP_RECIPES } from '../data/weeklyForYouDropRecipes';
+import { notificationService } from '../services/notificationService';
+import { ScanHistoryService, ScanRecord } from '../services/scanHistoryService';
+import { InventoryService } from '../services/inventoryService';
+
+const CERT_SEEN_KEY = 'koope_last_seen_cert_id';
 
 const serifFont = serif;
 
@@ -48,6 +59,11 @@ export default function ProfileScreen() {
   const { completedLessons } = useUser();
   const [achievements, setAchievements] = useState<Achievement[]>([]);
   const [streakData, setStreakData] = useState<StreakData>(streakService.getStreakData());
+  const [certUnlockModalVisible, setCertUnlockModalVisible] = useState(false);
+  const [newlyEarnedCert, setNewlyEarnedCert] = useState<{ title: string; body: string } | null>(null);
+  const [scanHistory, setScanHistory] = useState<ScanRecord[]>([]);
+  const certModalScale = useRef(new Animated.Value(0.7)).current;
+  const certModalOpacity = useRef(new Animated.Value(0)).current;
 
   const currentLevel = Math.floor(totalXP / 100) + 1;
   const xpInLevel = totalXP % 100;
@@ -68,6 +84,79 @@ export default function ProfileScreen() {
     achievementsUnlocked: unlockedAchievementCount,
     claimedDrops: claimedDropCount,
   }), [completedLessons?.length, unlockedAchievementCount, claimedDropCount]);
+
+  // Detect newly earned certifications and show the unlock modal
+  useEffect(() => {
+    if (!proIdentity.current || tier !== 'PRO') return;
+    const certId = proIdentity.current.id;
+
+    AsyncStorage.getItem(CERT_SEEN_KEY).then((lastSeen) => {
+      if (lastSeen === certId) return; // already celebrated this cert
+
+      // New certification earned — show the modal
+      setNewlyEarnedCert({ title: proIdentity.current!.title, body: proIdentity.current!.body });
+      setCertUnlockModalVisible(true);
+      Animated.parallel([
+        Animated.spring(certModalScale, { toValue: 1, useNativeDriver: true, tension: 65, friction: 8 }),
+        Animated.timing(certModalOpacity, { toValue: 1, duration: 250, useNativeDriver: true }),
+      ]).start();
+
+      // Push local notification
+      notificationService.scheduleCertificationUnlocked(proIdentity.current!.title).catch(() => {});
+
+      // Mark as seen
+      AsyncStorage.setItem(CERT_SEEN_KEY, certId);
+    });
+  }, [proIdentity.current?.id, tier]);
+
+  const handleDismissCertModal = useCallback(() => {
+    Animated.parallel([
+      Animated.timing(certModalScale, { toValue: 0.7, duration: 180, useNativeDriver: true }),
+      Animated.timing(certModalOpacity, { toValue: 0, duration: 180, useNativeDriver: true }),
+    ]).start(() => setCertUnlockModalVisible(false));
+  }, [certModalScale, certModalOpacity]);
+
+  const handleShareCert = useCallback(async () => {
+    if (!newlyEarnedCert) return;
+    await Share.share({
+      message: `I just earned the "${newlyEarnedCert.title}" certification on KOOPE. ${newlyEarnedCert.body} Track your bar and earn yours — the bartender's app.`,
+    });
+  }, [newlyEarnedCert]);
+
+  const handleAddFromHistory = useCallback((record: ScanRecord) => {
+    if (!user) {
+      Alert.alert('Sign In Required', 'Please sign in to add bottles to your inventory.');
+      return;
+    }
+    Alert.alert(
+      `Add to Bar?`,
+      `Add ${record.bottleName}${record.bottleBrand ? ` by ${record.bottleBrand}` : ''} to your inventory.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Add',
+          onPress: async () => {
+            const result = await InventoryService.addToInventory({
+              userId: user.id,
+              itemType: 'spirit',
+              itemName: record.bottleName,
+              category: 'spirit',
+              subcategory: record.bottleType,
+              brand: record.bottleBrand || undefined,
+              imageUrl: record.imageUri,
+            });
+            if (result.duplicate) {
+              Alert.alert('Already in Bar', `${record.bottleName} is already in your inventory.`);
+            } else if (result.success) {
+              Alert.alert('Added!', `${record.bottleName} has been added to your bar.`);
+            } else {
+              Alert.alert('Error', 'Unable to add to inventory right now.');
+            }
+          },
+        },
+      ]
+    );
+  }, [user]);
 
   // Compute what vault content the user can currently afford with their XP.
   // Only used in the free-user affordability card; shows XP as currency, not just a score.
@@ -136,6 +225,7 @@ export default function ProfileScreen() {
     React.useCallback(() => {
       setStreakData(streakService.getStreakData());
       setAchievements(achievementService.getAchievements());
+      ScanHistoryService.getScanHistory().then(setScanHistory).catch(() => {});
     }, [])
   );
 
@@ -162,6 +252,52 @@ export default function ProfileScreen() {
     return (
       <LinearGradient colors={['rgba(0,0,0,0)', '#1A120D']} style={styles.container}>
         <SafeAreaView style={styles.safeArea}>
+
+          {/* Certification Unlock Modal */}
+          <Modal
+            visible={certUnlockModalVisible}
+            transparent
+            animationType="none"
+            onRequestClose={handleDismissCertModal}
+          >
+            <TouchableOpacity
+              style={styles.certModalOverlay}
+              activeOpacity={1}
+              onPress={handleDismissCertModal}
+            >
+              <Animated.View
+                style={[
+                  styles.certModalCard,
+                  { transform: [{ scale: certModalScale }], opacity: certModalOpacity },
+                ]}
+              >
+                <TouchableOpacity activeOpacity={1} onPress={() => {}}>
+                  <View style={styles.certModalBadge}>
+                    <Ionicons name="ribbon" size={36} color={colors.gold} />
+                  </View>
+                  <Text style={styles.certModalEyebrow}>Certification Earned</Text>
+                  <Text style={styles.certModalTitle}>{newlyEarnedCert?.title}</Text>
+                  <Text style={styles.certModalBody}>{newlyEarnedCert?.body}</Text>
+                  <TouchableOpacity
+                    style={styles.certModalShareButton}
+                    activeOpacity={0.82}
+                    onPress={handleShareCert}
+                  >
+                    <Ionicons name="share-outline" size={18} color={colors.gold} />
+                    <Text style={styles.certModalShareText}>Share this achievement</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.certModalDismiss}
+                    activeOpacity={0.8}
+                    onPress={handleDismissCertModal}
+                  >
+                    <Text style={styles.certModalDismissText}>Continue</Text>
+                  </TouchableOpacity>
+                </TouchableOpacity>
+              </Animated.View>
+            </TouchableOpacity>
+          </Modal>
+
           <MainPageHeader
             title="Profile"
             subtitle="Account & progress"
@@ -412,6 +548,52 @@ export default function ProfileScreen() {
                 </View>
               </TouchableOpacity>
             </View>
+
+            {/* Scan History Journal */}
+            {scanHistory.length > 0 && (
+              <View style={styles.section}>
+                <View style={styles.sectionHeader}>
+                  <Heading level={2} style={styles.sectionTitle}>Bottle Journal</Heading>
+                  <Text style={styles.scanHistoryCount}>{scanHistory.length} bottle{scanHistory.length !== 1 ? 's' : ''}</Text>
+                </View>
+                {scanHistory.slice(0, 5).map((record) => (
+                  <View key={record.bottleId} style={styles.scanHistoryRow}>
+                    {record.imageUri ? (
+                      <Image
+                        source={{ uri: record.imageUri }}
+                        style={styles.scanHistoryThumb}
+                        resizeMode="cover"
+                      />
+                    ) : (
+                      <View style={styles.scanHistoryIcon}>
+                        <Ionicons name="scan-outline" size={18} color={colors.accent} />
+                      </View>
+                    )}
+                    <View style={styles.scanHistoryInfo}>
+                      <Text style={styles.scanHistoryName} numberOfLines={1}>{record.bottleName}</Text>
+                      <Text style={styles.scanHistoryMeta}>
+                        {record.bottleBrand ? `${record.bottleBrand} · ` : ''}
+                        {record.bottleType}
+                        {record.scanCount > 1 ? ` · ${record.scanCount}× scanned` : ''}
+                      </Text>
+                    </View>
+                    <Text style={styles.scanHistoryDate}>
+                      {new Date(record.lastScannedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                    </Text>
+                    <TouchableOpacity
+                      style={styles.scanHistoryAddButton}
+                      onPress={() => handleAddFromHistory(record)}
+                      accessibilityLabel={`Add ${record.bottleName} to inventory`}
+                    >
+                      <Ionicons name="add" size={18} color={colors.accent} />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+                {scanHistory.length > 5 && (
+                  <Text style={styles.scanHistoryMore}>+{scanHistory.length - 5} more in history</Text>
+                )}
+              </View>
+            )}
 
             {/* Quick Summary */}
             <View style={styles.section}>
@@ -1161,5 +1343,143 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: colors.accent,
+  },
+  scanHistoryCount: {
+    fontSize: 12,
+    color: colors.subtext,
+    fontWeight: '500',
+  },
+  scanHistoryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing(1.25),
+    borderBottomWidth: 1,
+    borderBottomColor: colors.line,
+    gap: spacing(1.25),
+  },
+  scanHistoryThumb: {
+    width: 40,
+    height: 40,
+    borderRadius: radii.md,
+    backgroundColor: colors.card,
+  },
+  scanHistoryIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: radii.md,
+    backgroundColor: colors.accent + '18',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  scanHistoryAddButton: {
+    width: 32,
+    height: 32,
+    borderRadius: radii.md,
+    borderWidth: 1.5,
+    borderColor: colors.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  scanHistoryInfo: {
+    flex: 1,
+  },
+  scanHistoryName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  scanHistoryMeta: {
+    fontSize: 12,
+    color: colors.subtext,
+    marginTop: 2,
+    textTransform: 'capitalize',
+  },
+  scanHistoryDate: {
+    fontSize: 11,
+    color: colors.subtext,
+  },
+  scanHistoryMore: {
+    fontSize: 12,
+    color: colors.accent,
+    textAlign: 'center',
+    marginTop: spacing(1.25),
+    fontWeight: '600',
+  },
+  certModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: spacing(3),
+  },
+  certModalCard: {
+    width: '100%',
+    backgroundColor: colors.card,
+    borderRadius: radii.lg,
+    padding: spacing(3),
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 12,
+  },
+  certModalBadge: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: colors.accent + '22',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: spacing(2),
+  },
+  certModalEyebrow: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.accent,
+    textTransform: 'uppercase',
+    letterSpacing: 1.2,
+    marginBottom: spacing(0.75),
+  },
+  certModalTitle: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: colors.text,
+    textAlign: 'center',
+    marginBottom: spacing(1),
+  },
+  certModalBody: {
+    fontSize: 14,
+    color: colors.subtext,
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: spacing(2.5),
+  },
+  certModalShareButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing(1),
+    borderWidth: 1.5,
+    borderColor: colors.accent,
+    borderRadius: radii.pill,
+    paddingVertical: spacing(1.25),
+    paddingHorizontal: spacing(3),
+    width: '100%',
+    marginBottom: spacing(1.25),
+  },
+  certModalShareText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.accent,
+  },
+  certModalDismiss: {
+    paddingVertical: spacing(1),
+    width: '100%',
+    alignItems: 'center',
+  },
+  certModalDismissText: {
+    fontSize: 14,
+    color: colors.subtext,
   },
 });

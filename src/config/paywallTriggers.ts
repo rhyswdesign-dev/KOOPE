@@ -42,14 +42,14 @@ export interface PaywallTrigger {
 // ============================================================================
 
 export const PAYWALL_TRIGGERS: Record<string, PaywallTrigger> = {
-  // T1 — Inventory Cap
+  // T1 — Inventory Cap / Locked Recipe Access
   T1: {
     id: 'T1',
     featureKey: 'inventory_unlimited',
     requiredPlan: 'plus',
     mode: 'hard',
-    message: 'You\'ve filled your free Scanner shelf. Move up to KŌOPE+ to keep building your bar without inventory limits.',
-    ctaText: 'Unlock Unlimited Bottles',
+    message: 'Your bar has room to grow. KŌOPE+ removes the shelf limit and unlocks your full recipe library — no compromises.',
+    ctaText: 'Unlock KŌOPE+',
     analyticsEvent: 'paywall_trigger_inventory_cap',
   },
 
@@ -64,15 +64,26 @@ export const PAYWALL_TRIGGERS: Record<string, PaywallTrigger> = {
     analyticsEvent: 'paywall_trigger_advanced_filter',
   },
 
-  // T3 — Save Attempt
+  // T3 — Save Attempt (5-recipe limit hit)
   T3: {
     id: 'T3',
     featureKey: 'saved_cocktails_unlimited',
     requiredPlan: 'plus',
     mode: 'hard',
-    message: 'Free gets you into the loop. KŌOPE+ turns it into a real bar system with unlimited favorites and organization.',
+    message: 'You\'ve saved 5 recipes — your free limit. KŌOPE+ gives you unlimited saves so your library can grow with you.',
     ctaText: 'Unlock Unlimited Saves',
     analyticsEvent: 'paywall_trigger_save_attempt',
+  },
+
+  // T3b — 5th Save Soft Nudge (non-blocking, fires after successful 5th save)
+  T3b: {
+    id: 'T3b',
+    featureKey: 'saved_cocktails_unlimited',
+    requiredPlan: 'plus',
+    mode: 'soft',
+    message: 'That\'s 5 saves — one away from your free limit. KŌOPE+ gives you unlimited saves.',
+    ctaText: 'See KŌOPE+',
+    analyticsEvent: 'paywall_trigger_save_nudge_5th',
   },
 
   // T4 — Optimize My Bar
@@ -183,6 +194,17 @@ export const PAYWALL_TRIGGERS: Record<string, PaywallTrigger> = {
     message: 'Predictive restock belongs in Pro, where KŌOPE understands your habits and manages your bar around them.',
     ctaText: 'Learn About PRO',
     analyticsEvent: 'paywall_trigger_restock',
+  },
+
+  // T14 — Weekly Drop (soft nudge after 3rd unclaimed drop)
+  T14: {
+    id: 'T14',
+    featureKey: 'weekly_drops',
+    requiredPlan: 'plus',
+    mode: 'soft',
+    message: 'You\'ve missed 3 weekly drops. KŌOPE+ members claim curated recipe drops every week — don\'t leave them unclaimed.',
+    ctaText: 'Claim Drops with KŌOPE+',
+    analyticsEvent: 'paywall_trigger_weekly_drop_nudge',
   },
 };
 

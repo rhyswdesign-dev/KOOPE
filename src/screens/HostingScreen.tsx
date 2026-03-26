@@ -308,6 +308,7 @@ export default function HostingScreen() {
   const scrollRef = useRef<ScrollView | null>(null);
 
   const { hasAccess: hasAdvancedHosting, gateWithTrigger: advancedHostingGate } = useFeatureAccess('hosting_advanced');
+  const { hasAccess: hasGuestMenu, gateWithTrigger: guestMenuGate } = useFeatureAccess('guest_menu_generator');
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -721,6 +722,25 @@ export default function HostingScreen() {
       hapticWarning();
       Alert.alert('Could Not Save', 'Please try again.');
     }
+  };
+
+  const handleCreateGuestMenu = () => {
+    if (!selectedRecipe) return;
+    if (!hasGuestMenu) {
+      guestMenuGate();
+      return;
+    }
+    hapticSelection();
+    nav.navigate('GuestMenu', {
+      cocktailName: selectedRecipe.name,
+      ingredients: selectedRecipe.ingredients,
+      missingIngredients: selectedRecipe.missingIngredients,
+      guestCount,
+      vibe,
+      difficulty: selectedRecipe.difficulty,
+      why: selectedRecipe.why,
+      category: selectedRecipe.category,
+    });
   };
 
   const deletePlan = async (planId: string) => {
@@ -1284,6 +1304,10 @@ export default function HostingScreen() {
           Loaded from Saved Plan. Use Edit Setup to change recipe or save a new plan.
         </Text>
       )}
+      <TouchableOpacity style={styles.guestMenuCta} onPress={handleCreateGuestMenu}>
+        <Ionicons name="document-text-outline" size={16} color={colors.bg} />
+        <Text style={styles.guestMenuCtaText}>Create Guest Menu</Text>
+      </TouchableOpacity>
     </View>
   );
 
@@ -1765,6 +1789,17 @@ const styles = StyleSheet.create({
     borderColor: colors.line,
   },
   secondaryCtaText: { color: colors.subtext, fontSize: 13, fontWeight: '700' },
+  guestMenuCta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing(0.75),
+    backgroundColor: '#5DA0D0',
+    borderRadius: radii.pill,
+    paddingVertical: spacing(1.1),
+    marginTop: spacing(1),
+  },
+  guestMenuCtaText: { color: colors.bg, fontSize: 13, fontWeight: '700' },
   menuCard: {
     backgroundColor: 'rgba(255,255,255,0.02)',
     borderWidth: 1,

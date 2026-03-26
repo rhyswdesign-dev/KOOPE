@@ -29,6 +29,7 @@ import { useXPSystem } from './src/store/useXPSystem';
 import { useAchievementNotifications } from './src/hooks/useAchievementNotifications';
 import AchievementUnlockModal from './src/components/AchievementUnlockModal';
 import { initAnalytics } from './src/services/analytics';
+import { initAnalytics as initMixpanel } from './src/lib/analytics';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
 import { OfflineBanner } from './src/components/OfflineBanner';
 import KeyboardDismissBar from './src/components/KeyboardDismissBar';
@@ -190,6 +191,12 @@ export default function App() {
   React.useEffect(() => {
     // Initialize analytics with memory sink for development
     initAnalytics({ provider: 'memory' });
+
+    // Initialize Mixpanel for funnel analytics when token is configured
+    const mixpanelToken = process.env.EXPO_PUBLIC_MIXPANEL_TOKEN;
+    if (mixpanelToken) {
+      initMixpanel(mixpanelToken).catch(() => {});
+    }
     notificationService.initialize().catch((error) => {
       console.warn('Notification service initialization failed', error);
     });

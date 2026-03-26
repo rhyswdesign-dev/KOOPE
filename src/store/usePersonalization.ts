@@ -17,11 +17,17 @@ import { SurveyAnswers } from '../services/placement';
 import { supabase } from '../lib/supabase';
 import { userProfileService } from '../lib/supabaseData';
 
+export type OccasionMode = 'casual' | 'hosting' | 'adventurous';
+
 interface PersonalizationState {
   // Core state
   profile: UserPersonalizationProfile | null;
   recommendations: PersonalizedRecommendations | null;
   isInitialized: boolean;
+
+  // Active occasion mode — shapes ForYouFeed recommendations
+  occasionMode: OccasionMode;
+  setOccasionMode: (mode: OccasionMode) => void;
 
   // Actions
   initializeFromSurvey: (answers: SurveyAnswers) => Promise<void>;
@@ -107,6 +113,8 @@ export const usePersonalization = create<PersonalizationState>((set, get) => ({
   profile: null,
   recommendations: null,
   isInitialized: false,
+  occasionMode: 'casual',
+  setOccasionMode: (mode) => set({ occasionMode: mode }),
 
   /**
    * Initialize personalization from survey responses

@@ -29,6 +29,10 @@ import { withHaptic } from '../lib/haptics';
 import { useAuth } from '../contexts/AuthContext';
 import { loadUserProfile, saveRecipeToProfile } from '../services/userProfileService';
 import { generateRadarChart, initializeTasteGraph } from '../services/tasteGraphService';
+import { getPredictiveRecommendations, detectTimeOfDay, detectSeason } from '../services/predictiveEngine';
+import { InventoryService } from '../services/inventoryService';
+import { toBottle } from '../types/database';
+import { RecipesRepository } from '../repos/supabase';
 import { getWeeklyDropsForProfile } from '../config/weeklyForYouDrops';
 import { getWeeklyForYouDropRecipe } from '../data/weeklyForYouDropRecipes';
 import { useSavedItems } from '../hooks/useSavedItems';
@@ -159,12 +163,13 @@ export default function ForYouFeed({
   savedRecipeIds = new Set(),
   onRefineProfile,
 }: ForYouFeedProps) {
-  const { profile, getFeaturedCocktails, scoreCocktail } = usePersonalization();
+  const { profile, getFeaturedCocktails, scoreCocktail, occasionMode, setOccasionMode } = usePersonalization();
   const { tier } = useUserTier();
   const { user } = useAuth();
   const { toggleSavedCocktail, isCocktailSaved } = useSavedItems();
   const [selectedRecommendTab, setSelectedRecommendTab] = useState<'matched' | 'beginner' | 'challenge' | 'trending'>('matched');
   const [tasteIdentity, setTasteIdentity] = useState<{ occasionMode: string; confidence: number; engagement: number; radar: any } | null>(null);
+  const [predictiveMatches, setPredictiveMatches] = useState<any[]>([]);
   const tabTransitionAnim = useRef(new Animated.Value(1)).current;
 
   // Check if user has completed taste profile (must be declared before useMemo that depends on it)
@@ -278,13 +283,40 @@ export default function ForYouFeed({
       trendingCount: trending.length,
     });
 
+    // PRO: swap matched tab to predictive engine results when available
+    if (isPro && predictiveMatches.length > 0) {
+      matched = predictiveMatches;
+    }
+
+    // Apply occasion mode filtering for PLUS/PRO users
+    if (tier !== 'FREE' && occasionMode !== 'casual') {
+      if (occasionMode === 'hosting') {
+        // Hosting: prefer crowd-pleaser, batch-friendly, classic, easy/medium
+        const hostingTags = new Set(['batch', 'crowd-pleaser', 'party', 'classic', 'simple', 'refreshing']);
+        const hostingFirst = matched.filter((c: any) => {
+          const tags = Array.isArray(c.tags) ? c.tags.map((t: string) => t.toLowerCase()) : [];
+          const diff = (c.difficulty || '').toLowerCase();
+          return tags.some((t: string) => hostingTags.has(t)) || diff === 'easy';
+        });
+        if (hostingFirst.length >= 3) matched = hostingFirst;
+      } else if (occasionMode === 'adventurous') {
+        // Adventurous: prefer Hard/Medium, unusual spirit combos, high complexity
+        const adventurousFirst = matched.filter((c: any) => {
+          const diff = (c.difficulty || '').toLowerCase();
+          const tags = Array.isArray(c.tags) ? c.tags.map((t: string) => t.toLowerCase()) : [];
+          return diff === 'hard' || diff === 'medium' || tags.includes('technique') || tags.includes('advanced') || tags.includes('rare');
+        });
+        if (adventurousFirst.length >= 3) matched = adventurousFirst;
+      }
+    }
+
     return {
       matched, // Top personalized matches OR random popular cocktails
       beginner, // Easy difficulty
       challenge, // Medium/Hard difficulty
       trending, // Seasonal trending cocktails
     };
-  }, [getFeaturedCocktails, scoreCocktail, profile, hasProfile, tier]);
+  }, [getFeaturedCocktails, scoreCocktail, profile, hasProfile, tier, isPro, predictiveMatches, occasionMode]);
 
   // Get current time for greeting
   const greeting = useMemo(() => {
@@ -326,7 +358,8 @@ export default function ForYouFeed({
         if (user?.id) {
           const dbProfile = await loadUserProfile(user.id).catch(() => null);
           if (dbProfile?.tasteProfile) {
-            const radar = generateRadarChart(initializeTasteGraph(dbProfile.tasteProfile));
+            const tasteGraph = initializeTasteGraph(dbProfile.tasteProfile);
+            const radar = generateRadarChart(tasteGraph);
             if (!mounted) return;
             setTasteIdentity({
               occasionMode: dbProfile?.moodPreferences?.forYouOccasionMode || 'casual',
@@ -334,6 +367,55 @@ export default function ForYouFeed({
               engagement: radar.engagementScore,
               radar,
             });
+
+            // PRO only: run predictive engine to power the matched tab
+            if (tier === 'PRO') {
+              try {
+                const [userInventory, recipes] = await Promise.all([
+                  InventoryService.getUserInventory(user.id),
+                  RecipesRepository.getInitialRecipes(150),
+                ]);
+                if (!mounted) return;
+
+                const inventory = (userInventory || []).map((item: any) =>
+                  toBottle(item, { subcategory: item.subcategory || undefined })
+                );
+
+                const enhancedProfile = {
+                  id: user.id,
+                  createdAt: new Date(),
+                  lastActiveAt: new Date(),
+                  experienceLevel: 'regularly',
+                  techniqueConfidence: 'somewhat',
+                  skillLevel: dbProfile.skillLevel || 'intermediate',
+                  makingFrequency: 'weekly',
+                  outingFrequency: 'monthly',
+                  savedRecipes: dbProfile.savedRecipes || [],
+                  favoriteRecipes: dbProfile.favoriteRecipes || [],
+                  dislikedRecipes: dbProfile.dislikedRecipes || [],
+                  interactionHistory: {
+                    savedRecipes: dbProfile.savedRecipes || [],
+                  },
+                };
+
+                const context = {
+                  timeOfDay: detectTimeOfDay(),
+                  season: detectSeason(),
+                  inventory,
+                };
+
+                const predictions = getPredictiveRecommendations(
+                  recipes as any,
+                  enhancedProfile as any,
+                  tasteGraph,
+                  context,
+                  8
+                );
+                if (mounted) setPredictiveMatches(predictions);
+              } catch {
+                // Predictive engine failure is non-fatal; feed falls back to standard personalization
+              }
+            }
             return;
           }
         }
@@ -479,6 +561,28 @@ export default function ForYouFeed({
             ]}>{tier}</Text>
           </View>
         </View>
+
+        {/* Occasion Mode Toggle — PLUS/PRO only */}
+        {tier !== 'FREE' && (
+          <View style={styles.occasionToggleRow}>
+            {(['casual', 'hosting', 'adventurous'] as const).map((mode) => {
+              const isActive = occasionMode === mode;
+              const labels = { casual: 'Casual', hosting: 'Hosting', adventurous: 'Adventurous' };
+              const icons = { casual: 'wine-outline', hosting: 'people-outline', adventurous: 'flask-outline' };
+              return (
+                <TouchableOpacity
+                  key={mode}
+                  style={[styles.occasionChip, isActive && styles.occasionChipActive]}
+                  activeOpacity={0.75}
+                  onPress={withHaptic(() => setOccasionMode(mode), 'selection')}
+                >
+                  <Ionicons name={icons[mode] as any} size={13} color={isActive ? colors.gold : colors.subtext} />
+                  <Text style={[styles.occasionChipText, isActive && styles.occasionChipTextActive]}>{labels[mode]}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        )}
 
         {/* Onboarding State - No Profile */}
         {!hasProfile && onRefineProfile && (
@@ -723,24 +827,29 @@ export default function ForYouFeed({
               keyExtractor={(item) => item.id}
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.cocktailList}
-              renderItem={({ item }) => (
-                <View style={styles.cocktailCardWrapper}>
-                  <RecipeCard
-                    recipe={{
-                      id: item.id,
-                      name: item.name,
-                      description: item.subtitle || item.description,
-                      image: getCocktailImage(item.id, item.image),
-                      difficulty: item.difficulty || 'Medium',
-                      time: item.time || '5 min',
-                    }}
-                    onPress={withHaptic(() => onCocktailPress(item))}
-                    onSave={onSaveCocktail}
-                    onAddToCart={onAddToCart}
-                    isSaved={savedRecipeIds.has(item.id)}
-                  />
-                </View>
-              )}
+              renderItem={({ item }) => {
+                const showPredictiveReason = isPro && selectedRecommendTab === 'matched' && !!item.predictionReason;
+                return (
+                  <View style={styles.cocktailCardWrapper}>
+                    <RecipeCard
+                      recipe={{
+                        id: item.id,
+                        name: item.name,
+                        description: showPredictiveReason
+                          ? item.predictionReason
+                          : item.subtitle || item.description,
+                        image: getCocktailImage(item.id, item.image),
+                        difficulty: item.difficulty || 'Medium',
+                        time: item.time || '5 min',
+                      }}
+                      onPress={withHaptic(() => onCocktailPress(item))}
+                      onSave={onSaveCocktail}
+                      onAddToCart={onAddToCart}
+                      isSaved={savedRecipeIds.has(item.id)}
+                    />
+                  </View>
+                );
+              }}
             />
           </Animated.View>
         </View>
@@ -770,6 +879,36 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing(0.75),
+  },
+  occasionToggleRow: {
+    flexDirection: 'row',
+    gap: spacing(1),
+    paddingHorizontal: spacing(3),
+    paddingBottom: spacing(1.5),
+  },
+  occasionChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(0.5),
+    paddingHorizontal: spacing(1.5),
+    paddingVertical: spacing(0.75),
+    borderRadius: radii.pill,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  occasionChipActive: {
+    borderColor: colors.gold,
+    backgroundColor: 'rgba(201,161,90,0.12)',
+  },
+  occasionChipText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: colors.subtext,
+  },
+  occasionChipTextActive: {
+    color: colors.gold,
+    fontWeight: '600',
   },
   subtitle: {
     fontSize: 16,

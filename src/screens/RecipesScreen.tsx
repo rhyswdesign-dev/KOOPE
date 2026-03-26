@@ -72,6 +72,7 @@ import { loadUserProfile } from '../services/userProfileService';
 import { createDefaultUserProfile, getABVRangeForPreference } from '../types/userProfile';
 import { initializeTasteGraph } from '../services/tasteGraphService';
 import { detectSeason, detectTimeOfDay, getPredictiveRecommendations } from '../services/predictiveEngine';
+import { calculateTasteMatchPercent } from '../services/tasteMatchService';
 import { InventoryService } from '../services/inventoryService';
 import { toBottle } from '../types/database';
 
@@ -79,6 +80,25 @@ type Nav = NativeStackNavigationProp<RootStackParamList>;
 const { width } = Dimensions.get('window');
 const GUTTER = 12;
 const GOLD = '#C9A15A'; // spotlight color
+
+const tasteMatchBadgeStyle = {
+  position: 'absolute' as const,
+  top: 8,
+  left: 8,
+  flexDirection: 'row' as const,
+  alignItems: 'center' as const,
+  gap: 3,
+  backgroundColor: 'rgba(18,18,18,0.85)',
+  borderRadius: 10,
+  paddingHorizontal: 7,
+  paddingVertical: 3,
+};
+
+const tasteMatchBadgeTextStyle = {
+  fontSize: 10,
+  fontWeight: '600' as const,
+  color: GOLD,
+};
 
 
 /* ------------------------- DATA ------------------------- */
@@ -1712,6 +1732,7 @@ export default function RecipesScreen() {
   const [allRecipes, setAllRecipes] = useState<any[]>([]);
   const [recipesLoading, setRecipesLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [tasteMatchScores, setTasteMatchScores] = useState<Record<string, number>>({});
 
   // View mode toggle - Browse All vs For You
   const [viewMode, setViewMode] = useState<'browse' | 'personalized'>('browse');
@@ -1765,6 +1786,19 @@ export default function RecipesScreen() {
     }
     loadRecipes();
   }, []);
+
+  // Compute taste match scores for PLUS/PRO users once recipes are loaded
+  useEffect(() => {
+    if (allRecipes.length === 0 || tier === 'FREE') return;
+    const tasteProfile = buildTasteProfileFromPersonalization(profile);
+    if (!tasteProfile) return;
+
+    const scores: Record<string, number> = {};
+    for (const recipe of allRecipes) {
+      scores[recipe.id] = calculateTasteMatchPercent(tasteProfile, recipe as any);
+    }
+    setTasteMatchScores(scores);
+  }, [allRecipes, tier, profile]);
 
   // Pull-to-refresh handler
   const onRefresh = useCallback(async () => {
@@ -1959,7 +1993,15 @@ export default function RecipesScreen() {
       return;
     }
     showToast(wasSaved ? 'Removed from saved' : 'Saved!', 'success');
-  }, [toggleSavedCocktail, isCocktailSaved, showToast, saveGate, canSaveMoreCocktails]);
+
+    // After 5th successful save on FREE tier, soft-nudge toward Plus
+    if (!wasSaved && tier === 'FREE' && result === 'success') {
+      const newCount = (savedCocktailCount || 0) + 1;
+      if (newCount === FREE_RECIPE_LIMIT) {
+        saveGate('T3b');
+      }
+    }
+  }, [toggleSavedCocktail, isCocktailSaved, showToast, saveGate, canSaveMoreCocktails, tier, savedCocktailCount]);
 
   const handleAddToGroceryList = useCallback((cocktail: any) => {
     setSelectedRecipe(cocktail);
@@ -2303,7 +2345,9 @@ export default function RecipesScreen() {
     }
 
     // Sort recipes
-    if (currentFilters.sortOrder === 'alphabetical-asc') {
+    if (currentFilters.sortOrder === 'taste-match' && tier !== 'FREE') {
+      recipes = recipes.sort((a, b) => (tasteMatchScores[b.id] ?? 0) - (tasteMatchScores[a.id] ?? 0));
+    } else if (currentFilters.sortOrder === 'alphabetical-asc') {
       recipes = recipes.sort((a, b) => a.name.localeCompare(b.name));
     } else if (currentFilters.sortOrder === 'alphabetical-desc') {
       recipes = recipes.sort((a, b) => b.name.localeCompare(a.name));
@@ -2371,12 +2415,21 @@ export default function RecipesScreen() {
       };
     }
 
+    const matchScore = tasteMatchScores[item.id] ?? 0;
+    const showTasteMatchBadge = tier !== 'FREE' && matchScore >= 75;
+
     return (
-      <Animated.View entering={FadeInDown.delay((index || 0) * 80).duration(500)}>
+      <Animated.View entering={FadeInDown.delay((index || 0) * 80).duration(500)} style={{ position: 'relative' }}>
         <RecipeCard
           {...cardProps}
           style={{ width: (width - spacing(2) * 2 - GUTTER) / 2, marginBottom: spacing(2) }}
         />
+        {showTasteMatchBadge && (
+          <View style={tasteMatchBadgeStyle}>
+            <Ionicons name="heart" size={10} color={colors.gold} />
+            <Text style={tasteMatchBadgeTextStyle}>Matches your taste</Text>
+          </View>
+        )}
       </Animated.View>
     );
   };
@@ -3232,6 +3285,7 @@ export default function RecipesScreen() {
                         gap: spacing(1)
                       }}>
                         {[
+                          ...(tier !== 'FREE' ? [{ label: 'Matches Your Taste', value: 'taste-match' }] : []),
                           { label: 'A → Z', value: 'alphabetical-asc' },
                           { label: 'Z → A', value: 'alphabetical-desc' },
                           { label: 'Rating ↑', value: 'rating-desc' },

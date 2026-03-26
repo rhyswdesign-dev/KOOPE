@@ -4,7 +4,7 @@
  * Clean layout matching app's current design patterns
  */
 
-import React, { useLayoutEffect, useState, useEffect } from 'react';
+import React, { useLayoutEffect, useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -39,6 +39,7 @@ import {
   getBenefitsForGame,
   VARIATION_BENEFITS,
 } from '../../config/vaultBenefits';
+import { calculateTasteMatchPercent } from '../../services/tasteMatchService';
 import { useScreenTracking, useAnalyticsContext } from '../../context/AnalyticsContext';
 import { VaultCategory } from '../../config/vaultTypes';
 import {
@@ -46,7 +47,6 @@ import {
   VaultCategoryConfig,
   getVariationsForDisplay,
   getTechniquePlaybooksByType,
-  getBarFeaturesForDisplay,
   getAvailableSeasonalDropsForTier,
   getAllPlaybookTypes,
   TechniquePlaybookType,
@@ -61,7 +61,6 @@ import { useFeatureAccess } from '../../hooks/useFeatureAccess';
 import TierBadge from '../../components/TierBadge';
 import LockedContentOverlay from '../../components/LockedContentOverlay';
 import { log } from '../../lib/logger';
-import { BAR_PAGE_HEADERS, BAR_IMAGES } from '../../data/barImages';
 import UnlockCelebration from '../../components/UnlockCelebration';
 import {
   getVaultPlaybookHeader,
@@ -77,6 +76,7 @@ export default function VaultScreen() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { state, dispatch } = useVault();
   const { tier, setTier } = useUserTier();
+  const { profile: personalizationProfile } = usePersonalization();
   const { gateWithTrigger: vaultProGate } = useFeatureAccess('vault_pro_drops');
   const analytics = useAnalyticsContext();
   const { balance: xpBalance, spendXP, unlockVaultItem, isVaultItemUnlocked } = useXPSystem();
@@ -96,6 +96,24 @@ export default function VaultScreen() {
   // Celebration State
   const [celebrationVisible, setCelebrationVisible] = useState(false);
   const [unlockedItemName, setUnlockedItemName] = useState('');
+
+  // Taste match scores for vault variations (PLUS/PRO only)
+  const variationTasteScores = useMemo<Record<string, number>>(() => {
+    if (tier === 'FREE' || !personalizationProfile) return {};
+    const flavorPrefs: string[] = personalizationProfile.flavorPreferences || [];
+    const spiritPrefs: string[] = personalizationProfile.favoriteSpirits || [];
+    const allPrefs = new Set([...flavorPrefs, ...spiritPrefs]);
+    if (allPrefs.size === 0) return {};
+
+    const scores: Record<string, number> = {};
+    const variations = getVariationsForDisplay();
+    for (const v of variations) {
+      const tags = v.tags.map((t) => t.toLowerCase());
+      const matches = tags.filter((t) => allPrefs.has(t)).length;
+      scores[v.id] = Math.min(100, Math.round((matches / Math.max(1, tags.length)) * 100));
+    }
+    return scores;
+  }, [tier, personalizationProfile]);
 
   // Track screen view
   useScreenTracking('VaultScreen');
@@ -187,7 +205,6 @@ export default function VaultScreen() {
     switch (selectedTab) {
       case 'variations':
       case 'playbooks':
-      case 'bars':
       case 'seasonal':
       case 'games':
         return []; // New vault content categories (handled inline)
@@ -324,31 +341,6 @@ export default function VaultScreen() {
   };
 
   // Helper function to get bar thumbnail from thumbnailKey
-  const getBarThumbnail = (thumbnailKey?: string) => {
-    if (!thumbnailKey) {
-      return { uri: PLACEHOLDER_IMAGES.bar };
-    }
-
-    // Check if it's a BAR_IMAGES key (pill button thumbnails)
-    if (thumbnailKey in BAR_IMAGES) {
-      return BAR_IMAGES[thumbnailKey as keyof typeof BAR_IMAGES];
-    }
-
-    // Check if it's a BAR_PAGE_HEADERS key (page header images)
-    if (thumbnailKey in BAR_PAGE_HEADERS) {
-      return BAR_PAGE_HEADERS[thumbnailKey as keyof typeof BAR_PAGE_HEADERS];
-    }
-
-    // Fallback to placeholder
-    console.warn('Bar thumbnail not found for key:', thumbnailKey);
-    return { uri: PLACEHOLDER_IMAGES.bar };
-  };
-
-  // Helper function to check if a bar is unlocked
-  const isBarUnlocked = (barId: string): boolean => {
-    return state.userProfile.unlockedItems.some(item => item.itemId === barId);
-  };
-
   // Helper function to check if a game is unlocked (persisted in XP store)
   const isGameUnlocked = (gameId: string): boolean => {
     return isVaultItemUnlocked(gameId);
@@ -490,6 +482,13 @@ export default function VaultScreen() {
       variations.forEach((v) => {
         groupedByDifficulty[v.difficulty].push(v);
       });
+      // Sort each group by taste match score when data is available
+      const hasTasteScores = Object.keys(variationTasteScores).length > 0;
+      if (hasTasteScores) {
+        for (const key of Object.keys(groupedByDifficulty)) {
+          groupedByDifficulty[key].sort((a, b) => (variationTasteScores[b.id] ?? 0) - (variationTasteScores[a.id] ?? 0));
+        }
+      }
       const difficultyLabels = {
         simple: 'Simple Variations',
         technique_forward: 'Technique-Forward Variations',
@@ -504,98 +503,26 @@ export default function VaultScreen() {
                 <Text style={styles.contentSectionTitle}>
                   {difficultyLabels[difficulty as keyof typeof difficultyLabels]}
                 </Text>
-                {items.map((variation) =>
-                  renderContentItem(
-                    variation,
-                    getVaultVariationThumbnail(variation.id),
-                    'variation',
-                    getVaultVariationHeader(variation.id)
-                  )
-                )}
+                {items.map((variation) => {
+                  const tasteScore = variationTasteScores[variation.id] ?? 0;
+                  const showBadge = tasteScore >= 50;
+                  return (
+                    <View key={variation.id} style={{ position: 'relative' }}>
+                      {renderContentItem(
+                        variation,
+                        getVaultVariationThumbnail(variation.id),
+                        'variation',
+                        getVaultVariationHeader(variation.id)
+                      )}
+                      {showBadge && (
+                        <View style={styles.tasteMatchBadge}>
+                          <Text style={styles.tasteMatchBadgeText}>Matches your taste</Text>
+                        </View>
+                      )}
+                    </View>
+                  );
+                })}
               </View>
-            );
-          })}
-        </View>
-      );
-    }
-
-    if (selectedTab === 'bars') {
-      const bars = getBarFeaturesForDisplay(); // Show all items regardless of tier
-
-      const handleBarPress = (barId: string) => {
-        // Navigate to specific bar detail screen based on bar ID
-        if (barId === 'bar_untitled_champagne_lounge') {
-          nav.navigate('UntitledLounge');
-        } else if (barId === 'bar_employees_only') {
-          console.log('Navigate to Employees Only');
-        } else {
-          console.log('Navigate to bar:', barId);
-        }
-      };
-
-      return (
-        <View style={styles.barSpotlightContainer}>
-          {bars.map((bar) => {
-            const unlocked = isBarUnlocked(bar.id);
-            const isTierLocked = !canAccessContent(tier, bar.requiredTier);
-            return (
-              <TouchableOpacity
-                key={bar.id}
-                style={styles.barSpotlightCard}
-                activeOpacity={0.7}
-                onPress={() => {
-                  if (unlocked) {
-                    handleBarPress(bar.id);
-                  } else {
-                    handleItemPreview(bar, getBarThumbnail(bar.thumbnailKey), 'bar');
-                  }
-                }}
-              >
-                <Image
-                  source={getBarThumbnail(bar.thumbnailKey)}
-                  style={styles.barSpotlightImage}
-                  resizeMode="cover"
-                />
-                <View style={styles.barSpotlightOverlay}>
-                  <Text style={styles.barSpotlightTitle}>{bar.barName}, {bar.city}</Text>
-                  <Text style={styles.barSpotlightDescription}>{bar.vibeDescription}</Text>
-                  <View style={styles.barSpotlightFooter}>
-                    {unlocked ? (
-                      <>
-                        <View style={styles.unlockedBadge}>
-                          <Ionicons name="checkmark-circle" size={16} color={colors.gold} />
-                          <Text style={styles.unlockedText}>UNLOCKED</Text>
-                        </View>
-                        <TouchableOpacity
-                          style={[styles.barUnlockButton, styles.barViewButton]}
-                          activeOpacity={0.8}
-                          onPress={() => handleBarPress(bar.id)}
-                        >
-                          <Text style={styles.barUnlockButtonText}>View</Text>
-                        </TouchableOpacity>
-                      </>
-                    ) : (
-                      <>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1) }}>
-                          <Text style={styles.barSpotlightXP}>Unlock with {bar.xpCost} XP</Text>
-                          {isTierLocked && bar.requiredTier && (
-                            <View style={styles.tierRequiredBadge}>
-                              <Text style={styles.tierRequiredText}>{bar.requiredTier} Required</Text>
-                            </View>
-                          )}
-                        </View>
-                        <TouchableOpacity
-                          style={styles.barUnlockButton}
-                          activeOpacity={0.8}
-                          onPress={() => handleItemPreview(bar, getBarThumbnail(bar.thumbnailKey), 'bar')}
-                        >
-                          <Text style={styles.barUnlockButtonText}>Unlock</Text>
-                        </TouchableOpacity>
-                      </>
-                    )}
-                  </View>
-                </View>
-              </TouchableOpacity>
             );
           })}
         </View>
@@ -714,7 +641,7 @@ export default function VaultScreen() {
     return null;
   };
 
-  const isNewCategory = ['variations', 'playbooks', 'bars', 'seasonal', 'games'].includes(selectedTab);
+  const isNewCategory = ['variations', 'playbooks', 'seasonal', 'games'].includes(selectedTab);
 
   return (
     <View style={styles.container}>
@@ -1098,6 +1025,20 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.bg,
     textTransform: 'uppercase',
+  },
+  tasteMatchBadge: {
+    position: 'absolute',
+    top: spacing(1.5),
+    right: spacing(1.5),
+    backgroundColor: 'rgba(18,18,18,0.85)',
+    paddingHorizontal: spacing(1),
+    paddingVertical: spacing(0.5),
+    borderRadius: radii.sm,
+  },
+  tasteMatchBadgeText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: colors.gold,
   },
 
   contentItemTitle: {

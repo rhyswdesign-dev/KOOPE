@@ -42,6 +42,10 @@ type AppState =
 const ONBOARDING_COMPLETED_KEY = '@KOOPE:onboarding_completed';
 const AGE_VERIFIED_KEY = '@KOOPE:age_verified';
 
+// DEV ONLY: Set to true to always land on the sign-in screen on launch.
+// Flip back to false once you've confirmed sign-in works.
+const DEV_FORCE_SIGN_IN = __DEV__ && false;
+
 export function useSimpleOnboarding() {
   const [appState, setAppState] = useState<AppState>('loading');
 
@@ -78,6 +82,10 @@ export function useSimpleOnboarding() {
   };
 
   const handleSplashFinish = async () => {
+    if (DEV_FORCE_SIGN_IN) {
+      setAppState('onboarding');
+      return;
+    }
     try {
       const storedAgeVerification = await AsyncStorage.getItem(AGE_VERIFICATION_STORAGE_KEY);
       const parsedAgeVerification = storedAgeVerification ? JSON.parse(storedAgeVerification) as AgeVerificationPayload : null;
@@ -94,7 +102,7 @@ export function useSimpleOnboarding() {
       // Check if user has completed onboarding before
       const onboardingCompleted = await AsyncStorage.getItem(ONBOARDING_COMPLETED_KEY);
 
-      if (onboardingCompleted === 'true') {
+      if (onboardingCompleted === 'true' && !DEV_FORCE_SIGN_IN) {
         // Returning user - go directly to main app
         log.info('useSimpleOnboarding', 'Returning user detected, skipping onboarding');
         setAppState('main');
@@ -137,6 +145,10 @@ export function useSimpleOnboarding() {
   };
 
   const completeOnboarding = () => {
+    if (DEV_FORCE_SIGN_IN) {
+      setAppState('main');
+      return;
+    }
     // After account setup, show bartending welcome
     trackEvent(ANALYTICS_EVENTS.ONBOARDING_STEP_COMPLETED, {
       [ANALYTICS_PROPS.STEP_NUMBER]: 2,

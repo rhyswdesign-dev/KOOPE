@@ -38,6 +38,7 @@ import { useScrollHaptic, withHaptic } from '../lib/haptics';
 import { SPIRITS_DATABASE } from '../data/spiritsDatabase';
 import { BottleServeService } from '../services/bottleServeService';
 import { CellarService } from '../services/cellarService';
+import { notificationService } from '../services/notificationService';
 
 // Import images from assets
 import * as Images from '../../assets/images';
@@ -56,6 +57,7 @@ interface InventoryItem extends BarIngredient {
   flavor_tags?: string[] | null;
   tasting_notes?: string | null;
   serve_guidance?: string | null;
+  quantity?: 'full' | 'half' | 'low' | 'empty' | null;
 }
 
 function hasCellarRecord(item: InventoryItem): boolean {
@@ -609,6 +611,13 @@ export default function HomeBarScreen() {
   const [itemNoteDraft, setItemNoteDraft] = useState('');
   const [showItemOptionsModal, setShowItemOptionsModal] = useState(false);
   const [showInventorySwitcher, setShowInventorySwitcher] = useState(false);
+  const [showCellarIntakeModal, setShowCellarIntakeModal] = useState(false);
+  const [cellarIntakePrice, setCellarIntakePrice] = useState('');
+  const [cellarIntakeWindowStart, setCellarIntakeWindowStart] = useState('');
+  const [cellarIntakeWindowEnd, setCellarIntakeWindowEnd] = useState('');
+  const [cellarIntakeNotes, setCellarIntakeNotes] = useState('');
+  const [cellarIntakeQuantity, setCellarIntakeQuantity] = useState<'full' | 'half' | 'low' | 'empty'>('full');
+  const [savingCellarIntake, setSavingCellarIntake] = useState(false);
   const onScrollHaptic = useScrollHaptic('selection', 800);
 
   useLayoutEffect(() => {
@@ -694,6 +703,20 @@ export default function HomeBarScreen() {
         }
       }
 
+      // Merge cellar record quantity onto inventory items so the Low Stock
+      // section reflects what the user has actually tracked.
+      try {
+        const cellarRecords = await CellarService.getRecords();
+        for (const item of combined) {
+          const record = cellarRecords[item.id];
+          if (record?.quantity) {
+            (item as InventoryItem).quantity = record.quantity as InventoryItem['quantity'];
+          }
+        }
+      } catch {
+        // Non-fatal: low stock section just won't populate offline
+      }
+
       setHomeBar((prev) => ({
         ...prev,
         ingredients: combined,
@@ -743,7 +766,13 @@ export default function HomeBarScreen() {
       filtered = filtered.slice(0, TIER_LIMITS.FREE.maxBottles);
     }
 
-    return { lowStock: [], rest: filtered, all: filtered };
+    const lowStock = filtered.filter(
+      (item) => (item as InventoryItem).quantity === 'low' || (item as InventoryItem).quantity === 'empty'
+    );
+    const rest = filtered.filter(
+      (item) => (item as InventoryItem).quantity !== 'low' && (item as InventoryItem).quantity !== 'empty'
+    );
+    return { lowStock, rest, all: filtered };
   };
 
   const { lowStock, rest, all } = getFilteredInventory();
@@ -1062,14 +1091,29 @@ export default function HomeBarScreen() {
     Alert.alert('Notes Saved', trimmedNotes ? 'Your bar note was updated.' : 'Your note was cleared.');
   };
 
-  const handleAddToCellar = async () => {
+  const handleOpenCellarIntake = () => {
+    if (!selectedItem) return;
+    setCellarIntakePrice(selectedItem.purchase_price != null ? String(selectedItem.purchase_price) : '');
+    setCellarIntakeWindowStart(selectedItem.drinking_window_start || '');
+    setCellarIntakeWindowEnd(selectedItem.drinking_window_end || '');
+    setCellarIntakeNotes(selectedItem.cellar_notes || '');
+    setCellarIntakeQuantity(((selectedItem as any).quantity as 'full' | 'half' | 'low' | 'empty') || 'full');
+    setShowCellarIntakeModal(true);
+  };
+
+  const handleSaveCellarIntake = async () => {
     if (!selectedItem || !user) return;
 
-    const existingCellar = hasCellarRecord(selectedItem);
-    const cellarNotes = selectedItem.cellar_notes || 'Added from inventory for collector tracking.';
-    const drinkingWindowStart = selectedItem.drinking_window_start || 'Now';
-    const drinkingWindowEnd = selectedItem.drinking_window_end || 'Review';
-    const valuationEstimate = selectedItem.valuation_estimate ?? 0;
+    const parsedPrice = cellarIntakePrice.trim() ? Number(cellarIntakePrice) : null;
+    if (parsedPrice !== null && Number.isNaN(parsedPrice)) {
+      Alert.alert('Invalid Price', 'Enter a valid number for purchase price.');
+      return;
+    }
+
+    setSavingCellarIntake(true);
+    const drinkingWindowStart = cellarIntakeWindowStart.trim() || 'Now';
+    const drinkingWindowEnd = cellarIntakeWindowEnd.trim() || 'Review';
+    const cellarNotes = cellarIntakeNotes.trim() || null;
 
     try {
       await CellarService.saveRecord({
@@ -1084,15 +1128,16 @@ export default function HomeBarScreen() {
         flavorProfile: selectedBottleDetails?.flavorProfile || selectedItem.flavor_tags || [],
         tastingNotes: selectedBottleDetails?.tastingNotes || selectedItem.tasting_notes || null,
         serveGuidance: selectedBottleDetails?.serveGuidance || selectedItem.serve_guidance || null,
-        quantity: (selectedItem as any).quantity || null,
-        purchasePrice: selectedItem.purchase_price ?? null,
-        valuationEstimate,
+        quantity: cellarIntakeQuantity,
+        purchasePrice: parsedPrice,
+        valuationEstimate: parsedPrice ?? selectedItem.valuation_estimate ?? null,
         drinkingWindowStart,
         drinkingWindowEnd,
         cellarNotes,
       });
     } catch {
-      Alert.alert('Unable to Add', 'We could not create a cellar record for this item right now.');
+      setSavingCellarIntake(false);
+      Alert.alert('Unable to Track', 'We could not create a cellar record for this item right now.');
       return;
     }
 
@@ -1101,9 +1146,9 @@ export default function HomeBarScreen() {
       cellar_notes: cellarNotes,
       drinking_window_start: drinkingWindowStart,
       drinking_window_end: drinkingWindowEnd,
-      valuation_estimate: valuationEstimate,
+      purchase_price: parsedPrice,
+      valuation_estimate: parsedPrice ?? selectedItem.valuation_estimate ?? null,
     };
-
     setHomeBar((prev) => ({
       ...prev,
       ingredients: prev.ingredients.map((entry) => entry.id === selectedItem.id ? nextItem : entry),
@@ -1111,24 +1156,22 @@ export default function HomeBarScreen() {
     setSelectedItem(nextItem);
 
     void InventoryService.updateInventoryItem(selectedItem.id, {
-      cellarNotes,
+      cellarNotes: cellarNotes ?? undefined,
       drinkingWindowStart,
       drinkingWindowEnd,
-      valuationEstimate,
-    }).then((success) => {
-      if (!success) {
-        log.info('HomeBarScreen', 'Cellar record saved locally after remote inventory update failed', { itemId: selectedItem.id });
-      }
-    }).catch(() => {
-      log.info('HomeBarScreen', 'Cellar record saved locally after remote inventory update errored', { itemId: selectedItem.id });
-    });
+      valuationEstimate: parsedPrice ?? selectedItem.valuation_estimate ?? undefined,
+    }).catch(() => {});
 
-    Alert.alert(
-      existingCellar ? 'Cellar Record Updated' : 'Added to Cellar',
-      existingCellar
-        ? 'This bottle is already tracked in The Cellar.'
-        : 'This bottle is now part of your cellar collection.',
-    );
+    // Fire or cancel low stock alert based on quantity
+    if (cellarIntakeQuantity === 'low' || cellarIntakeQuantity === 'empty') {
+      notificationService.scheduleLowStockAlert(selectedItem.id, selectedItem.name).catch(() => {});
+    } else {
+      notificationService.cancelLowStockAlert(selectedItem.id).catch(() => {});
+    }
+
+    setSavingCellarIntake(false);
+    setShowCellarIntakeModal(false);
+    nav.navigate('CellarBottleDetail', { inventoryItemId: selectedItem.id });
   };
 
   const handleDeleteItem = () => {
@@ -1781,17 +1824,23 @@ export default function HomeBarScreen() {
                       </View>
                     </View>
 
-                    <TouchableOpacity
-                      style={styles.inventoryCellarButton}
-                      onPress={withHaptic(async () => {
-                        await handleAddToCellar();
-                      }, 'selection')}
-                    >
-                      <Ionicons name={hasCellarRecord(selectedItem) ? 'checkmark-circle-outline' : 'add-circle-outline'} size={18} color={colors.accent} />
-                      <Text style={styles.inventoryCellarButtonText}>
-                        {hasCellarRecord(selectedItem) ? 'Saved to Cellar' : 'Add to Cellar'}
-                      </Text>
-                    </TouchableOpacity>
+                    {hasCellarRecord(selectedItem) ? (
+                      <TouchableOpacity
+                        style={styles.inventoryCellarButton}
+                        onPress={withHaptic(() => nav.navigate('CellarBottleDetail', { inventoryItemId: selectedItem.id }), 'selection')}
+                      >
+                        <Ionicons name="checkmark-circle-outline" size={18} color={colors.accent} />
+                        <Text style={styles.inventoryCellarButtonText}>View in Cellar</Text>
+                      </TouchableOpacity>
+                    ) : (
+                      <TouchableOpacity
+                        style={styles.inventoryCellarButton}
+                        onPress={withHaptic(handleOpenCellarIntake, 'selection')}
+                      >
+                        <Ionicons name="add-circle-outline" size={18} color={colors.accent} />
+                        <Text style={styles.inventoryCellarButtonText}>Track in Cellar</Text>
+                      </TouchableOpacity>
+                    )}
                   </>
                 ) : (
                   <TouchableOpacity
@@ -1908,6 +1957,123 @@ export default function HomeBarScreen() {
             </TouchableOpacity>
           </View>
         </View>
+      </Modal>
+
+      {/* Cellar Intake Modal */}
+      <Modal
+        visible={showCellarIntakeModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowCellarIntakeModal(false)}
+      >
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalContent, styles.manualModalContent]}>
+              <View style={[styles.modalHeader, styles.manualModalHeader]}>
+                <Text style={styles.modalTitle}>Track in Cellar</Text>
+                <View style={styles.manualHeaderActions}>
+                  <TouchableOpacity style={styles.headerActionGhost} onPress={() => setShowCellarIntakeModal(false)}>
+                    <Text style={styles.headerActionGhostText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.headerActionPrimary, savingCellarIntake && { opacity: 0.5 }]}
+                    onPress={handleSaveCellarIntake}
+                    disabled={savingCellarIntake}
+                  >
+                    <Text style={styles.headerActionPrimaryText}>{savingCellarIntake ? 'Saving…' : 'Track'}</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              <ScrollView
+                style={styles.modalForm}
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={styles.manualModalFormContent}
+                keyboardShouldPersistTaps="handled"
+              >
+                <Text style={styles.modalEyebrow}>Collector Record</Text>
+                <Text style={styles.modalSubtitle}>
+                  {selectedItem?.name}{selectedItem?.brand ? ` · ${selectedItem.brand}` : ''}
+                </Text>
+
+                {/* Quantity */}
+                <View style={styles.formSectionCard}>
+                  <Text style={styles.sectionTitleCompact}>Bottle Level</Text>
+                  <View style={styles.cellarQuantityRow}>
+                    {(['full', 'half', 'low', 'empty'] as const).map((q) => (
+                      <TouchableOpacity
+                        key={q}
+                        style={[styles.cellarQuantityChip, cellarIntakeQuantity === q && styles.cellarQuantityChipActive]}
+                        onPress={() => setCellarIntakeQuantity(q)}
+                      >
+                        <Text style={[styles.cellarQuantityChipText, cellarIntakeQuantity === q && styles.cellarQuantityChipTextActive]}>
+                          {q.charAt(0).toUpperCase() + q.slice(1)}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+
+                {/* Purchase Price */}
+                <View style={styles.formSectionCard}>
+                  <Text style={styles.sectionTitleCompact}>Purchase Price</Text>
+                  <View style={styles.formGroup}>
+                    <Text style={styles.formLabel}>What did you pay? (optional)</Text>
+                    <TextInput
+                      style={styles.formInput}
+                      value={cellarIntakePrice}
+                      onChangeText={setCellarIntakePrice}
+                      placeholder="e.g. 65"
+                      placeholderTextColor={colors.subtext}
+                      keyboardType="decimal-pad"
+                    />
+                  </View>
+                </View>
+
+                {/* Drinking Window */}
+                <View style={styles.formSectionCard}>
+                  <Text style={styles.sectionTitleCompact}>Drinking Window</Text>
+                  <View style={styles.formGroup}>
+                    <Text style={styles.formLabel}>Best enjoyed from</Text>
+                    <TextInput
+                      style={styles.formInput}
+                      value={cellarIntakeWindowStart}
+                      onChangeText={setCellarIntakeWindowStart}
+                      placeholder="e.g. Now or 2026"
+                      placeholderTextColor={colors.subtext}
+                    />
+                  </View>
+                  <View style={styles.formGroup}>
+                    <Text style={styles.formLabel}>Drink by</Text>
+                    <TextInput
+                      style={styles.formInput}
+                      value={cellarIntakeWindowEnd}
+                      onChangeText={setCellarIntakeWindowEnd}
+                      placeholder="e.g. 2030"
+                      placeholderTextColor={colors.subtext}
+                    />
+                  </View>
+                </View>
+
+                {/* Notes */}
+                <View style={styles.formSectionCard}>
+                  <Text style={styles.sectionTitleCompact}>Notes</Text>
+                  <View style={styles.formGroup}>
+                    <Text style={styles.formLabel}>Initial thoughts or provenance</Text>
+                    <TextInput
+                      style={[styles.formInput, { height: 80, textAlignVertical: 'top' }]}
+                      value={cellarIntakeNotes}
+                      onChangeText={setCellarIntakeNotes}
+                      placeholder="e.g. Birthday gift, single barrel, cask #42…"
+                      placeholderTextColor={colors.subtext}
+                      multiline
+                    />
+                  </View>
+                </View>
+              </ScrollView>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Manual Entry Modal */}
@@ -3281,5 +3447,31 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.subtext,
     textAlign: 'center',
+  },
+  cellarQuantityRow: {
+    flexDirection: 'row',
+    gap: spacing(1),
+    flexWrap: 'wrap',
+    marginTop: spacing(0.75),
+  },
+  cellarQuantityChip: {
+    paddingHorizontal: spacing(2),
+    paddingVertical: spacing(0.75),
+    borderRadius: radii.pill,
+    borderWidth: 1.5,
+    borderColor: colors.line,
+  },
+  cellarQuantityChipActive: {
+    borderColor: colors.accent,
+    backgroundColor: colors.accent + '18',
+  },
+  cellarQuantityChipText: {
+    fontSize: 13,
+    color: colors.subtext,
+    fontWeight: '500',
+  },
+  cellarQuantityChipTextActive: {
+    color: colors.accent,
+    fontWeight: '700',
   },
 });

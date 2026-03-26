@@ -3,7 +3,7 @@
  * Shows detailed information about a scanned spirit bottle
  */
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -17,7 +17,10 @@ import {
   Modal,
   TextInput,
   ActivityIndicator,
+  Share,
+  Dimensions,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -36,13 +39,15 @@ import { sortByMatch, getMatchMessage } from '../utils/recipeMatching';
 import type { RecipeMatch } from '../utils/recipeMatching';
 import { RecipesRepository } from '../repos/supabase';
 import { useUserTier } from '../store/useUserTier';
-import { isCocktailAccessible, TIER_LIMITS } from '../config/tierAccess';
+import { isCocktailAccessible, TIER_LIMITS, SPIRIT_STARTER_MAP } from '../config/tierAccess';
 import { useFeatureAccess } from '../hooks/useFeatureAccess';
 import type { UserInventoryItem } from '../types/database';
 import { BottleServeService } from '../services/bottleServeService';
 import { useEngagement } from '../store/useEngagement';
 import { getCocktailImage } from '../../assets/images/cocktails';
 import RecipeCard from '../components/RecipeCard';
+import { ScanHistoryService } from '../services/scanHistoryService';
+import { trackEvent, ANALYTICS_EVENTS, ANALYTICS_PROPS } from '../lib/analytics';
 
 type BottleDetailScreenNavigationProp = CompositeNavigationProp<
   NativeStackNavigationProp<CameraStackParamList, 'BottleDetail'>,
@@ -56,6 +61,69 @@ const SPIRIT_ALIAS_MAP: Record<string, string> = {
   rye: 'whiskey',
   cognac: 'brandy',
 };
+
+// ─── Spirit-category fallbacks ────────────────────────────────────────────────
+// Used when a specific bottle lacks flavor profile or tasting notes data.
+// Ensures every scan returns useful, contextually accurate information.
+
+interface SpiritCategoryDefaults {
+  flavorProfile: string[];
+  tastingNotes: string;
+  origin: string;
+}
+
+const SPIRIT_CATEGORY_DEFAULTS: Record<string, SpiritCategoryDefaults> = {
+  gin: {
+    flavorProfile: ['Juniper', 'Citrus', 'Botanical'],
+    tastingNotes: 'A London Dry-style gin with classic juniper at the fore, bright citrus notes, and a layered botanical finish. Crisp and dry.',
+    origin: 'United Kingdom',
+  },
+  vodka: {
+    flavorProfile: ['Clean', 'Smooth', 'Neutral'],
+    tastingNotes: 'A clean, neutral spirit with a smooth palate and a crisp finish. Subtle grain sweetness makes it exceptionally versatile.',
+    origin: 'Europe',
+  },
+  whiskey: {
+    flavorProfile: ['Caramel', 'Vanilla', 'Oak'],
+    tastingNotes: 'Rich caramel and vanilla upfront, underpinned by toasted oak and a hint of dried fruit. Warm, rounded finish.',
+    origin: 'United States',
+  },
+  rum: {
+    flavorProfile: ['Vanilla', 'Tropical Fruit', 'Caramel'],
+    tastingNotes: 'Sweet vanilla and tropical fruit on the nose, with warm caramel and a touch of molasses on the palate. Smooth finish.',
+    origin: 'Caribbean',
+  },
+  tequila: {
+    flavorProfile: ['Agave', 'Citrus', 'Pepper'],
+    tastingNotes: '100% agave character — fresh vegetal notes, bright citrus, and white pepper. Clean, smooth, and true to the plant.',
+    origin: 'Mexico',
+  },
+  mezcal: {
+    flavorProfile: ['Smoke', 'Agave', 'Earthy'],
+    tastingNotes: 'Artisanal smoke from slow-roasted agave hearts, with earthy mineral notes and a long, complex finish.',
+    origin: 'Mexico',
+  },
+  brandy: {
+    flavorProfile: ['Dried Fruit', 'Oak', 'Vanilla'],
+    tastingNotes: 'Warm dried fruit and toasted oak with vanilla undertones. Smooth and balanced with a gentle warming finish.',
+    origin: 'France',
+  },
+  liqueur: {
+    flavorProfile: ['Sweet', 'Fruit', 'Herbal'],
+    tastingNotes: 'A sweet, approachable liqueur with fruit and herbal character. Versatile as a modifier in cocktails or over ice.',
+    origin: 'Europe',
+  },
+  other: {
+    flavorProfile: ['Complex', 'Aromatic', 'Distinct'],
+    tastingNotes: 'A distinctive spirit with its own character. Explore neat first to understand its personality before building cocktails.',
+    origin: 'International',
+  },
+};
+
+function getSpiritCategoryDefaults(bottle: any): SpiritCategoryDefaults {
+  const type = normalizeSpiritToken((bottle as any).type || (bottle as any).category);
+  return SPIRIT_CATEGORY_DEFAULTS[type] ?? SPIRIT_CATEGORY_DEFAULTS.other;
+}
 
 function normalizeSpiritToken(value: string | undefined | null): string {
   const token = (value || '').toLowerCase().trim();
@@ -171,6 +239,9 @@ function getCellarValuation(bottle: any, currency: 'USD' | 'CAD' | 'GBP', purcha
   return Number((midpoint * multiplier).toFixed(2));
 }
 
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const HERO_HEIGHT = SCREEN_HEIGHT * 0.42;
+
 export default function BottleDetailScreen() {
   const navigation = useNavigation<BottleDetailScreenNavigationProp>();
   const route = useRoute<RouteProp<CameraStackParamList, 'BottleDetail'>>();
@@ -187,6 +258,8 @@ export default function BottleDetailScreen() {
   const [userCurrency, setUserCurrency] = useState<'USD' | 'CAD' | 'GBP'>('USD');
   const [userRegion, setUserRegion] = useState<string>('');
   const [suggestedCocktails, setSuggestedCocktails] = useState<Array<any & { match: RecipeMatch }>>([]);
+  const [lockedCocktailCount, setLockedCocktailCount] = useState(0);
+  const [lockedCocktailTeaser, setLockedCocktailTeaser] = useState<{ name: string; subtitle: string } | null>(null);
   const [loadingCocktails, setLoadingCocktails] = useState(true);
   const [inventoryItem, setInventoryItem] = useState<UserInventoryItem | null>(null);
   const [cellarModalVisible, setCellarModalVisible] = useState(false);
@@ -202,6 +275,20 @@ export default function BottleDetailScreen() {
     () => BottleServeService.getRecommendation(bottle, tier),
     [bottle, tier]
   );
+
+  // Merge bottle-specific data with spirit-category defaults so every scan
+  // shows a complete profile — even if individual bottle data is sparse.
+  const bottleProfile = useMemo(() => {
+    const defaults = getSpiritCategoryDefaults(bottle);
+    return {
+      flavorProfile: bottle.flavorProfile?.length > 0 ? bottle.flavorProfile : defaults.flavorProfile,
+      tastingNotes: bottle.tastingNotes?.trim() ? bottle.tastingNotes : defaults.tastingNotes,
+      origin: bottle.origin?.trim() ? bottle.origin : defaults.origin,
+      isFlavorFallback: !(bottle.flavorProfile?.length > 0),
+      isTastingFallback: !bottle.tastingNotes?.trim(),
+    };
+  }, [bottle]);
+
   const suggestedCellarWindow = useMemo(() => getSuggestedDrinkingWindow(bottle), [bottle]);
   const cellarValuation = useMemo(
     () => getCellarValuation(bottle, userCurrency, inventoryItem?.purchase_price ?? null),
@@ -266,7 +353,26 @@ export default function BottleDetailScreen() {
     } : prev);
     setCellarModalVisible(false);
     Alert.alert('Cellar Updated', 'Your collector details have been saved for this bottle.');
+
+    // Fire or cancel low stock alert based on the saved quantity
+    if (selectedQuantity === 'low' || selectedQuantity === 'empty') {
+      notificationService.scheduleLowStockAlert(inventoryItem.id, bottle.name).catch(() => {});
+    } else {
+      notificationService.cancelLowStockAlert(inventoryItem.id).catch(() => {});
+    }
   };
+
+  useEffect(() => {
+    // Record this bottle to the user's scan history journal
+    ScanHistoryService.recordScan(bottle, imageUri).catch(() => {});
+
+    // Fire funnel analytics — scan is the first step in the conversion funnel
+    trackEvent(ANALYTICS_EVENTS.SCAN_SUCCESS, {
+      [ANALYTICS_PROPS.ITEM_NAME]: bottle.name,
+      [ANALYTICS_PROPS.SCAN_TYPE]: 'bottle',
+      spirit_type: bottle.type || bottle.category || 'unknown',
+    });
+  }, [bottle.id]);
 
   useEffect(() => {
     // Detect user's currency based on locale
@@ -379,39 +485,68 @@ export default function BottleDetailScreen() {
           console.log('Sample matched recipes:', matchedData.slice(0, 3).map(r => ({ name: r.name, baseSpirit: r.baseSpirit })));
         }
 
-        // 3.5. Filter by the user's accessible recipe pool.
+        // 3.5. For Free tier: split into accessible and locked pools so we can
+        // show the best 3 accessible recipes plus a teaser card for locked ones.
+        const rankRecipes = (data: typeof matchedData) => {
+          const withMatch = sortByMatch(data as any[], combinedInventory);
+          return [...withMatch].sort((a, b) => {
+            if (serveRecommendation.cocktailPlacement !== 'secondary') {
+              return b.match.matchPercentage - a.match.matchPercentage;
+            }
+            const aRespect = getRespectThisBottleScore(a, spiritName, bottle, serveRecommendation);
+            const bRespect = getRespectThisBottleScore(b, spiritName, bottle, serveRecommendation);
+            if (bRespect !== aRespect) return bRespect - aRespect;
+            if (b.match.matchPercentage !== a.match.matchPercentage) {
+              return b.match.matchPercentage - a.match.matchPercentage;
+            }
+            return String(a.name || '').localeCompare(String(b.name || ''));
+          });
+        };
+
         if (tier === 'FREE') {
-          matchedData = matchedData.filter(recipe =>
+          // Accessible: free 9 + any XP/engagement unlocks
+          const accessibleData = matchedData.filter(recipe =>
             isCocktailAccessible(recipe.id, tier) ||
             isCocktailUnlockedWithXP(recipe.id) ||
             isRecipeUnlockedWithEngagement(recipe.id)
           );
+          // Boost starter recipes for this spirit to the front of accessible results
+          const starterIds = SPIRIT_STARTER_MAP[spiritName] || [];
+          const starterFirst = [
+            ...accessibleData.filter(r => starterIds.includes(r.id)),
+            ...accessibleData.filter(r => !starterIds.includes(r.id)),
+          ];
+          const ranked = rankRecipes(starterFirst);
+          const topMatches = ranked.slice(0, 3);
+          setSuggestedCocktails(topMatches);
+
+          // Locked: everything else that matched the spirit but isn't accessible
+          const lockedData = matchedData.filter(recipe =>
+            !isCocktailAccessible(recipe.id, tier) &&
+            !isCocktailUnlockedWithXP(recipe.id) &&
+            !isRecipeUnlockedWithEngagement(recipe.id)
+          );
+          const rankedLocked = rankRecipes(lockedData);
+          setLockedCocktailCount(lockedData.length);
+          setLockedCocktailTeaser(
+            rankedLocked[0]
+              ? { name: rankedLocked[0].name, subtitle: rankedLocked[0].subtitle || 'Classic recipe' }
+              : null
+          );
+        } else {
+          // 4. Paid tiers: rank and show top 5
+          const ranked = rankRecipes(matchedData);
+          const topMatches = ranked.slice(0, 5);
+          setSuggestedCocktails(topMatches);
+          setLockedCocktailCount(0);
+          setLockedCocktailTeaser(null);
         }
-
-        // 4. Sort by match percentage, then favor "respectful" cocktails for serve-first bottles
-        const cocktailsWithMatch = sortByMatch(matchedData as any[], combinedInventory);
-        const rankedMatches = [...cocktailsWithMatch].sort((a, b) => {
-          if (serveRecommendation.cocktailPlacement !== 'secondary') {
-            return b.match.matchPercentage - a.match.matchPercentage;
-          }
-
-          const aRespect = getRespectThisBottleScore(a, spiritName, bottle, serveRecommendation);
-          const bRespect = getRespectThisBottleScore(b, spiritName, bottle, serveRecommendation);
-
-          if (bRespect !== aRespect) return bRespect - aRespect;
-          if (b.match.matchPercentage !== a.match.matchPercentage) {
-            return b.match.matchPercentage - a.match.matchPercentage;
-          }
-
-          return String(a.name || '').localeCompare(String(b.name || ''));
-        });
-        const topMatches = rankedMatches.slice(0, tier === 'FREE' ? 3 : 5);
-
-        setSuggestedCocktails(topMatches);
       } catch (error) {
         console.error('Error fetching cocktails:', error);
         setInventoryItem(null);
         setSuggestedCocktails([]);
+        setLockedCocktailCount(0);
+        setLockedCocktailTeaser(null);
       } finally {
         setLoadingCocktails(false);
       }
@@ -454,9 +589,9 @@ export default function BottleDetailScreen() {
       brand: bottle.brand,
       abv: bottle.abv,
       volume: 750,
-      region: bottle.origin,
-      flavorTags: bottle.flavorProfile,
-      tastingNotes: bottle.tastingNotes,
+      region: bottleProfile.origin,
+      flavorTags: bottleProfile.flavorProfile,
+      tastingNotes: bottleProfile.tastingNotes,
       serveGuidance: `${serveRecommendation.heroTitle}. ${serveRecommendation.why} ${serveRecommendation.cocktailUse}`.trim(),
     });
 
@@ -546,65 +681,94 @@ export default function BottleDetailScreen() {
     });
   };
 
+  const handleShareFind = async () => {
+    const topRecipe = suggestedCocktails[0];
+    const priceLine = bottle.priceEstimate
+      ? ` · ${userCurrency === 'GBP' ? '£' : '$'}${bottle.priceEstimate[userCurrency].min}–${userCurrency === 'GBP' ? '£' : '$'}${bottle.priceEstimate[userCurrency].max}`
+      : '';
+    const recipeLine = topRecipe ? ` · Makes a great ${topRecipe.name}` : '';
+    const message = `Found on KOOPE: ${bottle.name} by ${bottle.brand}${priceLine}${recipeLine}. Try KOOPE — the bartender's scanning app.`;
+    try {
+      await Share.share({ message });
+    } catch {
+      // Share dismissed — no-op
+    }
+  };
+
   const handleTryAnother = () => {
     // Navigate back to SmartScan to scan another bottle
     navigation.navigate('SmartScan');
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <SafeAreaView style={styles.container} edges={['bottom']}>
       <ScrollView
         contentContainerStyle={[
           styles.scrollContent,
           { paddingBottom: Math.max(insets.bottom, spacing(3)) + spacing(8) },
         ]}
       >
-        {/* Header Badge */}
-        <View style={styles.header}>
-          <View style={styles.headerBadge}>
-            <Ionicons name="checkmark-circle" size={24} color={colors.gold} />
-            <Text style={styles.headerBadgeText}>Identified</Text>
+        {/* Full-bleed hero header */}
+        <View style={styles.heroContainer}>
+          {imageUri ? (
+            <Image source={{ uri: imageUri }} style={styles.heroImage} resizeMode="cover" />
+          ) : (
+            <View style={styles.heroImageFallback} />
+          )}
+
+          {/* Deep gradient overlay for legibility */}
+          <LinearGradient
+            colors={['transparent', 'rgba(10,5,3,0.55)', 'rgba(10,5,3,0.97)']}
+            locations={[0.3, 0.65, 1]}
+            style={StyleSheet.absoluteFillObject}
+          />
+
+          {/* Back / close button */}
+          <TouchableOpacity
+            style={[styles.heroBackButton, { top: insets.top + spacing(1) }]}
+            onPress={() => navigation.goBack()}
+          >
+            <Ionicons name="chevron-back" size={24} color="#fff" />
+          </TouchableOpacity>
+
+          {/* Identified badge */}
+          <View style={[styles.heroBadge, { top: insets.top + spacing(1) }]}>
+            <Ionicons name="checkmark-circle" size={16} color={colors.gold} />
+            <Text style={styles.heroBadgeText}>Identified</Text>
+          </View>
+
+          {/* Bottle name & stats anchored to bottom of hero */}
+          <View style={styles.heroContent}>
+            {!imageUri && (
+              <View style={styles.heroIconFallback}>
+                <Ionicons name="wine" size={48} color={colors.gold} />
+              </View>
+            )}
+            <Text style={styles.heroBottleName} numberOfLines={2}>{bottle.name}</Text>
+            <Text style={styles.heroBottleBrand}>{bottle.brand}</Text>
+
+            {/* Inline stat pills */}
+            <View style={styles.heroPills}>
+              <View style={styles.heroPill}>
+                <Ionicons name="flash" size={13} color={colors.gold} />
+                <Text style={styles.heroPillText}>{bottle.abv}% ABV</Text>
+              </View>
+              <View style={styles.heroPillDivider} />
+              <View style={styles.heroPill}>
+                <Ionicons name="location" size={13} color={colors.gold} />
+                <Text style={styles.heroPillText}>{bottleProfile.origin}</Text>
+              </View>
+              <View style={styles.heroPillDivider} />
+              <View style={styles.heroPill}>
+                <Ionicons name="pricetag" size={13} color={colors.gold} />
+                <Text style={styles.heroPillText}>{getPriceTierDisplay(bottle.priceTier)}</Text>
+              </View>
+            </View>
           </View>
         </View>
 
-        {/* Captured Image - for verification and data collection */}
-        {imageUri && (
-          <View style={styles.capturedImageContainer}>
-            <Image source={{ uri: imageUri }} style={styles.capturedImage} />
-          </View>
-        )}
-
-        {/* Bottle Icon */}
-        <View style={styles.iconContainer}>
-          <View style={styles.iconBadge}>
-            <Ionicons name="wine" size={60} color={colors.gold} />
-          </View>
-        </View>
-
-        {/* Bottle Name */}
-        <Text style={styles.bottleName}>{bottle.name}</Text>
-        <Text style={styles.bottleBrand}>{bottle.brand}</Text>
-
-        {/* Quick Stats */}
-        <View style={styles.statsContainer}>
-          <View style={styles.statCard}>
-            <Ionicons name="flash" size={20} color={colors.gold} />
-            <Text style={styles.statValue}>{bottle.abv}%</Text>
-            <Text style={styles.statLabel}>ABV</Text>
-          </View>
-
-          <View style={styles.statCard}>
-            <Ionicons name="location" size={20} color={colors.gold} />
-            <Text style={styles.statValue}>{bottle.origin}</Text>
-            <Text style={styles.statLabel}>Origin</Text>
-          </View>
-
-          <View style={styles.statCard}>
-            <Ionicons name="pricetag" size={20} color={colors.gold} />
-            <Text style={styles.statValue}>{getPriceTierDisplay(bottle.priceTier)}</Text>
-            <Text style={styles.statLabel}>Price Tier</Text>
-          </View>
-        </View>
+        {/* Body content — padded */}
+        <View style={styles.bodyContent}>
 
         {/* Price Estimate */}
         <View style={styles.priceCard}>
@@ -695,9 +859,14 @@ export default function BottleDetailScreen() {
 
         {/* Flavor Profile */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Flavor Profile</Text>
+          <View style={styles.sectionHeaderRow}>
+            <Text style={[styles.sectionTitle, { marginBottom: 0 }]}>Flavor Profile</Text>
+            {bottleProfile.isFlavorFallback && (
+              <Text style={styles.categoryDefaultBadge}>{bottle.type} profile</Text>
+            )}
+          </View>
           <View style={styles.flavorTags}>
-            {bottle.flavorProfile.map((flavor, index) => (
+            {bottleProfile.flavorProfile.map((flavor, index) => (
               <View key={index} style={styles.flavorTag}>
                 <Text style={styles.flavorText}>{flavor}</Text>
               </View>
@@ -707,8 +876,13 @@ export default function BottleDetailScreen() {
 
         {/* Tasting Notes */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Tasting Notes</Text>
-          <Text style={styles.tastingNotes}>{bottle.tastingNotes}</Text>
+          <View style={styles.sectionHeaderRow}>
+            <Text style={[styles.sectionTitle, { marginBottom: 0 }]}>Tasting Notes</Text>
+            {bottleProfile.isTastingFallback && (
+              <Text style={styles.categoryDefaultBadge}>{bottle.type} profile</Text>
+            )}
+          </View>
+          <Text style={styles.tastingNotes}>{bottleProfile.tastingNotes}</Text>
         </View>
 
         {/* Cocktails You Can Make */}
@@ -758,6 +932,31 @@ export default function BottleDetailScreen() {
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.cocktailsRail}
               ItemSeparatorComponent={() => <View style={styles.cocktailRailSeparator} />}
+              ListFooterComponent={
+                tier === 'FREE' && lockedCocktailCount > 0 ? (
+                  <TouchableOpacity
+                    style={styles.lockedRecipeTeaser}
+                    activeOpacity={0.88}
+                    onPress={() => inventoryGate('T1')}
+                  >
+                    <View style={styles.lockedRecipeTeaserContent}>
+                      <View style={styles.lockedRecipeLockBadge}>
+                        <Ionicons name="lock-closed" size={16} color={colors.accent} />
+                      </View>
+                      <Text style={styles.lockedRecipeTeaserName} numberOfLines={2}>
+                        {lockedCocktailTeaser?.name ?? 'More recipes'}
+                      </Text>
+                      <Text style={styles.lockedRecipeTeaserSub} numberOfLines={1}>
+                        {lockedCocktailTeaser?.subtitle ?? 'Unlock with KOOPE+'}
+                      </Text>
+                      <View style={styles.lockedRecipeTeaserDivider} />
+                      <Text style={styles.lockedRecipeTeaserCta}>
+                        +{lockedCocktailCount} more with KOOPE+
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                ) : null
+              }
               nestedScrollEnabled
               removeClippedSubviews={false}
             />
@@ -789,6 +988,14 @@ export default function BottleDetailScreen() {
             >
               <Ionicons name="location-outline" size={20} color={colors.accent} />
               <Text style={styles.secondaryButtonText}>Find Nearby</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.secondaryButton}
+              onPress={handleShareFind}
+            >
+              <Ionicons name="share-outline" size={20} color={colors.accent} />
+              <Text style={styles.secondaryButtonText}>Share Find</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -936,6 +1143,9 @@ export default function BottleDetailScreen() {
             </>
           )}
         </View>
+
+        {/* end bodyContent */}
+        </View>
       </ScrollView>
 
       <Modal visible={cellarModalVisible} transparent animationType="fade" onRequestClose={() => setCellarModalVisible(false)}>
@@ -1041,93 +1251,125 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bg,
   },
   scrollContent: {
-    padding: spacing(3),
+    paddingTop: 0,
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: spacing(2),
-  },
-  headerBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing(0.75),
-    backgroundColor: `${colors.gold}20`,
-    paddingHorizontal: spacing(2),
-    paddingVertical: spacing(0.75),
-    borderRadius: radii.md,
-    borderWidth: 1,
-    borderColor: `${colors.gold}40`,
-  },
-  capturedImageContainer: {
-    marginBottom: spacing(3),
-    borderRadius: radii.lg,
-    overflow: 'hidden',
-  },
-  capturedImage: {
+  // ── Hero ──────────────────────────────────────────────────────────────────
+  heroContainer: {
     width: '100%',
-    height: 200,
-    borderRadius: radii.lg,
-  },
-  headerBadgeText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.gold,
-  },
-  iconContainer: {
-    alignItems: 'center',
+    height: HERO_HEIGHT,
+    position: 'relative',
+    overflow: 'hidden',
     marginBottom: spacing(3),
   },
-  iconBadge: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: `${colors.gold}15`,
+  heroImage: {
+    width: '100%',
+    height: '100%',
+  },
+  heroImageFallback: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#1A0A06',
+  },
+  heroBackButton: {
+    position: 'absolute',
+    left: spacing(2),
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0,0,0,0.45)',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 3,
-    borderColor: colors.gold,
+    zIndex: 10,
   },
-  bottleName: {
-    fontSize: 24,
+  heroBadge: {
+    position: 'absolute',
+    right: spacing(2),
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(0.5),
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    paddingHorizontal: spacing(1.5),
+    paddingVertical: spacing(0.5),
+    borderRadius: radii.md,
+    zIndex: 10,
+  },
+  heroBadgeText: {
+    fontSize: 12,
     fontWeight: '700',
-    color: colors.text,
-    textAlign: 'center',
+    color: colors.gold,
+    letterSpacing: 0.3,
+  },
+  heroContent: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: spacing(3),
+    paddingBottom: spacing(3),
+  },
+  heroIconFallback: {
+    marginBottom: spacing(1.5),
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: `${colors.gold}15`,
+    borderWidth: 2,
+    borderColor: `${colors.gold}40`,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heroBottleName: {
+    fontSize: 28,
+    fontWeight: '900',
+    color: '#fff',
+    letterSpacing: -0.3,
     marginBottom: spacing(0.5),
   },
-  bottleBrand: {
-    fontSize: 16,
-    color: colors.subtext,
-    textAlign: 'center',
-    marginBottom: spacing(3),
+  heroBottleBrand: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.65)',
+    fontWeight: '500',
+    marginBottom: spacing(2),
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
   },
-  statsContainer: {
+  heroPills: {
     flexDirection: 'row',
-    gap: spacing(2),
-    marginBottom: spacing(3),
-  },
-  statCard: {
-    flex: 1,
     alignItems: 'center',
-    backgroundColor: colors.card,
-    borderRadius: radii.lg,
-    padding: spacing(2),
-    borderWidth: 1,
-    borderColor: colors.line,
+  },
+  heroPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: spacing(0.5),
   },
-  statValue: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.text,
-    textAlign: 'center',
+  heroPillText: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.75)',
+    fontWeight: '600',
   },
-  statLabel: {
-    fontSize: 11,
-    color: colors.subtext,
-    textAlign: 'center',
+  heroPillDivider: {
+    width: 1,
+    height: 10,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    marginHorizontal: spacing(1.5),
   },
+  bodyContent: {
+    paddingHorizontal: spacing(3),
+  },
+  // (kept for any remaining references)
+  capturedImageContainer: { display: 'none' },
+  capturedImage: { display: 'none' },
+  headerBadgeText: { display: 'none' },
+  iconContainer: { display: 'none' },
+  iconBadge: { display: 'none' },
+  bottleName: { display: 'none' },
+  bottleBrand: { display: 'none' },
+  statsContainer: { display: 'none' },
+  statCard: { display: 'none' },
+  statValue: { display: 'none' },
+  statLabel: { display: 'none' },
+  header: { display: 'none' },
+  headerBadge: { display: 'none' },
   priceCard: {
     backgroundColor: `${colors.accent}10`,
     borderRadius: radii.lg,
@@ -1293,6 +1535,23 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.text,
     marginBottom: spacing(1.5),
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(1.5),
+    marginBottom: spacing(1.5),
+  },
+  categoryDefaultBadge: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: colors.subtext,
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing(1),
+    paddingVertical: 2,
+    borderRadius: radii.sm,
+    textTransform: 'capitalize',
+    opacity: 0.7,
   },
   flavorTags: {
     flexDirection: 'row',
@@ -1683,6 +1942,54 @@ const styles = StyleSheet.create({
   },
   discoveryRecipeCard: {
     width: 240,
+  },
+  lockedRecipeTeaser: {
+    width: 200,
+    marginLeft: spacing(2),
+    borderRadius: 20,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(214,138,56,0.22)',
+    backgroundColor: 'rgba(20,13,9,0.92)',
+  },
+  lockedRecipeTeaserContent: {
+    flex: 1,
+    padding: spacing(2),
+    justifyContent: 'center',
+    minHeight: 220,
+  },
+  lockedRecipeLockBadge: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(214,138,56,0.14)',
+    borderWidth: 1,
+    borderColor: 'rgba(214,138,56,0.3)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing(1.25),
+  },
+  lockedRecipeTeaserName: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: 'rgba(246,236,228,0.5)',
+    lineHeight: 22,
+    marginBottom: spacing(0.5),
+  },
+  lockedRecipeTeaserSub: {
+    fontSize: 12,
+    color: 'rgba(160,140,128,0.6)',
+    marginBottom: spacing(1.5),
+  },
+  lockedRecipeTeaserDivider: {
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    marginBottom: spacing(1.25),
+  },
+  lockedRecipeTeaserCta: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.accent,
   },
   actions: {
     gap: spacing(2),

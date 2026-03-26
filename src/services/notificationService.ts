@@ -577,6 +577,60 @@ class NotificationService {
   }
 
   /**
+   * Schedule a certification unlock celebration notification
+   */
+  public async scheduleCertificationUnlocked(certTitle: string) {
+    const identifier = `cert_unlock_${certTitle.replace(/\s+/g, '_').toLowerCase()}_${Date.now()}`;
+
+    await Notifications.scheduleNotificationAsync({
+      identifier,
+      content: {
+        title: `Certification Earned: ${certTitle}`,
+        body: 'Open KOOPE to see your new identity badge and share it with the world.',
+        data: {
+          type: 'xp_milestone',
+          certTitle,
+          actionUrl: 'homegameadvantage://profile',
+        },
+        sound: true,
+      },
+      trigger: { seconds: 2 },
+    });
+
+    log.info('NotificationService', 'Certification unlock notification scheduled', { certTitle });
+  }
+
+  /**
+   * Schedule a low stock reminder for a bottle the user has marked as low or empty.
+   * Uses a stable identifier per item so repeated saves replace rather than stack.
+   */
+  public async scheduleLowStockAlert(itemId: string, itemName: string) {
+    const identifier = `low_stock_${itemId}`;
+    await Notifications.scheduleNotificationAsync({
+      identifier,
+      content: {
+        title: 'Running Low',
+        body: `Time to restock ${itemName} — add it to your shopping list before you need it.`,
+        data: {
+          type: 'low_stock',
+          itemId,
+          actionUrl: 'homegameadvantage://home-bar',
+        },
+        sound: true,
+      },
+      trigger: { seconds: 60 * 60 * 24 }, // 24 hours
+    });
+    log.info('NotificationService', 'Low stock alert scheduled', { itemId, itemName });
+  }
+
+  /**
+   * Cancel a low stock alert (e.g. when restocked to full or half)
+   */
+  public async cancelLowStockAlert(itemId: string) {
+    await Notifications.cancelScheduledNotificationAsync(`low_stock_${itemId}`).catch(() => {});
+  }
+
+  /**
    * Test notification (for development)
    */
   public async sendTestNotification() {

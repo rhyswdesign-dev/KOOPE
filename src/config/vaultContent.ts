@@ -12,7 +12,6 @@
 export type VaultCategoryId =
   | "COCKTAIL_VARIATIONS"
   | "TECHNIQUE_PLAYBOOKS"
-  | "BAR_FEATURES"
   | "SEASONAL_DROPS"
   | "GAMES";
 
@@ -56,13 +55,6 @@ export const vaultCategories: VaultCategoryConfig[] = [
     subtitle: "Professional systems & workflows",
     description: "Master the operational systems that separate home bartenders from professionals. These playbooks teach decision frameworks, not just techniques.",
     sortOrder: 2,
-  },
-  {
-    id: "BAR_FEATURES",
-    title: "Bar Features",
-    subtitle: "Signature drinks from real bars",
-    description: "Learn from the best bars around the world. Discover their signature cocktails, understand their philosophy, and adapt their techniques for your home bar.",
-    sortOrder: 3,
   },
   {
     id: "SEASONAL_DROPS",
@@ -376,7 +368,8 @@ export const techniquePlaybooks: TechniquePlaybookContent[] = [
 ];
 
 // ============================================================================
-// BAR FEATURES
+// BAR FEATURES — archived pending commercial partnerships
+// Reintroduce when bar partnerships are in place. Data structure preserved.
 // ============================================================================
 
 export interface BarFeatureContent {
@@ -387,90 +380,23 @@ export interface BarFeatureContent {
   signatureCocktailName: string;
   whyItWorks: string;
   homeSubstitutions: string;
-  thumbnailKey?: string; // Key to look up thumbnail from BAR_IMAGES or BAR_PAGE_HEADERS
+  thumbnailKey?: string;
   xpCost: number;
   moneyPriceCents: number;
   unlockMethod: UnlockMethod;
   proEarlyAccess: boolean;
-  requiredTier?: UserTier; // Minimum tier required to access this content
+  requiredTier?: UserTier;
 }
 
-export const barFeatures: BarFeatureContent[] = [
-  {
-    id: "bar_untitled_champagne_lounge",
-    barName: "Untitled Champagne Lounge",
-    city: "Calgary",
-    vibeDescription: "Sophisticated luxury champagne lounge in Downtown Calgary. Known for premium champagne selections, caviar pairings, and live piano jazz. The ultimate destination for celebrating life's special moments with elegance and Rocky Mountain views.",
-    signatureCocktailName: "Golden Bubbles",
-    whyItWorks: "Dom Pérignon elevated with elderflower and gold leaf creates a visual and taste experience that embodies luxury. The elderflower's floral notes complement the champagne's complexity without overpowering its character. This drink shows how to enhance premium champagne without masking its quality.",
-    homeSubstitutions: "Can't afford Dom Pérignon? Use a quality Brut champagne (Veuve Clicquot or Moët) and the technique still works. For elderflower, St-Germain is the gold standard. Skip the gold leaf at home—the drink's elegance comes from proper champagne service and temperature, not garnish.",
-    thumbnailKey: "untitled",
-    xpCost: 800,
-    moneyPriceCents: 499,
-    unlockMethod: "XP_OR_MONEY",
-    proEarlyAccess: false,
-    requiredTier: "PLUS", // PLUS - premium bar content
-  },
-  {
-    id: "bar_death_and_co",
-    barName: "Death & Co",
-    city: "New York City",
-    vibeDescription: "Intimate, dimly-lit cocktail den in the East Village. Known for meticulous technique, house-made ingredients, and theatrical presentation. The gold standard for modern American cocktail bars.",
-    signatureCocktailName: "Oaxaca Old Fashioned",
-    whyItWorks: "Split-base technique using tequila and mezcal creates depth while maintaining Old Fashioned structure. The agave spirits bring smoke and complexity without overwhelming the template. This drink taught a generation of bartenders how to split bases effectively.",
-    homeSubstitutions: "Can't find mezcal? Use a smoky Islay Scotch (like Laphroaig) at 25% of the base. For tequila, reposado works better than blanco here—you want some oak to bridge the gap with traditional whiskey Old Fashioneds.",
-    thumbnailKey: "depth_frame_header_25",
-    xpCost: 950,
-    moneyPriceCents: 499,
-    unlockMethod: "XP_OR_MONEY",
-    proEarlyAccess: true,
-    requiredTier: "PLUS", // PLUS - premium bar content
-  },
-  {
-    id: "bar_employees_only",
-    barName: "Employees Only",
-    city: "New York City",
-    vibeDescription: "Classic speakeasy-style bar in the West Village serving elevated cocktails in a neighborhood bar atmosphere. Known for their 'Amuse-Bouche' program and late-night service. The bartenders are as much therapists as mixologists.",
-    signatureCocktailName: "Ginger Smash",
-    whyItWorks: "Fresh ginger, muddled with stone fruit, creates complexity without muddling technique errors. The key is pre-juicing ginger and controlling dilution. This drink proves that fresh ingredients don't need to be complicated—they need to be handled correctly.",
-    homeSubstitutions: "No fresh ginger juice? Grate ginger on a microplane and strain through cheesecloth. For stone fruit (apricot or peach), quality apricot liqueur (Rothman & Winter) can substitute in winter months. The technique matters more than the exact fruit.",
-    thumbnailKey: "depth_frame_header_26",
-    xpCost: 850,
-    moneyPriceCents: 499,
-    unlockMethod: "XP_OR_MONEY",
-    proEarlyAccess: false,
-    requiredTier: "PLUS", // PLUS - premium bar content
-  },
-  {
-    id: "bar_attaboy",
-    barName: "Attaboy",
-    city: "New York City",
-    vibeDescription: "No-menu cocktail bar in the Lower East Side where bartenders create custom drinks based on your preferences. Tiny space, world-class technique. The ultimate bartender's bar—every drink is a conversation.",
-    signatureCocktailName: "The Bartender's Choice",
-    whyItWorks: "Not a recipe, but a framework. Sam Ross and Michael McIlroy teach bartenders to listen first, then build. The process: spirit preference → flavor profile → technique selection → garnish. This isn't a cocktail—it's a consultation system that scales to any skill level.",
-    homeSubstitutions: "To recreate the Attaboy experience at home: interview your guest (sweet/dry? spirit preference? any dislikes?), select a classic template that fits, make one modification (different citrus, infused spirit, unique bitter), present it as custom. You're not faking it—you're practicing their framework.",
-    thumbnailKey: "depth_frame_header_23",
-    xpCost: 1000,
-    moneyPriceCents: 599,
-    unlockMethod: "XP_OR_MONEY",
-    proEarlyAccess: true,
-    requiredTier: "PLUS", // PLUS - premium bar content
-  },
-  {
-    id: "bar_trick_dog",
-    barName: "Trick Dog",
-    city: "San Francisco",
-    vibeDescription: "Playful neighborhood bar in the Mission District famous for themed, rotating menus. Every 6 months, a completely new menu with creative presentation (menus designed as Pantone swatches, Chinese takeout, etc.). Serious technique hidden behind whimsy.",
-    signatureCocktailName: "Sherry Cobbler (Pantone 294)",
-    whyItWorks: "Trick Dog modernized the forgotten Cobbler template with quality sherry, seasonal fruit, and proper dilution. The key insight: Cobblers aren't just crushed ice drinks—they're showcases for fortified wines. This version balances sherry's oxidative notes with bright fruit without over-sweetening.",
-    homeSubstitutions: "Use Amontillado or Palo Cortado sherry (not cooking sherry). If you can't find quality sherry, try Madeira or tawny port as the base. For fruit, match seasonality: berries in summer, citrus in winter, stone fruit in spring. The template is flexible—crushed ice, fortified wine, fruit, light sweetener.",
-    thumbnailKey: "depth_frame_header_22",
-    xpCost: 900,
-    moneyPriceCents: 499,
-    unlockMethod: "XP_OR_MONEY",
-    proEarlyAccess: false,
-    requiredTier: "PLUS", // PLUS - premium bar content
-  },
+// Bar data preserved — not exported for active use until partnerships are confirmed.
+// To reactivate: re-add "BAR_FEATURES" to VaultCategoryId, restore vaultCategories entry,
+// re-export barFeatures and getBarFeaturesForDisplay, and restore VaultScreen bars tab.
+const _barFeatures: BarFeatureContent[] = [
+  { id: "bar_untitled_champagne_lounge", barName: "Untitled Champagne Lounge", city: "Calgary", vibeDescription: "Sophisticated luxury champagne lounge in Downtown Calgary.", signatureCocktailName: "Golden Bubbles", whyItWorks: "Dom Pérignon elevated with elderflower and gold leaf.", homeSubstitutions: "Use Veuve Clicquot or Moët with St-Germain.", thumbnailKey: "untitled", xpCost: 800, moneyPriceCents: 499, unlockMethod: "XP_OR_MONEY", proEarlyAccess: false, requiredTier: "PLUS" },
+  { id: "bar_death_and_co", barName: "Death & Co", city: "New York City", vibeDescription: "Intimate cocktail den in the East Village.", signatureCocktailName: "Oaxaca Old Fashioned", whyItWorks: "Split-base tequila/mezcal Old Fashioned.", homeSubstitutions: "Sub Islay Scotch at 25% if no mezcal.", thumbnailKey: "depth_frame_header_25", xpCost: 950, moneyPriceCents: 499, unlockMethod: "XP_OR_MONEY", proEarlyAccess: true, requiredTier: "PLUS" },
+  { id: "bar_employees_only", barName: "Employees Only", city: "New York City", vibeDescription: "Classic speakeasy-style bar in the West Village.", signatureCocktailName: "Ginger Smash", whyItWorks: "Fresh ginger and stone fruit with controlled dilution.", homeSubstitutions: "Microplane-grate ginger; apricot liqueur in winter.", thumbnailKey: "depth_frame_header_26", xpCost: 850, moneyPriceCents: 499, unlockMethod: "XP_OR_MONEY", proEarlyAccess: false, requiredTier: "PLUS" },
+  { id: "bar_attaboy", barName: "Attaboy", city: "New York City", vibeDescription: "No-menu cocktail bar in the Lower East Side.", signatureCocktailName: "The Bartender's Choice", whyItWorks: "A consultation framework, not a fixed recipe.", homeSubstitutions: "Interview your guest, pick a template, make one custom modification.", thumbnailKey: "depth_frame_header_23", xpCost: 1000, moneyPriceCents: 599, unlockMethod: "XP_OR_MONEY", proEarlyAccess: true, requiredTier: "PLUS" },
+  { id: "bar_trick_dog", barName: "Trick Dog", city: "San Francisco", vibeDescription: "Playful neighborhood bar in the Mission District.", signatureCocktailName: "Sherry Cobbler (Pantone 294)", whyItWorks: "Modernized Cobbler showcasing fortified wine.", homeSubstitutions: "Use Amontillado sherry; match fruit to season.", thumbnailKey: "depth_frame_header_22", xpCost: 900, moneyPriceCents: 499, unlockMethod: "XP_OR_MONEY", proEarlyAccess: false, requiredTier: "PLUS" },
 ];
 
 // ============================================================================
@@ -775,24 +701,6 @@ function getTierLevel(tier: UserTier): number {
 }
 
 /**
- * Get all bar features for display (sorted by XP cost)
- * Can optionally filter by user tier to only show accessible content
- */
-export function getBarFeaturesForDisplay(userTier?: UserTier): BarFeatureContent[] {
-  let features = [...barFeatures];
-
-  // Filter by tier if provided
-  if (userTier) {
-    features = features.filter(bf => {
-      if (!bf.requiredTier) return true; // No tier requirement = accessible to all
-      return getTierLevel(userTier) >= getTierLevel(bf.requiredTier);
-    });
-  }
-
-  return features.sort((a, b) => a.xpCost - b.xpCost);
-}
-
-/**
  * Get a seasonal drop by ID
  */
 export function getSeasonalDropById(
@@ -807,12 +715,11 @@ export function getSeasonalDropById(
 export function getItemsForSeasonalDrop(dropId: string): {
   variations: CocktailVariationContent[];
   playbooks: TechniquePlaybookContent[];
-  barFeatures: BarFeatureContent[];
 } {
   const drop = getSeasonalDropById(dropId);
 
   if (!drop) {
-    return { variations: [], playbooks: [], barFeatures: [] };
+    return { variations: [], playbooks: [] };
   }
 
   const variations = cocktailVariations.filter((v) =>
@@ -823,11 +730,7 @@ export function getItemsForSeasonalDrop(dropId: string): {
     drop.includedPlaybookIds.includes(pb.id)
   );
 
-  const bars = barFeatures.filter((bf) =>
-    drop.includedBarFeatureIds?.includes(bf.id)
-  );
-
-  return { variations, playbooks, barFeatures: bars };
+  return { variations, playbooks };
 }
 
 /**
@@ -908,10 +811,10 @@ export function getPlaybookById(
 }
 
 /**
- * Get bar feature by ID
+ * Get bar feature by ID — archived, returns undefined until partnerships are active
  */
-export function getBarFeatureById(id: string): BarFeatureContent | undefined {
-  return barFeatures.find((bf) => bf.id === id);
+export function getBarFeatureById(_id: string): BarFeatureContent | undefined {
+  return undefined;
 }
 
 /**

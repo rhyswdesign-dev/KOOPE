@@ -80,6 +80,7 @@ import UnlockDeckScreen from '../screens/UnlockDeckScreen';
 import RecipeCardDetailScreen from '../screens/RecipeCardDetailScreen';
 import TheCellarScreen from '../screens/TheCellarScreen';
 import CellarBottleDetailScreen from '../screens/CellarBottleDetailScreen';
+import GuestMenuScreen from '../screens/GuestMenuScreen';
 import { useCartSync } from '../hooks/useCartSync';
 import TutorialIconButton from '../components/tour/TutorialIconButton';
 import type { ScreenTourId } from '../config/screenTours';
@@ -128,6 +129,16 @@ export type RootStackParamList = {
   CocktailList: { title: string; cocktailIds: string[]; category: string };
   WhatCanIMake: undefined;
   Hosting: undefined;
+  GuestMenu: {
+    cocktailName: string;
+    ingredients: string[];
+    missingIngredients: string[];
+    guestCount: number;
+    vibe: string;
+    difficulty: string;
+    why: string;
+    category: string;
+  };
   BarOptimizer: undefined;
 
   EditProfile: undefined;
@@ -392,6 +403,7 @@ export default function RootNavigator({ initialRouteName = 'Main' }: RootNavigat
       <Stack.Screen name="CocktailList" component={CocktailListScreen} options={{ headerShown: true, title: 'Cocktails' }} />
       <Stack.Screen name="WhatCanIMake" component={WhatCanIMakeScreen} options={{ headerShown: false }} />
       <Stack.Screen name="Hosting" component={HostingScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="GuestMenu" component={GuestMenuScreen} options={{ headerShown: false }} />
       <Stack.Screen name="BarOptimizer" component={BarOptimizerScreen} options={{ headerShown: false }} />
 
       <Stack.Screen name="EditProfile" component={EditProfileScreen} options={{ headerShown: true, title: 'Edit Profile' }} />

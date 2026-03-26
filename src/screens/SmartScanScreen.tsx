@@ -264,7 +264,17 @@ export default function SmartScanScreen() {
 
       switch (scanType) {
         case 'bottle': {
-          const bottle = GoogleVisionService.matchBottle(visionResult);
+          // 1. Try local database first (instant)
+          let bottle = GoogleVisionService.matchBottle(visionResult);
+
+          // 2. If not in local DB, ask Claude (cache → LLM)
+          if (!bottle) {
+            const extractedName = GoogleVisionService.extractBottleNameFromOCR(visionResult);
+            if (extractedName) {
+              log.info('SmartScanScreen', 'Local match failed, trying AI lookup', { extractedName });
+              bottle = await GoogleVisionService.lookupBottleProfile(extractedName);
+            }
+          }
 
           await InventoryService.recordScan({
             userId: user?.id || null,

@@ -289,6 +289,27 @@ export const TIER_FEATURES = {
 } as const;
 
 /**
+ * Curated post-scan recipe suggestions per spirit for Free users.
+ * Each spirit maps to up to 3 recipe IDs drawn from FREE_TIER_COCKTAILS.
+ * These are shown immediately after scanning a bottle so Free users always
+ * see the most relevant starting recipes for what they just scanned.
+ */
+export const SPIRIT_STARTER_MAP: Record<string, string[]> = {
+  whiskey:  ['old-fashioned', 'manhattan', 'whiskey-sour'],
+  bourbon:  ['old-fashioned', 'manhattan', 'whiskey-sour'],
+  scotch:   ['old-fashioned', 'manhattan', 'whiskey-sour'],
+  rye:      ['old-fashioned', 'manhattan', 'whiskey-sour'],
+  gin:      ['martini', 'negroni'],
+  rum:      ['mojito', 'daiquiri'],
+  tequila:  ['margarita'],
+  vodka:    ['moscow-mule'],
+  brandy:   [],
+  cognac:   [],
+  mezcal:   [],
+  liqueur:  [],
+};
+
+/**
  * Check if a cocktail is accessible for a given tier
  * Note: This only checks tier access, not XP unlocks
  * For complete access check, also check isCocktailUnlockedWithXP from useXPSystem

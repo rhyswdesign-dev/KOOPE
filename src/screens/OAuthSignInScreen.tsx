@@ -56,9 +56,7 @@ export default function OAuthSignInScreen({ onComplete, onSkip, previewMode = fa
       console.log('🔧 Test Sign-In initiated');
       await signInWithEmail('test@koope.app', 'TestPassword123!');
       console.log('✅ Test Sign-In successful!');
-      Alert.alert('Success!', 'Signed in with test account', [
-        { text: 'OK', onPress: handleComplete }
-      ]);
+      handleComplete();
     } catch (error: any) {
       console.log('❌ Test Sign-In failed:', error);
       Alert.alert('Sign In Failed', `Could not sign in: ${error.message}. Make sure you created the test user in Supabase.`);
