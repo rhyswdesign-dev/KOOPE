@@ -19,6 +19,13 @@ import { userProfileService } from '../lib/supabaseData';
 
 export type OccasionMode = 'casual' | 'hosting' | 'adventurous';
 
+export interface OccasionProfile {
+  id: string;
+  name: string;
+  mode: OccasionMode;
+  createdAt: string;
+}
+
 interface PersonalizationState {
   // Core state
   profile: UserPersonalizationProfile | null;
@@ -28,6 +35,12 @@ interface PersonalizationState {
   // Active occasion mode — shapes ForYouFeed recommendations
   occasionMode: OccasionMode;
   setOccasionMode: (mode: OccasionMode) => void;
+
+  // Saved named occasion profiles
+  savedOccasionProfiles: OccasionProfile[];
+  saveOccasionProfile: (name: string) => Promise<void>;
+  loadOccasionProfile: (id: string) => void;
+  deleteOccasionProfile: (id: string) => Promise<void>;
 
   // Actions
   initializeFromSurvey: (answers: SurveyAnswers) => Promise<void>;
@@ -48,6 +61,8 @@ interface PersonalizationState {
 }
 
 const STORAGE_KEY = 'user_personalization_profile';
+const OCCASION_PROFILES_KEY = 'koope_occasion_profiles';
+const OCCASION_MODE_KEY = 'koope_occasion_mode';
 
 function createDefaultProfile(): UserPersonalizationProfile {
   return {
@@ -114,7 +129,39 @@ export const usePersonalization = create<PersonalizationState>((set, get) => ({
   recommendations: null,
   isInitialized: false,
   occasionMode: 'casual',
-  setOccasionMode: (mode) => set({ occasionMode: mode }),
+  savedOccasionProfiles: [],
+
+  setOccasionMode: (mode) => {
+    set({ occasionMode: mode });
+    AsyncStorage.setItem(OCCASION_MODE_KEY, mode).catch(() => {});
+  },
+
+  saveOccasionProfile: async (name) => {
+    const { occasionMode, savedOccasionProfiles } = get();
+    const profile: OccasionProfile = {
+      id: `ocp_${Date.now()}`,
+      name: name.trim(),
+      mode: occasionMode,
+      createdAt: new Date().toISOString(),
+    };
+    const next = [...savedOccasionProfiles, profile];
+    set({ savedOccasionProfiles: next });
+    await AsyncStorage.setItem(OCCASION_PROFILES_KEY, JSON.stringify(next));
+  },
+
+  loadOccasionProfile: (id) => {
+    const profile = get().savedOccasionProfiles.find((p) => p.id === id);
+    if (profile) {
+      set({ occasionMode: profile.mode });
+      AsyncStorage.setItem(OCCASION_MODE_KEY, profile.mode).catch(() => {});
+    }
+  },
+
+  deleteOccasionProfile: async (id) => {
+    const next = get().savedOccasionProfiles.filter((p) => p.id !== id);
+    set({ savedOccasionProfiles: next });
+    await AsyncStorage.setItem(OCCASION_PROFILES_KEY, JSON.stringify(next));
+  },
 
   /**
    * Initialize personalization from survey responses
@@ -461,7 +508,24 @@ export const usePersonalization = create<PersonalizationState>((set, get) => ({
  */
 export const loadPersonalizationFromStorage = async () => {
   try {
-    const stored = await AsyncStorage.getItem(STORAGE_KEY);
+    // Load occasion profiles and last-used mode in parallel
+    const [stored, storedProfiles, storedMode] = await Promise.all([
+      AsyncStorage.getItem(STORAGE_KEY),
+      AsyncStorage.getItem(OCCASION_PROFILES_KEY),
+      AsyncStorage.getItem(OCCASION_MODE_KEY),
+    ]);
+
+    const occasionUpdates: Partial<PersonalizationState> = {};
+    if (storedProfiles) {
+      try { occasionUpdates.savedOccasionProfiles = JSON.parse(storedProfiles); } catch {}
+    }
+    if (storedMode) {
+      occasionUpdates.occasionMode = storedMode as OccasionMode;
+    }
+    if (Object.keys(occasionUpdates).length > 0) {
+      usePersonalization.setState(occasionUpdates as any);
+    }
+
     if (stored) {
       const data = JSON.parse(stored);
 

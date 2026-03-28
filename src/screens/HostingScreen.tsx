@@ -24,6 +24,7 @@ import { InventoryService } from '../services/inventoryService';
 import { type BarIngredient, type HomeBar, HomeBarService } from '../services/homeBarService';
 import { useFeatureAccess } from '../hooks/useFeatureAccess';
 import { ShoppingListStore } from '../services/shoppingListStore';
+import { useShoppingCart } from '../store/useShoppingCart';
 import { useUserTier } from '../store/useUserTier';
 import { isCocktailAccessible } from '../config/tierAccess';
 import { trackEvent, ANALYTICS_EVENTS } from '../lib/analytics';
@@ -308,7 +309,8 @@ export default function HostingScreen() {
   const scrollRef = useRef<ScrollView | null>(null);
 
   const { hasAccess: hasAdvancedHosting, gateWithTrigger: advancedHostingGate } = useFeatureAccess('hosting_advanced');
-  const { hasAccess: hasGuestMenu, gateWithTrigger: guestMenuGate } = useFeatureAccess('guest_menu_generator');
+  const { hasAccess: hasGuestMenu, gate: guestMenuGate } = useFeatureAccess('guest_menu_generator');
+  const { addItem: addToCart } = useShoppingCart();
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -741,6 +743,25 @@ export default function HostingScreen() {
       why: selectedRecipe.why,
       category: selectedRecipe.category,
     });
+  };
+
+  const handleAddMissingToCart = () => {
+    if (!selectedRecipe || selectedRecipe.missingIngredients.length === 0) return;
+    hapticSelection();
+    for (const missing of selectedRecipe.missingIngredients) {
+      const scaled = selectedRecipeIngredients.find(
+        (i) => i.name.toLowerCase().includes(missing.toLowerCase()) || missing.toLowerCase().includes(i.name.toLowerCase())
+      );
+      const quantity = scaled ? `${scaled.totalOz.toFixed(1)} oz` : '1 bottle';
+      addToCart({
+        name: missing,
+        category: 'ingredient',
+        quantity,
+        recipeIds: [selectedRecipe.recipeId],
+        recipeNames: [selectedRecipe.name],
+      });
+    }
+    nav.navigate('ShoppingCart');
   };
 
   const deletePlan = async (planId: string) => {
@@ -1304,6 +1325,14 @@ export default function HostingScreen() {
           Loaded from Saved Plan. Use Edit Setup to change recipe or save a new plan.
         </Text>
       )}
+      {selectedRecipe && selectedRecipe.missingIngredients.length > 0 && (
+        <TouchableOpacity style={styles.addMissingCta} onPress={handleAddMissingToCart}>
+          <Ionicons name="cart-outline" size={16} color={colors.accent} />
+          <Text style={styles.addMissingCtaText}>
+            Add {selectedRecipe.missingIngredients.length} missing to cart
+          </Text>
+        </TouchableOpacity>
+      )}
       <TouchableOpacity style={styles.guestMenuCta} onPress={handleCreateGuestMenu}>
         <Ionicons name="document-text-outline" size={16} color={colors.bg} />
         <Text style={styles.guestMenuCtaText}>Create Guest Menu</Text>
@@ -1800,6 +1829,18 @@ const styles = StyleSheet.create({
     marginTop: spacing(1),
   },
   guestMenuCtaText: { color: colors.bg, fontSize: 13, fontWeight: '700' },
+  addMissingCta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing(0.75),
+    borderRadius: radii.pill,
+    paddingVertical: spacing(1.1),
+    marginTop: spacing(1),
+    borderWidth: 1.5,
+    borderColor: colors.accent,
+  },
+  addMissingCtaText: { color: colors.accent, fontSize: 13, fontWeight: '700' },
   menuCard: {
     backgroundColor: 'rgba(255,255,255,0.02)',
     borderWidth: 1,

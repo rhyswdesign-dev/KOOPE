@@ -846,15 +846,6 @@ export default function BottleDetailScreen() {
             <Text style={styles.serveFootnoteText}>{serveRecommendation.cocktailUse}</Text>
           </View>
 
-          {serveRecommendation.upgradePrompt && (
-            <Text style={styles.serveUpgradeText}>
-              {hasPremiumServePersonalization
-                ? 'Personalized bottle guidance is active for your profile.'
-                : hasPremiumServeEducation
-                  ? 'PLUS tasting education is active. Upgrade to PRO for personalization.'
-                  : serveRecommendation.upgradePrompt}
-            </Text>
-          )}
         </View>
 
         {/* Flavor Profile */}

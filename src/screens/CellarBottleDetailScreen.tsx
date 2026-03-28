@@ -8,6 +8,10 @@ import {
   TouchableOpacity,
   RefreshControl,
   Alert,
+  Modal,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
@@ -18,54 +22,106 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { colors, spacing, radii, serif } from '../theme/tokens';
 import { CellarService, type CellarRecord } from '../services/cellarService';
 
+// ─── helpers ─────────────────────────────────────────────────────────────────
+
 function formatMoney(value?: number | null): string {
   if (!value) return 'Not tracked';
   return `$${Math.round(value).toLocaleString()}`;
 }
 
-function getRecommendation(item: CellarRecord): 'Hold' | 'Open Soon' | 'Review' {
-  if ((item.valuationEstimate || 0) > (item.purchasePrice || 0) && !!item.purchasePrice) return 'Hold';
-  if ((item.drinkingWindowStart || '').toLowerCase() === 'now') return 'Open Soon';
-  return 'Review';
+function getRecommendation(item: CellarRecord): 'HOLD' | 'OPEN' | 'REVIEW' {
+  if ((item.valuationEstimate || 0) > (item.purchasePrice || 0) && !!item.purchasePrice) return 'HOLD';
+  if ((item.drinkingWindowStart || '').toLowerCase() === 'now') return 'OPEN';
+  return 'REVIEW';
 }
 
 function getRecommendationReason(item: CellarRecord): string {
   const state = getRecommendation(item);
-  if (state === 'Hold') return 'Current value is outpacing cost basis, so this bottle still has collector upside if left untouched.';
-  if (state === 'Open Soon') return 'The market premium is light, and this bottle looks better positioned for a considered pour than a long hold.';
-  return 'There is not enough pricing or condition data yet to make a stronger collector call.';
+  if (state === 'HOLD') return 'Current market value is outpacing your cost basis, indicating strong collector upside if this bottle remains untouched. Secondary demand for expressions of this profile continues to climb.';
+  if (state === 'OPEN') return 'The market premium on this bottle is light and the drinking window is now open. This bottle is better positioned for a considered, memorable pour than a continued hold.';
+  return 'There is not enough pricing or condition data yet to produce a stronger collector directive. Add a purchase price and estimated valuation to unlock a full assessment.';
 }
 
-function getConfidence(item: CellarRecord): 'High' | 'Medium' | 'Low' {
-  const score =
-    (item.purchasePrice ? 1 : 0) +
-    (item.valuationEstimate ? 1 : 0) +
-    ((item.flavorProfile?.length || 0) > 0 ? 1 : 0) +
-    (item.tastingNotes ? 1 : 0);
-  if (score >= 4) return 'High';
-  if (score >= 2) return 'Medium';
-  return 'Low';
+function getScarcityScore(item: CellarRecord): number {
+  const fields = [
+    item.purchasePrice,
+    item.valuationEstimate,
+    item.brand,
+    item.type,
+    item.region,
+    item.abv,
+    (item.flavorProfile?.length || 0) > 0 ? 'yes' : null,
+    item.tastingNotes,
+    item.cellarNotes,
+    item.drinkingWindowStart,
+  ];
+  const filled = fields.filter(Boolean).length;
+  return parseFloat(Math.min(10, filled).toFixed(1));
 }
 
-function getRange(item: CellarRecord): string {
-  const base = item.valuationEstimate || item.purchasePrice || 0;
-  if (!base) return 'Not enough data';
-  return `${formatMoney(base * 0.92)} - ${formatMoney(base * 1.08)}`;
+function getAssetStatus(item: CellarRecord): 'Pristine' | 'Good' | 'Reviewed' {
+  if (item.quantity === 'full') return 'Pristine';
+  if (item.quantity === 'half') return 'Good';
+  return 'Reviewed';
 }
 
-function getSpread(item: CellarRecord): string {
-  if (!item.purchasePrice || !item.valuationEstimate) return 'Not enough data';
-  const delta = item.valuationEstimate - item.purchasePrice;
-  const prefix = delta >= 0 ? '+' : '-';
-  return `${prefix}${formatMoney(Math.abs(delta))}`;
-}
-
-function getDaysOwned(item: CellarRecord): string {
+function getMarketVelocity(item: CellarRecord): 'Aggressive' | 'Moderate' | 'Stable' {
   const created = new Date(item.createdAt).getTime();
-  if (Number.isNaN(created)) return 'Unknown';
-  const diff = Math.max(1, Math.floor((Date.now() - created) / (1000 * 60 * 60 * 24)));
-  return `${diff} day${diff === 1 ? '' : 's'}`;
+  if (Number.isNaN(created)) return 'Stable';
+  const days = Math.floor((Date.now() - created) / (1000 * 60 * 60 * 24));
+  if (days < 30) return 'Aggressive';
+  if (days < 180) return 'Moderate';
+  return 'Stable';
 }
+
+function getMarketVelocityDesc(velocity: 'Aggressive' | 'Moderate' | 'Stable'): string {
+  if (velocity === 'Aggressive') return 'This is a newly acquired asset. The market for recently released expressions is highly active — monitor comps closely.';
+  if (velocity === 'Moderate') return 'This bottle is settling into your collection. Valuations at this stage typically reflect the first secondary market cycle.';
+  return 'A seasoned asset. Long-hold bottles in this category benefit from patience — peak demand often emerges well after initial release windows close.';
+}
+
+function getMarketRange(item: CellarRecord): string {
+  const base = item.valuationEstimate || item.purchasePrice || 0;
+  if (!base) return 'Insufficient data';
+  const low = Math.round(base * 0.92);
+  const high = Math.round(base * 1.08);
+  return `$${low.toLocaleString()} – $${high.toLocaleString()}`;
+}
+
+function getTrendPct(item: CellarRecord): { pct: string; positive: boolean } | null {
+  if (!item.purchasePrice || !item.valuationEstimate) return null;
+  const pct = ((item.valuationEstimate - item.purchasePrice) / item.purchasePrice) * 100;
+  return { pct: `${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%`, positive: pct >= 0 };
+}
+
+function getLotNumber(item: CellarRecord): string {
+  return item.inventoryItemId.slice(-6).toUpperCase();
+}
+
+function getVintageYear(item: CellarRecord): string {
+  if (!item.createdAt) return 'Unknown';
+  const d = new Date(item.createdAt);
+  if (Number.isNaN(d.getTime())) return 'Unknown';
+  return String(d.getFullYear());
+}
+
+function isVerified(item: CellarRecord): boolean {
+  const notes = (item.cellarNotes || '').toLowerCase();
+  return notes.includes('auth') || notes.includes('verified');
+}
+
+// ─── specs grid ──────────────────────────────────────────────────────────────
+
+function SpecRow({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.specCell}>
+      <Text style={styles.specLabel}>{label}</Text>
+      <Text style={styles.specValue}>{value}</Text>
+    </View>
+  );
+}
+
+// ─── main screen ─────────────────────────────────────────────────────────────
 
 export default function CellarBottleDetailScreen() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -73,6 +129,17 @@ export default function CellarBottleDetailScreen() {
   const { inventoryItemId } = route.params as RootStackParamList['CellarBottleDetail'];
   const [record, setRecord] = useState<CellarRecord | null>(null);
   const [loading, setLoading] = useState(false);
+
+  // Edit modal state
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editPrice, setEditPrice] = useState('');
+  const [editValuation, setEditValuation] = useState('');
+  const [editWindowStart, setEditWindowStart] = useState('');
+  const [editWindowEnd, setEditWindowEnd] = useState('');
+  const [editNotes, setEditNotes] = useState('');
+  const [editTastingNotes, setEditTastingNotes] = useState('');
+  const [editQuantity, setEditQuantity] = useState<'full' | 'half' | 'low' | 'empty'>('full');
+  const [saving, setSaving] = useState(false);
 
   const loadRecord = useCallback(async () => {
     setLoading(true);
@@ -90,8 +157,53 @@ export default function CellarBottleDetailScreen() {
     }, [loadRecord])
   );
 
-  const recommendation = useMemo(() => (record ? getRecommendation(record) : 'Review'), [record]);
-  const confidence = useMemo(() => (record ? getConfidence(record) : 'Low'), [record]);
+  const recommendation = useMemo(() => (record ? getRecommendation(record) : 'REVIEW'), [record]);
+
+  const handleOpenEdit = () => {
+    if (!record) return;
+    setEditPrice(record.purchasePrice != null ? String(record.purchasePrice) : '');
+    setEditValuation(record.valuationEstimate != null ? String(record.valuationEstimate) : '');
+    setEditWindowStart(record.drinkingWindowStart || '');
+    setEditWindowEnd(record.drinkingWindowEnd || '');
+    setEditNotes(record.cellarNotes || '');
+    setEditTastingNotes(record.tastingNotes || '');
+    setEditQuantity((record.quantity as 'full' | 'half' | 'low' | 'empty') || 'full');
+    setShowEditModal(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!record) return;
+    const parsedPrice = editPrice.trim() ? Number(editPrice) : null;
+    if (parsedPrice !== null && Number.isNaN(parsedPrice)) {
+      Alert.alert('Invalid Price', 'Enter a valid number for purchase price.');
+      return;
+    }
+    const parsedValuation = editValuation.trim() ? Number(editValuation) : null;
+    if (parsedValuation !== null && Number.isNaN(parsedValuation)) {
+      Alert.alert('Invalid Value', 'Enter a valid number for estimated value.');
+      return;
+    }
+    setSaving(true);
+    try {
+      const updated: CellarRecord = {
+        ...record,
+        purchasePrice: parsedPrice,
+        valuationEstimate: parsedValuation ?? parsedPrice ?? record.valuationEstimate,
+        drinkingWindowStart: editWindowStart.trim() || record.drinkingWindowStart,
+        drinkingWindowEnd: editWindowEnd.trim() || record.drinkingWindowEnd,
+        cellarNotes: editNotes.trim() || null,
+        tastingNotes: editTastingNotes.trim() || null,
+        quantity: editQuantity,
+      };
+      await CellarService.saveRecord(updated);
+      setRecord(updated);
+      setShowEditModal(false);
+    } catch {
+      Alert.alert('Save Failed', 'Could not update this cellar record. Try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const handleRemoveFromCellar = () => {
     if (!record) return;
@@ -118,13 +230,23 @@ export default function CellarBottleDetailScreen() {
         <View style={styles.emptyWrap}>
           <Text style={styles.emptyTitle}>Bottle not found</Text>
           <Text style={styles.emptyBody}>This cellar record is no longer available.</Text>
-          <TouchableOpacity style={styles.backButton} onPress={() => nav.goBack()}>
-            <Text style={styles.backButtonText}>Back to The Cellar</Text>
+          <TouchableOpacity style={styles.emptyBack} onPress={() => nav.goBack()}>
+            <Text style={styles.emptyBackText}>Back to The Cellar</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
     );
   }
+
+  const velocity = getMarketVelocity(record);
+  const trend = getTrendPct(record);
+  const scarcityScore = getScarcityScore(record);
+  const assetStatus = getAssetStatus(record);
+  const verified = isVerified(record);
+  const directiveColor =
+    recommendation === 'HOLD' ? colors.accent :
+    recommendation === 'OPEN' ? '#4FC38A' :
+    colors.subtext;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -133,391 +255,607 @@ export default function CellarBottleDetailScreen() {
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={loadRecord} tintColor={colors.accent} />}
       >
-        <LinearGradient colors={['#3B2617', '#160F0B']} style={styles.hero}>
-          <TouchableOpacity style={styles.closePill} onPress={() => nav.goBack()}>
-            <Ionicons name="arrow-back" size={18} color={colors.text} />
-            <Text style={styles.closePillText}>The Cellar</Text>
+        {/* ── Custom Header ───────────────────────────────────────────────── */}
+        <View style={styles.headerRow}>
+          <TouchableOpacity style={styles.closeBtn} onPress={() => nav.goBack()}>
+            <Ionicons name="close" size={20} color={colors.text} />
           </TouchableOpacity>
-
-          <View style={styles.heroMedia}>
-            {record.imageUrl ? (
-              <Image source={{ uri: record.imageUrl }} style={styles.heroImage} resizeMode="cover" />
-            ) : (
-              <View style={styles.heroImageFallback}>
-                <Ionicons name="wine-outline" size={72} color="rgba(246,236,228,0.84)" />
-              </View>
-            )}
-          </View>
-
-          <Text style={styles.eyebrow}>Collector Record</Text>
-          <Text style={styles.heroTitle}>{record.itemName}</Text>
-          <Text style={styles.heroMeta}>
-            {[record.brand, record.type, record.region].filter(Boolean).join(' • ') || 'Private reserve bottle'}
-          </Text>
-
-          <View style={styles.heroBadgeRow}>
-            <View style={styles.heroBadge}>
-              <Text style={styles.heroBadgeLabel}>Recommendation</Text>
-              <Text style={styles.heroBadgeValue}>{recommendation}</Text>
-            </View>
-            <View style={styles.heroBadge}>
-              <Text style={styles.heroBadgeLabel}>Confidence</Text>
-              <Text style={styles.heroBadgeValue}>{confidence}</Text>
-            </View>
-          </View>
-        </LinearGradient>
-
-        <View style={styles.deckHeader}>
-          <Text style={styles.deckTitle}>Collector Intelligence</Text>
-          <Text style={styles.deckSubtitle}>Swipe through the cards instead of digging through one long report.</Text>
+          <TouchableOpacity style={styles.editPill} onPress={handleOpenEdit}>
+            <Ionicons name="pencil-outline" size={14} color={colors.accent} />
+            <Text style={styles.editPillText}>Edit</Text>
+          </TouchableOpacity>
         </View>
 
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          decelerationRate="fast"
-          snapToInterval={320}
-          contentContainerStyle={styles.cardRail}
+        {/* ── Breadcrumb ──────────────────────────────────────────────────── */}
+        <Text style={styles.breadcrumb}>
+          PRIVATE COLLECTION / VAULT {getLotNumber(record)}
+        </Text>
+
+        {/* ── Bottle Title ────────────────────────────────────────────────── */}
+        <Text style={styles.bottleName}>{record.itemName}</Text>
+        <Text style={styles.bottleSubtitle}>
+          {[record.brand, record.type].filter(Boolean).join(' · ') || 'Private Reserve'}
+        </Text>
+
+        {/* ── Price Comparison Row ─────────────────────────────────────────── */}
+        <View style={styles.priceRow}>
+          <View style={styles.priceBlock}>
+            <Text style={styles.priceBlockLabel}>ACQUISITION PRICE</Text>
+            <Text style={styles.priceBlockValue}>{formatMoney(record.purchasePrice)}</Text>
+          </View>
+          <View style={styles.priceDivider} />
+          <View style={styles.priceBlock}>
+            <Text style={styles.priceBlockLabel}>MARKET VALUE</Text>
+            <Text style={styles.priceBlockValue}>{getMarketRange(record)}</Text>
+          </View>
+        </View>
+
+        {/* ── Trend ──────────────────────────────────────────────────────── */}
+        {trend && (
+          <Text style={[styles.trendText, { color: trend.positive ? '#4FC38A' : '#F56565' }]}>
+            {trend.pct}
+          </Text>
+        )}
+
+        {/* ── Bottle Image ─────────────────────────────────────────────────── */}
+        <View style={styles.imageWrap}>
+          {record.imageUrl ? (
+            <Image source={{ uri: record.imageUrl }} style={styles.bottleImage} resizeMode="cover" />
+          ) : (
+            <LinearGradient colors={['#2A1A0F', '#0F0A07']} style={styles.bottleImage}>
+              <Ionicons name="wine-outline" size={80} color="rgba(214,138,56,0.5)" />
+            </LinearGradient>
+          )}
+          <View style={styles.authBadge}>
+            <Ionicons name={verified ? 'checkmark-circle' : 'shield-outline'} size={12} color={colors.accent} />
+            <Text style={styles.authBadgeText}>{verified ? 'VERIFIED AUTH' : 'COLLECTOR PIECE'}</Text>
+          </View>
+        </View>
+
+        {/* ── Scarcity Score ────────────────────────────────────────────────── */}
+        <View style={styles.metricCard}>
+          <View style={styles.metricCardHeader}>
+            <Ionicons name="star" size={16} color={colors.accent} />
+            <Text style={styles.metricCardLabel}>SCARCITY SCORE</Text>
+          </View>
+          <Text style={styles.metricCardBigValue}>{scarcityScore.toFixed(1)}<Text style={styles.metricCardBigSub}>/10</Text></Text>
+          <Text style={styles.metricCardDesc}>
+            Based on documented attributes. Add tasting notes, valuation, and provenance to raise this score.
+          </Text>
+        </View>
+
+        {/* ── Asset Status ─────────────────────────────────────────────────── */}
+        <View style={styles.metricCard}>
+          <View style={styles.metricCardHeader}>
+            <Ionicons name="cube-outline" size={16} color={colors.accent} />
+            <Text style={styles.metricCardLabel}>ASSET STATUS</Text>
+            <Text style={styles.metricCardInlineValue}>{assetStatus}</Text>
+          </View>
+          <View style={styles.chipRow}>
+            <View style={styles.chip}>
+              <Text style={styles.chipText}>
+                {record.cellarNotes?.toLowerCase().includes('box') ? 'Box Included' : 'No Box Noted'}
+              </Text>
+            </View>
+            <View style={styles.chip}>
+              <Text style={styles.chipText}>
+                {record.quantity === 'full' ? 'Factory Sealed' :
+                 record.quantity === 'half' ? 'Half Full' :
+                 record.quantity === 'low' ? 'Low Fill' : 'Empty / Tasted'}
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {/* ── Market Velocity ──────────────────────────────────────────────── */}
+        <View style={styles.metricCard}>
+          <View style={styles.metricCardHeader}>
+            <Ionicons name="arrow-forward-circle-outline" size={16} color={colors.accent} />
+            <Text style={styles.metricCardLabel}>MARKET VELOCITY</Text>
+            <Text style={styles.metricCardInlineValue}>{velocity}</Text>
+          </View>
+          <Text style={styles.metricCardDesc}>{getMarketVelocityDesc(velocity)}</Text>
+        </View>
+
+        {/* ── Strategic Directive ──────────────────────────────────────────── */}
+        <LinearGradient
+          colors={['#2A1A0F', '#160F0B']}
+          style={styles.directiveCard}
         >
-          <View style={styles.detailCard}>
-            <Text style={styles.cardEyebrow}>Your Position</Text>
-            <Text style={styles.cardTitle}>Where you stand on this bottle</Text>
-            <View style={styles.metricGrid}>
-              <View style={styles.metricTile}>
-                <Text style={styles.metricLabel}>Bought for</Text>
-                <Text style={styles.metricValue}>{formatMoney(record.purchasePrice)}</Text>
-              </View>
-              <View style={styles.metricTile}>
-                <Text style={styles.metricLabel}>Estimated</Text>
-                <Text style={styles.metricValue}>{formatMoney(record.valuationEstimate)}</Text>
-              </View>
-              <View style={styles.metricTile}>
-                <Text style={styles.metricLabel}>Spread</Text>
-                <Text style={styles.metricValue}>{getSpread(record)}</Text>
-              </View>
-              <View style={styles.metricTile}>
-                <Text style={styles.metricLabel}>Days owned</Text>
-                <Text style={styles.metricValue}>{getDaysOwned(record)}</Text>
-              </View>
-            </View>
-          </View>
+          <Text style={[styles.directiveBig, { color: directiveColor }]}>{recommendation}</Text>
+          <Text style={styles.directiveLabel}>STRATEGIC DIRECTIVE</Text>
+        </LinearGradient>
 
-          <View style={styles.detailCard}>
-            <Text style={styles.cardEyebrow}>Bottle Identity</Text>
-            <Text style={styles.cardTitle}>What this bottle actually is</Text>
-            <View style={styles.identityList}>
-              <View style={styles.identityRow}>
-                <Text style={styles.identityLabel}>Type</Text>
-                <Text style={styles.identityValue}>{record.type || 'Not logged'}</Text>
-              </View>
-              <View style={styles.identityRow}>
-                <Text style={styles.identityLabel}>ABV</Text>
-                <Text style={styles.identityValue}>{record.abv ? `${record.abv}%` : 'Not logged'}</Text>
-              </View>
-              <View style={styles.identityRow}>
-                <Text style={styles.identityLabel}>Region</Text>
-                <Text style={styles.identityValue}>{record.region || 'Not logged'}</Text>
-              </View>
-              <View style={styles.identityRow}>
-                <Text style={styles.identityLabel}>Fill level</Text>
-                <Text style={styles.identityValue}>{record.quantity || 'Full'}</Text>
-              </View>
-            </View>
-          </View>
+        {/* ── Curator's Rationale ──────────────────────────────────────────── */}
+        <View style={styles.rationaleSection}>
+          <Text style={styles.rationaleTitle}>The Curator's Rationale</Text>
+          <Text style={styles.rationaleBody}>{getRecommendationReason(record)}</Text>
+        </View>
 
-          <View style={styles.detailCard}>
-            <Text style={styles.cardEyebrow}>Open-or-Hold</Text>
-            <Text style={styles.cardTitle}>What the bottle is telling you now</Text>
-            <View style={styles.callout}>
-              <Text style={styles.calloutTitle}>{recommendation}</Text>
-              <Text style={styles.calloutBody}>{getRecommendationReason(record)}</Text>
-            </View>
-            <View style={styles.metricTileWide}>
-              <Text style={styles.metricLabel}>Estimated range</Text>
-              <Text style={styles.metricValue}>{getRange(record)}</Text>
-            </View>
-            <View style={styles.metricTileWide}>
-              <Text style={styles.metricLabel}>Drink window</Text>
-              <Text style={styles.metricValue}>{`${record.drinkingWindowStart || 'Now'} • ${record.drinkingWindowEnd || 'TBD'}`}</Text>
-            </View>
+        {/* ── Flavor Profile ──────────────────────────────────────────────── */}
+        {(record.flavorProfile || []).length > 0 && (
+          <View style={styles.flavorWrap}>
+            {(record.flavorProfile || []).slice(0, 6).map((f) => (
+              <View key={f} style={styles.flavorChip}>
+                <Text style={styles.flavorChipText}>{f}</Text>
+              </View>
+            ))}
           </View>
+        )}
 
-          <View style={styles.detailCard}>
-            <Text style={styles.cardEyebrow}>Serve & Flavor</Text>
-            <Text style={styles.cardTitle}>How this bottle wants to be revisited</Text>
-            <Text style={styles.copyBlock}>{record.serveGuidance || 'Serve guidance has not been logged yet.'}</Text>
-            <View style={styles.flavorWrap}>
-              {(record.flavorProfile || []).slice(0, 6).map((flavor) => (
-                <View key={flavor} style={styles.flavorChip}>
-                  <Text style={styles.flavorChipText}>{flavor}</Text>
-                </View>
-              ))}
-            </View>
-            <Text style={styles.copyBlock}>{record.tastingNotes || 'No tasting notes yet. Add a collector note once you taste or compare this bottle.'}</Text>
-          </View>
-        </ScrollView>
+        {/* ── Action Buttons ───────────────────────────────────────────────── */}
+        <View style={styles.actionRow}>
+          <TouchableOpacity
+            style={styles.actionGhost}
+            onPress={() => Alert.alert('Coming Soon', 'Market listing will be available in a future update.')}
+          >
+            <Text style={styles.actionGhostText}>LIST ON MARKET</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.actionGhost} onPress={handleOpenEdit}>
+            <Text style={styles.actionGhostText}>VAULT SETTINGS</Text>
+          </TouchableOpacity>
+        </View>
 
-        <TouchableOpacity style={styles.deleteButton} onPress={handleRemoveFromCellar}>
-          <Ionicons name="trash-outline" size={18} color="#FF8E8E" />
-          <Text style={styles.deleteButtonText}>Remove from The Cellar</Text>
+        {/* ── Technical Specs ──────────────────────────────────────────────── */}
+        <Text style={styles.specsHeading}>Technical Specifications</Text>
+        <View style={styles.specsGrid}>
+          <SpecRow label="Distillery" value={record.brand || 'Not logged'} />
+          <SpecRow label="ABV / Proof" value={record.abv ? `${record.abv}%` : 'Not logged'} />
+          <SpecRow label="Age Statement" value={record.drinkingWindowStart || 'Not logged'} />
+          <SpecRow label="Vintage" value={getVintageYear(record)} />
+          <SpecRow label="Mash Bill" value={record.type || 'Not logged'} />
+          <SpecRow label="Fill Level" value={record.quantity || 'Full'} />
+          <SpecRow label="Storage" value={record.region || 'Climate Controlled'} />
+          <SpecRow label="Notes" value={record.cellarNotes ? record.cellarNotes.slice(0, 40) : 'None'} />
+        </View>
+
+        {/* ── Remove Button ────────────────────────────────────────────────── */}
+        <TouchableOpacity style={styles.removeBtn} onPress={handleRemoveFromCellar}>
+          <Ionicons name="trash-outline" size={16} color="#FF8E8E" />
+          <Text style={styles.removeBtnText}>Remove from The Cellar</Text>
         </TouchableOpacity>
       </ScrollView>
+
+      {/* ── Edit Modal ───────────────────────────────────────────────────────── */}
+      <Modal
+        visible={showEditModal}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setShowEditModal(false)}
+      >
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+          <View style={styles.editOverlay}>
+            <View style={styles.editSheet}>
+              <View style={styles.editHeader}>
+                <Text style={styles.editTitle}>Edit Record</Text>
+                <View style={styles.editHeaderActions}>
+                  <TouchableOpacity style={styles.editCancelBtn} onPress={() => setShowEditModal(false)}>
+                    <Text style={styles.editCancelText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.editSaveBtn, saving && { opacity: 0.5 }]}
+                    onPress={handleSaveEdit}
+                    disabled={saving}
+                  >
+                    <Text style={styles.editSaveText}>{saving ? 'Saving…' : 'Save'}</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              <ScrollView
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={styles.editFormContent}
+                keyboardShouldPersistTaps="handled"
+              >
+                <Text style={styles.editSectionLabel}>Bottle Level</Text>
+                <View style={styles.editQuantityRow}>
+                  {(['full', 'half', 'low', 'empty'] as const).map((q) => (
+                    <TouchableOpacity
+                      key={q}
+                      style={[styles.editQuantityChip, editQuantity === q && styles.editQuantityChipActive]}
+                      onPress={() => setEditQuantity(q)}
+                    >
+                      <Text style={[styles.editQuantityChipText, editQuantity === q && styles.editQuantityChipTextActive]}>
+                        {q.charAt(0).toUpperCase() + q.slice(1)}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                <Text style={styles.editSectionLabel}>Purchase Price</Text>
+                <TextInput
+                  style={styles.editInput}
+                  value={editPrice}
+                  onChangeText={setEditPrice}
+                  placeholder="e.g. 65"
+                  placeholderTextColor={colors.subtext}
+                  keyboardType="decimal-pad"
+                />
+
+                <Text style={styles.editSectionLabel}>Current Estimated Value</Text>
+                <TextInput
+                  style={styles.editInput}
+                  value={editValuation}
+                  onChangeText={setEditValuation}
+                  placeholder="e.g. 120"
+                  placeholderTextColor={colors.subtext}
+                  keyboardType="decimal-pad"
+                />
+
+                <Text style={styles.editSectionLabel}>Drinking Window — From</Text>
+                <TextInput
+                  style={styles.editInput}
+                  value={editWindowStart}
+                  onChangeText={setEditWindowStart}
+                  placeholder="e.g. Now or 2026"
+                  placeholderTextColor={colors.subtext}
+                />
+
+                <Text style={styles.editSectionLabel}>Drinking Window — Until</Text>
+                <TextInput
+                  style={styles.editInput}
+                  value={editWindowEnd}
+                  onChangeText={setEditWindowEnd}
+                  placeholder="e.g. 2030"
+                  placeholderTextColor={colors.subtext}
+                />
+
+                <Text style={styles.editSectionLabel}>Tasting Notes</Text>
+                <TextInput
+                  style={[styles.editInput, { height: 80, textAlignVertical: 'top' }]}
+                  value={editTastingNotes}
+                  onChangeText={setEditTastingNotes}
+                  placeholder="What do you taste? Oak, dried fruit, peat…"
+                  placeholderTextColor={colors.subtext}
+                  multiline
+                />
+
+                <Text style={styles.editSectionLabel}>Collector Notes</Text>
+                <TextInput
+                  style={[styles.editInput, { height: 80, textAlignVertical: 'top' }]}
+                  value={editNotes}
+                  onChangeText={setEditNotes}
+                  placeholder="Provenance, occasion, batch details…"
+                  placeholderTextColor={colors.subtext}
+                  multiline
+                />
+              </ScrollView>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </SafeAreaView>
   );
 }
 
+// ─── styles ──────────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#140D09',
+    backgroundColor: '#0F0A07',
   },
   content: {
     padding: spacing(2),
-    paddingBottom: spacing(5),
+    paddingBottom: spacing(6),
+    gap: spacing(1.5),
   },
-  hero: {
-    borderRadius: 28,
-    overflow: 'hidden',
-    padding: spacing(2),
+
+  // Header
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing(0.5),
+  },
+  closeBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: radii.full,
+    backgroundColor: 'rgba(255,255,255,0.07)',
     borderWidth: 1,
-    borderColor: 'rgba(214,138,56,0.18)',
-    marginBottom: spacing(2.25),
+    borderColor: 'rgba(255,255,255,0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  closePill: {
-    alignSelf: 'flex-start',
+  editPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing(0.6),
+    gap: spacing(0.5),
     paddingHorizontal: spacing(1.1),
     paddingVertical: spacing(0.7),
     borderRadius: radii.full,
-    backgroundColor: 'rgba(15,10,8,0.45)',
+    backgroundColor: 'rgba(214,138,56,0.12)',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
-    marginBottom: spacing(1.25),
+    borderColor: 'rgba(214,138,56,0.28)',
   },
-  closePillText: {
-    color: colors.text,
+  editPillText: {
+    color: colors.accent,
     fontWeight: '700',
     fontSize: 13,
   },
-  heroMedia: {
-    marginBottom: spacing(1.5),
-  },
-  heroImage: {
-    width: '100%',
-    height: 240,
-    borderRadius: 22,
-    backgroundColor: 'rgba(0,0,0,0.2)',
-  },
-  heroImageFallback: {
-    width: '100%',
-    height: 220,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.05)',
-  },
-  eyebrow: {
-    fontSize: 11,
+
+  // Breadcrumb
+  breadcrumb: {
+    fontSize: 10,
     fontWeight: '700',
     color: colors.accent,
+    letterSpacing: 1.2,
     textTransform: 'uppercase',
-    letterSpacing: 1.1,
-    marginBottom: spacing(0.6),
   },
-  heroTitle: {
-    fontSize: 38,
-    lineHeight: 42,
+
+  // Bottle title
+  bottleName: {
+    fontSize: 36,
+    fontWeight: '700',
     color: colors.text,
     fontFamily: serif,
-    fontWeight: '700',
+    lineHeight: 40,
   },
-  heroMeta: {
-    marginTop: spacing(0.8),
-    fontSize: 14,
-    lineHeight: 20,
+  bottleSubtitle: {
+    fontSize: 16,
     color: colors.subtext,
+    fontStyle: 'italic',
+    lineHeight: 22,
   },
-  heroBadgeRow: {
+
+  // Price row
+  priceRow: {
     flexDirection: 'row',
-    gap: spacing(1),
-    marginTop: spacing(1.5),
+    backgroundColor: '#1A120D',
+    borderRadius: radii.md,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.07)',
   },
-  heroBadge: {
+  priceBlock: {
     flex: 1,
-    borderRadius: 18,
-    padding: spacing(1.2),
-    backgroundColor: 'rgba(15,10,8,0.45)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
+    padding: spacing(1.75),
   },
-  heroBadgeLabel: {
-    fontSize: 10,
+  priceDivider: {
+    width: 1,
+    backgroundColor: 'rgba(255,255,255,0.07)',
+  },
+  priceBlockLabel: {
+    fontSize: 9,
     fontWeight: '700',
     color: colors.subtext,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-    marginBottom: spacing(0.35),
-  },
-  heroBadgeValue: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  deckHeader: {
-    marginBottom: spacing(1.1),
-  },
-  deckTitle: {
-    fontSize: 28,
-    lineHeight: 32,
-    color: colors.text,
-    fontFamily: serif,
-    fontWeight: '700',
-  },
-  deckSubtitle: {
-    marginTop: spacing(0.55),
-    fontSize: 13,
-    lineHeight: 18,
-    color: colors.subtext,
-  },
-  cardRail: {
-    paddingRight: spacing(1.5),
-    gap: spacing(1.25),
-  },
-  detailCard: {
-    width: 304,
-    borderRadius: 24,
-    padding: spacing(1.8),
-    backgroundColor: '#23160F',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
-  },
-  cardEyebrow: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: colors.accent,
-    textTransform: 'uppercase',
     letterSpacing: 1,
-    marginBottom: spacing(0.45),
-  },
-  cardTitle: {
-    fontSize: 24,
-    lineHeight: 28,
-    color: colors.text,
-    fontFamily: serif,
-    fontWeight: '700',
-    marginBottom: spacing(1.35),
-  },
-  metricGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing(0.9),
-  },
-  metricTile: {
-    width: '47%',
-    borderRadius: 18,
-    padding: spacing(1.1),
-    backgroundColor: 'rgba(255,255,255,0.03)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
-  },
-  metricTileWide: {
-    borderRadius: 18,
-    padding: spacing(1.1),
-    backgroundColor: 'rgba(255,255,255,0.03)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
-    marginTop: spacing(0.9),
-  },
-  metricLabel: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: colors.subtext,
     textTransform: 'uppercase',
-    letterSpacing: 0.8,
-    marginBottom: spacing(0.35),
-  },
-  metricValue: {
-    fontSize: 16,
-    lineHeight: 20,
-    color: colors.text,
-    fontWeight: '700',
-  },
-  identityList: {
-    gap: spacing(0.95),
-  },
-  identityRow: {
-    borderRadius: 16,
-    padding: spacing(1.1),
-    backgroundColor: 'rgba(255,255,255,0.03)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
-  },
-  identityLabel: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: colors.subtext,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-    marginBottom: spacing(0.35),
-  },
-  identityValue: {
-    fontSize: 16,
-    lineHeight: 20,
-    color: colors.text,
-    fontWeight: '700',
-  },
-  callout: {
-    borderRadius: 18,
-    padding: spacing(1.3),
-    backgroundColor: 'rgba(214,138,56,0.10)',
-    borderWidth: 1,
-    borderColor: 'rgba(214,138,56,0.2)',
-    marginBottom: spacing(0.9),
-  },
-  calloutTitle: {
-    fontSize: 22,
-    lineHeight: 24,
-    color: colors.text,
-    fontFamily: serif,
-    fontWeight: '700',
     marginBottom: spacing(0.5),
   },
-  calloutBody: {
-    fontSize: 14,
-    lineHeight: 20,
+  priceBlockValue: {
+    fontSize: 16,
+    fontWeight: '700',
     color: colors.text,
   },
-  copyBlock: {
-    fontSize: 14,
-    lineHeight: 20,
-    color: colors.text,
-    marginBottom: spacing(1),
+
+  // Trend
+  trendText: {
+    fontSize: 28,
+    fontWeight: '700',
+    fontFamily: serif,
   },
+
+  // Image
+  imageWrap: {
+    position: 'relative',
+    borderRadius: 20,
+    overflow: 'hidden',
+    height: 280,
+    backgroundColor: '#1A120D',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bottleImage: {
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  authBadge: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: spacing(1),
+    paddingVertical: spacing(0.45),
+    borderRadius: radii.full,
+    backgroundColor: 'rgba(20,12,8,0.85)',
+    borderWidth: 1,
+    borderColor: 'rgba(214,138,56,0.4)',
+  },
+  authBadgeText: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: colors.accent,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+  },
+
+  // Metric cards
+  metricCard: {
+    backgroundColor: '#1A120D',
+    borderRadius: radii.md,
+    padding: spacing(1.75),
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.07)',
+    gap: spacing(0.75),
+  },
+  metricCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(0.6),
+  },
+  metricCardLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: colors.subtext,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    flex: 1,
+  },
+  metricCardInlineValue: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  metricCardBigValue: {
+    fontSize: 40,
+    fontWeight: '700',
+    color: colors.text,
+    fontFamily: serif,
+    lineHeight: 46,
+  },
+  metricCardBigSub: {
+    fontSize: 22,
+    color: colors.subtext,
+  },
+  metricCardDesc: {
+    fontSize: 13,
+    lineHeight: 19,
+    color: colors.subtext,
+  },
+  chipRow: {
+    flexDirection: 'row',
+    gap: spacing(0.75),
+    flexWrap: 'wrap',
+  },
+  chip: {
+    paddingHorizontal: spacing(1),
+    paddingVertical: spacing(0.4),
+    borderRadius: radii.full,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  chipText: {
+    fontSize: 11,
+    color: colors.text,
+    fontWeight: '600',
+  },
+
+  // Directive card
+  directiveCard: {
+    borderRadius: radii.lg,
+    padding: spacing(3),
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(214,138,56,0.3)',
+  },
+  directiveBig: {
+    fontSize: 52,
+    fontWeight: '700',
+    fontFamily: serif,
+    letterSpacing: 2,
+  },
+  directiveLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: colors.subtext,
+    letterSpacing: 1.4,
+    textTransform: 'uppercase',
+    marginTop: spacing(0.5),
+  },
+
+  // Rationale
+  rationaleSection: {
+    gap: spacing(0.75),
+  },
+  rationaleTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: colors.text,
+    fontFamily: serif,
+  },
+  rationaleBody: {
+    fontSize: 15,
+    lineHeight: 23,
+    color: colors.subtext,
+  },
+
+  // Flavor
   flavorWrap: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: spacing(0.7),
-    marginBottom: spacing(1),
+    gap: spacing(0.75),
   },
   flavorChip: {
-    paddingHorizontal: spacing(0.95),
-    paddingVertical: spacing(0.55),
+    paddingHorizontal: spacing(1),
+    paddingVertical: spacing(0.4),
     borderRadius: radii.full,
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    backgroundColor: 'rgba(214,138,56,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(214,138,56,0.18)',
+  },
+  flavorChipText: {
+    fontSize: 12,
+    color: colors.accent,
+    fontWeight: '600',
+  },
+
+  // Action buttons
+  actionRow: {
+    flexDirection: 'row',
+    gap: spacing(1.25),
+  },
+  actionGhost: {
+    flex: 1,
+    height: 50,
+    borderRadius: radii.full,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.18)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  actionGhostText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.text,
+    letterSpacing: 0.8,
+  },
+
+  // Specs
+  specsHeading: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.text,
+    fontFamily: serif,
+    marginTop: spacing(0.5),
+  },
+  specsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing(0.75),
+  },
+  specCell: {
+    width: '47%',
+    backgroundColor: '#1A120D',
+    borderRadius: radii.sm,
+    padding: spacing(1.25),
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.06)',
   },
-  flavorChipText: {
-    color: colors.text,
-    fontSize: 12,
+  specLabel: {
+    fontSize: 9,
     fontWeight: '700',
+    color: colors.subtext,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    marginBottom: spacing(0.35),
   },
-  deleteButton: {
-    marginTop: spacing(2),
-    minHeight: 54,
-    borderRadius: 18,
+  specValue: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+  },
+
+  // Remove
+  removeBtn: {
+    height: 52,
+    borderRadius: radii.md,
     borderWidth: 1,
     borderColor: 'rgba(255,120,120,0.28)',
     backgroundColor: 'rgba(80,24,24,0.42)',
@@ -525,12 +863,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing(0.8),
+    marginTop: spacing(1),
   },
-  deleteButtonText: {
+  removeBtnText: {
     color: '#FF8E8E',
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '700',
   },
+
+  // Empty
   emptyWrap: {
     flex: 1,
     alignItems: 'center',
@@ -549,16 +890,122 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     color: colors.subtext,
     textAlign: 'center',
-    marginBottom: spacing(1.4),
+    marginBottom: spacing(1.5),
   },
-  backButton: {
-    paddingHorizontal: spacing(1.4),
+  emptyBack: {
+    paddingHorizontal: spacing(1.5),
     paddingVertical: spacing(0.9),
     borderRadius: radii.full,
     backgroundColor: colors.accent,
   },
-  backButtonText: {
+  emptyBackText: {
     color: '#1A120D',
     fontWeight: '700',
+    fontSize: 14,
+  },
+
+  // Edit modal
+  editOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.55)',
+  },
+  editSheet: {
+    backgroundColor: '#1A120D',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    maxHeight: '90%',
+    borderTopWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+  },
+  editHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: spacing(2),
+    borderBottomWidth: 1,
+    borderColor: 'rgba(255,255,255,0.06)',
+  },
+  editTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+    fontFamily: serif,
+  },
+  editHeaderActions: {
+    flexDirection: 'row',
+    gap: spacing(0.9),
+  },
+  editCancelBtn: {
+    paddingHorizontal: spacing(1.1),
+    paddingVertical: spacing(0.6),
+    borderRadius: radii.full,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+  },
+  editCancelText: {
+    color: colors.subtext,
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  editSaveBtn: {
+    paddingHorizontal: spacing(1.3),
+    paddingVertical: spacing(0.6),
+    borderRadius: radii.full,
+    backgroundColor: colors.accent,
+  },
+  editSaveText: {
+    color: '#1A120D',
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  editFormContent: {
+    padding: spacing(2),
+    paddingBottom: spacing(4),
+    gap: spacing(0.6),
+  },
+  editSectionLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.subtext,
+    textTransform: 'uppercase',
+    letterSpacing: 0.9,
+    marginTop: spacing(1.2),
+    marginBottom: spacing(0.4),
+  },
+  editInput: {
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.10)',
+    borderRadius: 14,
+    paddingHorizontal: spacing(1.2),
+    paddingVertical: spacing(1),
+    color: colors.text,
+    fontSize: 15,
+  },
+  editQuantityRow: {
+    flexDirection: 'row',
+    gap: spacing(0.7),
+  },
+  editQuantityChip: {
+    flex: 1,
+    paddingVertical: spacing(0.85),
+    borderRadius: radii.full,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.03)',
+  },
+  editQuantityChipActive: {
+    backgroundColor: 'rgba(214,138,56,0.18)',
+    borderColor: colors.accent,
+  },
+  editQuantityChipText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.subtext,
+  },
+  editQuantityChipTextActive: {
+    color: colors.accent,
   },
 });

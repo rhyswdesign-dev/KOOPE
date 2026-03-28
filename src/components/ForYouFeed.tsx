@@ -7,6 +7,7 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
+  Alert,
   View,
   Text,
   StyleSheet,
@@ -17,7 +18,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, radii, serif } from '../theme/tokens';
 import Svg, { Circle, G, Line, Polygon, Text as SvgText } from 'react-native-svg';
-import { usePersonalization } from '../store/usePersonalization';
+import { usePersonalization, type OccasionProfile } from '../store/usePersonalization';
 import { ALL_COCKTAILS } from '../data/cocktails';
 import RecipeCard from './RecipeCard';
 import { getCocktailImage } from '../../assets/images/cocktails';
@@ -163,13 +164,14 @@ export default function ForYouFeed({
   savedRecipeIds = new Set(),
   onRefineProfile,
 }: ForYouFeedProps) {
-  const { profile, getFeaturedCocktails, scoreCocktail, occasionMode, setOccasionMode } = usePersonalization();
+  const { profile, getFeaturedCocktails, scoreCocktail, occasionMode, setOccasionMode, savedOccasionProfiles, saveOccasionProfile, loadOccasionProfile, deleteOccasionProfile } = usePersonalization();
   const { tier } = useUserTier();
   const { user } = useAuth();
   const { toggleSavedCocktail, isCocktailSaved } = useSavedItems();
   const [selectedRecommendTab, setSelectedRecommendTab] = useState<'matched' | 'beginner' | 'challenge' | 'trending'>('matched');
   const [tasteIdentity, setTasteIdentity] = useState<{ occasionMode: string; confidence: number; engagement: number; radar: any } | null>(null);
   const [predictiveMatches, setPredictiveMatches] = useState<any[]>([]);
+  const [showProfileList, setShowProfileList] = useState(false);
   const tabTransitionAnim = useRef(new Animated.Value(1)).current;
 
   // Check if user has completed taste profile (must be declared before useMemo that depends on it)
@@ -564,23 +566,66 @@ export default function ForYouFeed({
 
         {/* Occasion Mode Toggle — PLUS/PRO only */}
         {tier !== 'FREE' && (
-          <View style={styles.occasionToggleRow}>
-            {(['casual', 'hosting', 'adventurous'] as const).map((mode) => {
-              const isActive = occasionMode === mode;
-              const labels = { casual: 'Casual', hosting: 'Hosting', adventurous: 'Adventurous' };
-              const icons = { casual: 'wine-outline', hosting: 'people-outline', adventurous: 'flask-outline' };
-              return (
-                <TouchableOpacity
-                  key={mode}
-                  style={[styles.occasionChip, isActive && styles.occasionChipActive]}
-                  activeOpacity={0.75}
-                  onPress={withHaptic(() => setOccasionMode(mode), 'selection')}
-                >
-                  <Ionicons name={icons[mode] as any} size={13} color={isActive ? colors.gold : colors.subtext} />
-                  <Text style={[styles.occasionChipText, isActive && styles.occasionChipTextActive]}>{labels[mode]}</Text>
-                </TouchableOpacity>
-              );
-            })}
+          <View>
+            <View style={styles.occasionToggleRow}>
+              {(['casual', 'hosting', 'adventurous'] as const).map((mode) => {
+                const isActive = occasionMode === mode;
+                const labels = { casual: 'Casual', hosting: 'Hosting', adventurous: 'Adventurous' };
+                const icons = { casual: 'wine-outline', hosting: 'people-outline', adventurous: 'flask-outline' };
+                return (
+                  <TouchableOpacity
+                    key={mode}
+                    style={[styles.occasionChip, isActive && styles.occasionChipActive]}
+                    activeOpacity={0.75}
+                    onPress={withHaptic(() => setOccasionMode(mode), 'selection')}
+                  >
+                    <Ionicons name={icons[mode] as any} size={13} color={isActive ? colors.gold : colors.subtext} />
+                    <Text style={[styles.occasionChipText, isActive && styles.occasionChipTextActive]}>{labels[mode]}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+              <TouchableOpacity
+                style={styles.occasionSaveBtn}
+                activeOpacity={0.7}
+                onPress={() => {
+                  Alert.prompt(
+                    'Save Profile',
+                    `Save "${occasionMode}" mode as a named profile?`,
+                    (name) => {
+                      if (name?.trim()) saveOccasionProfile(name.trim());
+                    },
+                    'plain-text',
+                    '',
+                    'default'
+                  );
+                }}
+              >
+                <Ionicons name="bookmark-outline" size={15} color={colors.subtext} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Saved profiles row */}
+            {savedOccasionProfiles.length > 0 && (
+              <View style={styles.savedProfilesRow}>
+                <Text style={styles.savedProfilesLabel}>Saved:</Text>
+                {savedOccasionProfiles.map((p: OccasionProfile) => (
+                  <TouchableOpacity
+                    key={p.id}
+                    style={[styles.savedProfileChip, occasionMode === p.mode && styles.savedProfileChipActive]}
+                    activeOpacity={0.75}
+                    onPress={withHaptic(() => loadOccasionProfile(p.id), 'selection')}
+                    onLongPress={() =>
+                      Alert.alert('Remove Profile', `Remove "${p.name}"?`, [
+                        { text: 'Cancel', style: 'cancel' },
+                        { text: 'Remove', style: 'destructive', onPress: () => deleteOccasionProfile(p.id) },
+                      ])
+                    }
+                  >
+                    <Text style={styles.savedProfileChipText}>{p.name}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
           </View>
         )}
 
@@ -909,6 +954,47 @@ const styles = StyleSheet.create({
   occasionChipTextActive: {
     color: colors.gold,
     fontWeight: '600',
+  },
+  occasionSaveBtn: {
+    padding: spacing(0.75),
+    borderRadius: radii.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 'auto',
+  },
+  savedProfilesRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(0.75),
+    paddingHorizontal: spacing(3),
+    paddingBottom: spacing(1.5),
+    flexWrap: 'wrap',
+  },
+  savedProfilesLabel: {
+    fontSize: 11,
+    color: colors.subtext,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  savedProfileChip: {
+    paddingHorizontal: spacing(1.25),
+    paddingVertical: spacing(0.5),
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: 'transparent',
+  },
+  savedProfileChipActive: {
+    borderColor: colors.accent,
+    backgroundColor: colors.accent + '15',
+  },
+  savedProfileChipText: {
+    fontSize: 12,
+    color: colors.subtext,
+    fontWeight: '500',
   },
   subtitle: {
     fontSize: 16,

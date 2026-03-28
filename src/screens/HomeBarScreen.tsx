@@ -613,6 +613,7 @@ export default function HomeBarScreen() {
   const [showInventorySwitcher, setShowInventorySwitcher] = useState(false);
   const [showCellarIntakeModal, setShowCellarIntakeModal] = useState(false);
   const [cellarIntakePrice, setCellarIntakePrice] = useState('');
+  const [cellarIntakeValuation, setCellarIntakeValuation] = useState('');
   const [cellarIntakeWindowStart, setCellarIntakeWindowStart] = useState('');
   const [cellarIntakeWindowEnd, setCellarIntakeWindowEnd] = useState('');
   const [cellarIntakeNotes, setCellarIntakeNotes] = useState('');
@@ -1094,6 +1095,7 @@ export default function HomeBarScreen() {
   const handleOpenCellarIntake = () => {
     if (!selectedItem) return;
     setCellarIntakePrice(selectedItem.purchase_price != null ? String(selectedItem.purchase_price) : '');
+    setCellarIntakeValuation(selectedItem.valuation_estimate != null ? String(selectedItem.valuation_estimate) : '');
     setCellarIntakeWindowStart(selectedItem.drinking_window_start || '');
     setCellarIntakeWindowEnd(selectedItem.drinking_window_end || '');
     setCellarIntakeNotes(selectedItem.cellar_notes || '');
@@ -1107,6 +1109,11 @@ export default function HomeBarScreen() {
     const parsedPrice = cellarIntakePrice.trim() ? Number(cellarIntakePrice) : null;
     if (parsedPrice !== null && Number.isNaN(parsedPrice)) {
       Alert.alert('Invalid Price', 'Enter a valid number for purchase price.');
+      return;
+    }
+    const parsedValuation = cellarIntakeValuation.trim() ? Number(cellarIntakeValuation) : null;
+    if (parsedValuation !== null && Number.isNaN(parsedValuation)) {
+      Alert.alert('Invalid Value', 'Enter a valid number for current estimated value.');
       return;
     }
 
@@ -1130,7 +1137,7 @@ export default function HomeBarScreen() {
         serveGuidance: selectedBottleDetails?.serveGuidance || selectedItem.serve_guidance || null,
         quantity: cellarIntakeQuantity,
         purchasePrice: parsedPrice,
-        valuationEstimate: parsedPrice ?? selectedItem.valuation_estimate ?? null,
+        valuationEstimate: parsedValuation ?? parsedPrice ?? selectedItem.valuation_estimate ?? null,
         drinkingWindowStart,
         drinkingWindowEnd,
         cellarNotes,
@@ -1147,7 +1154,7 @@ export default function HomeBarScreen() {
       drinking_window_start: drinkingWindowStart,
       drinking_window_end: drinkingWindowEnd,
       purchase_price: parsedPrice,
-      valuation_estimate: parsedPrice ?? selectedItem.valuation_estimate ?? null,
+      valuation_estimate: parsedValuation ?? parsedPrice ?? selectedItem.valuation_estimate ?? null,
     };
     setHomeBar((prev) => ({
       ...prev,
@@ -1159,7 +1166,7 @@ export default function HomeBarScreen() {
       cellarNotes: cellarNotes ?? undefined,
       drinkingWindowStart,
       drinkingWindowEnd,
-      valuationEstimate: parsedPrice ?? selectedItem.valuation_estimate ?? undefined,
+      valuationEstimate: parsedValuation ?? parsedPrice ?? selectedItem.valuation_estimate ?? undefined,
     }).catch(() => {});
 
     // Fire or cancel low stock alert based on quantity
@@ -2024,6 +2031,22 @@ export default function HomeBarScreen() {
                       value={cellarIntakePrice}
                       onChangeText={setCellarIntakePrice}
                       placeholder="e.g. 65"
+                      placeholderTextColor={colors.subtext}
+                      keyboardType="decimal-pad"
+                    />
+                  </View>
+                </View>
+
+                {/* Current Estimate */}
+                <View style={styles.formSectionCard}>
+                  <Text style={styles.sectionTitleCompact}>Current Estimated Value</Text>
+                  <View style={styles.formGroup}>
+                    <Text style={styles.formLabel}>What is it worth now? (optional)</Text>
+                    <TextInput
+                      style={styles.formInput}
+                      value={cellarIntakeValuation}
+                      onChangeText={setCellarIntakeValuation}
+                      placeholder="e.g. 120"
                       placeholderTextColor={colors.subtext}
                       keyboardType="decimal-pad"
                     />

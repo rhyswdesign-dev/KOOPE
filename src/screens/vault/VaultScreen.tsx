@@ -52,6 +52,7 @@ import {
   TechniquePlaybookType,
   getDrinkingGamesForDisplay,
 } from '../../config/vaultContent';
+import { getActiveWeeklyForYouDrops, type WeeklyForYouDrop } from '../../config/weeklyForYouDrops';
 import AIRecommendations from '../../components/AIRecommendations';
 import { useSavedItems } from '../../hooks/useSavedItems';
 import GroceryListModal from '../../components/GroceryListModal';
@@ -96,6 +97,13 @@ export default function VaultScreen() {
   // Celebration State
   const [celebrationVisible, setCelebrationVisible] = useState(false);
   const [unlockedItemName, setUnlockedItemName] = useState('');
+
+  // Active weekly drop for the PRO "This Week" hero
+  const activeWeeklyDrop = useMemo<WeeklyForYouDrop | null>(() => {
+    if (tier !== 'PRO') return null;
+    const drops = getActiveWeeklyForYouDrops(new Date(), 'PRO');
+    return drops[0] ?? null;
+  }, [tier]);
 
   // Taste match scores for vault variations (PLUS/PRO only)
   const variationTasteScores = useMemo<Record<string, number>>(() => {
@@ -283,6 +291,27 @@ export default function VaultScreen() {
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* This Week — PRO weekly drop hero */}
+      {activeWeeklyDrop && (
+        <TouchableOpacity
+          style={styles.thisWeekCard}
+          activeOpacity={0.8}
+          onPress={() => nav.navigate('CocktailDetail', { cocktailId: activeWeeklyDrop.recipeId })}
+        >
+          <View style={styles.thisWeekLeft}>
+            <Text style={styles.thisWeekEyebrow}>This Week's Drop · PRO</Text>
+            <Text style={styles.thisWeekTitle}>{activeWeeklyDrop.title}</Text>
+            <Text style={styles.thisWeekReason} numberOfLines={2}>{activeWeeklyDrop.reason}</Text>
+          </View>
+          <View style={styles.thisWeekRight}>
+            <View style={styles.thisWeekDiffBadge}>
+              <Text style={styles.thisWeekDiffText}>{activeWeeklyDrop.difficulty}</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.gold} style={{ marginTop: 8 }} />
+          </View>
+        </TouchableOpacity>
+      )}
 
       {/* Filter Tabs */}
       <View style={styles.tabsContainer}>
@@ -933,6 +962,52 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing(2),
     paddingVertical: spacing(1),
     gap: spacing(1),
+  },
+  thisWeekCard: {
+    flexDirection: 'row',
+    marginHorizontal: spacing(2),
+    marginBottom: spacing(1.5),
+    backgroundColor: colors.card,
+    borderRadius: radii.lg,
+    borderWidth: 1.5,
+    borderColor: colors.gold + '40',
+    padding: spacing(2),
+    gap: spacing(1.5),
+  },
+  thisWeekLeft: { flex: 1, gap: spacing(0.5) },
+  thisWeekEyebrow: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: colors.gold,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  thisWeekTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: colors.text,
+    fontFamily: serif,
+  },
+  thisWeekReason: {
+    fontSize: 12,
+    color: colors.subtext,
+    lineHeight: 17,
+  },
+  thisWeekRight: {
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+  },
+  thisWeekDiffBadge: {
+    paddingHorizontal: spacing(1),
+    paddingVertical: spacing(0.4),
+    borderRadius: radii.sm,
+    backgroundColor: colors.gold + '20',
+  },
+  thisWeekDiffText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.gold,
+    textTransform: 'capitalize',
   },
   
   // List

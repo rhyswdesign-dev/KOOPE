@@ -78,8 +78,11 @@ import ReferralScreen from '../screens/ReferralScreen';
 import TutorialsScreen from '../screens/TutorialsScreen';
 import UnlockDeckScreen from '../screens/UnlockDeckScreen';
 import RecipeCardDetailScreen from '../screens/RecipeCardDetailScreen';
-import TheCellarScreen from '../screens/TheCellarScreen';
+import CellarNavigator from './CellarNavigator';
 import CellarBottleDetailScreen from '../screens/CellarBottleDetailScreen';
+import CellarRegisterScreen from '../screens/CellarRegisterScreen';
+import CellarWatchlistScreen from '../screens/CellarWatchlistScreen';
+import CellarAnalyticsScreen from '../screens/CellarAnalyticsScreen';
 import GuestMenuScreen from '../screens/GuestMenuScreen';
 import { useCartSync } from '../hooks/useCartSync';
 import TutorialIconButton from '../components/tour/TutorialIconButton';
@@ -104,6 +107,9 @@ export type RootStackParamList = {
   TheTikiHut: undefined;
   TheWineCellar: undefined;
   CellarBottleDetail: { inventoryItemId: string };
+  CellarRegister: undefined;
+  CellarWatchlist: undefined;
+  CellarAnalytics: undefined;
   TheHiddenFlask: undefined;
   CopperMoon: undefined;
   NeonNights: undefined;
@@ -310,17 +316,15 @@ export default function RootNavigator({ initialRouteName = 'Main' }: RootNavigat
         headerTitleStyle: components.headerText,
         headerShadowVisible: false,
       })} />
-      <Stack.Screen name="TheWineCellar" component={TheCellarScreen} options={() => ({ 
-        headerShown: true, 
-        title: 'The Cellar',
-        headerStyle: components.header,
-        headerTintColor: colors.headerText,
-        headerTitleStyle: components.headerText,
-        headerShadowVisible: false,
+      <Stack.Screen name="TheWineCellar" component={CellarNavigator} options={() => ({
+        headerShown: false,
       })} />
       <Stack.Screen name="CellarBottleDetail" component={CellarBottleDetailScreen} options={() => ({
         headerShown: false,
       })} />
+      <Stack.Screen name="CellarRegister" component={CellarRegisterScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="CellarWatchlist" component={CellarWatchlistScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="CellarAnalytics" component={CellarAnalyticsScreen} options={{ headerShown: false }} />
       <Stack.Screen name="TheHiddenFlask" options={() => ({
         headerShown: true,
         title: 'The Hidden Flask',

@@ -7,988 +7,849 @@ import {
   TouchableOpacity,
   RefreshControl,
   Image,
-  Share,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, radii, serif } from '../theme/tokens';
-import { useAuth } from '../contexts/AuthContext';
 import { useFeatureAccess } from '../hooks/useFeatureAccess';
 import { CellarService, type CellarRecord } from '../services/cellarService';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 
-function formatMoney(value: number): string {
+const { width: SCREEN_W } = Dimensions.get('window');
+
+// ─── helpers ────────────────────────────────────────────────────────────────
+
+function fmt(value: number): string {
   return `$${Math.round(value).toLocaleString()}`;
 }
 
-function getCollectorScore(item: CellarRecord): number {
-  let score = 0;
-  if (item.purchasePrice) score += 2;
-  if (item.valuationEstimate) score += 2;
-  if (item.cellarNotes) score += 2;
-  if (item.drinkingWindowStart || item.drinkingWindowEnd) score += 2;
-  if (item.quantity && item.quantity !== 'empty') score += 1;
-  return score;
-}
-
-function formatWindow(item: CellarRecord): string {
-  return `${item.drinkingWindowStart || 'Now'} - ${item.drinkingWindowEnd || 'TBD'}`;
-}
-
-function getPortfolioChange(items: CellarRecord[]): number {
-  return items.reduce((sum, item) => {
-    if (!item.purchasePrice || !item.valuationEstimate) return sum;
-    return sum + (item.valuationEstimate - item.purchasePrice);
-  }, 0);
-}
-
-function getLotNumber(index: number): string {
-  return `Lot ${String(index + 1).padStart(2, '0')}`;
-}
-
 function getRecommendation(item: CellarRecord): 'Hold' | 'Open Soon' | 'Review' {
-  if ((item.valuationEstimate || 0) > (item.purchasePrice || 0) && !!item.purchasePrice) {
-    return 'Hold';
-  }
-  if ((item.drinkingWindowStart || '').toLowerCase() === 'now') {
-    return 'Open Soon';
-  }
+  if ((item.valuationEstimate || 0) > (item.purchasePrice || 0) && !!item.purchasePrice) return 'Hold';
+  if ((item.drinkingWindowStart || '').toLowerCase() === 'now') return 'Open Soon';
   return 'Review';
 }
 
-function getRecommendationReason(item: CellarRecord): string {
-  const recommendation = getRecommendation(item);
-  if (recommendation === 'Hold') {
-    return 'Market signal is stronger than replacement value right now.';
-  }
-  if (recommendation === 'Open Soon') {
-    return 'This bottle looks better positioned as a drinking bottle than a long hold.';
-  }
-  return 'Add purchase price or notes to sharpen the collector read.';
+function getMarketHealthTier(totalValue: number): string {
+  if (totalValue >= 10000) return 'Premier Tier';
+  if (totalValue >= 2000) return 'Elite Tier';
+  if (totalValue >= 500) return 'Silver Tier';
+  return 'Starter Tier';
 }
 
-function getEstimatedRange(item: CellarRecord): string {
-  const base = item.valuationEstimate || item.purchasePrice || 0;
-  if (!base) return 'Not enough data';
-  const lower = Math.round(base * 0.92);
-  const upper = Math.round(base * 1.08);
-  return `${formatMoney(lower)} - ${formatMoney(upper)}`;
+function getTotalPortfolioValue(items: CellarRecord[]): number {
+  return items.reduce((sum, item) => sum + (item.valuationEstimate || item.purchasePrice || 0), 0);
 }
 
-function getLotImage(item: CellarRecord) {
-  if (item.imageUrl) {
-    return { uri: item.imageUrl };
+function getTotalCostBasis(items: CellarRecord[]): number {
+  return items.reduce((sum, item) => sum + (item.purchasePrice || 0), 0);
+}
+
+function getPortfolioChangePct(items: CellarRecord[]): number {
+  const cost = getTotalCostBasis(items);
+  if (!cost) return 0;
+  const value = getTotalPortfolioValue(items);
+  return ((value - cost) / cost) * 100;
+}
+
+function getReadyToOpen(items: CellarRecord[]): CellarRecord[] {
+  return items.filter((i) => getRecommendation(i) === 'Open Soon');
+}
+
+function getTopMovers(items: CellarRecord[]): CellarRecord[] {
+  return items
+    .filter((i) => i.purchasePrice && i.valuationEstimate)
+    .sort((a, b) => {
+      const da = Math.abs((a.valuationEstimate || 0) - (a.purchasePrice || 0));
+      const db = Math.abs((b.valuationEstimate || 0) - (b.purchasePrice || 0));
+      return db - da;
+    })
+    .slice(0, 3);
+}
+
+function getVaultIntelligence(items: CellarRecord[]): string {
+  if (!items.length) return 'Start building your collection to receive curated market intelligence tailored to your portfolio.';
+  const holdItems = items.filter((i) => getRecommendation(i) === 'Hold');
+  const topByValue = [...items].sort((a, b) => (b.valuationEstimate || 0) - (a.valuationEstimate || 0))[0];
+  if (holdItems.length > items.length / 2) {
+    return `Secondary market demand for ${topByValue?.type || 'premium'} expressions has surged this quarter. Consider reviewing your longest-held bottles for emerging exit windows.`;
   }
-  return null;
+  return `Your collection has ${items.length} bottle${items.length !== 1 ? 's' : ''} tracked. Adding purchase prices and valuations enables deeper market intelligence signals.`;
 }
 
-function renderLotCard(
-  item: CellarRecord,
-  index: number,
-  onPress: (inventoryItemId: string) => void,
-) {
-  const hasValuation = (item.valuationEstimate || 0) > 0;
-  const recommendation = getRecommendation(item);
+// ─── PRO gate screen ─────────────────────────────────────────────────────────
 
+function ProLockedScreen() {
+  const { gate } = useFeatureAccess('cellar_mode');
   return (
-    <TouchableOpacity key={item.inventoryItemId} style={styles.lotCard} activeOpacity={0.92} onPress={() => onPress(item.inventoryItemId)}>
-      <View style={styles.lotHeader}>
-        <Text style={styles.lotNumber}>{getLotNumber(index)}</Text>
-        <View style={styles.lotHeaderRight}>
-          <Text style={styles.lotRecommendation}>{recommendation}</Text>
-          <Text style={styles.lotQuantity}>{String(item.quantity || 'full').toUpperCase()}</Text>
+    <SafeAreaView style={styles.container}>
+      <LinearGradient colors={['#1A120D', '#0F0A07']} style={styles.lockedFill}>
+        <View style={styles.lockedIconWrap}>
+          <Ionicons name="lock-closed" size={44} color={colors.accent} />
         </View>
-      </View>
-
-      <View style={styles.lotVisualWrap}>
-        {getLotImage(item) ? (
-          <Image source={getLotImage(item) as any} style={styles.lotBottleImage} resizeMode="cover" />
-        ) : (
-          <View style={styles.lotBottleAura}>
-            <Ionicons name="wine-outline" size={68} color="rgba(246,236,228,0.84)" />
-          </View>
-        )}
-      </View>
-
-      <View style={styles.lotBody}>
-        <Text style={styles.lotName} numberOfLines={2}>{item.itemName}</Text>
-      <Text style={styles.lotMeta} numberOfLines={1}>
-          {item.brand || item.region || 'Collector bottle'}
+        <Text style={styles.lockedEyebrow}>PRO</Text>
+        <Text style={styles.lockedTitle}>The Cellar</Text>
+        <Text style={styles.lockedBody}>
+          Track your private spirits collection like a portfolio. Monitor valuations, drinking windows, and collector intelligence in one place.
         </Text>
-        <Text style={styles.lotRecommendationReason}>{getRecommendationReason(item)}</Text>
-      </View>
-
-      <View style={styles.lotDivider} />
-
-      <View style={styles.lotPriceRow}>
-        <View>
-          <Text style={styles.lotMetricLabel}>Valuation</Text>
-          <Text style={styles.lotMetricValue}>
-            {hasValuation ? formatMoney(item.valuationEstimate || 0) : 'Not tracked'}
-          </Text>
+        <View style={styles.lockedFeatures}>
+          {[
+            'Portfolio valuation dashboard',
+            'Per-bottle market intelligence',
+            'Top movers & strategy alerts',
+            'Collector analytics & watchlist',
+          ].map((f) => (
+            <View key={f} style={styles.lockedFeatureRow}>
+              <Ionicons name="checkmark-circle" size={16} color={colors.accent} />
+              <Text style={styles.lockedFeatureText}>{f}</Text>
+            </View>
+          ))}
         </View>
-        <View style={styles.lotDeltaWrap}>
-          <Text style={styles.lotMetricLabel}>Window</Text>
-          <Text style={styles.lotDelta}>
-            {formatWindow(item)}
-          </Text>
-        </View>
-      </View>
-
-      <View style={styles.rangeRow}>
-        <View style={styles.rangePill}>
-          <Text style={styles.rangeLabel}>Est. Range</Text>
-          <Text style={styles.rangeValue}>{getEstimatedRange(item)}</Text>
-        </View>
-        <View style={styles.rangePill}>
-          <Text style={styles.rangeLabel}>Confidence</Text>
-          <Text style={styles.rangeValue}>{item.purchasePrice || item.valuationEstimate ? 'Medium' : 'Low'}</Text>
-        </View>
-      </View>
-
-      {!!item.cellarNotes ? (
-        <Text style={styles.lotNotesInline} numberOfLines={2}>{item.cellarNotes}</Text>
-      ) : null}
-      <View style={styles.lotFooter}>
-        <Text style={styles.lotFooterText}>Open collector record</Text>
-        <Ionicons name="arrow-forward" size={16} color={colors.accent} />
-      </View>
-    </TouchableOpacity>
+        <TouchableOpacity style={styles.lockedCta} onPress={() => gate()}>
+          <Text style={styles.lockedCtaText}>Unlock Cellar Mode</Text>
+        </TouchableOpacity>
+      </LinearGradient>
+    </SafeAreaView>
   );
 }
+
+// ─── main screen ─────────────────────────────────────────────────────────────
 
 export default function TheCellarScreen() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { user } = useAuth();
-  const { hasAccess, gateWithTrigger } = useFeatureAccess('cellar_mode');
-  const [cellarItems, setCellarItems] = useState<CellarRecord[]>([]);
+  const { hasAccess } = useFeatureAccess('cellar_mode');
+  const [items, setItems] = useState<CellarRecord[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const loadInventory = useCallback(async () => {
-    if (!user) {
-      setCellarItems([]);
-      return;
-    }
+  const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const cellarRecords = await CellarService.getRecords();
-      const records = Object.values(cellarRecords).sort((a, b) => getCollectorScore(b) - getCollectorScore(a));
-      setCellarItems(records);
+      const records = await CellarService.getRecords();
+      setItems(Object.values(records));
     } catch {
-      setCellarItems([]);
+      setItems([]);
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
-      loadInventory();
-    }, [loadInventory])
+      loadData();
+    }, [loadData])
   );
 
-  const portfolioValue = useMemo(() => {
-    return cellarItems.reduce((sum, item) => sum + (item.valuationEstimate || item.purchasePrice || 0), 0);
-  }, [cellarItems]);
+  if (!hasAccess) return <ProLockedScreen />;
 
-  const portfolioChange = useMemo(() => getPortfolioChange(cellarItems), [cellarItems]);
-  const featuredBottle = cellarItems[0] || null;
-  const valuedCount = useMemo(
-    () => cellarItems.filter((item) => (item.valuationEstimate || item.purchasePrice || 0) > 0).length,
-    [cellarItems]
-  );
-  const holdCount = useMemo(
-    () => cellarItems.filter((item) => getRecommendation(item) === 'Hold').length,
-    [cellarItems]
-  );
-  const readyCount = useMemo(
-    () => cellarItems.filter((item) => getRecommendation(item) === 'Open Soon').length,
-    [cellarItems]
-  );
-  const latestBottle = useMemo(
-    () => [...cellarItems].sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt))[0] || null,
-    [cellarItems]
-  );
+  const totalValue = getTotalPortfolioValue(items);
+  const costBasis = getTotalCostBasis(items);
+  const changePct = getPortfolioChangePct(items);
+  const healthTier = getMarketHealthTier(totalValue);
+  const readyItems = getReadyToOpen(items);
+  const topMovers = getTopMovers(items);
+  const intelligence = getVaultIntelligence(items);
 
-  const handleShareCellar = useCallback(async () => {
-    const bottleWord = cellarItems.length === 1 ? 'bottle' : 'bottles';
-    const posture =
-      holdCount > readyCount ? 'leaning hold' :
-      readyCount > holdCount ? 'leaning open' :
-      'balanced';
-    const valueStr = portfolioValue > 0 ? ` · Est. portfolio ${formatMoney(portfolioValue)}` : '';
-    const spreadStr =
-      portfolioChange > 0 ? ` · +${formatMoney(portfolioChange)} gain` :
-      portfolioChange < 0 ? ` · ${formatMoney(portfolioChange).replace('$-', '-$')} spread` :
-      '';
+  const sealedCount = items.filter((i) => i.quantity === 'full' || i.quantity === 'half').length;
+  const openedCount = items.filter((i) => i.quantity === 'low' || i.quantity === 'empty').length;
+  const holdCount = items.filter((i) => getRecommendation(i) === 'Hold').length;
+  const openSoonCount = items.filter((i) => getRecommendation(i) === 'Open Soon').length;
 
-    await Share.share({
-      message: `My KOOPE Private Reserve: ${cellarItems.length} ${bottleWord} tracked${valueStr}${spreadStr} · ${posture.charAt(0).toUpperCase() + posture.slice(1)}. Built with KOOPE — the bartender's app.`,
-    });
-  }, [cellarItems.length, portfolioValue, portfolioChange, holdCount, readyCount]);
+  const sealedPct = items.length ? Math.round((sealedCount / items.length) * 100) : 0;
+  const openedPct = items.length ? Math.round((openedCount / items.length) * 100) : 0;
+  const holdPct = items.length ? Math.round((holdCount / items.length) * 100) : 0;
+  const openSoonPct = items.length ? Math.round((openSoonCount / items.length) * 100) : 0;
 
-  if (!hasAccess) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <LinearGradient colors={['#24170F', '#130D09']} style={styles.lockedWrap}>
-          <Text style={styles.eyebrow}>Wave 5</Text>
-          <Text style={styles.heroTitle}>The Cellar</Text>
-          <Text style={styles.heroSubtitle}>
-            A premium collector page for tracked bottles, hold windows, valuation signals, and notes that feel worth revisiting.
-          </Text>
-          <View style={styles.lockedFeatureList}>
-            <Text style={styles.lockedFeature}>Auction-style bottle lots</Text>
-            <Text style={styles.lockedFeature}>Collector valuation and spread</Text>
-            <Text style={styles.lockedFeature}>Hold, drink soon, and archive buckets</Text>
-          </View>
-          <TouchableOpacity style={styles.primaryButton} onPress={() => gateWithTrigger('T11')}>
-            <Text style={styles.primaryButtonText}>Unlock Cellar Mode</Text>
-          </TouchableOpacity>
-        </LinearGradient>
-      </SafeAreaView>
-    );
-  }
+  const changePctAbs = Math.abs(changePct);
+  const changePositive = changePct >= 0;
 
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView
-        contentContainerStyle={styles.content}
-        refreshControl={<RefreshControl refreshing={loading} onRefresh={loadInventory} tintColor={colors.accent} />}
         showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.content}
+        refreshControl={<RefreshControl refreshing={loading} onRefresh={loadData} tintColor={colors.accent} />}
       >
-        <LinearGradient colors={['#382517', '#1A120D']} style={styles.heroShell}>
-          <View style={styles.heroOrbs}>
-            <View style={[styles.heroOrb, styles.heroOrbLeft]} />
-            <View style={[styles.heroOrb, styles.heroOrbRight]} />
-          </View>
-          <Text style={styles.eyebrow}>Private Reserve</Text>
-          <Text style={styles.heroTitle}>The Cellar</Text>
-          <Text style={styles.heroSubtitle}>
-            A collector view of your most deliberate bottles, built to feel closer to a private lot book than a utility list.
-          </Text>
-
-          <View style={styles.heroMetrics}>
-            <View style={styles.heroMetricCard}>
-              <Text style={styles.heroMetricLabel}>Tracked Lots</Text>
-              <Text style={styles.heroMetricValue}>{cellarItems.length}</Text>
-            </View>
-            <View style={styles.heroMetricCard}>
-              <Text style={styles.heroMetricLabel}>Portfolio</Text>
-              <Text style={styles.heroMetricValue}>{formatMoney(portfolioValue)}</Text>
-            </View>
-            <View style={styles.heroMetricCard}>
-              <Text style={styles.heroMetricLabel}>Spread</Text>
-              <Text style={styles.heroMetricValue}>{portfolioChange >= 0 ? '+' : ''}{formatMoney(portfolioChange).replace('$-', '-$')}</Text>
+        {/* ── Portfolio Card ──────────────────────────────────────────────── */}
+        <LinearGradient
+          colors={['#2A1A0F', '#160F0B']}
+          style={styles.portfolioCard}
+        >
+          <View style={styles.portfolioCardHeader}>
+            <Text style={styles.portfolioLabel}>ESTIMATED PORTFOLIO VALUE</Text>
+            <View style={styles.portfolioHeaderIcons}>
+              <TouchableOpacity
+                style={styles.portfolioIconBtn}
+                onPress={() => nav.navigate('CellarWatchlist')}
+              >
+                <Ionicons name="eye-outline" size={18} color={colors.accent} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.portfolioIconBtn}
+                onPress={() => nav.navigate('CellarAnalytics')}
+              >
+                <Ionicons name="bar-chart-outline" size={18} color={colors.accent} />
+              </TouchableOpacity>
             </View>
           </View>
-
-          {cellarItems.length > 0 && (
-            <TouchableOpacity style={styles.shareButton} onPress={handleShareCellar} activeOpacity={0.82}>
-              <Ionicons name="share-outline" size={16} color={colors.accent} />
-              <Text style={styles.shareButtonText}>Share my reserve</Text>
-            </TouchableOpacity>
+          <Text style={styles.portfolioValue}>{items.length ? fmt(totalValue) : '$0'}</Text>
+          {costBasis > 0 && (
+            <View style={styles.portfolioChangePill}>
+              <Ionicons
+                name={changePositive ? 'arrow-up' : 'arrow-down'}
+                size={12}
+                color={changePositive ? '#4FC38A' : '#F56565'}
+              />
+              <Text style={[styles.portfolioChangePct, { color: changePositive ? '#4FC38A' : '#F56565' }]}>
+                {changePositive ? '+' : '-'}{changePctAbs.toFixed(1)}%
+              </Text>
+              <Text style={styles.portfolioChangeSub}>vs cost basis of {fmt(costBasis)}</Text>
+            </View>
           )}
         </LinearGradient>
 
-        {cellarItems.length === 0 ? (
-          <View style={styles.emptyCard}>
-            <Text style={styles.emptyTitle}>No bottles in The Cellar yet</Text>
-            <Text style={styles.emptyBody}>
-              Add an eligible bottle from Inventory to Cellar Mode to start building your reserve.
+        {/* ── Quick Stats Row ─────────────────────────────────────────────── */}
+        <View style={styles.statsRow}>
+          <View style={styles.statCard}>
+            <Text style={styles.statLabel}>TOTAL COLLECTION</Text>
+            <Text style={styles.statValue}>{items.length} Bottle{items.length !== 1 ? 's' : ''}</Text>
+          </View>
+          <View style={styles.statCard}>
+            <Text style={styles.statLabel}>MARKET HEALTH</Text>
+            <View style={styles.statHealthRow}>
+              <Ionicons name="checkmark-circle" size={14} color="#4FC38A" />
+              <Text style={styles.statHealthValue}>{healthTier}</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* ── Ready to Open ───────────────────────────────────────────────── */}
+        <View style={styles.sectionHeader}>
+          <View>
+            <Text style={styles.sectionCurated}>Curated Selection</Text>
+            <Text style={styles.sectionTitle}>Ready to Open</Text>
+          </View>
+          {readyItems.length > 0 && (
+            <TouchableOpacity onPress={() => nav.navigate('CellarAnalytics')}>
+              <Text style={styles.viewAllLink}>VIEW ALL</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {readyItems.length === 0 ? (
+          <View style={styles.emptyHint}>
+            <Ionicons name="wine-outline" size={28} color="rgba(214,138,56,0.4)" />
+            <Text style={styles.emptyHintText}>
+              Bottles whose drinking window is set to "Now" will appear here.
             </Text>
           </View>
         ) : (
+          readyItems.map((item) => (
+            <TouchableOpacity
+              key={item.inventoryItemId}
+              style={styles.readyCard}
+              onPress={() => nav.navigate('CellarBottleDetail', { inventoryItemId: item.inventoryItemId })}
+              activeOpacity={0.85}
+            >
+              {item.imageUrl ? (
+                <Image source={{ uri: item.imageUrl }} style={styles.readyCardImage} resizeMode="cover" />
+              ) : (
+                <View style={[styles.readyCardImage, styles.readyCardImageFallback]}>
+                  <Ionicons name="wine-outline" size={32} color="rgba(214,138,56,0.6)" />
+                </View>
+              )}
+              <View style={styles.readyCardContent}>
+                <View style={styles.readyCardTopRow}>
+                  <Text style={styles.readyCardType}>{(item.type || 'SPIRIT').toUpperCase()}</Text>
+                  <Ionicons name="star" size={14} color={colors.accent} />
+                </View>
+                <Text style={styles.readyCardName} numberOfLines={2}>{item.itemName}</Text>
+                <Text style={styles.readyCardDesc} numberOfLines={2}>
+                  {item.tastingNotes || item.serveGuidance || `${item.brand || 'Private Reserve'} • ${item.region || 'Private Collection'}`}
+                </Text>
+                <View style={styles.readyCardBottom}>
+                  <Text style={styles.readyCardPrice}>{item.valuationEstimate ? fmt(item.valuationEstimate) : 'Not tracked'}</Text>
+                  <View style={styles.readyCardBasket}>
+                    <Ionicons name="basket-outline" size={16} color={colors.accent} />
+                  </View>
+                </View>
+              </View>
+            </TouchableOpacity>
+          ))
+        )}
+
+        {/* ── Status Distribution ─────────────────────────────────────────── */}
+        {items.length > 0 && (
           <>
-            <View style={styles.signalGrid}>
-              <View style={styles.signalCard}>
-                <Text style={styles.signalLabel}>Valued Bottles</Text>
-                <Text style={styles.signalValue}>{valuedCount}</Text>
-                <Text style={styles.signalHint}>with an active estimated range</Text>
-              </View>
-              <View style={styles.signalCard}>
-                <Text style={styles.signalLabel}>Hold Candidates</Text>
-                <Text style={styles.signalValue}>{holdCount}</Text>
-                <Text style={styles.signalHint}>showing stronger collector upside</Text>
-              </View>
-              <View style={styles.signalCard}>
-                <Text style={styles.signalLabel}>Drink-Now Bottles</Text>
-                <Text style={styles.signalValue}>{readyCount}</Text>
-                <Text style={styles.signalHint}>better positioned for opening soon</Text>
-              </View>
+            <Text style={styles.distLabel}>STATUS DISTRIBUTION</Text>
+            <View style={styles.distSection}>
+              <BarRow label="Sealed" count={sealedCount} pct={sealedPct} total={items.length} color={colors.accent} />
+              <BarRow label="Opened" count={openedCount} pct={openedPct} total={items.length} color="#C7B8A5" />
             </View>
 
-            {featuredBottle ? (
-              <View style={styles.highlightCard}>
-                {getLotImage(featuredBottle) ? (
-                  <Image source={getLotImage(featuredBottle) as any} style={styles.highlightImage} resizeMode="cover" />
-                ) : (
-                  <View style={styles.highlightImageFallback}>
-                    <Ionicons name="wine-outline" size={52} color="rgba(246,236,228,0.84)" />
-                  </View>
-                )}
-                <View style={styles.highlightCopy}>
-                  <Text style={styles.highlightEyebrow}>Collector Highlight</Text>
-                  <Text style={styles.highlightTitle}>{featuredBottle.itemName}</Text>
-                  <Text style={styles.highlightMeta}>
-                    {featuredBottle.brand || featuredBottle.region || 'Private reserve bottle'}
-                  </Text>
-                  <Text style={styles.highlightBody}>
-                    {getRecommendationReason(featuredBottle)}
-                  </Text>
-                  <View style={styles.highlightStats}>
-                    <View style={styles.highlightStat}>
-                      <Text style={styles.highlightStatLabel}>Window</Text>
-                      <Text style={styles.highlightStatValue}>{formatWindow(featuredBottle)}</Text>
-                    </View>
-                    <View style={styles.highlightStat}>
-                      <Text style={styles.highlightStatLabel}>Collector Read</Text>
-                      <Text style={styles.highlightStatValue}>
-                        {getRecommendation(featuredBottle)}
-                      </Text>
-                    </View>
-                  </View>
-                  <View style={styles.highlightFooterRow}>
-                    <View style={styles.highlightMiniCard}>
-                      <Text style={styles.highlightMiniLabel}>Range</Text>
-                      <Text style={styles.highlightMiniValue}>{getEstimatedRange(featuredBottle)}</Text>
-                    </View>
-                    <View style={styles.highlightMiniCard}>
-                      <Text style={styles.highlightMiniLabel}>Confidence</Text>
-                      <Text style={styles.highlightMiniValue}>
-                        {featuredBottle.purchasePrice || featuredBottle.valuationEstimate ? 'Medium' : 'Low'}
-                      </Text>
-                    </View>
-                  </View>
-                </View>
-              </View>
-            ) : null}
-
-            <View style={styles.collectionStoryCard}>
-              <View style={styles.collectionStoryHeader}>
-                <Text style={styles.collectionStoryEyebrow}>Collection Story</Text>
-                <Text style={styles.collectionStoryTitle}>Where your reserve stands right now</Text>
-              </View>
-              <View style={styles.collectionStoryGrid}>
-                <View style={styles.collectionStoryMetric}>
-                  <Text style={styles.collectionStoryLabel}>Top bottle</Text>
-                  <Text style={styles.collectionStoryValue} numberOfLines={1}>
-                    {featuredBottle?.itemName || 'Not enough data'}
-                  </Text>
-                </View>
-                <View style={styles.collectionStoryMetric}>
-                  <Text style={styles.collectionStoryLabel}>Latest addition</Text>
-                  <Text style={styles.collectionStoryValue} numberOfLines={1}>
-                    {latestBottle?.itemName || 'No recent additions'}
-                  </Text>
-                </View>
-                <View style={styles.collectionStoryMetric}>
-                  <Text style={styles.collectionStoryLabel}>Market posture</Text>
-                  <Text style={styles.collectionStoryValue}>
-                    {holdCount > readyCount ? 'Leaning hold' : readyCount > holdCount ? 'Leaning open' : 'Balanced'}
-                  </Text>
-                </View>
-              </View>
-            </View>
-
-            <View style={styles.sectionBlock}>
-              <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Tracked Bottles</Text>
-                <Text style={styles.sectionCount}>{cellarItems.length}</Text>
-              </View>
-              <Text style={styles.sectionSubtitle}>
-                Bottles you’ve promoted into collector tracking from Inventory.
-              </Text>
-              <View style={styles.lotList}>
-                {cellarItems.map((item, index) =>
-                  renderLotCard(item, index, (inventoryItemId) => nav.navigate('CellarBottleDetail', { inventoryItemId }))
-                )}
-              </View>
+            <Text style={styles.distLabel}>STRATEGY ALIGNMENT</Text>
+            <View style={styles.distSection}>
+              <BarRow label="Hold for Growth" count={holdCount} pct={holdPct} total={items.length} color="#4FC38A" />
+              <BarRow label="Drink Now" count={openSoonCount} pct={openSoonPct} total={items.length} color="#F6AD55" />
             </View>
           </>
         )}
+
+        {/* ── Top Movers ──────────────────────────────────────────────────── */}
+        {topMovers.length > 0 && (
+          <>
+            <Text style={styles.distLabel}>TOP MOVERS</Text>
+            <View style={styles.topMoversCard}>
+              {topMovers.map((item) => {
+                const delta = (item.valuationEstimate || 0) - (item.purchasePrice || 0);
+                const positive = delta >= 0;
+                const pct = item.purchasePrice ? (delta / item.purchasePrice) * 100 : 0;
+                return (
+                  <TouchableOpacity
+                    key={item.inventoryItemId}
+                    style={styles.moverRow}
+                    onPress={() => nav.navigate('CellarBottleDetail', { inventoryItemId: item.inventoryItemId })}
+                  >
+                    <Ionicons
+                      name={positive ? 'trending-up' : delta < 0 ? 'trending-down' : 'remove'}
+                      size={18}
+                      color={positive ? '#4FC38A' : delta < 0 ? '#F56565' : colors.subtext}
+                    />
+                    <View style={styles.moverInfo}>
+                      <Text style={styles.moverName} numberOfLines={1}>{item.itemName}</Text>
+                      <Text style={styles.moverBrand}>{item.brand || item.type || 'Private Reserve'}</Text>
+                    </View>
+                    <View style={styles.moverRight}>
+                      <Text style={[styles.moverDelta, { color: positive ? '#4FC38A' : '#F56565' }]}>
+                        {positive ? '+' : ''}{fmt(delta)}
+                      </Text>
+                      <Text style={[styles.moverPct, { color: positive ? '#4FC38A' : '#F56565' }]}>
+                        {positive ? '+' : ''}{pct.toFixed(1)}%
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </>
+        )}
+
+        {/* ── Vault Intelligence ──────────────────────────────────────────── */}
+        <View style={styles.intelligenceCard}>
+          <View style={styles.intelligenceHeader}>
+            <Ionicons name="chatbubble-ellipses-outline" size={18} color={colors.accent} />
+            <Text style={styles.intelligenceTitle}>Vault Intelligence</Text>
+          </View>
+          <Text style={styles.intelligenceBody}>{intelligence}</Text>
+        </View>
+
+        {/* ── Bottom CTAs ─────────────────────────────────────────────────── */}
+        <View style={styles.ctaRow}>
+          <TouchableOpacity
+            style={styles.ctaGhostAmber}
+            onPress={() => nav.navigate('CellarRegister')}
+          >
+            <Ionicons name="add-outline" size={16} color={colors.accent} />
+            <Text style={styles.ctaGhostAmberText}>ADD ASSET</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.ctaGhost}
+            onPress={() => nav.navigate('CellarAnalytics')}
+          >
+            <Ionicons name="pulse-outline" size={16} color={colors.text} />
+            <Text style={styles.ctaGhostText}>ACTIVITY</Text>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
+// ─── BarRow ──────────────────────────────────────────────────────────────────
+
+function BarRow({
+  label,
+  count,
+  pct,
+  total,
+  color,
+}: {
+  label: string;
+  count: number;
+  pct: number;
+  total: number;
+  color: string;
+}) {
+  return (
+    <View style={styles.barRow}>
+      <Text style={styles.barLabel}>{label}</Text>
+      <View style={styles.barTrack}>
+        <View style={[styles.barFill, { width: `${pct}%`, backgroundColor: color }]} />
+      </View>
+      <Text style={styles.barCount}>
+        {count} · {pct}%
+      </Text>
+    </View>
+  );
+}
+
+// ─── styles ──────────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#140D09',
+    backgroundColor: '#0F0A07',
   },
   content: {
     padding: spacing(2),
-    paddingBottom: spacing(6),
+    paddingBottom: spacing(10),
+    gap: spacing(1.5),
   },
-  heroShell: {
-    borderRadius: 28,
-    padding: spacing(3),
-    marginBottom: spacing(3),
+
+  // Portfolio card
+  portfolioCard: {
+    borderRadius: radii.lg,
+    padding: spacing(2.5),
     borderWidth: 1,
-    borderColor: 'rgba(214,138,56,0.18)',
-    overflow: 'hidden',
-    position: 'relative',
+    borderColor: 'rgba(214,138,56,0.2)',
   },
-  heroOrbs: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  heroOrb: {
-    position: 'absolute',
-    width: 180,
-    height: 180,
-    borderRadius: 999,
-    backgroundColor: 'rgba(214,138,56,0.10)',
-  },
-  heroOrbLeft: {
-    top: -36,
-    left: -54,
-  },
-  heroOrbRight: {
-    bottom: -74,
-    right: -36,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-  },
-  eyebrow: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: colors.accent,
-    textTransform: 'uppercase',
-    letterSpacing: 1.2,
-    marginBottom: spacing(0.75),
-  },
-  heroTitle: {
-    fontSize: 38,
-    lineHeight: 42,
-    color: colors.text,
-    fontFamily: serif,
-    fontWeight: '700',
-  },
-  heroSubtitle: {
-    marginTop: spacing(1),
-    fontSize: 14,
-    lineHeight: 20,
-    color: colors.subtext,
-    maxWidth: '92%',
-  },
-  heroMetrics: {
+  portfolioCardHeader: {
     flexDirection: 'row',
-    gap: spacing(1.25),
-    marginTop: spacing(2.5),
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing(0.8),
   },
-  heroMetricCard: {
-    flex: 1,
-    backgroundColor: 'rgba(15,10,8,0.45)',
-    borderRadius: 18,
-    padding: spacing(1.5),
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
-  },
-  heroMetricLabel: {
+  portfolioLabel: {
     fontSize: 10,
     fontWeight: '700',
     color: colors.subtext,
+    letterSpacing: 1.2,
     textTransform: 'uppercase',
-    letterSpacing: 0.8,
-    marginBottom: spacing(0.5),
   },
-  heroMetricValue: {
+  portfolioHeaderIcons: {
+    flexDirection: 'row',
+    gap: spacing(0.75),
+  },
+  portfolioIconBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: radii.full,
+    backgroundColor: 'rgba(214,138,56,0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(214,138,56,0.22)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  portfolioValue: {
+    fontSize: 48,
+    fontWeight: '700',
+    color: colors.text,
+    fontFamily: serif,
+    lineHeight: 54,
+  },
+  portfolioChangePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(0.4),
+    marginTop: spacing(0.75),
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(79,195,138,0.1)',
+    borderRadius: radii.full,
+    paddingHorizontal: spacing(1),
+    paddingVertical: spacing(0.4),
+    borderWidth: 1,
+    borderColor: 'rgba(79,195,138,0.22)',
+  },
+  portfolioChangePct: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  portfolioChangeSub: {
+    fontSize: 11,
+    color: colors.subtext,
+    marginLeft: spacing(0.25),
+  },
+
+  // Stats row
+  statsRow: {
+    flexDirection: 'row',
+    gap: spacing(1.25),
+  },
+  statCard: {
+    flex: 1,
+    backgroundColor: '#1A120D',
+    borderRadius: radii.md,
+    padding: spacing(1.75),
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.07)',
+  },
+  statLabel: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: colors.subtext,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    marginBottom: spacing(0.55),
+  },
+  statValue: {
     fontSize: 20,
     fontWeight: '700',
     color: colors.text,
+    fontFamily: serif,
   },
-  shareButton: {
+  statHealthRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing(0.75),
-    alignSelf: 'flex-start',
-    marginTop: spacing(2),
-    paddingVertical: spacing(0.9),
-    paddingHorizontal: spacing(1.5),
-    borderRadius: 99,
-    borderWidth: 1,
-    borderColor: 'rgba(214,138,56,0.3)',
-    backgroundColor: 'rgba(214,138,56,0.1)',
+    gap: spacing(0.4),
   },
-  shareButtonText: {
-    fontSize: 13,
+  statHealthValue: {
+    fontSize: 16,
     fontWeight: '700',
-    color: colors.accent,
-    letterSpacing: 0.2,
+    color: colors.text,
+    fontStyle: 'italic',
+    fontFamily: serif,
   },
-  sectionBlock: {
-    marginBottom: spacing(3.5),
+
+  // Section headers
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+    marginTop: spacing(0.5),
   },
-  signalGrid: {
-    gap: spacing(1),
-    marginBottom: spacing(2.25),
-  },
-  signalCard: {
-    borderRadius: 20,
-    padding: spacing(1.6),
-    backgroundColor: '#20150F',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
-  },
-  signalLabel: {
+  sectionCurated: {
     fontSize: 11,
-    fontWeight: '700',
-    color: colors.accent,
-    textTransform: 'uppercase',
-    letterSpacing: 0.9,
-    marginBottom: spacing(0.4),
+    color: colors.subtext,
+    fontStyle: 'italic',
+    marginBottom: spacing(0.2),
   },
-  signalValue: {
+  sectionTitle: {
     fontSize: 28,
-    lineHeight: 30,
+    fontWeight: '700',
     color: colors.text,
     fontFamily: serif,
-    fontWeight: '700',
+    lineHeight: 32,
   },
-  signalHint: {
-    marginTop: spacing(0.45),
-    fontSize: 13,
-    lineHeight: 18,
-    color: colors.subtext,
-  },
-  highlightCard: {
-    marginBottom: spacing(2.5),
-    borderRadius: 26,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(214,138,56,0.18)',
-    backgroundColor: '#23160F',
-  },
-  highlightCopy: {
-    padding: spacing(2.2),
-  },
-  highlightEyebrow: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: colors.accent,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    marginBottom: spacing(0.7),
-  },
-  highlightTitle: {
-    fontSize: 30,
-    lineHeight: 33,
-    color: colors.text,
-    fontFamily: serif,
-    fontWeight: '700',
-  },
-  highlightMeta: {
-    marginTop: spacing(0.7),
-    fontSize: 13,
-    color: colors.subtext,
-  },
-  highlightBody: {
-    marginTop: spacing(1.1),
-    fontSize: 14,
-    lineHeight: 20,
-    color: colors.text,
-  },
-  highlightStats: {
-    flexDirection: 'row',
-    gap: spacing(1),
-    marginTop: spacing(1.4),
-  },
-  highlightStat: {
-    flex: 1,
-    borderRadius: 16,
-    backgroundColor: 'rgba(15,10,8,0.45)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
-    padding: spacing(1.15),
-  },
-  highlightStatLabel: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: colors.subtext,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-    marginBottom: spacing(0.35),
-  },
-  highlightStatValue: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  highlightImage: {
-    width: '100%',
-    height: 240,
-    backgroundColor: 'rgba(0,0,0,0.16)',
-  },
-  highlightImageFallback: {
-    width: '100%',
-    height: 220,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.04)',
-  },
-  highlightFooterRow: {
-    flexDirection: 'row',
-    gap: spacing(1),
-    marginTop: spacing(1.1),
-  },
-  highlightMiniCard: {
-    flex: 1,
-    borderRadius: 16,
-    backgroundColor: 'rgba(15,10,8,0.45)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
-    padding: spacing(1.1),
-  },
-  highlightMiniLabel: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: colors.subtext,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-    marginBottom: spacing(0.35),
-  },
-  highlightMiniValue: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  collectionStoryCard: {
-    marginBottom: spacing(2.5),
-    borderRadius: 24,
-    padding: spacing(2),
-    backgroundColor: '#1E140F',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
-  },
-  collectionStoryHeader: {
-    marginBottom: spacing(1.3),
-  },
-  collectionStoryEyebrow: {
+  viewAllLink: {
     fontSize: 11,
     fontWeight: '700',
     color: colors.accent,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    marginBottom: spacing(0.45),
+    letterSpacing: 0.8,
   },
-  collectionStoryTitle: {
-    fontSize: 24,
-    lineHeight: 28,
-    color: colors.text,
-    fontFamily: serif,
-    fontWeight: '700',
-  },
-  collectionStoryGrid: {
+
+  // Empty hint
+  emptyHint: {
+    backgroundColor: '#1A120D',
+    borderRadius: radii.md,
+    padding: spacing(2.5),
+    alignItems: 'center',
     gap: spacing(1),
-  },
-  collectionStoryMetric: {
-    borderRadius: 18,
-    padding: spacing(1.25),
-    backgroundColor: 'rgba(255,255,255,0.03)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.06)',
+    borderStyle: 'dashed',
   },
-  collectionStoryLabel: {
-    fontSize: 10,
-    fontWeight: '700',
+  emptyHintText: {
+    fontSize: 13,
     color: colors.subtext,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-    marginBottom: spacing(0.35),
+    textAlign: 'center',
+    lineHeight: 18,
   },
-  collectionStoryValue: {
+
+  // Ready to open cards
+  readyCard: {
+    flexDirection: 'row',
+    backgroundColor: '#1A120D',
+    borderRadius: radii.lg,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.07)',
+  },
+  readyCardImage: {
+    width: 90,
+    height: 100,
+    backgroundColor: '#23160F',
+  },
+  readyCardImageFallback: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  readyCardContent: {
+    flex: 1,
+    padding: spacing(1.5),
+    gap: spacing(0.4),
+  },
+  readyCardTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  readyCardType: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: colors.accent,
+    letterSpacing: 0.9,
+  },
+  readyCardName: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+    fontFamily: serif,
+    lineHeight: 22,
+  },
+  readyCardDesc: {
+    fontSize: 12,
+    color: colors.subtext,
+    lineHeight: 16,
+  },
+  readyCardBottom: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: spacing(0.5),
+  },
+  readyCardPrice: {
     fontSize: 15,
     fontWeight: '700',
     color: colors.text,
   },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing(0.5),
-  },
-  sectionTitle: {
-    fontSize: 26,
-    lineHeight: 30,
-    color: colors.text,
-    fontFamily: serif,
-    fontWeight: '700',
-  },
-  sectionCount: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.accent,
-    paddingHorizontal: spacing(1.25),
-    paddingVertical: spacing(0.75),
+  readyCardBasket: {
+    width: 28,
+    height: 28,
     borderRadius: radii.full,
     backgroundColor: 'rgba(214,138,56,0.12)',
     borderWidth: 1,
-    borderColor: 'rgba(214,138,56,0.22)',
+    borderColor: 'rgba(214,138,56,0.25)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  sectionSubtitle: {
-    fontSize: 13,
-    lineHeight: 18,
+
+  // Distribution bars
+  distLabel: {
+    fontSize: 10,
+    fontWeight: '700',
     color: colors.subtext,
-    marginBottom: spacing(1.5),
+    letterSpacing: 1.1,
+    textTransform: 'uppercase',
+    marginTop: spacing(0.5),
+    marginBottom: spacing(0.75),
   },
-  lotList: {
-    gap: spacing(1.5),
-  },
-  lotCard: {
-    width: '100%',
-    borderRadius: 24,
-    padding: spacing(2.25),
+  distSection: {
+    backgroundColor: '#1A120D',
+    borderRadius: radii.md,
+    padding: spacing(1.75),
+    gap: spacing(1.1),
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
-    backgroundColor: '#24170F',
-    shadowColor: '#000',
-    shadowOpacity: 0.18,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 10 },
+    borderColor: 'rgba(255,255,255,0.06)',
+    marginBottom: spacing(0.5),
   },
-  lotHeader: {
+  barRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: spacing(1.1),
+    gap: spacing(0.9),
   },
-  lotHeaderRight: {
+  barLabel: {
+    fontSize: 12,
+    color: colors.text,
+    width: 100,
+    fontWeight: '600',
+  },
+  barTrack: {
+    flex: 1,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    overflow: 'hidden',
+  },
+  barFill: {
+    height: '100%',
+    borderRadius: 3,
+  },
+  barCount: {
+    fontSize: 11,
+    color: colors.subtext,
+    width: 52,
+    textAlign: 'right',
+  },
+
+  // Top movers
+  topMoversCard: {
+    backgroundColor: '#1A120D',
+    borderRadius: radii.md,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.06)',
+    marginBottom: spacing(0.5),
+  },
+  moverRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: spacing(1.5),
+    gap: spacing(1),
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.05)',
+  },
+  moverInfo: {
+    flex: 1,
+  },
+  moverName: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.text,
+    fontFamily: serif,
+  },
+  moverBrand: {
+    fontSize: 11,
+    color: colors.subtext,
+    marginTop: 1,
+  },
+  moverRight: {
+    alignItems: 'flex-end',
+  },
+  moverDelta: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  moverPct: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+
+  // Intelligence card
+  intelligenceCard: {
+    backgroundColor: '#1A120D',
+    borderRadius: radii.lg,
+    padding: spacing(2),
+    borderWidth: 1,
+    borderColor: 'rgba(214,138,56,0.15)',
+  },
+  intelligenceHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(0.6),
+    marginBottom: spacing(0.9),
+  },
+  intelligenceTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.accent,
+    letterSpacing: 0.5,
+  },
+  intelligenceBody: {
+    fontSize: 14,
+    lineHeight: 21,
+    color: colors.text,
+    fontStyle: 'italic',
+  },
+
+  // CTAs
+  ctaRow: {
+    flexDirection: 'row',
+    gap: spacing(1.25),
+  },
+  ctaGhostAmber: {
+    flex: 1,
+    height: 52,
+    borderRadius: radii.full,
+    borderWidth: 1.5,
+    borderColor: colors.accent,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing(0.6),
+  },
+  ctaGhostAmberText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.accent,
+    letterSpacing: 0.8,
+  },
+  ctaGhost: {
+    flex: 1,
+    height: 52,
+    borderRadius: radii.full,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.18)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing(0.6),
+  },
+  ctaGhostText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.text,
+    letterSpacing: 0.8,
+  },
+
+  // PRO locked
+  lockedFill: {
+    flex: 1,
+    padding: spacing(3),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  lockedIconWrap: {
+    width: 80,
+    height: 80,
+    borderRadius: radii.full,
+    backgroundColor: 'rgba(214,138,56,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(214,138,56,0.28)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing(2),
+  },
+  lockedEyebrow: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.accent,
+    letterSpacing: 2,
+    textTransform: 'uppercase',
+    marginBottom: spacing(0.6),
+  },
+  lockedTitle: {
+    fontSize: 34,
+    fontWeight: '700',
+    color: colors.text,
+    fontFamily: serif,
+    marginBottom: spacing(1),
+    textAlign: 'center',
+  },
+  lockedBody: {
+    fontSize: 15,
+    lineHeight: 22,
+    color: colors.subtext,
+    textAlign: 'center',
+    marginBottom: spacing(2.5),
+  },
+  lockedFeatures: {
+    width: '100%',
+    gap: spacing(0.9),
+    marginBottom: spacing(3),
+  },
+  lockedFeatureRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing(0.75),
   },
-  lotRecommendation: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: colors.accent,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    paddingHorizontal: spacing(0.95),
-    paddingVertical: spacing(0.5),
-    borderRadius: radii.full,
-    backgroundColor: 'rgba(214,138,56,0.12)',
-    overflow: 'hidden',
-  },
-  lotBadge: {
-    borderRadius: radii.full,
-    paddingHorizontal: spacing(1),
-    paddingVertical: spacing(0.55),
-    backgroundColor: 'rgba(214,138,56,0.12)',
-  },
-  lotBadgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
-  },
-  lotQuantity: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: colors.subtext,
-    letterSpacing: 0.8,
-    paddingHorizontal: spacing(0.95),
-    paddingVertical: spacing(0.5),
-    borderRadius: radii.full,
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    overflow: 'hidden',
-  },
-  lotVisualWrap: {
-    alignItems: 'center',
-  },
-  lotBottleImage: {
-    width: '100%',
-    height: 180,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
-    backgroundColor: 'rgba(0,0,0,0.18)',
-  },
-  lotBottleAura: {
-    width: '100%',
-    height: 180,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
-    backgroundColor: 'rgba(255,255,255,0.04)',
-  },
-  lotNumber: {
-    marginTop: spacing(1),
-    fontSize: 10,
-    fontWeight: '700',
-    color: colors.subtext,
-    textTransform: 'uppercase',
-    letterSpacing: 1.2,
-  },
-  lotBody: {
-    marginTop: spacing(1.8),
-  },
-  lotName: {
-    fontSize: 28,
-    lineHeight: 31,
-    color: colors.text,
-    fontFamily: serif,
-    fontWeight: '700',
-  },
-  lotMeta: {
-    marginTop: spacing(0.75),
-    fontSize: 13,
-    color: colors.subtext,
-  },
-  lotRecommendationReason: {
-    marginTop: spacing(0.9),
-    fontSize: 13,
-    lineHeight: 18,
-    color: colors.text,
-  },
-  lotDivider: {
-    height: 1,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    marginTop: spacing(1.55),
-    marginBottom: spacing(0.2),
-  },
-  lotPriceRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-end',
-    marginTop: spacing(2),
-  },
-  lotMetricLabel: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: colors.subtext,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-  },
-  lotMetricValue: {
-    marginTop: spacing(0.45),
-    fontSize: 22,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  lotDeltaWrap: {
-    alignItems: 'flex-end',
-    maxWidth: '52%',
-  },
-  lotDelta: {
-    marginTop: spacing(0.45),
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.subtext,
-    textAlign: 'right',
-  },
-  rangeRow: {
-    flexDirection: 'row',
-    gap: spacing(1),
-    marginTop: spacing(1.35),
-  },
-  rangePill: {
-    flex: 1,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.03)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
-    padding: spacing(1.05),
-  },
-  rangeLabel: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: colors.subtext,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-    marginBottom: spacing(0.3),
-  },
-  rangeValue: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  lotFooter: {
-    marginTop: spacing(1.5),
-    paddingTop: spacing(1.1),
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.08)',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  lotFooterText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.text,
-    letterSpacing: 0.4,
-  },
-  lotNotesInline: {
-    marginTop: spacing(1.4),
-    fontSize: 13,
-    lineHeight: 18,
-    color: colors.subtext,
-    paddingTop: spacing(1.1),
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.08)',
-  },
-  emptyCard: {
-    backgroundColor: colors.card,
-    borderRadius: 24,
-    padding: spacing(3),
-    borderWidth: 1,
-    borderColor: colors.line,
-  },
-  emptyTitle: {
-    fontSize: 22,
-    color: colors.text,
-    fontFamily: serif,
-    fontWeight: '700',
-    marginBottom: spacing(1),
-  },
-  emptyBody: {
-    fontSize: 14,
-    lineHeight: 20,
-    color: colors.subtext,
-  },
-  emptyLotRailCard: {
-    width: '100%',
-    borderRadius: 20,
-    padding: spacing(2),
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.line,
-    justifyContent: 'center',
-  },
-  emptyLotRailText: {
-    fontSize: 14,
-    lineHeight: 20,
-    color: colors.subtext,
-  },
-  lockedWrap: {
-    flex: 1,
-    margin: spacing(2),
-    borderRadius: 28,
-    padding: spacing(4),
-    justifyContent: 'center',
-  },
-  lockedFeatureList: {
-    marginTop: spacing(2),
-    gap: spacing(1),
-  },
-  lockedFeature: {
+  lockedFeatureText: {
     fontSize: 14,
     color: colors.text,
+    fontWeight: '500',
   },
-  primaryButton: {
-    marginTop: spacing(3),
+  lockedCta: {
+    width: '100%',
+    height: 54,
+    borderRadius: radii.full,
     backgroundColor: colors.accent,
-    borderRadius: radii.full,
-    paddingVertical: spacing(1.8),
     alignItems: 'center',
     justifyContent: 'center',
   },
-  primaryButtonText: {
-    color: colors.white,
+  lockedCtaText: {
     fontSize: 16,
     fontWeight: '700',
+    color: '#1A120D',
   },
 });

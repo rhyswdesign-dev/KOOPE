@@ -37,13 +37,13 @@
 | 16 | RevenueCat + subscriptions tested in real build | Production | Now | 🔲 Held — activate when payments go live |
 | 17 | Low stock alerts | Bar grows with you | 4A | ✅ Done |
 | 18 | EAS Project ID wired (push notifications in production) | Production | 4A | 🔲 Open — fill EXPO_PUBLIC_EAS_PROJECT_ID in .env |
-| 19 | Guest menu output surface | Bar grows with you | 4B | 🔲 Open |
-| 20 | Prep timeline with shareable export | Bar grows with you | 4B | 🔲 Open |
-| 21 | Batch optimizer deeper integration into Hosting | Bar grows with you | 4B | 🔲 Open |
-| 22 | Vault repositioning — master recipes + elite drops | It knows you | 4C | 🔲 Open |
-| 23 | Occasion-based persistent profiles | It knows you | 4C | 🔲 Open |
-| 24 | Weekly drop content refresh (sustain 8+ weeks rolling) | It knows you | 4C | 🔲 Open |
-| 25 | Brand intelligence — substitutes + upgrade suggestions | Bar grows with you | 5 | ⏸ Held — needs commercial partnerships |
+| 19 | Guest menu output surface | Bar grows with you | 4B | ✅ Done |
+| 20 | Prep timeline with shareable export | Bar grows with you | 4B | ✅ Done |
+| 21 | Batch optimizer deeper integration into Hosting | Bar grows with you | 4B | ✅ Done |
+| 22 | Vault repositioning — master recipes + elite drops | It knows you | 4C | ✅ Done |
+| 23 | Occasion-based persistent profiles | It knows you | 4C | ✅ Done |
+| 24 | Weekly drop content refresh (sustain 8+ weeks rolling) | It knows you | 4C | ✅ Done |
+| 25 | Brand intelligence — substitutes + upgrade suggestions | Bar grows with you | 5 | ⏸ Held — upgrade prompt UI hidden; activate when commercial partnerships ready |
 | 26 | Creator tools | Bar grows with you | 5 | ⏸ Deferred — post-community launch |
 
 ---
@@ -136,13 +136,13 @@ All 15 active items shipped. Key outcomes:
 
 ---
 
-## Wave 4C — Pro Depth (to be broken down)
+## Wave 4C — Pro Depth ✅
 
-High-level scope — detail sprint plan to be written before starting:
+All three items shipped 2026-03-27:
 
-- **Vault repositioning** — shift Vault toward master recipes and elite drops rather than just content unlocks; give Pro users a reason to come back to it weekly
-- **Occasion-based persistent profiles** — move beyond the current session toggle; let users save named profiles ("Friday hosting", "Sunday casual") that persist and pre-configure the For You feed
-- **Weekly drop content refresh** — sustain 8+ weeks of rolling content; build a lightweight internal tool or config pattern to add new drops without a code deploy
+- **Vault repositioning** — Added "This Week's Drop" PRO hero card at top of VaultScreen; gold-bordered, links to active weekly drop recipe; updates automatically each week from the drop config.
+- **Occasion-based persistent profiles** — `savedOccasionProfiles` added to `usePersonalization`; users can name and save their current mode, load saved profiles from ForYouFeed chips row, delete via long-press. Persists across sessions via AsyncStorage.
+- **Weekly drop content refresh** — Extended drops from Week 20 (May 16) through Week 28 (July 11). 16 total weeks of content from today. Add new weeks by appending to `WEEKLY_FOR_YOU_DROPS` in `weeklyForYouDrops.ts` — no screen changes needed.
 
 ---
 
@@ -162,6 +162,11 @@ High-level scope — detail sprint plan to be written before starting:
 
 | Date | Item | Notes |
 |---|---|---|
+| 2026-03-27 | Cellar edit flow | `CellarBottleDetailScreen.tsx` — Edit button + modal for price, valuation, window, tasting notes, collector notes, quantity. Valuation estimate field added to HomeBar intake modal. "Wave 5" eyebrow → "PRO" on locked screen. |
+| 2026-03-27 | v1 scope lock | XP cap removed from FREE; PLUS/PRO post-launch features documented; AI-learning features deferred to v1.x |
+| 2026-03-27 | Wave 4C complete | Vault "This Week" hero, saved occasion profiles, drops extended to Week 28 |
+| 2026-03-27 | #25 upgrade prompt hidden | `upgradePrompt` block removed from `BottleDetailScreen`; reactivate with commercial partnerships |
+| 2026-03-27 | Wave 4B complete | Guest menu (#19), prep timeline (#20), batch cart button (#21) |
 | 2026-03-25 | Wave 4A–4B plan written | Low stock alerts, guest menu, prep timeline, batch optimizer |
 | 2026-03-25 | Scan history + bottle journal | `scanHistoryService.ts`, `ProfileScreen.tsx`, `BottleDetailScreen.tsx` |
 | 2026-03-25 | Certification unlock modal | `ProfileScreen.tsx` — animated modal, share sheet, local push |
@@ -185,11 +190,41 @@ High-level scope — detail sprint plan to be written before starting:
 
 ---
 
+## v1 Scope Lock (2026-03-27)
+
+Revised scope for launch. Features marked **defer** below are cut from v1 and move to v1.x once real user data exists.
+
+### FREE — ships as-is
+- XP cap removed: free users earn XP without a daily ceiling. Inventory limit (10 bottles) + 9-cocktail limit are the friction gates.
+- 3 AI messages/day gate stays (gate only — no AI persona built yet for free tier).
+
+### PLUS — ships with simple versions
+- Party scaling calculator: pure math (multiplication), no AI call.
+- Shopping list export: "what's in this recipe that's not in my inventory."
+- Optimize my bar: basic suggestion engine (already live).
+- **Defer to v1.x:** Taste Match %, health/expiry/level tracking, enhanced AI coach, guest menu / batch optimizer.
+
+### PRO — ships
+- Full hosting stack (basic) ✅
+- Mastery lessons + guides ✅
+- Vault PRO drops ✅
+- Pro recipe builder (ratio + remix) ✅
+- Cellar Mode (bottle collection + notes) ✅ — edit flow added 2026-03-27
+- **Defer to v1.x:** Predictive "what can I make", dead bottle + restock alerts, seasonal + cost/value tracking, practice mode + certifications.
+- **Cut:** Full Taste Graph + long memory AI, flavour correction AI, predictive filter engine, brand capture, video lessons.
+
+---
+
 ## Deliberately Deferred
 
 | Item | Reason |
 |---|---|
 | Brand intelligence (substitutes, upgrade suggestions) | Needs commercial partnerships — promoting brands for free has no upside |
 | Creator tools | Post-community launch |
+| Full Taste Graph / long memory AI | Needs thousands of interactions before it works properly — build data hooks now, ship at v1.2 |
+| Flavour correction AI | Same — needs signal |
+| Predictive filter engine | Same |
+| Brand capture | Same |
+| Video lessons | Content production not ready |
 | Low stock alerts (Wave 4-5 original list) | Moved to Wave 4A — now active |
 | Guest menu output (Wave 4-5 original list) | Moved to Wave 4B — now active |
