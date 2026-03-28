@@ -17,6 +17,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { colors, spacing, radii, serif } from '../theme/tokens';
 import { useFeatureAccess } from '../hooks/useFeatureAccess';
 import { CellarService, type CellarRecord } from '../services/cellarService';
+import { withScreenTour } from '../components/tour/withScreenTour';
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -115,7 +116,7 @@ function LockedScreen() {
 
 // ─── main screen ─────────────────────────────────────────────────────────────
 
-export default function CellarAnalyticsScreen() {
+function CellarAnalyticsScreen() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { hasAccess } = useFeatureAccess('cellar_mode');
   const [items, setItems] = useState<CellarRecord[]>([]);
@@ -334,6 +335,8 @@ export default function CellarAnalyticsScreen() {
     </SafeAreaView>
   );
 }
+
+export default withScreenTour(CellarAnalyticsScreen, 'cellar_market');
 
 // ─── styles ──────────────────────────────────────────────────────────────────
 

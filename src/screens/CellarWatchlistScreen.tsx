@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors, spacing, radii, serif } from '../theme/tokens';
 import { useFeatureAccess } from '../hooks/useFeatureAccess';
+import { withScreenTour } from '../components/tour/withScreenTour';
 
 // ─── mock data ────────────────────────────────────────────────────────────────
 
@@ -155,7 +156,7 @@ function LockedScreen() {
 
 // ─── main screen ─────────────────────────────────────────────────────────────
 
-export default function CellarWatchlistScreen() {
+function CellarWatchlistScreen() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { hasAccess } = useFeatureAccess('cellar_mode');
   const [activeCategory, setActiveCategory] = useState('All Spirits');
@@ -313,6 +314,8 @@ export default function CellarWatchlistScreen() {
     </SafeAreaView>
   );
 }
+
+export default withScreenTour(CellarWatchlistScreen, 'cellar_watch');
 
 // ─── styles ──────────────────────────────────────────────────────────────────
 

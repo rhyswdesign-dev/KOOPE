@@ -17,6 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors, spacing, radii, serif } from '../theme/tokens';
 import { useFeatureAccess } from '../hooks/useFeatureAccess';
+import { withScreenTour } from '../components/tour/withScreenTour';
 
 type Condition = 'MINT' | 'EXCELLENT' | 'GOOD';
 type SealStatus = 'SEALED' | 'OPENED';
@@ -38,7 +39,7 @@ function LockedScreen() {
   );
 }
 
-export default function CellarRegisterScreen() {
+function CellarRegisterScreen() {
   const nav = useNavigation<any>();
   const { hasAccess } = useFeatureAccess('cellar_mode');
 
@@ -234,6 +235,8 @@ export default function CellarRegisterScreen() {
     </SafeAreaView>
   );
 }
+
+export default withScreenTour(CellarRegisterScreen, 'cellar_register');
 
 // ─── styles ──────────────────────────────────────────────────────────────────
 

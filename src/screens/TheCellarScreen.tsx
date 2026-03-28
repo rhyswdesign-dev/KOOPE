@@ -18,6 +18,8 @@ import { useFeatureAccess } from '../hooks/useFeatureAccess';
 import { CellarService, type CellarRecord } from '../services/cellarService';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/RootNavigator';
+import { withScreenTour } from '../components/tour/withScreenTour';
+import TutorialIconButton from '../components/tour/TutorialIconButton';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
@@ -118,7 +120,7 @@ function ProLockedScreen() {
 
 // ─── main screen ─────────────────────────────────────────────────────────────
 
-export default function TheCellarScreen() {
+function TheCellarScreen() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { hasAccess } = useFeatureAccess('cellar_mode');
   const [items, setItems] = useState<CellarRecord[]>([]);
@@ -180,6 +182,11 @@ export default function TheCellarScreen() {
           <View style={styles.portfolioCardHeader}>
             <Text style={styles.portfolioLabel}>ESTIMATED PORTFOLIO VALUE</Text>
             <View style={styles.portfolioHeaderIcons}>
+              <TutorialIconButton
+                onPress={() => nav.navigate('Tutorials', { contextTourId: 'cellar_home' })}
+                size={16}
+                buttonSize={32}
+              />
               <TouchableOpacity
                 style={styles.portfolioIconBtn}
                 onPress={() => nav.navigate('CellarWatchlist')}
@@ -394,6 +401,8 @@ function BarRow({
     </View>
   );
 }
+
+export default withScreenTour(TheCellarScreen, 'cellar_home');
 
 // ─── styles ──────────────────────────────────────────────────────────────────
 

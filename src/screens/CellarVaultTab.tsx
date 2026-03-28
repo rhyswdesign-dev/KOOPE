@@ -28,6 +28,7 @@ import type { RootStackParamList } from '../navigation/RootNavigator';
 import { colors, spacing, radii, serif } from '../theme/tokens';
 import { CellarService, type CellarRecord } from '../services/cellarService';
 import { useFeatureAccess } from '../hooks/useFeatureAccess';
+import { withScreenTour } from '../components/tour/withScreenTour';
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -121,7 +122,7 @@ function VaultEmpty() {
 
 // ─── main component ──────────────────────────────────────────────────────────
 
-export default function CellarVaultTab() {
+function CellarVaultTab() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { hasAccess } = useFeatureAccess('cellar_mode');
 
@@ -496,6 +497,8 @@ export default function CellarVaultTab() {
     </SafeAreaView>
   );
 }
+
+export default withScreenTour(CellarVaultTab, 'cellar_vault');
 
 // ─── styles ──────────────────────────────────────────────────────────────────
 

@@ -21,6 +21,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors, spacing, radii, serif } from '../theme/tokens';
 import { CellarService, type CellarRecord } from '../services/cellarService';
+import { withScreenTour } from '../components/tour/withScreenTour';
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -123,7 +124,7 @@ function SpecRow({ label, value }: { label: string; value: string }) {
 
 // ─── main screen ─────────────────────────────────────────────────────────────
 
-export default function CellarBottleDetailScreen() {
+function CellarBottleDetailScreen() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute<any>();
   const { inventoryItemId } = route.params as RootStackParamList['CellarBottleDetail'];
@@ -527,6 +528,8 @@ export default function CellarBottleDetailScreen() {
     </SafeAreaView>
   );
 }
+
+export default withScreenTour(CellarBottleDetailScreen, 'cellar_bottle_detail');
 
 // ─── styles ──────────────────────────────────────────────────────────────────
 

@@ -33,6 +33,13 @@ const TOUR_META: Record<ScreenTourId, { title: string; subtitle: string }> = {
   feature_lesson_engine: { title: 'Lesson Engine Tour', subtitle: 'How lessons and summaries work' },
   feature_smart_scan: { title: 'Smart Scan Tour', subtitle: 'Barcode + AI tier behavior explained' },
   feature_recipe_detail: { title: 'Recipe Detail Tour', subtitle: 'Log brands, changes, and rating flow' },
+  // Cellar
+  cellar_home: { title: 'Cellar — Dashboard', subtitle: 'Portfolio value, ready-to-open cards, and top movers' },
+  cellar_market: { title: 'Cellar — Market', subtitle: 'Portfolio analytics, category split, and holdings list' },
+  cellar_register: { title: 'Cellar — Register', subtitle: 'Log a new acquisition with condition and strategy' },
+  cellar_watch: { title: 'Cellar — Watchlist', subtitle: 'Track bottles you want to buy in the future' },
+  cellar_vault: { title: 'Cellar — Vault', subtitle: 'Browse your lots and get deep collector reads' },
+  cellar_bottle_detail: { title: 'Cellar — Bottle Detail', subtitle: 'Price history, directive, and edit flow' },
 };
 
 interface ActiveTourState {
@@ -72,6 +79,13 @@ export default function TutorialsScreen() {
       feature_lesson_engine: ['feature_lesson_engine', 'tab_lessons'],
       feature_smart_scan: ['feature_smart_scan', 'tab_camera'],
       feature_recipe_detail: ['feature_recipe_detail', 'tab_discover'],
+      // Cellar — all cellar tours cluster together
+      cellar_home: ['cellar_home', 'cellar_market', 'cellar_register', 'cellar_watch', 'cellar_vault', 'cellar_bottle_detail'],
+      cellar_market: ['cellar_home', 'cellar_market', 'cellar_register', 'cellar_watch', 'cellar_vault', 'cellar_bottle_detail'],
+      cellar_register: ['cellar_home', 'cellar_market', 'cellar_register', 'cellar_watch', 'cellar_vault', 'cellar_bottle_detail'],
+      cellar_watch: ['cellar_home', 'cellar_market', 'cellar_register', 'cellar_watch', 'cellar_vault', 'cellar_bottle_detail'],
+      cellar_vault: ['cellar_home', 'cellar_market', 'cellar_register', 'cellar_watch', 'cellar_vault', 'cellar_bottle_detail'],
+      cellar_bottle_detail: ['cellar_home', 'cellar_market', 'cellar_register', 'cellar_watch', 'cellar_vault', 'cellar_bottle_detail'],
     };
 
     const allowed = new Set(contextMap[contextTourId] || [contextTourId]);
