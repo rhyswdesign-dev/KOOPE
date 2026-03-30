@@ -610,16 +610,10 @@ function LessonsView() {
   const isTipsLesson = (lesson: any): boolean => Array.isArray(lesson.tags) && lesson.tags.includes('tips_lesson');
   const hasPlayableContent = (lesson: any): boolean => isTipsLesson(lesson) || (lesson.itemIds?.length || 0) > 0;
   const getModuleGate = (module: any) => {
-    if (module.requiredTier === 'PRO' || MASTERY_MODULE_IDS.has(module.id)) {
+    // Lessons are coming later — lock everything except always-open modules for all tiers
+    if (!ALWAYS_OPEN_MODULE_IDS.has(module.id)) {
       return {
-        locked: tier !== 'PRO',
-        label: 'PRO',
-        open: () => masteryGate('T10'),
-      };
-    }
-    if (module.requiredTier === 'PLUS') {
-      return {
-        locked: true, // Coming later — locked for all tiers
+        locked: true,
         label: 'Coming soon',
         open: () => setLessonsFeedbackVisible(true),
       };
