@@ -8,22 +8,22 @@ import { TooltipStep } from '../components/FeatureTooltipOverlay';
 export const TOOLTIP_CONFIGS: Record<string, { title: string; steps: TooltipStep[] }> = {
   // Lessons Page
   lessons: {
-    title: 'Welcome to Lessons!',
+    title: 'While lessons are on the way…',
     steps: [
+      {
+        icon: 'shield-outline',
+        title: 'Check the Vault',
+        description: 'The Vault has exclusive cocktail recipes and seasonal drops. Tap the Vault tab above to explore.',
+      },
+      {
+        icon: 'flag-outline',
+        title: 'Take on Challenges',
+        description: 'Challenges are live now — complete them to earn XP and unlock content while you wait for lessons.',
+      },
       {
         icon: 'trophy-outline',
         title: 'Earn XP',
-        description: 'Complete lessons to earn XP. Use XP to unlock premium content in the Vault.',
-      },
-      {
-        icon: 'bar-chart-outline',
-        title: 'Track Progress',
-        description: 'Choose from Beginner, Intermediate, or Advanced lessons based on your skill level.',
-      },
-      {
-        icon: 'flame-outline',
-        title: 'Build Streaks',
-        description: 'Complete lessons daily to maintain your learning streak and earn bonus XP.',
+        description: 'Every scan, save, and challenge completion earns XP. Keep building your bar and watch the rewards grow.',
       },
     ],
   },

@@ -4,7 +4,7 @@
  * Allows filtering by selected ingredients
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -42,6 +42,7 @@ import {
   checkRateLimit,
 } from '../services/aiRecipeGenerationService';
 import { supabase } from '../lib/supabase';
+import { FeedbackPromptModal } from '../components/FeedbackPromptModal';
 // BartenderAssistant removed in favor of full screen AI Chat
 
 type CocktailWithMatch = Cocktail & { match: RecipeMatch };
@@ -54,6 +55,7 @@ export default function WhatCanIMakeScreen() {
   const { user, isAuthenticated } = useAuth();
   const { tier } = useUserTier();
 
+  const [chatFeedbackVisible, setChatFeedbackVisible] = useState(false);
   const [loading, setLoading] = useState(true);
   const [inventory, setInventory] = useState<UserInventoryItem[]>([]);
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
@@ -623,10 +625,18 @@ export default function WhatCanIMakeScreen() {
       {/* Floating AI Chat Button */}
       <TouchableOpacity
         style={styles.floatingChatButton}
-        onPress={() => navigation.navigate('AIRecipeGenerator' as any)}
+        onPress={() => setChatFeedbackVisible(true)}
       >
         <Ionicons name="chatbubble-ellipses" size={28} color={colors.white} />
       </TouchableOpacity>
+
+      <FeedbackPromptModal
+        featureKey="ai_bartender"
+        title="AI Bartender — coming soon"
+        body="Chat with an AI bartender that knows your inventory and can suggest recipes, answer technique questions, and help you build the perfect drink. Would you use this?"
+        visible={chatFeedbackVisible}
+        onDismiss={() => setChatFeedbackVisible(false)}
+      />
     </SafeAreaView>
   );
 }

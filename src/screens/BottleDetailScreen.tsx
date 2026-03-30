@@ -999,7 +999,7 @@ export default function BottleDetailScreen() {
           </View>
         </View>
 
-        <View style={[
+        {false && <View style={[
           styles.cellarCard,
           hasCellarMode ? styles.cellarCardActive : styles.cellarCardLocked,
         ]}>
@@ -1133,13 +1133,13 @@ export default function BottleDetailScreen() {
               </TouchableOpacity>
             </>
           )}
-        </View>
+        </View>}
 
         {/* end bodyContent */}
         </View>
       </ScrollView>
 
-      <Modal visible={cellarModalVisible} transparent animationType="fade" onRequestClose={() => setCellarModalVisible(false)}>
+      {false && <Modal visible={cellarModalVisible} transparent animationType="fade" onRequestClose={() => setCellarModalVisible(false)}>
         <View style={styles.cellarModalBackdrop}>
           <View style={styles.cellarModalCard}>
             <Text style={styles.cellarModalTitle}>Update Cellar Record</Text>
@@ -1231,7 +1231,7 @@ export default function BottleDetailScreen() {
             </View>
           </View>
         </View>
-      </Modal>
+      </Modal>}
     </SafeAreaView>
   );
 }

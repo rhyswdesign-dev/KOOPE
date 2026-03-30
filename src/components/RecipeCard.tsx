@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Text,
   Image,
@@ -7,6 +7,7 @@ import {
   Pressable,
   View,
 } from 'react-native';
+import { FeedbackPromptModal } from './FeedbackPromptModal';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { colors, spacing, radii, serif } from '../theme/tokens';
@@ -62,6 +63,7 @@ const RecipeCard = React.memo(({
   style,
 }: RecipeCardProps) => {
   const scale = useSharedValue(1);
+  const [cartFeedbackVisible, setCartFeedbackVisible] = useState(false);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
@@ -123,7 +125,7 @@ const RecipeCard = React.memo(({
                 activeOpacity={0.7}
                 onPress={withHaptic((e) => {
                   e.stopPropagation();
-                  onAddToCart(recipe);
+                  setCartFeedbackVisible(true);
                 }, 'selection')}
               >
                 <Ionicons name="basket-outline" size={17} color={colors.white} />
@@ -179,6 +181,13 @@ const RecipeCard = React.memo(({
           </View>
         </View>
       </Pressable>
+      <FeedbackPromptModal
+        featureKey="shopping_cart"
+        title="Shopping cart — coming soon"
+        body="We're building a smart cart that lets you add missing ingredients directly from any recipe. Would you use this?"
+        visible={cartFeedbackVisible}
+        onDismiss={() => setCartFeedbackVisible(false)}
+      />
     </Animated.View>
   );
 });

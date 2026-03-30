@@ -40,6 +40,7 @@ import { SPIRITS_DATABASE } from '../data/spiritsDatabase';
 import { BottleServeService } from '../services/bottleServeService';
 import { CellarService } from '../services/cellarService';
 import { notificationService } from '../services/notificationService';
+import { FeedbackPromptModal } from '../components/FeedbackPromptModal';
 
 // Import images from assets
 import * as Images from '../../assets/images';
@@ -588,6 +589,7 @@ const MANUAL_ENTRY_CATEGORIES = [
 export default function HomeBarScreen() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { gateWithTrigger: inventoryGate } = useFeatureAccess('inventory_unlimited');
+  const { gateWithTrigger: whatCanIMakeGate } = useFeatureAccess('advanced_filters');
   const { tier } = useUserTier();
   const { gateWithTrigger: hostingBasicGate } = useFeatureAccess('hosting_basic');
   const { gateWithTrigger: optimizeMyBarGate } = useFeatureAccess('optimize_my_bar');
@@ -628,6 +630,7 @@ export default function HomeBarScreen() {
       onPress: () => barHealthGate(() => nav.navigate('InventoryInsights', { mode: 'health' })),
     },
   ], [hostingBasicGate, optimizeMyBarGate, expiryAlertsGate, barHealthGate, nav]);
+  const [cartFeedbackVisible, setCartFeedbackVisible] = useState(false);
   const [showSearchModal, setShowSearchModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchModalQuery, setSearchModalQuery] = useState('');
@@ -971,7 +974,7 @@ export default function HomeBarScreen() {
   const totalRecipes = Math.max(12, homeBar.ingredients.length * 2); // Mock calculation
 
   const handleSeeRecipes = () => {
-    nav.navigate('WhatCanIMake');
+    whatCanIMakeGate('T_WCIM', () => nav.navigate('WhatCanIMake'));
   };
 
   const handleAddIngredient = async () => {
@@ -1518,7 +1521,7 @@ export default function HomeBarScreen() {
           },
           {
             icon: 'cart-outline',
-            onPress: () => nav.navigate('ShoppingCart'),
+            onPress: () => setCartFeedbackVisible(true),
             accessibilityLabel: 'Open shopping cart',
           },
         ]}
@@ -2398,6 +2401,14 @@ export default function HomeBarScreen() {
           </KeyboardAvoidingView>
         </SafeAreaView>
       </Modal>
+
+      <FeedbackPromptModal
+        featureKey="shopping_cart"
+        title="Shopping cart — coming soon"
+        body="We're building a smart cart that lets you add missing ingredients directly from any recipe. Would you use this?"
+        visible={cartFeedbackVisible}
+        onDismiss={() => setCartFeedbackVisible(false)}
+      />
     </SafeAreaView>
   );
 }

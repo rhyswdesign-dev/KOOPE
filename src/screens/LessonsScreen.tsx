@@ -3,7 +3,7 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Pressable, ScrollView, Alert, SafeAreaView, useWindowDimensions, Animated } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ScrollView, Alert, SafeAreaView, useWindowDimensions, Animated, TouchableOpacity } from 'react-native';
 import { CompositeNavigationProp, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/RootNavigator';
@@ -32,6 +32,7 @@ import { useUserTier } from '../store/useUserTier';
 import ContextBriefModal from '../components/lessons/ContextBriefModal';
 import { useLessonBriefPreferences } from '../store/useLessonBriefPreferences';
 import { FeedbackPromptModal, getFeatureFeedbackResponse } from '../components/FeedbackPromptModal';
+import { getUnlockedMiniDeckLibraryItems } from '../features/unlocks/hacksTipsLibrary';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { trackEvent } from '../lib/analytics';
 
@@ -969,23 +970,25 @@ function LessonsView() {
         {!selectedModule ? (
           /* Lessons coming soon — show feedback panel instead of module list */
           <View style={styles.section}>
-            {/* Hacks & Tips Library — still accessible */}
-            <Pressable
-              style={styles.libraryEntryCard}
-              onPress={() => navigation.navigate('HacksTipsLibrary')}
-            >
-              <View style={styles.libraryEntryHeader}>
-                <View style={styles.libraryEntryBadge}>
-                  <Ionicons name="library-outline" size={14} color={colors.accent} />
-                  <Text style={styles.libraryEntryBadgeText}>Hacks & Tips Library</Text>
+            {/* Hacks & Tips Library — only shown once the user has unlocked at least one deck */}
+            {getUnlockedMiniDeckLibraryItems(completedLessons, tier as any).length > 0 && (
+              <Pressable
+                style={styles.libraryEntryCard}
+                onPress={() => navigation.navigate('HacksTipsLibrary')}
+              >
+                <View style={styles.libraryEntryHeader}>
+                  <View style={styles.libraryEntryBadge}>
+                    <Ionicons name="library-outline" size={14} color={colors.accent} />
+                    <Text style={styles.libraryEntryBadgeText}>Hacks & Tips Library</Text>
+                  </View>
+                  <Ionicons name="arrow-forward" size={16} color={colors.accent} />
                 </View>
-                <Ionicons name="arrow-forward" size={16} color={colors.accent} />
-              </View>
-              <Text style={styles.libraryEntryTitle}>Open your field guide library.</Text>
-              <Text style={styles.libraryEntryBody}>
-                Every mini deck you unlock lives here for quick revisit and review.
-              </Text>
-            </Pressable>
+                <Text style={styles.libraryEntryTitle}>Open your field guide library.</Text>
+                <Text style={styles.libraryEntryBody}>
+                  Every mini deck you unlock lives here for quick revisit and review.
+                </Text>
+              </Pressable>
+            )}
 
             {/* Coming soon feedback panel */}
             <View style={styles.lessonsFeedbackPanel}>

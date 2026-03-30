@@ -2389,9 +2389,9 @@ export default function RecipesScreen() {
             image={typeof item.image === 'string' ? { uri: item.image } : item.image}
             onPress={handleUpgradePress}
             style={{ width: (width - spacing(2) * 2 - GUTTER) / 2, marginBottom: spacing(2) }}
-            xpCost={tier === 'FREE' ? xpCost : undefined} // Only show XP for FREE tier
+            xpCost={tier === 'FREE' ? xpCost : undefined}
             canAfford={canAfford}
-            title={searchQuery.trim() ? (item.name || item.title) : undefined}
+            title={item.name || item.title}
             subtitle={searchQuery.trim() ? getRecipeUnlockHint(item) : undefined}
           />
         </Animated.View>
