@@ -57,6 +57,7 @@ import AIRecommendations from '../../components/AIRecommendations';
 import { useSavedItems } from '../../hooks/useSavedItems';
 import GroceryListModal from '../../components/GroceryListModal';
 import { useUserTier } from '../../store/useUserTier';
+import { usePersonalization } from '../../store/usePersonalization';
 import { canAccessContent } from '../../utils/tierAccess';
 import { useFeatureAccess } from '../../hooks/useFeatureAccess';
 import TierBadge from '../../components/TierBadge';

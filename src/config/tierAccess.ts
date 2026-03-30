@@ -34,26 +34,23 @@ export const DEV_PREVIEW_UNLOCK_COCKTAILS = [
  */
 export const TIER_LIMITS = {
   FREE: {
-    maxBottles: 10,
+    maxBottles: 15,
     // Scans are unlimited in count — XP diminishing returns + 300 XP/day cap is the gate.
     // First scan: 50 XP. Repeat: 5 XP × max 3. After ~6 new bottles the daily cap is hit.
     maxScansPerMonth: Infinity,
     maxSavedCocktails: 0,
-    maxAIMessagesPerDay: 3,
-    maxBarProfiles: 1,
+    maxBarProfiles: Infinity, // Multi-bar no longer gated
   },
   PLUS: {
     maxBottles: Infinity,
     maxScansPerMonth: Infinity,
     maxSavedCocktails: Infinity,
-    maxAIMessagesPerDay: Infinity,
-    maxBarProfiles: 2,
+    maxBarProfiles: Infinity,
   },
   PRO: {
     maxBottles: Infinity,
     maxScansPerMonth: Infinity,
     maxSavedCocktails: Infinity,
-    maxAIMessagesPerDay: Infinity,
     maxBarProfiles: Infinity,
   },
 } as const;
@@ -65,25 +62,16 @@ export const TIER_LIMITS = {
 export const TIER_FEATURES = {
   FREE: {
     // Inventory
-    inventoryLimit: 10,
+    inventoryLimit: 15,
     scansPerMonth: Infinity,
-    multiBarProfiles: 1,
 
     // Discovery
     whatCanIMake: 'spirit-filter-only',
     recipeFilters: 'basic', // Spirit filter only
-    cocktails: FREE_TIER_COCKTAILS.length,
-    recipesFullAccess: FREE_TIER_COCKTAILS,
-    recipesLockedPreview: true,
+    // XP-progressive unlock: free users unlock recipes by earning XP
+    // Clear thumbnails shown for locked recipes with "Unlock at Level X" badge (no blur)
+    recipesLockedPreview: false,
     savedCocktails: 0,
-
-    // AI
-    aiCoach: 'basic', // No memory, no Taste Match %
-    tasteMatch: false,
-    flavorTagsVisible: false,
-    moodSuggestions: false,
-    predictiveEngine: false,
-    longMemory: false,
 
     // Hosting
     partyScaling: 'manual-only',
@@ -91,8 +79,6 @@ export const TIER_FEATURES = {
     hostingPlanner: false,
     hostingBasic: false,
     hostingAdvanced: false,
-    batchOptimizer: false,
-    guestMenuGenerator: false,
     prepTimeline: false,
 
     // Commerce — cart always open
@@ -123,22 +109,19 @@ export const TIER_FEATURES = {
     // XP — all tiers earn
     xpEarn: true,
 
-    // Legacy features (kept for backward compatibility)
-    lessons: 'intro-only',
+    // Vault
+    vaultProDrops: false,
+
+    // Legacy
     seasonalVaultAccess: 'earn-only',
-    monthlyDrops: 'mini-drop',
     challenges: 'limited',
-    brandPerks: false,
     offlineMode: false,
-    recipeBuilder: 'basic',
-    creatorTools: false,
   },
 
   PLUS: {
     // Inventory
     inventoryLimit: Infinity,
     scansPerMonth: Infinity,
-    multiBarProfiles: 2,
 
     // Discovery
     whatCanIMake: 'advanced-filters',
@@ -148,22 +131,12 @@ export const TIER_FEATURES = {
     recipesLockedPreview: false,
     savedCocktails: Infinity,
 
-    // AI
-    aiCoach: 'enhanced', // Taste Match (basic), mood-based suggestions
-    tasteMatch: 'basic',
-    flavorTagsVisible: true,
-    moodSuggestions: 'basic',
-    predictiveEngine: false,
-    longMemory: false,
-
     // Hosting
     partyScaling: 'calculator',
     shoppingListExport: true,
     hostingPlanner: false,
     hostingBasic: true,
     hostingAdvanced: false,
-    batchOptimizer: false,
-    guestMenuGenerator: false,
     prepTimeline: false,
 
     // Commerce — cart always open
@@ -194,47 +167,34 @@ export const TIER_FEATURES = {
     // XP — all tiers earn
     xpEarn: true,
 
-    // Legacy features
-    lessons: 'unlimited',
+    // Vault
+    vaultProDrops: false,
+
+    // Legacy
     seasonalVaultAccess: 'standard',
-    monthlyDrops: 'full-access',
     challenges: 'full-access',
-    brandPerks: 'light',
     offlineMode: true,
-    recipeBuilder: 'enhanced',
-    creatorTools: false,
   },
 
   PRO: {
     // Inventory
     inventoryLimit: Infinity,
     scansPerMonth: Infinity,
-    multiBarProfiles: Infinity,
 
     // Discovery
-    whatCanIMake: 'predictive',
-    recipeFilters: 'advanced-plus-predictive',
+    whatCanIMake: 'full-catalog',
+    recipeFilters: 'advanced',
     cocktails: 'unlimited',
     recipesFullAccess: 'all',
     recipesLockedPreview: false,
     savedCocktails: Infinity,
 
-    // AI
-    aiCoach: 'priority', // Full Taste Graph, predictive engine, long memory
-    tasteMatch: 'full-graph',
-    flavorTagsVisible: true,
-    moodSuggestions: 'advanced',
-    predictiveEngine: true,
-    longMemory: true,
-
-    // Hosting
-    partyScaling: 'batch-optimizer',
+    // Hosting — full loop: guest count → cocktail picks → scaled ingredients → prep timeline
+    partyScaling: 'full',
     shoppingListExport: true,
     hostingPlanner: true,
     hostingBasic: true,
     hostingAdvanced: true,
-    batchOptimizer: true,
-    guestMenuGenerator: true,
     prepTimeline: true,
 
     // Commerce — cart always open
@@ -255,7 +215,7 @@ export const TIER_FEATURES = {
     seasonalAlerts: true,
     predictiveRestock: true,
 
-    // Pro Builder
+    // Pro Builder — ratio + remix + save own versions
     remixEngine: true,
     ratioBalancing: true,
     flavorCorrectionAI: true,
@@ -265,26 +225,16 @@ export const TIER_FEATURES = {
     adjustableFlavorControls: true,
     brandCapture: true,
 
-    // Education
-    education: 'guides-techniques-video',
-
-    // XP & Mastery
-    xpEarn: true,
-    xpLevels: true,
-    masteryLessons: true,
-    practiceMode: true,
-    certifications: true,
+    // Vault
     vaultProDrops: true,
 
-    // Legacy features
-    lessons: 'unlimited-plus-masterclasses',
+    // XP
+    xpEarn: true,
+
+    // Legacy
     seasonalVaultAccess: 'early-access-plus-monthly-key',
-    monthlyDrops: 'early-access-plus-exclusives',
-    challenges: 'vip-only',
-    brandPerks: 'exclusive-offers-tastings-early-event-access',
+    challenges: 'full-access',
     offlineMode: true,
-    recipeBuilder: 'pro-advanced-flavour-modelling',
-    creatorTools: 'menu-exporter-upload-recipes-private-themes',
   },
 } as const;
 
@@ -310,20 +260,25 @@ export const SPIRIT_STARTER_MAP: Record<string, string[]> = {
 };
 
 /**
- * Check if a cocktail is accessible for a given tier
- * Note: This only checks tier access, not XP unlocks
- * For complete access check, also check isCocktailUnlockedWithXP from useXPSystem
+ * Check if a cocktail is accessible for a given tier.
+ *
+ * FREE tier: all cocktails visible with clear thumbnails — no blur.
+ * Locked recipes show an "Unlock at Level X" XP badge instead.
+ * For the full access check (tier + XP level), use isCocktailUnlockedWithXP from useXPSystem.
+ *
+ * PLUS/PRO: entire catalog unlocked — no XP gate.
  */
 export function isCocktailAccessible(cocktailId: string, tier: UserTier): boolean {
   if (tier === 'PLUS' || tier === 'PRO') {
-    return true; // All cocktails accessible
+    return true;
   }
 
   if (__DEV__ && DEV_PREVIEW_UNLOCK_COCKTAILS.includes(cocktailId as any)) {
     return true;
   }
 
-  // FREE tier: only 9 classics (plus any XP-unlocked, checked separately)
+  // FREE tier: starter classics are immediately accessible without XP.
+  // All other recipes are accessible via XP unlock — checked separately via useXPSystem.
   return FREE_TIER_COCKTAILS.includes(cocktailId as any);
 }
 
@@ -340,10 +295,10 @@ export function hasFeatureAccess(feature: string, tier: UserTier): boolean {
  */
 export function getUpgradeMessage(tier: UserTier, feature?: string): string {
   if (tier === 'FREE') {
-    return 'Upgrade to KOOPE+ to unlock all cocktails and recipes';
+    return 'Upgrade to KŌOPE+ to unlock unlimited bottles and the full recipe catalog';
   }
   if (tier === 'PLUS' && feature === 'pro-exclusive') {
-    return 'Upgrade to KOOPE PRO for exclusive content and features';
+    return 'Upgrade to KŌOPE PRO for Vault drops, the recipe builder, and full hosting tools';
   }
   return 'Upgrade to access this feature';
 }

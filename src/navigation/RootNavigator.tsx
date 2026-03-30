@@ -223,7 +223,6 @@ export default function RootNavigator({ initialRouteName = 'Main' }: RootNavigat
   return (
     <View style={styles.container}>
       <OfflineBanner />
-      <TrialBanner />
       <ProUnlockCard />
       <Stack.Navigator
       initialRouteName={initialRouteName}
@@ -470,6 +469,7 @@ export default function RootNavigator({ initialRouteName = 'Main' }: RootNavigat
       <Stack.Screen name="UnlockDeck" component={UnlockDeckScreen} options={{ headerShown: false }} />
       <Stack.Screen name="RecipeCardDetail" component={RecipeCardDetailScreen} options={{ headerShown: false }} />
     </Stack.Navigator>
+    <TrialBanner />
     </View>
   );
 }

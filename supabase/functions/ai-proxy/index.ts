@@ -5,10 +5,18 @@
  *   1. Validate the user's JWT (auth required)
  *   2. Look up their subscription tier from the DB
  *   3. Enforce rate limits per tier
- *   4. Forward valid requests to OpenAI
- *   5. Log usage for analytics
+ *   4. Check ai_response_cache for cacheable features (free, no LLM call)
+ *   5. Forward valid requests to OpenAI on cache miss
+ *   6. Log usage for analytics (cache hits do NOT count against daily limit)
  *
  * This prevents client-side gate bypasses.
+ *
+ * Cache key format: "{feature}:{sorted_key=value_pairs}"
+ * Example: "taste_match:spirit=whiskey,tier=premium"
+ * Example: "remix_engine:bottle_id=woodford-reserve,type=whiskey"
+ * Example: "optimize_my_bar:inventory=campari,gin,sweet-vermouth"
+ *
+ * bartender_chat is NOT cached (conversational — every message is unique).
  */
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
@@ -46,6 +54,20 @@ const TIER_RANK: Record<string, number> = {
   koope_pro: 2,
 }
 
+// These features produce deterministic outputs for the same inputs — safe to cache.
+// bartender_chat is excluded because every conversation is unique.
+const CACHEABLE_FEATURES = new Set([
+  'recipe_generation',
+  'taste_match',
+  'optimize_my_bar',
+  'hosting_basic',
+  'hosting_planner',
+  'hosting_advanced',
+  'predictive_engine',
+  'remix_engine',
+  'flavor_correction',
+])
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -72,7 +94,7 @@ serve(async (req) => {
 
     // 2. Parse request
     const body = await req.json()
-    const { feature, messages, systemPrompt, checkUsageOnly } = body
+    const { feature, messages, systemPrompt, checkUsageOnly, cacheInputs } = body
 
     if (!feature) {
       return jsonError('Missing required field: feature', 400)
@@ -117,7 +139,29 @@ serve(async (req) => {
       return jsonError('Missing required field: messages', 400)
     }
 
-    // 6. Forward to OpenAI
+    // 6. Cache check — for deterministic features only
+    if (CACHEABLE_FEATURES.has(feature) && cacheInputs && typeof cacheInputs === 'object') {
+      const cacheKey = buildCacheKey(cacheInputs)
+      const cached = await getCachedResponse(supabase, feature, cacheKey)
+
+      if (cached) {
+        // Cache hit — return immediately, no LLM call, no rate limit increment
+        bumpCacheHit(supabase, feature, cacheKey) // fire-and-forget
+        return new Response(
+          JSON.stringify({
+            content: cached.response_text,
+            model: cached.model,
+            usage: { promptTokens: cached.prompt_tokens, completionTokens: cached.completion_tokens },
+            dailyUsage,
+            dailyLimit: limits.maxMessagesPerDay,
+            cached: true,
+          }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+    }
+
+    // 7. Forward to OpenAI
     const openaiKey = Deno.env.get('OPENAI_API_KEY')
     if (!openaiKey) {
       return jsonError('AI service not configured', 503)
@@ -150,21 +194,31 @@ serve(async (req) => {
     }
 
     const aiResult = await openaiResponse.json()
+    const responseText = aiResult.choices?.[0]?.message?.content || ''
+    const promptTokens = aiResult.usage?.prompt_tokens
+    const completionTokens = aiResult.usage?.completion_tokens
 
-    // 7. Log usage
+    // 8. Save to cache for deterministic features
+    if (CACHEABLE_FEATURES.has(feature) && cacheInputs && typeof cacheInputs === 'object') {
+      const cacheKey = buildCacheKey(cacheInputs)
+      saveCacheResponse(supabase, feature, cacheKey, responseText, limits.model, promptTokens, completionTokens) // fire-and-forget
+    }
+
+    // 9. Log usage (only on actual LLM calls, not cache hits)
     await logUsage(supabase, user.id, feature, tier)
 
-    // 8. Return response
+    // 10. Return response
     return new Response(
       JSON.stringify({
-        content: aiResult.choices?.[0]?.message?.content || '',
+        content: responseText,
         model: aiResult.model,
         usage: {
-          promptTokens: aiResult.usage?.prompt_tokens,
-          completionTokens: aiResult.usage?.completion_tokens,
+          promptTokens,
+          completionTokens,
         },
         dailyUsage: dailyUsage + 1,
         dailyLimit: limits.maxMessagesPerDay,
+        cached: false,
       }),
       {
         status: 200,
@@ -176,6 +230,98 @@ serve(async (req) => {
     return jsonError(error.message || 'Internal server error', 500)
   }
 })
+
+// ============================================================================
+// CACHE HELPERS
+// ============================================================================
+
+/**
+ * Build a deterministic cache key from an inputs object.
+ * Keys are sorted so { spirit: 'gin', tier: 'premium' } and
+ * { tier: 'premium', spirit: 'gin' } produce the same key.
+ *
+ * For array values, elements are sorted and joined with '+'.
+ * Example output: "spirit=gin,tier=premium"
+ */
+function buildCacheKey(inputs: Record<string, unknown>): string {
+  return Object.keys(inputs)
+    .sort()
+    .map((k) => {
+      const v = inputs[k]
+      if (Array.isArray(v)) {
+        return `${k}=${[...v].sort().join('+')}`
+      }
+      return `${k}=${String(v).toLowerCase().trim()}`
+    })
+    .join(',')
+}
+
+async function getCachedResponse(
+  supabase: any,
+  feature: string,
+  cacheKey: string
+): Promise<{ response_text: string; model: string; prompt_tokens: number | null; completion_tokens: number | null } | null> {
+  const { data } = await supabase
+    .from('ai_response_cache')
+    .select('response_text, model, prompt_tokens, completion_tokens')
+    .eq('feature', feature)
+    .eq('cache_key', cacheKey)
+    .maybeSingle()
+
+  return data ?? null
+}
+
+function bumpCacheHit(supabase: any, feature: string, cacheKey: string): void {
+  supabase
+    .from('ai_response_cache')
+    .rpc('increment_cache_hit', { p_feature: feature, p_cache_key: cacheKey })
+    .then(() => {})
+    .catch(() => {
+      // Fallback: manual update if RPC not available
+      supabase
+        .from('ai_response_cache')
+        .select('id, hit_count')
+        .eq('feature', feature)
+        .eq('cache_key', cacheKey)
+        .maybeSingle()
+        .then(({ data }: { data: any }) => {
+          if (data) {
+            supabase
+              .from('ai_response_cache')
+              .update({ hit_count: data.hit_count + 1, last_hit_at: new Date().toISOString() })
+              .eq('id', data.id)
+              .then(() => {})
+          }
+        })
+    })
+}
+
+function saveCacheResponse(
+  supabase: any,
+  feature: string,
+  cacheKey: string,
+  responseText: string,
+  model: string,
+  promptTokens: number | undefined,
+  completionTokens: number | undefined
+): void {
+  supabase
+    .from('ai_response_cache')
+    .upsert(
+      {
+        feature,
+        cache_key: cacheKey,
+        response_text: responseText,
+        model,
+        prompt_tokens: promptTokens ?? null,
+        completion_tokens: completionTokens ?? null,
+        last_hit_at: new Date().toISOString(),
+        hit_count: 1,
+      },
+      { onConflict: 'feature,cache_key' }
+    )
+    .then(() => {})
+}
 
 // ============================================================================
 // HELPERS

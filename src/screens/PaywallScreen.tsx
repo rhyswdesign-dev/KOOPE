@@ -105,11 +105,11 @@ const PLUS_PLANS: PlanOption[] = [
   {
     id: 'plus_yearly',
     billingPeriod: 'yearly',
-    price: '$49',
-    perMonth: '$4.08/mo',
+    price: '$59',
+    perMonth: '$4.92/mo',
     badge: 'Best Value',
     badgeColor: '#D4AF37',
-    savings: 'Save $35 vs monthly',
+    savings: 'Save $25 vs monthly',
     isRecommended: true,
   },
   {
@@ -125,18 +125,18 @@ const PRO_PLANS: PlanOption[] = [
   {
     id: 'pro_yearly',
     billingPeriod: 'yearly',
-    price: '$119',
-    perMonth: '$9.92/mo',
+    price: '$99',
+    perMonth: '$8.25/mo',
     badge: 'Best Value',
     badgeColor: '#CD7F32',
-    savings: 'Save $61 vs monthly',
+    savings: 'Save $57 vs monthly',
     isRecommended: true,
   },
   {
     id: 'pro_monthly',
     billingPeriod: 'monthly',
-    price: '$14.99',
-    perMonth: '$14.99/mo',
+    price: '$12.99',
+    perMonth: '$12.99/mo',
     isRecommended: false,
   },
 ];
@@ -149,60 +149,72 @@ const PLUS_FEATURES: FeatureBenefit[] = [
   {
     icon: 'wine-outline',
     title: 'Unlimited inventory & advanced filters',
-    description: 'No bottle limits, filter by count, sugar, spirit-forward',
+    description: 'No bottle limits. Filter by ingredient count, sugar level, spirit-forward.',
   },
   {
-    icon: 'bookmark-outline',
-    title: 'Save favorites & smart inventory',
-    description: 'Unlimited saves, bar health score, expiry alerts',
+    icon: 'albums-outline',
+    title: 'Full recipe catalog + unlimited saves',
+    description: 'Every recipe unlocked. Save as many favourites as you want.',
   },
   {
     icon: 'bar-chart-outline',
     title: '"Optimize My Bar" analysis',
-    description: 'See what to buy next for maximum cocktail reach',
+    description: 'Gap analysis shows exactly what to buy next for maximum cocktail reach.',
   },
   {
     icon: 'people-outline',
-    title: 'Basic hosting tools',
-    description: 'Party scaling, shopping list export (1-4 guests)',
+    title: 'Party scaling + shopping list export',
+    description: 'Scale any recipe for a crowd. Export your shopping list in one tap.',
+  },
+  {
+    icon: 'checkmark-circle-outline',
+    title: 'Smart inventory tracking',
+    description: 'Bar health score, expiry alerts, bottle level tracking.',
   },
 ];
 
 const PRO_FEATURES: FeatureBenefit[] = [
   {
-    icon: 'trophy-outline',
-    title: 'Mastery lessons & XP levels',
-    description: 'Certifications, practice mode, and level progression',
+    icon: 'flash-outline',
+    title: 'Vault weekly drops',
+    description: 'A new featured cocktail every week — full story, technique, and sourcing context.',
   },
   {
-    icon: 'pulse-outline',
-    title: 'Full Predictive Engine & Taste Graph',
-    description: 'AI that learns and predicts what you want',
+    icon: 'construct-outline',
+    title: 'Pro Recipe Builder',
+    description: 'Build from ratios. Remix classics. Save your own versions.',
   },
   {
     icon: 'restaurant-outline',
-    title: 'Advanced hosting (5+ guests)',
-    description: 'Batch optimizer, guest menus, prep timelines',
+    title: 'Full hosting tools',
+    description: 'Guest count → cocktail picks → scaled ingredients → prep timeline.',
   },
-  {
-    icon: 'color-wand-outline',
-    title: 'Flavor sliders & brand capture',
-    description: 'Fine-tune your taste profile, track specific brands',
-  },
+];
+
+const PLUS_COMING_SOON: string[] = [
+  'Taste Match % — cocktail scores matched to your palate',
+  'Mood suggestions — cocktails based on how you feel',
+  'Enhanced AI bartender with memory',
+];
+
+const PRO_COMING_SOON: string[] = [
+  'Mastery lessons & technique guides',
+  'Predictive engine & taste graph',
+  'Flavor sliders & brand capture',
 ];
 
 const TIER_NARRATIVES: Record<TierTab, TierNarrative> = {
   koope_plus: {
     tierLabel: 'KŌOPE+',
     roleLabel: 'Bar Builder',
-    headline: 'Build the bar you actually run through the app',
-    subtitle: 'Unlimited inventory, full recipe access, bar health, optimizer tools, and hosting basics for real habit-forming use.',
+    headline: 'Build the bar you actually use',
+    subtitle: 'Unlimited bottles, the full recipe catalog, smart inventory tools, and a party scaling calculator — everything to run your home bar properly.',
   },
   koope_pro: {
     tierLabel: 'KŌOPE PRO',
     roleLabel: 'Craft Identity',
-    headline: 'Give your bar a taste identity and premium intelligence',
-    subtitle: 'Taste Graph, predictive recommendations, advanced hosting, mastery, and prestige layers that make KŌOPE feel personal.',
+    headline: 'Go deeper with every pour',
+    subtitle: 'Weekly vault drops, a pro recipe builder, and full hosting tools that take you from guest count to prep timeline.',
   },
 };
 
@@ -332,6 +344,7 @@ export default function PaywallScreen({ route }: PaywallScreenProps) {
 
   const plans = selectedTier === 'koope_plus' ? plansFromOfferings.plusPlans : plansFromOfferings.proPlans;
   const features = selectedTier === 'koope_plus' ? PLUS_FEATURES : PRO_FEATURES;
+  const comingSoon = selectedTier === 'koope_plus' ? PLUS_COMING_SOON : PRO_COMING_SOON;
   const tierColor = colors.gold;
   const narrative = TIER_NARRATIVES[selectedTier];
   const tierName = narrative.tierLabel;
@@ -629,6 +642,20 @@ export default function PaywallScreen({ route }: PaywallScreenProps) {
         <View style={styles.featuresSection}>
           <Text style={styles.featuresSectionTitle}>What you get</Text>
           {features.map(renderFeature)}
+        </View>
+
+        {/* Coming Soon */}
+        <View style={styles.comingSoonSection}>
+          <View style={styles.comingSoonHeader}>
+            <Ionicons name="time-outline" size={14} color={colors.subtext} />
+            <Text style={styles.comingSoonTitle}>Coming soon</Text>
+          </View>
+          {comingSoon.map((item, i) => (
+            <View key={i} style={styles.comingSoonRow}>
+              <View style={styles.comingSoonDot} />
+              <Text style={styles.comingSoonText}>{item}</Text>
+            </View>
+          ))}
         </View>
 
         {/* Legal */}
@@ -941,6 +968,49 @@ const styles = StyleSheet.create({
     color: colors.subtext,
     lineHeight: 18,
     flex: 1,
+  },
+
+  // Coming Soon
+  comingSoonSection: {
+    marginHorizontal: 20,
+    marginTop: 24,
+    padding: 16,
+    borderRadius: 14,
+    backgroundColor: 'rgba(242,229,213,0.04)',
+    borderWidth: 1,
+    borderColor: 'rgba(242,229,213,0.1)',
+    gap: 10,
+  },
+  comingSoonHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 2,
+  },
+  comingSoonTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.subtext,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  comingSoonRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  comingSoonDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.subtext,
+    opacity: 0.5,
+  },
+  comingSoonText: {
+    flex: 1,
+    fontSize: 13,
+    color: colors.subtext,
+    lineHeight: 18,
   },
 
   // Legal

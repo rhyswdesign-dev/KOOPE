@@ -136,6 +136,27 @@ function isWeakTastingNote(value: string): boolean {
   const normalized = String(value || '').trim().toLowerCase();
   if (!normalized) return true;
 
+  if (/\d/.test(normalized)) return true; // likely a spec or numbered instruction
+
+  const methodyWords = [
+    'recipe',
+    'spec',
+    'build',
+    'built',
+    'shaken',
+    'shake',
+    'stirred',
+    'stir',
+    'strain',
+    'double strain',
+    'garnish',
+    'serve',
+    'pour',
+    'finish',
+  ];
+
+  if (methodyWords.some((needle) => normalized.includes(needle))) return true;
+
   return [
     'a classic cocktail recipe.',
     'a classic cocktail recipe',

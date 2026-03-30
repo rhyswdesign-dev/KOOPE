@@ -399,41 +399,63 @@ export class GoogleVisionService {
 
   /**
    * Extract the most likely bottle name from OCR text.
-   * Used as the query to spirit-lookup when local DB matching fails.
+   * Uses the full Vision text block (index 0) which contains newline-separated
+   * lines, giving much cleaner results than the individual word tokens.
    */
   static extractBottleNameFromOCR(result: VisionResult): string | null {
-    const lines = (result.text || [])
-      .map(t => t.trim())
-      .filter(t => t.length > 1);
+    const textTokens = result.text || [];
+    if (textTokens.length === 0) return null;
+
+    // textAnnotations[0] from Vision is the full concatenated text block with
+    // newlines between lines. Split it to get actual label lines.
+    const fullBlock = textTokens[0] || '';
+    const lines = fullBlock
+      .split(/\n/)
+      .map(l => l.trim())
+      .filter(l => l.length >= 3);
 
     if (lines.length === 0) return null;
 
-    // The first full-text annotation from Vision is the concatenated block —
-    // skip it (often contains everything). Look for short, capitalised lines
-    // that are likely the brand or product name.
-    const candidates = lines
-      .filter(line => line.length >= 3 && line.length <= 40)
-      .filter(line => !/^(\d+(\.\d+)?%?|ALC|ABV|VOL|CL|ML|PROOF)$/i.test(line))
-      .filter(line => !/^(DISTILLED|BOTTLED|PRODUCED|EST\.|SINCE|LIMITED)/i.test(line));
+    // Score each line — higher = more likely to be the brand/product name
+    const NOISE = /^(\d+(\.\d+)?(%|CL|ML|L)?|ALC|ABV|VOL|PROOF|DISTILLED|BOTTLED|PRODUCED|EST\.|SINCE|LIMITED|IMPORTED|CONTAINS|PRODUCT|WARNING|GOVERNMENT|DRINK|RESPONSIBLY|www\.|©)$/i;
+    const scored = lines
+      .filter(l => !NOISE.test(l))
+      .filter(l => l.length <= 50)
+      .map(l => {
+        let score = 0;
+        // Prefer lines that are mostly uppercase (label text)
+        const upperRatio = (l.match(/[A-Z]/g) || []).length / l.replace(/\s/g, '').length;
+        if (upperRatio > 0.7) score += 3;
+        // Prefer medium-length lines (brand names are rarely 1 word of 3 chars)
+        if (l.length >= 5 && l.length <= 25) score += 2;
+        // Boost known spirit-type words
+        if (/\b(amaro|gin|vodka|rum|whiskey|whisky|bourbon|scotch|tequila|mezcal|cognac|brandy|liqueur|bitter|aperitivo|vermouth)\b/i.test(l)) score += 4;
+        return { line: l, score };
+      })
+      .sort((a, b) => b.score - a.score);
 
-    // Prefer the first 1-3 candidate tokens joined — that's typically "BRAND NAME"
-    if (candidates.length === 0) return lines[0].slice(0, 60);
-    return candidates.slice(0, 3).join(' ').slice(0, 80);
+    if (scored.length === 0) return lines[0].slice(0, 60);
+
+    // Take the top 1-3 lines to form a name query
+    const topLines = scored.slice(0, 3).map(s => s.line);
+    return topLines.join(' ').slice(0, 80);
   }
 
   /**
    * Call the spirit-lookup edge function (cache → Claude fallback).
    * Converts the edge function response into a Spirit-compatible object.
    */
-  static async lookupBottleProfile(bottleName: string): Promise<Spirit | null> {
+  static async lookupBottleProfile(bottleName: string, visionResult?: VisionResult): Promise<Spirit | null> {
     try {
       const { data, error } = await supabase.functions.invoke('spirit-lookup', {
         body: { bottleName },
       });
 
       if (error || !data?.profile) {
-        log.warn('GoogleVisionService', 'spirit-lookup failed', error);
-        return null;
+        log.warn('GoogleVisionService', 'spirit-lookup failed, using OCR fallback', error);
+        // Build a minimal Spirit from what Vision already read so the user still
+        // lands on a bottle detail screen rather than "Bottle Not Recognized".
+        return visionResult ? this.buildFallbackSpirit(bottleName, visionResult) : null;
       }
 
       const p = data.profile;
@@ -466,6 +488,57 @@ export class GoogleVisionService {
       log.error('GoogleVisionService', 'lookupBottleProfile error', err);
       return null;
     }
+  }
+
+  /**
+   * Build a minimal Spirit profile from OCR text when the edge function is unavailable.
+   * Infers spirit type from label text so the BottleDetailScreen shows correct info.
+   */
+  private static buildFallbackSpirit(bottleName: string, result: VisionResult): Spirit {
+    const allText = (result.text?.[0] || '').toLowerCase();
+
+    const TYPE_KEYWORDS: Array<{ keywords: string[]; type: Spirit['type'] }> = [
+      { keywords: ['amaro', 'bitter', 'bitters'], type: 'liqueur' },
+      { keywords: ['gin'], type: 'gin' },
+      { keywords: ['vodka'], type: 'vodka' },
+      { keywords: ['rum', 'rhum', 'ron'], type: 'rum' },
+      { keywords: ['whiskey', 'whisky', 'bourbon', 'scotch', 'rye'], type: 'whiskey' },
+      { keywords: ['tequila', 'mezcal', 'agave'], type: 'tequila' },
+      { keywords: ['cognac', 'brandy', 'armagnac'], type: 'brandy' },
+      { keywords: ['liqueur', 'liqueur'], type: 'liqueur' },
+    ];
+
+    let spiritType: Spirit['type'] = 'other';
+    for (const { keywords, type } of TYPE_KEYWORDS) {
+      if (keywords.some(k => allText.includes(k))) {
+        spiritType = type;
+        break;
+      }
+    }
+
+    // Try to extract ABV from OCR text
+    const abvMatch = allText.match(/(\d{1,2}(?:\.\d)?)\s*%/);
+    const abv = abvMatch ? parseFloat(abvMatch[1]) : 38;
+
+    const slug = bottleName.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 40);
+
+    return {
+      id: `ocr-${slug}`,
+      name: bottleName,
+      brand: bottleName.split(' ')[0],
+      type: spiritType,
+      abv,
+      priceTier: 'mid-range',
+      priceEstimate: {
+        USD: { min: 20, max: 40 },
+        CAD: { min: 28, max: 52 },
+        GBP: { min: 18, max: 35 },
+      },
+      flavorProfile: [],
+      tastingNotes: '',
+      origin: '',
+      searchTerms: [bottleName.toLowerCase()],
+    };
   }
 
   /**

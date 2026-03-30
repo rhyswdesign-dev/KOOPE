@@ -65,6 +65,12 @@ const TITLE_CASE_WHITELIST = new Set([
   'lillet',
   'falernum',
   'orgeat',
+  'beer',
+  'coffee',
+  'espresso',
+  'cola',
+  'seltzer',
+  'grenadine',
   'chartreuse',
   'curaçao',
   'creme',
@@ -81,7 +87,16 @@ const TITLE_CASE_WHITELIST = new Set([
   'coin',
   'rind',
   'garnish',
+  'ruby',
+  'port',
+  'egg',
+  'yolk',
+  'white',
+  'passion',
+  'fruit',
 ]);
+
+const SMALL_WORDS = new Set(['of', 'and', 'with', 'into', 'to', 'for', 'in', 'on', 'at', 'or', 'plus', 'cut']);
 
 const INGREDIENT_PHRASE_REPLACEMENTS: Array<[RegExp, string]> = [
   [/\bcreme de cacao\b/gi, 'Crème de cacao'],
@@ -90,17 +105,31 @@ const INGREDIENT_PHRASE_REPLACEMENTS: Array<[RegExp, string]> = [
   [/\bcafe\b/gi, 'Cafe'],
 ];
 
-function titleCaseToken(token: string): string {
+function capitalize(token: string): string {
+  return token.charAt(0).toUpperCase() + token.slice(1);
+}
+
+function titleCaseToken(token: string, index: number): string {
   if (!token) return token;
   if (/^\d/.test(token)) return token;
   if (token === token.toUpperCase() && token.length > 1) return token;
-  if (/^[a-z]+(?:['’-][a-z]+)?$/i.test(token)) {
-    const lower = token.toLowerCase();
-    if (TITLE_CASE_WHITELIST.has(lower)) {
-      return lower.charAt(0).toUpperCase() + lower.slice(1);
+
+  const normalized = token.normalize('NFC');
+  const lower = normalized.toLowerCase();
+
+  if (/^[\p{L}]+(?:['’-][\p{L}]+)?$/u.test(normalized)) {
+    if (SMALL_WORDS.has(lower) && index > 0) {
+      return lower;
     }
+
+    if (TITLE_CASE_WHITELIST.has(lower)) {
+      return capitalize(lower);
+    }
+
+    return capitalize(lower);
   }
-  return token;
+
+  return normalized;
 }
 
 function normalizeIngredientName(raw: string): string {
@@ -109,21 +138,23 @@ function normalizeIngredientName(raw: string): string {
 
   const titleCased = trimmed
     .split(' ')
-    .map((part) => {
+    .map((part, index) => {
       if (part.includes('-')) {
         return part
           .split('-')
-          .map((subPart) => titleCaseToken(subPart))
+          .map((subPart) => titleCaseToken(subPart, index))
           .join('-');
       }
-      return titleCaseToken(part);
+      return titleCaseToken(part, index);
     })
     .join(' ');
 
-  return INGREDIENT_PHRASE_REPLACEMENTS.reduce(
+  const cleaned = INGREDIENT_PHRASE_REPLACEMENTS.reduce(
     (value, [pattern, replacement]) => value.replace(pattern, replacement),
     titleCased
   );
+
+  return cleaned.replace(/[.,;:]+$/, '');
 }
 
 function normalizeIngredientNote(rawNote: string | undefined): string | undefined {

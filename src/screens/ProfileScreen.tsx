@@ -161,19 +161,24 @@ export default function ProfileScreen() {
   // Compute what vault content the user can currently afford with their XP.
   // Only used in the free-user affordability card; shows XP as currency, not just a score.
   const vaultAffordability = useMemo(() => {
-    const freeVariations = cocktailVariations.filter(v => !v.requiredTier);
-    const freePlaybooks = techniquePlaybooks.filter(p => !p.requiredTier);
-    const freeGames = drinkingGames.filter(g => !g.requiredTier);
+    const safeVariations = cocktailVariations || [];
+    const safePlaybooks = techniquePlaybooks || [];
+    const safeGames = drinkingGames || [];
+    const safeBarFeatures = barFeatures || [];
+
+    const freeVariations = safeVariations.filter(v => !v.requiredTier);
+    const freePlaybooks = safePlaybooks.filter(p => !p.requiredTier);
+    const freeGames = safeGames.filter(g => !g.requiredTier);
 
     const affordableVariations = freeVariations.filter(v => v.xpCost <= totalXP).length;
     const affordablePlaybooks = freePlaybooks.filter(p => p.xpCost <= totalXP).length;
     const affordableGames = freeGames.filter(g => g.xpCost <= totalXP).length;
 
     const plusGatedCount = [
-      ...cocktailVariations.filter(v => v.requiredTier === 'PLUS'),
-      ...techniquePlaybooks.filter(p => p.requiredTier === 'PLUS'),
-      ...drinkingGames.filter(g => g.requiredTier === 'PLUS'),
-      ...barFeatures.filter(b => b.requiredTier === 'PLUS'),
+      ...safeVariations.filter(v => v.requiredTier === 'PLUS'),
+      ...safePlaybooks.filter(p => p.requiredTier === 'PLUS'),
+      ...safeGames.filter(g => g.requiredTier === 'PLUS'),
+      ...safeBarFeatures.filter(b => b.requiredTier === 'PLUS'),
     ].length;
 
     const cheapestFreeItem = Math.min(

@@ -141,7 +141,7 @@ class SearchService {
         cocktail.base || 'spirit',
         cocktail.difficulty?.toLowerCase() || 'medium',
         ...(cocktail.ingredients || []).map(ing =>
-          formatIngredientDisplay(ing).name.toLowerCase().split(' ').filter(word => word.length > 3)
+          formatIngredientDisplay(ing).name.toLowerCase().split(' ').filter(word => word.length > 2)
         ).flat(),
         'cocktail'
       ].filter(Boolean),

@@ -30,6 +30,7 @@ import { log } from '../lib/logger';
 import { InventoryService } from '../services/inventoryService';
 import { useAuth } from '../contexts/AuthContext';
 import { useSubscription } from '../contexts/SubscriptionContext';
+import { supabase } from '../lib/supabase';
 import DataConsentDialog from '../components/modals/DataConsentDialog';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -270,9 +271,13 @@ export default function SmartScanScreen() {
           // 2. If not in local DB, ask Claude (cache → LLM)
           if (!bottle) {
             const extractedName = GoogleVisionService.extractBottleNameFromOCR(visionResult);
+            console.log('[SpiritLookup] extractedName:', extractedName);
             if (extractedName) {
-              log.info('SmartScanScreen', 'Local match failed, trying AI lookup', { extractedName });
-              bottle = await GoogleVisionService.lookupBottleProfile(extractedName);
+              try {
+                bottle = await GoogleVisionService.lookupBottleProfile(extractedName, visionResult);
+              } catch (lookupErr: any) {
+                console.log('[SpiritLookup] threw:', lookupErr?.message);
+              }
             }
           }
 

@@ -1,20 +1,21 @@
 /**
- * TrialBanner — slim persistent banner shown during the 7-day PLUS trial.
+ * TrialBanner — floating pill banner shown during the 7-day PLUS trial.
  *
- * Days 1–5: amber, "PLUS TRIAL · X DAYS LEFT"
- * Days 6–7: gold with ⚡, "PRO UNLOCKED · X DAYS LEFT"
+ * Days 1–5: amber, "PLUS TRIAL · X days left"
+ * Days 6–7: gold with ⚡, "PRO UNLOCKED · X days left"
+ * Expired: "Trial ended — choose your plan"
  *
- * Sits in the app layout flow (not absolute) so it doesn't cover content.
+ * Absolutely positioned above the tab bar so it doesn't push content.
  * Tapping it opens the Paywall to prompt conversion.
  */
 
 import React, { useEffect, useRef } from 'react';
 import {
   Animated,
+  Platform,
   Text,
   TouchableOpacity,
   StyleSheet,
-  View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -22,7 +23,8 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { useTrialStatus } from '../hooks/useTrialStatus';
 
-const BANNER_H = 36;
+// Sits just above the standard tab bar + home indicator
+const TAB_OFFSET = Platform.OS === 'ios' ? 92 : 66;
 const AMBER = '#D68A38';
 const AMBER_DARK = '#1A120D';
 const PRO_GOLD = '#E8B84B';
@@ -30,26 +32,26 @@ const PRO_GOLD = '#E8B84B';
 export function TrialBanner() {
   const { isInTrial, trialDay, daysRemaining, isProPhase, trialExpired } = useTrialStatus();
   const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const heightAnim = useRef(new Animated.Value(0)).current;
+  const translateAnim = useRef(new Animated.Value(80)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
 
   const visible = isInTrial || trialExpired;
 
   useEffect(() => {
     Animated.parallel([
-      Animated.spring(heightAnim, {
-        toValue: visible ? BANNER_H : 0,
-        tension: 60,
-        friction: 10,
-        useNativeDriver: false,
+      Animated.spring(translateAnim, {
+        toValue: visible ? 0 : 80,
+        tension: 55,
+        friction: 11,
+        useNativeDriver: true,
       }),
       Animated.timing(opacityAnim, {
         toValue: visible ? 1 : 0,
-        duration: 250,
-        useNativeDriver: false,
+        duration: 220,
+        useNativeDriver: true,
       }),
     ]).start();
-  }, [visible, heightAnim, opacityAnim]);
+  }, [visible, translateAnim, opacityAnim]);
 
   if (!visible) return null;
 
@@ -58,17 +60,22 @@ export function TrialBanner() {
     isProPhase ? 'flash' : 'timer-outline';
 
   const label = trialExpired
-    ? 'Your trial has ended — choose a plan'
+    ? 'Trial ended — choose your plan'
     : isProPhase
-    ? `PRO UNLOCKED · ${daysRemaining} ${daysRemaining === 1 ? 'DAY' : 'DAYS'} LEFT`
-    : `PLUS TRIAL · DAY ${trialDay} OF 7 · ${daysRemaining} ${daysRemaining === 1 ? 'DAY' : 'DAYS'} LEFT`;
+    ? `PRO UNLOCKED · ${daysRemaining} ${daysRemaining === 1 ? 'day' : 'days'} left`
+    : `PLUS TRIAL · Day ${trialDay} of 7 · ${daysRemaining} ${daysRemaining === 1 ? 'day' : 'days'} left`;
 
   return (
     <Animated.View
       style={[
-        styles.container,
-        { height: heightAnim, opacity: opacityAnim, backgroundColor: bgColor },
+        styles.pill,
+        {
+          backgroundColor: bgColor,
+          transform: [{ translateY: translateAnim }],
+          opacity: opacityAnim,
+        },
       ]}
+      pointerEvents="box-none"
     >
       <TouchableOpacity
         style={styles.inner}
@@ -79,35 +86,49 @@ export function TrialBanner() {
             displayCloseButton: true,
           })
         }
-        activeOpacity={0.8}
+        activeOpacity={0.85}
       >
-        <Ionicons name={icon} size={13} color={AMBER_DARK} />
-        <Text style={styles.label}>{label}</Text>
-        <Ionicons name="chevron-forward" size={13} color={AMBER_DARK} style={{ opacity: 0.6 }} />
+        <Ionicons name={icon} size={14} color={AMBER_DARK} />
+        <Text style={styles.label} numberOfLines={1}>{label}</Text>
+        <Ionicons name="chevron-forward" size={13} color={AMBER_DARK} style={styles.chevron} />
       </TouchableOpacity>
     </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    overflow: 'hidden',
+  pill: {
+    position: 'absolute',
+    bottom: TAB_OFFSET,
+    left: 20,
+    right: 20,
+    borderRadius: 30,
+    height: 44,
+    // Shadow
+    shadowColor: '#000',
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 8,
   },
   inner: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    paddingHorizontal: 16,
+    gap: 7,
+    paddingHorizontal: 18,
   },
   label: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '700',
-    letterSpacing: 0.8,
+    letterSpacing: 0.4,
     color: AMBER_DARK,
     flex: 1,
     textAlign: 'center',
+  },
+  chevron: {
+    opacity: 0.55,
   },
 });
 

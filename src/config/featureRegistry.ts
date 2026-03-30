@@ -144,9 +144,9 @@ export const FEATURE_REGISTRY: Record<FeatureKey, FeatureDefinition> = {
     category: 'inventory',
   },
   multi_bar: {
-    minTier: 'PLUS',
+    minTier: 'FREE',
     displayName: 'Multi-Bar Profiles',
-    description: 'Manage up to 2 separate bar profiles.',
+    description: 'Manage separate bar profiles.',
     paywallTarget: 'plus',
     category: 'inventory',
   },
@@ -343,14 +343,14 @@ export const FEATURE_REGISTRY: Record<FeatureKey, FeatureDefinition> = {
     category: 'hosting',
   },
   batch_optimizer: {
-    minTier: 'PRO',
+    minTier: 'FREE',
     displayName: 'Batch Optimizer',
     description: 'Smart batch calculations for large parties.',
     paywallTarget: 'pro',
     category: 'hosting',
   },
   guest_menu_generator: {
-    minTier: 'PRO',
+    minTier: 'FREE',
     displayName: 'Guest Menu Generator',
     description: 'Auto-generate crowd-pleasing menus for your guest count.',
     paywallTarget: 'pro',
@@ -542,10 +542,10 @@ export const FEATURE_REGISTRY: Record<FeatureKey, FeatureDefinition> = {
     category: 'education',
   },
   lessons_unlimited: {
-    minTier: 'PLUS',
+    minTier: 'PRO',
     displayName: 'Unlimited Lessons',
-    description: 'Access all cocktail lessons and masterclasses.',
-    paywallTarget: 'plus',
+    description: 'Access all cocktail lessons and masterclasses. Coming soon.',
+    paywallTarget: 'pro',
     category: 'education',
   },
   premium_serve_guidance: {
@@ -570,10 +570,10 @@ export const FEATURE_REGISTRY: Record<FeatureKey, FeatureDefinition> = {
     category: 'education',
   },
   weekly_drops: {
-    minTier: 'PLUS',
-    displayName: 'Weekly For You Drops',
-    description: 'Curated recipe drops delivered every week, matched to your taste profile.',
-    paywallTarget: 'plus',
+    minTier: 'PRO',
+    displayName: 'Vault Weekly Drops',
+    description: 'A curated featured cocktail drops every week — full story, technique, and sourcing context.',
+    paywallTarget: 'pro',
     category: 'discovery',
   },
 };
