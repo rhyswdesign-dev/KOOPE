@@ -6,6 +6,7 @@
 import React, { useState, useLayoutEffect, useCallback, useMemo } from 'react';
 import {
   ScrollView,
+  FlatList,
   View,
   Text,
   StyleSheet,
@@ -594,6 +595,39 @@ export default function HomeBarScreen() {
   const { gate: expiryAlertsGate } = useFeatureAccess('expiry_alerts');
   const { gate: barHealthGate } = useFeatureAccess('bar_health_score');
   const { user } = useAuth();
+
+  // Defined after gate hooks so closures capture the latest gate functions.
+  // Using a flat array + FlatList (not nested ScrollView) avoids gesture conflicts.
+  const FEATURE_CARDS = useMemo(() => [
+    {
+      key: 'hosting',
+      title: 'Hosting',
+      subtitle: 'Guest menu planner',
+      icon: 'people-outline' as const,
+      onPress: () => hostingBasicGate('T6', () => nav.navigate('Hosting')),
+    },
+    {
+      key: 'optimize',
+      title: 'Optimize',
+      subtitle: 'What to buy next',
+      icon: 'bar-chart-outline' as const,
+      onPress: () => optimizeMyBarGate('T4', () => nav.navigate('BarOptimizer')),
+    },
+    {
+      key: 'expiry',
+      title: 'Expiry Alerts',
+      subtitle: 'Use-first list',
+      icon: 'time-outline' as const,
+      onPress: () => expiryAlertsGate(() => nav.navigate('InventoryInsights', { mode: 'expiry' })),
+    },
+    {
+      key: 'health',
+      title: 'Bar Health',
+      subtitle: 'Coverage score',
+      icon: 'analytics-outline' as const,
+      onPress: () => barHealthGate(() => nav.navigate('InventoryInsights', { mode: 'health' })),
+    },
+  ], [hostingBasicGate, optimizeMyBarGate, expiryAlertsGate, barHealthGate, nav]);
   const [showSearchModal, setShowSearchModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchModalQuery, setSearchModalQuery] = useState('');
@@ -1545,59 +1579,28 @@ export default function HomeBarScreen() {
           onScrollHaptic(event);
         }}
       >
-        {/* Feature Cards — horizontal scroll */}
+        {/* Feature Cards — horizontal FlatList avoids nested-ScrollView gesture conflicts */}
         {all.length > 0 && (
-          <ScrollView
+          <FlatList
             horizontal
+            data={FEATURE_CARDS}
+            keyExtractor={(item) => item.key}
             showsHorizontalScrollIndicator={false}
             style={styles.featureCardsScroll}
             contentContainerStyle={styles.featureCardsContent}
-          >
-            <TouchableOpacity
-              style={styles.featureCard}
-              onPress={withHaptic(() => hostingBasicGate('T6', () => nav.navigate('Hosting')))}
-            >
-              <View style={styles.featureCardIconWrap}>
-                <Ionicons name="people-outline" size={26} color={colors.accent} />
-              </View>
-              <Text style={styles.featureCardTitle}>Hosting</Text>
-              <Text style={styles.featureCardSubtitle}>Guest menu planner</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.featureCard}
-              onPress={withHaptic(() => optimizeMyBarGate('T4', () => nav.navigate('BarOptimizer')))}
-            >
-              <View style={styles.featureCardIconWrap}>
-                <Ionicons name="bar-chart-outline" size={26} color={colors.accent} />
-              </View>
-              <Text style={styles.featureCardTitle}>Optimize</Text>
-              <Text style={styles.featureCardSubtitle}>What to buy next</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.featureCard}
-              onPress={withHaptic(() => expiryAlertsGate(() => nav.navigate('InventoryInsights', { mode: 'expiry' })))}
-            >
-              <View style={styles.featureCardIconWrap}>
-                <Ionicons name="time-outline" size={26} color={colors.accent} />
-              </View>
-              <Text style={styles.featureCardTitle}>Expiry Alerts</Text>
-              <Text style={styles.featureCardSubtitle}>Use-first list</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.featureCard}
-              onPress={withHaptic(() => barHealthGate(() => nav.navigate('InventoryInsights', { mode: 'health' })))}
-            >
-              <View style={styles.featureCardIconWrap}>
-                <Ionicons name="analytics-outline" size={26} color={colors.accent} />
-              </View>
-              <Text style={styles.featureCardTitle}>Bar Health</Text>
-              <Text style={styles.featureCardSubtitle}>Coverage score</Text>
-            </TouchableOpacity>
-
-          </ScrollView>
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={styles.featureCard}
+                onPress={withHaptic(item.onPress)}
+              >
+                <View style={styles.featureCardIconWrap}>
+                  <Ionicons name={item.icon} size={26} color={colors.accent} />
+                </View>
+                <Text style={styles.featureCardTitle}>{item.title}</Text>
+                <Text style={styles.featureCardSubtitle}>{item.subtitle}</Text>
+              </TouchableOpacity>
+            )}
+          />
         )}
 
         {/* Category Filters — above inventory list */}
