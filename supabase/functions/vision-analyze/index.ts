@@ -2,9 +2,15 @@
  * Vision Analyze Edge Function
  * Proxies Google Cloud Vision API calls so the API key stays server-side.
  * Accepts a base64-encoded image, returns labels + OCR text.
+ *
+ * Rate limiting:
+ *   - FREE users: 30 scans/day
+ *   - PLUS/PRO users: 200 scans/day (abuse protection only — normal use never hits this)
+ *   - Unauthenticated: rejected
  */
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -13,19 +19,60 @@ const corsHeaders = {
 
 const VISION_API_ENDPOINT = 'https://vision.googleapis.com/v1/images:annotate'
 
+// Daily scan limits per tier
+const LIMIT_FREE = 30
+const LIMIT_PAID = 200 // PLUS/PRO — cost protection only, not a feature gate
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
-    // Parse request
+    // ── Auth & rate limiting ──────────────────────────────────────────────────
+
+    const authHeader = req.headers.get('authorization')
+    if (!authHeader) {
+      return jsonError('Unauthorized', 401)
+    }
+
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    const supabase = createClient(supabaseUrl, serviceRoleKey)
+
+    // Verify JWT and extract user
+    const jwt = authHeader.replace('Bearer ', '')
+    const { data: { user }, error: authError } = await supabase.auth.getUser(jwt)
+    if (authError || !user) {
+      return jsonError('Unauthorized', 401)
+    }
+
+    // Determine tier from user metadata (set by RevenueCat webhook or trial logic)
+    const tier: string = user.user_metadata?.tier ?? 'FREE'
+    const dailyLimit = tier === 'FREE' ? LIMIT_FREE : LIMIT_PAID
+
+    // Upsert today's scan count and read it back atomically
+    const today = new Date().toISOString().split('T')[0] // YYYY-MM-DD
+    const { data: rateRow, error: rateError } = await supabase
+      .rpc('increment_scan_count', { p_user_id: user.id, p_date: today })
+
+    if (rateError) {
+      // Don't block scans if rate limit table is unavailable — log and continue
+      console.error('Rate limit check failed:', rateError.message)
+    } else if (rateRow !== null && rateRow > dailyLimit) {
+      return jsonError(
+        `Daily scan limit reached (${dailyLimit}/day). Come back tomorrow.`,
+        429
+      )
+    }
+
+    // ── Vision API call ───────────────────────────────────────────────────────
+
     const { imageBase64 } = await req.json()
     if (!imageBase64) {
       return jsonError('Missing imageBase64', 400)
     }
 
-    // Call Google Vision
     const visionKey = Deno.env.get('GOOGLE_VISION_API_KEY')
     if (!visionKey) {
       return jsonError('Vision API not configured', 503)
