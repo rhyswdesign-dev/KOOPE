@@ -40,6 +40,7 @@ const TOUR_META: Record<ScreenTourId, { title: string; subtitle: string }> = {
   cellar_watch: { title: 'Cellar — Watchlist', subtitle: 'Track bottles you want to buy in the future' },
   cellar_vault: { title: 'Cellar — Vault', subtitle: 'Browse your lots and get deep collector reads' },
   cellar_bottle_detail: { title: 'Cellar — Bottle Detail', subtitle: 'Price history, directive, and edit flow' },
+  trial_pro_unlock: { title: 'PRO Features Tour', subtitle: 'Vault drops, recipe builder, and hosting tools' },
 };
 
 interface ActiveTourState {
@@ -86,6 +87,7 @@ export default function TutorialsScreen() {
       cellar_watch: ['cellar_home', 'cellar_market', 'cellar_register', 'cellar_watch', 'cellar_vault', 'cellar_bottle_detail'],
       cellar_vault: ['cellar_home', 'cellar_market', 'cellar_register', 'cellar_watch', 'cellar_vault', 'cellar_bottle_detail'],
       cellar_bottle_detail: ['cellar_home', 'cellar_market', 'cellar_register', 'cellar_watch', 'cellar_vault', 'cellar_bottle_detail'],
+      trial_pro_unlock: ['trial_pro_unlock'],
     };
 
     const allowed = new Set(contextMap[contextTourId] || [contextTourId]);

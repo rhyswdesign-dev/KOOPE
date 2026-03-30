@@ -14,7 +14,8 @@ export type ScreenTourId =
   | 'cellar_register'
   | 'cellar_watch'
   | 'cellar_vault'
-  | 'cellar_bottle_detail';
+  | 'cellar_bottle_detail'
+  | 'trial_pro_unlock';
 
 export interface ScreenTourSlide {
   title: string;
@@ -292,6 +293,36 @@ export const SCREEN_TOURS: Record<ScreenTourId, ScreenTourSlide[]> = {
       title: 'Collector Directive',
       body: 'HOLD, OPEN SOON, or REVIEW — generated from your price and window data. The Curator\'s Rationale below it explains the logic in plain language.',
       icon: 'shield-checkmark-outline',
+    },
+  ],
+
+  // ─── Trial Pro Unlock Tour ────────────────────────────────────────────────
+
+  trial_pro_unlock: [
+    {
+      title: 'PRO is Now Live',
+      body: 'For the next 48 hours, you have full PRO access. This is everything KOOPE can do — explore it before your trial ends.',
+      icon: 'flash-outline',
+    },
+    {
+      title: 'Vault Weekly Drops',
+      body: 'A new featured cocktail drops every week — full editorial story, technique notes, and sourcing context. Find it in the Vault tab. This week\'s drop is already live.',
+      icon: 'shield-outline',
+    },
+    {
+      title: 'Pro Recipe Builder',
+      body: 'Build cocktails from scratch using classic ratios, or remix an existing recipe and save your version. Find it in the Recipes tab under "Build a Recipe".',
+      icon: 'construct-outline',
+    },
+    {
+      title: 'Hosting Tools',
+      body: 'Planning a gathering? Enter your guest count and KOOPE picks the right cocktails, scales ingredients, and builds a prep timeline. Find it in your bar menu.',
+      icon: 'people-outline',
+    },
+    {
+      title: '48 Hours — Make It Count',
+      body: 'Your trial ends in 2 days. When it does, you\'ll be asked to choose a plan. PLUS keeps your bar running. PRO keeps all of this.',
+      icon: 'timer-outline',
     },
   ],
 };

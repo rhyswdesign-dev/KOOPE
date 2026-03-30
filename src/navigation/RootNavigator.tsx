@@ -4,6 +4,8 @@ import { Pressable, View, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, components } from '../theme/tokens';
 import { OfflineBanner } from '../components/OfflineBanner';
+import TrialBanner from '../components/TrialBanner';
+import ProUnlockCard from '../components/ProUnlockCard';
 import Tabs from './Tabs';
 import AccountSetupScreen from '../screens/AccountSetupScreen';
 import EventsScreen from '../screens/EventsScreen';
@@ -221,6 +223,8 @@ export default function RootNavigator({ initialRouteName = 'Main' }: RootNavigat
   return (
     <View style={styles.container}>
       <OfflineBanner />
+      <TrialBanner />
+      <ProUnlockCard />
       <Stack.Navigator
       initialRouteName={initialRouteName}
       screenOptions={({ navigation }) => ({

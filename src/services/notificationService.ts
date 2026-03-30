@@ -631,6 +631,65 @@ class NotificationService {
   }
 
   /**
+   * Schedule all 5 trial lifecycle notifications from the trial start date.
+   * Call this immediately when the user starts their trial.
+   *
+   * Timeline:
+   *   Day 5 evening  — "PRO unlocks tomorrow" preview
+   *   Day 6 morning  — "PRO is now active"
+   *   Day 7 evening  — "Last day of trial"
+   *   Day 8 morning  — "Trial has ended"
+   */
+  public async scheduleTrialNotifications(trialStartDate: Date) {
+    await this.cancelTrialNotifications();
+
+    const scheduleAt = async (
+      daysFromStart: number,
+      hourOfDay: number,
+      title: string,
+      body: string,
+    ) => {
+      const fireAt = new Date(trialStartDate);
+      fireAt.setDate(fireAt.getDate() + daysFromStart);
+      fireAt.setHours(hourOfDay, 0, 0, 0);
+      const secondsFromNow = Math.floor((fireAt.getTime() - Date.now()) / 1000);
+      if (secondsFromNow <= 0) return; // already past
+      await Notifications.scheduleNotificationAsync({
+        identifier: `trial_notification_day${daysFromStart}`,
+        content: { title, body, data: { type: 'trial' }, sound: true },
+        trigger: { seconds: secondsFromNow },
+      }).catch((err) => log.warn('NotificationService', 'Trial notif failed', err));
+    };
+
+    await scheduleAt(4, 19,
+      '2 days left on your trial',
+      'PRO features unlock for you tomorrow — Vault drops, recipe builder, and hosting tools.',
+    );
+    await scheduleAt(5, 9,
+      'PRO is now active',
+      'Explore the Vault, remix recipes, and plan your next hosting session. 48 hours to try it all.',
+    );
+    await scheduleAt(6, 19,
+      'Last day of your trial',
+      "Your trial ends tonight. Keep everything you've built.",
+    );
+    await scheduleAt(7, 9,
+      'Your trial has ended',
+      'Choose the plan that fits your bar — PLUS from $6.99 or go PRO from $12.99.',
+    );
+
+    log.info('NotificationService', 'Trial notifications scheduled', { trialStartDate });
+  }
+
+  /**
+   * Cancel all pending trial lifecycle notifications.
+   */
+  public async cancelTrialNotifications() {
+    const ids = ['trial_notification_day4', 'trial_notification_day5', 'trial_notification_day6', 'trial_notification_day7'];
+    await Promise.allSettled(ids.map((id) => Notifications.cancelScheduledNotificationAsync(id)));
+  }
+
+  /**
    * Test notification (for development)
    */
   public async sendTestNotification() {

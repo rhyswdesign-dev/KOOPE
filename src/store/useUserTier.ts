@@ -19,6 +19,7 @@ interface UserTierState {
 
   // Trial information
   isTrialActive: boolean;
+  trialStartDate: string | null;
   trialEndDate: string | null;
 
   // Founder status
@@ -49,6 +50,7 @@ export const useUserTier = create<UserTierState>()(
       subscriptionStatus: null,
       subscriptionEndDate: null,
       isTrialActive: false,
+      trialStartDate: null,
       trialEndDate: null,
       isFounder: false,
       founderLockedPriceCents: null,
@@ -62,12 +64,14 @@ export const useUserTier = create<UserTierState>()(
       setSubscriptionEndDate: (date) => set({ subscriptionEndDate: date }),
 
       startTrial: (tier: UserTier, durationDays: number) => {
-        const trialEnd = new Date();
+        const now = new Date();
+        const trialEnd = new Date(now);
         trialEnd.setDate(trialEnd.getDate() + durationDays);
 
         set({
           tier,
           isTrialActive: true,
+          trialStartDate: now.toISOString(),
           trialEndDate: trialEnd.toISOString(),
           subscriptionStatus: 'trial',
         });
@@ -81,6 +85,7 @@ export const useUserTier = create<UserTierState>()(
         set({
           tier: 'FREE',
           isTrialActive: false,
+          trialStartDate: null,
           trialEndDate: null,
           subscriptionStatus: null,
         });

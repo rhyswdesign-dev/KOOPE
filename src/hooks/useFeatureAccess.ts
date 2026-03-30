@@ -17,6 +17,7 @@
 import { useCallback } from 'react';
 import { useNavigation } from '@react-navigation/native';
 import { useUserTier, UserTier } from '../store/useUserTier';
+import { useTrialStatus } from './useTrialStatus';
 import {
   FeatureKey,
   FEATURE_REGISTRY,
@@ -68,8 +69,12 @@ export function useFeatureAccess(featureKey: FeatureKey): FeatureAccessResult {
   const navigation = useNavigation<any>();
   const tier = useUserTier(s => s.tier);
   const feature = FEATURE_REGISTRY[featureKey];
+  const { isProPhase } = useTrialStatus();
 
-  const hasAccess = hasFeatureAccessByKey(featureKey, tier);
+  // During the trial's PRO phase (days 6–7) elevate access to PRO level.
+  // During days 1–5 the trial tier (PLUS) is already set in the store.
+  const effectiveTier: UserTier = isProPhase ? 'PRO' : tier;
+  const hasAccess = hasFeatureAccessByKey(featureKey, effectiveTier);
 
   const gate = useCallback(
     (onSuccess?: () => void, triggerId?: string): boolean => {
@@ -86,7 +91,7 @@ export function useFeatureAccess(featureKey: FeatureKey): FeatureAccessResult {
       trackEvent(trigger?.analyticsEvent ?? ANALYTICS_EVENTS.FEATURE_GATED, {
         [ANALYTICS_PROPS.FEATURE]: featureKey,
         [ANALYTICS_PROPS.REQUIRED_TIER]: feature.minTier,
-        [ANALYTICS_PROPS.USER_TIER]: tier,
+        [ANALYTICS_PROPS.USER_TIER]: effectiveTier,
         ...(resolvedTriggerId ? { trigger_id: resolvedTriggerId } : {}),
       });
 
@@ -100,7 +105,7 @@ export function useFeatureAccess(featureKey: FeatureKey): FeatureAccessResult {
 
       return false;
     },
-    [hasAccess, featureKey, feature, tier, navigation]
+    [hasAccess, featureKey, feature, effectiveTier, navigation]
   );
 
   const gateWithTrigger = useCallback(
