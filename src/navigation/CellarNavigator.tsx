@@ -19,7 +19,6 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
-import { useFeatureAccess } from '../hooks/useFeatureAccess';
 import { FeedbackPromptModal, getFeatureFeedbackResponse } from '../components/FeedbackPromptModal';
 
 // Tab screens
@@ -218,11 +217,8 @@ function CellarProGate() {
 // ─── navigator ────────────────────────────────────────────────────────────────
 
 export default function CellarNavigator() {
-  const { hasAccess } = useFeatureAccess('cellar_mode');
-
-  if (!hasAccess) {
-    return <CellarProGate />;
-  }
+  // Cellar Mode is coming later — show feedback gate for all tiers
+  return <CellarProGate />;
 
   return (
     <Tab.Navigator

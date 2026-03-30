@@ -588,7 +588,7 @@ function LessonsView() {
   const { lives, completedLessons, checkLifeRefresh, completeLesson: completeUserLesson } = useUser();
   const tier = useUserTier((s) => s.tier);
   const { hasAccess: hasMasteryAccess, gateWithTrigger: masteryGate } = useFeatureAccess('mastery_lessons');
-  const { hasAccess: hasLessonsUnlimitedAccess } = useFeatureAccess('lessons_unlimited');
+  // lessons_unlimited is coming later — locked for all tiers
   const [lessonsFeedbackVisible, setLessonsFeedbackVisible] = useState(false);
   const {
     seenModuleBriefs,
@@ -619,7 +619,7 @@ function LessonsView() {
     }
     if (module.requiredTier === 'PLUS') {
       return {
-        locked: !hasLessonsUnlimitedAccess,
+        locked: true, // Coming later — locked for all tiers
         label: 'Coming soon',
         open: () => setLessonsFeedbackVisible(true),
       };
@@ -677,7 +677,7 @@ function LessonsView() {
     }));
 
     setModules(sortedModules);
-  }, [checkLifeRefresh, tier, hasLessonsUnlimitedAccess]);
+  }, [checkLifeRefresh, tier]);
 
   const openModule = (module: any) => {
     const lessons = curriculumData.lessons.filter(lesson => lesson.moduleId === module.id);
