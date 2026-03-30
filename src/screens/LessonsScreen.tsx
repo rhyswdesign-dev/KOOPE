@@ -31,6 +31,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useUserTier } from '../store/useUserTier';
 import ContextBriefModal from '../components/lessons/ContextBriefModal';
 import { useLessonBriefPreferences } from '../store/useLessonBriefPreferences';
+import { FeedbackPromptModal } from '../components/FeedbackPromptModal';
 
 type NavigationProp = CompositeNavigationProp<
   NativeStackNavigationProp<LessonsStackParamList, 'LessonsMain'>,
@@ -587,7 +588,8 @@ function LessonsView() {
   const { lives, completedLessons, checkLifeRefresh, completeLesson: completeUserLesson } = useUser();
   const tier = useUserTier((s) => s.tier);
   const { hasAccess: hasMasteryAccess, gateWithTrigger: masteryGate } = useFeatureAccess('mastery_lessons');
-  const { gateWithTrigger: lessonsGate, hasAccess: hasLessonsUnlimitedAccess } = useFeatureAccess('lessons_unlimited');
+  const { hasAccess: hasLessonsUnlimitedAccess } = useFeatureAccess('lessons_unlimited');
+  const [lessonsFeedbackVisible, setLessonsFeedbackVisible] = useState(false);
   const {
     seenModuleBriefs,
     seenLessonBriefs,
@@ -618,8 +620,8 @@ function LessonsView() {
     if (module.requiredTier === 'PLUS') {
       return {
         locked: !hasLessonsUnlimitedAccess,
-        label: 'PLUS',
-        open: () => lessonsGate('T2'),
+        label: 'Coming soon',
+        open: () => setLessonsFeedbackVisible(true),
       };
     }
     return {
@@ -1114,6 +1116,14 @@ function LessonsView() {
           setBriefTarget(null);
           openLesson(lessonToOpen);
         }}
+      />
+
+      <FeedbackPromptModal
+        featureKey="lessons"
+        title="Would mastery lessons be useful to you?"
+        body="We're building in-depth technique lessons for KŌOPE. Would you actually use them?"
+        visible={lessonsFeedbackVisible}
+        onDismiss={() => setLessonsFeedbackVisible(false)}
       />
     </SafeAreaView>
   );

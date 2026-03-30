@@ -8,7 +8,7 @@
  * the user's form state persists while they peek at other tabs).
  */
 
-import React, { useCallback } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -20,6 +20,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
 import { useFeatureAccess } from '../hooks/useFeatureAccess';
+import { FeedbackPromptModal, getFeatureFeedbackResponse } from '../components/FeedbackPromptModal';
 
 // Tab screens
 import TheCellarScreen from '../screens/TheCellarScreen';
@@ -151,41 +152,65 @@ function CellarTabBar({ state, navigation }: any) {
 // ─── PRO gate screen ──────────────────────────────────────────────────────────
 
 function CellarProGate() {
-  const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const [feedbackVisible, setFeedbackVisible] = useState(false);
+  const [alreadyAnswered, setAlreadyAnswered] = useState<'yes' | 'no' | null>(null);
+
+  useEffect(() => {
+    getFeatureFeedbackResponse('cellar_mode').then(setAlreadyAnswered);
+  }, []);
 
   return (
     <LinearGradient colors={['#1A120D', '#2B1F17']} style={styles.gateContainer}>
       <View style={styles.gateIcon}>
-        <Ionicons name="shield" size={52} color={AMBER} />
+        <Ionicons name="wine" size={44} color={AMBER} />
       </View>
-      <Text style={styles.gateEyebrow}>PRO</Text>
+
       <Text style={styles.gateTitle}>The Cellar</Text>
       <Text style={styles.gateBody}>
-        Track, value, and curate your spirits collection. Know when to hold, when to open.
+        A dedicated space to track, value, and curate your spirits collection — with drinking windows, portfolio value, and a curated drop watchlist.
       </Text>
 
       <View style={styles.gateList}>
         {[
           'Portfolio valuation & tracking',
           'Drinking window management',
-          'Secondary market intelligence',
           'Curated drop watchlist',
           'Collector\'s edition vault',
         ].map((item) => (
           <View key={item} style={styles.gateListRow}>
-            <Ionicons name="checkmark-circle" size={16} color={AMBER} style={{ marginTop: 1 }} />
+            <Ionicons name="checkmark-circle" size={15} color={AMBER} style={{ marginTop: 1 }} />
             <Text style={styles.gateListText}>{item}</Text>
           </View>
         ))}
       </View>
 
-      <TouchableOpacity
-        style={styles.gateButton}
-        onPress={() => nav.navigate('Paywall', { source: 'cellar', offering: 'koope_pro' })}
-        activeOpacity={0.85}
-      >
-        <Text style={styles.gateButtonText}>UPGRADE TO PRO</Text>
-      </TouchableOpacity>
+      <View style={styles.feedbackSection}>
+        <Text style={styles.feedbackQuestion}>Would this be useful to you?</Text>
+        {alreadyAnswered ? (
+          <Text style={styles.feedbackThanks}>
+            Thanks for the feedback{alreadyAnswered === 'yes' ? ' — we\'ll let you know when it\'s live.' : '.'}
+          </Text>
+        ) : (
+          <TouchableOpacity
+            style={styles.gateButton}
+            onPress={() => setFeedbackVisible(true)}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.gateButtonText}>Tell us →</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+
+      <FeedbackPromptModal
+        featureKey="cellar_mode"
+        title="Would The Cellar be useful to you?"
+        body="We're building a dedicated space to track and value your spirits collection. Is this something you'd actually use?"
+        visible={feedbackVisible}
+        onDismiss={() => {
+          setFeedbackVisible(false);
+          getFeatureFeedbackResponse('cellar_mode').then(setAlreadyAnswered);
+        }}
+      />
     </LinearGradient>
   );
 }
@@ -330,5 +355,23 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: 1.5,
     color: '#1A120D',
+  },
+  feedbackSection: {
+    width: '100%',
+    marginTop: 8,
+    gap: 12,
+    alignItems: 'center',
+  },
+  feedbackQuestion: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#F2E5D5',
+    textAlign: 'center',
+  },
+  feedbackThanks: {
+    fontSize: 13,
+    color: '#C7B8A5',
+    textAlign: 'center',
+    lineHeight: 19,
   },
 });
