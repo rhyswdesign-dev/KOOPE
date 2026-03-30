@@ -31,7 +31,9 @@ import { useAuth } from '../contexts/AuthContext';
 import { useUserTier } from '../store/useUserTier';
 import ContextBriefModal from '../components/lessons/ContextBriefModal';
 import { useLessonBriefPreferences } from '../store/useLessonBriefPreferences';
-import { FeedbackPromptModal } from '../components/FeedbackPromptModal';
+import { FeedbackPromptModal, getFeatureFeedbackResponse } from '../components/FeedbackPromptModal';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { trackEvent } from '../lib/analytics';
 
 type NavigationProp = CompositeNavigationProp<
   NativeStackNavigationProp<LessonsStackParamList, 'LessonsMain'>,
@@ -590,6 +592,11 @@ function LessonsView() {
   const { hasAccess: hasMasteryAccess, gateWithTrigger: masteryGate } = useFeatureAccess('mastery_lessons');
   // lessons_unlimited is coming later — locked for all tiers
   const [lessonsFeedbackVisible, setLessonsFeedbackVisible] = useState(false);
+  const [lessonsFeedbackAnswer, setLessonsFeedbackAnswer] = useState<'yes' | 'no' | null>(null);
+
+  useEffect(() => {
+    getFeatureFeedbackResponse('lessons').then(setLessonsFeedbackAnswer);
+  }, []);
   const {
     seenModuleBriefs,
     seenLessonBriefs,
@@ -960,22 +967,9 @@ function LessonsView() {
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {!selectedModule ? (
-          /* Show Chapters */
+          /* Lessons coming soon — show feedback panel instead of module list */
           <View style={styles.section}>
-            <View style={styles.curriculumHeaderRow}>
-              <Text style={styles.sectionTitle}>Bartending Curriculum</Text>
-              <Pressable style={styles.masteryInlineButton} onPress={handleMasteryPress}>
-                <Ionicons
-                  name={hasMasteryAccess ? 'checkmark-circle-outline' : 'lock-closed-outline'}
-                  size={14}
-                  color={colors.accent}
-                />
-                <Text style={styles.masteryInlineButtonText}>Mastery (PRO)</Text>
-              </Pressable>
-            </View>
-            <Text style={styles.sectionSubtitle}>
-              Professional bartending course designed by industry experts
-            </Text>
+            {/* Hacks & Tips Library — still accessible */}
             <Pressable
               style={styles.libraryEntryCard}
               onPress={() => navigation.navigate('HacksTipsLibrary')}
@@ -989,28 +983,55 @@ function LessonsView() {
               </View>
               <Text style={styles.libraryEntryTitle}>Open your field guide library.</Text>
               <Text style={styles.libraryEntryBody}>
-                Every mini deck you unlock from lessons lives here automatically for quick revisit and review.
+                Every mini deck you unlock lives here for quick revisit and review.
               </Text>
             </Pressable>
-            {!hasMasteryAccess && (
-              <Pressable
-                style={styles.libraryEntryCard}
-                onPress={() => masteryGate('T10')}
-              >
-                <View style={styles.libraryEntryHeader}>
-                  <View style={styles.libraryEntryBadge}>
-                    <Ionicons name="ribbon-outline" size={14} color={colors.accent} />
-                    <Text style={styles.libraryEntryBadgeText}>Certification Preview</Text>
-                  </View>
-                  <Ionicons name="lock-closed-outline" size={16} color={colors.accent} />
-                </View>
-                <Text style={styles.libraryEntryTitle}>Your first spirit certification is waiting in Pro.</Text>
-                <Text style={styles.libraryEntryBody}>
-                  Finish the core path, then unlock mastery lessons, category badges, and prestige progression with KŌOPE Pro.
+
+            {/* Coming soon feedback panel */}
+            <View style={styles.lessonsFeedbackPanel}>
+              <View style={styles.lessonsFeedbackIcon}>
+                <Ionicons name="school-outline" size={28} color={colors.accent} />
+              </View>
+              <Text style={styles.lessonsFeedbackTitle}>Lessons are coming to KŌOPE</Text>
+              <Text style={styles.lessonsFeedbackBody}>
+                A full bartending curriculum — technique, history, and spirit knowledge — built for home enthusiasts who want to go deeper.
+              </Text>
+              {lessonsFeedbackAnswer ? (
+                <Text style={styles.lessonsFeedbackThanks}>
+                  {lessonsFeedbackAnswer === 'yes'
+                    ? "Thanks — we'll let you know when they're live."
+                    : 'Thanks for the feedback.'}
                 </Text>
-              </Pressable>
-            )}
-            {modules.map(renderModule)}
+              ) : (
+                <>
+                  <Text style={styles.lessonsFeedbackQuestion}>Would you use this?</Text>
+                  <View style={styles.lessonsFeedbackButtons}>
+                    <TouchableOpacity
+                      style={styles.lessonsFeedbackYes}
+                      onPress={async () => {
+                        await AsyncStorage.setItem('@KOOPE:feature_feedback_lessons', 'yes');
+                        trackEvent('Feature Interest Response', { feature: 'lessons', response: 'yes' });
+                        setLessonsFeedbackAnswer('yes');
+                      }}
+                      activeOpacity={0.85}
+                    >
+                      <Text style={styles.lessonsFeedbackYesText}>Yes, I'd use this</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.lessonsFeedbackNo}
+                      onPress={async () => {
+                        await AsyncStorage.setItem('@KOOPE:feature_feedback_lessons', 'no');
+                        trackEvent('Feature Interest Response', { feature: 'lessons', response: 'no' });
+                        setLessonsFeedbackAnswer('no');
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.lessonsFeedbackNoText}>Not really</Text>
+                    </TouchableOpacity>
+                  </View>
+                </>
+              )}
+            </View>
           </View>
         ) : (
           /* Show Lessons for Selected Chapter */
@@ -1112,13 +1133,6 @@ function LessonsView() {
         }}
       />
 
-      <FeedbackPromptModal
-        featureKey="lessons"
-        title="Would mastery lessons be useful to you?"
-        body="We're building in-depth technique lessons for KŌOPE. Would you actually use them?"
-        visible={lessonsFeedbackVisible}
-        onDismiss={() => setLessonsFeedbackVisible(false)}
-      />
     </SafeAreaView>
   );
 }
@@ -2108,5 +2122,76 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing(1),
+  },
+
+  // Lessons coming soon feedback panel
+  lessonsFeedbackPanel: {
+    marginTop: spacing(3),
+    padding: spacing(3),
+    borderRadius: 18,
+    backgroundColor: 'rgba(242,229,213,0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(242,229,213,0.1)',
+    alignItems: 'center',
+    gap: spacing(2),
+  },
+  lessonsFeedbackIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    backgroundColor: 'rgba(214,138,56,0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(214,138,56,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  lessonsFeedbackTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+    textAlign: 'center',
+  },
+  lessonsFeedbackBody: {
+    fontSize: 14,
+    color: colors.subtext,
+    lineHeight: 20,
+    textAlign: 'center',
+  },
+  lessonsFeedbackQuestion: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.text,
+    marginTop: spacing(1),
+  },
+  lessonsFeedbackButtons: {
+    width: '100%',
+    gap: spacing(1),
+  },
+  lessonsFeedbackYes: {
+    backgroundColor: colors.accent,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  lessonsFeedbackYesText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#1A120D',
+  },
+  lessonsFeedbackNo: {
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  lessonsFeedbackNoText: {
+    fontSize: 13,
+    color: colors.subtext,
+    fontWeight: '600',
+  },
+  lessonsFeedbackThanks: {
+    fontSize: 13,
+    color: colors.subtext,
+    textAlign: 'center',
+    lineHeight: 19,
+    marginTop: spacing(1),
   },
 });
