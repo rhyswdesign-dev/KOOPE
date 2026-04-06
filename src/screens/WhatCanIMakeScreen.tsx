@@ -56,6 +56,7 @@ export default function WhatCanIMakeScreen() {
   const { tier } = useUserTier();
 
   const [chatFeedbackVisible, setChatFeedbackVisible] = useState(false);
+  const [cartFeedbackVisible, setCartFeedbackVisible] = useState(false);
   const [loading, setLoading] = useState(true);
   const [inventory, setInventory] = useState<UserInventoryItem[]>([]);
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
@@ -311,8 +312,8 @@ export default function WhatCanIMakeScreen() {
     const cardProps = createRecipeCardProps(item as any, navigation, {
       toggleSavedCocktail,
       isCocktailSaved,
-      setSelectedRecipe,
-      setGroceryListVisible,
+      setSelectedRecipe: () => {},
+      setGroceryListVisible: () => setCartFeedbackVisible(true),
       showSaveButton: false,
       showCartButton: true,
       source: 'home_bar',
@@ -355,7 +356,7 @@ export default function WhatCanIMakeScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.emptyState}>
-          <Ionicons name="person-outline" size={80} color={colors.subtext} />
+          <Ionicons name="person-outline" size={52} color={colors.subtext} />
           <Heading level={2} style={styles.emptyTitle}>Sign In Required</Heading>
           <Text style={styles.emptyDescription}>
             Sign in to see what cocktails you can make with your inventory
@@ -375,7 +376,7 @@ export default function WhatCanIMakeScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.emptyState}>
-          <Ionicons name="scan-outline" size={80} color={colors.subtext} />
+          <Ionicons name="scan-outline" size={52} color={colors.subtext} />
           <Heading level={2} style={styles.emptyTitle}>No Inventory Yet</Heading>
           <Text style={styles.emptyDescription}>
             Start scanning bottles and ingredients to see what cocktails you can make!
@@ -400,37 +401,24 @@ export default function WhatCanIMakeScreen() {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Ionicons name="chevron-back" size={28} color={colors.text} />
+          <Ionicons name="chevron-back" size={22} color={colors.text} />
         </TouchableOpacity>
-        <View style={styles.headerLeft}>
-          <Heading level={1} style={styles.headerTitle}>What Can I Make?</Heading>
+        <View style={styles.headerCenter}>
+          <Text style={styles.headerTitle}>What Can I Make?</Text>
           <Text style={styles.headerSubtitle}>
-            {selectedItems.size} of {inventory.length} ingredient{inventory.length !== 1 ? 's' : ''} selected
+            {selectedItems.size} of {inventory.length} selected
           </Text>
         </View>
-
-        <View style={styles.headerRight}>
-          {/* Inventory Count Badge */}
-          <View style={styles.inventoryBadge}>
-            <Ionicons name="cube-outline" size={20} color={colors.gold} />
-            <View style={styles.inventoryBadgeContent}>
-              <Text style={styles.inventoryCount}>{inventory.length}</Text>
-              <Text style={styles.inventoryLabel}>Items</Text>
-            </View>
-          </View>
-
-          {/* Filter Button */}
-          <TouchableOpacity
-            style={styles.filterButton}
-            onPress={() => setShowFilters(!showFilters)}
-          >
-            <Ionicons
-              name={showFilters ? 'options' : 'options-outline'}
-              size={24}
-              color={colors.accent}
-            />
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity
+          style={[styles.filterButton, showFilters && styles.filterButtonActive]}
+          onPress={() => setShowFilters(!showFilters)}
+        >
+          <Ionicons
+            name={showFilters ? 'options' : 'options-outline'}
+            size={20}
+            color={showFilters ? colors.goldText : colors.accent}
+          />
+        </TouchableOpacity>
       </View>
 
       {/* Filter Panel */}
@@ -508,11 +496,11 @@ export default function WhatCanIMakeScreen() {
       {/* AI Recipe Generation Section */}
       <View style={styles.aiSection}>
         <View style={styles.aiSectionHeader}>
-          <Ionicons name="sparkles" size={20} color={colors.gold} />
-          <Heading level={3} style={styles.aiSectionTitle}>Generate Custom Recipe</Heading>
+          <Ionicons name="sparkles" size={14} color={colors.gold} />
+          <Text style={styles.aiSectionTitle}>Generate Custom Recipe</Text>
         </View>
         <Text style={styles.aiSectionSubtitle}>
-          Choose difficulty and let AI create a recipe with your ingredients
+          Let AI build a recipe from what's in your bar
         </Text>
 
         {/* Difficulty Selector */}
@@ -610,16 +598,12 @@ export default function WhatCanIMakeScreen() {
         }
       />
 
-      {/* Grocery List Modal */}
-      <GroceryListModal
-        visible={groceryListVisible}
-        recipeName={selectedRecipe?.name || selectedRecipe?.title || 'Recipe'}
-        ingredients={selectedRecipe?.ingredients || []}
-        recipeId={selectedRecipe?.id}
-        onClose={() => {
-          setGroceryListVisible(false);
-          setSelectedRecipe(null);
-        }}
+      <FeedbackPromptModal
+        featureKey="shopping_cart_recipe"
+        title="Shopping cart — coming soon"
+        body="We're building a smart cart that lets you add missing ingredients directly from any recipe and order them through the app — no separate store trips needed. Would you use this?"
+        visible={cartFeedbackVisible}
+        onDismiss={() => setCartFeedbackVisible(false)}
       />
 
       {/* Floating AI Chat Button */}
@@ -632,8 +616,8 @@ export default function WhatCanIMakeScreen() {
 
       <FeedbackPromptModal
         featureKey="ai_bartender"
-        title="AI Bartender — coming soon"
-        body="Chat with an AI bartender that knows your inventory and can suggest recipes, answer technique questions, and help you build the perfect drink. Would you use this?"
+        title="Bartender Hotline — coming soon"
+        body="A direct line to a bartender who knows your inventory. Ask technique questions, get recipe ideas, and troubleshoot drinks in real time. Would you use this?"
         visible={chatFeedbackVisible}
         onDismiss={() => setChatFeedbackVisible(false)}
       />
@@ -659,18 +643,24 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: spacing(3),
-    paddingLeft: spacing(1),
+    paddingVertical: spacing(2),
+    paddingHorizontal: spacing(2),
+    gap: spacing(1),
     borderBottomWidth: 1,
     borderBottomColor: colors.line,
   },
   backButton: {
-    padding: spacing(1),
-    marginRight: spacing(1),
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   headerLeft: {
     flex: 1,
+  },
+  headerCenter: {
+    flex: 1,
+    alignItems: 'center',
   },
   headerRight: {
     flexDirection: 'row',
@@ -678,15 +668,17 @@ const styles = StyleSheet.create({
     gap: spacing(1.5),
   },
   headerTitle: {
-    fontSize: 24,
-    fontWeight: '700',
+    fontSize: 18,
+    fontWeight: '800',
     color: colors.text,
     fontFamily: serif,
+    textAlign: 'center',
   },
   headerSubtitle: {
-    fontSize: 14,
+    fontSize: 11,
     color: colors.subtext,
-    marginTop: spacing(0.5),
+    marginTop: 2,
+    textAlign: 'center',
   },
   headerStats: {
     fontSize: 12,
@@ -697,29 +689,29 @@ const styles = StyleSheet.create({
   inventoryBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing(1),
-    backgroundColor: `${colors.gold}15`,
-    borderWidth: 2,
-    borderColor: colors.gold,
-    borderRadius: radii.lg,
-    paddingVertical: spacing(1.5),
-    paddingHorizontal: spacing(2),
+    gap: spacing(0.75),
+    backgroundColor: 'rgba(214,138,56,0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(214,138,56,0.28)',
+    borderRadius: radii.pill,
+    paddingVertical: spacing(0.75),
+    paddingHorizontal: spacing(1.5),
   },
   inventoryBadgeContent: {
     alignItems: 'center',
   },
   inventoryCount: {
-    fontSize: 20,
-    fontWeight: '900',
+    fontSize: 15,
+    fontWeight: '800',
     color: colors.gold,
-    lineHeight: 22,
+    lineHeight: 18,
   },
   inventoryLabel: {
-    fontSize: 10,
-    fontWeight: '600',
+    fontSize: 9,
+    fontWeight: '700',
     color: colors.gold,
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: 0.8,
   },
   aiButton: {
     width: 44,
@@ -731,12 +723,18 @@ const styles = StyleSheet.create({
     marginRight: spacing(1.5),
   },
   filterButton: {
-    width: 44,
-    height: 44,
-    borderRadius: radii.full,
-    backgroundColor: `${colors.accent}15`,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: `${colors.accent}12`,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: `${colors.accent}25`,
+  },
+  filterButtonActive: {
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
   },
   filterPanel: {
     backgroundColor: colors.card,
@@ -796,27 +794,28 @@ const styles = StyleSheet.create({
   ingredientChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing(0.75),
-    backgroundColor: colors.bg,
+    gap: spacing(0.5),
+    backgroundColor: 'rgba(255,255,255,0.04)',
     borderWidth: 1,
-    borderColor: colors.line,
-    borderRadius: radii.full,
-    paddingVertical: spacing(1),
-    paddingHorizontal: spacing(2),
+    borderColor: 'rgba(255,255,255,0.08)',
+    borderRadius: radii.pill,
+    paddingVertical: spacing(0.85),
+    paddingHorizontal: spacing(1.75),
     marginRight: spacing(1),
   },
   ingredientChipSelected: {
-    backgroundColor: `${colors.gold}20`,
-    borderColor: colors.gold,
+    backgroundColor: 'rgba(214,138,56,0.14)',
+    borderColor: 'rgba(214,138,56,0.5)',
   },
   ingredientChipText: {
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: '500',
     color: colors.subtext,
     textTransform: 'capitalize',
   },
   ingredientChipTextSelected: {
     color: colors.gold,
+    fontWeight: '700',
   },
   stats: {
     flexDirection: 'row',
@@ -984,21 +983,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: spacing(4),
-    paddingTop: spacing(8),
+    paddingTop: spacing(6),
+    gap: spacing(1.25),
   },
   emptyTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '700',
     color: colors.text,
-    marginTop: spacing(2),
-    marginBottom: spacing(1),
+    textAlign: 'center',
   },
   emptyDescription: {
-    fontSize: 15,
+    fontSize: 14,
     color: colors.subtext,
     textAlign: 'center',
-    lineHeight: 22,
-    marginBottom: spacing(3),
+    lineHeight: 21,
+    marginBottom: spacing(2),
+    maxWidth: 280,
   },
   signInButton: {
     backgroundColor: colors.accent,
@@ -1027,13 +1027,13 @@ const styles = StyleSheet.create({
   },
   // AI Recipe Generation Styles
   aiSection: {
-    backgroundColor: colors.card,
+    backgroundColor: '#241A0E',
     borderRadius: radii.lg,
-    padding: spacing(3),
+    padding: spacing(2.5),
     marginHorizontal: spacing(2),
     marginBottom: spacing(2),
     borderWidth: 1,
-    borderColor: `${colors.gold}30`,
+    borderColor: 'rgba(214,138,56,0.2)',
   },
   aiSectionHeader: {
     flexDirection: 'row',
@@ -1059,15 +1059,15 @@ const styles = StyleSheet.create({
     zIndex: 1000,
   },
   aiSectionTitle: {
-    fontSize: 18,
+    fontSize: 14,
     fontWeight: '700',
     color: colors.text,
-    marginBottom: spacing(0.5),
   },
   aiSectionSubtitle: {
-    fontSize: 14,
+    fontSize: 12,
     color: colors.subtext,
-    marginBottom: spacing(2),
+    marginBottom: spacing(1.75),
+    marginTop: spacing(0.25),
   },
   difficultyScroll: {
     marginBottom: spacing(2),

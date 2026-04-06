@@ -409,9 +409,9 @@ export default function RootNavigator({ initialRouteName = 'Main' }: RootNavigat
       <Stack.Screen name="CocktailDetail" component={CocktailDetailScreen} options={{ headerShown: true, title: 'Cocktail' }} />
       <Stack.Screen name="CocktailList" component={CocktailListScreen} options={{ headerShown: true, title: 'Cocktails' }} />
       <Stack.Screen name="WhatCanIMake" component={WhatCanIMakeScreen} options={{ headerShown: false }} />
-      <Stack.Screen name="Hosting" component={HostingScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="Hosting" component={HostingScreen} options={{ headerShown: false, animation: 'slide_from_right' }} />
       <Stack.Screen name="GuestMenu" component={GuestMenuScreen} options={{ headerShown: false }} />
-      <Stack.Screen name="BarOptimizer" component={BarOptimizerScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="BarOptimizer" component={BarOptimizerScreen} options={{ headerShown: false, animation: 'slide_from_right' }} />
 
       <Stack.Screen name="EditProfile" component={EditProfileScreen} options={{ headerShown: true, title: 'Edit Profile' }} />
       <Stack.Screen name="Profile" component={ProfileScreen} options={{ headerShown: true, title: 'Profile' }} />
@@ -455,7 +455,7 @@ export default function RootNavigator({ initialRouteName = 'Main' }: RootNavigat
     <Stack.Screen name="HomeBar" component={HomeBarScreen} options={{ headerShown: false }} />
     <Stack.Screen name="SpiritRecognition" component={SpiritRecognitionScreen} options={{ headerShown: true, title: 'Scan Spirit' }} />
     <Stack.Screen name="ShoppingCart" component={ShoppingCartScreen} options={{ headerShown: false }} />
-    <Stack.Screen name="InventoryInsights" component={InventoryInsightsScreen} options={{ headerShown: false }} />
+    <Stack.Screen name="InventoryInsights" component={InventoryInsightsScreen} options={{ headerShown: false, animation: 'slide_from_right' }} />
       <Stack.Screen name="Achievements" component={AchievementsScreen} options={{ headerShown: true, title: 'Achievements' }} />
       <Stack.Screen name="SubscriptionDebug" component={SubscriptionDebugScreen} options={{ headerShown: true, title: 'Subscription Debug' }} />
       <Stack.Screen name="Paywall" component={PaywallScreen} options={{ headerShown: false, presentation: 'modal' }} />

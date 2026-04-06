@@ -135,11 +135,11 @@ export default function RecipeURLImportScreen() {
     }
   };
 
-  const popularSources = [
-    { name: 'Liquor.com', icon: '🍸', url: 'https://www.liquor.com' },
-    { name: 'Difford\'s Guide', icon: '📖', url: 'https://www.diffordsguide.com' },
-    { name: 'Punch', icon: '🥊', url: 'https://punchdrink.com' },
-    { name: 'Imbibe', icon: '📰', url: 'https://imbibemagazine.com' },
+  const popularSources: Array<{ name: string; icon: React.ComponentProps<typeof Ionicons>['name']; url: string }> = [
+    { name: 'Liquor.com', icon: 'wine-outline', url: 'https://www.liquor.com' },
+    { name: "Difford's Guide", icon: 'book-outline', url: 'https://www.diffordsguide.com' },
+    { name: 'Punch', icon: 'flash-outline', url: 'https://punchdrink.com' },
+    { name: 'Imbibe', icon: 'newspaper-outline', url: 'https://imbibemagazine.com' },
   ];
 
   return (
@@ -230,13 +230,15 @@ export default function RecipeURLImportScreen() {
               style={styles.sourceCard}
               onPress={() => showAlert({
                 title: source.name,
-                message: `Visit ${source.url} to find recipes.`,
+                message: `Visit ${source.url} to find recipes, then paste the link above.`,
                 icon: 'globe-outline',
                 iconColor: colors.accent,
                 actions: [{ label: 'OK', style: 'primary' }],
               })}
             >
-              <Text style={styles.sourceIcon}>{source.icon}</Text>
+              <View style={styles.sourceIconWrap}>
+                <Ionicons name={source.icon} size={22} color={colors.accent} />
+              </View>
               <Text style={styles.sourceName}>{source.name}</Text>
             </TouchableOpacity>
           ))}
@@ -411,17 +413,25 @@ const styles = StyleSheet.create({
     gap: spacing(1.5),
   },
   sourceCard: {
-    width: 120,
+    width: 110,
     backgroundColor: colors.card,
     borderRadius: radii.md,
-    padding: spacing(2),
+    paddingVertical: spacing(2),
+    paddingHorizontal: spacing(1.5),
     alignItems: 'center',
     borderWidth: 1,
     borderColor: colors.line,
+    gap: spacing(1),
   },
-  sourceIcon: {
-    fontSize: 32,
-    marginBottom: spacing(1),
+  sourceIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: `${colors.accent}12`,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: `${colors.accent}25`,
   },
   sourceName: {
     fontSize: 14,

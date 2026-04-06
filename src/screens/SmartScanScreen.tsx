@@ -33,6 +33,8 @@ import { useSubscription } from '../contexts/SubscriptionContext';
 import { supabase } from '../lib/supabase';
 import DataConsentDialog from '../components/modals/DataConsentDialog';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { challengeProgressService } from '../services/challengeProgressService';
+import { achievementService } from '../services/achievementService';
 
 function getManualPrefill(productName: string | null, productBrand: string | null): { brand?: string; name?: string } {
   const cleanName = productName?.trim() || '';
@@ -208,6 +210,11 @@ export default function SmartScanScreen() {
             addedToInventory: false,
           });
 
+          if (user?.id) {
+            challengeProgressService.trackScanBottle(user.id, spirit.id || spirit.name, spirit.spirit_type);
+          }
+          achievementService.trackAction('bottlesScanned');
+
           navigation.replace('BottleDetail', { bottle: spirit });
         } else {
           // Barcode found but not in our spirits DB — go to manual entry
@@ -291,6 +298,10 @@ export default function SmartScanScreen() {
           });
 
           if (bottle) {
+            if (user?.id) {
+              challengeProgressService.trackScanBottle(user.id, bottle.id || bottle.name, bottle.spirit_type);
+            }
+            achievementService.trackAction('bottlesScanned');
             navigation.replace('BottleDetail', { bottle, imageUri: uri });
           } else {
             handleUnknownBottle(visionResult);
@@ -353,7 +364,8 @@ export default function SmartScanScreen() {
   };
 
   const handleUnknownBottle = (visionResult: any) => {
-    const brandName = visionResult.text?.[0] || 'Unknown Brand';
+    const rawText = visionResult.text?.[0] || '';
+    const brandName = rawText.split('\n')[0].trim() || 'Unknown Brand';
     Alert.alert(
       'Bottle Not Recognized',
       `Detected a bottle (possibly ${brandName}), but it's not in our database. Add manually?`,

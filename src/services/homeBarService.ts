@@ -282,23 +282,23 @@ export class HomeBarService {
         usedInCocktails: ['Old Fashioned', 'Whiskey Sour', 'Mint Julep', 'Manhattan']
       },
 
-      // Must-have Mixers & Modifiers
+      // Must-have Vermouth & Modifiers
       {
         name: 'Dry Vermouth',
-        category: 'mixer',
+        category: 'liqueur',
         subcategory: 'vermouth',
         commonBrands: ['Dolin', 'Noilly Prat', 'Martini & Rossi'],
-        description: 'Essential for martinis and other cocktails',
+        description: 'Essential fortified wine modifier for martinis and stirred cocktails',
         averagePrice: 15,
         essentialLevel: 'must-have',
         usedInCocktails: ['Martini', 'Gibson', 'Vesper']
       },
       {
         name: 'Sweet Vermouth',
-        category: 'mixer',
+        category: 'liqueur',
         subcategory: 'vermouth',
         commonBrands: ['Carpano Antica', 'Dolin Rouge', 'Cinzano'],
-        description: 'Key ingredient for Manhattans and Negronis',
+        description: 'Key fortified wine modifier for Manhattans and Negronis',
         averagePrice: 18,
         essentialLevel: 'must-have',
         usedInCocktails: ['Manhattan', 'Negroni', 'Rob Roy']
@@ -367,6 +367,26 @@ export class HomeBarService {
         averagePrice: 3,
         essentialLevel: 'recommended',
         usedInCocktails: ['Whiskey Sour', 'Tom Collins', 'Bee\'s Knees', 'Aviation']
+      },
+      {
+        name: 'Champagne',
+        category: 'mixer',
+        subcategory: 'sparkling wine',
+        commonBrands: ['Moët & Chandon', 'Veuve Clicquot', 'Perrier-Jouët'],
+        description: 'Sparkling wine topper for elegant champagne cocktails',
+        averagePrice: 30,
+        essentialLevel: 'optional',
+        usedInCocktails: ['French 75', 'Champagne Cocktail', 'Bellini', 'Kir Royale']
+      },
+      {
+        name: 'Prosecco',
+        category: 'mixer',
+        subcategory: 'sparkling wine',
+        commonBrands: ['La Marca', 'Mionetto', 'Zonin'],
+        description: 'Italian sparkling wine for spritzes and cocktail tops',
+        averagePrice: 15,
+        essentialLevel: 'optional',
+        usedInCocktails: ['Aperol Spritz', 'Hugo Spritz', 'Bellini']
       }
     ];
   }
@@ -727,7 +747,7 @@ export class HomeBarService {
         {
           id: 'vermouth-1',
           name: 'Dolin Dry Vermouth',
-          category: 'mixer',
+          category: 'liqueur',
           subcategory: 'vermouth',
           brand: 'Dolin',
           abv: 17.5,

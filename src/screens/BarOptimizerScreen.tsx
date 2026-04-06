@@ -13,7 +13,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { colors, radii, spacing } from '../theme/tokens';
+import { colors, radii, spacing, serif } from '../theme/tokens';
 import MainPageHeader from '../components/ui/MainPageHeader';
 import EmptyState from '../components/EmptyState';
 import type { RootStackParamList } from '../navigation/RootNavigator';
@@ -22,6 +22,7 @@ import { InventoryService } from '../services/inventoryService';
 import { HomeBarService } from '../services/homeBarService';
 import { ShoppingListStore } from '../services/shoppingListStore';
 import { RecipesRepository } from '../repos/supabase';
+import { ALL_COCKTAILS as FALLBACK_COCKTAILS } from '../data/cocktails';
 import { generateOptimizationReport, type BarOptimizationReport } from '../services/optimizeMyBarService';
 import { toBottle, type Bottle, type UserInventoryItem } from '../types/database';
 import { useUserTier } from '../store/useUserTier';
@@ -95,7 +96,13 @@ export default function BarOptimizerScreen() {
 
         let remoteInventory: Bottle[] = [];
         if (user?.id) {
-          const userInventory = await InventoryService.getUserInventory(user.id);
+          const inventoryTimeout = new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('timeout')), 4000)
+          );
+          const userInventory = await Promise.race([
+            InventoryService.getUserInventory(user.id),
+            inventoryTimeout,
+          ]).catch(() => [] as UserInventoryItem[]);
           remoteInventory = userInventory.map((item: UserInventoryItem) =>
             toBottle(item, {
               subcategory: item.subcategory || undefined,
@@ -117,7 +124,13 @@ export default function BarOptimizerScreen() {
         });
 
         const inventory = Array.from(deduped.values());
-        const recipes = await RecipesRepository.getAllRecipes(0, 300);
+        const timeout = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('timeout')), 5000)
+        );
+        const recipes = await Promise.race([
+          RecipesRepository.getAllRecipes(0, 300),
+          timeout,
+        ]).catch(() => FALLBACK_COCKTAILS as any[]);
         const optimizationReport = generateOptimizationReport(inventory, recipes as any);
 
         if (!mounted) return;
@@ -229,13 +242,19 @@ export default function BarOptimizerScreen() {
           showBackButton
           onBackPress={() => nav.goBack()}
         />
-        <EmptyState
-          icon="bar-chart"
-          title="No Optimization Report Yet"
-          message="Add a few bottles to your bar and we will show what to buy next for the biggest cocktail reach."
-          actionLabel="Go To Home Bar"
-          onAction={() => nav.goBack()}
-        />
+        <View style={styles.emptyWrap}>
+          <View style={styles.emptyIconCircle}>
+            <Ionicons name="analytics-outline" size={72} color={colors.gold} />
+          </View>
+          <Text style={styles.emptyTitle}>Your Bar Needs More Bottles</Text>
+          <Text style={styles.emptySubtitle}>
+            Add at least 3–5 bottles to your home bar and we'll generate a personalized optimization report.
+          </Text>
+          <TouchableOpacity style={styles.emptyBtn} onPress={() => nav.goBack()} activeOpacity={0.85}>
+            <Text style={styles.emptyBtnText}>Go to Home Bar</Text>
+            <Ionicons name="chevron-forward" size={16} color={colors.goldText} />
+          </TouchableOpacity>
+        </View>
       </SafeAreaView>
     );
   }
@@ -387,6 +406,61 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+
+  // Empty state
+  emptyWrap: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing(4),
+    gap: spacing(2.5),
+  },
+  emptyIconCircle: {
+    width: 108,
+    height: 108,
+    borderRadius: 54,
+    backgroundColor: 'rgba(214,138,56,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(214,138,56,0.25)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing(1),
+  },
+  emptyTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: colors.text,
+    fontFamily: serif,
+    textAlign: 'center',
+  },
+  emptySubtitle: {
+    fontSize: 14,
+    color: colors.subtext,
+    textAlign: 'center',
+    lineHeight: 21,
+    maxWidth: 280,
+  },
+  emptyBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(0.75),
+    marginTop: spacing(1),
+    paddingHorizontal: spacing(3.5),
+    paddingVertical: spacing(1.75),
+    borderRadius: radii.pill,
+    backgroundColor: colors.accent,
+    shadowColor: colors.accent,
+    shadowOpacity: 0.55,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 8,
+  },
+  emptyBtnText: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: colors.goldText,
+    letterSpacing: 0.2,
   },
   content: {
     flex: 1,

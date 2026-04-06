@@ -34,6 +34,8 @@ import { useXPSystem } from '../store/useXPSystem';
 import * as Localization from 'expo-localization';
 import { supabase } from '../lib/supabase';
 import { InventoryService } from '../services/inventoryService';
+import { challengeProgressService } from '../services/challengeProgressService';
+import { achievementService } from '../services/achievementService';
 import { useAuth } from '../contexts/AuthContext';
 import { sortByMatch, getMatchMessage } from '../utils/recipeMatching';
 import type { RecipeMatch } from '../utils/recipeMatching';
@@ -263,6 +265,8 @@ export default function BottleDetailScreen() {
   const [loadingCocktails, setLoadingCocktails] = useState(true);
   const [inventoryItem, setInventoryItem] = useState<UserInventoryItem | null>(null);
   const [cellarModalVisible, setCellarModalVisible] = useState(false);
+  const [inventoryConfirmVisible, setInventoryConfirmVisible] = useState(false);
+  const [inventoryConfirmData, setInventoryConfirmData] = useState<{ bottleName: string; xpEarned: number } | null>(null);
   const [savingCellar, setSavingCellar] = useState(false);
   const [cellarExpanded, setCellarExpanded] = useState(false);
   const [purchasePriceInput, setPurchasePriceInput] = useState('');
@@ -613,27 +617,15 @@ export default function BottleDetailScreen() {
       return;
     }
 
+    challengeProgressService.trackAddToInventory(user.id, bottle.id || bottle.name);
+    achievementService.trackAction('homeBarIngredients');
+
     // Award XP for scanning/adding this bottle (50 XP first time, 5 XP repeats)
     const { xpEarned } = earnScanXP(bottle.id);
     const xpLine = xpEarned > 0 ? `\n\n+${xpEarned} XP earned` : '';
 
-    Alert.alert(
-      'Added to Inventory!',
-      `${bottle.name} has been added to your inventory.${xpLine}`,
-      [
-        {
-          text: 'View Inventory',
-          onPress: () => navigation.navigate('HomeBar'),
-        },
-        {
-          text: 'Scan Another',
-          onPress: () => navigation.navigate('SmartScan'),
-        },
-        {
-          text: 'OK',
-        },
-      ]
-    );
+    setInventoryConfirmData({ bottleName: bottle.name, xpEarned });
+    setInventoryConfirmVisible(true);
   };
 
   const handleFindNearby = async () => {
@@ -690,6 +682,10 @@ export default function BottleDetailScreen() {
     const message = `Found on KOOPE: ${bottle.name} by ${bottle.brand}${priceLine}${recipeLine}. Try KOOPE — the bartender's scanning app.`;
     try {
       await Share.share({ message });
+      if (user?.id) {
+        challengeProgressService.trackShareMoment(user.id, bottle.id);
+      }
+      achievementService.trackAction('recipesShared');
     } catch {
       // Share dismissed — no-op
     }
@@ -1138,6 +1134,41 @@ export default function BottleDetailScreen() {
         {/* end bodyContent */}
         </View>
       </ScrollView>
+
+      <Modal visible={inventoryConfirmVisible} transparent animationType="fade" onRequestClose={() => setInventoryConfirmVisible(false)}>
+        <View style={styles.invConfirmBackdrop}>
+          <View style={styles.invConfirmCard}>
+            <View style={styles.invConfirmIcon}>
+              <Ionicons name="checkmark" size={28} color={colors.gold} />
+            </View>
+            <Text style={styles.invConfirmTitle}>Added to Your Bar</Text>
+            <Text style={styles.invConfirmBottleName}>{inventoryConfirmData?.bottleName}</Text>
+            {inventoryConfirmData && inventoryConfirmData.xpEarned > 0 && (
+              <View style={styles.invConfirmXP}>
+                <Ionicons name="flash" size={13} color={colors.gold} />
+                <Text style={styles.invConfirmXPText}>+{inventoryConfirmData.xpEarned} XP earned</Text>
+              </View>
+            )}
+            <View style={styles.invConfirmActions}>
+              <TouchableOpacity
+                style={styles.invConfirmSecondary}
+                onPress={() => { setInventoryConfirmVisible(false); navigation.navigate('SmartScan'); }}
+              >
+                <Text style={styles.invConfirmSecondaryText}>Scan Another</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.invConfirmPrimary}
+                onPress={() => { setInventoryConfirmVisible(false); navigation.navigate('HomeBar'); }}
+              >
+                <Text style={styles.invConfirmPrimaryText}>View Bar</Text>
+              </TouchableOpacity>
+            </View>
+            <TouchableOpacity onPress={() => setInventoryConfirmVisible(false)} style={styles.invConfirmDismiss}>
+              <Text style={styles.invConfirmDismissText}>Done</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
       {false && <Modal visible={cellarModalVisible} transparent animationType="fade" onRequestClose={() => setCellarModalVisible(false)}>
         <View style={styles.cellarModalBackdrop}>
@@ -2036,5 +2067,100 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: colors.text,
+  },
+  invConfirmBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.72)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing(4),
+  },
+  invConfirmCard: {
+    width: '100%',
+    backgroundColor: '#1A1108',
+    borderRadius: radii.xl,
+    borderWidth: 1,
+    borderColor: 'rgba(214,138,56,0.25)',
+    padding: spacing(4),
+    alignItems: 'center',
+  },
+  invConfirmIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: 'rgba(214,138,56,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(214,138,56,0.3)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing(2),
+  },
+  invConfirmTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: spacing(0.5),
+  },
+  invConfirmBottleName: {
+    fontSize: 14,
+    color: colors.subtext,
+    textAlign: 'center',
+    marginBottom: spacing(1.5),
+  },
+  invConfirmXP: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(0.5),
+    backgroundColor: 'rgba(214,138,56,0.1)',
+    borderRadius: radii.sm,
+    paddingHorizontal: spacing(1.5),
+    paddingVertical: spacing(0.5),
+    marginBottom: spacing(3),
+  },
+  invConfirmXPText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.gold,
+  },
+  invConfirmActions: {
+    flexDirection: 'row',
+    gap: spacing(2),
+    width: '100%',
+    marginBottom: spacing(2),
+  },
+  invConfirmSecondary: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing(1.75),
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.card,
+  },
+  invConfirmSecondaryText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  invConfirmPrimary: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing(1.75),
+    borderRadius: radii.lg,
+    backgroundColor: colors.accent,
+  },
+  invConfirmPrimaryText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.white,
+  },
+  invConfirmDismiss: {
+    paddingVertical: spacing(1),
+  },
+  invConfirmDismissText: {
+    fontSize: 14,
+    color: colors.subtext,
   },
 });

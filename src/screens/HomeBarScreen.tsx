@@ -28,6 +28,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { HomeBar, BarIngredient, HomeBarService } from '../services/homeBarService';
 import { InventoryService } from '../services/inventoryService';
+import { challengeProgressService } from '../services/challengeProgressService';
 import { ShoppingListStore } from '../services/shoppingListStore';
 import EmptyState from '../components/EmptyState';
 import { log } from '../lib/logger';
@@ -768,6 +769,7 @@ export default function HomeBarScreen() {
   const categories: Array<{ key: InventoryCategory | 'all'; label: string; icon: any }> = [
     { key: 'all', label: 'All', icon: 'apps' },
     { key: 'spirits', label: 'Spirits', icon: 'wine' },
+    { key: 'liqueur', label: 'Liqueurs', icon: 'wine-outline' },
     { key: 'mixers', label: 'Mixers', icon: 'water' },
     { key: 'garnishes', label: 'Garnishes', icon: 'leaf' },
     { key: 'ingredients', label: 'Ingredients', icon: 'nutrition' },
@@ -779,8 +781,9 @@ export default function HomeBarScreen() {
     // Filter by category
     if (activeCategory !== 'all') {
       if (activeCategory === 'spirits') {
-        // "Spirits" tab intentionally includes liqueurs for discoverability.
-        filtered = filtered.filter(item => item.category === 'spirit' || item.category === 'liqueur');
+        filtered = filtered.filter(item => item.category === 'spirit');
+      } else if (activeCategory === 'liqueur') {
+        filtered = filtered.filter(item => item.category === 'liqueur');
       } else if (activeCategory === 'mixers') {
         filtered = filtered.filter(item => item.category === 'mixer');
       } else if (activeCategory === 'garnishes') {
@@ -1055,6 +1058,8 @@ export default function HomeBarScreen() {
             item: manualEntryName.trim(),
             category: manualEntryCategory,
           });
+        } else {
+          challengeProgressService.trackAddToInventory(user.id, newIngredient.id);
         }
 
         // Update local state
@@ -1634,8 +1639,10 @@ export default function HomeBarScreen() {
         {favoriteItems.length > 0 && activeCategory === 'all' && !searchQuery.trim() && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Ionicons name="star" size={16} color={colors.gold} />
-              <Heading level={3} style={styles.sectionTitle}>Bar Favorites</Heading>
+              <View style={styles.sectionHeaderLine} />
+              <Ionicons name="star" size={11} color={colors.gold} />
+              <Text style={styles.sectionTitle}>FAVORITES</Text>
+              <View style={styles.sectionHeaderLine} />
             </View>
             <Text style={styles.sectionBodyText}>Keep your go-to bottles, mixers, and garnish staples easy to find.</Text>
             <View style={styles.grid}>
@@ -1648,8 +1655,10 @@ export default function HomeBarScreen() {
         {lowStock.length > 0 && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Ionicons name="warning" size={16} color={colors.gold} />
-              <Heading level={3} style={styles.sectionTitle}>Low Stock</Heading>
+              <View style={styles.sectionHeaderLine} />
+              <Ionicons name="warning" size={11} color={colors.gold} />
+              <Text style={styles.sectionTitle}>LOW STOCK</Text>
+              <View style={styles.sectionHeaderLine} />
             </View>
             <View style={styles.grid}>
               {lowStock.map(renderInventoryCard)}
@@ -1660,9 +1669,13 @@ export default function HomeBarScreen() {
         {/* All Items or Filtered Items */}
         {rest.length > 0 && (
           <View style={styles.section}>
-            <Heading level={3} style={styles.sectionTitle}>
-              {activeCategory === 'all' ? 'All Items' : categories.find(c => c.key === activeCategory)?.label || 'Items'}
-            </Heading>
+            <View style={styles.sectionHeader}>
+              <View style={styles.sectionHeaderLine} />
+              <Text style={styles.sectionTitle}>
+                {(activeCategory === 'all' ? 'ALL ITEMS' : (categories.find(c => c.key === activeCategory)?.label || 'ITEMS')).toUpperCase()}
+              </Text>
+              <View style={styles.sectionHeaderLine} />
+            </View>
             <View style={styles.grid}>
               {rest.map(renderInventoryCard)}
             </View>
@@ -1692,7 +1705,9 @@ export default function HomeBarScreen() {
       {/* Bottom Action Buttons */}
       <View style={styles.bottomActions}>
         <TouchableOpacity style={styles.recipesButton} onPress={withHaptic(handleSeeRecipes)}>
-          <Text style={styles.recipesButtonText}>See What You Can Make →</Text>
+          <Ionicons name="flask-outline" size={18} color={colors.goldText} />
+          <Text style={styles.recipesButtonText}>See What You Can Make</Text>
+          <Ionicons name="chevron-forward" size={16} color={colors.goldText} />
         </TouchableOpacity>
       </View>
 
@@ -2405,7 +2420,7 @@ export default function HomeBarScreen() {
       <FeedbackPromptModal
         featureKey="shopping_cart"
         title="Shopping cart — coming soon"
-        body="We're building a smart cart that lets you add missing ingredients directly from any recipe. Would you use this?"
+        body="We're building a smart cart that lets you add missing ingredients directly from any recipe and order them through the app — no separate store trips needed. Would you use this?"
         visible={cartFeedbackVisible}
         onDismiss={() => setCartFeedbackVisible(false)}
       />
@@ -2491,27 +2506,29 @@ const styles = StyleSheet.create({
     paddingBottom: spacing(0.5),
   },
   featureCard: {
-    width: 148,
+    width: 144,
     backgroundColor: colors.card,
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.10)',
+    borderColor: 'rgba(214,138,56,0.14)',
     paddingVertical: spacing(2),
     paddingHorizontal: spacing(1.75),
     alignItems: 'center',
-    gap: spacing(0.75),
+    gap: spacing(0.5),
   },
   featureCardLast: {
     marginRight: 0,
   },
   featureCardIconWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: `${colors.accent}14`,
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: `${colors.accent}12`,
+    borderWidth: 1,
+    borderColor: `${colors.accent}28`,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing(0.5),
+    marginBottom: spacing(0.75),
   },
   featureCardTitle: {
     fontSize: 12,
@@ -2521,10 +2538,10 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
   featureCardSubtitle: {
-    fontSize: 11,
+    fontSize: 10,
     color: colors.subtext,
     textAlign: 'center',
-    lineHeight: 14,
+    lineHeight: 13,
   },
   categoryFilters: {
     marginTop: spacing(2.5),
@@ -2571,20 +2588,26 @@ const styles = StyleSheet.create({
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing(1),
+    gap: spacing(1.5),
     marginBottom: spacing(2),
+  },
+  sectionHeaderLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.06)',
   },
   sectionBodyText: {
     fontSize: 13,
     color: colors.subtext,
     lineHeight: 18,
     marginBottom: spacing(1.5),
+    marginTop: spacing(-1),
   },
   sectionTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: spacing(2),
+    fontSize: 10,
+    fontWeight: '800',
+    color: colors.gold,
+    letterSpacing: 2,
   },
   sectionLink: {
     fontSize: 14,
@@ -2634,7 +2657,7 @@ const styles = StyleSheet.create({
     borderRadius: radii.lg,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: colors.line,
+    borderColor: 'rgba(255,255,255,0.06)',
   },
   lowStockCard: {
     borderColor: colors.gold + '40',
@@ -2642,8 +2665,8 @@ const styles = StyleSheet.create({
   },
   cardImageContainer: {
     width: '100%',
-    height: 120,
-    backgroundColor: colors.bg,
+    height: 116,
+    backgroundColor: '#1F1410',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -2652,44 +2675,46 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   cardContent: {
-    padding: spacing(2),
+    padding: spacing(1.75),
   },
   cardTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing(0.75),
-    marginBottom: spacing(0.5),
+    marginBottom: spacing(0.4),
   },
   cardTitle: {
     flex: 1,
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 13,
+    fontWeight: '700',
     color: colors.text,
+    lineHeight: 18,
   },
   cardSubtitle: {
-    fontSize: 12,
+    fontSize: 11,
     color: colors.subtext,
-    marginBottom: spacing(0.5),
-    lineHeight: 17,
+    marginBottom: spacing(0.75),
+    lineHeight: 15,
   },
   cardPillRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: spacing(0.5),
-    marginBottom: spacing(0.75),
+    gap: 4,
+    marginBottom: spacing(0.5),
   },
   cardPill: {
-    paddingHorizontal: spacing(0.9),
-    paddingVertical: spacing(0.45),
-    borderRadius: radii.full,
-    backgroundColor: `${colors.accent}12`,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    backgroundColor: `${colors.accent}10`,
     borderWidth: 1,
-    borderColor: `${colors.accent}28`,
+    borderColor: `${colors.accent}22`,
   },
   cardPillText: {
-    fontSize: 10,
-    fontWeight: '700',
+    fontSize: 9,
+    fontWeight: '800',
     color: colors.accent,
+    letterSpacing: 0.3,
   },
   cardNote: {
     fontSize: 11,
@@ -2705,14 +2730,15 @@ const styles = StyleSheet.create({
     top: spacing(1),
     right: spacing(1),
     backgroundColor: colors.gold,
-    paddingHorizontal: spacing(1.5),
-    paddingVertical: spacing(0.5),
+    paddingHorizontal: spacing(1),
+    paddingVertical: 3,
     borderRadius: radii.sm,
   },
   lowStockText: {
-    fontSize: 10,
-    fontWeight: '700',
+    fontSize: 9,
+    fontWeight: '800',
     color: colors.bg,
+    letterSpacing: 0.5,
   },
   bottomSpacing: {
     height: spacing(4),
@@ -2730,16 +2756,19 @@ const styles = StyleSheet.create({
     paddingBottom: spacing(4),
   },
   recipesButton: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.accent,
-    paddingVertical: spacing(2.5),
+    paddingVertical: spacing(2.25),
     borderRadius: radii.pill,
+    gap: spacing(1),
   },
   recipesButtonText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.white,
+    fontSize: 15,
+    fontWeight: '800',
+    color: colors.goldText,
+    letterSpacing: 0.2,
   },
   modalOverlay: {
     flex: 1,

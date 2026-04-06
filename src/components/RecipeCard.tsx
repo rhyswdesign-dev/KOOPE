@@ -184,7 +184,7 @@ const RecipeCard = React.memo(({
       <FeedbackPromptModal
         featureKey="shopping_cart"
         title="Shopping cart — coming soon"
-        body="We're building a smart cart that lets you add missing ingredients directly from any recipe. Would you use this?"
+        body="We're building a smart cart that lets you add missing ingredients directly from any recipe and order them through the app — no separate store trips needed. Would you use this?"
         visible={cartFeedbackVisible}
         onDismiss={() => setCartFeedbackVisible(false)}
       />

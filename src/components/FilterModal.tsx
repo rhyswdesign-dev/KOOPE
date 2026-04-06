@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, radii } from '../theme/tokens';
+import { colors, spacing, radii, serif } from '../theme/tokens';
 import type { FilterOptions } from '../services/searchService';
 
 interface FilterModalProps {
@@ -19,17 +19,27 @@ interface FilterModalProps {
   onApplyFilters: (filters: Partial<FilterOptions>) => void;
 }
 
-const CATEGORIES = ['cocktails', 'shots', 'mocktails', 'syrups', 'variations'];
-const SORT_OPTIONS: Array<{ label: string; value: FilterOptions['sortOrder'] }> = [
-  { label: 'A to Z', value: 'alphabetical-asc' },
-  { label: 'Z to A', value: 'alphabetical-desc' },
+const CATEGORIES: Array<{
+  value: string;
+  label: string;
+  icon: React.ComponentProps<typeof Ionicons>['name'];
+}> = [
+  { value: 'cocktails', label: 'Cocktails', icon: 'wine-outline' },
+  { value: 'shots', label: 'Shots', icon: 'flash-outline' },
+  { value: 'mocktails', label: 'Mocktails', icon: 'leaf-outline' },
+  { value: 'syrups', label: 'Syrups', icon: 'water-outline' },
+  { value: 'variations', label: 'Variations', icon: 'shuffle-outline' },
 ];
 
-/**
- * FilterModal Component
- *
- * Advanced filtering UI for recipe search
- */
+const SORT_OPTIONS: Array<{
+  label: string;
+  value: FilterOptions['sortOrder'];
+  icon: React.ComponentProps<typeof Ionicons>['name'];
+}> = [
+  { label: 'A to Z', value: 'alphabetical-asc', icon: 'arrow-up-outline' },
+  { label: 'Z to A', value: 'alphabetical-desc', icon: 'arrow-down-outline' },
+];
+
 export default function FilterModal({
   visible,
   onClose,
@@ -90,10 +100,17 @@ export default function FilterModal({
     <Modal
       visible={visible}
       animationType="slide"
-      presentationStyle="pageSheet"
+      transparent
       onRequestClose={onClose}
     >
-      <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+      {/* Backdrop */}
+      <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={onClose} />
+
+      {/* Sheet — anchored to bottom, sizes to content */}
+      <SafeAreaView style={styles.sheet} edges={['bottom']}>
+        {/* Drag handle */}
+        <View style={styles.handle} />
+
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.headerLeft}>
@@ -104,77 +121,94 @@ export default function FilterModal({
               </View>
             )}
           </View>
-          <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-            <Ionicons name="close" size={28} color={colors.text} />
+          <TouchableOpacity onPress={onClose} style={styles.closeButton} hitSlop={8}>
+            <Ionicons name="close" size={18} color={colors.text} />
           </TouchableOpacity>
         </View>
 
-        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-          <Text style={styles.helperText}>
-            Quick browsing filters only. Use Advanced for spirit, mood, and difficulty.
-          </Text>
+        <Text style={styles.helperText}>
+          Quick browsing filters only. Use Advanced for spirit, mood, and difficulty.
+        </Text>
 
-          {/* Basic Category Filter */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Category</Text>
-            <View style={styles.chipContainer}>
-              {CATEGORIES.map((category) => {
-                const isSelected = selectedCategories.includes(category);
-                return (
-                  <TouchableOpacity
-                    key={category}
-                    style={[styles.chip, isSelected && styles.chipSelected]}
-                    onPress={() => toggleCategory(category)}
-                  >
-                    <Text style={[styles.chipText, isSelected && styles.chipTextSelected]}>
-                      {category.charAt(0).toUpperCase() + category.slice(1)}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
+        {/* Category */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionTitle}>CATEGORY</Text>
+            <View style={styles.sectionRule} />
           </View>
-
-          {/* Basic Sort Filter */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Sort</Text>
-            <View style={styles.chipContainer}>
-              {SORT_OPTIONS.map((option) => {
-                const isSelected = localFilters.sortOrder === option.value;
-                return (
-                  <TouchableOpacity
-                    key={option.value}
-                    style={[styles.chip, isSelected && styles.chipSelected]}
-                    onPress={() => toggleSort(option.value)}
-                  >
-                    <Text style={[styles.chipText, isSelected && styles.chipTextSelected]}>
-                      {option.label}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
+          <View style={styles.chipContainer}>
+            {CATEGORIES.map(({ value, label, icon }) => {
+              const isSelected = selectedCategories.includes(value);
+              return (
+                <TouchableOpacity
+                  key={value}
+                  style={[styles.chip, isSelected && styles.chipSelected]}
+                  onPress={() => toggleCategory(value)}
+                  activeOpacity={0.75}
+                >
+                  <Ionicons
+                    name={icon}
+                    size={13}
+                    color={isSelected ? colors.goldText : colors.subtext}
+                  />
+                  <Text style={[styles.chipText, isSelected && styles.chipTextSelected]}>
+                    {label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
-        </ScrollView>
+        </View>
 
-        {/* Footer Actions */}
+        {/* Sort */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionTitle}>SORT</Text>
+            <View style={styles.sectionRule} />
+          </View>
+          <View style={styles.chipContainer}>
+            {SORT_OPTIONS.map((option) => {
+              const isSelected = localFilters.sortOrder === option.value;
+              return (
+                <TouchableOpacity
+                  key={option.value}
+                  style={[styles.chip, isSelected && styles.chipSelected]}
+                  onPress={() => toggleSort(option.value)}
+                  activeOpacity={0.75}
+                >
+                  <Ionicons
+                    name={option.icon}
+                    size={13}
+                    color={isSelected ? colors.goldText : colors.subtext}
+                  />
+                  <Text style={[styles.chipText, isSelected && styles.chipTextSelected]}>
+                    {option.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+
+        {/* Footer */}
         <View style={styles.footer}>
           <TouchableOpacity
-            style={styles.resetButton}
+            style={[styles.resetButton, activeFilterCount === 0 && styles.resetButtonDisabled]}
             onPress={handleReset}
             disabled={activeFilterCount === 0}
+            activeOpacity={0.7}
           >
             <Text style={[
               styles.resetButtonText,
-              activeFilterCount === 0 && styles.resetButtonTextDisabled
+              activeFilterCount === 0 && styles.resetButtonTextDisabled,
             ]}>
               Reset All
             </Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.applyButton} onPress={handleApply}>
+          <TouchableOpacity style={styles.applyButton} onPress={handleApply} activeOpacity={0.85}>
             <Text style={styles.applyButtonText}>
-              Apply {activeFilterCount > 0 ? `(${activeFilterCount})` : ''}
+              Apply{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
             </Text>
           </TouchableOpacity>
         </View>
@@ -184,20 +218,36 @@ export default function FilterModal({
 }
 
 const styles = StyleSheet.create({
-  container: {
+  backdrop: {
     flex: 1,
-    backgroundColor: colors.card,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(214,138,56,0.25)',
+    backgroundColor: 'rgba(0,0,0,0.55)',
   },
+  sheet: {
+    backgroundColor: colors.card,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(214,138,56,0.3)',
+    paddingHorizontal: spacing(3),
+    paddingBottom: spacing(1),
+  },
+  handle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignSelf: 'center',
+    marginTop: spacing(1.5),
+    marginBottom: spacing(0.5),
+  },
+
+  // Header
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: spacing(3),
-    paddingVertical: spacing(2.5),
-    borderBottomWidth: 1,
-    borderBottomColor: colors.line,
+    paddingTop: spacing(1.5),
+    paddingBottom: spacing(1),
   },
   headerLeft: {
     flexDirection: 'row',
@@ -205,10 +255,10 @@ const styles = StyleSheet.create({
     gap: spacing(1.5),
   },
   headerTitle: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '700',
     color: colors.text,
-    fontFamily: 'Georgia',
+    fontFamily: serif,
   },
   badge: {
     backgroundColor: colors.accent,
@@ -221,65 +271,82 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     fontSize: 11,
-    fontWeight: '700',
-    color: colors.bg,
+    fontWeight: '800',
+    color: colors.goldText,
   },
   closeButton: {
-    width: 36,
-    height: 36,
+    width: 32,
+    height: 32,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.bg,
-    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: colors.line,
+    borderColor: 'rgba(255,255,255,0.08)',
   },
-  content: {
-    flex: 1,
-    paddingHorizontal: spacing(3),
-  },
+
   helperText: {
-    marginTop: spacing(2),
-    fontSize: 13,
+    marginTop: spacing(1),
+    fontSize: 12,
+    fontStyle: 'italic',
     color: colors.subtext,
+    opacity: 0.75,
+    lineHeight: 17,
   },
+
+  // Section
   section: {
-    marginTop: spacing(4),
+    marginTop: spacing(2),
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(1.5),
+    marginBottom: spacing(1.5),
   },
   sectionTitle: {
     fontSize: 10,
-    fontWeight: '700',
-    color: colors.accent,
-    textTransform: 'uppercase',
-    letterSpacing: 1.5,
-    marginBottom: spacing(2),
+    fontWeight: '800',
+    color: colors.gold,
+    letterSpacing: 2,
   },
+  sectionRule: {
+    flex: 1,
+    height: 1,
+    backgroundColor: 'rgba(214,138,56,0.18)',
+  },
+
+  // Chips
   chipContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: spacing(1.5),
+    gap: spacing(1.25),
   },
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: spacing(2),
-    paddingVertical: spacing(1.5),
+    paddingVertical: spacing(1.25),
     borderRadius: radii.pill,
     backgroundColor: colors.bg,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.10)',
+    borderColor: 'rgba(214,138,56,0.2)',
+    gap: spacing(0.75),
   },
   chipSelected: {
     backgroundColor: colors.accent,
     borderColor: colors.accent,
     shadowColor: colors.accent,
-    shadowOpacity: 0.45,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 6,
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 2,
+  },
+  chipIcon: {
+    // inherits color from prop
   },
   chipText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
     color: colors.subtext,
   },
@@ -287,18 +354,17 @@ const styles = StyleSheet.create({
     color: colors.goldText,
     fontWeight: '700',
   },
+
+  // Footer
   footer: {
     flexDirection: 'row',
-    paddingHorizontal: spacing(3),
-    paddingVertical: spacing(2.5),
+    paddingTop: spacing(2),
+    paddingBottom: spacing(1),
     gap: spacing(2),
-    borderTopWidth: 1,
-    borderTopColor: colors.line,
-    backgroundColor: colors.card,
   },
   resetButton: {
     flex: 1,
-    paddingVertical: spacing(2),
+    paddingVertical: spacing(1.75),
     borderRadius: radii.pill,
     backgroundColor: 'transparent',
     alignItems: 'center',
@@ -306,8 +372,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.15)',
   },
+  resetButtonDisabled: {
+    borderColor: 'rgba(255,255,255,0.07)',
+  },
   resetButtonText: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '600',
     color: colors.subtext,
   },
@@ -316,20 +385,21 @@ const styles = StyleSheet.create({
   },
   applyButton: {
     flex: 2,
-    paddingVertical: spacing(2),
+    paddingVertical: spacing(1.75),
     borderRadius: radii.pill,
     backgroundColor: colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: colors.accent,
-    shadowOpacity: 0.5,
-    shadowRadius: 12,
+    shadowOpacity: 0.55,
+    shadowRadius: 14,
     shadowOffset: { width: 0, height: 4 },
     elevation: 8,
   },
   applyButtonText: {
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 15,
+    fontWeight: '800',
     color: colors.goldText,
+    letterSpacing: 0.3,
   },
 });

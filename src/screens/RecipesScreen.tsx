@@ -19,7 +19,8 @@ import {
   SafeAreaView,
 } from 'react-native';
 import Animated, { FadeInDown, FadeIn, FadeInLeft, FadeInRight } from 'react-native-reanimated';
-import { colors, spacing, radii, fonts } from '../theme/tokens';
+import { colors, spacing, radii, fonts, serif } from '../theme/tokens';
+import { SafeAreaView as SafeAreaViewContext } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import SectionHeader from '../components/SectionHeader';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
@@ -33,8 +34,6 @@ import { AIRecipeFormatter, FormattedRecipe } from '../services/aiRecipeFormatte
 import { searchService, type FilterOptions } from '../services/searchService';
 import AIRecipeSearch from '../components/AIRecipeSearch';
 import AIRecipeModal from '../components/AIRecipeModal';
-import AICreditsPurchaseModal from '../components/AICreditsPurchaseModal';
-import { useAICredits } from '../store/useAICredits';
 import RecipeCard from '../components/RecipeCard';
 import { createRecipeCardProps } from '../utils/recipeActions';
 import { StatusBar } from 'expo-status-bar';
@@ -1687,7 +1686,6 @@ export default function RecipesScreen() {
   const navigation = useNavigation<Nav>();
   const { user } = useAuth();
   const { savedItems, toggleSavedCocktail, isCocktailSaved, savedCocktailCount, canSaveMoreCocktails } = useSavedItems();
-  const { credits, isPremium, getActionCost } = useAICredits();
   const { getPersonalizedMoodOrder, getFeaturedCocktails, scoreMoodCategory, recordInteraction, profile } = usePersonalization();
   const { recipes: userRecipes, loadRecipes } = useUserRecipes();
   const { toast, showToast, hideToast } = useToast();
@@ -1746,6 +1744,7 @@ export default function RecipesScreen() {
     sortOrder: 'alphabetical-asc',
   });
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const searchInputRef = useRef<any>(null);
   const [showBasicFilterModal, setShowBasicFilterModal] = useState(false);
   const [showAdvancedFilterModal, setShowAdvancedFilterModal] = useState(false);
   const [showSearchInput, setShowSearchInput] = useState(false);
@@ -1759,8 +1758,7 @@ export default function RecipesScreen() {
   // AI-related states
   const [aiRecipeModalVisible, setAiRecipeModalVisible] = useState(false);
   const [currentAiRecipe, setCurrentAiRecipe] = useState<FormattedRecipe | null>(null);
-  const [creditsPurchaseVisible, setCreditsPurchaseVisible] = useState(false);
-  const [creditsInfoVisible, setCreditsInfoVisible] = useState(false);
+
 
   // Preferences modal
   const [preferencesModalVisible, setPreferencesModalVisible] = useState(false);
@@ -1962,11 +1960,6 @@ export default function RecipesScreen() {
     }
   }, [loadRecipes]);
 
-  // Handler for when user needs more credits
-  const handleCreditsNeeded = useCallback(() => {
-    setCreditsPurchaseVisible(true);
-  }, []);
-
   // Handlers for ForYouFeed component
   const handleCocktailPress = useCallback((cocktail: any) => {
     navigation.navigate('CocktailDetail', { cocktailId: cocktail.id });
@@ -2039,16 +2032,16 @@ export default function RecipesScreen() {
     return new Set(cocktails.map((item: any) => item.id));
   }, [savedItems]);
 
-  // Search functionality with debouncing and fallback
+  // Search functionality with debouncing — searches DISCOVER_COCKTAILS directly
+  // so vault variations and all cocktails are always reachable, with no result cap.
   const handleSearch = useCallback((query: string) => {
     setSearchQuery(query);
 
-    // Clear existing timeout
     if (searchTimeoutRef.current) {
       clearTimeout(searchTimeoutRef.current);
     }
 
-    if (!query.trim()) {
+    if (query.trim().length < 2) {
       setSearchResults([]);
       setIsSearching(false);
       return;
@@ -2056,45 +2049,49 @@ export default function RecipesScreen() {
 
     setIsSearching(true);
 
-    // Debounce the actual search
-    searchTimeoutRef.current = setTimeout(async () => {
+    searchTimeoutRef.current = setTimeout(() => {
       try {
-        // Primary search using search service
-        try {
-          const results = await searchService.search(query, currentFilters);
-          let recipeResults = results
-            .filter(item => item.category === 'recipe')
-            .map(item => {
-              // Find the actual recipe object from our arrays
-              return DISCOVER_COCKTAILS.find(cocktail =>
-                cocktail.id === item.id ||
-                cocktail.name.toLowerCase() === item.title.toLowerCase()
-              ) || item.data;
-            })
-            .filter(Boolean)
-            .filter(recipe => recipe.category?.toLowerCase() !== 'syrups')
-            .filter(isRecipeVisibleInSearch);
+        const queryLower = query.toLowerCase().trim();
+        const queryTerms = queryLower.split(/\s+/).filter(t => t.length > 0);
 
-          setSearchResults(recipeResults);
-        } catch (searchError) {
-          log.warn('RecipesScreen', 'Search service error, using fallback', { query });
-          // Fallback: Direct string matching
-          const queryLower = query.toLowerCase();
-          const directResults = DISCOVER_COCKTAILS.filter(cocktail => {
-            const searchText = `${cocktail.name} ${cocktail.subtitle || ''} ${cocktail.description || ''} ${ingredientListToSearchText(cocktail.ingredients || [])}`.toLowerCase();
-            if (!searchText.includes(queryLower)) return false;
-            return isRecipeVisibleInSearch(cocktail);
-          });
-          setSearchResults(directResults);
-        }
+        const scored = DISCOVER_COCKTAILS
+          .filter(cocktail => cocktail.category?.toLowerCase() !== 'syrups')
+          .filter(isRecipeVisibleInSearch)
+          .map(cocktail => {
+            const name = (cocktail.name || '').toLowerCase();
+            const description = (cocktail.description || '').toLowerCase();
+            const ingredientText = ingredientListToSearchText(cocktail.ingredients || []).toLowerCase();
+            const tags = (cocktail.tags || []).join(' ').toLowerCase();
+            const searchable = `${name} ${description} ${ingredientText} ${tags}`;
+
+            // Must match at least one term
+            if (!queryTerms.some(term => searchable.includes(term))) return null;
+
+            let score = 0;
+            if (name === queryLower) score += 100;
+            else if (name.startsWith(queryLower)) score += 80;
+            else if (name.includes(queryLower)) score += 60;
+            else if (queryTerms.every(term => name.includes(term))) score += 55;
+            else if (ingredientText.includes(queryLower)) score += 40;
+            else if (tags.includes(queryLower)) score += 30;
+            else if (description.includes(queryLower)) score += 20;
+            else score += 10;
+
+            return { cocktail, score };
+          })
+          .filter((item): item is { cocktail: any; score: number } => item !== null)
+          .sort((a, b) => b.score - a.score)
+          .map(item => item.cocktail);
+
+        setSearchResults(scored);
       } catch (error) {
         log.error('RecipesScreen', 'Search error', error, { query });
         setSearchResults([]);
       } finally {
         setIsSearching(false);
       }
-    }, 300); // 300ms debounce
-  }, [currentFilters, DISCOVER_COCKTAILS, isRecipeVisibleInSearch]);
+    }, 400);
+  }, [DISCOVER_COCKTAILS, isRecipeVisibleInSearch]);
 
   // Cleanup search timeout on unmount
   useEffect(() => {
@@ -2104,6 +2101,24 @@ export default function RecipesScreen() {
       }
     };
   }, []);
+
+  // Hide tab bar while searching + focus input after overlay mounts
+  useEffect(() => {
+    const tabNavigator = navigation.getParent();
+    if (showSearchInput) {
+      tabNavigator?.setOptions({ tabBarStyle: { display: 'none' } });
+      // Delay focus so it happens after the overlay is fully mounted,
+      // avoiding conflicts with any mount-time layout calculations on iOS
+      const timer = setTimeout(() => {
+        searchInputRef.current?.focus();
+      }, 50);
+      return () => clearTimeout(timer);
+    } else {
+      tabNavigator?.setOptions({
+        tabBarStyle: { backgroundColor: colors.bg, borderTopColor: 'transparent' },
+      });
+    }
+  }, [showSearchInput]);
 
   // Load personalized recommendations when switching to "For You" mode
   useEffect(() => {
@@ -2518,7 +2533,7 @@ export default function RecipesScreen() {
         ]}
       />
       <FlatList
-        data={viewMode === 'browse' ? (getCurrentRecipes() || []) : []}
+        data={!showSearchInput && viewMode === 'browse' ? (getCurrentRecipes() || []) : []}
         keyExtractor={(item) => item.id}
         renderItem={renderRecipeItem}
         numColumns={2}
@@ -2534,6 +2549,7 @@ export default function RecipesScreen() {
           />
         }
         ListHeaderComponent={
+          showSearchInput ? null : (
           <View>
 
             {/* View Mode Toggle */}
@@ -2804,7 +2820,7 @@ export default function RecipesScreen() {
                     <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing(0.75) }}>
                       <Ionicons name="pulse-outline" size={16} color={colors.accent} style={{ marginRight: spacing(0.75) }} />
                       <Text style={{ color: colors.accent, fontSize: 12, fontWeight: '800', letterSpacing: 0.6, textTransform: 'uppercase' }}>
-                        Craft Identity Preview
+                        Mixologist Preview
                       </Text>
                     </View>
                     <Text style={{ color: colors.text, fontSize: 18, fontWeight: '800', marginBottom: spacing(0.5) }}>
@@ -2825,8 +2841,8 @@ export default function RecipesScreen() {
               </>
             )}
 
-            {/* All Cocktails Header - Only show in Browse mode or when searching */}
-            {(searchQuery.trim() || viewMode === 'browse') && (
+            {/* All Cocktails Header - Browse mode only (search has its own full-screen overlay) */}
+            {(!showSearchInput && viewMode === 'browse') && (
               <View style={{
                 marginHorizontal: spacing(2),
                 marginTop: spacing(2),
@@ -3014,356 +3030,210 @@ export default function RecipesScreen() {
             )}
 
             {/* Advanced Filter Modal */}
-            <Modal visible={showAdvancedFilterModal} transparent animationType="fade">
-              <View style={{
-                flex: 1,
-                backgroundColor: 'rgba(0, 0, 0, 0.5)',
-                justifyContent: 'center',
-                alignItems: 'center',
-                padding: spacing(4)
-              }}>
-                <View style={{
-                  backgroundColor: colors.card,
-                  borderRadius: radii.lg,
-                  padding: spacing(4),
-                  width: '100%',
-                  maxWidth: 400,
-                  maxHeight: '85%'
-                }}>
-                  <View style={{
-                    flexDirection: 'row',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    marginBottom: spacing(3),
-                    paddingBottom: spacing(2),
-                    borderBottomWidth: 1,
-                    borderBottomColor: colors.border
-                  }}>
-                    <Text style={{
-                      fontSize: 20,
-                      fontWeight: '600',
-                      color: colors.text
-                    }}>Advanced Filters</Text>
-                    <Pressable onPress={() => setShowAdvancedFilterModal(false)}>
-                      <Ionicons name="close" size={24} color={colors.text} />
-                    </Pressable>
-                  </View>
+            <Modal
+              visible={showAdvancedFilterModal}
+              animationType="slide"
+              transparent
+              onRequestClose={() => setShowAdvancedFilterModal(false)}
+            >
+              <Pressable style={afStyles.backdrop} onPress={() => setShowAdvancedFilterModal(false)} />
+              <SafeAreaViewContext style={afStyles.container} edges={['bottom']}>
+                {/* Drag handle */}
+                <View style={afStyles.handle} />
 
-                  <ScrollView showsVerticalScrollIndicator={false}>
-                    {/* Spirit Filter */}
-                    <View style={{ marginBottom: spacing(3) }}>
-                      <Text style={{
-                        fontSize: 16,
-                        fontWeight: '600',
-                        color: colors.text,
-                        marginBottom: spacing(2)
-                      }}>Spirit</Text>
-
-                      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: spacing(2) }}>
-                        <View style={{
-                          flexDirection: 'row',
-                          gap: spacing(1),
-                          paddingRight: spacing(2)
-                        }}>
-                          {['All', 'Brandy', 'Cognac', 'Gin', 'Mezcal', 'Rum', 'Tequila', 'Vodka', 'Whiskey'].map((spirit) => {
-                            const isSelected = currentFilters.ingredients?.includes(spirit.toLowerCase()) || (spirit === 'All' && !currentFilters.ingredients?.length);
-                            return (
-                              <Pressable
-                                key={spirit}
-                                onPress={() => {
-                                  if (spirit === 'All') {
-                                    setCurrentFilters({ ...currentFilters, ingredients: [] });
-                                  } else {
-                                    const ingredients = currentFilters.ingredients || [];
-                                    const newIngredients = ingredients.includes(spirit.toLowerCase())
-                                      ? ingredients.filter(i => i !== spirit.toLowerCase())
-                                      : [spirit.toLowerCase()];
-                                    setCurrentFilters({ ...currentFilters, ingredients: newIngredients });
-                                  }
-                                }}
-                                style={{
-                                  backgroundColor: isSelected ? colors.accent : colors.card,
-                                  paddingHorizontal: spacing(2),
-                                  paddingVertical: spacing(1.5),
-                                  borderRadius: radii.md,
-                                  borderWidth: 1,
-                                  borderColor: isSelected ? colors.accent : colors.border
-                                }}
-                              >
-                                <Text style={{
-                                  color: isSelected ? colors.white : colors.text,
-                                  fontSize: 16,
-                                  fontWeight: isSelected ? '600' : '400'
-                                }}>
-                                  {spirit}
-                                </Text>
-                              </Pressable>
-                            );
-                          })}
-                        </View>
-                      </ScrollView>
-                    </View>
-
-                    {/* Difficulty Filter */}
-                    <View style={{ marginBottom: spacing(3) }}>
-                      <Text style={{
-                        fontSize: 16,
-                        fontWeight: '600',
-                        color: colors.text,
-                        marginBottom: spacing(2)
-                      }}>Difficulty</Text>
-
-                      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                        <View style={{
-                          flexDirection: 'row',
-                          gap: spacing(1),
-                          paddingRight: spacing(2)
-                        }}>
-                          {['All', 'Easy', 'Medium', 'Hard'].map((difficulty) => {
-                            const isSelected = currentFilters.difficulty?.includes(difficulty.toLowerCase()) || (difficulty === 'All' && !currentFilters.difficulty?.length);
-                            return (
-                              <Pressable
-                                key={difficulty}
-                                onPress={() => {
-                                  if (difficulty === 'All') {
-                                    setCurrentFilters({ ...currentFilters, difficulty: [] });
-                                  } else {
-                                    const difficulties = currentFilters.difficulty || [];
-                                    const newDifficulties = difficulties.includes(difficulty.toLowerCase())
-                                      ? difficulties.filter(d => d !== difficulty.toLowerCase())
-                                      : [difficulty.toLowerCase()];
-                                    setCurrentFilters({ ...currentFilters, difficulty: newDifficulties });
-                                  }
-                                }}
-                                style={{
-                                  backgroundColor: isSelected ? colors.accent : colors.card,
-                                  paddingHorizontal: spacing(2),
-                                  paddingVertical: spacing(1.5),
-                                  borderRadius: radii.md,
-                                  borderWidth: 1,
-                                  borderColor: isSelected ? colors.accent : colors.border
-                                }}
-                              >
-                                <Text style={{
-                                  color: isSelected ? colors.white : colors.text,
-                                  fontSize: 16,
-                                  fontWeight: isSelected ? '600' : '400'
-                                }}>
-                                  {difficulty}
-                                </Text>
-                              </Pressable>
-                            );
-                          })}
-                        </View>
-                      </ScrollView>
-                    </View>
-
-                    {/* Category Filter */}
-                    <View style={{ marginBottom: spacing(3) }}>
-                      <Text style={{
-                        fontSize: 16,
-                        fontWeight: '600',
-                        color: colors.text,
-                        marginBottom: spacing(2)
-                      }}>Category</Text>
-
-                      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                        <View style={{
-                          flexDirection: 'row',
-                          gap: spacing(1),
-                          paddingRight: spacing(2)
-                        }}>
-                          {['All', 'Variations', 'Bitter', 'Classic', 'Coffee', 'Creamy', 'Fizzy', 'Fruity', 'Herbal', 'Italian', 'Minty', 'Mocktails', 'Modern', 'Refreshing', 'Shots', 'Sour', 'Spicy', 'Sweet', 'Tiki', 'Tropical'].map((category) => {
-                            const isSelected = currentFilters.category?.includes(category.toLowerCase()) || (category === 'All' && !currentFilters.category?.length);
-                            return (
-                              <Pressable
-                                key={category}
-                                onPress={() => {
-                                  if (category === 'All') {
-                                    setCurrentFilters({ ...currentFilters, category: [] });
-                                  } else {
-                                    const categories = currentFilters.category || [];
-                                    const newCategories = categories.includes(category.toLowerCase())
-                                      ? categories.filter(c => c !== category.toLowerCase())
-                                      : [category.toLowerCase()];
-                                    setCurrentFilters({ ...currentFilters, category: newCategories });
-                                  }
-                                }}
-                                style={{
-                                  backgroundColor: isSelected ? colors.accent : colors.card,
-                                  paddingHorizontal: spacing(2),
-                                  paddingVertical: spacing(1.5),
-                                  borderRadius: radii.md,
-                                  borderWidth: 1,
-                                  borderColor: isSelected ? colors.accent : colors.border
-                                }}
-                              >
-                                <Text style={{
-                                  color: isSelected ? colors.white : colors.text,
-                                  fontSize: 16,
-                                  fontWeight: isSelected ? '600' : '400'
-                                }}>
-                                  {category}
-                                </Text>
-                              </Pressable>
-                            );
-                          })}
-                        </View>
-                      </ScrollView>
-                    </View>
-
-                    {/* Moods */}
-                    <View style={{ marginBottom: spacing(3) }}>
-                      <Text style={{
-                        fontSize: 16,
-                        fontWeight: '600',
-                        color: colors.text,
-                        marginBottom: spacing(2)
-                      }}>Your Moods</Text>
-
-                      <ScrollView
-                        horizontal
-                        showsHorizontalScrollIndicator={false}
-                        style={{ marginHorizontal: -spacing(2) }}
-                        contentContainerStyle={{ paddingHorizontal: spacing(2) }}
-                      >
-                        <View style={{
-                          flexDirection: 'row',
-                          gap: spacing(1)
-                        }}>
-                          {['All', 'Bold & Serious', 'Romantic & Elegant', 'Fun & Playful', 'Adventurous & Exotic', 'Chill & Refreshing', 'Cozy & Warm'].map((mood) => {
-                            const isSelected = currentFilters.mood?.includes(mood) || (mood === 'All' && !currentFilters.mood?.length);
-                            return (
-                              <Pressable
-                                key={mood}
-                                onPress={() => {
-                                  if (mood === 'All') {
-                                    setCurrentFilters({ ...currentFilters, mood: [] });
-                                  } else {
-                                    const moods = currentFilters.mood || [];
-                                    const newMoods = moods.includes(mood)
-                                      ? moods.filter(m => m !== mood)
-                                      : [mood];
-                                    setCurrentFilters({ ...currentFilters, mood: newMoods });
-                                  }
-                                }}
-                                style={{
-                                  backgroundColor: isSelected ? colors.gold : colors.card,
-                                  paddingHorizontal: spacing(2),
-                                  paddingVertical: spacing(1.5),
-                                  borderRadius: radii.md,
-                                  borderWidth: 1,
-                                  borderColor: isSelected ? colors.gold : colors.border
-                                }}
-                              >
-                                <Text style={{
-                                  color: isSelected ? colors.goldText : colors.text,
-                                  fontSize: 14,
-                                  fontWeight: isSelected ? '600' : '400'
-                                }}>
-                                  {mood}
-                                </Text>
-                              </Pressable>
-                            );
-                          })}
-                        </View>
-                      </ScrollView>
-                    </View>
-
-                    {/* Sort Options */}
-                    <View style={{ marginBottom: spacing(3) }}>
-                      <Text style={{
-                        fontSize: 16,
-                        fontWeight: '600',
-                        color: colors.text,
-                        marginBottom: spacing(2)
-                      }}>Sort By</Text>
-
-                      <View style={{
-                        flexDirection: 'row',
-                        flexWrap: 'wrap',
-                        gap: spacing(1)
-                      }}>
-                        {[
-                          ...(tier !== 'FREE' ? [{ label: 'Matches Your Taste', value: 'taste-match' }] : []),
-                          { label: 'A → Z', value: 'alphabetical-asc' },
-                          { label: 'Z → A', value: 'alphabetical-desc' },
-                          { label: 'Rating ↑', value: 'rating-desc' },
-                          { label: 'Rating ↓', value: 'rating-asc' },
-                        ].map((sortOption) => {
-                          const isSelected = currentFilters.sortOrder === sortOption.value;
-                          return (
-                            <Pressable
-                              key={sortOption.value}
-                              onPress={() => {
-                                setCurrentFilters({
-                                  ...currentFilters,
-                                  sortOrder: isSelected ? undefined : (sortOption.value as FilterOptions['sortOrder'])
-                                });
-                              }}
-                              style={{
-                                backgroundColor: isSelected ? colors.accent : colors.card,
-                                paddingHorizontal: spacing(2),
-                                paddingVertical: spacing(1.5),
-                                borderRadius: radii.md,
-                                borderWidth: 1,
-                                borderColor: isSelected ? colors.accent : colors.border
-                              }}
-                            >
-                              <Text style={{
-                                color: isSelected ? colors.white : colors.text,
-                                fontSize: 16,
-                                fontWeight: isSelected ? '600' : '400'
-                              }}>
-                                {sortOption.label}
-                              </Text>
-                            </Pressable>
-                          );
-                        })}
-                      </View>
-                    </View>
-
-                    {/* Clear All Button */}
-                    <Pressable
-                      style={{
-                        backgroundColor: colors.card,
-                        paddingVertical: spacing(1.5),
-                        borderRadius: radii.md,
-                        alignItems: 'center',
-                        marginBottom: spacing(2),
-                        borderWidth: 1,
-                        borderColor: colors.border
-                      }}
-                      onPress={() => setCurrentFilters({ sortOrder: 'alphabetical-asc' })}
-                    >
-                      <Text style={{
-                        color: colors.text,
-                        fontSize: 16,
-                        fontWeight: '600'
-                      }}>Clear All Filters</Text>
-                    </Pressable>
-                  </ScrollView>
-
-                  <Pressable
-                    style={{
-                      backgroundColor: colors.accent,
-                      paddingVertical: spacing(1.5),
-                      borderRadius: radii.md,
-                      alignItems: 'center',
-                      marginTop: spacing(2)
-                    }}
-                    onPress={() => setShowAdvancedFilterModal(false)}
-                  >
-                    <Text style={{
-                      color: colors.white,
-                      fontSize: 16,
-                      fontWeight: '600'
-                    }}>Apply Filters</Text>
+                {/* Header */}
+                <View style={afStyles.header}>
+                  <Text style={afStyles.headerTitle}>Advanced Filters</Text>
+                  <Pressable onPress={() => setShowAdvancedFilterModal(false)} style={afStyles.closeBtn} hitSlop={8}>
+                    <Ionicons name="close" size={18} color={colors.text} />
                   </Pressable>
                 </View>
-              </View>
+
+                <ScrollView style={afStyles.scroll} showsVerticalScrollIndicator={false} contentContainerStyle={afStyles.scrollContent}>
+
+                  {/* Spirit */}
+                  <View style={afStyles.section}>
+                    <View style={afStyles.sectionHead}>
+                      <Text style={afStyles.sectionLabel}>SPIRIT</Text>
+                      <View style={afStyles.sectionRule} />
+                    </View>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={afStyles.pillRow}>
+                      {['All', 'Brandy', 'Cognac', 'Gin', 'Mezcal', 'Rum', 'Tequila', 'Vodka', 'Whiskey'].map((spirit) => {
+                        const isSelected = currentFilters.ingredients?.includes(spirit.toLowerCase()) || (spirit === 'All' && !currentFilters.ingredients?.length);
+                        return (
+                          <Pressable
+                            key={spirit}
+                            onPress={() => {
+                              if (spirit === 'All') {
+                                setCurrentFilters({ ...currentFilters, ingredients: [] });
+                              } else {
+                                const ingredients = currentFilters.ingredients || [];
+                                const newIngredients = ingredients.includes(spirit.toLowerCase())
+                                  ? ingredients.filter(i => i !== spirit.toLowerCase())
+                                  : [spirit.toLowerCase()];
+                                setCurrentFilters({ ...currentFilters, ingredients: newIngredients });
+                              }
+                            }}
+                            style={[afStyles.pill, isSelected && afStyles.pillSelected]}
+                          >
+                            <Text style={[afStyles.pillText, isSelected && afStyles.pillTextSelected]}>{spirit}</Text>
+                          </Pressable>
+                        );
+                      })}
+                    </ScrollView>
+                  </View>
+
+                  {/* Difficulty */}
+                  <View style={afStyles.section}>
+                    <View style={afStyles.sectionHead}>
+                      <Text style={afStyles.sectionLabel}>DIFFICULTY</Text>
+                      <View style={afStyles.sectionRule} />
+                    </View>
+                    <View style={afStyles.pillWrap}>
+                      {['All', 'Easy', 'Medium', 'Hard'].map((difficulty) => {
+                        const isSelected = currentFilters.difficulty?.includes(difficulty.toLowerCase()) || (difficulty === 'All' && !currentFilters.difficulty?.length);
+                        return (
+                          <Pressable
+                            key={difficulty}
+                            onPress={() => {
+                              if (difficulty === 'All') {
+                                setCurrentFilters({ ...currentFilters, difficulty: [] });
+                              } else {
+                                const difficulties = currentFilters.difficulty || [];
+                                const newDifficulties = difficulties.includes(difficulty.toLowerCase())
+                                  ? difficulties.filter(d => d !== difficulty.toLowerCase())
+                                  : [difficulty.toLowerCase()];
+                                setCurrentFilters({ ...currentFilters, difficulty: newDifficulties });
+                              }
+                            }}
+                            style={[afStyles.pill, isSelected && afStyles.pillSelected]}
+                          >
+                            <Text style={[afStyles.pillText, isSelected && afStyles.pillTextSelected]}>{difficulty}</Text>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                  </View>
+
+                  {/* Category */}
+                  <View style={afStyles.section}>
+                    <View style={afStyles.sectionHead}>
+                      <Text style={afStyles.sectionLabel}>CATEGORY</Text>
+                      <View style={afStyles.sectionRule} />
+                    </View>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={afStyles.pillRow}>
+                      {['All', 'Variations', 'Bitter', 'Classic', 'Coffee', 'Creamy', 'Fizzy', 'Fruity', 'Herbal', 'Italian', 'Minty', 'Mocktails', 'Modern', 'Refreshing', 'Shots', 'Sour', 'Spicy', 'Sweet', 'Tiki', 'Tropical'].map((category) => {
+                        const isSelected = currentFilters.category?.includes(category.toLowerCase()) || (category === 'All' && !currentFilters.category?.length);
+                        return (
+                          <Pressable
+                            key={category}
+                            onPress={() => {
+                              if (category === 'All') {
+                                setCurrentFilters({ ...currentFilters, category: [] });
+                              } else {
+                                const categories = currentFilters.category || [];
+                                const newCategories = categories.includes(category.toLowerCase())
+                                  ? categories.filter(c => c !== category.toLowerCase())
+                                  : [category.toLowerCase()];
+                                setCurrentFilters({ ...currentFilters, category: newCategories });
+                              }
+                            }}
+                            style={[afStyles.pill, isSelected && afStyles.pillSelected]}
+                          >
+                            <Text style={[afStyles.pillText, isSelected && afStyles.pillTextSelected]}>{category}</Text>
+                          </Pressable>
+                        );
+                      })}
+                    </ScrollView>
+                  </View>
+
+                  {/* Moods */}
+                  <View style={afStyles.section}>
+                    <View style={afStyles.sectionHead}>
+                      <Text style={afStyles.sectionLabel}>YOUR MOODS</Text>
+                      <View style={afStyles.sectionRule} />
+                    </View>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={afStyles.pillRow}>
+                      {['All', 'Bold & Serious', 'Romantic & Elegant', 'Fun & Playful', 'Adventurous & Exotic', 'Chill & Refreshing', 'Cozy & Warm'].map((mood) => {
+                        const isSelected = currentFilters.mood?.includes(mood) || (mood === 'All' && !currentFilters.mood?.length);
+                        return (
+                          <Pressable
+                            key={mood}
+                            onPress={() => {
+                              if (mood === 'All') {
+                                setCurrentFilters({ ...currentFilters, mood: [] });
+                              } else {
+                                const moods = currentFilters.mood || [];
+                                const newMoods = moods.includes(mood)
+                                  ? moods.filter(m => m !== mood)
+                                  : [mood];
+                                setCurrentFilters({ ...currentFilters, mood: newMoods });
+                              }
+                            }}
+                            style={[afStyles.pill, isSelected && afStyles.pillSelected]}
+                          >
+                            <Text style={[afStyles.pillText, isSelected && afStyles.pillTextSelected]}>{mood}</Text>
+                          </Pressable>
+                        );
+                      })}
+                    </ScrollView>
+                  </View>
+
+                  {/* Sort By */}
+                  <View style={afStyles.section}>
+                    <View style={afStyles.sectionHead}>
+                      <Text style={afStyles.sectionLabel}>SORT BY</Text>
+                      <View style={afStyles.sectionRule} />
+                    </View>
+                    <View style={afStyles.pillWrap}>
+                      {[
+                        ...(tier !== 'FREE' ? [{ label: 'Matches Your Taste', value: 'taste-match', icon: 'star-outline' as const }] : []),
+                        { label: 'A → Z', value: 'alphabetical-asc', icon: 'arrow-up-outline' as const },
+                        { label: 'Z → A', value: 'alphabetical-desc', icon: 'arrow-down-outline' as const },
+                        { label: 'Rating ↑', value: 'rating-desc', icon: 'trending-up-outline' as const },
+                        { label: 'Rating ↓', value: 'rating-asc', icon: 'trending-down-outline' as const },
+                      ].map((sortOption) => {
+                        const isSelected = currentFilters.sortOrder === sortOption.value;
+                        return (
+                          <Pressable
+                            key={sortOption.value}
+                            onPress={() => {
+                              setCurrentFilters({
+                                ...currentFilters,
+                                sortOrder: isSelected ? undefined : (sortOption.value as FilterOptions['sortOrder'])
+                              });
+                            }}
+                            style={[afStyles.pill, isSelected && afStyles.pillSelected]}
+                          >
+                            <Ionicons
+                              name={sortOption.icon}
+                              size={12}
+                              color={isSelected ? colors.goldText : colors.subtext}
+                              style={{ marginRight: 4 }}
+                            />
+                            <Text style={[afStyles.pillText, isSelected && afStyles.pillTextSelected]}>{sortOption.label}</Text>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                  </View>
+
+                  {/* Clear All */}
+                  <Pressable style={afStyles.clearBtn} onPress={() => setCurrentFilters({ sortOrder: 'alphabetical-asc' })}>
+                    <Text style={afStyles.clearBtnText}>Clear All Filters</Text>
+                  </Pressable>
+                </ScrollView>
+
+                {/* Apply */}
+                <View style={afStyles.footer}>
+                  <Pressable style={afStyles.applyBtn} onPress={() => setShowAdvancedFilterModal(false)}>
+                    <Text style={afStyles.applyBtnText}>Apply Filters</Text>
+                  </Pressable>
+                </View>
+              </SafeAreaViewContext>
             </Modal>
           </View>
+          )
         }
         ListEmptyComponent={renderEmptyState}
         columnWrapperStyle={{ paddingHorizontal: spacing(2), columnGap: GUTTER }}
@@ -3394,12 +3264,6 @@ export default function RecipesScreen() {
         navigation={navigation}
       />
 
-      {/* AI Credits Purchase Modal */}
-      <AICreditsPurchaseModal
-        visible={creditsPurchaseVisible}
-        onClose={() => setCreditsPurchaseVisible(false)}
-      />
-
       {/* Filter Modal */}
       <FilterModal
         visible={showBasicFilterModal}
@@ -3414,268 +3278,135 @@ export default function RecipesScreen() {
         }}
       />
 
-      {/* AI Credits Info Modal */}
-      <Modal
-        visible={creditsInfoVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setCreditsInfoVisible(false)}
-      >
-        <View style={{
-          flex: 1,
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
-          justifyContent: 'center',
-          alignItems: 'center',
-          padding: spacing(4)
-        }}>
-          <View style={{
-            backgroundColor: colors.surface,
-            borderRadius: radii.lg,
-            padding: spacing(4),
-            width: '100%',
-            maxWidth: 350,
-            maxHeight: '80%'
-          }}>
-            <View style={{
-              flexDirection: 'row',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: spacing(3),
-              paddingBottom: spacing(2),
-              borderBottomWidth: 1,
-              borderBottomColor: colors.border
-            }}>
-              <Text style={{
-                fontSize: 20,
-                fontWeight: '600',
-                color: colors.text,
-                fontFamily: fonts.heading
-              }}>AI Credits Usage</Text>
-              <Pressable
-                onPress={() => setCreditsInfoVisible(false)}
-                style={{
-                  padding: spacing(1),
-                  borderRadius: radii.md
-                }}
-                hitSlop={8}
-              >
-                <Ionicons name="close" size={24} color={colors.text} />
-              </Pressable>
-            </View>
-
-            <ScrollView showsVerticalScrollIndicator={false}>
-              <Text style={{
-                fontSize: 14,
-                color: colors.subtext,
-                marginBottom: spacing(3),
-                lineHeight: 20
-              }}>
-                Credits are used for AI-powered features. Each action consumes different amounts:
-              </Text>
-
-              {/* AI Action Costs */}
-              <View style={{ gap: spacing(2) }}>
-                <View style={{
-                  flexDirection: 'row',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  paddingVertical: spacing(1.5),
-                  paddingHorizontal: spacing(2),
-                  backgroundColor: colors.card,
-                  borderRadius: radii.md
-                }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-                    <Ionicons name="restaurant" size={16} color={colors.accent} style={{ marginRight: spacing(1.5) }} />
-                    <View>
-                      <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text }}>Recipe Generation</Text>
-                      <Text style={{ fontSize: 12, color: colors.subtext }}>Create custom cocktail recipes</Text>
-                    </View>
-                  </View>
-                  <Text style={{ fontSize: 16, fontWeight: '700', color: colors.accent }}>
-                    {getActionCost('recipe_generation')} credits
-                  </Text>
-                </View>
-
-                <View style={{
-                  flexDirection: 'row',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  paddingVertical: spacing(1.5),
-                  paddingHorizontal: spacing(2),
-                  backgroundColor: colors.card,
-                  borderRadius: radii.md
-                }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-                    <Ionicons name="sparkles" size={16} color={colors.accent} style={{ marginRight: spacing(1.5) }} />
-                    <View>
-                      <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text }}>AI Recommendations</Text>
-                      <Text style={{ fontSize: 12, color: colors.subtext }}>Personalized cocktail suggestions</Text>
-                    </View>
-                  </View>
-                  <Text style={{ fontSize: 16, fontWeight: '700', color: colors.accent }}>
-                    {getActionCost('recommendation')} credits
-                  </Text>
-                </View>
-
-                <View style={{
-                  flexDirection: 'row',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  paddingVertical: spacing(1.5),
-                  paddingHorizontal: spacing(2),
-                  backgroundColor: colors.card,
-                  borderRadius: radii.md
-                }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-                    <Ionicons name="search" size={16} color={colors.accent} style={{ marginRight: spacing(1.5) }} />
-                    <View>
-                      <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text }}>Search Enhancement</Text>
-                      <Text style={{ fontSize: 12, color: colors.subtext }}>Improved search results</Text>
-                    </View>
-                  </View>
-                  <Text style={{ fontSize: 16, fontWeight: '700', color: colors.accent }}>
-                    {getActionCost('search_enhancement')} credit
-                  </Text>
-                </View>
-
-                <View style={{
-                  flexDirection: 'row',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  paddingVertical: spacing(1.5),
-                  paddingHorizontal: spacing(2),
-                  backgroundColor: colors.card,
-                  borderRadius: radii.md
-                }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-                    <Ionicons name="camera" size={16} color={colors.accent} style={{ marginRight: spacing(1.5) }} />
-                    <View>
-                      <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text }}>Image Analysis</Text>
-                      <Text style={{ fontSize: 12, color: colors.subtext }}>Cocktail photo recognition</Text>
-                    </View>
-                  </View>
-                  <Text style={{ fontSize: 16, fontWeight: '700', color: colors.accent }}>
-                    {getActionCost('image_analysis')} credits
-                  </Text>
-                </View>
-
-                <View style={{
-                  flexDirection: 'row',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  paddingVertical: spacing(1.5),
-                  paddingHorizontal: spacing(2),
-                  backgroundColor: colors.card,
-                  borderRadius: radii.md
-                }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-                    <Ionicons name="document-text" size={16} color={colors.accent} style={{ marginRight: spacing(1.5) }} />
-                    <View>
-                      <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text }}>Text Recognition</Text>
-                      <Text style={{ fontSize: 12, color: colors.subtext }}>Extract text from images</Text>
-                    </View>
-                  </View>
-                  <Text style={{ fontSize: 16, fontWeight: '700', color: colors.accent }}>
-                    {getActionCost('ocr_processing')} credits
-                  </Text>
-                </View>
-              </View>
-
-              <View style={{
-                marginTop: spacing(3),
-                paddingTop: spacing(3),
-                borderTopWidth: 1,
-                borderTopColor: colors.border
-              }}>
-                <Text style={{
-                  fontSize: 14,
-                  color: colors.subtext,
-                  lineHeight: 20,
-                  textAlign: 'center'
-                }}>
-                  💡 You receive 5 free credits daily{isPremium ? '' : ', or upgrade to Premium for unlimited usage'}
-                </Text>
-              </View>
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
-
       {/* Recipe Preferences Modal */}
       <RecipePreferencesModal
         visible={preferencesModalVisible}
         onClose={() => setPreferencesModalVisible(false)}
       />
 
-      {/* Floating Search Bar */}
+      {/* Full-screen Search Overlay */}
       {showSearchInput && (
-        <View style={{
-          position: 'absolute',
-          top: 86,
-          left: 0,
-          right: 0,
-          backgroundColor: colors.bg,
-          paddingTop: spacing(2),
-          paddingHorizontal: spacing(2),
-          paddingBottom: spacing(2),
-          borderBottomWidth: 1,
-          borderBottomColor: colors.line,
-          zIndex: 1000,
-        }}>
+        <View
+          style={{
+            position: 'absolute',
+            top: 86,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: colors.bg,
+            zIndex: 1000,
+          }}
+        >
+          {/* Search Input */}
           <View style={{
-            backgroundColor: colors.card,
-            borderRadius: radii.lg,
-            flexDirection: 'row',
-            alignItems: 'center',
-            paddingHorizontal: spacing(1.5),
-            borderWidth: 1,
-            borderColor: colors.border,
+            paddingHorizontal: spacing(2),
+            paddingTop: spacing(2),
+            paddingBottom: spacing(1.5),
+            borderBottomWidth: StyleSheet.hairlineWidth,
+            borderBottomColor: searchQuery ? colors.gold + '33' : colors.line,
           }}>
-            <Ionicons name="search" size={20} color={colors.muted} style={{ marginRight: spacing(1) }} />
-            <TextInput
-              value={searchQuery}
-              onChangeText={handleSearch}
-              placeholder="Search cocktails by name, spirit, or ingredient..."
-              placeholderTextColor={colors.muted}
-              style={{
-                flex: 1,
-                color: colors.text,
-                fontSize: 16,
-                paddingVertical: spacing(1.5),
-              }}
-              returnKeyType="search"
-              autoCapitalize="none"
-              autoCorrect={false}
-              autoFocus
-              keyboardAppearance="dark"
-            />
-            {searchQuery ? (
-              <Pressable onPress={() => {
-                setSearchQuery('');
-                setSearchResults([]);
-              }} hitSlop={8}>
-                <Ionicons name="close-circle" size={20} color={colors.muted} />
-              </Pressable>
-            ) : (
-              <Pressable onPress={() => {
-                setShowSearchInput(false);
-                setSearchQuery('');
-                setSearchResults([]);
-              }} hitSlop={8}>
-                <Ionicons name="close" size={20} color={colors.muted} />
-              </Pressable>
-            )}
-          </View>
-          {searchQuery.trim() && (
-            <View style={{ marginTop: spacing(1) }}>
-              <Text style={{
-                color: colors.muted,
-                fontSize: 14
-              }}>
-                {isSearching ? 'Searching...' : `Found ${searchResults.length} cocktail${searchResults.length !== 1 ? 's' : ''}`}
-              </Text>
+            <View style={{
+              backgroundColor: 'rgba(255,255,255,0.06)',
+              borderRadius: 14,
+              flexDirection: 'row',
+              alignItems: 'center',
+              paddingHorizontal: spacing(2),
+              borderWidth: 1,
+              borderColor: searchQuery ? colors.gold + '55' : 'rgba(255,255,255,0.1)',
+              shadowColor: searchQuery ? colors.gold : 'transparent',
+              shadowOffset: { width: 0, height: 0 },
+              shadowOpacity: 0.2,
+              shadowRadius: 10,
+            }}>
+              <Ionicons
+                name="search"
+                size={17}
+                color={searchQuery ? colors.gold : colors.muted}
+                style={{ marginRight: spacing(1.5) }}
+              />
+              <TextInput
+                ref={searchInputRef}
+                value={searchQuery}
+                onChangeText={handleSearch}
+                placeholder="Name, spirit, or ingredient..."
+                placeholderTextColor={colors.muted}
+                style={{
+                  flex: 1,
+                  color: colors.text,
+                  fontSize: 15,
+                  paddingVertical: spacing(1.75),
+                }}
+                returnKeyType="search"
+                autoCapitalize="none"
+                autoCorrect={false}
+                keyboardAppearance="dark"
+              />
+              {searchQuery ? (
+                <Pressable onPress={() => { setSearchQuery(''); setSearchResults([]); }} hitSlop={10}>
+                  <Ionicons name="close-circle" size={18} color={colors.muted} />
+                </Pressable>
+              ) : (
+                <Pressable onPress={() => { setShowSearchInput(false); setSearchQuery(''); setSearchResults([]); }} hitSlop={10}>
+                  <Ionicons name="close" size={18} color={colors.muted} />
+                </Pressable>
+              )}
             </View>
-          )}
+            {/* Always reserve this space — conditional rendering here causes layout shift that dismisses iOS keyboard */}
+            <View style={{ marginTop: spacing(1), height: 20, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              {searchQuery.trim() && (
+                isSearching ? (
+                  <ActivityIndicator size="small" color={colors.gold} />
+                ) : (
+                  <Text style={{ color: searchResults.length > 0 ? colors.gold : colors.muted, fontSize: 12, fontWeight: '500' }}>
+                    {searchResults.length > 0
+                      ? `${searchResults.length} result${searchResults.length !== 1 ? 's' : ''}`
+                      : `No results for "${searchQuery}"`}
+                  </Text>
+                )
+              )}
+            </View>
+          </View>
+
+          {/* Search Results — always render FlatList to avoid keyboard dismiss on first keypress */}
+          <FlatList
+            data={searchResults}
+            keyExtractor={(item) => item.id}
+            renderItem={renderRecipeItem}
+            numColumns={2}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={{
+              paddingHorizontal: spacing(2),
+              paddingTop: spacing(2),
+              paddingBottom: spacing(10),
+              flexGrow: 1,
+            }}
+            columnWrapperStyle={{ gap: GUTTER }}
+            ListEmptyComponent={
+              <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingBottom: spacing(16) }}>
+                {isSearching ? (
+                  <ActivityIndicator size="large" color={colors.gold} />
+                ) : searchQuery.trim() ? (
+                  <>
+                    <Ionicons name="search-outline" size={44} color={colors.muted} />
+                    <Text style={{ color: colors.text, fontSize: 16, fontWeight: '600', marginTop: spacing(2) }}>
+                      No cocktails found
+                    </Text>
+                    <Text style={{ color: colors.muted, fontSize: 14, marginTop: spacing(1), textAlign: 'center' }}>
+                      Try a different name, spirit, or ingredient
+                    </Text>
+                  </>
+                ) : (
+                  <>
+                    <Ionicons name="search-outline" size={40} color={colors.muted} />
+                    <Text style={{ color: colors.muted, fontSize: 15, marginTop: spacing(2) }}>
+                      Search by name, spirit, or ingredient
+                    </Text>
+                  </>
+                )}
+              </View>
+            }
+          />
         </View>
       )}
 
@@ -3728,3 +3459,153 @@ export default function RecipesScreen() {
     </SafeAreaView>
   );
 }
+
+// ── Advanced Filter Modal Styles ────────────────────────────────────────────
+const afStyles = StyleSheet.create({
+  backdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+  },
+  container: {
+    backgroundColor: colors.card,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(214,138,56,0.3)',
+    maxHeight: '85%',
+  },
+  handle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignSelf: 'center',
+    marginTop: spacing(1.5),
+    marginBottom: spacing(0.5),
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing(3),
+    paddingTop: spacing(1),
+    paddingBottom: spacing(1.5),
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.text,
+    fontFamily: serif,
+  },
+  closeBtn: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+  },
+  scroll: {
+    flexShrink: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: spacing(3),
+    paddingBottom: spacing(2),
+  },
+  section: {
+    marginTop: spacing(2),
+  },
+  sectionHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(1.5),
+    marginBottom: spacing(1.5),
+  },
+  sectionLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: colors.gold,
+    letterSpacing: 2,
+  },
+  sectionRule: {
+    flex: 1,
+    height: 1,
+    backgroundColor: 'rgba(214,138,56,0.18)',
+  },
+  pillRow: {
+    flexDirection: 'row',
+    gap: spacing(1.25),
+    paddingRight: spacing(2),
+  },
+  pillWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing(1.25),
+  },
+  pill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: radii.pill,
+    backgroundColor: colors.bg,
+    borderWidth: 1,
+    borderColor: 'rgba(214,138,56,0.2)',
+  },
+  pillSelected: {
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
+    shadowColor: colors.accent,
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 2,
+  },
+  pillText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.subtext,
+  },
+  pillTextSelected: {
+    color: colors.goldText,
+    fontWeight: '700',
+  },
+  clearBtn: {
+    marginTop: spacing(2),
+    paddingVertical: spacing(1.5),
+    borderRadius: radii.pill,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  clearBtnText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.subtext,
+  },
+  footer: {
+    paddingHorizontal: spacing(3),
+    paddingTop: spacing(1.5),
+    paddingBottom: spacing(1),
+  },
+  applyBtn: {
+    paddingVertical: spacing(2),
+    borderRadius: radii.pill,
+    backgroundColor: colors.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: colors.accent,
+    shadowOpacity: 0.55,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 8,
+  },
+  applyBtnText: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: colors.goldText,
+    letterSpacing: 0.3,
+  },
+});

@@ -3,7 +3,7 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Pressable, ScrollView, Alert, SafeAreaView, useWindowDimensions, Animated, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ScrollView, Alert, SafeAreaView, useWindowDimensions, Animated, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { CompositeNavigationProp, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/RootNavigator';
@@ -114,12 +114,12 @@ const renderScene = SceneMap({
 // Challenges component - Original Design with Supabase Data
 function ChallengesView() {
   const { user } = useAuth();
-  const { lives, completedLessons } = useUser();
-  const { balance: totalXP } = useXPSystem();
-  const engagement = useEngagement();
-  const { challenges: supabaseChallenges, isLoading, claimReward, refreshChallenges } = useChallenges();
-  const [claimingId, setClaimingId] = useState<string | null>(null);
+  const { challenges, isLoading, refreshChallenges, claimReward: claimChallengeReward } = useChallenges();
+  const [selectedChallenge, setSelectedChallenge] = useState<Challenge | null>(null);
+  const [claiming, setClaiming] = useState(false);
   const [liveStreak, setLiveStreak] = useState(streakService.getCurrentStreak());
+  const [claimedXP, setClaimedXP] = useState<number | null>(null);
+  const toastAnim = useRef(new Animated.Value(-80)).current;
 
   useEffect(() => {
     const unsubscribe = streakService.addStreakListener((next) => setLiveStreak(next));
@@ -127,182 +127,172 @@ function ChallengesView() {
     return unsubscribe;
   }, []);
 
-  // Group challenges by frequency
-  const weeklyChallenges = supabaseChallenges.filter(c => c.frequency === 'weekly');
-  const monthlyChallenges = supabaseChallenges.filter(c => c.frequency === 'monthly');
+  const dailyChallenges = challenges.filter(c => c.frequency === 'daily');
+  const weeklyChallenges = challenges.filter(c => c.frequency === 'weekly');
+  const monthlyChallenges = challenges.filter(c => c.frequency === 'monthly');
 
-  // Handle claiming a challenge reward
-  const handleClaimReward = async (challenge: Challenge) => {
-    setClaimingId(challenge.id);
+  const handleClaimReward = async () => {
+    if (!selectedChallenge) return;
+    setClaiming(true);
     try {
-      const reward = await claimReward(challenge.id);
+      const reward = await claimChallengeReward(selectedChallenge.id);
       if (reward) {
         await streakService.recordActivity('challenge_completed', user?.id);
         setLiveStreak(streakService.getCurrentStreak());
+        setSelectedChallenge(null);
+        setClaimedXP(reward.xp);
+        Animated.sequence([
+          Animated.spring(toastAnim, { toValue: 0, tension: 100, friction: 8, useNativeDriver: true }),
+          Animated.delay(2200),
+          Animated.timing(toastAnim, { toValue: -80, duration: 300, useNativeDriver: true }),
+        ]).start(() => setClaimedXP(null));
         await refreshChallenges();
-        Alert.alert(
-          'Reward Claimed!',
-          `You received ${reward.xp} XP!`
-        );
       }
     } catch (error) {
-      Alert.alert('Error', 'Failed to claim reward');
+      log.error('ChallengesView', 'Error claiming reward', error);
     } finally {
-      setClaimingId(null);
+      setClaiming(false);
     }
   };
 
-  // Calculate progress for unlock methods
-  const getMethodProgress = (type: string, required: number) => {
-    let current = 0;
-    switch (type) {
-      case 'streak':
-        current = liveStreak;
-        break;
-      case 'lessons':
-        current = completedLessons.length;
-        break;
-      case 'xp':
-        current = totalXP;
-        break;
-      case 'app-opens':
-        current = engagement.appOpenDates.length;
-        break;
-      case 'saved-recipes':
-        current = engagement.savedRecipeIds.length;
-        break;
-      case 'shares':
-        current = engagement.sharedRecipeIds.length;
-        break;
-      case 'ratings':
-        current = engagement.ratedRecipeIds.length;
-        break;
-      case 'invites':
-        current = engagement.invitedFriends;
-        break;
-      default:
-        current = 0;
-    }
-    return Math.min((current / required) * 100, 100);
+  const renderDivider = (label: string) => (
+    <View style={styles.cvDivider}>
+      <View style={styles.cvDividerLine} />
+      <Text style={styles.cvDividerLabel}>{label}</Text>
+      <View style={styles.cvDividerLine} />
+    </View>
+  );
+
+  const renderChallenge = (challenge: Challenge) => {
+    const progressPercent = Math.min(((challenge.currentProgress || 0) / challenge.requirementCount) * 100, 100);
+    const isCompleted = challenge.isCompleted || false;
+    const stripe = challenge.color || colors.accent;
+
+    return (
+      <Pressable
+        key={challenge.id}
+        style={({ pressed }) => [
+          styles.cvCard,
+          isCompleted && styles.cvCardDone,
+          pressed && { opacity: 0.88 },
+        ]}
+        onPress={() => isCompleted ? setSelectedChallenge(challenge) : undefined}
+      >
+        {/* Left stripe */}
+        <View style={[styles.cvStripe, { backgroundColor: stripe }]} />
+
+        {/* Icon */}
+        <View style={[styles.cvIconCircle, { backgroundColor: stripe + '22', borderColor: stripe + '44' }]}>
+          {isCompleted
+            ? <MaterialCommunityIcons name="check" size={18} color={stripe} />
+            : <Ionicons name={(challenge.icon as any) || 'trophy-outline'} size={18} color={stripe} />
+          }
+        </View>
+
+        {/* Body */}
+        <View style={styles.cvCardBody}>
+          <View style={styles.cvCardTitleRow}>
+            <Text style={[styles.cvCardTitle, isCompleted && { color: colors.gold }]} numberOfLines={1}>
+              {challenge.title}
+            </Text>
+            <Text style={styles.cvDiffBadge}>{challenge.difficulty?.toUpperCase()}</Text>
+          </View>
+
+          <Text style={styles.cvCardDesc} numberOfLines={2}>{challenge.description}</Text>
+
+          {/* Progress */}
+          <View style={styles.cvProgressRow}>
+            <View style={styles.cvProgressTrack}>
+              <ChallengeProgressBar progressPercent={progressPercent} color={stripe} />
+            </View>
+            <Text style={styles.cvProgressCount}>
+              {challenge.currentProgress || 0}<Text style={styles.cvProgressTotal}>/{challenge.requirementCount}</Text>
+            </Text>
+          </View>
+
+          {/* Footer: XP badge + optional claim */}
+          <View style={styles.cvCardFooter}>
+            <View style={styles.cvXPPill}>
+              <Ionicons name="flash" size={11} color={colors.gold} />
+              <Text style={styles.cvXPText}>{challenge.xpReward} XP</Text>
+            </View>
+            {isCompleted && (
+              <Pressable style={styles.cvClaimPill} onPress={() => setSelectedChallenge(challenge)}>
+                <MaterialCommunityIcons name="gift-outline" size={13} color={colors.goldText} />
+                <Text style={styles.cvClaimText}>Claim</Text>
+              </Pressable>
+            )}
+          </View>
+        </View>
+      </Pressable>
+    );
   };
+
+  if (isLoading) {
+    return (
+      <View style={[styles.content, styles.centered]}>
+        <ActivityIndicator color={colors.accent} size="large" />
+      </View>
+    );
+  }
 
   return (
-    <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-      <View style={styles.section}>
-        <Text style={styles.sectionSubtitle}>Challenge completion updates your streak and XP progress.</Text>
-      </View>
+    <>
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false} contentContainerStyle={styles.cvScrollPad}>
 
-      {/* Weekly Challenges */}
-      {weeklyChallenges.length > 0 && (
-        <View style={styles.section}>
-          <Heading level={2} style={styles.sectionTitle}>Weekly Challenges</Heading>
-          <Text style={styles.sectionSubtitle}>
-            Complete challenges to earn extra XP and improve your skills
-          </Text>
+        {dailyChallenges.length > 0 && (
+          <>
+            {renderDivider('DAILY')}
+            {dailyChallenges.map(renderChallenge)}
+          </>
+        )}
 
-          {weeklyChallenges.map(challenge => {
-            const progressPercent = ((challenge.currentProgress || 0) / challenge.requirementCount) * 100;
-            return (
-              <Pressable
-                key={challenge.id}
-                style={[styles.challengeCard, challenge.isCompleted && styles.challengeCardCompleted]}
-                onPress={() => challenge.isCompleted && handleClaimReward(challenge)}
-              >
-                <View style={styles.challengeContent}>
-                  <View style={styles.challengeHeader}>
-                    <Heading level={3} style={[styles.challengeTitle, challenge.isCompleted && styles.completedText]}>
-                      {challenge.title}
-                    </Heading>
-                    <Text style={[styles.challengeDifficulty, challenge.isCompleted && styles.completedText]}>
-                      {challenge.difficulty}
-                    </Text>
-                  </View>
-                  <Text style={[styles.challengeDescription, challenge.isCompleted && styles.completedText]}>
-                    {challenge.description}
-                  </Text>
-                  <View style={styles.challengeProgressRow}>
-                    <Text style={[styles.challengeReward, challenge.isCompleted && styles.completedText]}>
-                      Reward: {challenge.xpReward} XP
-                    </Text>
-                    <Text style={styles.progressLabel}>
-                      {challenge.currentProgress || 0}/{challenge.requirementCount}
-                    </Text>
-                  </View>
-                </View>
-                <View style={styles.challengeStatus}>
-                  {challenge.isCompleted ? (
-                    <MaterialCommunityIcons name="check-circle" size={24} color={colors.accent} />
-                  ) : (
-                    <Ionicons name={challenge.icon as any || 'trophy-outline'} size={24} color={colors.accent} />
-                  )}
-                </View>
-              </Pressable>
-            );
-          })}
-        </View>
+        {weeklyChallenges.length > 0 && (
+          <>
+            {renderDivider('WEEKLY')}
+            {weeklyChallenges.map(renderChallenge)}
+          </>
+        )}
+
+        {monthlyChallenges.length > 0 && (
+          <>
+            {renderDivider('MONTHLY')}
+            {monthlyChallenges.map(renderChallenge)}
+          </>
+        )}
+
+        {challenges.length === 0 && (
+          <View style={styles.cvEmpty}>
+            <MaterialCommunityIcons name="trophy-outline" size={52} color={colors.textMuted} />
+            <Text style={styles.cvEmptyTitle}>No active challenges</Text>
+            <Text style={styles.cvEmptyBody}>New missions drop daily. Check back soon.</Text>
+          </View>
+        )}
+
+        <View style={{ height: spacing(4) }} />
+      </ScrollView>
+
+      {/* XP Celebration Toast */}
+      {claimedXP !== null && (
+        <Animated.View
+          pointerEvents="none"
+          style={[styles.celebrationToast, { transform: [{ translateY: toastAnim }] }]}
+        >
+          <MaterialCommunityIcons name="star-four-points" size={20} color={colors.gold} />
+          <Text style={styles.celebrationToastText}>+{claimedXP} XP Claimed!</Text>
+          <Ionicons name="checkmark-circle" size={20} color={colors.success} />
+        </Animated.View>
       )}
 
-      {/* Monthly Challenges */}
-      {monthlyChallenges.length > 0 && (
-        <View style={styles.section}>
-          <Heading level={2} style={styles.sectionTitle}>Monthly Challenges</Heading>
-          <Text style={styles.sectionSubtitle}>
-            Bigger goals with bigger rewards
-          </Text>
-
-          {monthlyChallenges.map(challenge => (
-            <Pressable
-              key={challenge.id}
-              style={[styles.challengeCard, challenge.isCompleted && styles.challengeCardCompleted]}
-              onPress={() => challenge.isCompleted && handleClaimReward(challenge)}
-            >
-              <View style={styles.challengeContent}>
-                <View style={styles.challengeHeader}>
-                  <Heading level={3} style={[styles.challengeTitle, challenge.isCompleted && styles.completedText]}>
-                    {challenge.title}
-                  </Heading>
-                  <Text style={[styles.challengeDifficulty, challenge.isCompleted && styles.completedText]}>
-                    {challenge.difficulty}
-                  </Text>
-                </View>
-                <Text style={[styles.challengeDescription, challenge.isCompleted && styles.completedText]}>
-                  {challenge.description}
-                </Text>
-                <View style={styles.challengeProgressRow}>
-                  <Text style={[styles.challengeReward, challenge.isCompleted && styles.completedText]}>
-                    Reward: {challenge.xpReward} XP
-                  </Text>
-                  <Text style={styles.progressLabel}>
-                    {challenge.currentProgress || 0}/{challenge.requirementCount}
-                  </Text>
-                </View>
-              </View>
-              <View style={styles.challengeStatus}>
-                {challenge.isCompleted ? (
-                  <MaterialCommunityIcons name="check-circle" size={24} color={colors.accent} />
-                ) : (
-                  <Ionicons name={challenge.icon as any || 'medal-outline'} size={24} color={colors.accent} />
-                )}
-              </View>
-            </Pressable>
-          ))}
-        </View>
-      )}
-
-      {/* Loading or Empty State */}
-      {isLoading && (
-        <View style={[styles.section, styles.centered]}>
-          <Text style={styles.sectionSubtitle}>Loading challenges...</Text>
-        </View>
-      )}
-
-      {!isLoading && supabaseChallenges.length === 0 && (
-        <View style={[styles.section, styles.centered]}>
-          <MaterialCommunityIcons name="trophy-outline" size={48} color={colors.subtext} />
-          <Text style={styles.sectionSubtitle}>No active challenges</Text>
-        </View>
-      )}
-    </ScrollView>
+      <RewardClaimModal
+        visible={!!selectedChallenge}
+        reward={selectedChallenge ? { xp: selectedChallenge.xpReward, badge: selectedChallenge.badgeReward } : null}
+        challengeTitle={selectedChallenge?.title || ''}
+        onClaim={handleClaimReward}
+        onClose={() => setSelectedChallenge(null)}
+        claiming={claiming}
+      />
+    </>
   );
 }
 
@@ -1149,7 +1139,7 @@ export default function LessonsScreen() {
   const [liveStreak, setLiveStreak] = useState(streakService.getCurrentStreak());
   const [xpBalanceModalVisible, setXpBalanceModalVisible] = useState(false);
 
-  const [index, setIndex] = useState(0);
+  const [index, setIndex] = useState(1);
   const [routes] = useState([
     { key: 'lessons', title: 'Lessons' },
     { key: 'challenges', title: 'Challenges' },
@@ -1210,7 +1200,7 @@ export default function LessonsScreen() {
               accessibilityRole="button"
               accessibilityLabel="Open vault"
             >
-              <MaterialCommunityIcons name="treasure-chest" size={18} color={colors.gold} />
+              <MaterialCommunityIcons name="treasure-chest" size={26} color={colors.gold} />
             </Pressable>
           </View>
         }
@@ -2196,5 +2186,167 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 19,
     marginTop: spacing(1),
+  },
+
+  // ─── ChallengesView redesign ──────────────────────────────────────────────────
+  cvScrollPad: {
+    paddingBottom: spacing(2),
+  },
+  cvDivider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: spacing(3),
+    marginTop: spacing(3.5),
+    marginBottom: spacing(1.5),
+    gap: spacing(1.5),
+  },
+  cvDividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+  },
+  cvDividerLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: colors.gold,
+    letterSpacing: 2.2,
+  },
+  cvCard: {
+    flexDirection: 'row',
+    marginHorizontal: spacing(3),
+    marginBottom: spacing(1.5),
+    backgroundColor: colors.card,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
+    overflow: 'hidden',
+  },
+  cvCardDone: {
+    borderColor: 'rgba(214,138,56,0.22)',
+    backgroundColor: 'rgba(43,31,23,0.95)',
+  },
+  cvStripe: {
+    width: 3,
+    alignSelf: 'stretch',
+  },
+  cvIconCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    margin: spacing(2),
+    marginRight: spacing(1.5),
+    alignSelf: 'flex-start',
+    marginTop: spacing(2.25),
+  },
+  cvCardBody: {
+    flex: 1,
+    paddingTop: spacing(2),
+    paddingBottom: spacing(2),
+    paddingRight: spacing(2),
+  },
+  cvCardTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing(0.5),
+    gap: spacing(1),
+  },
+  cvCardTitle: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.text,
+    lineHeight: 20,
+  },
+  cvDiffBadge: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: colors.textMuted,
+    letterSpacing: 1,
+    paddingHorizontal: spacing(0.75),
+    paddingVertical: 2,
+    borderRadius: 3,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+  },
+  cvCardDesc: {
+    fontSize: 13,
+    color: colors.subtext,
+    lineHeight: 18,
+    marginBottom: spacing(1.5),
+  },
+  cvProgressRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(1),
+    marginBottom: spacing(1.25),
+  },
+  cvProgressTrack: {
+    flex: 1,
+  },
+  cvProgressCount: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.text,
+    minWidth: 28,
+    textAlign: 'right',
+  },
+  cvProgressTotal: {
+    fontWeight: '400',
+    color: colors.textMuted,
+  },
+  cvCardFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  cvXPPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: 'rgba(214,138,56,0.1)',
+    paddingHorizontal: spacing(1),
+    paddingVertical: 3,
+    borderRadius: radii.sm,
+  },
+  cvXPText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.gold,
+  },
+  cvClaimPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.accent,
+    paddingHorizontal: spacing(1.5),
+    paddingVertical: spacing(0.6),
+    borderRadius: radii.pill,
+  },
+  cvClaimText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: colors.goldText,
+  },
+  cvEmpty: {
+    alignItems: 'center',
+    paddingTop: spacing(8),
+    paddingHorizontal: spacing(4),
+    gap: spacing(1.25),
+  },
+  cvEmptyTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: colors.textMuted,
+    marginTop: spacing(0.5),
+  },
+  cvEmptyBody: {
+    fontSize: 14,
+    color: colors.subtext,
+    textAlign: 'center',
+    lineHeight: 20,
   },
 });
