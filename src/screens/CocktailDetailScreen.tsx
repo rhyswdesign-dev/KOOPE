@@ -468,7 +468,7 @@ const nonAlcoholicBeverages = [
     category: 'Wellness Drinks',
     region: 'United States',
     tier: 'bronze',
-    image: 'https://images.unsplash.com/photo-1559181567-c3190ca9959b?q=80&w=1200&auto=format&fit=crop',
+    image: require('../../assets/images/mocktails/ginger_kombucha_mule.png'),
     tagline: 'Probiotic & Refreshing',
     description: 'Living kombucha with organic ginger providing digestive benefits and refreshing taste.',
     abv: '<0.5%',
@@ -491,7 +491,7 @@ const nonAlcoholicBeverages = [
     category: 'Wellness Drinks',
     region: 'United States',
     tier: 'silver',
-    image: 'https://images.unsplash.com/photo-1556881286-fc6915169721?q=80&w=1200&auto=format&fit=crop',
+    image: require('../../assets/images/mocktails/zen_garden_spritz.png'),
     tagline: 'Calm & Focused',
     description: 'Sparkling water infused with hemp extract and adaptogens for relaxation and focus.',
     abv: '0.0%',
@@ -607,7 +607,7 @@ const nonAlcoholicBeverages = [
     category: 'Low-ABV Options',
     region: 'United States',
     tier: 'gold',
-    image: 'https://images.unsplash.com/photo-1574671928146-5c89a22b2e85?q=80&w=1200&auto=format&fit=crop',
+    image: require('../../assets/images/mocktails/high_rhode_spritz.png'),
     tagline: 'Mood-Elevating',
     description: 'A euphoric blend of adaptogens, nootropics, and botanicals designed to elevate your mood naturally.',
     abv: '<0.5%',
@@ -661,7 +661,7 @@ const nonAlcoholicBeverages = [
     category: 'Low-ABV Options',
     region: 'Australia',
     tier: 'silver',
-    image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?q=80&w=1200&auto=format&fit=crop',
+    image: require('../../assets/images/mocktails/italian_sunset.png'),
     tagline: 'Italian Aperitivo',
     description: 'Zero-proof alternative to Italian orange aperitif with bitter orange and herbal complexity.',
     abv: '0.0%',
@@ -692,7 +692,7 @@ const nonAlcoholicBeverages = [
     category: 'Low-ABV Options',
     region: 'United States',
     tier: 'bronze',
-    image: 'https://images.unsplash.com/photo-1541745537411-b8046dc6d66c?q=80&w=1200&auto=format&fit=crop',
+    image: require('../../assets/images/mocktails/curious_spritz.png'),
     tagline: 'Negroni Inspired',
     description: 'A sophisticated blend inspired by the classic Negroni with bitter and sweet botanicals.',
     abv: '<0.5%',
@@ -1490,12 +1490,14 @@ export default function CocktailDetailScreen() {
   );
 
   const ownedIngredientNames = React.useMemo(() => {
+    // Ingredient highlighting is a Bartender (PLUS) feature
+    if (tier === 'FREE') return new Set<string>();
     return new Set(
       parsedIngredients
         .filter((ingredient: any) => hasIngredient(userInventory, String(ingredient.matchName || ingredient.name || '')))
         .map((ingredient: any) => String(ingredient.matchName || ingredient.name || ''))
     );
-  }, [parsedIngredients, userInventory]);
+  }, [parsedIngredients, userInventory, tier]);
 
   const normalizeText = (value: string): string =>
     value.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();

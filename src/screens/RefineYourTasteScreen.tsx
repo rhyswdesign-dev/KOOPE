@@ -325,7 +325,7 @@ export default function RefineYourTasteScreen({ navigation }: Props) {
         </Pressable>
         <Text style={styles.headerTitle}>Taste Graph</Text>
         <View style={styles.headerPill}>
-          <Text style={styles.headerPillText}>{tier === 'PRO' ? 'Craft Identity' : 'Profile'}</Text>
+          <Text style={styles.headerPillText}>{tier === 'PRO' ? 'Mixologist' : 'Profile'}</Text>
         </View>
       </View>
 

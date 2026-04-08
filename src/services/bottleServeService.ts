@@ -32,7 +32,7 @@ const MODE_LABELS: Record<ServeMode, string> = {
   neat: 'Neat',
   'water-drops': 'A Few Drops of Water',
   'large-rock': 'On a Large Rock',
-  cocktail: 'Respectful Cocktail',
+  cocktail: 'Classic Cocktail',
 };
 
 const PRICE_TIER_SCORE: Record<Spirit['priceTier'], number> = {

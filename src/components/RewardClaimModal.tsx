@@ -88,26 +88,23 @@ export const RewardClaimModal: React.FC<RewardClaimModalProps> = ({
         <Animated.View
           style={[styles.card, { opacity: cardOpacity, transform: [{ scale: cardScale }] }]}
         >
-          <Pressable onPress={(e) => e.stopPropagation()}>
-            {/* Amber shimmer top */}
-            <LinearGradient
-              colors={['rgba(214,138,56,0.22)', 'transparent']}
-              style={styles.topShimmer}
-            />
+          {/* Full-bleed trophy header */}
+          <LinearGradient
+            colors={['rgba(214,138,56,0.28)', 'rgba(214,138,56,0.06)', 'transparent']}
+            style={styles.trophyHeader}
+          >
+            <View style={styles.glowHalo} />
+            <Animated.View style={[styles.iconRing, { transform: [{ scale: iconScale }] }]}>
+              <View style={styles.iconInner}>
+                <Ionicons name="trophy" size={44} color={colors.accent} />
+              </View>
+            </Animated.View>
+          </LinearGradient>
 
-            {/* Trophy icon */}
-            <View style={styles.iconSection}>
-              <View style={styles.glowHalo} />
-              <Animated.View style={[styles.iconRing, { transform: [{ scale: iconScale }] }]}>
-                <View style={styles.iconInner}>
-                  <Ionicons name="trophy" size={44} color={colors.accent} />
-                </View>
-              </Animated.View>
-            </View>
-
+          <Pressable style={styles.cardInner} onPress={(e) => e.stopPropagation()}>
             {/* Eyebrow */}
             <View style={styles.eyebrow}>
-              <Ionicons name="checkmark-circle" size={12} color={colors.success} />
+              <Ionicons name="checkmark-circle" size={11} color={colors.success} />
               <Text style={styles.eyebrowText}>CHALLENGE COMPLETE</Text>
             </View>
 
@@ -123,7 +120,7 @@ export const RewardClaimModal: React.FC<RewardClaimModalProps> = ({
               {reward.xp > 0 && (
                 <View style={[styles.rewardCard, hasMultipleRewards && styles.rewardCardMulti]}>
                   <View style={styles.rewardIconBox}>
-                    <Ionicons name="flash" size={26} color={colors.accent} />
+                    <Ionicons name="flash" size={24} color={colors.accent} />
                   </View>
                   <Text style={styles.rewardAmount}>+{reward.xp}</Text>
                   <Text style={styles.rewardLabel}>XP</Text>
@@ -132,7 +129,7 @@ export const RewardClaimModal: React.FC<RewardClaimModalProps> = ({
               {reward.keys != null && reward.keys > 0 && (
                 <View style={[styles.rewardCard, hasMultipleRewards && styles.rewardCardMulti]}>
                   <View style={[styles.rewardIconBox, styles.rewardIconKey]}>
-                    <Ionicons name="key" size={26} color={colors.warning} />
+                    <Ionicons name="key" size={24} color={colors.warning} />
                   </View>
                   <Text style={styles.rewardAmount}>+{reward.keys}</Text>
                   <Text style={styles.rewardLabel}>Keys</Text>
@@ -141,7 +138,7 @@ export const RewardClaimModal: React.FC<RewardClaimModalProps> = ({
               {reward.badge && (
                 <View style={[styles.rewardCard, hasMultipleRewards && styles.rewardCardMulti]}>
                   <View style={[styles.rewardIconBox, styles.rewardIconBadge]}>
-                    <Ionicons name="medal" size={26} color={colors.success} />
+                    <Ionicons name="medal" size={24} color={colors.success} />
                   </View>
                   <Text style={styles.rewardAmount}>+1</Text>
                   <Text style={styles.rewardLabel}>Badge</Text>
@@ -176,7 +173,7 @@ export const RewardClaimModal: React.FC<RewardClaimModalProps> = ({
 const styles = StyleSheet.create({
   backdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.72)',
+    backgroundColor: 'rgba(0,0,0,0.78)',
   },
   centeredWrapper: {
     flex: 1,
@@ -184,56 +181,60 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   card: {
-    width: width * 0.84,
-    maxWidth: 380,
-    backgroundColor: colors.card,
+    width: width * 0.86,
+    maxWidth: 390,
+    backgroundColor: '#2E2018',
     borderRadius: radii.xl,
     borderWidth: 1,
-    borderColor: 'rgba(214,138,56,0.22)',
+    borderColor: 'rgba(214,138,56,0.32)',
     overflow: 'hidden',
+    shadowColor: colors.accent,
+    shadowOffset: { width: 0, height: 14 },
+    shadowOpacity: 0.25,
+    shadowRadius: 32,
+    elevation: 16,
+  },
+  trophyHeader: {
+    width: '100%',
+    paddingTop: spacing(4),
+    paddingBottom: spacing(3),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cardInner: {
     alignItems: 'center',
     paddingHorizontal: spacing(4),
     paddingBottom: spacing(3),
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 14 },
-    shadowOpacity: 0.65,
-    shadowRadius: 28,
-    elevation: 14,
-  },
-  topShimmer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 80,
-  },
-  iconSection: {
-    marginTop: spacing(4.5),
-    marginBottom: spacing(2.5),
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   glowHalo: {
     position: 'absolute',
-    width: 120,
-    height: 120,
-    borderRadius: 60,
+    width: 180,
+    height: 180,
+    borderRadius: 90,
     backgroundColor: 'rgba(214,138,56,0.18)',
+    shadowColor: colors.accent,
+    shadowOpacity: 0.5,
+    shadowRadius: 40,
+    shadowOffset: { width: 0, height: 0 },
   },
   iconRing: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    borderWidth: 1.5,
-    borderColor: 'rgba(214,138,56,0.4)',
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    borderWidth: 2,
+    borderColor: 'rgba(214,138,56,0.55)',
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: colors.accent,
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 0 },
   },
   iconInner: {
-    width: 76,
-    height: 76,
-    borderRadius: 38,
-    backgroundColor: 'rgba(214,138,56,0.14)',
+    width: 82,
+    height: 82,
+    borderRadius: 41,
+    backgroundColor: 'rgba(214,138,56,0.16)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -241,54 +242,62 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    marginBottom: spacing(1.25),
+    marginBottom: spacing(1),
+    backgroundColor: 'rgba(76,175,80,0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(76,175,80,0.25)',
+    paddingHorizontal: spacing(1.5),
+    paddingVertical: 5,
+    borderRadius: radii.pill,
   },
   eyebrowText: {
     fontSize: 10,
-    fontWeight: '900',
+    fontWeight: '800',
     color: colors.success,
-    letterSpacing: 1.4,
+    letterSpacing: 1.6,
   },
   title: {
-    fontSize: 26,
+    fontSize: 28,
     fontWeight: '900',
     color: colors.text,
     textAlign: 'center',
-    marginBottom: spacing(0.75),
-    lineHeight: 32,
+    marginBottom: spacing(0.5),
+    lineHeight: 34,
   },
   subtitle: {
     fontSize: 14,
     color: colors.subtext,
     textAlign: 'center',
     lineHeight: 20,
-    marginBottom: spacing(2.5),
+    marginBottom: spacing(2),
+    paddingHorizontal: spacing(1),
   },
   divider: {
     width: '100%',
     height: StyleSheet.hairlineWidth,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    marginBottom: spacing(2.5),
+    backgroundColor: 'rgba(214,138,56,0.2)',
+    marginBottom: spacing(2),
   },
   rewardsRow: {
     flexDirection: 'row',
     justifyContent: 'center',
     gap: spacing(1.5),
     width: '100%',
-    marginBottom: spacing(3),
+    marginBottom: spacing(2.5),
   },
   rewardCard: {
     flex: 1,
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    backgroundColor: 'rgba(214,138,56,0.06)',
     borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.07)',
-    paddingVertical: spacing(1.75),
+    borderColor: 'rgba(214,138,56,0.18)',
+    paddingVertical: spacing(2),
+    paddingHorizontal: spacing(1),
     gap: 4,
   },
   rewardCardMulti: {
-    maxWidth: 100,
+    maxWidth: 110,
   },
   rewardIconBox: {
     width: 52,
@@ -297,7 +306,11 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(214,138,56,0.14)',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 2,
+    marginBottom: 4,
+    shadowColor: colors.accent,
+    shadowOpacity: 0.28,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
   },
   rewardIconKey: {
     backgroundColor: 'rgba(255,152,0,0.14)',
@@ -306,21 +319,22 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(76,175,80,0.14)',
   },
   rewardAmount: {
-    fontSize: 20,
+    fontSize: 26,
     fontWeight: '900',
-    color: colors.text,
-    lineHeight: 24,
+    color: colors.accent,
+    lineHeight: 30,
+    fontFamily: 'Georgia',
   },
   rewardLabel: {
     fontSize: 10,
     fontWeight: '700',
     color: colors.subtext,
     textTransform: 'uppercase',
-    letterSpacing: 0.6,
+    letterSpacing: 1.2,
   },
   claimButton: {
     width: '100%',
-    height: 50,
+    height: 52,
     borderRadius: radii.pill,
     backgroundColor: colors.accent,
     flexDirection: 'row',
@@ -329,10 +343,10 @@ const styles = StyleSheet.create({
     gap: spacing(1),
     marginBottom: spacing(1.5),
     shadowColor: colors.accent,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.38,
-    shadowRadius: 10,
-    elevation: 5,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.55,
+    shadowRadius: 16,
+    elevation: 8,
   },
   claimButtonDisabled: {
     backgroundColor: colors.muted,
@@ -342,14 +356,16 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '800',
     color: '#1A120D',
-    letterSpacing: 0.3,
+    letterSpacing: 0.4,
   },
   dismissLink: {
     paddingVertical: spacing(1),
+    alignItems: 'center',
   },
   dismissText: {
     fontSize: 13,
     color: colors.subtext,
-    fontWeight: '600',
+    fontWeight: '500',
+    opacity: 0.6,
   },
 });

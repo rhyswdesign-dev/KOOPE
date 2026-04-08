@@ -2,6 +2,9 @@ import { useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useUserTier } from '../store/useUserTier';
 import { log } from '../lib/logger';
+import { useAuth } from '../contexts/AuthContext';
+import { challengeProgressService } from '../services/challengeProgressService';
+import { achievementService } from '../services/achievementService';
 
 export interface SavedItem {
   id: string;
@@ -48,6 +51,7 @@ export const FREE_RECIPE_LIMIT = 5;
 
 export function useSavedItems() {
   const tier = useUserTier((state) => state.tier);
+  const { user } = useAuth();
   const [savedItems, setSavedItems] = useState<SavedItemsState>(globalSavedItemsState);
 
   // Load saved items from AsyncStorage on mount
@@ -171,6 +175,10 @@ export function useSavedItems() {
     };
     publishSavedItems(newItems);
     saveToStorage(newItems);
+    if (user?.id) {
+      challengeProgressService.trackSaveRecipe(user.id, cocktailItem.id);
+    }
+    achievementService.trackAction('favoriteCount');
     return 'success';
   };
 

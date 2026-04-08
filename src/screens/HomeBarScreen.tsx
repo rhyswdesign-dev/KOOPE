@@ -665,10 +665,17 @@ export default function HomeBarScreen() {
     });
   }, [nav]);
 
-  // Load stored ingredients when component mounts or when focused
+  // Load stored ingredients when component mounts or when focused.
+  // Guard prevents re-entrant calls and redundant reloads within 3s of the last fetch.
+  const lastLoadTimeRef = React.useRef(0);
+  const isLoadingRef = React.useRef(false);
   useFocusEffect(
     useCallback(() => {
-      loadStoredIngredients();
+      const now = Date.now();
+      if (isLoadingRef.current || now - lastLoadTimeRef.current < 3000) return;
+      isLoadingRef.current = true;
+      lastLoadTimeRef.current = now;
+      loadStoredIngredients().finally(() => { isLoadingRef.current = false; });
     }, [])
   );
 
@@ -1460,43 +1467,53 @@ export default function HomeBarScreen() {
   const renderInventoryCard = (item: InventoryItem) => {
     const pills = getInventoryPills(item);
     const ingredientImage = getIngredientImage(item);
+    const isSpirit = item.category === 'spirit' || item.category === 'liqueur';
     return (
       <TouchableOpacity
         key={item.id}
-        style={styles.inventoryCard}
+        style={[styles.inventoryCard, isSpirit && styles.spiritCard]}
         onPress={withHaptic(() => handleItemPress(item))}
+        activeOpacity={0.82}
       >
+        {isSpirit && <View style={styles.cardAccentStrip} />}
+
         <View style={styles.cardImageContainer}>
           {item.imageUrl ? (
             <Image source={{ uri: item.imageUrl }} style={styles.cardImage} resizeMode="cover" />
           ) : ingredientImage ? (
             <Image source={ingredientImage as any} style={styles.cardImage} resizeMode="cover" />
           ) : (
-            <Ionicons
-              name={getCategoryIcon(item.category, item.subcategory, item.name)}
-              size={40}
-              color={colors.gold}
-            />
+            <View style={styles.cardIconWrap}>
+              <Ionicons
+                name={getCategoryIcon(item.category, item.subcategory, item.name)}
+                size={48}
+                color={colors.accent}
+              />
+            </View>
+          )}
+          {item.isFavorite && (
+            <View style={styles.cardFavBadge}>
+              <Ionicons name="star" size={10} color={colors.goldText} />
+            </View>
           )}
         </View>
 
         <View style={styles.cardContent}>
-          <View style={styles.cardTitleRow}>
-            <Text style={styles.cardTitle} numberOfLines={2}>
-              {item.name}
-            </Text>
-            {item.isFavorite && <Ionicons name="star" size={14} color={colors.gold} />}
-          </View>
-          <Text style={styles.cardSubtitle}>
+          <Text style={styles.cardTitle} numberOfLines={2}>
+            {item.name}
+          </Text>
+          <Text style={styles.cardSubtitle} numberOfLines={1}>
             {getInventoryInsight(item)}
           </Text>
-          <View style={styles.cardPillRow}>
-            {pills.map((pill) => (
-              <View key={`${item.id}-${pill}`} style={styles.cardPill}>
-                <Text style={styles.cardPillText}>{pill}</Text>
-              </View>
-            ))}
-          </View>
+          {pills.length > 0 && (
+            <View style={styles.cardPillRow}>
+              {pills.slice(0, 2).map((pill) => (
+                <View key={`${item.id}-${pill}`} style={styles.cardPill}>
+                  <Text style={styles.cardPillText}>{pill}</Text>
+                </View>
+              ))}
+            </View>
+          )}
           {!!item.notes && (
             <Text style={styles.cardNote} numberOfLines={1}>
               {item.notes}
@@ -2657,16 +2674,44 @@ const styles = StyleSheet.create({
     borderRadius: radii.lg,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
+    borderColor: 'rgba(255,255,255,0.07)',
+    shadowColor: '#000',
+    shadowOpacity: 0.22,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 3,
+  },
+  spiritCard: {
+    borderColor: 'rgba(214,138,56,0.22)',
+  },
+  cardAccentStrip: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 3,
+    backgroundColor: colors.accent,
+    zIndex: 2,
+    borderTopLeftRadius: radii.lg,
+    borderBottomLeftRadius: radii.lg,
   },
   lowStockCard: {
-    borderColor: colors.gold + '40',
-    backgroundColor: colors.gold + '08',
+    borderColor: 'rgba(214,138,56,0.4)',
+    backgroundColor: 'rgba(214,138,56,0.05)',
   },
   cardImageContainer: {
     width: '100%',
-    height: 116,
-    backgroundColor: '#1F1410',
+    height: 130,
+    backgroundColor: '#17100B',
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  cardIconWrap: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: 'rgba(214,138,56,0.1)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -2674,8 +2719,24 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
+  cardFavBadge: {
+    position: 'absolute',
+    top: spacing(1),
+    right: spacing(1),
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: colors.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: colors.accent,
+    shadowOpacity: 0.5,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+  },
   cardContent: {
     padding: spacing(1.75),
+    paddingLeft: spacing(2.25),
   },
   cardTitleRow: {
     flexDirection: 'row',
@@ -2684,11 +2745,12 @@ const styles = StyleSheet.create({
     marginBottom: spacing(0.4),
   },
   cardTitle: {
-    flex: 1,
     fontSize: 13,
     fontWeight: '700',
     color: colors.text,
     lineHeight: 18,
+    fontFamily: 'Georgia',
+    marginBottom: spacing(0.5),
   },
   cardSubtitle: {
     fontSize: 11,
@@ -2703,23 +2765,25 @@ const styles = StyleSheet.create({
     marginBottom: spacing(0.5),
   },
   cardPill: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-    backgroundColor: `${colors.accent}10`,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: radii.pill,
+    backgroundColor: 'rgba(214,138,56,0.1)',
     borderWidth: 1,
-    borderColor: `${colors.accent}22`,
+    borderColor: 'rgba(214,138,56,0.28)',
   },
   cardPillText: {
     fontSize: 9,
-    fontWeight: '800',
+    fontWeight: '700',
     color: colors.accent,
-    letterSpacing: 0.3,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
   },
   cardNote: {
-    fontSize: 11,
+    fontSize: 10,
     color: colors.muted,
-    lineHeight: 15,
+    lineHeight: 14,
+    fontStyle: 'italic',
   },
   cardFooter: {
     fontSize: 11,

@@ -298,7 +298,7 @@ export default function ShoppingCartScreen() {
                     </View>
 
                     <Text style={[styles.ingredientSize, isChecked && styles.ingredientSizeChecked]}>
-                      {item.size || '750ml'}
+                      {item.size || ''}
                     </Text>
 
                     <TouchableOpacity

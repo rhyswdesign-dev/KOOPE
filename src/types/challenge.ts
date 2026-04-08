@@ -18,11 +18,27 @@ export interface Challenge {
   tier?: 'free' | 'pro';
 
   xpReward: number;
-  keysReward?: number; // Optional vault keys
   badgeReward?: string; // Optional badge ID
 
   // Requirements
-  requirementType: 'lesson_complete' | 'xp_earn' | 'streak_maintain' | 'recipe_view' | 'bar_visit' | 'vault_unlock' | 'quiz_perfect' | 'module_complete';
+  requirementType:
+    | 'lesson_complete'
+    | 'xp_earn'
+    | 'streak_maintain'
+    | 'recipe_view'
+    | 'bar_visit'
+    | 'vault_unlock'
+    | 'quiz_perfect'
+    | 'module_complete'
+    | 'scan_bottle'
+    | 'scan_new_category'
+    | 'log_make'
+    | 'rate_recipe'
+    | 'add_to_inventory'
+    | 'save_recipe'
+    | 'explore_spirit'
+    | 'complete_profile'
+    | 'share_moment';
   requirementCount: number; // How many times to do the action
 
   // Tracking
@@ -54,6 +70,5 @@ export interface UserChallengeProgress {
 
 export interface ChallengeReward {
   xp: number;
-  keys?: number;
   badge?: string;
 }

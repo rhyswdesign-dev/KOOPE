@@ -469,7 +469,7 @@ export default function SmartScanScreen() {
       )}
       {analyzing && (
         <View style={styles.analyzingOverlay}>
-          <ActivityIndicator size="large" color={colors.gold} />
+          <ActivityIndicator size="large" color={colors.accent} />
           <Text style={styles.analyzingTitle}>{analyzingTitle}</Text>
           <Text style={styles.analyzingSubtitle}>{analyzingSubtitle}</Text>
         </View>

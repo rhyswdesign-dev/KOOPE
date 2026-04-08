@@ -28,7 +28,7 @@ export const PRO_CERTIFICATIONS: ProCertification[] = [
   },
   {
     id: 'craft-identity',
-    title: 'Craft Identity',
+    title: 'Mixologist',
     body: 'Signals a serious enthusiast profile with repeat engagement and an owned drop history.',
     requiredLessons: 15,
     requiredAchievements: 8,

@@ -57,7 +57,7 @@ export const TIER_LIMITS = {
 
 /**
  * Features accessible by tier
- * Structured by the Lounge Model: FREE "Starter Bar", PLUS "Core Precision", PRO "Precision Mode"
+ * Structured by the identity ladder: FREE "Home Bar", PLUS "Bartender", PRO "Mixologist"
  */
 export const TIER_FEATURES = {
   FREE: {
@@ -66,7 +66,7 @@ export const TIER_FEATURES = {
     scansPerMonth: Infinity,
 
     // Discovery
-    whatCanIMake: 'spirit-filter-only',
+    whatCanIMake: false,
     recipeFilters: 'basic', // Spirit filter only
     // XP-progressive unlock: free users unlock recipes by earning XP
     // Clear thumbnails shown for locked recipes with "Unlock at Level X" badge (no blur)
@@ -81,9 +81,9 @@ export const TIER_FEATURES = {
     hostingAdvanced: false,
     prepTimeline: false,
 
-    // Commerce — cart always open
-    cartPurchase: true,
-    cartAddItem: true,
+    // Commerce — cart coming soon (feedback prompt shown)
+    cartPurchase: false,
+    cartAddItem: false,
     addMissingIngredients: false,
     smartCartPreview: false,
 

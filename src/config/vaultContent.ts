@@ -13,7 +13,8 @@ export type VaultCategoryId =
   | "COCKTAIL_VARIATIONS"
   | "TECHNIQUE_PLAYBOOKS"
   | "SEASONAL_DROPS"
-  | "GAMES";
+  | "BARTENDER_HACKS"
+  | "GAMES"; // archived — kept for type safety on existing data
 
 export type UnlockMethod =
   | "XP_ONLY"
@@ -64,12 +65,13 @@ export const vaultCategories: VaultCategoryConfig[] = [
     sortOrder: 4,
   },
   {
-    id: "GAMES",
-    title: "Drinking Games",
-    subtitle: "Classic party games with full rules",
-    description: "Unlock official rules, variations, and strategies for the best drinking games. Perfect for parties, game nights, and social gatherings.",
-    sortOrder: 5,
+    id: "BARTENDER_HACKS",
+    title: "Bartender Hacks",
+    subtitle: "Pro skills, one tip at a time",
+    description: "Short-form technique, flavour, and hosting insights — each one a single unlock. From dry shake fundamentals to acid balancing and ice strategy.",
+    sortOrder: 3,
   },
+  // GAMES archived — does not fit craft identity; kept for backwards compat
 ];
 
 // ============================================================================
@@ -874,4 +876,292 @@ export function searchVariationsByTag(tag: string): CocktailVariationContent[] {
   return cocktailVariations.filter((v) =>
     v.tags.some((t) => t.toLowerCase().includes(lowerTag))
   );
+}
+
+// ============================================================================
+// BARTENDER HACKS
+// ============================================================================
+
+export type BartenderHackCategory = 'technique' | 'flavour' | 'equipment' | 'hosting' | 'pouring';
+export type BartenderHackDifficulty = 'Beginner' | 'Advanced' | 'Pro';
+
+export interface BartenderHackContent {
+  id: string;
+  title: string;
+  category: BartenderHackCategory;
+  difficulty: BartenderHackDifficulty;
+  teaser: string;
+  body: string;
+  xpCost: number;
+  requiredTier?: UserTier;
+  relatedDeckSlug?: string; // links to a mini deck if one exists
+}
+
+export const bartenderHacks: BartenderHackContent[] = [
+  // TECHNIQUE (6 cards)
+  {
+    id: 'hack_dry_shake_first',
+    title: 'Dry Shake First',
+    category: 'technique',
+    difficulty: 'Beginner',
+    teaser: 'Shake without ice before you chill — your foam will thank you.',
+    body: 'Egg white and aquafaba foams need friction to build structure. Shake dry for 15 seconds to emulsify proteins, then add ice and shake cold. Result: a tighter, longer-lasting foam that sits on top rather than collapsing into the drink.',
+    xpCost: 200,
+  },
+  {
+    id: 'hack_fat_wash',
+    title: 'The Fat Wash',
+    category: 'technique',
+    difficulty: 'Advanced',
+    teaser: 'Infuse spirit with fat, freeze it out, filter — flavour stays behind.',
+    body: 'Fat-washing transfers richness and aroma into spirit without residual grease. Mix warm fat (butter, bacon, sesame oil) with spirit, let sit 2–4 hours at room temperature, then freeze overnight. The fat solidifies; remove it and fine-strain. The flavour molecules remain dissolved in the alcohol.',
+    xpCost: 450,
+    requiredTier: 'PLUS',
+    relatedDeckSlug: 'fat-wash-fundamentals',
+  },
+  {
+    id: 'hack_hard_shake',
+    title: 'The Hard Shake',
+    category: 'technique',
+    difficulty: 'Advanced',
+    teaser: 'Japanese bartenders use a 3-point wrist motion to aerate differently.',
+    body: 'The hard shake (Ueno method) uses a deliberate three-point shaker motion — not just back-and-forth. The tin moves in a figure-of-eight path, folding air into the liquid differently than a standard shake. It produces a slightly frothier, rounder texture in sour-style drinks.',
+    xpCost: 400,
+    requiredTier: 'PLUS',
+  },
+  {
+    id: 'hack_stirred_vs_shaken',
+    title: 'Stirred vs. Shaken — The Real Rule',
+    category: 'technique',
+    difficulty: 'Beginner',
+    teaser: "It's not about spirit type — it's about whether you want aeration.",
+    body: 'The actual rule: shake when a drink contains juice, cream, or egg (needs emulsification and aeration). Stir when it\'s all spirit and liqueur (needs dilution and chill without bubbles or cloudiness). Breaking this rule intentionally is a valid creative choice — but know why you\'re doing it.',
+    xpCost: 150,
+  },
+  {
+    id: 'hack_milk_clarification',
+    title: 'Milk Clarification',
+    category: 'technique',
+    difficulty: 'Pro',
+    teaser: 'Add warm milk to acidic cocktail, let it curdle, strain crystal-clear.',
+    body: 'Milk proteins (casein) coagulate when they hit acid or tannins, pulling suspended particles and colour compounds down with them. Add whole milk to a room-temp punch or sour, wait 20 minutes, then fine-strain through a coffee filter. You\'ll get a glass-clear drink with a silky texture and extended shelf stability — weeks in the fridge.',
+    xpCost: 650,
+    requiredTier: 'PRO',
+  },
+  {
+    id: 'hack_reverse_dry_shake',
+    title: 'Reverse Dry Shake',
+    category: 'technique',
+    difficulty: 'Advanced',
+    teaser: 'Shake cold first, remove ice, then dry shake for maximum foam volume.',
+    body: 'Reverse of the classic dry-shake order. Shake with ice first to chill and dilute the drink, then strain off ice and shake dry again. The cold liquid generates even more foam on the second shake than a forward dry-shake would. Preferred by some bartenders for a lighter, airier texture rather than a dense, creamy foam.',
+    xpCost: 350,
+    requiredTier: 'PLUS',
+  },
+
+  // FLAVOUR (5 cards)
+  {
+    id: 'hack_acid_balancing',
+    title: 'Acid Balancing 101',
+    category: 'flavour',
+    difficulty: 'Advanced',
+    teaser: 'Citric, malic, tartaric — each acid tastes different. Choose intentionally.',
+    body: 'Fresh lemon = citric + malic acids (bright, sharp). Fresh lime = citric + ascorbic (greener, more aromatic). Verjuice = tartaric (softer, wine-like). Use citric acid solution (10g per 100ml water) to add sourness without citrus aroma. Use malic when you want roundness. Mix them to engineer the exact tartness profile you need without changing flavour character.',
+    xpCost: 500,
+    requiredTier: 'PLUS',
+    relatedDeckSlug: 'acid-control',
+  },
+  {
+    id: 'hack_oleo_saccharum',
+    title: 'Make Oleo Saccharum',
+    category: 'flavour',
+    difficulty: 'Beginner',
+    teaser: 'Peels + sugar + time = liquid citrus gold for punch and cocktails.',
+    body: 'Peel citrus in wide strips, cover with sugar (roughly equal weight), seal, and leave 30–60 minutes. The sugar draws out the essential oils from the zest via osmosis, producing a fragrant, complex citrus syrup without any juice. Use in punches, daiquiris, or any drink that needs citrus depth without added acidity.',
+    xpCost: 250,
+  },
+  {
+    id: 'hack_saline_solution',
+    title: 'Salt Solution Drop',
+    category: 'flavour',
+    difficulty: 'Beginner',
+    teaser: '2 drops of 20% saline makes any cocktail taste more itself.',
+    body: 'Make a 20% saline solution (20g salt per 100ml water). Add 2–3 drops to any finished cocktail. Salt suppresses bitterness, rounds out harsh edges, and amplifies fruit and sweet notes — it doesn\'t make the drink taste salty. This is the single highest ROI trick in the book. Use a dropper bottle to keep it precise.',
+    xpCost: 150,
+  },
+  {
+    id: 'hack_tinctures',
+    title: 'Quick Tinctures',
+    category: 'flavour',
+    difficulty: 'Advanced',
+    teaser: 'High-proof spirit + any aromatic + 24 hrs = a flavour concentrate.',
+    body: 'Combine 1 part dried aromatic (spice, herb, citrus peel) with 5 parts high-proof neutral spirit (Everclear or vodka 50%+). Seal and leave 24–48 hours. Strain. You\'ve built a potent flavour concentrate you can add drop by drop. Unlike infusions which take weeks in lower-proof spirit, tinctures work fast because high alcohol extracts volatile aromatics almost immediately.',
+    xpCost: 400,
+    requiredTier: 'PLUS',
+  },
+  {
+    id: 'hack_sugar_ratios',
+    title: 'Simple Syrup Ratios',
+    category: 'flavour',
+    difficulty: 'Beginner',
+    teaser: '1:1 for mixing, 2:1 for sweetening — the difference matters.',
+    body: '1:1 syrup (equal parts sugar and water) mixes easily but adds more water dilution. 2:1 rich syrup (two parts sugar, one water) has more body and sweetness per drop, letting you use less of it. Rich syrup also stays shelf-stable longer (more sugar inhibits microbial growth). Use 1:1 for balanced sours; use 2:1 when you want a lush, viscous texture in spirit-forward drinks.',
+    xpCost: 150,
+  },
+
+  // EQUIPMENT (4 cards)
+  {
+    id: 'hack_build_ice_strategy',
+    title: 'Build Your Ice Strategy',
+    category: 'equipment',
+    difficulty: 'Beginner',
+    teaser: 'Three ice types cover every cocktail scenario — here\'s the logic.',
+    body: 'Keep three ice formats: (1) Large cubes or spheres for rocks drinks — slow melt, minimal dilution. (2) Standard 1-inch cubes for shaking and highballs — good contact surface, controlled dilution. (3) Crushed or pebble ice for juleps and swizzles — fast chill, intentional heavy dilution. A silicone sphere mold, a standard ice tray, and a Lewis bag covers all three.',
+    xpCost: 200,
+    relatedDeckSlug: 'ice-strategy',
+  },
+  {
+    id: 'hack_jigger_precision',
+    title: 'Why Jigger Precision Matters',
+    category: 'equipment',
+    difficulty: 'Beginner',
+    teaser: 'A 0.25 oz error in a 3-ingredient drink is a 10%+ flavour shift.',
+    body: 'In a simple 2:1:1 sour (2oz spirit, 1oz citrus, 1oz syrup), being 0.25oz heavy on the syrup shifts the balance by more than 10%. Use a two-sided jigger (usually 1oz/2oz or 0.5oz/0.75oz) and fill to the exact meniscus — look at eye level. The difference between free-pouring and measuring is the difference between consistent cocktails and unreliable ones.',
+    xpCost: 150,
+  },
+  {
+    id: 'hack_fine_strain',
+    title: 'Always Fine Strain Shaken Drinks',
+    category: 'equipment',
+    difficulty: 'Beginner',
+    teaser: 'Ice chips and pulp in a shaken drink signal a careless pour.',
+    body: 'When straining a shaken cocktail through a Hawthorne strainer, add a fine mesh (tea) strainer between the shaker and the glass. This catches ice shards, citrus pulp, and herb fragments — all of which muddy the appearance and change the texture over time. Two-piece straining is standard practice in good bars. It adds 2 seconds and makes a visible difference.',
+    xpCost: 150,
+  },
+  {
+    id: 'hack_bar_spoon_technique',
+    title: 'Bar Spoon Technique',
+    category: 'equipment',
+    difficulty: 'Advanced',
+    teaser: 'Stir with the back of the spoon touching the glass — not the front.',
+    body: 'Hold the spoon between middle finger and ring finger, with the twisted handle resting on your index finger. Press the back of the spoon bowl flat against the inside of the mixing glass. Rotate in smooth circles without lifting — the ice slides rather than churning. The goal is chilling and dilution with no aeration. 30–40 rotations for a standard stirred drink (roughly 20–25 seconds).',
+    xpCost: 300,
+    requiredTier: 'PLUS',
+  },
+
+  // HOSTING (5 cards)
+  {
+    id: 'hack_batch_cocktails',
+    title: 'Batch Cocktails for Groups',
+    category: 'hosting',
+    difficulty: 'Beginner',
+    teaser: 'Pre-dilute by 20% and you can serve straight from the fridge.',
+    body: 'For stirred cocktails (Negroni, Manhattan, Old Fashioned), batch the spirit and liqueur components, then add 20–25% of the total volume as water to account for ice dilution. Store in the fridge. Serve over a single large ice cube directly from the bottle. For shaken cocktails, batch the spirit and modifiers but shake individual portions — the texture difference matters.',
+    xpCost: 300,
+    relatedDeckSlug: 'batch-math',
+  },
+  {
+    id: 'hack_mise_en_place',
+    title: 'Bar Mise en Place',
+    category: 'hosting',
+    difficulty: 'Beginner',
+    teaser: 'Set up everything before guests arrive — your speed triples.',
+    body: 'Before your first guest walks in: (1) Pre-juice citrus and store in labelled containers. (2) Pre-make all syrups. (3) Set up your garnish tray — peels, herbs, fruit sliced and ready. (4) Stage glassware in the order you\'ll use it. (5) Pre-chill serving glasses if possible. The 30-minute pre-event setup is what separates a smooth hosting session from a stressful one.',
+    xpCost: 200,
+  },
+  {
+    id: 'hack_welcome_drink',
+    title: 'The One-Drink Welcome Strategy',
+    category: 'hosting',
+    difficulty: 'Beginner',
+    teaser: 'One batched welcome drink removes the pressure of a full bar on arrival.',
+    body: 'Have one pre-batched, pre-garnished drink ready as guests arrive. Served in a carafe or pitcher on the table, this removes the bottleneck of taking drink orders the moment people walk in. It sets the tone, feels intentional, and buys you 20–30 minutes to settle guests before managing a full bar setup. Choose something low-ABV or approachable to start.',
+    xpCost: 200,
+  },
+  {
+    id: 'hack_low_abv_options',
+    title: 'Always Have a Low-ABV Option',
+    category: 'hosting',
+    difficulty: 'Beginner',
+    teaser: 'A good low-ABV drink is the mark of a thoughtful host.',
+    body: 'At least one option on your menu should be genuinely satisfying for someone not drinking full-ABV cocktails. Not a juice-and-soda afterthought — a properly built Spritz, Sherry Cobbler, or Highball. Fortified wines (Amontillado, Lillet, Dolin Blanc) are your secret weapon: complex, interesting, and roughly one-third the alcohol of a spirit-forward cocktail.',
+    xpCost: 250,
+  },
+  {
+    id: 'hack_garnish_signals',
+    title: 'Garnish as a Signal',
+    category: 'hosting',
+    difficulty: 'Advanced',
+    teaser: 'The garnish tells the guest what to expect before they taste anything.',
+    body: 'A citrus twist signals bright and aromatic. A cocktail cherry signals sweet and boozy. A sprig of herbs signals fresh and herbal. Salt rim signals savory-forward. Use garnish deliberately as a preview of the drink\'s flavour profile — and as a finishing touch that adds aroma when the glass is lifted. Expressed citrus oils (twist the peel over the glass, then discard or drape) are the highest-impact finishing move with the least effort.',
+    xpCost: 300,
+    requiredTier: 'PLUS',
+  },
+
+  // POURING (4 cards)
+  {
+    id: 'hack_free_pour_count',
+    title: 'Free Pour Count',
+    category: 'pouring',
+    difficulty: 'Beginner',
+    teaser: 'A 4-count at standard speed = 1 oz. Practice, verify, repeat.',
+    body: 'Using a standard speed pourer, a 4-count (one-and-two-and) equals approximately 1 oz, an 8-count equals 2 oz. Calibrate by counting into a jigger with water until you hit exactly the right volume for your speed. Your count is only useful if you\'ve verified it — every few weeks, re-test. Temperature, viscosity, and pourer wear all affect the flow rate.',
+    xpCost: 150,
+  },
+  {
+    id: 'hack_layering_pour',
+    title: 'Layering Spirits',
+    category: 'pouring',
+    difficulty: 'Advanced',
+    teaser: 'Pour over the back of a spoon to layer lighter spirits above denser ones.',
+    body: 'Spirit density is determined by both alcohol content and sugar content. High-sugar, lower-ABV liqueurs (grenadine, coffee liqueur) sink; high-ABV spirits float. To layer: float the lighter layer last by pouring slowly over the back of a bar spoon held just above the existing liquid. The spoon diffuses the pour so it rests on top rather than mixing through. Classic application: Tequila Sunrise (grenadine sinks), B-52 shots.',
+    xpCost: 300,
+    requiredTier: 'PLUS',
+  },
+  {
+    id: 'hack_dilution_control',
+    title: 'Control Your Dilution',
+    category: 'pouring',
+    difficulty: 'Advanced',
+    teaser: 'Dilution is an ingredient — not an accident.',
+    body: 'A properly shaken cocktail gains 20–25% of its volume from ice melt. A stirred drink gains 15–20%. This is intentional and necessary — underdiluted drinks taste harsh and "hot." The right amount of shake time (10–14 seconds hard shake) hits the target. If using pre-chilled ingredients or batch-diluted spirit, adjust time down. Taste as you go until you know your setup\'s behavior.',
+    xpCost: 350,
+    requiredTier: 'PLUS',
+  },
+  {
+    id: 'hack_highball_pour',
+    title: 'The Perfect Highball Pour',
+    category: 'pouring',
+    difficulty: 'Beginner',
+    teaser: 'Add spirit first, ice second, mixer third — this order matters.',
+    body: 'For a highball: add spirit to the glass first (it wets the ice and settles evenly), then fill with ice to the top, then pour the mixer slowly down the side of the glass. Pouring mixer over ice (rather than ice over mixer) preserves carbonation. Finish with one slow stir — no more — to integrate without flattening the bubbles. This order is followed in every serious Japanese highball bar.',
+    xpCost: 150,
+  },
+];
+
+/**
+ * Get all bartender hacks for display, sorted by XP cost.
+ * Can optionally filter by user tier.
+ */
+export function getBartenderHacksForDisplay(userTier?: UserTier): BartenderHackContent[] {
+  let hacks = [...bartenderHacks];
+
+  if (userTier) {
+    hacks = hacks.filter(h => {
+      if (!h.requiredTier) return true;
+      return getTierLevel(userTier) >= getTierLevel(h.requiredTier);
+    });
+  }
+
+  return hacks.sort((a, b) => a.xpCost - b.xpCost);
+}
+
+/**
+ * Get bartender hacks filtered by category
+ */
+export function getBartenderHacksByCategory(
+  category: BartenderHackCategory,
+  userTier?: UserTier
+): BartenderHackContent[] {
+  return getBartenderHacksForDisplay(userTier).filter(h => h.category === category);
 }

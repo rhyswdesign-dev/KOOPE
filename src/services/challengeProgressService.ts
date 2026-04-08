@@ -17,7 +17,16 @@ export type ActionType =
   | 'bar_visit'
   | 'vault_unlock'
   | 'quiz_perfect'
-  | 'module_complete';
+  | 'module_complete'
+  | 'scan_bottle'
+  | 'scan_new_category'
+  | 'log_make'
+  | 'rate_recipe'
+  | 'add_to_inventory'
+  | 'save_recipe'
+  | 'explore_spirit'
+  | 'complete_profile'
+  | 'share_moment';
 
 export interface ActionMetadata {
   lessonId?: string;
@@ -27,6 +36,10 @@ export interface ActionMetadata {
   barId?: string;
   streakDays?: number;
   quizScore?: number;
+  bottleId?: string;
+  spiritCategory?: string;
+  rating?: number;
+  profileField?: string;
   [key: string]: any;
 }
 
@@ -107,6 +120,15 @@ class ChallengeProgressService {
       case 'vault_unlock':
       case 'quiz_perfect':
       case 'module_complete':
+      case 'scan_bottle':
+      case 'scan_new_category':
+      case 'log_make':
+      case 'rate_recipe':
+      case 'add_to_inventory':
+      case 'save_recipe':
+      case 'explore_spirit':
+      case 'complete_profile':
+      case 'share_moment':
       default:
         // For countable actions, increment by 1
         return 1;
@@ -223,6 +245,42 @@ class ChallengeProgressService {
 
   async trackModuleComplete(userId: string, moduleId: string): Promise<Challenge[]> {
     return this.trackAction(userId, 'module_complete', { moduleId });
+  }
+
+  async trackScanBottle(userId: string, bottleId: string, spiritCategory?: string): Promise<Challenge[]> {
+    return this.trackAction(userId, 'scan_bottle', { bottleId, spiritCategory });
+  }
+
+  async trackScanNewCategory(userId: string, spiritCategory: string): Promise<Challenge[]> {
+    return this.trackAction(userId, 'scan_new_category', { spiritCategory });
+  }
+
+  async trackLogMake(userId: string, recipeId: string): Promise<Challenge[]> {
+    return this.trackAction(userId, 'log_make', { recipeId });
+  }
+
+  async trackRateRecipe(userId: string, recipeId: string, rating: number): Promise<Challenge[]> {
+    return this.trackAction(userId, 'rate_recipe', { recipeId, rating });
+  }
+
+  async trackAddToInventory(userId: string, bottleId: string): Promise<Challenge[]> {
+    return this.trackAction(userId, 'add_to_inventory', { bottleId });
+  }
+
+  async trackSaveRecipe(userId: string, recipeId: string): Promise<Challenge[]> {
+    return this.trackAction(userId, 'save_recipe', { recipeId });
+  }
+
+  async trackExploreSpirit(userId: string, spiritCategory: string): Promise<Challenge[]> {
+    return this.trackAction(userId, 'explore_spirit', { spiritCategory });
+  }
+
+  async trackCompleteProfile(userId: string, profileField: string): Promise<Challenge[]> {
+    return this.trackAction(userId, 'complete_profile', { profileField });
+  }
+
+  async trackShareMoment(userId: string, recipeId?: string): Promise<Challenge[]> {
+    return this.trackAction(userId, 'share_moment', { recipeId });
   }
 }
 

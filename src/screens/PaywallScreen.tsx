@@ -206,13 +206,13 @@ const PRO_COMING_SOON: string[] = [
 const TIER_NARRATIVES: Record<TierTab, TierNarrative> = {
   koope_plus: {
     tierLabel: 'KŌOPE+',
-    roleLabel: 'Bar Builder',
+    roleLabel: 'Bartender',
     headline: 'Build the bar you actually use',
     subtitle: 'Unlimited bottles, the full recipe catalog, smart inventory tools, and a party scaling calculator — everything to run your home bar properly.',
   },
   koope_pro: {
     tierLabel: 'KŌOPE PRO',
-    roleLabel: 'Craft Identity',
+    roleLabel: 'Mixologist',
     headline: 'Go deeper with every pour',
     subtitle: 'Weekly vault drops, a pro recipe builder, and full hosting tools that take you from guest count to prep timeline.',
   },
@@ -523,8 +523,14 @@ export default function PaywallScreen({ route }: PaywallScreenProps) {
 
         <View style={styles.planBody}>
           <Text style={[styles.planDuration, isSelected && { color: colors.text }]}>{durationLabel}</Text>
-          <Text style={[styles.planPerMonth, isSelected && { color: colors.white }]}>{plan.perMonth}</Text>
-          <Text style={[styles.planCharge, isSelected && { color: colors.text }]}>{chargeLabel}</Text>
+          {isAnnual ? (
+            <>
+              <Text style={[styles.planPerMonth, isSelected && { color: colors.white }]}>{chargeLabel}</Text>
+              <Text style={[styles.planCharge, isSelected && { color: colors.text }]}>{plan.perMonth}</Text>
+            </>
+          ) : (
+            <Text style={[styles.planPerMonth, isSelected && { color: colors.white }]}>{plan.perMonth}</Text>
+          )}
         </View>
       </TouchableOpacity>
     );
@@ -577,7 +583,7 @@ export default function PaywallScreen({ route }: PaywallScreenProps) {
             styles.tierTabText,
             selectedTier === 'koope_plus' && { color: colors.gold },
           ]}>
-            Scanner to Bar Builder
+            Home Bar → Bartender
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -588,7 +594,7 @@ export default function PaywallScreen({ route }: PaywallScreenProps) {
             styles.tierTabText,
             selectedTier === 'koope_pro' && { color: colors.gold },
           ]}>
-            Craft Identity
+            Bartender → Mixologist
           </Text>
         </TouchableOpacity>
       </View>
@@ -628,7 +634,7 @@ export default function PaywallScreen({ route }: PaywallScreenProps) {
           <View style={styles.foundersBar}>
             <Ionicons name="lock-closed" size={14} color={colors.gold} />
             <Text style={styles.foundersText}>
-              {`You're Founder #${founderCount + 1} of 300 — lock in ${tierName} pricing forever`}
+              {`You're Founder #${founderCount + 1} of 300 — early access pricing, lock it in before it goes up`}
             </Text>
           </View>
         )}
@@ -644,23 +650,11 @@ export default function PaywallScreen({ route }: PaywallScreenProps) {
           {features.map(renderFeature)}
         </View>
 
-        {/* Coming Soon */}
-        <View style={styles.comingSoonSection}>
-          <View style={styles.comingSoonHeader}>
-            <Ionicons name="time-outline" size={14} color={colors.subtext} />
-            <Text style={styles.comingSoonTitle}>Coming soon</Text>
-          </View>
-          {comingSoon.map((item, i) => (
-            <View key={i} style={styles.comingSoonRow}>
-              <View style={styles.comingSoonDot} />
-              <Text style={styles.comingSoonText}>{item}</Text>
-            </View>
-          ))}
-        </View>
-
-        {/* Legal */}
+        {/* Legal — scrollable copy, reinforces the sticky footer disclosure */}
         <Text style={styles.legalText}>
-          Subscription auto-renews until cancelled. Cancel anytime via App Store settings.{' '}
+          Payment will be charged to your Apple ID account at confirmation. Subscription
+          auto-renews unless cancelled at least 24 hours before the end of the current period.
+          Manage or cancel anytime in App Store Settings.{' '}
           <Text style={styles.legalLink}>Terms</Text> &{' '}
           <Text style={styles.legalLink}>Privacy</Text>.
         </Text>
@@ -699,6 +693,15 @@ export default function PaywallScreen({ route }: PaywallScreenProps) {
             </Text>
           )}
         </TouchableOpacity>
+
+        {/* Subscription disclosure — required by Apple guideline 3.1.2 */}
+        <Text style={styles.ctaDisclosure}>
+          {isTrialEligible
+            ? `7-day free trial, then ${selectedPlan.price}/year. Payment charged to Apple ID after trial. Renews automatically — cancel anytime in Settings.`
+            : selectedPlan.billingPeriod === 'yearly'
+              ? `Billed as ${selectedPlan.price}/year. Payment charged to Apple ID. Renews automatically — cancel anytime in Settings.`
+              : `Billed as ${selectedPlan.price}/month. Payment charged to Apple ID. Renews monthly — cancel anytime in Settings.`}
+        </Text>
       </View>
     </View>
   );
@@ -1065,5 +1068,13 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.bg,
     letterSpacing: 0.3,
+  },
+  ctaDisclosure: {
+    fontSize: 11,
+    color: colors.subtext,
+    textAlign: 'center',
+    marginTop: 10,
+    lineHeight: 16,
+    paddingHorizontal: 8,
   },
 });

@@ -158,20 +158,6 @@ export const hasPriorityAI = (tier: UserTier): boolean => {
 };
 
 /**
- * Get AI credit limit based on tier
- */
-export const getAICreditLimit = (tier: UserTier): number | null => {
-  switch (tier) {
-    case 'FREE':
-      return 10; // 10 credits per month
-    case 'PLUS':
-      return 50; // 50 credits per month
-    case 'PRO':
-      return null; // Unlimited
-  }
-};
-
-/**
  * Check if user can access full cocktail library
  */
 export const hasFullCocktailLibrary = (tier: UserTier): boolean => {

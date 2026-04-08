@@ -12,25 +12,21 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, radii, fonts } from '../theme/tokens';
 import { AIRecipeFormatter, FormattedRecipe } from '../services/aiRecipeFormatter';
-import { useAICredits } from '../store/useAICredits';
 import { log } from '../lib/logger';
 
 interface AIRecipeSearchProps {
   onRecipeFound: (recipe: FormattedRecipe) => void;
-  onCreditsNeeded?: () => void;
   placeholder?: string;
   style?: any;
 }
 
 export default function AIRecipeSearch({
   onRecipeFound,
-  onCreditsNeeded,
   placeholder = "Describe what you want to make...",
   style
 }: AIRecipeSearchProps) {
   const [query, setQuery] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { canUseAI, consumeCredits, getActionCost, credits } = useAICredits();
 
   const handleAISearch = useCallback(async () => {
     if (!query.trim()) {
@@ -38,37 +34,10 @@ export default function AIRecipeSearch({
       return;
     }
 
-    // Check if user has enough credits
-    if (!canUseAI('recipe_generation')) {
-      const cost = getActionCost('recipe_generation');
-      Alert.alert(
-        'Insufficient Credits',
-        `You need ${cost} credits to generate an AI recipe. You currently have ${credits} credits.`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Get Credits',
-            onPress: () => onCreditsNeeded?.()
-          }
-        ]
-      );
-      return;
-    }
-
     setIsLoading(true);
 
     try {
       log.info('AIRecipeSearch', 'Starting AI recipe search', { query });
-
-      // Consume credits for the action
-      const creditConsumed = consumeCredits({
-        type: 'recipe_generation',
-        userQuery: query
-      });
-
-      if (!creditConsumed) {
-        throw new Error('Unable to consume credits for this action');
-      }
 
       // Use the AI formatter to create a recipe from the natural language query
       const formattedRecipe = await AIRecipeFormatter.formatRecipe({
@@ -91,7 +60,7 @@ export default function AIRecipeSearch({
     } finally {
       setIsLoading(false);
     }
-  }, [query, onRecipeFound, canUseAI, consumeCredits, getActionCost, credits, onCreditsNeeded]);
+  }, [query, onRecipeFound]);
 
   const handleClearSearch = useCallback(() => {
     setQuery('');

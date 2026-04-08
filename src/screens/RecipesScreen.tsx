@@ -1000,8 +1000,8 @@ const sampleRecipes = [
     title: 'Ginger Kombucha Mule',
     subtitle: 'Wellness • Probiotic & Refreshing',
     category: 'Mocktails',
-    image: 'https://images.unsplash.com/photo-1559181567-c3190ca9959b?q=80&w=1200&auto=format&fit=crop',
-    img: 'https://images.unsplash.com/photo-1559181567-c3190ca9959b?q=80&w=1200&auto=format&fit=crop',
+    image: require('../../assets/images/mocktails/ginger_kombucha_mule.png'),
+    img: require('../../assets/images/mocktails/ginger_kombucha_mule.png'),
     difficulty: 'Easy',
     time: '3 min',
     rating: 4.6,
@@ -1037,8 +1037,8 @@ const sampleRecipes = [
     title: 'Zen Garden Spritz',
     subtitle: 'Wellness • Calm & Focused',
     category: 'Mocktails',
-    image: 'https://images.unsplash.com/photo-1556881286-fc6915169721?q=80&w=1200&auto=format&fit=crop',
-    img: 'https://images.unsplash.com/photo-1556881286-fc6915169721?q=80&w=1200&auto=format&fit=crop',
+    image: require('../../assets/images/mocktails/zen_garden_spritz.png'),
+    img: require('../../assets/images/mocktails/zen_garden_spritz.png'),
     difficulty: 'Easy',
     time: '4 min',
     rating: 4.7,
@@ -1073,8 +1073,8 @@ const sampleRecipes = [
     title: 'Hemp Citrus Cooler',
     subtitle: 'Wellness • Refreshing',
     category: 'Mocktails',
-    image: 'https://images.unsplash.com/photo-1556881286-fc6915169721?q=80&w=1200&auto=format&fit=crop',
-    img: 'https://images.unsplash.com/photo-1556881286-fc6915169721?q=80&w=1200&auto=format&fit=crop',
+    image: require('../../assets/images/mocktails/hemp_citrus_cooler.png'),
+    img: require('../../assets/images/mocktails/hemp_citrus_cooler.png'),
     difficulty: 'Easy',
     time: '3 min',
     rating: 4.6,
@@ -1286,8 +1286,8 @@ const sampleRecipes = [
     title: 'High Rhode Spritz',
     subtitle: 'Low-ABV • Mood-Elevating',
     category: 'Mocktails',
-    image: 'https://images.unsplash.com/photo-1574671928146-5c89a22b2e85?q=80&w=1200&auto=format&fit=crop',
-    img: 'https://images.unsplash.com/photo-1574671928146-5c89a22b2e85?q=80&w=1200&auto=format&fit=crop',
+    image: require('../../assets/images/mocktails/high_rhode_spritz.png'),
+    img: require('../../assets/images/mocktails/high_rhode_spritz.png'),
     difficulty: 'Easy',
     time: '3 min',
     rating: 4.7,
@@ -1426,8 +1426,8 @@ const sampleRecipes = [
     title: 'Italian Sunset',
     subtitle: 'Low-ABV • Citrus & Herbs',
     category: 'Mocktails',
-    image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?q=80&w=1200&auto=format&fit=crop',
-    img: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?q=80&w=1200&auto=format&fit=crop',
+    image: require('../../assets/images/mocktails/italian_sunset.png'),
+    img: require('../../assets/images/mocktails/italian_sunset.png'),
     difficulty: 'Easy',
     time: '3 min',
     rating: 4.6,
@@ -1463,8 +1463,8 @@ const sampleRecipes = [
     title: 'Curious Spritz',
     subtitle: 'Low-ABV • Negroni Inspired',
     category: 'Mocktails',
-    image: 'https://images.unsplash.com/photo-1541745537411-b8046dc6d66c?q=80&w=1200&auto=format&fit=crop',
-    img: 'https://images.unsplash.com/photo-1541745537411-b8046dc6d66c?q=80&w=1200&auto=format&fit=crop',
+    image: require('../../assets/images/mocktails/curious_spritz.png'),
+    img: require('../../assets/images/mocktails/curious_spritz.png'),
     difficulty: 'Easy',
     time: '2 min',
     rating: 4.6,
@@ -1816,7 +1816,39 @@ export default function RecipesScreen() {
 
   // Separate syrups and cocktails
   const ESSENTIAL_SYRUPS = allRecipes.filter(r => r.category?.toLowerCase() === 'syrups');
-  const ALL_COCKTAILS = allRecipes.filter(r => r.category?.toLowerCase() !== 'syrups');
+
+  const isMocktail = React.useCallback((recipe: any) => {
+    const recipeCategory = recipe.category?.toLowerCase();
+    const ingredientText = ingredientListToSearchText(recipe.ingredients || []).toLowerCase();
+    return (
+      recipeCategory === 'mocktails' ||
+      ingredientText.includes('non-alcoholic') ||
+      ingredientText.includes('zero-proof') ||
+      ingredientText.includes('seedlip') ||
+      ingredientText.includes('n/a') ||
+      ingredientText.includes('alcohol-free')
+    );
+  }, []);
+
+  const ALL_COCKTAILS = React.useMemo(() => {
+    const map = new Map<string, any>();
+    // include existing cocktails (non-syrups)
+    allRecipes
+      .filter(r => r.category?.toLowerCase() !== 'syrups')
+      .forEach((r) => map.set(r.id, r));
+    // merge in mocktails if not already present
+    sampleRecipes.forEach((mocktail) => {
+      if (!map.has(mocktail.id)) {
+        map.set(mocktail.id, mocktail);
+      }
+    });
+    return Array.from(map.values());
+  }, [allRecipes]);
+
+  const ALL_MOCKTAILS = React.useMemo(
+    () => ALL_COCKTAILS.filter(isMocktail),
+    [ALL_COCKTAILS, isMocktail]
+  );
   const VARIATION_BASE_RECIPE_ALIASES: Record<string, string[]> = {
     old_fashioned: ['old-fashioned', 'old-fashioned-classic'],
     whiskey_sour: ['whiskey-sour'],
@@ -2306,18 +2338,26 @@ export default function RecipesScreen() {
       });
     }
 
-    // Filter by category
+    // Filter by category (with fuzzy helpers for missing metadata)
     const selectedCategories = toFilterArray(currentFilters.category ?? currentFilters.categories);
     if (selectedCategories.length > 0) {
       recipes = recipes.filter(recipe => {
         const recipeCategory = recipe.category?.toLowerCase();
         const recipeSubtitle = recipe.subtitle?.toLowerCase() || '';
         const recipeDescription = recipe.description?.toLowerCase() || '';
+        const ingredientText = ingredientListToSearchText(recipe.ingredients || []).toLowerCase();
 
         return selectedCategories.some(cat => {
           const categoryLower = cat.toLowerCase();
           if (categoryLower === 'variations') {
             return !!recipe.isVaultVariation || recipeCategory === 'variations';
+          }
+          if (categoryLower === 'mocktails') {
+            return isMocktail(recipe);
+          }
+          if (categoryLower === 'fizzy') {
+            const fizzyHits = ['soda', 'sparkling', 'tonic', 'club soda', 'seltzer', 'prosecco', 'champagne', 'cava'];
+            return recipeCategory === 'fizzy' || fizzyHits.some(k => ingredientText.includes(k) || recipeDescription.includes(k));
           }
           // Check if category matches the recipe's category field or appears in subtitle/description
           return recipeCategory === categoryLower ||
@@ -2657,10 +2697,10 @@ export default function RecipesScreen() {
                     <SectionHeader
                       title="Mocktails"
                       onPress={() => {
-                        // Pass the actual mocktail recipes
                         navigation.navigate('CocktailList', {
                           title: 'Mocktails',
-                          cocktailIds: sampleRecipes.map(recipe => recipe.id),
+                          cocktailIds: ALL_MOCKTAILS.map(recipe => recipe.id),
+                          cocktails: ALL_MOCKTAILS,
                           category: 'mocktails'
                         });
                       }}
@@ -2668,7 +2708,7 @@ export default function RecipesScreen() {
 
                     {/* Mocktails Horizontal Scroll Preview */}
                     <ScrollView horizontal nestedScrollEnabled showsHorizontalScrollIndicator={false} style={{ paddingLeft: spacing(2), marginBottom: spacing(2) }}>
-                      {sampleRecipes.slice(0, 6).map((mocktail, index) => {
+                      {ALL_MOCKTAILS.slice(0, 6).map((mocktail, index) => {
                         const cardProps = createRecipeCardProps(mocktail, navigation, {
                           toggleSavedCocktail,
                           isCocktailSaved,

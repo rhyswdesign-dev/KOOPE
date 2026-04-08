@@ -1,0 +1,1012 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KŌOPE — Vault UI Concepts</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&family=Cormorant+SC:wght@400;500;600;700&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f0a07;
+      --surface: #1a120d;
+      --surface2: #231810;
+      --surface3: #2d1e14;
+      --amber: #C8922A;
+      --amber-light: #E0A83A;
+      --gold: #D4AF37;
+      --cream: #F2E5D5;
+      --cream-70: rgba(242,229,213,0.7);
+      --cream-35: rgba(242,229,213,0.35);
+      --muted: #8a7060;
+      --subtext: #5c4535;
+      --border: rgba(200,146,42,0.18);
+      --technique: #C8922A;
+      --flavour: #7D9E7A;
+      --equipment: #6B8CAE;
+      --hosting: #B87B6E;
+      --pouring: #9B7BB5;
+    }
+
+    body {
+      background: #080503;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 48px 40px 80px;
+      font-family: 'DM Sans', sans-serif;
+      position: relative;
+    }
+
+    /* Grain texture */
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 999;
+      opacity: 0.35;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.15'/%3E%3C/svg%3E");
+    }
+
+    /* Page header */
+    .page-header {
+      text-align: center;
+      margin-bottom: 48px;
+    }
+
+    .page-kicker {
+      font-family: 'Cormorant SC', serif;
+      font-size: 11px;
+      letter-spacing: 4px;
+      color: rgba(200,146,42,0.5);
+      font-weight: 500;
+      margin-bottom: 8px;
+    }
+
+    .page-title {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 32px;
+      font-weight: 600;
+      color: var(--cream);
+      letter-spacing: -0.5px;
+    }
+
+    .page-sub {
+      font-size: 13px;
+      color: var(--muted);
+      margin-top: 6px;
+    }
+
+    /* Two-phone layout */
+    .screens-row {
+      display: flex;
+      gap: 32px;
+      align-items: flex-start;
+    }
+
+    .phone-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .screen-label {
+      font-family: 'Cormorant SC', serif;
+      font-size: 10px;
+      letter-spacing: 3px;
+      color: rgba(200,146,42,0.55);
+      font-weight: 600;
+    }
+
+    /* Phone frame */
+    .phone {
+      width: 375px;
+      background: var(--bg);
+      border-radius: 44px;
+      overflow: hidden;
+      position: relative;
+      box-shadow:
+        0 0 0 1px rgba(200,146,42,0.12),
+        0 0 0 8px rgba(10,7,4,0.9),
+        0 0 0 9px rgba(200,146,42,0.08),
+        0 50px 100px rgba(0,0,0,0.85),
+        0 0 140px rgba(200,146,42,0.04);
+    }
+
+    /* Dynamic island / notch */
+    .dynamic-island {
+      position: absolute;
+      top: 13px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 120px;
+      height: 34px;
+      background: #050302;
+      border-radius: 20px;
+      z-index: 30;
+    }
+
+    /* Status bar */
+    .status-bar {
+      padding: 52px 26px 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: relative;
+      z-index: 10;
+    }
+
+    .status-time {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--cream);
+      letter-spacing: -0.3px;
+    }
+
+    .status-icons {
+      display: flex;
+      gap: 5px;
+      align-items: center;
+    }
+
+    /* ====================================================
+       SCREEN 1 — SPIRIT SPOTLIGHT
+    ==================================================== */
+
+    .spotlight-phone { height: 840px; }
+
+    /* Hero */
+    .hero {
+      height: 196px;
+      position: relative;
+      overflow: hidden;
+      background: linear-gradient(148deg,
+        #1C0900 0%,
+        #4A1F00 22%,
+        #7A3A10 44%,
+        #B8721E 68%,
+        #D4AF37 100%
+      );
+      flex-shrink: 0;
+    }
+
+    .hero::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(ellipse at 75% 60%, rgba(212,175,55,0.25) 0%, transparent 65%),
+        linear-gradient(to bottom, transparent 60%, rgba(15,10,7,0.6) 100%);
+    }
+
+    /* Decorative geometry */
+    .hero-geo {
+      position: absolute;
+      inset: 0;
+      opacity: 1;
+    }
+
+    /* Huge italic B watermark */
+    .hero-mono {
+      position: absolute;
+      right: -14px;
+      bottom: -52px;
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 240px;
+      font-style: italic;
+      font-weight: 700;
+      color: rgba(255,220,120,0.10);
+      line-height: 1;
+      user-select: none;
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .hero-badges {
+      position: absolute;
+      top: 18px;
+      left: 0;
+      right: 0;
+      padding: 0 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 5;
+    }
+
+    .cat-pill {
+      background: rgba(10,6,3,0.55);
+      border: 1px solid rgba(212,175,55,0.55);
+      border-radius: 24px;
+      padding: 5px 14px;
+      font-family: 'Cormorant SC', serif;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--gold);
+      letter-spacing: 2px;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+    }
+
+    .pro-hero-badge {
+      background: linear-gradient(135deg, #7A4E1E 0%, #CD7F32 50%, #7A4E1E 100%);
+      border-radius: 24px;
+      padding: 5px 13px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 10px;
+      font-weight: 700;
+      color: #FFE5A8;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+    }
+
+    /* Scrollable card body */
+    .spotlight-body {
+      height: calc(840px - 52px - 196px);
+      overflow-y: auto;
+      scrollbar-width: none;
+    }
+    .spotlight-body::-webkit-scrollbar { display: none; }
+
+    /* Title block */
+    .s-title {
+      padding: 18px 20px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .eyebrow {
+      font-family: 'Cormorant SC', serif;
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--amber);
+      letter-spacing: 2.5px;
+      display: block;
+      margin-bottom: 5px;
+    }
+
+    .spirit-name {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 30px;
+      font-weight: 600;
+      color: var(--cream);
+      line-height: 1.05;
+      letter-spacing: -0.5px;
+    }
+
+    .spirit-meta {
+      font-size: 11.5px;
+      color: var(--muted);
+      margin-top: 5px;
+      letter-spacing: 0.3px;
+    }
+
+    /* Sections */
+    .s-section {
+      padding: 15px 20px;
+      border-bottom: 1px solid rgba(200,146,42,0.09);
+    }
+
+    .s-label {
+      font-family: 'Cormorant SC', serif;
+      font-size: 9px;
+      font-weight: 700;
+      color: var(--subtext);
+      letter-spacing: 2.5px;
+      display: block;
+      margin-bottom: 10px;
+    }
+
+    /* Flavour strip */
+    .flavor-row {
+      display: flex;
+      gap: 7px;
+      flex-wrap: wrap;
+    }
+
+    .f-node {
+      padding: 5px 13px;
+      border-radius: 24px;
+      font-size: 11.5px;
+      font-weight: 500;
+      color: var(--cream-70);
+      border: 1px solid rgba(200,146,42,0.2);
+      background: rgba(200,146,42,0.06);
+      letter-spacing: 0.2px;
+    }
+
+    .f-node.hi {
+      border-color: rgba(212,175,55,0.5);
+      background: rgba(212,175,55,0.13);
+      color: var(--cream);
+      font-weight: 600;
+    }
+
+    /* Production */
+    .production-block {
+      font-size: 12.5px;
+      line-height: 1.65;
+      color: var(--cream-70);
+      padding-left: 14px;
+      border-left: 2px solid var(--amber);
+      font-weight: 300;
+    }
+
+    /* Pours */
+    .pours-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    .pour-chip {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 8px 14px;
+      background: var(--surface);
+      border: 1px solid rgba(200,146,42,0.22);
+      border-radius: 24px;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--cream);
+      white-space: nowrap;
+    }
+
+    .pour-chip.dim {
+      opacity: 0.38;
+      border-color: rgba(200,146,42,0.07);
+    }
+
+    .pour-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--amber);
+      flex-shrink: 0;
+    }
+
+    .pour-chip.dim .pour-dot { background: var(--subtext); }
+
+    /* Bullets */
+    .bullets { display: flex; flex-direction: column; gap: 11px; }
+
+    .b-item { display: flex; gap: 11px; align-items: flex-start; }
+
+    .b-diamond {
+      width: 6px;
+      height: 6px;
+      background: var(--amber);
+      transform: rotate(45deg);
+      flex-shrink: 0;
+      margin-top: 5px;
+    }
+
+    .b-text {
+      font-size: 12.5px;
+      color: var(--cream-70);
+      line-height: 1.55;
+      font-weight: 400;
+    }
+
+    .b-text strong { color: var(--cream); font-weight: 600; }
+
+    /* CTA */
+    .s-cta {
+      padding: 18px 20px 24px;
+    }
+
+    .cta-meta {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 13px;
+    }
+
+    .xp-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(200,146,42,0.13);
+      border: 1px solid rgba(200,146,42,0.38);
+      border-radius: 24px;
+      padding: 7px 14px;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--amber-light);
+    }
+
+    .pro-inline {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      background: linear-gradient(135deg, rgba(122,78,30,0.3), rgba(205,127,50,0.28));
+      border: 1px solid rgba(205,127,50,0.38);
+      border-radius: 24px;
+      padding: 7px 14px;
+      font-size: 11px;
+      font-weight: 700;
+      color: #FFE8C0;
+      letter-spacing: 0.8px;
+    }
+
+    .unlock-btn {
+      width: 100%;
+      padding: 15px;
+      background: linear-gradient(135deg, #B8721E 0%, #D4AF37 50%, #C8922A 100%);
+      border: none;
+      border-radius: 14px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      color: #0f0a07;
+      letter-spacing: 0.3px;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .unlock-btn::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 50%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.18), transparent);
+      animation: shimmer 2.8s ease-in-out infinite;
+    }
+
+    @keyframes shimmer {
+      0%   { left: -100%; }
+      100% { left: 250%; }
+    }
+
+    /* ====================================================
+       SCREEN 2 — BARTENDER HACKS
+    ==================================================== */
+
+    .hacks-phone { height: 840px; }
+
+    .hacks-screen {
+      height: calc(840px - 52px);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .hacks-header {
+      padding: 14px 20px 0;
+      flex-shrink: 0;
+    }
+
+    .h-eyebrow {
+      font-family: 'Cormorant SC', serif;
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--amber);
+      letter-spacing: 2.5px;
+      display: block;
+      margin-bottom: 3px;
+    }
+
+    .h-title {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 27px;
+      font-weight: 600;
+      color: var(--cream);
+      line-height: 1.1;
+      letter-spacing: -0.4px;
+    }
+
+    .h-sub {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    /* Filter row */
+    .filter-wrap {
+      padding: 13px 20px 0;
+      flex-shrink: 0;
+    }
+
+    .filter-row {
+      display: flex;
+      gap: 7px;
+      overflow-x: auto;
+      scrollbar-width: none;
+      padding-bottom: 2px;
+    }
+    .filter-row::-webkit-scrollbar { display: none; }
+
+    .fpill {
+      padding: 7px 15px;
+      border-radius: 24px;
+      font-size: 12px;
+      font-weight: 500;
+      white-space: nowrap;
+      flex-shrink: 0;
+      border: 1px solid transparent;
+    }
+
+    .fpill.on {
+      background: rgba(200,146,42,0.18);
+      border-color: rgba(200,146,42,0.48);
+      color: var(--gold);
+    }
+
+    .fpill.off {
+      background: var(--surface);
+      border-color: rgba(242,229,213,0.07);
+      color: var(--muted);
+    }
+
+    .h-rule {
+      height: 1px;
+      background: var(--border);
+      margin: 12px 20px 0;
+      opacity: 0.5;
+    }
+
+    /* Progress hint */
+    .progress-hint {
+      padding: 10px 20px 0;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+
+    .progress-bar-track {
+      flex: 1;
+      height: 3px;
+      background: rgba(200,146,42,0.12);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      width: 4.2%;
+      background: linear-gradient(90deg, var(--amber), var(--gold));
+      border-radius: 2px;
+    }
+
+    .progress-text {
+      font-size: 11px;
+      color: var(--subtext);
+      white-space: nowrap;
+    }
+
+    .progress-text span {
+      color: var(--amber);
+      font-weight: 600;
+    }
+
+    /* Grid */
+    .hacks-grid {
+      padding: 12px 20px 0;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 11px;
+      overflow-y: auto;
+      flex: 1;
+      scrollbar-width: none;
+      align-content: start;
+    }
+    .hacks-grid::-webkit-scrollbar { display: none; }
+
+    .hack-card {
+      background: var(--surface);
+      border-radius: 16px;
+      overflow: hidden;
+      border: 1px solid rgba(242,229,213,0.06);
+      position: relative;
+    }
+
+    .hack-card.open {
+      border-color: rgba(200,146,42,0.22);
+      box-shadow: 0 4px 20px rgba(200,146,42,0.08);
+    }
+
+    .hack-card.locked { opacity: 0.58; }
+
+    .hack-strip {
+      height: 3px;
+      width: 100%;
+    }
+
+    .hack-inner {
+      padding: 11px 12px 12px;
+    }
+
+    .hc-cat {
+      font-family: 'Cormorant SC', serif;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 1.8px;
+      display: block;
+      margin-bottom: 6px;
+    }
+
+    .hc-title {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 17px;
+      font-weight: 600;
+      color: var(--cream);
+      line-height: 1.2;
+      margin-bottom: 6px;
+      letter-spacing: -0.2px;
+    }
+
+    .hack-card.locked .hc-title { color: var(--cream-35); }
+
+    .hc-teaser {
+      font-size: 10.5px;
+      color: var(--muted);
+      line-height: 1.45;
+      margin-bottom: 11px;
+    }
+
+    .hack-card.locked .hc-teaser { opacity: 0.55; }
+
+    .hc-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .diff {
+      padding: 3px 8px;
+      border-radius: 10px;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    .d-beg  { background: rgba(125,158,122,0.15); color: #7D9E7A; border: 1px solid rgba(125,158,122,0.28); }
+    .d-adv  { background: rgba(200,146,42,0.14); color: var(--amber); border: 1px solid rgba(200,146,42,0.28); }
+    .d-pro  { background: rgba(205,127,50,0.14); color: #CD7F32; border: 1px solid rgba(205,127,50,0.3); }
+
+    .hc-xp {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--amber);
+      display: flex;
+      align-items: center;
+      gap: 3px;
+    }
+
+    .hc-xp.dim { opacity: 0.45; }
+
+    .card-badge {
+      position: absolute;
+      top: 9px;
+      right: 9px;
+      width: 21px;
+      height: 21px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 9px;
+    }
+
+    .badge-open {
+      background: rgba(200,146,42,0.2);
+      border: 1px solid rgba(200,146,42,0.4);
+      color: var(--amber);
+    }
+
+    .badge-lock {
+      background: rgba(15,10,7,0.72);
+      border: 1px solid rgba(200,146,42,0.15);
+    }
+
+    /* Stats bar */
+    .stats-bar {
+      padding: 11px 20px 16px;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    .stat {
+      text-align: center;
+    }
+
+    .stat-val {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--cream);
+      line-height: 1;
+      display: block;
+    }
+
+    .stat-val.amber { color: var(--amber); }
+
+    .stat-key {
+      font-family: 'Cormorant SC', serif;
+      font-size: 9px;
+      color: var(--subtext);
+      letter-spacing: 1px;
+      margin-top: 3px;
+      display: block;
+    }
+
+    .stat-rule {
+      width: 1px;
+      height: 28px;
+      background: var(--border);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="page-header">
+    <div class="page-kicker">KŌOPE · Vault UI Concepts</div>
+    <div class="page-title">Spirit Spotlights & Bartender Hacks</div>
+    <div class="page-sub">Proposed replacements for the Games tab — April 2026</div>
+  </div>
+
+  <div class="screens-row">
+
+    <!-- ================================================ -->
+    <!-- PHONE 1: SPIRIT SPOTLIGHT                        -->
+    <!-- ================================================ -->
+    <div class="phone-wrap">
+      <div class="screen-label">Spirit Spotlight</div>
+      <div class="phone spotlight-phone">
+        <div class="dynamic-island"></div>
+
+        <!-- Status bar -->
+        <div class="status-bar">
+          <span class="status-time">9:41</span>
+          <div class="status-icons">
+            <svg width="17" height="11" viewBox="0 0 17 11" fill="rgba(242,229,213,0.9)"><rect x="0" y="3.5" width="2.5" height="7.5" rx="0.8"/><rect x="4" y="2" width="2.5" height="9" rx="0.8"/><rect x="8" y="0.5" width="2.5" height="10.5" rx="0.8"/><rect x="12" y="0" width="2.5" height="11" rx="0.8" opacity="0.4"/></svg>
+            <svg width="16" height="12" viewBox="0 0 16 12" fill="rgba(242,229,213,0.9)"><path d="M8 8.5a1.5 1.5 0 110 3 1.5 1.5 0 010-3zm0-3a4.5 4.5 0 014.15 2.76l-1.4.9A2.9 2.9 0 008 7.1a2.9 2.9 0 00-2.75 2.06l-1.4-.9A4.5 4.5 0 018 5.5zm0-3.5a8 8 0 017.4 4.93l-1.4.9A6.2 6.2 0 008 3.7a6.2 6.2 0 00-6 3.63l-1.4-.9A8 8 0 018 2z"/></svg>
+            <svg width="24" height="12" viewBox="0 0 24 12" fill="rgba(242,229,213,0.9)"><rect x="0" y="1" width="20" height="10" rx="2.5" stroke="rgba(242,229,213,0.9)" stroke-width="1.2" fill="none"/><rect x="1.2" y="2.2" width="15" height="7.6" rx="1.5"/><path d="M21.5 4v4a1.5 1.5 0 000-4z"/></svg>
+          </div>
+        </div>
+
+        <!-- Hero -->
+        <div class="hero">
+          <svg class="hero-geo" viewBox="0 0 375 196" preserveAspectRatio="none">
+            <!-- Diagonal accent lines -->
+            <line x1="0" y1="196" x2="375" y2="0" stroke="rgba(212,175,55,0.22)" stroke-width="0.6"/>
+            <line x1="0" y1="150" x2="375" y2="-20" stroke="rgba(212,175,55,0.12)" stroke-width="0.6"/>
+            <line x1="30" y1="196" x2="375" y2="40" stroke="rgba(212,175,55,0.08)" stroke-width="0.5"/>
+            <!-- Concentric circles top-right -->
+            <circle cx="310" cy="80" r="90" stroke="rgba(255,210,100,0.1)" stroke-width="1" fill="none"/>
+            <circle cx="310" cy="80" r="65" stroke="rgba(255,210,100,0.08)" stroke-width="0.8" fill="none"/>
+            <circle cx="310" cy="80" r="40" stroke="rgba(255,210,100,0.06)" stroke-width="0.6" fill="none"/>
+            <!-- Horizontal rule -->
+            <line x1="20" y1="168" x2="180" y2="168" stroke="rgba(212,175,55,0.25)" stroke-width="0.5"/>
+          </svg>
+          <div class="hero-mono">B</div>
+          <div class="hero-badges">
+            <div class="cat-pill">Bourbon</div>
+            <div class="pro-hero-badge">✦ PRO</div>
+          </div>
+        </div>
+
+        <!-- Scrollable body -->
+        <div class="spotlight-body">
+
+          <!-- Title -->
+          <div class="s-title">
+            <span class="eyebrow">Spirit Spotlight</span>
+            <div class="spirit-name">American Bourbon</div>
+            <div class="spirit-meta">Kentucky tradition · 51%+ corn · New charred oak</div>
+          </div>
+
+          <!-- Flavour -->
+          <div class="s-section">
+            <span class="s-label">Flavour Profile</span>
+            <div class="flavor-row">
+              <div class="f-node hi">Oak</div>
+              <div class="f-node hi">Vanilla</div>
+              <div class="f-node">Caramel</div>
+              <div class="f-node">Spice</div>
+              <div class="f-node">Smoke</div>
+            </div>
+          </div>
+
+          <!-- Production -->
+          <div class="s-section">
+            <span class="s-label">Production</span>
+            <div class="production-block">
+              Distilled from a mash of at least 51% corn to no more than 80% ABV, then aged in new, charred American oak barrels. The char layer filters congeners and draws out vanilla and caramel compounds from the wood.
+            </div>
+          </div>
+
+          <!-- Signature Pours -->
+          <div class="s-section">
+            <span class="s-label">Signature Pours</span>
+            <div class="pours-row">
+              <div class="pour-chip"><div class="pour-dot"></div> Old Fashioned</div>
+              <div class="pour-chip"><div class="pour-dot"></div> Manhattan</div>
+              <div class="pour-chip dim"><div class="pour-dot"></div> Whiskey Sour</div>
+            </div>
+          </div>
+
+          <!-- What to look for -->
+          <div class="s-section">
+            <span class="s-label">What to Look For</span>
+            <div class="bullets">
+              <div class="b-item">
+                <div class="b-diamond"></div>
+                <div class="b-text"><strong>Proof:</strong> 90–100 is the cocktail sweet spot. Cask-strength (115–130+) is for neat sipping only.</div>
+              </div>
+              <div class="b-item">
+                <div class="b-diamond"></div>
+                <div class="b-text"><strong>Age statement:</strong> 4–6 years gives the best cocktail balance. 8+ starts to overpower everything else in the glass.</div>
+              </div>
+              <div class="b-item">
+                <div class="b-diamond"></div>
+                <div class="b-text"><strong>Mash bill:</strong> High rye (18%+) reads as spicy and dry. Wheated bourbons go softer with a longer, sweeter finish.</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- CTA -->
+          <div class="s-cta">
+            <div class="cta-meta">
+              <div class="xp-badge">✦ &nbsp;650 XP</div>
+              <div class="pro-inline">✦ &nbsp;PRO</div>
+            </div>
+            <button class="unlock-btn">Unlock Spotlight</button>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- ================================================ -->
+    <!-- PHONE 2: BARTENDER HACKS                         -->
+    <!-- ================================================ -->
+    <div class="phone-wrap">
+      <div class="screen-label">Bartender Hacks</div>
+      <div class="phone hacks-phone">
+        <div class="dynamic-island"></div>
+
+        <!-- Status bar -->
+        <div class="status-bar">
+          <span class="status-time">9:41</span>
+          <div class="status-icons">
+            <svg width="17" height="11" viewBox="0 0 17 11" fill="rgba(242,229,213,0.9)"><rect x="0" y="3.5" width="2.5" height="7.5" rx="0.8"/><rect x="4" y="2" width="2.5" height="9" rx="0.8"/><rect x="8" y="0.5" width="2.5" height="10.5" rx="0.8"/><rect x="12" y="0" width="2.5" height="11" rx="0.8" opacity="0.4"/></svg>
+            <svg width="16" height="12" viewBox="0 0 16 12" fill="rgba(242,229,213,0.9)"><path d="M8 8.5a1.5 1.5 0 110 3 1.5 1.5 0 010-3zm0-3a4.5 4.5 0 014.15 2.76l-1.4.9A2.9 2.9 0 008 7.1a2.9 2.9 0 00-2.75 2.06l-1.4-.9A4.5 4.5 0 018 5.5zm0-3.5a8 8 0 017.4 4.93l-1.4.9A6.2 6.2 0 008 3.7a6.2 6.2 0 00-6 3.63l-1.4-.9A8 8 0 018 2z"/></svg>
+            <svg width="24" height="12" viewBox="0 0 24 12" fill="rgba(242,229,213,0.9)"><rect x="0" y="1" width="20" height="10" rx="2.5" stroke="rgba(242,229,213,0.9)" stroke-width="1.2" fill="none"/><rect x="1.2" y="2.2" width="15" height="7.6" rx="1.5"/><path d="M21.5 4v4a1.5 1.5 0 000-4z"/></svg>
+          </div>
+        </div>
+
+        <div class="hacks-screen">
+
+          <!-- Header -->
+          <div class="hacks-header">
+            <span class="h-eyebrow">The Vault</span>
+            <div class="h-title">Bartender Hacks</div>
+            <div class="h-sub">Unlock pro skills one tip at a time</div>
+          </div>
+
+          <!-- Category filter -->
+          <div class="filter-wrap">
+            <div class="filter-row">
+              <div class="fpill on">All</div>
+              <div class="fpill off">Technique</div>
+              <div class="fpill off">Flavour</div>
+              <div class="fpill off">Equipment</div>
+              <div class="fpill off">Hosting</div>
+              <div class="fpill off">Pouring</div>
+            </div>
+          </div>
+
+          <div class="h-rule"></div>
+
+          <!-- Progress hint -->
+          <div class="progress-hint">
+            <div class="progress-bar-track">
+              <div class="progress-bar-fill"></div>
+            </div>
+            <div class="progress-text"><span>1</span> of 24 unlocked</div>
+          </div>
+
+          <!-- 2-col grid -->
+          <div class="hacks-grid">
+
+            <!-- Card 1: OPEN — The Fat Wash -->
+            <div class="hack-card open">
+              <div class="hack-strip" style="background: linear-gradient(90deg, #C8922A, #E0A83A);"></div>
+              <div class="hack-inner">
+                <span class="hc-cat" style="color: #C8922A;">Technique</span>
+                <div class="hc-title">The Fat Wash</div>
+                <div class="hc-teaser">Infuse spirits with fat — butter, bacon, oil — for savoury depth.</div>
+                <div class="hc-footer">
+                  <span class="diff d-adv">Advanced</span>
+                  <span class="hc-xp">✦ 350</span>
+                </div>
+              </div>
+              <div class="card-badge badge-open">✓</div>
+            </div>
+
+            <!-- Card 2: LOCKED — Dry Shake First -->
+            <div class="hack-card locked">
+              <div class="hack-strip" style="background: linear-gradient(90deg, #C8922A, #E0A83A); opacity: 0.3;"></div>
+              <div class="hack-inner">
+                <span class="hc-cat" style="color: rgba(200,146,42,0.42);">Technique</span>
+                <div class="hc-title">Dry Shake First</div>
+                <div class="hc-teaser">Emulsify egg white before adding ice for silkier, denser foam.</div>
+                <div class="hc-footer">
+                  <span class="diff d-beg">Beginner</span>
+                  <span class="hc-xp dim">✦ 150</span>
+                </div>
+              </div>
+              <div class="card-badge badge-lock">🔒</div>
+            </div>
+
+            <!-- Card 3: LOCKED — Ice Strategy -->
+            <div class="hack-card locked">
+              <div class="hack-strip" style="background: linear-gradient(90deg, #6B8CAE, #8AADC8); opacity: 0.3;"></div>
+              <div class="hack-inner">
+                <span class="hc-cat" style="color: rgba(107,140,174,0.5);">Equipment</span>
+                <div class="hc-title">Build Your Ice Strategy</div>
+                <div class="hc-teaser">Ice shape controls dilution rate and keeps drinks longer.</div>
+                <div class="hc-footer">
+                  <span class="diff d-pro">Pro</span>
+                  <span class="hc-xp dim">✦ 500</span>
+                </div>
+              </div>
+              <div class="card-badge badge-lock">🔒</div>
+            </div>
+
+            <!-- Card 4: LOCKED — Acid Balancing -->
+            <div class="hack-card locked">
+              <div class="hack-strip" style="background: linear-gradient(90deg, #7D9E7A, #9BBD98); opacity: 0.3;"></div>
+              <div class="hack-inner">
+                <span class="hc-cat" style="color: rgba(125,158,122,0.5);">Flavour</span>
+                <div class="hc-title">Acid Balancing 101</div>
+                <div class="hc-teaser">Citric vs malic vs tartaric — own your sourness.</div>
+                <div class="hc-footer">
+                  <span class="diff d-adv">Advanced</span>
+                  <span class="hc-xp dim">✦ 400</span>
+                </div>
+              </div>
+              <div class="card-badge badge-lock">🔒</div>
+            </div>
+
+          </div>
+
+          <!-- Stats bar -->
+          <div class="stats-bar">
+            <div class="stat">
+              <span class="stat-val">1</span>
+              <span class="stat-key">Unlocked</span>
+            </div>
+            <div class="stat-rule"></div>
+            <div class="stat">
+              <span class="stat-val">24</span>
+              <span class="stat-key">Total Hacks</span>
+            </div>
+            <div class="stat-rule"></div>
+            <div class="stat">
+              <span class="stat-val amber">1,450</span>
+              <span class="stat-key">XP to Next</span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+</body>
+</html>

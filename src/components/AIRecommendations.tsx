@@ -13,13 +13,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, fonts } from '../theme/tokens';
 import RecipeCard from './RecipeCard';
 import { createRecipeCardProps } from '../utils/recipeActions';
-import { useAICredits } from '../store/useAICredits';
 import { AIRecommendationEngine, UserTasteProfile, SmartRecommendation } from '../services/aiRecommendationEngine';
 import { HomeBar, HomeBarService } from '../services/homeBarService';
 import { loadUserProfile } from '../services/userProfileService';
 import { trackRecommendationView, trackRecommendationSaved } from '../services/recommendationTrackingService';
 import RecommendationFeedbackModal from './RecommendationFeedbackModal';
-import InsufficientCreditsModal from './InsufficientCreditsModal';
 import { log } from '../lib/logger';
 import { supabase } from '../lib/supabase';
 
@@ -29,7 +27,6 @@ interface AIRecommendationsProps {
   isCocktailSaved?: (id: string) => boolean;
   setSelectedRecipe?: (recipe: any) => void;
   setGroceryListVisible?: (visible: boolean) => void;
-  onCreditsNeeded?: () => void;
   style?: any;
 }
 
@@ -39,19 +36,16 @@ export default function AIRecommendations({
   isCocktailSaved,
   setSelectedRecipe,
   setGroceryListVisible,
-  onCreditsNeeded,
   style
 }: AIRecommendationsProps) {
   const [recommendations, setRecommendations] = useState<SmartRecommendation[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
-  const { canUseAI, consumeCredits, getActionCost, credits } = useAICredits();
   const [homeBar, setHomeBar] = useState<HomeBar | null>(null);
   const [userTasteProfile, setUserTasteProfile] = useState<UserTasteProfile | null>(null);
   const [feedbackModalVisible, setFeedbackModalVisible] = useState(false);
   const [selectedRecommendation, setSelectedRecommendation] = useState<SmartRecommendation | null>(null);
   const [currentContext, setCurrentContext] = useState<{ timeOfDay: string; season: string } | null>(null);
-  const [insufficientCreditsModalVisible, setInsufficientCreditsModalVisible] = useState(false);
 
   // Cache settings: recommendations valid for 30 minutes
   const CACHE_DURATION_MS = 30 * 60 * 1000;
@@ -150,26 +144,10 @@ export default function AIRecommendations({
       }
     }
 
-    // Check if user has enough credits
-    if (!canUseAI('recommendation')) {
-      setInsufficientCreditsModalVisible(true);
-      return;
-    }
-
     setIsLoading(true);
 
     try {
       log.info('AIRecommendations', 'Generating AI recommendations');
-
-      // Consume credits for the action
-      const creditConsumed = consumeCredits({
-        type: 'recommendation',
-        userQuery: 'AI recommendations generation'
-      });
-
-      if (!creditConsumed) {
-        throw new Error('Unable to consume credits for this action');
-      }
 
       // Get current time context for recommendations
       const now = new Date();
@@ -216,7 +194,7 @@ export default function AIRecommendations({
     } finally {
       setIsLoading(false);
     }
-  }, [canUseAI, consumeCredits, getActionCost, credits, onCreditsNeeded, homeBar, userTasteProfile, lastRefresh, recommendations.length, CACHE_DURATION_MS]);
+  }, [homeBar, userTasteProfile, lastRefresh, recommendations.length, CACHE_DURATION_MS]);
 
   // Generate recommendations on component mount
   useEffect(() => {
@@ -477,14 +455,6 @@ export default function AIRecommendations({
         />
       )}
 
-      {/* Insufficient Credits Modal */}
-      <InsufficientCreditsModal
-        visible={insufficientCreditsModalVisible}
-        onClose={() => setInsufficientCreditsModalVisible(false)}
-        onGetCredits={() => onCreditsNeeded?.()}
-        creditsNeeded={getActionCost('recommendation')}
-        creditsAvailable={credits}
-      />
     </View>
   );
 }

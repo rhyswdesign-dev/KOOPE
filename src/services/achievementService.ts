@@ -30,6 +30,7 @@ export interface UserStats {
   cocktailsMade: number;
   favoriteCount: number;
   homeBarIngredients: number;
+  bottlesScanned: number;
   lessonsCompleted: number;
   currentStreak: number;
   longestStreak: number;
@@ -409,6 +410,48 @@ const ACHIEVEMENT_DEFINITIONS: Omit<Achievement, 'progress' | 'unlocked' | 'unlo
     xpReward: 40,
     rarity: 'common',
   },
+
+  // Scan / Collection Achievements
+  {
+    id: 'first_scan',
+    title: 'First Scan',
+    description: 'Scan your first bottle',
+    icon: 'scan-outline',
+    category: 'collection',
+    requirement: 1,
+    xpReward: 25,
+    rarity: 'common',
+  },
+  {
+    id: 'scanner',
+    title: 'Scanner',
+    description: 'Scan 5 different bottles',
+    icon: 'barcode-outline',
+    category: 'collection',
+    requirement: 5,
+    xpReward: 75,
+    rarity: 'common',
+  },
+  {
+    id: 'bottle_collector',
+    title: 'Bottle Collector',
+    description: 'Scan 25 different bottles',
+    icon: 'wine-outline',
+    category: 'collection',
+    requirement: 25,
+    xpReward: 250,
+    rarity: 'rare',
+  },
+  {
+    id: 'spirit_archivist',
+    title: 'Spirit Archivist',
+    description: 'Scan 100 bottles',
+    icon: 'archive-outline',
+    category: 'collection',
+    requirement: 100,
+    xpReward: 750,
+    rarity: 'epic',
+  },
 ];
 
 class AchievementService {
@@ -422,6 +465,7 @@ class AchievementService {
     cocktailsMade: 0,
     favoriteCount: 0,
     homeBarIngredients: 0,
+    bottlesScanned: 0,
     lessonsCompleted: 0,
     currentStreak: 0,
     longestStreak: 0,
@@ -600,6 +644,13 @@ class AchievementService {
       case 'game_player':
         return this.userStats.gamesPlayed;
 
+      // Scan achievements
+      case 'first_scan':
+      case 'scanner':
+      case 'bottle_collector':
+      case 'spirit_archivist':
+        return this.userStats.bottlesScanned;
+
       default:
         return 0;
     }
@@ -766,6 +817,7 @@ class AchievementService {
       cocktailsMade: 0,
       favoriteCount: 0,
       homeBarIngredients: 0,
+      bottlesScanned: 0,
       lessonsCompleted: 0,
       currentStreak: 0,
       longestStreak: 0,

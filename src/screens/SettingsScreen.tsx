@@ -13,7 +13,6 @@ import type { RootStackParamList } from '../navigation/RootNavigator';
 import { log } from '../lib/logger';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
-import { useAICredits } from '../store/useAICredits';
 import { useXPSystem } from '../store/useXPSystem';
 import { useUser } from '../store/useUser';
 import { HomeBarService } from '../services/homeBarService';
@@ -24,7 +23,6 @@ const serifFont = Platform.select({ ios: 'Georgia', android: 'serif', default: '
 export default function SettingsScreen() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { user, signOut: supabaseSignOut } = useAuth();
-  const { addCredits } = useAICredits();
   const { balance: xpBalance, earnXP, resetXPSystem } = useXPSystem();
   const { resetUser } = useUser();
   const { preferences: notificationPrefs, updatePreferences } = useNotifications();

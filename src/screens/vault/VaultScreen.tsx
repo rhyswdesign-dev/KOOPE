@@ -23,7 +23,6 @@ import { colors, spacing, radii, serif } from '../../theme/tokens';
 import { VaultItem } from '../../types/vault';
 import { useVault } from '../../contexts/VaultContext';
 import { useUser } from '../../store/useUser';
-import { useAICredits } from '../../store/useAICredits';
 import { useXPSystem } from '../../store/useXPSystem';
 import { currentVaultCycle, getVaultCountdown } from '../../data/vaultData';
 import XPBalanceModal from '../../components/XPBalanceModal';
@@ -31,7 +30,6 @@ import InPageTabBar from '../../components/ui/InPageTabBar';
 import VaultUnlockModal from './components/VaultUnlockModal';
 import VaultItemCard from './components/VaultItemCard';
 import VaultItemPreviewModal from './components/VaultItemPreviewModal';
-import AICreditsPurchaseModal from '../../components/AICreditsPurchaseModal';
 import {
   getBenefitsForVariation,
   getBenefitsForPlaybook,
@@ -50,7 +48,9 @@ import {
   getAvailableSeasonalDropsForTier,
   getAllPlaybookTypes,
   TechniquePlaybookType,
-  getDrinkingGamesForDisplay,
+  getBartenderHacksForDisplay,
+  BartenderHackContent,
+  BartenderHackCategory,
 } from '../../config/vaultContent';
 import { getActiveWeeklyForYouDrops, type WeeklyForYouDrop } from '../../config/weeklyForYouDrops';
 import AIRecommendations from '../../components/AIRecommendations';
@@ -82,11 +82,9 @@ export default function VaultScreen() {
   const { gateWithTrigger: vaultProGate } = useFeatureAccess('vault_pro_drops');
   const analytics = useAnalyticsContext();
   const { balance: xpBalance, spendXP, unlockVaultItem, isVaultItemUnlocked } = useXPSystem();
-  const { credits, isPremium } = useAICredits();
   const { savedItems, toggleSavedCocktail, isCocktailSaved, toggleSavedVaultItem } = useSavedItems();
   const [selectedTab, setSelectedTab] = useState<string>('variations');
   const [countdown, setCountdown] = useState(getVaultCountdown());
-  const [creditsPurchaseVisible, setCreditsPurchaseVisible] = useState(false);
   const [xpBalanceModalVisible, setXpBalanceModalVisible] = useState(false);
   const [groceryListVisible, setGroceryListVisible] = useState(false);
   const [selectedRecipe, setSelectedRecipe] = useState<any>(null);
@@ -208,6 +206,13 @@ export default function VaultScreen() {
     });
   }, [nav, tier, setTier, xpBalance]);
 
+  const TAB_SUMMARIES: Record<string, string> = {
+    variations: 'Pro-level spins on the classics. Each variation teaches a technique you can apply across your whole repertoire.',
+    playbooks: 'Operational systems for your bar — ice, acid, batch math, and speed. Unlock once, keep forever.',
+    seasonal: 'Limited drops tied to the season. Rotates out when the cycle ends — unlock before they\'re gone.',
+    hacks: 'One insight per card. Quick unlocks that make an immediate difference behind the bar.',
+  };
+
   const getFilteredItems = (): VaultItem[] => {
     const items = state.vaultItems.filter(item => item.isActive);
 
@@ -215,7 +220,7 @@ export default function VaultScreen() {
       case 'variations':
       case 'playbooks':
       case 'seasonal':
-      case 'games':
+      case 'hacks':
         return []; // New vault content categories (handled inline)
       case 'common':
         return items.filter(item => item.rarity === 'common');
@@ -232,9 +237,10 @@ export default function VaultScreen() {
     { key: 'variations', label: 'Cocktails' },
     { key: 'seasonal', label: 'Seasonal' },
     { key: 'playbooks', label: 'Playbooks' },
-    { key: 'games', label: 'Games' },
+    { key: 'hacks', label: 'Hacks' },
     // Archived for future product expansion
     // { key: 'bars', label: 'Bar Features' },
+    // { key: 'games', label: 'Games' }, // archived — does not fit craft identity
   ];
 
   const renderVaultItem = ({ item }: { item: VaultItem }) => (
@@ -260,36 +266,15 @@ export default function VaultScreen() {
             <Text style={styles.collectionTitle}>{currentVaultCycle.name}</Text>
             <TierBadge tier={tier} size="small" />
           </View>
-          <Text style={styles.collectionSubtitle}>
-            Resets in {countdown.days}D {countdown.hours}H {countdown.minutes}M
-          </Text>
-          <Text style={styles.collectionSupportText}>
-            Master recipes, rotating elite drops, and premium playbooks built for serious collectors.
-          </Text>
         </View>
         
-        {/* Quick Stats - Simplified: XP + AI Credits only (Keys removed) */}
+        {/* Quick Stats */}
         <View style={styles.quickStats}>
           <View style={styles.statCard}>
             <MaterialCommunityIcons name="star" size={20} color={colors.gold} />
             <Text style={styles.statValue}>{xpBalance.toLocaleString()}</Text>
             <Text style={styles.statLabel}>XP Balance</Text>
           </View>
-
-          <TouchableOpacity
-            style={[styles.statCard, styles.clickableStatCard]}
-            onPress={() => setCreditsPurchaseVisible(true)}
-          >
-            <Ionicons
-              name={isPremium ? "diamond" : "sparkles"}
-              size={20}
-              color={isPremium ? colors.gold : colors.accent}
-            />
-            <Text style={styles.statValue}>
-              {isPremium ? '∞' : credits.toLocaleString()}
-            </Text>
-            <Text style={styles.statLabel}>AI Credits</Text>
-          </TouchableOpacity>
         </View>
       </View>
 
@@ -405,6 +390,14 @@ export default function VaultScreen() {
         const barBenefits = getBenefitsForBar(item.id);
         benefits = barBenefits.benefits;
         fullDescription = barBenefits.fullDescription;
+        break;
+      case 'hack':
+        fullDescription = item.body || item.shortDescription || '';
+        benefits = [
+          { icon: 'flash', title: 'Quick Win', description: 'A single actionable technique you can apply tonight' },
+          { icon: 'school', title: 'Pro Knowledge', description: 'Used by working bartenders, explained for home use' },
+          ...(item.relatedDeckSlug ? [{ icon: 'layers', title: 'Goes Deeper', description: 'A full Playbook exists if you want the complete system' }] : []),
+        ];
         break;
       case 'game':
         const gameBenefits = getBenefitsForGame(item.id);
@@ -578,89 +571,55 @@ export default function VaultScreen() {
       );
     }
 
-    if (selectedTab === 'games') {
-      const allGames = getDrinkingGamesForDisplay(); // Show all games regardless of tier
-      const gameCategories: Record<string, string> = {
-        classic: 'Classic Games',
-        cultural: 'Cultural / International',
-        app_enhanced: 'App-Enhanced Games',
-        party: 'Party Games',
+    if (selectedTab === 'hacks') {
+      const allHacks = getBartenderHacksForDisplay();
+      const hackCategoryLabels: Record<BartenderHackCategory, string> = {
+        technique: 'Technique',
+        flavour: 'Flavour',
+        equipment: 'Equipment',
+        hosting: 'Hosting',
+        pouring: 'Pouring',
+      };
+      const relatedPlaybookLabels: Record<string, string> = {
+        'fat-wash-fundamentals': 'Fat Wash Fundamentals',
+        'acid-control': 'Acid Control Playbook',
+        'ice-strategy': 'Ice Strategy Playbook',
+        'batch-math': 'Batch Math Playbook',
       };
 
-      const groupedGames: Record<string, typeof allGames> = {
-        classic: [],
-        cultural: [],
-        app_enhanced: [],
-        party: [],
+      const grouped: Record<BartenderHackCategory, typeof allHacks> = {
+        technique: [],
+        flavour: [],
+        equipment: [],
+        hosting: [],
+        pouring: [],
       };
-      allGames.forEach((g) => {
-        groupedGames[g.category].push(g);
-      });
+      allHacks.forEach((h) => grouped[h.category].push(h));
 
       return (
         <View style={styles.inlineContent}>
-          {Object.entries(groupedGames).map(([cat, games]) => {
-            if (games.length === 0) return null;
+          {(Object.keys(hackCategoryLabels) as BartenderHackCategory[]).map((cat) => {
+            if (grouped[cat].length === 0) return null;
             return (
               <View key={cat} style={styles.contentSection}>
-                <Text style={styles.contentSectionTitle}>{gameCategories[cat]}</Text>
-                {games.map((game) => {
-                  const unlocked = isGameUnlocked(game.id);
-                  const isTierLocked = !canAccessContent(tier, game.requiredTier);
-
-                  return (
-                    <TouchableOpacity
-                      key={game.id}
-                      style={[styles.contentItemCard, isTierLocked && styles.lockedCard]}
-                      activeOpacity={0.7}
-                      onPress={() => {
-                        if (unlocked) {
-                          nav.navigate('GameDetails', { id: getGameNavId(game.id) });
-                        } else {
-                          handleItemPreview(
-                            { ...game, title: game.title, shortDescription: game.shortDescription },
-                            PLACEHOLDER_IMAGES.cocktail,
-                            'game'
-                          );
-                        }
-                      }}
-                    >
-                      <Image
-                        source={{ uri: PLACEHOLDER_IMAGES.cocktail }}
-                        style={[styles.contentItemThumbnail, isTierLocked && styles.lockedThumbnail]}
-                        resizeMode="cover"
-                      />
-                      <View style={styles.contentItemInfo}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1) }}>
-                          <Text style={styles.contentItemXP}>
-                            {unlocked ? '' : `${game.xpCost} XP`}
-                          </Text>
-                          {unlocked && (
-                            <View style={styles.unlockedBadge}>
-                              <Ionicons name="checkmark-circle" size={16} color={colors.gold} />
-                              <Text style={styles.unlockedText}>UNLOCKED</Text>
-                            </View>
-                          )}
-                          {!unlocked && isTierLocked && game.requiredTier && (
-                            <View style={styles.tierRequiredBadge}>
-                              <Text style={styles.tierRequiredText}>{game.requiredTier} Required</Text>
-                            </View>
-                          )}
-                        </View>
-                        <Text style={styles.contentItemTitle}>{game.title}</Text>
-                        <Text style={styles.contentItemDescription} numberOfLines={2}>
-                          {game.shortDescription}
+                <Text style={styles.contentSectionTitle}>{hackCategoryLabels[cat]}</Text>
+                {grouped[cat].map((hack) => (
+                  <View key={hack.id} style={{ position: 'relative' }}>
+                    {renderContentItem(
+                      { ...hack, shortDescription: hack.teaser },
+                      PLACEHOLDER_IMAGES.cocktail,
+                      'hack'
+                    )}
+                    {hack.relatedDeckSlug && (
+                      <View style={styles.hackGoDeeper}>
+                        <Ionicons name="layers-outline" size={11} color={colors.accent} />
+                        <Text style={styles.hackGoDeeperText}>
+                          Goes deeper → {relatedPlaybookLabels[hack.relatedDeckSlug] ?? 'Playbooks'}
                         </Text>
                       </View>
-
-                      <View style={styles.contentItemUnlockButton}>
-                        <Text style={styles.contentItemUnlockText}>
-                          {unlocked ? 'View' : 'Unlock'}
-                        </Text>
-                      </View>
-                    </TouchableOpacity>
-                  );
-                })}
+                    )}
+                  </View>
+                ))}
               </View>
             );
           })}
@@ -671,7 +630,7 @@ export default function VaultScreen() {
     return null;
   };
 
-  const isNewCategory = ['variations', 'playbooks', 'seasonal', 'games'].includes(selectedTab);
+  const isNewCategory = ['variations', 'playbooks', 'seasonal', 'hacks'].includes(selectedTab);
 
   return (
     <View style={styles.container}>
@@ -681,6 +640,9 @@ export default function VaultScreen() {
         showsVerticalScrollIndicator={false}
       >
         {renderHeader()}
+        {TAB_SUMMARIES[selectedTab] && (
+          <Text style={styles.tabSummary}>{TAB_SUMMARIES[selectedTab]}</Text>
+        )}
         {isNewCategory ? (
           renderInlineContent()
         ) : (
@@ -707,12 +669,6 @@ export default function VaultScreen() {
           dispatch({ type: 'SHOW_UNLOCK_MODAL', payload: false });
           dispatch({ type: 'SET_SELECTED_ITEM', payload: null });
         }}
-      />
-
-      {/* AI Credits Purchase Modal */}
-      <AICreditsPurchaseModal
-        visible={creditsPurchaseVisible}
-        onClose={() => setCreditsPurchaseVisible(false)}
       />
 
       {/* XP Balance Modal */}
@@ -863,6 +819,15 @@ const styles = StyleSheet.create({
     color: colors.subtext,
     marginTop: spacing(1),
     maxWidth: '92%',
+  },
+
+  tabSummary: {
+    fontSize: 13,
+    lineHeight: 19,
+    color: colors.subtext,
+    paddingHorizontal: spacing(3),
+    paddingTop: spacing(2),
+    paddingBottom: spacing(1),
   },
   
   quickStats: {
@@ -1278,5 +1243,19 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: colors.text,
+  },
+
+  hackGoDeeper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(0.5),
+    paddingHorizontal: spacing(2),
+    paddingBottom: spacing(1.5),
+    marginTop: -spacing(1),
+  },
+
+  hackGoDeeperText: {
+    fontSize: 11,
+    color: colors.accent,
   },
 });

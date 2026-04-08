@@ -1,6 +1,6 @@
 # KOOPE Implementation Plan — 2026
 **Goal:** Make KOOPE the only app people think about for bartending, bottle scanning, and exploring spirits.
-**Last Updated:** 2026-03-25
+**Last Updated:** 2026-04-03
 **Basis:** Tier Feature Matrix v2 + codebase audit March 2026
 
 ---
@@ -45,6 +45,9 @@
 | 24 | Weekly drop content refresh (sustain 8+ weeks rolling) | It knows you | 4C | ✅ Done |
 | 25 | Brand intelligence — substitutes + upgrade suggestions | Bar grows with you | 5 | ⏸ Held — upgrade prompt UI hidden; activate when commercial partnerships ready |
 | 26 | Creator tools | Bar grows with you | 5 | ⏸ Deferred — post-community launch |
+| 27 | Challenge system — behaviour-driven XP (scan, log, rate, explore) | It knows you | 5 | ✅ Done — requirementType extended, progress hooks wired (scan, inventory, save, share), migration written (`021_challenges_behavioral_update.sql`) — run migration to seed challenge library |
+| 28 | Achievements — permanent one-time milestones (scan/make/streak/collection) | It knows you | 5 | ✅ Done — scan achievements added, ProfileScreen surfaces unlocked badges + count + certification progress |
+| 29 | Exploration Plans — structured multi-step journeys with data trail | It knows you | 5 | 🔲 Open — design complete, needs plan engine + step tracking |
 
 ---
 
@@ -162,6 +165,9 @@ All three items shipped 2026-03-27:
 
 | Date | Item | Notes |
 |---|---|---|
+| 2026-04-03 | AI Credits system removed | `useAICredits` store, `AICreditsPurchaseModal`, `AICreditsStatus`, `InsufficientCreditsModal` deleted; all references cleaned from `RecipesScreen`, `AIRecommendations`, `AIRecipeSearch`. AI features now gate on subscription tier via `hasEnhancedAI`/`hasPriorityAI`. |
+| 2026-04-03 | Bartender Hacks Vault tab | 24 cards across 5 categories (technique, flavour, equipment, hosting, pouring) in `vaultContent.ts`; `VaultScreen.tsx` Hacks tab wired with grouped layout + "goes deeper → Playbook" badge. Consistent with existing Vault card style. |
+| 2026-04-03 | Paywall compliance | Annual billing amount prominent, founders copy updated, coming-soon removed from paywall, trial terms inline, full Apple subscription disclosure block in sticky CTA footer. |
 | 2026-03-27 | Cellar edit flow | `CellarBottleDetailScreen.tsx` — Edit button + modal for price, valuation, window, tasting notes, collector notes, quantity. Valuation estimate field added to HomeBar intake modal. "Wave 5" eyebrow → "PRO" on locked screen. |
 | 2026-03-27 | v1 scope lock | XP cap removed from FREE; PLUS/PRO post-launch features documented; AI-learning features deferred to v1.x |
 | 2026-03-27 | Wave 4C complete | Vault "This Week" hero, saved occasion profiles, drops extended to Week 28 |
@@ -212,6 +218,182 @@ Revised scope for launch. Features marked **defer** below are cut from v1 and mo
 - Cellar Mode (bottle collection + notes) ✅ — edit flow added 2026-03-27
 - **Defer to v1.x:** Predictive "what can I make", dead bottle + restock alerts, seasonal + cost/value tracking, practice mode + certifications.
 - **Cut:** Full Taste Graph + long memory AI, flavour correction AI, predictive filter engine, brand capture, video lessons.
+
+---
+
+## Wave 5 — XP Engine: Challenges, Achievements & Exploration Plans
+
+**Goal:** Make XP feel earned through real behaviour, not passive accumulation. Every challenge is a deliberate data signal — scan events, make logs, and exploration actions feed the recommendation engine and brand intelligence layer.
+
+**Last Updated:** 2026-04-01
+
+---
+
+### 27. Challenge System — Behaviour-Driven XP
+
+**Status:** 🔲 Open
+
+**Context:** Infrastructure exists (`challengeService.ts`, Supabase `challenges` + `user_challenge_progress` tables, `ChallengeContext`). Missing: data-collection `requirementType` values, a seeded challenge library aligned to the data we actually need, and progress auto-tracking wired to user actions.
+
+**What data we need and why:**
+
+| Signal | Why it matters |
+|---|---|
+| Scan events | Bottle identity, category spread, collection velocity |
+| "How did you make it" logs | Actual consumption patterns — which spirits get opened, recipe preferences |
+| Recipe saves | Taste affinity signal for the recommendation engine |
+| Bar profile completeness | Unlocks personalisation — taste graph needs inventory depth |
+| Category exploration | Identifies spirit gaps; drives Optimize My Bar suggestions |
+| Social/share moments | Virality tracking, brand exposure |
+
+**New `requirementType` values needed** (extend `challenge.ts`):
+
+```
+'scan_bottle'         — scan any bottle via camera
+'scan_new_category'   — scan a spirit type not yet in inventory
+'log_make'            — submit "how did you make it" on any recipe
+'rate_recipe'         — rate a recipe after making it
+'add_to_inventory'    — manually add a bottle to inventory
+'save_recipe'         — save a recipe to favourites
+'explore_spirit'      — view detail of a spirit category new to user
+'complete_profile'    — fill in a taste preference or occasion profile
+'share_moment'        — share a scan card or recipe
+```
+
+---
+
+### Challenge Library Design
+
+#### Cadence
+- **Daily** (3 active): Low effort, high frequency. Reset at midnight. Primarily scan + explore.
+- **Weekly** (2 active): Medium effort. Reset Monday. Mix of social + log behaviours.
+- **Monthly** (1 active): High effort, epic reward. Collection or mastery focused.
+
+#### Category → Data mapping
+
+| Category | Behaviour targeted | Data collected |
+|---|---|---|
+| `exploration` | Scan new categories, view unfamiliar spirits | Inventory diversity, spirit discovery |
+| `skill` | Log makes, rate recipes, follow a technique | Make patterns, recipe preference |
+| `progress` | Hit XP milestones, complete bar profile | Profile completeness, engagement depth |
+| `social` | Share a scan card, show bar to someone | Virality, brand exposure |
+
+---
+
+#### Daily Challenges (rotate from pool, 3 shown per day)
+
+| Title | Action | XP | Data signal |
+|---|---|---|---|
+| **First Pour** | Scan any bottle today | 75 XP | Scan event + bottle identity |
+| **New Shelf** | Scan a spirit you don't have in inventory yet | 100 XP | Category gap + discovery intent |
+| **Make Something** | Log how you made any cocktail | 100 XP | Consumption event + recipe used |
+| **Rate It** | Rate a recipe you've tried | 50 XP | Recipe preference signal |
+| **Explore** | View the detail page of a spirit category new to you | 50 XP | Category curiosity signal |
+| **Tell Us** | Complete or update a taste preference (sweet/sour/bitter) | 75 XP | Taste graph input |
+| **Save One** | Save a recipe to your favourites | 50 XP | Taste affinity |
+
+#### Weekly Challenges (2 shown, rotate from pool)
+
+| Title | Action | XP | Data signal |
+|---|---|---|---|
+| **Scanner's Week** | Scan 5 different bottles this week | 300 XP | Inventory velocity, category spread |
+| **The Log Book** | Log how you made 3 cocktails this week | 350 XP | Consumption pattern, recipe preference |
+| **Spirit Hunter** | Scan a bottle in 3 different spirit categories | 400 XP | Diversity signal |
+| **Sharer** | Share a scan card or recipe card | 200 XP | Virality + brand exposure |
+| **Full Shelf** | Have at least 5 spirits across 3 categories in inventory | 300 XP | Bar health baseline |
+| **Recipe Collector** | Save 3 recipes this week | 250 XP | Taste affinity batch |
+
+#### Monthly Challenge (1 active, epic)
+
+| Title | Action | XP | Badge | Data signal |
+|---|---|---|---|---|
+| **The Bartender's Month** | Scan 10 bottles, log 5 makes, save 5 recipes | 1,000 XP | `monthly_bartender` | Full behaviour profile — scan + make + taste |
+| **Category Master** | Have at least 1 bottle in 6 different spirit categories | 800 XP | `category_master` | Inventory diversity benchmark |
+| **The Chronicler** | Log how you made a cocktail 10 times in a month | 1,000 XP | `chronicler` | Richest consumption dataset |
+
+---
+
+### 28. Achievements System
+
+**Status:** 🔲 Open
+
+Achievements are permanent, one-time milestones — distinct from rotating challenges. They surface on the Profile tab and share cleanly.
+
+#### Achievement tiers: Bronze → Silver → Gold → Platinum
+
+| Achievement | Trigger | Tier | XP | Badge |
+|---|---|---|---|---|
+| **First Scan** | Scan 1 bottle | Bronze | 100 XP | `first_scan` |
+| **Scanner** | Scan 10 bottles | Silver | 250 XP | `scanner` |
+| **Collector** | Scan 25 bottles | Gold | 500 XP | `collector` |
+| **Archivist** | Scan 50 bottles | Platinum | 1,000 XP | `archivist` |
+| **First Make** | Log 1 cocktail | Bronze | 100 XP | `first_make` |
+| **Home Bartender** | Log 10 cocktails | Silver | 300 XP | `home_bartender` |
+| **Mixologist's Log** | Log 50 cocktails | Gold | 750 XP | `mixologists_log` |
+| **Explorer** | Scan 3 different spirit categories | Bronze | 150 XP | `explorer` |
+| **Spirit Hunter** | Scan 6 different spirit categories | Silver | 400 XP | `spirit_hunter` |
+| **Full Bar** | 10+ bottles across 5+ categories | Gold | 500 XP | `full_bar` |
+| **Recipe Saver** | Save 10 recipes | Bronze | 150 XP | `recipe_saver` |
+| **Vault Key** | Unlock first vault item with XP | Bronze | 200 XP | `vault_key` |
+| **Streak: 7** | 7-day login streak | Silver | 300 XP | `streak_7` |
+| **Streak: 30** | 30-day login streak | Gold | 750 XP | `streak_30` |
+
+---
+
+### 29. Exploration Plans
+
+**Status:** 🔲 Open
+
+Exploration Plans are structured multi-step journeys that guide users toward a specific goal while generating a complete data trail. Each plan has 3–5 steps and takes 1–4 weeks.
+
+**Why plans vs. challenges:** Challenges are daily dopamine. Plans create a narrative — the user is *going somewhere*. The data trail is richer because it's sequential and intentional.
+
+#### Plan: The Home Bar Starter
+*"Build a bar that can make 10 cocktails"*
+1. Scan your first 3 bottles → +100 XP each
+2. View what you can make with them → +50 XP
+3. Save one recipe to try → +50 XP
+4. Log how it went → +150 XP
+5. Scan the one missing ingredient → +100 XP
+
+**Data captured:** Scan events, inventory baseline, recipe preference, first consumption log, gap-filling behaviour.
+
+#### Plan: The Category Explorer
+*"Try something you've never poured"*
+1. Scan a spirit category you don't own yet → +100 XP
+2. View 3 recipes that use it → +50 XP
+3. Save the one that appeals most → +75 XP
+4. Add it to inventory (scan or manual) → +100 XP
+5. Log how you made the recipe → +200 XP
+
+**Data captured:** Category gap → discovery → intent → purchase (inferred) → consumption.
+
+#### Plan: The Host
+*"Run a night for people"*
+1. Set up a hosting session → +50 XP
+2. Pick 2 cocktails for 4+ guests → +75 XP
+3. Scan all required bottles → +150 XP
+4. Log how the night went (make log × 2) → +200 XP
+5. Share your guest menu → +100 XP
+
+**Data captured:** Hosting intent, cocktail selection for groups, inventory sufficiency, consumption at scale, social share.
+
+---
+
+### Implementation Notes
+
+**`requirementType` extension** — update `src/types/challenge.ts` to add new types.
+
+**Progress auto-tracking** — each new `requirementType` needs a hook in the relevant user action:
+- `scan_bottle` → `googleVisionService.ts` or `SmartScanScreen.tsx` post-scan callback
+- `log_make` → wherever the "how did you make it" form submits
+- `rate_recipe` → recipe rating submit handler
+- `save_recipe` → `toggleSavedCocktail` in `useSavedItems`
+- `share_moment` → Share API callback in `BottleDetailScreen` / `RecipeCard`
+
+**Seeding** — challenges should be seeded to Supabase via a migration or admin script, not hardcoded in the client. Client pulls from `challenges` table with `expires_at` filter.
+
+**Analytics hook** — every challenge completion should fire `trackEvent('Challenge Completed', { challengeId, category, requirementType, xpReward })` for funnel analysis.
 
 ---
 
