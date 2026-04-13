@@ -87,6 +87,7 @@ serve(async (req) => {
           features: [
             { type: 'TEXT_DETECTION', maxResults: 10 },
             { type: 'LABEL_DETECTION', maxResults: 10 },
+            { type: 'WEB_DETECTION', maxResults: 5 },
           ],
         }],
       }),
@@ -108,6 +109,18 @@ serve(async (req) => {
 
     const textAnnotations: Array<{ description: string }> = response?.textAnnotations || []
     const labelAnnotations: Array<{ description: string; score: number }> = response?.labelAnnotations || []
+    const webDetection = response?.webDetection || {}
+
+    // Web entities: ranked product/brand matches Vision found across the web
+    // e.g. [{ entityId: '/m/...', score: 0.9, description: 'Crystal Head Vodka' }]
+    const webEntities: string[] = (webDetection.webEntities || [])
+      .filter((e: any) => e.score > 0.5 && e.description)
+      .map((e: any) => e.description as string)
+
+    // Best guess labels: Vision's top-level product identification
+    // e.g. ['Crystal Head Vodka', 'Skull Vodka']
+    const bestGuessLabels: string[] = (webDetection.bestGuessLabels || [])
+      .map((l: any) => l.label as string)
 
     const labels = labelAnnotations.map((l) => l.description.toLowerCase())
     const text = textAnnotations.map((t) => t.description)
@@ -116,7 +129,7 @@ serve(async (req) => {
       : 0
 
     return new Response(
-      JSON.stringify({ labels, text, confidence }),
+      JSON.stringify({ labels, text, confidence, webEntities, bestGuessLabels }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   } catch (error) {

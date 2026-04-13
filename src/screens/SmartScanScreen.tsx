@@ -63,6 +63,7 @@ export default function SmartScanScreen() {
   const [cameraVisible, setCameraVisible] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [scanMode, setScanMode] = useState<'barcode' | 'ai' | null>(null);
+  const [cameraMode, setCameraMode] = useState<'bottle' | 'recipe' | 'ingredients'>('bottle');
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [showConsentDialog, setShowConsentDialog] = useState(false);
   const [hasGivenConsent, setHasGivenConsent] = useState(false);
@@ -266,24 +267,55 @@ export default function SmartScanScreen() {
       log.info('SmartScanScreen', 'Running AI analysis on captured image');
 
       const visionResult = await GoogleVisionService.analyzeImage(uri);
-      const scanType = GoogleVisionService.detectScanType(visionResult);
 
-      log.info('SmartScanScreen', 'AI scan type detected', { scanType });
+      // Use the mode the user explicitly selected in the camera UI.
+      // Map 'ingredients' → 'ingredient' to match the scanType values used below.
+      const modeMap: Record<string, string> = {
+        bottle: 'bottle',
+        recipe: 'recipe',
+        ingredients: 'ingredient',
+      };
+      const scanType = modeMap[cameraMode] ?? GoogleVisionService.detectScanType(visionResult);
+
+      log.info('SmartScanScreen', 'Scan type', { scanType, cameraMode });
 
       switch (scanType) {
         case 'bottle': {
-          // 1. Try local database first (instant)
+          // ── Stage 2: Spirit-signal gate ──────────────────────────────────────
+          // Reject if Vision sees no spirit-related labels at all. This prevents
+          // plastic objects, hands, shelf tags, and random items from reaching Claude.
+          if (!GoogleVisionService.isSpiritImage(visionResult)) {
+            log.warn('SmartScanScreen', 'Stage 2 gate: no spirit signal in labels', { labels: visionResult.labels });
+            setAnalyzing(false);
+            setScanMode(null);
+            handleNotABottle();
+            break;
+          }
+
+          // ── Stage 1+3: Local DB lookup (Web Detection first, then OCR) ───────
           let bottle = GoogleVisionService.matchBottle(visionResult);
 
-          // 2. If not in local DB, ask Claude (cache → LLM)
+          // ── Stage 4: Claude fallback with garbage detection ───────────────────
           if (!bottle) {
-            const extractedName = GoogleVisionService.extractBottleNameFromOCR(visionResult);
-            console.log('[SpiritLookup] extractedName:', extractedName);
-            if (extractedName) {
+            const rawName = GoogleVisionService.extractBottleNameFromOCR(visionResult);
+
+            const isGarbled = (name: string | null): boolean => {
+              if (!name) return true;
+              const chars = name.replace(/\s/g, '').toUpperCase();
+              if (chars.length < 4) return true;
+              const freq = [...chars].reduce((acc, c) => { acc[c] = (acc[c] || 0) + 1; return acc; }, {} as Record<string, number>);
+              const maxFreq = Math.max(...Object.values(freq));
+              return maxFreq / chars.length > 0.4;
+            };
+
+            const extractedName = isGarbled(rawName) ? '' : rawName;
+            log.info('SmartScanScreen', 'SpiritLookup', { rawName, extractedName, garbled: isGarbled(rawName) });
+
+            if (extractedName || (visionResult?.labels?.length ?? 0) > 0) {
               try {
-                bottle = await GoogleVisionService.lookupBottleProfile(extractedName, visionResult);
+                bottle = await GoogleVisionService.lookupBottleProfile(extractedName || 'unknown bottle', visionResult);
               } catch (lookupErr: any) {
-                console.log('[SpiritLookup] threw:', lookupErr?.message);
+                log.warn('SmartScanScreen', 'SpiritLookup threw', { message: lookupErr?.message });
               }
             }
           }
@@ -304,6 +336,7 @@ export default function SmartScanScreen() {
             achievementService.trackAction('bottlesScanned');
             navigation.replace('BottleDetail', { bottle, imageUri: uri });
           } else {
+            // ── Stage 5: Graceful "not recognised" screen ─────────────────────
             handleUnknownBottle(visionResult);
           }
           break;
@@ -316,14 +349,29 @@ export default function SmartScanScreen() {
             imageUrl: uri,
           });
 
-          Alert.alert(
-            'Recipe Detected!',
-            'I found a recipe card. Recipe extraction coming soon!',
-            [
-              { text: 'Try Again', onPress: () => handleRetake() },
-              { text: 'OK', onPress: () => navigation.goBack() },
-            ]
-          );
+          // Extract the full OCR text block (text[0] is the complete block with newlines)
+          const ocrText = visionResult?.text?.[0] || '';
+
+          if (!ocrText.trim()) {
+            Alert.alert(
+              'No Text Found',
+              'Could not read text from this image. Try better lighting or a clearer angle.',
+              [{ text: 'Try Again', onPress: () => handleRetake() }]
+            );
+            break;
+          }
+
+          // Navigate to AIRecipeFormatScreen with the raw OCR text.
+          // fromMenu: true tells the formatter to isolate a single recipe from the block.
+          const parentNav = navigation.getParent?.() as any;
+          const targetNav = parentNav || navigation;
+          targetNav.navigate('AIRecipeFormat', {
+            recipe: {
+              extractedText: ocrText,
+              fromMenu: true,
+              imageUrl: uri,
+            },
+          });
           break;
         }
 
@@ -361,6 +409,17 @@ export default function SmartScanScreen() {
       setAnalyzing(false);
       setScanMode(null);
     }
+  };
+
+  const handleNotABottle = () => {
+    Alert.alert(
+      'No Bottle Detected',
+      'Make sure the bottle label is clearly visible and in the frame. Try better lighting or move closer.',
+      [
+        { text: 'Try Again', onPress: () => handleRetake() },
+        { text: 'Cancel', style: 'cancel', onPress: () => navigation.goBack() },
+      ]
+    );
   };
 
   const handleUnknownBottle = (visionResult: any) => {
@@ -450,7 +509,10 @@ export default function SmartScanScreen() {
         visible={cameraVisible}
         onClose={handleCameraClose}
         onImageCaptured={handleImageCaptured}
-        onBarcodeScanned={handleBarcodeScanned}
+        // Only enable barcode auto-scanning when not in AI photo mode.
+        // Wiring onBarcodeScanned in bottle/recipe/ingredient modes causes
+        // the camera to auto-fire whenever a barcode appears in frame.
+        onBarcodeScanned={!aiScanEnabled ? handleBarcodeScanned : undefined}
         barcodeOnly={!aiScanEnabled}
         autoCloseOnCapture={false}
         title="Smart Scan"

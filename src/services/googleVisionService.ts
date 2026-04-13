@@ -14,6 +14,8 @@ export interface VisionResult {
   labels: string[];
   text?: string[];
   confidence: number;
+  webEntities?: string[];
+  bestGuessLabels?: string[];
 }
 
 const DEMO_BOTTLE_RESULTS: Record<string, VisionResult> = {
@@ -66,7 +68,55 @@ function chooseDemoBottleResult(imageUri: string): VisionResult {
   return DEMO_BOTTLE_RESULTS[demoKeys[hash % demoKeys.length]];
 }
 
+// ── Spirit-signal tokens — at least one must appear in Vision labels for a
+//    result to be treated as a bottle scan. Prevents "Plastic", "Glass Bottle",
+//    random objects, and shelf tags from ever reaching Claude.
+const SPIRIT_SIGNALS = new Set([
+  'bottle', 'alcohol', 'alcoholic beverage', 'spirits', 'liquor', 'distilled beverage',
+  'wine bottle', 'beer bottle', 'spirit', 'beverage', 'drink', 'drinking',
+  'vodka', 'gin', 'rum', 'whiskey', 'whisky', 'bourbon', 'scotch',
+  'tequila', 'mezcal', 'brandy', 'cognac', 'liqueur', 'champagne', 'wine',
+  'distilled', 'fermented', 'agave', 'barrel', 'cask', 'proof', 'abv',
+])
+
 export class GoogleVisionService {
+  /**
+   * Stage 2 gate — checks whether Vision labels contain at least one spirit signal.
+   * Returns false for photos of plastic objects, random shelf items, hands, etc.
+   */
+  static isSpiritImage(result: VisionResult): boolean {
+    const labelsLower = result.labels.map(l => l.toLowerCase())
+    // Check labels
+    if (labelsLower.some(l => SPIRIT_SIGNALS.has(l))) return true
+    // Also check if any label *contains* a spirit signal word (e.g. "alcoholic drink")
+    if (labelsLower.some(l => [...SPIRIT_SIGNALS].some(s => l.includes(s)))) return true
+    // Check OCR text as a last resort — ABV pattern is a definitive bottle indicator
+    const fullText = (result.text?.[0] || '').toLowerCase()
+    if (/\d+(\.\d+)?\s*%\s*(abv|alc|vol|proof)/i.test(fullText)) return true
+    return false
+  }
+
+  /**
+   * Stage 3 gate — checks whether a Web Detection guess looks like a spirit brand,
+   * not a material/object description ("Plastic", "Glass Bottle", "Ceramic").
+   */
+  static isUsableWebDetection(result: VisionResult): boolean {
+    const GENERIC = new Set([
+      'plastic','glass','ceramic','bottle','liquid','product','object','container',
+      'decanter','vase','jar','cup','vessel','red','blue','green','black','white',
+      'brown','crystal','wood','metal','unknown','item','thing','material',
+      'surface','texture','pattern','design','art','craft','handmade','decorative',
+      'glassware','barware','drinkware','stopper','cork','tableware',
+    ])
+    const guesses = result.bestGuessLabels ?? []
+    const entities = result.webEntities ?? []
+    const candidates = [...guesses, ...entities]
+    return candidates.some(s => {
+      const words = s.trim().toLowerCase().split(/\s+/)
+      return !words.every(w => GENERIC.has(w))
+    })
+  }
+
   /**
    * Analyzes an image via the vision-analyze edge function.
    * The Google Cloud Vision API key is stored as a server-side secret and
@@ -295,10 +345,36 @@ export class GoogleVisionService {
       .slice(0, Math.max(1, maxResults));
 
     if (topMatches.length === 0) {
-      if (allLabels.includes('fruit')) return [{ name: 'Fruit', category: 'Fruits', confidence: result.confidence }];
-      if (allLabels.includes('herb') || allLabels.includes('plant')) return [{ name: 'Herb', category: 'Herbs', confidence: result.confidence }];
-      if (allLabels.includes('vegetable')) return [{ name: 'Vegetable', category: 'Vegetables', confidence: result.confidence }];
-      if (allLabels.includes('citrus')) return [{ name: 'Citrus', category: 'Citrus', confidence: result.confidence }];
+      // Map Vision's generic labels to ingredient categories.
+      // Vision won't return "clove" for a bowl of cloves — it returns "spice", "seed", "food" etc.
+      const LABEL_FALLBACKS: Array<{ signals: string[]; name: string; category: string }> = [
+        { signals: ['spice', 'seed', 'seasoning', 'condiment', 'five-spice powder', 'masala', 'powder'], name: 'Spice', category: 'spices' },
+        { signals: ['citrus', 'citrus fruit'], name: 'Citrus', category: 'citrus' },
+        { signals: ['herb', 'plant', 'leaf', 'foliage', 'grass'], name: 'Herb', category: 'herbs' },
+        { signals: ['berry', 'stone fruit', 'tropical fruit'], name: 'Fruit', category: 'fruits' },
+        { signals: ['vegetable', 'root vegetable', 'allium'], name: 'Vegetable', category: 'vegetables' },
+        { signals: ['fruit', 'food', 'produce', 'ingredient'], name: 'Fruit', category: 'fruits' },
+      ];
+
+      // Also check OCR text for spice/herb names Vision missed as labels
+      const TEXT_SIGNALS: Array<{ patterns: RegExp; name: string; category: string }> = [
+        { patterns: /\b(cloves?|cinnamon|cardamom|nutmeg|allspice|star anise|cumin|coriander|turmeric|pepper|peppercorn)\b/i, name: 'Spice', category: 'spices' },
+        { patterns: /\b(lavender|chamomile|tarragon|dill|chive|oregano|marjoram|bay leaf)\b/i, name: 'Herb', category: 'herbs' },
+        { patterns: /\b(lemon|lime|orange|grapefruit|yuzu)\b/i, name: 'Citrus', category: 'citrus' },
+      ];
+
+      for (const { patterns, name, category } of TEXT_SIGNALS) {
+        if (patterns.test(allText)) {
+          return [{ name, category: category.charAt(0).toUpperCase() + category.slice(1), confidence: result.confidence }];
+        }
+      }
+
+      for (const { signals, name, category } of LABEL_FALLBACKS) {
+        if (signals.some(s => allLabels.includes(s))) {
+          return [{ name, category: category.charAt(0).toUpperCase() + category.slice(1), confidence: result.confidence }];
+        }
+      }
+
       log.warn('GoogleVisionService', 'Could not match ingredients from results');
       return [];
     }
@@ -418,27 +494,38 @@ export class GoogleVisionService {
 
     // Score each line — higher = more likely to be the brand/product name
     const NOISE = /^(\d+(\.\d+)?(%|CL|ML|L)?|ALC|ABV|VOL|PROOF|DISTILLED|BOTTLED|PRODUCED|EST\.|SINCE|LIMITED|IMPORTED|CONTAINS|PRODUCT|WARNING|GOVERNMENT|DRINK|RESPONSIBLY|www\.|©)$/i;
+    const SPIRIT_TYPES = /\b(amaro|gin|vodka|rum|whiskey|whisky|bourbon|scotch|tequila|mezcal|cognac|brandy|liqueur|bitter|aperitivo|vermouth)\b/i;
+
     const scored = lines
       .filter(l => !NOISE.test(l))
       .filter(l => l.length <= 50)
-      .map(l => {
+      .map((l, index) => {
         let score = 0;
+        // Lines earlier in the block are more likely to be the main label
+        // (Vision returns text top-to-bottom, left-to-right)
+        score += Math.max(0, 5 - index * 0.5);
         // Prefer lines that are mostly uppercase (label text)
         const upperRatio = (l.match(/[A-Z]/g) || []).length / l.replace(/\s/g, '').length;
         if (upperRatio > 0.7) score += 3;
-        // Prefer medium-length lines (brand names are rarely 1 word of 3 chars)
+        // Prefer medium-length lines
         if (l.length >= 5 && l.length <= 25) score += 2;
-        // Boost known spirit-type words
-        if (/\b(amaro|gin|vodka|rum|whiskey|whisky|bourbon|scotch|tequila|mezcal|cognac|brandy|liqueur|bitter|aperitivo|vermouth)\b/i.test(l)) score += 4;
+        // Boost lines containing spirit-type words — but only +2, not +4,
+        // so position still matters (prevents background bottle text winning)
+        if (SPIRIT_TYPES.test(l)) score += 2;
         return { line: l, score };
       })
       .sort((a, b) => b.score - a.score);
 
     if (scored.length === 0) return lines[0].slice(0, 60);
 
-    // Take the top 1-3 lines to form a name query
-    const topLines = scored.slice(0, 3).map(s => s.line);
-    return topLines.join(' ').slice(0, 80);
+    // Use the single highest-scoring line as the name anchor.
+    // If it doesn't contain a spirit type but the second line does, append it.
+    const best = scored[0].line;
+    const second = scored[1]?.line;
+    const name = (!SPIRIT_TYPES.test(best) && second && SPIRIT_TYPES.test(second))
+      ? `${best} ${second}`
+      : best;
+    return name.slice(0, 80);
   }
 
   /**
@@ -448,7 +535,17 @@ export class GoogleVisionService {
   static async lookupBottleProfile(bottleName: string, visionResult?: VisionResult): Promise<Spirit | null> {
     try {
       const { data, error } = await supabase.functions.invoke('spirit-lookup', {
-        body: { bottleName },
+        body: {
+          bottleName,
+          // Pass Vision labels so Claude has visual context (shape, colour, imagery)
+          // — critical for unique bottles like Crystal Head, Clase Azul, etc.
+          visionLabels: visionResult?.labels ?? [],
+          // Web Detection results — Google's direct product/brand identification.
+          // bestGuessLabels[0] is Vision's top-level guess (e.g. "Crystal Head Vodka").
+          // webEntities are brand/product matches from web image matching.
+          webEntities: visionResult?.webEntities ?? [],
+          bestGuessLabels: visionResult?.bestGuessLabels ?? [],
+        },
       });
 
       if (error || !data?.profile) {
@@ -542,8 +639,9 @@ export class GoogleVisionService {
   }
 
   /**
-   * Match a bottle to the spirits database
-   * Returns detailed spirit information if found
+   * Match a bottle to the spirits database.
+   * Checks Web Detection results first (most reliable for label-less/decorative
+   * bottles), then falls back to OCR text + label scoring.
    */
   static matchBottle(result: VisionResult): Spirit | null {
     const allText = (result.text || []).join(' ').toUpperCase();
@@ -553,9 +651,59 @@ export class GoogleVisionService {
     log.info('GoogleVisionService', 'Matching bottle to database', {
       textLength: allText.length,
       labelsCount: result.labels.length,
+      webEntities: result.webEntities?.length ?? 0,
+      bestGuessLabels: result.bestGuessLabels?.length ?? 0,
     });
 
-    // Low confidence check
+    // ── Layer 1: Web Detection direct match ───────────────────────────────────
+    // Google's Web Detection returns the actual product name (e.g. "Clase Azul
+    // Mezcal San Luis Potosí") — far more reliable than OCR for decorative bottles.
+    // Score every spirit against bestGuessLabels and webEntities first.
+    const GENERIC_TOKENS = new Set([
+      'plastic','glass','ceramic','bottle','liquid','product','object','container',
+      'decanter','vase','jar','cup','vessel','red','blue','green','black','white',
+      'brown','crystal','wood','metal','unknown','item','thing','material','surface',
+      'texture','pattern','design','art','craft','handmade','decorative','glassware',
+    ])
+    const isUsableWebResult = (s: string) => {
+      const words = s.trim().toLowerCase().split(/\s+/)
+      return !words.every(w => GENERIC_TOKENS.has(w))
+    }
+
+    const webCandidates = [
+      ...(result.bestGuessLabels ?? []),
+      ...(result.webEntities ?? []),
+    ].filter(isUsableWebResult)
+
+    if (webCandidates.length > 0) {
+      const webText = webCandidates.join(' ').toLowerCase().replace(/[^a-z0-9\s]/g, ' ')
+      let webBest: Spirit | null = null
+      let webBestScore = 0
+      for (const spirit of SPIRITS_DATABASE) {
+        const brand = spirit.brand.toLowerCase()
+        const name = spirit.name.toLowerCase()
+        let score = 0
+        if (brand && webText.includes(brand)) score += 10
+        if (name && webText.includes(name)) score += 8
+        for (const term of spirit.searchTerms) {
+          const t = term.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').trim()
+          if (t.length >= 3 && webText.includes(t)) score += 5
+        }
+        if (score > webBestScore) { webBestScore = score; webBest = spirit }
+      }
+      if (webBest && webBestScore >= 8) {
+        log.info('GoogleVisionService', 'Bottle matched via Web Detection', {
+          brand: webBest.brand,
+          name: webBest.name,
+          score: webBestScore,
+          webCandidates,
+        })
+        return webBest
+      }
+    }
+
+    // ── Layer 2: OCR text + label scoring ─────────────────────────────────────
+    // Low confidence check — skip OCR scoring if Vision wasn't confident enough
     if (result.confidence < 0.3) {
       log.warn('GoogleVisionService', 'Confidence too low for bottle matching', {
         confidence: result.confidence,
@@ -564,8 +712,6 @@ export class GoogleVisionService {
     }
 
     // Score every spirit against the full OCR text and labels.
-    // This is more reliable than early-return word loops which can latch onto
-    // background bottles or generic words before reaching the main label text.
     let bestSpirit: Spirit | null = null;
     let bestScore = 0;
     for (const spirit of SPIRITS_DATABASE) {
@@ -590,7 +736,7 @@ export class GoogleVisionService {
       }
     }
     if (bestSpirit && bestScore >= 6) {
-      log.info('GoogleVisionService', 'Bottle matched via fuzzy scoring', {
+      log.info('GoogleVisionService', 'Bottle matched via OCR scoring', {
         brand: bestSpirit.brand,
         name: bestSpirit.name,
         score: bestScore,

@@ -61,7 +61,7 @@ export default function CameraStack() {
       <Stack.Screen
         name="IngredientScan"
         component={IngredientScanScreen}
-        options={{ headerShown: true, title: '🍋 Scan Ingredient' }}
+        options={{ headerShown: true, title: 'Scan Ingredient' }}
       />
       <Stack.Screen
         name="RecipeURLImport"

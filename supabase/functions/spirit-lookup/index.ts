@@ -28,12 +28,43 @@ serve(async (req) => {
   }
 
   try {
-    const { bottleName } = await req.json()
+    const { bottleName, visionLabels, webEntities, bestGuessLabels } = await req.json()
     if (!bottleName || typeof bottleName !== 'string') {
       return jsonError('Missing bottleName', 400)
     }
 
-    const lookupKey = bottleName.toLowerCase().replace(/\s+/g, ' ').trim()
+    const labels: string[] = Array.isArray(visionLabels) ? visionLabels : []
+    const entities: string[] = Array.isArray(webEntities) ? webEntities : []
+    const guesses: string[] = Array.isArray(bestGuessLabels) ? bestGuessLabels : []
+
+    // Web Detection sometimes returns material/object descriptions instead of brand names
+    // (e.g. "Plastic", "Glass bottle", "Ceramic decanter", "Liquid", "Product").
+    // Only trust a bestGuessLabel if it looks like an actual spirit/brand name.
+    const GENERIC_TOKENS = new Set([
+      'plastic','glass','ceramic','bottle','liquid','product','object','container',
+      'decanter','vase','jar','cup','jug','flask','vessel','pitcher','carafe',
+      'red','blue','green','black','white','brown','crystal','wood','wooden',
+      'metal','metallic','unknown','item','thing','material','surface','texture',
+      'pattern','design','art','craft','handmade','decorative','ornamental',
+      'drinkware','barware','glassware','tableware','stopper','cork',
+    ])
+    const isUsableGuess = (s: string) => {
+      const words = s.trim().toLowerCase().split(/\s+/)
+      // Reject if every word is a generic material/object/colour token
+      if (words.every(w => GENERIC_TOKENS.has(w))) return false
+      // Single short word with no brand character
+      if (words.length === 1 && s.length <= 5) return false
+      return true
+    }
+
+    const validGuess = guesses.find(isUsableGuess) ?? null
+
+    // If Google's Web Detection identified the bottle directly, use that as the
+    // primary name — it's far more reliable than garbled OCR for unique bottles
+    // like Crystal Head Vodka (no flat label) or Clase Azul (ceramic bottle).
+    const effectiveName = validGuess ?? bottleName
+
+    const lookupKey = effectiveName.toLowerCase().replace(/\s+/g, ' ').trim()
 
     // ── 1. Check cache ────────────────────────────────────────────────────────
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
@@ -66,7 +97,8 @@ serve(async (req) => {
       return jsonError('AI lookup not configured', 503)
     }
 
-    const prompt = buildPrompt(bottleName)
+    const validGuesses = guesses.filter(isUsableGuess)
+    const prompt = buildPrompt(effectiveName, labels, entities, validGuesses)
 
     const claudeResponse = await fetch(ANTHROPIC_API_URL, {
       method: 'POST',
@@ -107,14 +139,25 @@ serve(async (req) => {
     }
 
     // Normalise — fill any gaps with safe defaults
-    profile = normaliseProfile(profile, bottleName)
+    profile = normaliseProfile(profile, effectiveName)
 
-    // ── 3. Save to cache ──────────────────────────────────────────────────────
-    const row = profileToRow(profile, lookupKey)
-    await supabase.from('spirits_cache').upsert(row, { onConflict: 'lookup_key' })
+    const claudeConfidence = typeof (profile as any).confidence === 'number'
+      ? (profile as any).confidence
+      : 0.75
+
+    // ── 3. Save to cache — only if confidence is high enough ─────────────────
+    // Low-confidence results are returned to the client but NOT cached, so a
+    // better scan of the same bottle will trigger a fresh Claude lookup rather
+    // than serving the uncertain result forever.
+    if (claudeConfidence >= 0.7) {
+      const row = profileToRow(profile, lookupKey)
+      await supabase.from('spirits_cache').upsert(row, { onConflict: 'lookup_key' })
+    } else {
+      console.log(`Low confidence (${claudeConfidence}) — skipping cache for: ${lookupKey}`)
+    }
 
     return new Response(
-      JSON.stringify({ profile, source: 'claude' }),
+      JSON.stringify({ profile, source: 'claude', confidence: claudeConfidence }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
 
@@ -142,14 +185,31 @@ interface SpiritProfile {
   tastingNotes: string
   origin: string
   searchTerms: string[]
+  confidence?: number
 }
 
 // ── Prompt ─────────────────────────────────────────────────────────────────────
 
-function buildPrompt(bottleName: string): string {
-  return `You are a spirits database. Given a bottle name, return a JSON object with the spirit's profile.
+function buildPrompt(bottleName: string, visionLabels: string[] = [], webEntities: string[] = [], bestGuessLabels: string[] = []): string {
+  const labelsSection = visionLabels.length > 0
+    ? `\nVisual labels detected by Google Vision (bottle imagery, shape, colour, packaging): ${visionLabels.join(', ')}`
+    : ''
 
-Bottle name: "${bottleName}"
+  const webSection = bestGuessLabels.length > 0 || webEntities.length > 0
+    ? `\nGoogle Web Detection results:` +
+      (bestGuessLabels.length > 0 ? `\n  Best guess: ${bestGuessLabels.join(', ')}` : '') +
+      (webEntities.length > 0 ? `\n  Matched web entities: ${webEntities.join(', ')}` : '')
+    : ''
+
+  return `You are a spirits database. Given a bottle name and optional visual context, return a JSON object with the spirit's profile.
+
+Bottle name (from OCR or Web Detection): "${bottleName}"${labelsSection}${webSection}
+
+Identification priority:
+1. If Google Web Detection "Best guess" is present, treat it as the authoritative bottle name — use it directly.
+2. If Web Detection "Matched web entities" are present, use the top-scoring entity to confirm or supplement the name.
+3. Use visual labels to resolve any remaining ambiguity (e.g. skull + crystal + vodka = Crystal Head Vodka; ceramic + hand-painted + agave = Clase Azul Tequila).
+4. If the bottle name is "unknown bottle" or OCR noise (repeated characters, gibberish), rely entirely on Web Detection and visual labels.
 
 Return ONLY a JSON object (no markdown, no explanation) in this exact shape:
 {
@@ -167,7 +227,8 @@ Return ONLY a JSON object (no markdown, no explanation) in this exact shape:
   "flavorProfile": ["Note 1", "Note 2", "Note 3"],
   "tastingNotes": "2-3 sentence description of aroma, palate, and finish.",
   "origin": "Country of origin",
-  "searchTerms": ["common name", "abbreviation", "alternate spelling"]
+  "searchTerms": ["common name", "abbreviation", "alternate spelling"],
+  "confidence": 0.95
 }
 
 Rules:
@@ -177,7 +238,8 @@ Rules:
 - tastingNotes should be 2-3 sentences, professional tasting note style
 - priceTier: budget = under $20, mid-range = $20-40, premium = $40-80, ultra-premium = $80+
 - searchTerms should include lowercase common references
-- id should be lowercase kebab-case from the name`
+- id should be lowercase kebab-case from the name
+- confidence: 0.0-1.0. Use 0.9+ for well-known bottles you are certain about. Use 0.5-0.7 for bottles you are guessing from limited info. Use below 0.5 if you cannot reliably identify the bottle — in that case still return your best guess but set confidence low.`
 }
 
 // ── Normalise ──────────────────────────────────────────────────────────────────
