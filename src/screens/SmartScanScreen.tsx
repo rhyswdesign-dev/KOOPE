@@ -30,11 +30,11 @@ import { log } from '../lib/logger';
 import { InventoryService } from '../services/inventoryService';
 import { useAuth } from '../contexts/AuthContext';
 import { useSubscription } from '../contexts/SubscriptionContext';
-import { supabase } from '../lib/supabase';
 import DataConsentDialog from '../components/modals/DataConsentDialog';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { challengeProgressService } from '../services/challengeProgressService';
 import { achievementService } from '../services/achievementService';
+import { ImageQualityService } from '../services/imageQualityService';
 
 function getManualPrefill(productName: string | null, productBrand: string | null): { brand?: string; name?: string } {
   const cleanName = productName?.trim() || '';
@@ -64,9 +64,10 @@ export default function SmartScanScreen() {
   const [analyzing, setAnalyzing] = useState(false);
   const [scanMode, setScanMode] = useState<'barcode' | 'ai' | null>(null);
   const [cameraMode, setCameraMode] = useState<'bottle' | 'recipe' | 'ingredients'>('bottle');
-  const [imageUri, setImageUri] = useState<string | null>(null);
   const [showConsentDialog, setShowConsentDialog] = useState(false);
   const [hasGivenConsent, setHasGivenConsent] = useState(false);
+  // When true, camera opens in barcode-only mode (Stage 7 fallback)
+  const [barcodeMode, setBarcodeMode] = useState(false);
   // Always keep full photo scanner enabled; GoogleVisionService handles API fallback.
   const aiScanEnabled = true;
 
@@ -170,6 +171,7 @@ export default function SmartScanScreen() {
   const handleBarcodeScanned = useCallback(
     async (result: { type: string; data: string }) => {
       setCameraVisible(false);
+      setBarcodeMode(false);
       setAnalyzing(true);
       setScanMode('barcode');
 
@@ -212,7 +214,7 @@ export default function SmartScanScreen() {
           });
 
           if (user?.id) {
-            challengeProgressService.trackScanBottle(user.id, spirit.id || spirit.name, spirit.spirit_type);
+            challengeProgressService.trackScanBottle(user.id, spirit.id || spirit.name, spirit.type);
           }
           achievementService.trackAction('bottlesScanned');
 
@@ -259,12 +261,29 @@ export default function SmartScanScreen() {
   // ─── Photo capture handler ────────────────────────────────────────────────
   const handleImageCaptured = async (uri: string) => {
     setCameraVisible(false);
-    setImageUri(uri);
     setAnalyzing(true);
     setScanMode('ai');
 
     try {
       log.info('SmartScanScreen', 'Running AI analysis on captured image');
+
+      // ── Stage 1: Image quality gate ──────────────────────────────────────────
+      // Check before calling Vision API — saves API cost on bad photos.
+      const quality = await ImageQualityService.check(uri);
+      if (!quality.ok) {
+        log.warn('SmartScanScreen', 'Stage 1 gate: image quality failed', { reason: quality.reason });
+        setAnalyzing(false);
+        setScanMode(null);
+        Alert.alert(
+          quality.reason === 'too_dark' ? 'Too Dark' : 'Too Blurry',
+          quality.message,
+          [
+            { text: 'Try Again', onPress: () => handleRetake() },
+            { text: 'Cancel', style: 'cancel', onPress: () => navigation.goBack() },
+          ]
+        );
+        return;
+      }
 
       const visionResult = await GoogleVisionService.analyzeImage(uri);
 
@@ -331,13 +350,15 @@ export default function SmartScanScreen() {
 
           if (bottle) {
             if (user?.id) {
-              challengeProgressService.trackScanBottle(user.id, bottle.id || bottle.name, bottle.spirit_type);
+              challengeProgressService.trackScanBottle(user.id, bottle.id || bottle.name, bottle.type);
             }
             achievementService.trackAction('bottlesScanned');
             navigation.replace('BottleDetail', { bottle, imageUri: uri });
           } else {
-            // ── Stage 5: Graceful "not recognised" screen ─────────────────────
-            handleUnknownBottle(visionResult);
+            // ── Stage 7: Barcode fallback ─────────────────────────────────────
+            // Vision couldn't identify the bottle — offer barcode scan as a
+            // 100%-accurate fallback before falling through to "not recognised".
+            handleBottleNotFound();
           }
           break;
         }
@@ -411,6 +432,32 @@ export default function SmartScanScreen() {
     }
   };
 
+  const handleBottleNotFound = () => {
+    Alert.alert(
+      'Bottle Not Recognised',
+      'We couldn\'t identify this bottle from the label. Try scanning the barcode on the back for an exact match.',
+      [
+        {
+          text: 'Scan Barcode',
+          onPress: () => {
+            setBarcodeMode(true);
+            setScanMode(null);
+            setCameraVisible(true);
+          },
+        },
+        {
+          text: 'Try Label Again',
+          onPress: () => handleRetake(),
+        },
+        {
+          text: 'Add Manually',
+          onPress: () => navigation.navigate('ManualBottleEntry', {}),
+        },
+        { text: 'Cancel', style: 'cancel', onPress: () => navigation.goBack() },
+      ]
+    );
+  };
+
   const handleNotABottle = () => {
     Alert.alert(
       'No Bottle Detected',
@@ -422,26 +469,6 @@ export default function SmartScanScreen() {
     );
   };
 
-  const handleUnknownBottle = (visionResult: any) => {
-    const rawText = visionResult.text?.[0] || '';
-    const brandName = rawText.split('\n')[0].trim() || 'Unknown Brand';
-    Alert.alert(
-      'Bottle Not Recognized',
-      `Detected a bottle (possibly ${brandName}), but it's not in our database. Add manually?`,
-      [
-        {
-          text: 'Add Manually',
-          onPress: () =>
-            navigation.navigate('ManualBottleEntry', {
-              initialBrand: brandName !== 'Unknown Brand' ? brandName : undefined,
-              imageUri: imageUri ?? undefined,
-            }),
-        },
-        { text: 'Try Again', onPress: () => handleRetake() },
-        { text: 'Cancel', style: 'cancel', onPress: () => navigation.goBack() },
-      ]
-    );
-  };
 
   const handleUnknownIngredient = () => {
     Alert.alert(
@@ -477,12 +504,13 @@ export default function SmartScanScreen() {
   };
 
   const handleRetake = () => {
-    setImageUri(null);
     setScanMode(null);
+    setBarcodeMode(false);
     setCameraVisible(true);
   };
 
   const handleCameraClose = () => {
+    setBarcodeMode(false);
     navigation.goBack();
   };
 
@@ -509,11 +537,12 @@ export default function SmartScanScreen() {
         visible={cameraVisible}
         onClose={handleCameraClose}
         onImageCaptured={handleImageCaptured}
-        // Only enable barcode auto-scanning when not in AI photo mode.
-        // Wiring onBarcodeScanned in bottle/recipe/ingredient modes causes
-        // the camera to auto-fire whenever a barcode appears in frame.
-        onBarcodeScanned={!aiScanEnabled ? handleBarcodeScanned : undefined}
-        barcodeOnly={!aiScanEnabled}
+        // Enable barcode scanning in barcode-only mode OR as Stage 7 fallback
+        // (barcodeMode=true when Vision failed to identify the bottle).
+        // Never wire barcode in normal AI photo mode — causes auto-fire on any
+        // barcode that appears in frame.
+        onBarcodeScanned={(!aiScanEnabled || barcodeMode) ? handleBarcodeScanned : undefined}
+        barcodeOnly={!aiScanEnabled || barcodeMode}
         autoCloseOnCapture={false}
         title="Smart Scan"
         isPaidUser={isSubscriber}

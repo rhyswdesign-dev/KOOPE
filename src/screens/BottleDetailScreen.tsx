@@ -275,6 +275,8 @@ export default function BottleDetailScreen() {
   const [windowEndInput, setWindowEndInput] = useState('');
   const [cellarNotesInput, setCellarNotesInput] = useState('');
   const [selectedQuantity, setSelectedQuantity] = useState<'full' | 'half' | 'low' | 'empty'>('full');
+  // Stage 10 — scan feedback
+  const [feedbackState, setFeedbackState] = useState<'pending' | 'confirmed' | 'dismissed'>('pending');
   const serveRecommendation = useMemo(
     () => BottleServeService.getRecommendation(bottle, tier),
     [bottle, tier]
@@ -692,8 +694,95 @@ export default function BottleDetailScreen() {
   };
 
   const handleTryAnother = () => {
-    // Navigate back to SmartScan to scan another bottle
     navigation.navigate('SmartScan');
+  };
+
+  const handleWrongResult = () => {
+    Alert.alert(
+      'Wrong Bottle?',
+      'This will remove the cached result so the next scan gets a fresh lookup. Scan again for a better result.',
+      [
+        {
+          text: 'Yes, clear it',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              // Delete from spirits_cache by lookup_key (bottle id / name slug)
+              const lookupKey = (bottle.id || bottle.name)
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, ' ')
+                .trim()
+              await supabase
+                .from('spirits_cache')
+                .delete()
+                .eq('lookup_key', lookupKey)
+              Alert.alert(
+                'Cache Cleared',
+                'Scan the bottle again for a fresh identification.',
+                [{ text: 'Scan Again', onPress: () => navigation.navigate('SmartScan') }]
+              )
+            } catch {
+              Alert.alert('Error', 'Could not clear cache. Please try again.')
+            }
+          },
+        },
+        { text: 'Cancel', style: 'cancel' },
+      ]
+    )
+  };
+
+  const handleFeedbackYes = async () => {
+    setFeedbackState('confirmed');
+    try {
+      const lookupKey = (bottle.id || bottle.name)
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, ' ')
+        .trim();
+      await supabase
+        .from('spirits_cache')
+        .update({ confidence: 1.0 })
+        .eq('lookup_key', lookupKey);
+    } catch {
+      // Feedback failure is silent — result is still shown
+    }
+  };
+
+  const handleFeedbackNo = () => {
+    Alert.alert(
+      'Not the right bottle?',
+      'We\'ll clear the cached result. What would you like to do next?',
+      [
+        {
+          text: 'Scan Again',
+          onPress: async () => {
+            try {
+              const lookupKey = (bottle.id || bottle.name)
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, ' ')
+                .trim();
+              await supabase.from('spirits_cache').delete().eq('lookup_key', lookupKey);
+            } catch { /* silent */ }
+            setFeedbackState('dismissed');
+            navigation.navigate('SmartScan');
+          },
+        },
+        {
+          text: 'Add Manually',
+          onPress: async () => {
+            try {
+              const lookupKey = (bottle.id || bottle.name)
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, ' ')
+                .trim();
+              await supabase.from('spirits_cache').delete().eq('lookup_key', lookupKey);
+            } catch { /* silent */ }
+            setFeedbackState('dismissed');
+            navigation.navigate('ManualBottleEntry', { imageUri });
+          },
+        },
+        { text: 'Cancel', style: 'cancel' },
+      ]
+    );
   };
 
   return (
@@ -765,6 +854,32 @@ export default function BottleDetailScreen() {
 
         {/* Body content — padded */}
         <View style={styles.bodyContent}>
+
+        {/* Stage 10 — Is this correct? feedback strip (only shown for scanned bottles) */}
+        {imageUri && feedbackState !== 'dismissed' && (
+          <View style={styles.feedbackStrip}>
+            {feedbackState === 'confirmed' ? (
+              <>
+                <Ionicons name="checkmark-circle" size={18} color={colors.gold} />
+                <Text style={styles.feedbackConfirmedText}>Thanks — noted!</Text>
+              </>
+            ) : (
+              <>
+                <Text style={styles.feedbackQuestion}>Is this the right bottle?</Text>
+                <View style={styles.feedbackButtons}>
+                  <TouchableOpacity style={styles.feedbackYes} onPress={handleFeedbackYes}>
+                    <Ionicons name="thumbs-up-outline" size={15} color={colors.gold} />
+                    <Text style={styles.feedbackYesText}>Yes</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.feedbackNo} onPress={handleFeedbackNo}>
+                    <Ionicons name="thumbs-down-outline" size={15} color={colors.subtext} />
+                    <Text style={styles.feedbackNoText}>No</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
+          </View>
+        )}
 
         {/* Price Estimate */}
         <View style={styles.priceCard}>
@@ -991,6 +1106,14 @@ export default function BottleDetailScreen() {
             >
               <Ionicons name="information-circle-outline" size={20} color={colors.accent} />
               <Text style={styles.secondaryButtonText}>Learn More</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.secondaryButton}
+              onPress={handleWrongResult}
+            >
+              <Ionicons name="alert-circle-outline" size={20} color={colors.subtext} />
+              <Text style={[styles.secondaryButtonText, { color: colors.subtext }]}>Wrong Result?</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -2161,6 +2284,67 @@ const styles = StyleSheet.create({
   },
   invConfirmDismissText: {
     fontSize: 14,
+    color: colors.subtext,
+  },
+  feedbackStrip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: `${colors.accent}12`,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: `${colors.accent}30`,
+    paddingHorizontal: spacing(2),
+    paddingVertical: spacing(1.5),
+    marginBottom: spacing(2),
+    gap: spacing(2),
+  },
+  feedbackQuestion: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '500',
+    color: colors.subtext,
+  },
+  feedbackConfirmedText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.gold,
+    marginLeft: spacing(1),
+  },
+  feedbackButtons: {
+    flexDirection: 'row',
+    gap: spacing(1),
+  },
+  feedbackYes: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(0.5),
+    backgroundColor: `${colors.accent}20`,
+    borderRadius: radii.sm,
+    paddingHorizontal: spacing(1.5),
+    paddingVertical: spacing(0.75),
+    borderWidth: 1,
+    borderColor: `${colors.accent}40`,
+  },
+  feedbackYesText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.gold,
+  },
+  feedbackNo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(0.5),
+    backgroundColor: colors.card,
+    borderRadius: radii.sm,
+    paddingHorizontal: spacing(1.5),
+    paddingVertical: spacing(0.75),
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
+  feedbackNoText: {
+    fontSize: 13,
+    fontWeight: '600',
     color: colors.subtext,
   },
 });

@@ -156,9 +156,23 @@ export class GoogleVisionService {
 
   private static async convertImageToBase64(imageUri: string): Promise<string> {
     try {
-      const result = await ImageManipulator.manipulateAsync(imageUri, [], {
-        base64: true,
-      });
+      // Stage 8 — centre-crop to 60% width / 70% height before sending to Vision.
+      // The bottle label is almost always centred in frame. Cropping eliminates
+      // background bottles, shelf tags, and other bottles that sit at the edges,
+      // which are the primary cause of OCR reading the wrong label.
+      const meta = await ImageManipulator.manipulateAsync(imageUri, [], { base64: false });
+      const { width, height } = meta;
+
+      const cropW = Math.round(width * 0.6);
+      const cropH = Math.round(height * 0.7);
+      const originX = Math.round((width - cropW) / 2);
+      const originY = Math.round((height - cropH) / 2);
+
+      const result = await ImageManipulator.manipulateAsync(
+        imageUri,
+        [{ crop: { originX, originY, width: cropW, height: cropH } }],
+        { base64: true, compress: 0.85, format: ImageManipulator.SaveFormat.JPEG }
+      );
       if (!result.base64) throw new Error('No base64 data returned');
       return result.base64;
     } catch (error) {
