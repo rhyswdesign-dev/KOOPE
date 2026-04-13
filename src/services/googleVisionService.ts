@@ -706,13 +706,43 @@ export class GoogleVisionService {
         if (score > webBestScore) { webBestScore = score; webBest = spirit }
       }
       if (webBest && webBestScore >= 8) {
-        log.info('GoogleVisionService', 'Bottle matched via Web Detection', {
-          brand: webBest.brand,
-          name: webBest.name,
-          score: webBestScore,
-          webCandidates,
-        })
-        return webBest
+        // Cross-validate against OCR: if the label has meaningful text, the
+        // Web Detection match must share at least one significant word with it.
+        // This prevents Vision returning "Johnnie Walker" for a Rum-Bar bottle.
+        // (For label-less/decorative bottles the OCR is empty so we always trust Web Detection.)
+        const ocrWords = normalizedText.split(/\s+/).filter(w => w.length >= 4)
+        if (ocrWords.length >= 3) {
+          const candidateWords = new Set(
+            [webBest.brand, webBest.name, ...webBest.searchTerms]
+              .join(' ').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/)
+              .filter(w => w.length >= 4)
+          )
+          const hasOcrOverlap = ocrWords.some(w => candidateWords.has(w))
+          if (!hasOcrOverlap) {
+            log.warn('GoogleVisionService', 'Web Detection contradicts OCR — skipping Layer 1', {
+              webCandidate: webBest.name,
+              webScore: webBestScore,
+              webCandidates,
+            })
+            // Fall through to Layer 2 (OCR scoring)
+          } else {
+            log.info('GoogleVisionService', 'Bottle matched via Web Detection (OCR confirmed)', {
+              brand: webBest.brand,
+              name: webBest.name,
+              score: webBestScore,
+            })
+            return webBest
+          }
+        } else {
+          // No meaningful OCR — label-less bottle (Clase Azul, Crystal Head etc.)
+          // Trust Web Detection entirely.
+          log.info('GoogleVisionService', 'Bottle matched via Web Detection (no OCR to contradict)', {
+            brand: webBest.brand,
+            name: webBest.name,
+            score: webBestScore,
+          })
+          return webBest
+        }
       }
     }
 
