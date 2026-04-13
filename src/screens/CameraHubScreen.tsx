@@ -16,6 +16,7 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Keyboard,
+  ScrollView,
   Dimensions,
   ImageSourcePropType,
   Easing,
@@ -315,7 +316,7 @@ export default function CameraHubScreen() {
       />
 
       <LinearGradient
-        colors={['rgba(12,8,5,0.55)', 'rgba(12,8,5,0.15)', 'rgba(12,8,5,0.72)']}
+        colors={['rgba(12,8,5,0.65)', 'rgba(12,8,5,0.45)', 'rgba(12,8,5,0.82)']}
         style={styles.gradientOverlay}
       />
 
@@ -353,16 +354,26 @@ export default function CameraHubScreen() {
                 <Ionicons name="camera" size={32} color={colors.white} />
               </View>
             </TouchableOpacity>
-            <Text style={styles.scanLabel}>S C A N</Text>
+            <View style={styles.scanLabelPill}>
+              <Text style={styles.scanLabel}>S C A N</Text>
+            </View>
+          </View>
 
-            {/* Quick Action Buttons - moved up */}
-            <View style={styles.quickLinks}>
+          {/* Bottom section — quick actions + tagline */}
+          <View style={styles.bottomSection}>
+            <BlurView intensity={28} tint="dark" style={StyleSheet.absoluteFill} />
+
+            {/* Quick Action Buttons */}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.quickLinks}
+            >
               <TouchableOpacity
                 style={styles.quickLink}
                 onPress={withHaptic(() => navigation.navigate('SmartScan'), 'selection')}
               >
                 <View style={styles.quickIcon}>
-                  <BlurView intensity={35} tint="dark" style={StyleSheet.absoluteFill} />
                   <Ionicons name="wine" size={20} color={colors.gold} />
                 </View>
                 <Text style={styles.quickText}>BOTTLE</Text>
@@ -372,7 +383,6 @@ export default function CameraHubScreen() {
                 onPress={withHaptic(() => navigation.navigate('OCRCapture'), 'selection')}
               >
                 <View style={styles.quickIcon}>
-                  <BlurView intensity={35} tint="dark" style={StyleSheet.absoluteFill} />
                   <Ionicons name="document-text" size={20} color={colors.gold} />
                 </View>
                 <Text style={styles.quickText}>RECIPE</Text>
@@ -382,7 +392,6 @@ export default function CameraHubScreen() {
                 onPress={withHaptic(() => navigation.navigate('IngredientScan'), 'selection')}
               >
                 <View style={styles.quickIcon}>
-                  <BlurView intensity={35} tint="dark" style={StyleSheet.absoluteFill} />
                   <Ionicons name="leaf" size={20} color={colors.gold} />
                 </View>
                 <Text style={styles.quickText}>INGREDIENT</Text>
@@ -392,7 +401,6 @@ export default function CameraHubScreen() {
                 onPress={withHaptic(() => navigation.navigate('ManualBottleEntry', {}), 'selection')}
               >
                 <View style={styles.quickIcon}>
-                  <BlurView intensity={35} tint="dark" style={StyleSheet.absoluteFill} />
                   <Ionicons name="add-circle" size={20} color={colors.gold} />
                 </View>
                 <Text style={styles.quickText}>ADD</Text>
@@ -402,17 +410,15 @@ export default function CameraHubScreen() {
                 onPress={withHaptic(handleLinkPress, 'selection')}
               >
                 <View style={[styles.quickIcon, showUrlInput && styles.quickIconActive]}>
-                  {!showUrlInput ? <BlurView intensity={35} tint="dark" style={StyleSheet.absoluteFill} /> : null}
                   <Ionicons name="link" size={20} color={showUrlInput ? colors.white : colors.gold} />
                 </View>
                 <Text style={[styles.quickText, showUrlInput && styles.quickTextActive]}>LINK</Text>
               </TouchableOpacity>
-            </View>
+            </ScrollView>
 
             {/* URL Input - shown when LINK is tapped */}
             {showUrlInput && (
               <View style={styles.urlInputContainer}>
-                <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />
                 <TextInput
                   style={styles.urlInput}
                   placeholder="Paste recipe URL here..."
@@ -435,13 +441,8 @@ export default function CameraHubScreen() {
                 </TouchableOpacity>
               </View>
             )}
-          </View>
 
-          {/* Bottom tagline */}
-          <View style={styles.taglineContainer}>
-            <Text style={styles.taglineText}>
-              Scan a bottle. Discover a recipe.
-            </Text>
+            <Text style={styles.taglineText}>Scan a bottle. Discover a recipe.</Text>
           </View>
         </View>
       </SafeAreaView>
@@ -500,7 +501,7 @@ const styles = StyleSheet.create({
   },
   heroSubtitle: {
     fontSize: 16,
-    color: 'rgba(255,255,255,0.6)',
+    color: 'rgba(255,255,255,0.9)',
     textAlign: 'center',
     marginBottom: spacing(6),
   },
@@ -530,21 +531,33 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(214, 138, 56, 0.25)',
     zIndex: 1,
   },
+  scanLabelPill: {
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    paddingHorizontal: spacing(2.5),
+    paddingVertical: spacing(0.75),
+    borderRadius: 20,
+  },
   scanLabel: {
     color: colors.gold,
     fontSize: 12,
     fontWeight: '700',
     letterSpacing: 4,
     textTransform: 'uppercase',
-    marginBottom: spacing(6),
+  },
+  bottomSection: {
+    overflow: 'hidden',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.08)',
+    paddingTop: spacing(3),
+    paddingBottom: spacing(4),
+    paddingHorizontal: spacing(2),
   },
   quickLinks: {
     flexDirection: 'row',
-    justifyContent: 'center',
-    flexWrap: 'wrap',
-    gap: spacing(3),
-    paddingHorizontal: spacing(2),
-    rowGap: spacing(2),
+    gap: spacing(4),
+    paddingHorizontal: spacing(3),
+    paddingVertical: spacing(1),
+    marginBottom: spacing(3),
   },
   quickLink: {
     alignItems: 'center',
@@ -557,23 +570,18 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: 'rgba(255,255,255,0.12)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.22)',
     alignItems: 'center',
     justifyContent: 'center',
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
   },
   quickIconActive: {
     backgroundColor: colors.gold,
     borderColor: colors.gold,
   },
   quickText: {
-    color: 'rgba(255,255,255,0.6)',
+    color: 'rgba(255,255,255,0.75)',
     fontSize: 11,
     fontWeight: '700',
     letterSpacing: 0.5,
@@ -585,8 +593,7 @@ const styles = StyleSheet.create({
   urlInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: spacing(4),
-    marginHorizontal: spacing(3),
+    marginBottom: spacing(3),
     backgroundColor: 'rgba(255,255,255,0.08)',
     borderRadius: radii.lg,
     borderWidth: 1,
@@ -609,11 +616,6 @@ const styles = StyleSheet.create({
   },
   urlSubmitButtonDisabled: {
     opacity: 0.5,
-  },
-  taglineContainer: {
-    alignItems: 'center',
-    paddingBottom: spacing(6),
-    paddingHorizontal: spacing(4),
   },
   taglineText: {
     color: 'rgba(255,255,255,0.4)',

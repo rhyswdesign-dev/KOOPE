@@ -5,6 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/RootNavigator';
+import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, radii, serif } from '../theme/tokens';
 import { getCocktailOfTheMonth } from '../services/cocktailOfTheMonth';
 import { RecipesRepository } from '../repos/supabase';
@@ -75,6 +76,21 @@ export default function HomeScreen() {
       <ScrollView style={styles.scrollContainer} contentContainerStyle={styles.scrollContent}>
         <View style={styles.container}>
           <Heading level={1} style={styles.title}>Home</Heading>
+
+          {/* What Can I Make */}
+          <TouchableOpacity
+            style={styles.whatCanIMakeCard}
+            onPress={() => navigation.navigate('WhatCanIMake')}
+            activeOpacity={0.82}
+          >
+            <View style={styles.whatCanIMakeInner}>
+              <View>
+                <Text style={styles.whatCanIMakeLabel}>Your Bar</Text>
+                <Text style={styles.whatCanIMakeTitle}>What can I make tonight?</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={colors.gold} />
+            </View>
+          </TouchableOpacity>
 
           {/* Cocktail of the Month */}
           {loading ? (
@@ -149,6 +165,35 @@ const styles = StyleSheet.create({
   },
   featuredCard: {
     marginBottom: spacing(3),
+  },
+  whatCanIMakeCard: {
+    width: '100%',
+    backgroundColor: colors.card,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.gold,
+    marginBottom: spacing(3),
+  },
+  whatCanIMakeInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing(2.5),
+    paddingVertical: spacing(2),
+  },
+  whatCanIMakeLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.gold,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    marginBottom: spacing(0.5),
+  },
+  whatCanIMakeTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: colors.text,
+    fontFamily: serif,
   },
   title: {
     marginBottom: spacing(4),

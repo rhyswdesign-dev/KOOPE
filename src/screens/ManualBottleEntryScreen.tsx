@@ -279,7 +279,7 @@ export default function ManualBottleEntryScreen() {
               onChangeText={setName}
               placeholder="e.g. London Dry Gin"
               placeholderTextColor={colors.subtext}
-              autoFocus={!name}
+              autoFocus={false}
             />
 
             <Text style={styles.formLabel}>Brand (Optional)</Text>

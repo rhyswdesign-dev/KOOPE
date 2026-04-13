@@ -66,7 +66,7 @@ export const TIER_FEATURES = {
     scansPerMonth: Infinity,
 
     // Discovery
-    whatCanIMake: false,
+    whatCanIMake: 'basic',
     recipeFilters: 'basic', // Spirit filter only
     // XP-progressive unlock: free users unlock recipes by earning XP
     // Clear thumbnails shown for locked recipes with "Unlock at Level X" badge (no blur)

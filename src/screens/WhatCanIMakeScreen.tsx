@@ -37,6 +37,8 @@ import GroceryListModal from '../components/GroceryListModal';
 import { RecipesRepository } from '../repos/supabase';
 import { isCocktailAccessible } from '../config/tierAccess';
 import { useUserTier } from '../store/useUserTier';
+import { useXPSystem } from '../store/useXPSystem';
+import { useEngagement } from '../store/useEngagement';
 import {
   generateRecipeFromInventory,
   checkRateLimit,
@@ -54,6 +56,8 @@ export default function WhatCanIMakeScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { user, isAuthenticated } = useAuth();
   const { tier } = useUserTier();
+  const { isCocktailUnlockedWithXP } = useXPSystem();
+  const { isRecipeUnlocked: isRecipeUnlockedWithEngagement } = useEngagement();
 
   const [chatFeedbackVisible, setChatFeedbackVisible] = useState(false);
   const [cartFeedbackVisible, setCartFeedbackVisible] = useState(false);
@@ -88,10 +92,11 @@ export default function WhatCanIMakeScreen() {
         let matched;
 
         if (tier === 'FREE') {
-          // Free users: show all 9 FREE_TIER_COCKTAILS sorted by match percentage
-          // This ensures they can always see which classics they're closest to making
+          // Free users: free 9 classics + anything unlocked via XP or engagement, sorted by match
           const accessibleRecipes = recipesData.filter(cocktail =>
-            isCocktailAccessible(cocktail.id, tier)
+            isCocktailAccessible(cocktail.id, tier) ||
+            isCocktailUnlockedWithXP(cocktail.id) ||
+            isRecipeUnlockedWithEngagement(cocktail.id)
           );
           matched = sortByMatch(accessibleRecipes as any[], filteredInventory);
         } else {
@@ -104,7 +109,7 @@ export default function WhatCanIMakeScreen() {
     } catch (error) {
       console.error('Error matching cocktails:', error);
     }
-  }, [inventory, selectedItems, tier]);
+  }, [inventory, selectedItems, tier, isCocktailUnlockedWithXP, isRecipeUnlockedWithEngagement]);
 
   useEffect(() => {
     loadData();

@@ -64,6 +64,8 @@ const RecipeCard = React.memo(({
 }: RecipeCardProps) => {
   const scale = useSharedValue(1);
   const [cartFeedbackVisible, setCartFeedbackVisible] = useState(false);
+  const [imageError, setImageError] = useState(false);
+  const [imageLoaded, setImageLoaded] = useState(false);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
@@ -83,12 +85,14 @@ const RecipeCard = React.memo(({
   }, [recipe.id, recipe.history, recipe.tags, recipe.subtitle, recipe.description]);
 
   const resolvedImage = useMemo(() => {
-    const fallbackImage = 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=240&h=160&fit=crop';
-    if (!recipe.image) return fallbackImage;
-    if (typeof recipe.image === 'string') {
-      return getCocktailImage(recipe.id, recipe.image) || fallbackImage;
-    }
-    return recipe.image || fallbackImage;
+    // Prefer local bundled asset — always available offline, no network cost
+    const local = getCocktailImage(recipe.id, typeof recipe.image === 'string' ? recipe.image : undefined);
+    if (local) return local;
+    // Remote URL passed directly
+    if (typeof recipe.image === 'string' && recipe.image.startsWith('http')) return recipe.image;
+    // Numeric require() asset
+    if (typeof recipe.image === 'number') return recipe.image;
+    return null;
   }, [recipe.id, recipe.image]);
 
   return (
@@ -103,10 +107,20 @@ const RecipeCard = React.memo(({
           scale.value = withTiming(1, { duration: 160, easing: Easing.out(Easing.quad) });
         }}
       >
-        <Image
-          source={typeof resolvedImage === 'string' ? { uri: resolvedImage } : resolvedImage}
-          style={styles.cocktailImage}
-        />
+        {/* Placeholder shown while loading or on error */}
+        {(!imageLoaded || imageError || !resolvedImage) && (
+          <View style={[styles.cocktailImage, styles.imagePlaceholder]}>
+            <Ionicons name="wine-outline" size={32} color="rgba(214,138,56,0.3)" />
+          </View>
+        )}
+        {resolvedImage && !imageError && (
+          <Image
+            source={typeof resolvedImage === 'string' ? { uri: resolvedImage } : resolvedImage}
+            style={[styles.cocktailImage, !imageLoaded && { opacity: 0 }]}
+            onLoad={() => setImageLoaded(true)}
+            onError={() => setImageError(true)}
+          />
+        )}
         <LinearGradient
           colors={['rgba(9,7,6,0.08)', 'rgba(9,7,6,0.22)', 'rgba(15,11,9,0.7)', '#1A120D']}
           style={styles.imageShade}
@@ -215,6 +229,11 @@ const styles = StyleSheet.create({
     height: '100%',
     resizeMode: 'cover',
     backgroundColor: colors.card,
+  },
+  imagePlaceholder: {
+    backgroundColor: 'rgba(214,138,56,0.06)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   imageShade: {
     ...StyleSheet.absoluteFillObject,

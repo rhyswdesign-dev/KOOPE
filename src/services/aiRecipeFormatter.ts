@@ -72,6 +72,8 @@ export interface RecipeInput {
   extractedText?: string;
   userNotes?: string;
   recipeType?: RecipeType;
+  /** Set to true when the text was extracted from a menu — triggers single-recipe isolation logic */
+  fromMenu?: boolean;
 }
 
 export class AIRecipeFormatter {
@@ -694,6 +696,12 @@ Input data:
 
     if (input.userNotes) {
       prompt += `\nUser notes: ${input.userNotes}`;
+    }
+
+    if (input.fromMenu) {
+      prompt += `\n\nIMPORTANT: This text was extracted from a bar or restaurant menu. The OCR may have split multi-word ingredients across lines due to column layout (e.g. "coconut" on one line and "rum, salt..." on the next — these are one ingredient "coconut rum"). Carefully rejoin any fragments before parsing. Extract ONLY the single most prominent or complete recipe. Ignore prices, section headers, other menu items, and surrounding text. If multiple recipes appear equally prominent, pick the first complete one.`;
+    } else {
+      prompt += `\n\nNote: The text may have line breaks inserted by OCR layout parsing. Rejoin any ingredient or instruction fragments that were split mid-phrase before formatting.`;
     }
 
     prompt += `\n\nPlease extract the recipe information and format it as valid JSON. Focus on clarity and accuracy.`;

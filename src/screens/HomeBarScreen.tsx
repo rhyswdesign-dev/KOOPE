@@ -984,7 +984,7 @@ export default function HomeBarScreen() {
   const totalRecipes = Math.max(12, homeBar.ingredients.length * 2); // Mock calculation
 
   const handleSeeRecipes = () => {
-    whatCanIMakeGate('T_WCIM', () => nav.navigate('WhatCanIMake'));
+    nav.navigate('WhatCanIMake');
   };
 
   const handleAddIngredient = async () => {

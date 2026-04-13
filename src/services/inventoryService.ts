@@ -188,22 +188,46 @@ export class InventoryService {
 
         // Schema compatibility fallback:
         // Some environments are missing optional columns (e.g. notes, brand).
-        const missingColumnMatch =
-          error?.code === 'PGRST204' &&
-          typeof error?.message === 'string'
-            ? error.message.match(/Could not find the ['"]([^'"]+)['"] column/i)
-            : null;
+        if (error?.code === 'PGRST204') {
+          const optionalColumns = [
+            'brand',
+            'notes',
+            'flavor_tags',
+            'tasting_notes',
+            'serve_guidance',
+            'region',
+            'subcategory',
+            'image_url',
+            'category',
+          ];
 
-        const missingColumn = missingColumnMatch?.[1];
-        if (missingColumn && Object.prototype.hasOwnProperty.call(insertPayload, missingColumn)) {
-          if (missingColumn === 'brand' && params.brand) {
-            const currentName = String(insertPayload.item_name || formattedName).trim();
-            if (!currentName.includes(' - ')) {
-              insertPayload.item_name = `${params.brand.trim()} - ${currentName}`;
+          const missingColumnMatch =
+            typeof error?.message === 'string'
+              ? error.message.match(/Could not find the [`'"]?([^`'"]+)[`'"]? column/i)
+              : null;
+
+          const missingColumn = missingColumnMatch?.[1];
+
+          // Remove only the reported column if we can parse it; otherwise, strip all optional columns and retry.
+          const columnsToStrip = missingColumn
+            ? [missingColumn]
+            : optionalColumns.filter((col) => Object.prototype.hasOwnProperty.call(insertPayload, col));
+
+          let stripped = false;
+          for (const col of columnsToStrip) {
+            if (Object.prototype.hasOwnProperty.call(insertPayload, col)) {
+              if (col === 'brand' && params.brand) {
+                const currentName = String(insertPayload.item_name || formattedName).trim();
+                if (!currentName.includes(' - ')) {
+                  insertPayload.item_name = `${params.brand.trim()} - ${currentName}`;
+                }
+              }
+              delete insertPayload[col];
+              stripped = true;
             }
           }
-          delete insertPayload[missingColumn];
-          continue;
+
+          if (stripped) continue;
         }
         break;
       }

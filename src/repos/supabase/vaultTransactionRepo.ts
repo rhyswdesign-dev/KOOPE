@@ -90,6 +90,16 @@ export async function getUserVaultProfile(userId: string): Promise<UserVaultProf
       updatedAt: new Date(row.updated_at),
     };
   } catch (error) {
+    const isNetworkError =
+      error instanceof TypeError &&
+      typeof error.message === 'string' &&
+      error.message.toLowerCase().includes('network request failed');
+
+    if (isNetworkError) {
+      log.warn('VaultTransactionRepo', 'Network issue getting vault profile', error);
+      return null;
+    }
+
     log.error('VaultTransactionRepo', 'Failed to get vault profile', error);
     throw new Error('Failed to get vault profile');
   }
@@ -139,6 +149,26 @@ export async function createUserVaultProfile(userId: string): Promise<UserVaultP
       updatedAt: new Date(row.updated_at),
     };
   } catch (error) {
+    const isNetworkError =
+      error instanceof TypeError &&
+      typeof error.message === 'string' &&
+      error.message.toLowerCase().includes('network request failed');
+
+    if (isNetworkError) {
+      log.warn('VaultTransactionRepo', 'Network issue creating vault profile', error);
+      return {
+        userId,
+        xpBalance: 0,
+        vaultCashBalance: 0,
+        totalXpEarned: 0,
+        totalXpSpent: 0,
+        totalCashSpent: 0,
+        unlockedItems: [],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+    }
+
     log.error('VaultTransactionRepo', 'Failed to create vault profile', error);
     throw new Error('Failed to create vault profile');
   }

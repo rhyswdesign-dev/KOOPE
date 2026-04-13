@@ -166,6 +166,27 @@ export default function AIRecipeFormatScreen() {
       setLoading(true);
       setError(null);
 
+      // OCR / scanned text path — no URL needed
+      if (!urlToProcess && recipe?.extractedText) {
+        const input: RecipeInput = {
+          title: recipe.title || 'Scanned Recipe',
+          imageUrl: recipe.imageUrl,
+          extractedText: recipe.extractedText,
+          userNotes: recipe.userNotes,
+          fromMenu: recipe.fromMenu ?? false,
+        };
+        const result = await AIRecipeFormatter.formatRecipe(input);
+        const ratioDefaults = maybeApplyEstimatedRatios({
+          title: result.title,
+          ingredients: result.ingredients || [],
+        });
+        setFormattedRecipe({ ...result, ingredients: ratioDefaults.nextIngredients });
+        setRatioProfile(ratioDefaults.ratioProfile);
+        setRatioEstimated(ratioDefaults.ratioEstimated);
+        setRatioEditorState(ratioDefaults.editorState);
+        return;
+      }
+
       if (!urlToProcess) {
         throw new Error('No URL provided for recipe extraction');
       }
