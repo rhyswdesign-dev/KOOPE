@@ -58,7 +58,7 @@ export const TIERS: TierBenefit[] = [
       'Unlimited Bottles & Scans',
       'Advanced Filters & Full Library',
       'Save Favorites Unlimited',
-      'Smart Inventory & Bar Health',
+      'Smart Shelf & Bar Health',
       '"Optimize My Bar" Analysis',
       'Basic Hosting Tools',
     ],
@@ -103,11 +103,11 @@ export interface FeatureComparison {
 }
 
 export const FEATURE_COMPARISON: FeatureComparison[] = [
-  // Inventory
-  { label: 'Bottles', free: '10 Max', plus: 'Unlimited', pro: 'Unlimited' },
+  // Shelf
+  { label: 'Shelf Bottles', free: '10 Max', plus: 'Unlimited', pro: 'Unlimited' },
   { label: 'Scans', free: 'Unlimited', plus: 'Unlimited', pro: 'Unlimited' },
   { label: 'Multi-Bar Profiles', free: false, plus: '2 Bars', pro: 'Unlimited' },
-  { label: 'Smart Inventory', free: false, plus: 'Bar Health + Expiry Alerts', pro: 'Full (Dead Bottle, Usage, Cost)' },
+  { label: 'Smart Shelf', free: false, plus: 'Bar Health + Expiry Alerts', pro: 'Full (Dead Bottle, Usage, Cost)' },
   { label: '"Optimize My Bar"', free: false, plus: 'Analysis + Suggestions', pro: 'Analysis + Suggestions' },
   // Discovery
   { label: 'Cocktail Library', free: 'Limited', plus: 'Full Library', pro: 'Full Library' },

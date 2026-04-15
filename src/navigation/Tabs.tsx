@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import LessonsStack from './LessonsStack';
 import RecipesStack from './RecipesStack';
 import CameraStack from './CameraStack';
-import InventoryStack from './InventoryStack';
+import InventoryStack from './ShelfStack';
 import ProfileStack from './ProfileStack';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/tokens';
@@ -20,7 +20,7 @@ type TabsParamList = {
   Lessons: undefined;
   Recipes: undefined;
   Camera: undefined;
-  Inventory: undefined;
+  Shelf: undefined;
   Profile: undefined;
 };
 const Tab = createBottomTabNavigator<TabsParamList>();
@@ -43,7 +43,7 @@ export default function Tabs() {
     Lessons: 'tab_lessons',
     Recipes: 'tab_discover',
     Camera: 'tab_camera',
-    Inventory: 'tab_inventory',
+    Shelf: 'tab_inventory',
     Profile: 'tab_profile',
   };
 
@@ -61,7 +61,7 @@ export default function Tabs() {
               Lessons: 'school-outline',
               Recipes: 'restaurant-outline',
               Camera: 'camera-outline',
-              Inventory: 'wine-outline',
+              Shelf: 'wine-outline',
               Profile: 'person-outline',
             };
             return <Ionicons name={map[route.name]} size={size} color={color} />;
@@ -94,7 +94,7 @@ export default function Tabs() {
             };
           }}
         />
-        <Tab.Screen name="Inventory" component={InventoryStack} />
+        <Tab.Screen name="Shelf" component={InventoryStack} options={{ tabBarLabel: 'Your Shelf' }} />
         <Tab.Screen name="Profile" component={ProfileStack} />
       </Tab.Navigator>
       {showTutorialIcons && (

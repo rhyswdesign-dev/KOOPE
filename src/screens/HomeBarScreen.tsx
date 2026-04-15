@@ -814,16 +814,10 @@ export default function HomeBarScreen() {
       filtered = filtered.slice(0, TIER_LIMITS.FREE.maxBottles);
     }
 
-    const lowStock = filtered.filter(
-      (item) => (item as InventoryItem).quantity === 'low' || (item as InventoryItem).quantity === 'empty'
-    );
-    const rest = filtered.filter(
-      (item) => (item as InventoryItem).quantity !== 'low' && (item as InventoryItem).quantity !== 'empty'
-    );
-    return { lowStock, rest, all: filtered };
+    return { all: filtered };
   };
 
-  const { lowStock, rest, all } = getFilteredInventory();
+  const { all } = getFilteredInventory();
 
   const categoryDisplayMap: Record<string, string> = {
     spirit: 'Spirit',
@@ -973,37 +967,13 @@ export default function HomeBarScreen() {
     setShowCustomInput(false);
   };
 
-  const openManualEntryWizard = () => {
-    resetManualEntry();
-    setShowManualEntryModal(true);
-  };
-
-  // Calculate stats
-  const spiritCount = homeBar.ingredients.filter(i => i.category === 'spirit').length;
-  const mixerCount = homeBar.ingredients.filter(i => i.category === 'mixer').length;
-  const totalRecipes = Math.max(12, homeBar.ingredients.length * 2); // Mock calculation
-
   const handleSeeRecipes = () => {
     nav.navigate('WhatCanIMake');
   };
 
-  const handleAddIngredient = async () => {
-    if (!user) {
-      Alert.alert('Sign In Required', 'Please sign in to add items to your inventory');
-      return;
-    }
-
-    // Trigger T1 as soon as user taps "+" when Free tier is at/over cap.
-    if (tier === 'FREE') {
-      const count = await InventoryService.getInventoryCount(user.id);
-      const localCount = homeBar.ingredients.length;
-      if (Math.max(count, localCount) >= TIER_LIMITS.FREE.maxBottles) {
-        inventoryGate('T1');
-        return;
-      }
-    }
-
-    openManualEntryWizard();
+  const handleAddIngredient = () => {
+    // Shelf items are added only via scan — route to SmartScan.
+    (nav as any).navigate('Camera', { screen: 'SmartScan' });
   };
 
   const handleInventoryHeaderMenu = () => {
@@ -1527,7 +1497,7 @@ export default function HomeBarScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <MainPageHeader
-        title="Inventory"
+        title="Your Shelf"
         subtitle={`${all.length} item${all.length !== 1 ? 's' : ''}`}
         onTitlePress={withHaptic(handleInventoryHeaderMenu, 'selection')}
         leftContent={(
@@ -1537,9 +1507,9 @@ export default function HomeBarScreen() {
         )}
         rightActions={[
           {
-            icon: 'add',
-            onPress: handleAddIngredient,
-            accessibilityLabel: 'Add ingredient',
+            icon: 'scan-outline',
+            onPress: () => (nav as any).navigate('Camera', { screen: 'SmartScan' }),
+            accessibilityLabel: 'Scan a bottle',
           },
           {
             icon: 'cart-outline',
@@ -1562,15 +1532,15 @@ export default function HomeBarScreen() {
             onPress={() => setShowInventorySwitcher(false)}
           />
           <View style={styles.inventorySwitcherMenu}>
-            <Text style={styles.barDropdownSubtitle}>Choose your inventory view</Text>
+            <Text style={styles.barDropdownSubtitle}>Choose your view</Text>
             <TouchableOpacity
               style={[styles.barDropdownItem, styles.activeBarOption]}
               onPress={withHaptic(() => setShowInventorySwitcher(false), 'selection')}
             >
               <Ionicons name="layers-outline" size={18} color={colors.gold} />
               <View style={{ flex: 1 }}>
-                <Text style={styles.barDropdownItemTitle}>Inventory</Text>
-                <Text style={styles.barDropdownItemMeta}>Everyday bottles, mixers, garnish, and ingredients</Text>
+                <Text style={styles.barDropdownItemTitle}>Your Shelf</Text>
+                <Text style={styles.barDropdownItemMeta}>Everything you've scanned and added</Text>
               </View>
               <Text style={styles.activeBarLabel}>Current</Text>
             </TouchableOpacity>
@@ -1599,9 +1569,9 @@ export default function HomeBarScreen() {
         style={styles.content}
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
-        onScrollBeginDrag={(event) => {
+        onScrollBeginDrag={() => {
           if (showInventorySwitcher) setShowInventorySwitcher(false);
-          onScrollHaptic(event);
+          onScrollHaptic();
         }}
       >
         {/* Feature Cards — horizontal FlatList avoids nested-ScrollView gesture conflicts */}
@@ -1668,50 +1638,46 @@ export default function HomeBarScreen() {
           </View>
         )}
 
-        {/* Low Stock Section */}
-        {lowStock.length > 0 && (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <View style={styles.sectionHeaderLine} />
-              <Ionicons name="warning" size={11} color={colors.gold} />
-              <Text style={styles.sectionTitle}>LOW STOCK</Text>
-              <View style={styles.sectionHeaderLine} />
-            </View>
-            <View style={styles.grid}>
-              {lowStock.map(renderInventoryCard)}
-            </View>
-          </View>
-        )}
-
         {/* All Items or Filtered Items */}
-        {rest.length > 0 && (
+        {all.length > 0 && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <View style={styles.sectionHeaderLine} />
               <Text style={styles.sectionTitle}>
-                {(activeCategory === 'all' ? 'ALL ITEMS' : (categories.find(c => c.key === activeCategory)?.label || 'ITEMS')).toUpperCase()}
+                {(activeCategory === 'all' ? 'YOUR SHELF' : (categories.find(c => c.key === activeCategory)?.label || 'ITEMS')).toUpperCase()}
               </Text>
               <View style={styles.sectionHeaderLine} />
             </View>
             <View style={styles.grid}>
-              {rest.map(renderInventoryCard)}
+              {all.map(renderInventoryCard)}
             </View>
           </View>
         )}
 
-        {all.length === 0 && (
+        {all.length === 0 && !searchQuery.trim() && (
+          <View style={styles.emptyShelf}>
+            <Ionicons name="scan-outline" size={52} color={colors.accent} style={{ marginBottom: 20 }} />
+            <Text style={styles.emptyShelfTitle}>Your shelf is empty</Text>
+            <Text style={styles.emptyShelfBody}>
+              Scan anything to start.{'\n'}A bottle at home, one at the store, something behind the bar.
+            </Text>
+            <TouchableOpacity
+              style={styles.emptyShelfButton}
+              onPress={withHaptic(() => (nav as any).navigate('Camera', { screen: 'SmartScan' }))}
+            >
+              <Ionicons name="camera-outline" size={18} color={colors.bg} />
+              <Text style={styles.emptyShelfButtonText}>Scan a Bottle</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {all.length === 0 && !!searchQuery.trim() && (
           <EmptyState
-            icon="glass-cocktail"
-            title="No items found"
-            message={searchQuery ? 'Try a different search term' : 'Add items to your inventory to get started'}
-            actionLabel={searchQuery ? "Clear Search" : "Explore Recipes"}
-            onAction={() => {
-              if (searchQuery) {
-                setSearchQuery('');
-              } else {
-                (nav as any).navigate('Recipes');
-              }
-            }}
+            icon="magnify"
+            title="No results"
+            message="Try a different name or brand"
+            actionLabel="Clear Search"
+            onAction={() => setSearchQuery('')}
           />
         )}
 
@@ -2308,7 +2274,7 @@ export default function HomeBarScreen() {
             style={styles.searchScreen}
           >
             <View style={styles.searchScreenHeader}>
-              <Text style={styles.searchScreenTitle}>Search Inventory</Text>
+              <Text style={styles.searchScreenTitle}>Search Your Shelf</Text>
               <TouchableOpacity style={styles.searchHeaderCloseButton} onPress={withHaptic(closeSearchModal, 'selection')}>
                 <Ionicons name="close" size={22} color={colors.text} />
               </TouchableOpacity>
@@ -3310,18 +3276,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.text,
   },
-  itemDetailsContainer: {
-    backgroundColor: colors.bg,
-    padding: spacing(2.5),
-    borderRadius: radii.lg,
-    marginBottom: spacing(2),
-    gap: spacing(1),
-  },
-  itemDetail: {
-    fontSize: 14,
-    color: colors.text,
-    fontWeight: '500',
-  },
   favoriteToggle: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -3603,5 +3557,40 @@ const styles = StyleSheet.create({
   cellarQuantityChipTextActive: {
     color: colors.accent,
     fontWeight: '700',
+  },
+  emptyShelf: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing(6),
+    paddingVertical: spacing(10),
+  },
+  emptyShelfTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: spacing(1.5),
+    textAlign: 'center',
+  },
+  emptyShelfBody: {
+    fontSize: 15,
+    color: colors.subtext,
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: spacing(4),
+  },
+  emptyShelfButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(1),
+    backgroundColor: colors.accent,
+    borderRadius: radii.lg,
+    paddingHorizontal: spacing(4),
+    paddingVertical: spacing(2),
+  },
+  emptyShelfButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.bg,
   },
 });

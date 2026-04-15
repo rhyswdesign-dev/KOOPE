@@ -183,14 +183,15 @@ export default function SmartScanScreen() {
         if (status === 'invalid_barcode') {
           Alert.alert(
             'Unsupported Barcode',
-            'This code format is not supported for bottle lookup yet. Try another angle or add the bottle manually.',
+            'This code format is not supported for bottle lookup yet. Try scanning the label instead.',
             [
               {
-                text: 'Add Manually',
-                onPress: () => navigation.navigate('ManualBottleEntry', {}),
+                text: 'Scan Label',
+                onPress: () => { setBarcodeMode(false); handleRetake(); },
               },
               {
-                text: 'Scan Again',
+                text: 'Cancel',
+                style: 'cancel',
                 onPress: () => handleRetake(),
               },
             ]
@@ -198,10 +199,10 @@ export default function SmartScanScreen() {
         } else if (status === 'network_error') {
           Alert.alert(
             'Lookup Service Unavailable',
-            'We could not reach barcode lookup services. Check your connection and try again, or add manually.',
+            'We could not reach barcode lookup services. Check your connection and try again.',
             [
-              { text: 'Add Manually', onPress: () => navigation.navigate('ManualBottleEntry', {}) },
               { text: 'Try Again', onPress: () => handleRetake() },
+              { text: 'Cancel', style: 'cancel', onPress: () => navigation.goBack() },
             ]
           );
         } else if (spirit) {
@@ -225,16 +226,8 @@ export default function SmartScanScreen() {
           const labelForAlert = productName ? `"${productName}"` : `barcode ${barcode || result.data}`;
           Alert.alert(
             'Bottle Not Found Yet',
-            `We found ${labelForAlert} but it is not in our database yet.\n\nTip: you can add it manually now with pre-filled fields, or try scanning the label/front of bottle.`,
+            `We found ${labelForAlert} but it's not in our database yet.\n\nManual search is coming soon — try scanning the label for more detail.`,
             [
-              {
-                text: 'Add Manually',
-                onPress: () =>
-                  navigation.navigate('ManualBottleEntry', {
-                    initialBrand: prefill.brand,
-                    initialName: prefill.name,
-                  }),
-              },
               {
                 text: 'Scan Again',
                 onPress: () => handleRetake(),
@@ -435,7 +428,7 @@ export default function SmartScanScreen() {
   const handleBottleNotFound = () => {
     Alert.alert(
       'Bottle Not Recognised',
-      'We couldn\'t identify this bottle from the label. Try scanning the barcode on the back for an exact match.',
+      'We couldn\'t identify this bottle. Try scanning the barcode on the back, or point the camera directly at the label in good light.',
       [
         {
           text: 'Scan Barcode',
@@ -446,12 +439,8 @@ export default function SmartScanScreen() {
           },
         },
         {
-          text: 'Try Label Again',
+          text: 'Try Again',
           onPress: () => handleRetake(),
-        },
-        {
-          text: 'Add Manually',
-          onPress: () => navigation.navigate('ManualBottleEntry', {}),
         },
         { text: 'Cancel', style: 'cancel', onPress: () => navigation.goBack() },
       ]
