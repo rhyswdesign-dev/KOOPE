@@ -265,8 +265,6 @@ export default function BottleDetailScreen() {
   const [loadingCocktails, setLoadingCocktails] = useState(true);
   const [inventoryItem, setInventoryItem] = useState<UserInventoryItem | null>(null);
   const [cellarModalVisible, setCellarModalVisible] = useState(false);
-  const [inventoryConfirmVisible, setInventoryConfirmVisible] = useState(false);
-  const [inventoryConfirmData, setInventoryConfirmData] = useState<{ bottleName: string; xpEarned: number } | null>(null);
   const [savingCellar, setSavingCellar] = useState(false);
   const [cellarExpanded, setCellarExpanded] = useState(false);
   const [purchasePriceInput, setPurchasePriceInput] = useState('');
@@ -561,12 +559,11 @@ export default function BottleDetailScreen() {
     fetchCocktails();
   }, [bottle, bottle.type, bottle.name, user, tier, isCocktailUnlockedWithXP, isRecipeUnlockedWithEngagement, serveRecommendation]);
 
-  const handleAddToInventory = async () => {
-    // Check if user is signed in
+  const handleAddToShelf = async () => {
     if (!user) {
       Alert.alert(
         'Sign In Required',
-        'Please sign in to add bottles to your inventory.',
+        'Please sign in to add bottles to your shelf.',
         [
           { text: 'Sign In', onPress: () => navigation.navigate('Settings') },
           { text: 'Cancel', style: 'cancel' },
@@ -575,7 +572,6 @@ export default function BottleDetailScreen() {
       return;
     }
 
-    // T1: Check inventory limit for free users
     if (tier === 'FREE') {
       const count = await InventoryService.getInventoryCount(user.id);
       if (count >= TIER_LIMITS.FREE.maxBottles) {
@@ -584,7 +580,6 @@ export default function BottleDetailScreen() {
       }
     }
 
-    // Add bottle to Supabase inventory
     const result = await InventoryService.addToInventory({
       userId: user.id,
       itemType: 'spirit',
@@ -602,32 +597,21 @@ export default function BottleDetailScreen() {
     });
 
     if (result.duplicate) {
-      Alert.alert(
-        'Already in Inventory',
-        `${bottle.name} is already in your inventory!`,
-        [{ text: 'OK' }]
-      );
+      // Already there — just reflect that in state silently
+      setInventoryItem({ id: 'existing', item_name: bottle.name } as any);
       return;
     }
 
     if (!result.success) {
-      Alert.alert(
-        'Error',
-        'Failed to add to inventory. Please try again.',
-        [{ text: 'OK' }]
-      );
+      Alert.alert('Error', 'Failed to add to shelf. Please try again.');
       return;
     }
 
+    // Silently update shelf state — no modal, no XP celebration
+    setInventoryItem({ id: 'added', item_name: bottle.name } as any);
     challengeProgressService.trackAddToInventory(user.id, bottle.id || bottle.name);
     achievementService.trackAction('homeBarIngredients');
-
-    // Award XP for scanning/adding this bottle (50 XP first time, 5 XP repeats)
-    const { xpEarned } = earnScanXP(bottle.id);
-    const xpLine = xpEarned > 0 ? `\n\n+${xpEarned} XP earned` : '';
-
-    setInventoryConfirmData({ bottleName: bottle.name, xpEarned });
-    setInventoryConfirmVisible(true);
+    earnScanXP(bottle.id);
   };
 
   const handleFindNearby = async () => {
@@ -881,6 +865,22 @@ export default function BottleDetailScreen() {
           </View>
         )}
 
+        {/* Flavour strip — horizontal scrollable pills */}
+        {bottleProfile.flavorProfile.length > 0 && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.flavourStrip}
+            contentContainerStyle={styles.flavourStripContent}
+          >
+            {bottleProfile.flavorProfile.map((flavour, i) => (
+              <View key={i} style={styles.flavourPill}>
+                <Text style={styles.flavourPillText}>{flavour}</Text>
+              </View>
+            ))}
+          </ScrollView>
+        )}
+
         {/* Price Estimate */}
         <View style={styles.priceCard}>
           <View style={styles.priceHeader}>
@@ -1065,57 +1065,81 @@ export default function BottleDetailScreen() {
           </View>
         )}
 
-        {/* Actions */}
-        <View style={[styles.actions, { marginBottom: Math.max(insets.bottom, spacing(2)) }]}>
-          <TouchableOpacity
-            style={styles.primaryButton}
-            onPress={handleAddToInventory}
-          >
-            <Ionicons name="add-circle" size={20} color={colors.white} />
-            <Text style={styles.primaryButtonText}>Add to Inventory</Text>
-          </TouchableOpacity>
+        {/* What else do I need? — missing ingredients for top 3 recipes */}
+        {!loadingCocktails && user && suggestedCocktails.some(c => c.match?.missingIngredients?.length > 0) && (
+          <View style={styles.missingSection}>
+            <Text style={styles.missingSectionTitle}>What else do I need?</Text>
+            {suggestedCocktails.slice(0, 3).map((cocktail) => {
+              const missing: string[] = cocktail.match?.missingIngredients ?? [];
+              if (missing.length === 0) return null;
+              return (
+                <View key={cocktail.id} style={styles.missingRow}>
+                  <Text style={styles.missingRecipeName} numberOfLines={1}>{cocktail.name}</Text>
+                  <View style={styles.missingIngredients}>
+                    {missing.slice(0, 3).map((ing, i) => (
+                      <View key={i} style={styles.missingPill}>
+                        <Text style={styles.missingPillText}>{ing}</Text>
+                      </View>
+                    ))}
+                    {missing.length > 3 && (
+                      <Text style={styles.missingMore}>+{missing.length - 3} more</Text>
+                    )}
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+        )}
 
+        {/* Secondary actions row */}
+        <View style={[styles.secondaryActions, { marginBottom: spacing(1) }]}>
           <TouchableOpacity
-            style={styles.tryAnotherButton}
+            style={styles.secondaryButton}
             onPress={handleTryAnother}
           >
-            <Ionicons name="camera" size={20} color={colors.text} />
-            <Text style={styles.tryAnotherButtonText}>Try Another</Text>
+            <Ionicons name="camera-outline" size={20} color={colors.accent} />
+            <Text style={styles.secondaryButtonText}>Scan Again</Text>
           </TouchableOpacity>
 
-          <View style={styles.secondaryActions}>
-            <TouchableOpacity
-              style={styles.secondaryButton}
-              onPress={handleFindNearby}
-            >
-              <Ionicons name="location-outline" size={20} color={colors.accent} />
-              <Text style={styles.secondaryButtonText}>Find Nearby</Text>
-            </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.secondaryButton}
+            onPress={handleFindNearby}
+          >
+            <Ionicons name="location-outline" size={20} color={colors.accent} />
+            <Text style={styles.secondaryButtonText}>Find Nearby</Text>
+          </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.secondaryButton}
-              onPress={handleShareFind}
-            >
-              <Ionicons name="share-outline" size={20} color={colors.accent} />
-              <Text style={styles.secondaryButtonText}>Share Find</Text>
-            </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.secondaryButton}
+            onPress={handleShareFind}
+          >
+            <Ionicons name="share-outline" size={20} color={colors.accent} />
+            <Text style={styles.secondaryButtonText}>Share</Text>
+          </TouchableOpacity>
+        </View>
 
-            <TouchableOpacity
-              style={styles.secondaryButton}
-              onPress={handleLearnMore}
-            >
-              <Ionicons name="information-circle-outline" size={20} color={colors.accent} />
-              <Text style={styles.secondaryButtonText}>Learn More</Text>
-            </TouchableOpacity>
+        {/* Wrong Result — small text link */}
+        <TouchableOpacity style={styles.wrongResultLink} onPress={handleWrongResult}>
+          <Text style={styles.wrongResultLinkText}>Wrong bottle? Clear result</Text>
+        </TouchableOpacity>
 
+        {/* Shelf action — bottom, context-aware */}
+        <View style={[styles.shelfAction, { paddingBottom: Math.max(insets.bottom, spacing(3)) }]}>
+          {inventoryItem ? (
+            <View style={styles.shelfActionConfirmed}>
+              <Ionicons name="checkmark-circle" size={18} color={colors.gold} />
+              <Text style={styles.shelfActionConfirmedText}>In your shelf</Text>
+            </View>
+          ) : (
             <TouchableOpacity
-              style={styles.secondaryButton}
-              onPress={handleWrongResult}
+              style={styles.shelfActionButton}
+              onPress={handleAddToShelf}
+              activeOpacity={0.85}
             >
-              <Ionicons name="alert-circle-outline" size={20} color={colors.subtext} />
-              <Text style={[styles.secondaryButtonText, { color: colors.subtext }]}>Wrong Result?</Text>
+              <Ionicons name="add-circle-outline" size={18} color={colors.text} />
+              <Text style={styles.shelfActionButtonText}>Add to Shelf</Text>
             </TouchableOpacity>
-          </View>
+          )}
         </View>
 
         {false && <View style={[
@@ -1258,40 +1282,7 @@ export default function BottleDetailScreen() {
         </View>
       </ScrollView>
 
-      <Modal visible={inventoryConfirmVisible} transparent animationType="fade" onRequestClose={() => setInventoryConfirmVisible(false)}>
-        <View style={styles.invConfirmBackdrop}>
-          <View style={styles.invConfirmCard}>
-            <View style={styles.invConfirmIcon}>
-              <Ionicons name="checkmark" size={28} color={colors.gold} />
-            </View>
-            <Text style={styles.invConfirmTitle}>Added to Your Bar</Text>
-            <Text style={styles.invConfirmBottleName}>{inventoryConfirmData?.bottleName}</Text>
-            {inventoryConfirmData && inventoryConfirmData.xpEarned > 0 && (
-              <View style={styles.invConfirmXP}>
-                <Ionicons name="flash" size={13} color={colors.gold} />
-                <Text style={styles.invConfirmXPText}>+{inventoryConfirmData.xpEarned} XP earned</Text>
-              </View>
-            )}
-            <View style={styles.invConfirmActions}>
-              <TouchableOpacity
-                style={styles.invConfirmSecondary}
-                onPress={() => { setInventoryConfirmVisible(false); navigation.navigate('SmartScan'); }}
-              >
-                <Text style={styles.invConfirmSecondaryText}>Scan Another</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.invConfirmPrimary}
-                onPress={() => { setInventoryConfirmVisible(false); navigation.navigate('HomeBar'); }}
-              >
-                <Text style={styles.invConfirmPrimaryText}>View Bar</Text>
-              </TouchableOpacity>
-            </View>
-            <TouchableOpacity onPress={() => setInventoryConfirmVisible(false)} style={styles.invConfirmDismiss}>
-              <Text style={styles.invConfirmDismissText}>Done</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+      {/* inventoryConfirmModal removed — shelf add is now silent (v2) */}
 
       {false && <Modal visible={cellarModalVisible} transparent animationType="fade" onRequestClose={() => setCellarModalVisible(false)}>
         <View style={styles.cellarModalBackdrop}>
@@ -2346,5 +2337,115 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     color: colors.subtext,
+  },
+  // ── Flavour strip ──────────────────────────────────────────────────────────
+  flavourStrip: {
+    marginBottom: spacing(2),
+  },
+  flavourStripContent: {
+    paddingHorizontal: spacing(2),
+    gap: spacing(1),
+    flexDirection: 'row',
+  },
+  flavourPill: {
+    backgroundColor: `${colors.accent}18`,
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: `${colors.accent}35`,
+    paddingHorizontal: spacing(1.75),
+    paddingVertical: spacing(0.6),
+  },
+  flavourPillText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.gold,
+  },
+  // ── What else do I need ────────────────────────────────────────────────────
+  missingSection: {
+    backgroundColor: colors.card,
+    borderRadius: radii.lg,
+    padding: spacing(2),
+    marginBottom: spacing(2),
+    gap: spacing(1.5),
+  },
+  missingSectionTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: spacing(0.5),
+  },
+  missingRow: {
+    gap: spacing(0.75),
+  },
+  missingRecipeName: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.subtext,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  missingIngredients: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing(0.75),
+  },
+  missingPill: {
+    backgroundColor: colors.bg,
+    borderRadius: radii.sm,
+    borderWidth: 1,
+    borderColor: colors.line,
+    paddingHorizontal: spacing(1.25),
+    paddingVertical: spacing(0.4),
+  },
+  missingPillText: {
+    fontSize: 12,
+    color: colors.text,
+  },
+  missingMore: {
+    fontSize: 12,
+    color: colors.subtext,
+    alignSelf: 'center',
+  },
+  // ── Shelf action bar ───────────────────────────────────────────────────────
+  shelfAction: {
+    alignItems: 'center',
+    paddingTop: spacing(2),
+    paddingHorizontal: spacing(4),
+  },
+  shelfActionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(1),
+    paddingHorizontal: spacing(4),
+    paddingVertical: spacing(1.5),
+    borderRadius: radii.lg,
+    borderWidth: 1.5,
+    borderColor: colors.line,
+    backgroundColor: colors.card,
+  },
+  shelfActionButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  shelfActionConfirmed: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(0.75),
+  },
+  shelfActionConfirmedText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.gold,
+  },
+  // ── Wrong result link ──────────────────────────────────────────────────────
+  wrongResultLink: {
+    alignItems: 'center',
+    paddingVertical: spacing(1.5),
+  },
+  wrongResultLinkText: {
+    fontSize: 12,
+    color: colors.subtext,
+    textDecorationLine: 'underline',
   },
 });
