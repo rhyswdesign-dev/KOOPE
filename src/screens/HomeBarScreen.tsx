@@ -153,6 +153,7 @@ export default function HomeBarScreen() {
   const [editMode, setEditMode] = useState(false);
   const [editName, setEditName] = useState('');
   const [editBrand, setEditBrand] = useState('');
+  const [editCategory, setEditCategory] = useState<BarIngredient['category']>('spirit');
   const onScrollHaptic = useScrollHaptic('selection', 800);
 
   useLayoutEffect(() => {
@@ -454,6 +455,7 @@ export default function HomeBarScreen() {
     setEditMode(false);
     setEditName(item.name);
     setEditBrand(item.brand || '');
+    setEditCategory((item.category as BarIngredient['category']) || 'spirit');
     setShowItemOptionsModal(true);
   };
 
@@ -465,12 +467,20 @@ export default function HomeBarScreen() {
       name: trimmedName,
       brand: editBrand.trim() || undefined,
       notes: itemNoteDraft.trim() || undefined,
+      category: editCategory,
     };
     await syncItemMetadata(selectedItem, updates);
-    if (user?.id && itemNoteDraft.trim() !== (selectedItem.notes || '')) {
-      await InventoryService.updateInventoryItem(selectedItem.id, {
-        notes: itemNoteDraft.trim() || undefined,
-      }).catch(() => {});
+    if (user?.id) {
+      const serviceUpdates: Parameters<typeof InventoryService.updateInventoryItem>[1] = {};
+      if (itemNoteDraft.trim() !== (selectedItem.notes || '')) {
+        serviceUpdates.notes = itemNoteDraft.trim() || undefined;
+      }
+      if (editCategory !== selectedItem.category) {
+        serviceUpdates.category = editCategory;
+      }
+      if (Object.keys(serviceUpdates).length > 0) {
+        await InventoryService.updateInventoryItem(selectedItem.id, serviceUpdates).catch(() => {});
+      }
     }
     setEditMode(false);
   };
@@ -1254,6 +1264,31 @@ export default function HomeBarScreen() {
                   placeholder="Brand (optional)"
                   placeholderTextColor={colors.muted}
                 />
+                <Text style={styles.editFieldLabel}>Category</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: spacing(0.5) }}>
+                  <View style={styles.editCategoryRow}>
+                    {([
+                      { key: 'spirit', label: 'Spirit' },
+                      { key: 'liqueur', label: 'Liqueur' },
+                      { key: 'mixer', label: 'Mixer' },
+                      { key: 'bitters', label: 'Bitters' },
+                      { key: 'syrup', label: 'Syrup' },
+                      { key: 'garnish', label: 'Garnish' },
+                      { key: 'ingredient', label: 'Ingredient' },
+                      { key: 'other', label: 'Other' },
+                    ] as Array<{ key: BarIngredient['category']; label: string }>).map((opt) => (
+                      <TouchableOpacity
+                        key={opt.key}
+                        style={[styles.editCategoryChip, editCategory === opt.key && styles.editCategoryChipActive]}
+                        onPress={() => setEditCategory(opt.key)}
+                      >
+                        <Text style={[styles.editCategoryChipText, editCategory === opt.key && styles.editCategoryChipTextActive]}>
+                          {opt.label}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </ScrollView>
                 <Text style={styles.editFieldLabel}>Bar Note</Text>
                 <TextInput
                   style={[styles.editFieldInput, { minHeight: 64 }]}
@@ -2971,6 +3006,32 @@ const styles = StyleSheet.create({
     paddingVertical: spacing(1.5),
     fontSize: 15,
     color: colors.text,
+  },
+  editCategoryRow: {
+    flexDirection: 'row',
+    gap: spacing(1),
+    paddingBottom: spacing(0.5),
+  },
+  editCategoryChip: {
+    paddingHorizontal: spacing(2),
+    paddingVertical: spacing(1),
+    borderRadius: radii.pill,
+    borderWidth: 1.5,
+    borderColor: colors.line,
+    backgroundColor: 'transparent',
+  },
+  editCategoryChipActive: {
+    borderColor: colors.accent,
+    backgroundColor: colors.accent + '20',
+  },
+  editCategoryChipText: {
+    fontSize: 13,
+    color: colors.subtext,
+    fontWeight: '500',
+  },
+  editCategoryChipTextActive: {
+    color: colors.accent,
+    fontWeight: '700',
   },
   savedNoPriceText: {
     fontSize: 12,

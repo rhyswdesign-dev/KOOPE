@@ -363,6 +363,7 @@ export class InventoryService {
       drinkingWindowEnd?: string | null;
       cellarNotes?: string | null;
       valuationEstimate?: number | null;
+      category?: string;
     }
   ): Promise<boolean> {
     try {
@@ -373,6 +374,9 @@ export class InventoryService {
       }
       if (updates.notes !== undefined) {
         updatePayload.notes = updates.notes || null;
+      }
+      if (updates.category !== undefined) {
+        updatePayload.category = updates.category;
       }
       if (updates.quantity !== undefined) {
         updatePayload.quantity = updates.quantity || null;
