@@ -50,6 +50,8 @@ import { getCocktailImage } from '../../assets/images/cocktails';
 import RecipeCard from '../components/RecipeCard';
 import { ScanHistoryService } from '../services/scanHistoryService';
 import { trackEvent, ANALYTICS_EVENTS, ANALYTICS_PROPS } from '../lib/analytics';
+import { useWishlist, WISHLIST_FREE_CAP } from '../store/useWishlist';
+import { notificationService } from '../services/notificationService';
 
 type BottleDetailScreenNavigationProp = CompositeNavigationProp<
   NativeStackNavigationProp<CameraStackParamList, 'BottleDetail'>,
@@ -275,6 +277,14 @@ export default function BottleDetailScreen() {
   const [selectedQuantity, setSelectedQuantity] = useState<'full' | 'half' | 'low' | 'empty'>('full');
   // Stage 10 — scan feedback
   const [feedbackState, setFeedbackState] = useState<'pending' | 'confirmed' | 'dismissed'>('pending');
+
+  // Wishlist
+  const { saveToWishlist, isWishlisted, removeFromWishlist, addPriceEntry } = useWishlist();
+  const bottleWishlistId = bottle.id || `${bottle.name}_${bottle.brand}`.toLowerCase().replace(/\s+/g, '_');
+  const [wishlisted, setWishlisted] = useState(() => isWishlisted(bottleWishlistId));
+  const [showPricePrompt, setShowPricePrompt] = useState(false);
+  const [priceInput, setPriceInput] = useState('');
+  const [locationInput, setLocationInput] = useState('');
   const serveRecommendation = useMemo(
     () => BottleServeService.getRecommendation(bottle, tier),
     [bottle, tier]
@@ -374,7 +384,7 @@ export default function BottleDetailScreen() {
     trackEvent(ANALYTICS_EVENTS.SCAN_SUCCESS, {
       [ANALYTICS_PROPS.ITEM_NAME]: bottle.name,
       [ANALYTICS_PROPS.SCAN_TYPE]: 'bottle',
-      spirit_type: bottle.type || bottle.category || 'unknown',
+      spirit_type: bottle.type || 'unknown',
     });
   }, [bottle.id]);
 
@@ -612,6 +622,44 @@ export default function BottleDetailScreen() {
     challengeProgressService.trackAddToInventory(user.id, bottle.id || bottle.name);
     achievementService.trackAction('homeBarIngredients');
     earnScanXP(bottle.id);
+  };
+
+  const handleSaveToWishlist = () => {
+    const result = saveToWishlist(
+      { id: bottle.id, name: bottle.name, brand: bottle.brand, type: bottle.type, imageUri },
+    );
+    if (result === 'cap_reached') {
+      Alert.alert(
+        'Wishlist Full',
+        `You can save up to ${WISHLIST_FREE_CAP} bottles on the free plan. Upgrade for unlimited.`,
+        [
+          { text: 'Upgrade', onPress: () => (navigation as any).navigate('Paywall', { triggerId: 'T1' }) },
+          { text: 'Cancel', style: 'cancel' },
+        ]
+      );
+      return;
+    }
+    setWishlisted(true);
+    setShowPricePrompt(true);
+  };
+
+  const handleRemoveFromWishlist = () => {
+    removeFromWishlist(bottleWishlistId);
+    setWishlisted(false);
+  };
+
+  const handleSavePriceEntry = () => {
+    const price = parseFloat(priceInput.replace(/[^0-9.]/g, ''));
+    if (!isNaN(price) && price > 0 && locationInput.trim()) {
+      addPriceEntry(bottleWishlistId, {
+        price,
+        currency: userCurrency,
+        locationLabel: locationInput.trim(),
+      });
+    }
+    setPriceInput('');
+    setLocationInput('');
+    setShowPricePrompt(false);
   };
 
   const handleFindNearby = async () => {
@@ -1123,6 +1171,26 @@ export default function BottleDetailScreen() {
           <Text style={styles.wrongResultLinkText}>Wrong bottle? Clear result</Text>
         </TouchableOpacity>
 
+        {/* Wishlist link — only on scan results, only when not already on shelf */}
+        {imageUri && !inventoryItem && (
+          <View style={styles.wishlistRow}>
+            {wishlisted ? (
+              <>
+                <Ionicons name="bookmark" size={14} color={colors.accent} />
+                <Text style={styles.wishlistSavedText}>Saved to wishlist</Text>
+                <TouchableOpacity onPress={handleRemoveFromWishlist} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <Text style={styles.wishlistRemoveText}>Remove</Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <TouchableOpacity style={styles.wishlistLink} onPress={handleSaveToWishlist}>
+                <Ionicons name="bookmark-outline" size={14} color={colors.subtext} />
+                <Text style={styles.wishlistLinkText}>Not yours yet — save to wishlist</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
+
         {/* Shelf action — bottom, context-aware */}
         <View style={[styles.shelfAction, { paddingBottom: Math.max(insets.bottom, spacing(3)) }]}>
           {inventoryItem ? (
@@ -1289,6 +1357,57 @@ export default function BottleDetailScreen() {
       </ScrollView>
 
       {/* inventoryConfirmModal removed — shelf add is now silent (v2) */}
+
+      {/* Price prompt — appears after saving to wishlist */}
+      <Modal
+        visible={showPricePrompt}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowPricePrompt(false)}
+      >
+        <View style={styles.pricePromptOverlay}>
+          <View style={styles.pricePromptCard}>
+            <Text style={styles.pricePromptTitle}>Seen a price?</Text>
+            <Text style={styles.pricePromptSubtitle}>
+              Log where you spotted it and how much — you can compare stores later.
+            </Text>
+
+            <TextInput
+              style={styles.pricePromptInput}
+              value={priceInput}
+              onChangeText={setPriceInput}
+              placeholder={`Price (${userCurrency})`}
+              placeholderTextColor={colors.subtext}
+              keyboardType="decimal-pad"
+              returnKeyType="next"
+            />
+            <TextInput
+              style={styles.pricePromptInput}
+              value={locationInput}
+              onChangeText={setLocationInput}
+              placeholder="Store or location (e.g. Total Wine, Miami)"
+              placeholderTextColor={colors.subtext}
+              returnKeyType="done"
+              onSubmitEditing={handleSavePriceEntry}
+            />
+
+            <View style={styles.pricePromptActions}>
+              <TouchableOpacity
+                style={styles.pricePromptSkip}
+                onPress={() => setShowPricePrompt(false)}
+              >
+                <Text style={styles.pricePromptSkipText}>Skip</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.pricePromptSave}
+                onPress={handleSavePriceEntry}
+              >
+                <Text style={styles.pricePromptSaveText}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {false && <Modal visible={cellarModalVisible} transparent animationType="fade" onRequestClose={() => setCellarModalVisible(false)}>
         <View style={styles.cellarModalBackdrop}>
@@ -2458,5 +2577,93 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.subtext,
     textDecorationLine: 'underline',
+  },
+  // ── Wishlist ──────────────────────────────────────────────────────────────
+  wishlistRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing(1),
+    paddingVertical: spacing(1),
+  },
+  wishlistLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(0.75),
+  },
+  wishlistLinkText: {
+    fontSize: 12,
+    color: colors.subtext,
+  },
+  wishlistSavedText: {
+    fontSize: 12,
+    color: colors.accent,
+  },
+  wishlistRemoveText: {
+    fontSize: 12,
+    color: colors.subtext,
+    textDecorationLine: 'underline',
+  },
+  // ── Price prompt modal ────────────────────────────────────────────────────
+  pricePromptOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing(3),
+  },
+  pricePromptCard: {
+    backgroundColor: colors.card,
+    borderRadius: radii.xl,
+    padding: spacing(3),
+    width: '100%',
+    gap: spacing(1.5),
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
+  pricePromptTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  pricePromptSubtitle: {
+    fontSize: 13,
+    color: colors.subtext,
+    lineHeight: 18,
+  },
+  pricePromptInput: {
+    backgroundColor: colors.bg,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: radii.md,
+    paddingHorizontal: spacing(2),
+    paddingVertical: spacing(1.5),
+    fontSize: 14,
+    color: colors.text,
+  },
+  pricePromptActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: spacing(2),
+    marginTop: spacing(0.5),
+  },
+  pricePromptSkip: {
+    paddingVertical: spacing(1),
+    paddingHorizontal: spacing(1.5),
+  },
+  pricePromptSkipText: {
+    fontSize: 14,
+    color: colors.subtext,
+  },
+  pricePromptSave: {
+    backgroundColor: colors.accent,
+    borderRadius: radii.md,
+    paddingVertical: spacing(1),
+    paddingHorizontal: spacing(2.5),
+  },
+  pricePromptSaveText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.bg,
   },
 });

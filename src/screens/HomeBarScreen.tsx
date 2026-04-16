@@ -42,12 +42,13 @@ import { BottleServeService } from '../services/bottleServeService';
 import { CellarService } from '../services/cellarService';
 import { notificationService } from '../services/notificationService';
 import { FeedbackPromptModal } from '../components/FeedbackPromptModal';
+import { useWishlist, WISHLIST_FREE_CAP } from '../store/useWishlist';
 
 // Import images from assets
 import * as Images from '../../assets/images';
 
 // Category definitions
-type InventoryCategory = 'spirits' | 'mixers' | 'garnishes' | 'ingredients' | 'liqueur' | 'bitters' | 'syrup' | 'other';
+type InventoryCategory = 'spirits' | 'mixers' | 'garnishes' | 'ingredients' | 'liqueur' | 'bitters' | 'syrup' | 'other' | 'saved';
 
 interface InventoryItem extends BarIngredient {
   purchase_price?: number | null;
@@ -96,6 +97,7 @@ export default function HomeBarScreen() {
   const { gate: expiryAlertsGate } = useFeatureAccess('expiry_alerts');
   const { gate: barHealthGate } = useFeatureAccess('bar_health_score');
   const { user } = useAuth();
+  const { items: wishlistItems, removeFromWishlist } = useWishlist();
 
   // Defined after gate hooks so closures capture the latest gate functions.
   // Using a flat array + FlatList (not nested ScrollView) avoids gesture conflicts.
@@ -271,6 +273,7 @@ export default function HomeBarScreen() {
     { key: 'mixers', label: 'Mixers', icon: 'water' },
     { key: 'garnishes', label: 'Garnishes', icon: 'leaf' },
     { key: 'ingredients', label: 'Ingredients', icon: 'nutrition' },
+    { key: 'saved', label: 'Saved', icon: 'bookmark-outline' },
   ];
 
   const getFilteredInventory = () => {
@@ -1037,62 +1040,143 @@ export default function HomeBarScreen() {
           </TouchableOpacity>
         )}
 
-        {favoriteItems.length > 0 && activeCategory === 'all' && !searchQuery.trim() && (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <View style={styles.sectionHeaderLine} />
-              <Ionicons name="star" size={11} color={colors.gold} />
-              <Text style={styles.sectionTitle}>FAVORITES</Text>
-              <View style={styles.sectionHeaderLine} />
-            </View>
-            <Text style={styles.sectionBodyText}>Keep your go-to bottles, mixers, and garnish staples easy to find.</Text>
-            <View style={styles.grid}>
-              {favoriteItems.map(renderInventoryCard)}
-            </View>
-          </View>
-        )}
-
-        {/* All Items or Filtered Items */}
-        {all.length > 0 && (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <View style={styles.sectionHeaderLine} />
-              <Text style={styles.sectionTitle}>
-                {(activeCategory === 'all' ? 'YOUR SHELF' : (categories.find(c => c.key === activeCategory)?.label || 'ITEMS')).toUpperCase()}
+        {activeCategory === 'saved' ? (
+          // ── Saved (Wishlist) tab ──────────────────────────────────────────
+          wishlistItems.length > 0 ? (
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <View style={styles.sectionHeaderLine} />
+                <Ionicons name="bookmark" size={11} color={colors.accent} />
+                <Text style={styles.sectionTitle}>SAVED</Text>
+                <View style={styles.sectionHeaderLine} />
+              </View>
+              <Text style={styles.sectionBodyText}>
+                Bottles you've spotted but haven't bought yet. Tap to see prices you've logged.
               </Text>
-              <View style={styles.sectionHeaderLine} />
+              <View style={styles.grid}>
+                {wishlistItems.map((item) => {
+                  const lowestEntry = item.priceEntries.length > 0
+                    ? item.priceEntries.reduce((a, b) => a.price < b.price ? a : b)
+                    : null;
+                  return (
+                    <View key={item.bottleId} style={[styles.inventoryCard, styles.spiritCard]}>
+                      <View style={styles.cardAccentStrip} />
+                      <View style={styles.cardImageContainer}>
+                        {item.imageUri ? (
+                          <Image source={{ uri: item.imageUri }} style={styles.cardImage} resizeMode="cover" />
+                        ) : (
+                          <View style={styles.cardIconWrap}>
+                            <Ionicons name="wine-outline" size={48} color={colors.accent} />
+                          </View>
+                        )}
+                        <View style={styles.cardFavBadge}>
+                          <Ionicons name="bookmark" size={10} color={colors.accent} />
+                        </View>
+                      </View>
+                      <View style={styles.cardContent}>
+                        <Text style={styles.cardTitle} numberOfLines={2}>{item.name}</Text>
+                        <Text style={styles.cardSubtitle} numberOfLines={1}>{item.brand}</Text>
+                        {lowestEntry ? (
+                          <View style={styles.cardPillRow}>
+                            <View style={styles.cardPill}>
+                              <Text style={styles.cardPillText}>
+                                {lowestEntry.currency} {lowestEntry.price.toFixed(0)} · {lowestEntry.locationLabel}
+                              </Text>
+                            </View>
+                          </View>
+                        ) : (
+                          <Text style={styles.savedNoPriceText}>No price logged yet</Text>
+                        )}
+                      </View>
+                      <TouchableOpacity
+                        style={styles.savedRemoveButton}
+                        onPress={withHaptic(() => removeFromWishlist(item.bottleId), 'selection')}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      >
+                        <Ionicons name="close-circle" size={18} color={colors.subtext} />
+                      </TouchableOpacity>
+                    </View>
+                  );
+                })}
+              </View>
             </View>
-            <View style={styles.grid}>
-              {all.map(renderInventoryCard)}
+          ) : (
+            <View style={styles.emptyShelf}>
+              <Ionicons name="bookmark-outline" size={52} color={colors.accent} style={{ marginBottom: 20 }} />
+              <Text style={styles.emptyShelfTitle}>Nothing saved yet</Text>
+              <Text style={styles.emptyShelfBody}>
+                Bottles you've spotted but haven't bought yet live here.{'\n'}Scan anything out in the world and save it.
+              </Text>
+              <TouchableOpacity
+                style={styles.emptyShelfButton}
+                onPress={withHaptic(() => (nav as any).navigate('Camera', { screen: 'SmartScan' }))}
+              >
+                <Ionicons name="camera-outline" size={18} color={colors.bg} />
+                <Text style={styles.emptyShelfButtonText}>Start Scanning</Text>
+              </TouchableOpacity>
             </View>
-          </View>
-        )}
+          )
+        ) : (
+          // ── Shelf tabs (All / Spirits / Liqueurs / etc.) ──────────────────
+          <>
+            {favoriteItems.length > 0 && activeCategory === 'all' && !searchQuery.trim() && (
+              <View style={styles.section}>
+                <View style={styles.sectionHeader}>
+                  <View style={styles.sectionHeaderLine} />
+                  <Ionicons name="star" size={11} color={colors.gold} />
+                  <Text style={styles.sectionTitle}>FAVORITES</Text>
+                  <View style={styles.sectionHeaderLine} />
+                </View>
+                <Text style={styles.sectionBodyText}>Keep your go-to bottles, mixers, and garnish staples easy to find.</Text>
+                <View style={styles.grid}>
+                  {favoriteItems.map(renderInventoryCard)}
+                </View>
+              </View>
+            )}
 
-        {all.length === 0 && !searchQuery.trim() && (
-          <View style={styles.emptyShelf}>
-            <Ionicons name="scan-outline" size={52} color={colors.accent} style={{ marginBottom: 20 }} />
-            <Text style={styles.emptyShelfTitle}>Your shelf is empty</Text>
-            <Text style={styles.emptyShelfBody}>
-              Scan anything to start.{'\n'}A bottle at home, one at the store, something behind the bar.
-            </Text>
-            <TouchableOpacity
-              style={styles.emptyShelfButton}
-              onPress={withHaptic(() => (nav as any).navigate('Camera', { screen: 'SmartScan' }))}
-            >
-              <Ionicons name="camera-outline" size={18} color={colors.bg} />
-              <Text style={styles.emptyShelfButtonText}>Scan a Bottle</Text>
-            </TouchableOpacity>
-          </View>
-        )}
+            {/* All Items or Filtered Items */}
+            {all.length > 0 && (
+              <View style={styles.section}>
+                <View style={styles.sectionHeader}>
+                  <View style={styles.sectionHeaderLine} />
+                  <Text style={styles.sectionTitle}>
+                    {(activeCategory === 'all' ? 'YOUR SHELF' : (categories.find(c => c.key === activeCategory)?.label || 'ITEMS')).toUpperCase()}
+                  </Text>
+                  <View style={styles.sectionHeaderLine} />
+                </View>
+                <View style={styles.grid}>
+                  {all.map(renderInventoryCard)}
+                </View>
+              </View>
+            )}
 
-        {all.length === 0 && !!searchQuery.trim() && (
-          <EmptyState
-            icon="magnify"
-            title="No results"
-            message="Try a different name or brand"
-            actionLabel="Clear Search"
-            onAction={() => setSearchQuery('')}
-          />
+            {all.length === 0 && !searchQuery.trim() && (
+              <View style={styles.emptyShelf}>
+                <Ionicons name="scan-outline" size={52} color={colors.accent} style={{ marginBottom: 20 }} />
+                <Text style={styles.emptyShelfTitle}>Your shelf is what you own</Text>
+                <Text style={styles.emptyShelfBody}>
+                  Scan a bottle at home to add it.{'\n'}Your shelf powers your recipes — only add what's actually in your bar.
+                </Text>
+                <TouchableOpacity
+                  style={styles.emptyShelfButton}
+                  onPress={withHaptic(() => (nav as any).navigate('Camera', { screen: 'SmartScan' }))}
+                >
+                  <Ionicons name="camera-outline" size={18} color={colors.bg} />
+                  <Text style={styles.emptyShelfButtonText}>Scan a Bottle</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {all.length === 0 && !!searchQuery.trim() && (
+              <EmptyState
+                icon="magnify"
+                title="No results"
+                message="Try a different name or brand"
+                actionLabel="Clear Search"
+                onAction={() => setSearchQuery('')}
+              />
+            )}
+          </>
         )}
 
         {/* Bottom Spacing */}
@@ -2805,5 +2889,16 @@ const styles = StyleSheet.create({
   },
   shelfCapCta: {
     color: colors.accent,
+  },
+  savedNoPriceText: {
+    fontSize: 12,
+    color: colors.subtext,
+    marginTop: spacing(0.5),
+    fontStyle: 'italic',
+  },
+  savedRemoveButton: {
+    position: 'absolute',
+    top: spacing(1),
+    right: spacing(1),
   },
 });
