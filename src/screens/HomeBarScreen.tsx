@@ -89,6 +89,7 @@ const mockHomeBar: HomeBar = {
 export default function HomeBarScreen() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { tier } = useUserTier();
+  const { gateWithTrigger: upgradeGate } = useFeatureAccess('inventory_unlimited');
   const { gateWithTrigger: hostingBasicGate } = useFeatureAccess('hosting_basic');
   const { gateWithTrigger: optimizeMyBarGate } = useFeatureAccess('optimize_my_bar');
   const { hasAccess: hasCellarMode, gateWithTrigger: cellarModeGate } = useFeatureAccess('cellar_mode');
@@ -1016,6 +1017,25 @@ export default function HomeBarScreen() {
             </TouchableOpacity>
           ))}
         </ScrollView>
+
+        {/* Shelf cap indicator — FREE tier only */}
+        {tier === 'FREE' && homeBar.ingredients.length > 0 && (
+          <TouchableOpacity
+            style={styles.shelfCapBar}
+            onPress={withHaptic(() => upgradeGate('T1'), 'selection')}
+            activeOpacity={0.8}
+          >
+            <View style={styles.shelfCapTrack}>
+              <View style={[styles.shelfCapFill, {
+                width: `${Math.min((homeBar.ingredients.length / TIER_LIMITS.FREE.maxBottles) * 100, 100)}%`,
+                backgroundColor: homeBar.ingredients.length >= TIER_LIMITS.FREE.maxBottles ? colors.error || '#ff4444' : colors.accent,
+              }]} />
+            </View>
+            <Text style={styles.shelfCapText}>
+              {homeBar.ingredients.length} / {TIER_LIMITS.FREE.maxBottles} bottles · <Text style={styles.shelfCapCta}>Upgrade for unlimited</Text>
+            </Text>
+          </TouchableOpacity>
+        )}
 
         {favoriteItems.length > 0 && activeCategory === 'all' && !searchQuery.trim() && (
           <View style={styles.section}>
@@ -2763,5 +2783,27 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: colors.bg,
+  },
+  shelfCapBar: {
+    marginHorizontal: spacing(2),
+    marginBottom: spacing(1.5),
+    gap: spacing(0.75),
+  },
+  shelfCapTrack: {
+    height: 3,
+    backgroundColor: colors.line,
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  shelfCapFill: {
+    height: '100%',
+    borderRadius: 2,
+  },
+  shelfCapText: {
+    fontSize: 11,
+    color: colors.subtext,
+  },
+  shelfCapCta: {
+    color: colors.accent,
   },
 });

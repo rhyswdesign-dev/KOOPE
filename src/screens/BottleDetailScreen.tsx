@@ -1129,6 +1129,12 @@ export default function BottleDetailScreen() {
             <View style={styles.shelfActionConfirmed}>
               <Ionicons name="checkmark-circle" size={18} color={colors.gold} />
               <Text style={styles.shelfActionConfirmedText}>In your shelf</Text>
+              <TouchableOpacity
+                onPress={() => (navigation as any).navigate('Shelf')}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Text style={styles.shelfActionViewLink}>View shelf →</Text>
+              </TouchableOpacity>
             </View>
           ) : (
             <TouchableOpacity
@@ -2437,6 +2443,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: colors.gold,
+    flex: 1,
+  },
+  shelfActionViewLink: {
+    fontSize: 12,
+    color: colors.accent,
   },
   // ── Wrong result link ──────────────────────────────────────────────────────
   wrongResultLink: {
