@@ -75,7 +75,7 @@ function hasCellarRecord(item: InventoryItem): boolean {
 }
 
 
-// Shelf is populated only from Supabase inventory (scan-only) — no mock data.
+// Empty initialiser — prevents null state on mount. Ingredients are loaded from Supabase.
 const mockHomeBar: HomeBar = {
   id: 'default',
   userId: '',
@@ -150,6 +150,9 @@ export default function HomeBarScreen() {
   const [cellarIntakeNotes, setCellarIntakeNotes] = useState('');
   const [cellarIntakeQuantity, setCellarIntakeQuantity] = useState<'full' | 'half' | 'low' | 'empty'>('full');
   const [savingCellarIntake, setSavingCellarIntake] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editBrand, setEditBrand] = useState('');
   const onScrollHaptic = useScrollHaptic('selection', 800);
 
   useLayoutEffect(() => {
@@ -323,27 +326,6 @@ export default function HomeBarScreen() {
     syrup: 'Syrup',
     other: 'Other',
   };
-  const categoryPlaceholderMap: Record<string, string> = {
-    spirit: 'e.g., Vodka',
-    liqueur: 'e.g., Cointreau',
-    mixer: 'e.g., Tonic Water',
-    bitters: 'e.g., Angostura Bitters',
-    syrup: 'e.g., Simple Syrup',
-    garnish: 'e.g., Lemon',
-    ingredient: 'e.g., Cinnamon',
-    other: 'e.g., House Blend',
-  };
-  const brandPlaceholderMap: Record<string, string> = {
-    spirit: 'e.g., Tito\'s',
-    liqueur: 'e.g., Cointreau',
-    mixer: 'e.g., Fever-Tree',
-    bitters: 'e.g., Angostura',
-    syrup: 'e.g., Monin',
-    garnish: 'e.g., Local Market',
-    ingredient: 'e.g., Organic Valley',
-    other: 'e.g., House Brand',
-  };
-
   const normalizeSearchValue = (value: string | string[] | undefined) => {
     if (!value) return '';
     if (Array.isArray(value)) return value.join(' ').toLowerCase();
@@ -469,7 +451,28 @@ export default function HomeBarScreen() {
   const handleItemPress = (item: InventoryItem) => {
     setSelectedItem(item);
     setItemNoteDraft(item.notes || '');
+    setEditMode(false);
+    setEditName(item.name);
+    setEditBrand(item.brand || '');
     setShowItemOptionsModal(true);
+  };
+
+  const handleSaveItemEdit = async () => {
+    if (!selectedItem) return;
+    const trimmedName = editName.trim();
+    if (!trimmedName) return;
+    const updates: Partial<InventoryItem> = {
+      name: trimmedName,
+      brand: editBrand.trim() || undefined,
+      notes: itemNoteDraft.trim() || undefined,
+    };
+    await syncItemMetadata(selectedItem, updates);
+    if (user?.id && itemNoteDraft.trim() !== (selectedItem.notes || '')) {
+      await InventoryService.updateInventoryItem(selectedItem.id, {
+        notes: itemNoteDraft.trim() || undefined,
+      }).catch(() => {});
+    }
+    setEditMode(false);
   };
 
   const syncItemMetadata = async (item: InventoryItem, updates: Partial<InventoryItem>) => {
@@ -973,7 +976,7 @@ export default function HomeBarScreen() {
         }}
       >
         {/* Feature Cards — horizontal FlatList avoids nested-ScrollView gesture conflicts */}
-        {all.length > 0 && (
+        {homeBar.ingredients.length > 0 && (
           <FlatList
             horizontal
             data={FEATURE_CARDS}
@@ -1203,9 +1206,26 @@ export default function HomeBarScreen() {
           <View style={styles.modalContent}>
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.modalScrollContent}>
             <View style={styles.modalHeader}>
-              <Heading level={2} style={styles.modalTitle}>{selectedItem?.name}</Heading>
-              <TouchableOpacity onPress={withHaptic(() => setShowItemOptionsModal(false), 'selection')}>
+              <TouchableOpacity onPress={withHaptic(() => { setShowItemOptionsModal(false); setEditMode(false); }, 'selection')}>
                 <Ionicons name="close" size={24} color={colors.text} />
+              </TouchableOpacity>
+              <Heading level={2} style={[styles.modalTitle, { flex: 1, textAlign: 'center' }]} numberOfLines={1}>
+                {editMode ? (editName || selectedItem?.name) : selectedItem?.name}
+              </Heading>
+              <TouchableOpacity
+                onPress={withHaptic(() => {
+                  if (editMode) {
+                    handleSaveItemEdit();
+                  } else {
+                    setEditMode(true);
+                  }
+                }, 'selection')}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                {editMode
+                  ? <Text style={styles.editDoneButton}>Done</Text>
+                  : <Ionicons name="create-outline" size={22} color={colors.accent} />
+                }
               </TouchableOpacity>
             </View>
 
@@ -1215,18 +1235,49 @@ export default function HomeBarScreen() {
               <Image source={getIngredientImage(selectedItem) as any} style={styles.inventoryDetailImage} resizeMode="cover" />
             ) : null}
 
-            <View style={styles.itemDetailsContainer}>
-              <Text style={styles.itemDetail}>Brand: {selectedBottleDetails?.brand || selectedItem?.brand || 'Unknown'}</Text>
-              <Text style={styles.itemDetail}>
-                Type: {selectedBottleDetails?.type ? String(selectedBottleDetails.type).replace(/\b\w/g, (letter) => letter.toUpperCase()) : selectedItem ? getCategoryDisplay(selectedItem) : 'Unknown'}
-              </Text>
-              <Text style={styles.itemDetail}>Volume: {selectedItem?.volume ? `${selectedItem.volume}ml` : 'Not set'}</Text>
-              {selectedBottleDetails?.abv && <Text style={styles.itemDetail}>ABV: {selectedBottleDetails.abv}%</Text>}
-              {selectedBottleDetails?.region && <Text style={styles.itemDetail}>Region: {selectedBottleDetails.region}</Text>}
-              {selectedItem && (
-                <Text style={styles.itemDetail}>{getInventoryInsight(selectedItem)}</Text>
-              )}
-            </View>
+            {editMode ? (
+              <View style={styles.editFieldsContainer}>
+                <Text style={styles.editFieldLabel}>Name</Text>
+                <TextInput
+                  style={styles.editFieldInput}
+                  value={editName}
+                  onChangeText={setEditName}
+                  placeholder="Bottle name"
+                  placeholderTextColor={colors.muted}
+                  autoFocus
+                />
+                <Text style={styles.editFieldLabel}>Brand</Text>
+                <TextInput
+                  style={styles.editFieldInput}
+                  value={editBrand}
+                  onChangeText={setEditBrand}
+                  placeholder="Brand (optional)"
+                  placeholderTextColor={colors.muted}
+                />
+                <Text style={styles.editFieldLabel}>Bar Note</Text>
+                <TextInput
+                  style={[styles.editFieldInput, { minHeight: 64 }]}
+                  value={itemNoteDraft}
+                  onChangeText={setItemNoteDraft}
+                  placeholder="Add a quick note"
+                  placeholderTextColor={colors.muted}
+                  multiline
+                />
+              </View>
+            ) : (
+              <View style={styles.itemDetailsContainer}>
+                <Text style={styles.itemDetail}>Brand: {selectedBottleDetails?.brand || selectedItem?.brand || 'Unknown'}</Text>
+                <Text style={styles.itemDetail}>
+                  Type: {selectedBottleDetails?.type ? String(selectedBottleDetails.type).replace(/\b\w/g, (letter) => letter.toUpperCase()) : selectedItem ? getCategoryDisplay(selectedItem) : 'Unknown'}
+                </Text>
+                <Text style={styles.itemDetail}>Volume: {selectedItem?.volume ? `${selectedItem.volume}ml` : 'Not set'}</Text>
+                {selectedBottleDetails?.abv && <Text style={styles.itemDetail}>ABV: {selectedBottleDetails.abv}%</Text>}
+                {selectedBottleDetails?.region && <Text style={styles.itemDetail}>Region: {selectedBottleDetails.region}</Text>}
+                {selectedItem && (
+                  <Text style={styles.itemDetail}>{getInventoryInsight(selectedItem)}</Text>
+                )}
+              </View>
+            )}
 
             {selectedBottleDetails ? (
               <View style={styles.inventoryBottleBrief}>
@@ -1273,24 +1324,26 @@ export default function HomeBarScreen() {
               </Text>
             </TouchableOpacity>
 
-            <View style={styles.noteBlock}>
-              <Text style={styles.noteLabel}>Bar Note</Text>
-              <TextInput
-                style={styles.noteInput}
-                value={itemNoteDraft}
-                onChangeText={setItemNoteDraft}
-                placeholder="Add a quick note like low stock, guest favorite, or replace soon"
-                placeholderTextColor={colors.muted}
-                multiline
-              />
-              <TouchableOpacity
-                style={styles.noteSaveButton}
-                onPress={withHaptic(handleSaveItemNotes, 'selection')}
-              >
-                <Ionicons name="create-outline" size={16} color={colors.accent} />
-                <Text style={styles.noteSaveButtonText}>Save note</Text>
-              </TouchableOpacity>
-            </View>
+            {!editMode && (
+              <View style={styles.noteBlock}>
+                <Text style={styles.noteLabel}>Bar Note</Text>
+                <TextInput
+                  style={styles.noteInput}
+                  value={itemNoteDraft}
+                  onChangeText={setItemNoteDraft}
+                  placeholder="Add a quick note like low stock, guest favorite, or replace soon"
+                  placeholderTextColor={colors.muted}
+                  multiline
+                />
+                <TouchableOpacity
+                  style={styles.noteSaveButton}
+                  onPress={withHaptic(handleSaveItemNotes, 'selection')}
+                >
+                  <Ionicons name="create-outline" size={16} color={colors.accent} />
+                  <Text style={styles.noteSaveButtonText}>Save note</Text>
+                </TouchableOpacity>
+              </View>
+            )}
 
             {selectedItem && isCellarEligible(selectedItem) ? (
               <View style={styles.inventoryCellarCard}>
@@ -2889,6 +2942,35 @@ const styles = StyleSheet.create({
   },
   shelfCapCta: {
     color: colors.accent,
+  },
+  editDoneButton: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.accent,
+  },
+  editFieldsContainer: {
+    paddingHorizontal: spacing(2),
+    paddingVertical: spacing(1),
+    gap: spacing(0.5),
+  },
+  editFieldLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.subtext,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    marginTop: spacing(1.5),
+    marginBottom: spacing(0.5),
+  },
+  editFieldInput: {
+    backgroundColor: colors.surface || colors.card,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: radii.md,
+    paddingHorizontal: spacing(2),
+    paddingVertical: spacing(1.5),
+    fontSize: 15,
+    color: colors.text,
   },
   savedNoPriceText: {
     fontSize: 12,
