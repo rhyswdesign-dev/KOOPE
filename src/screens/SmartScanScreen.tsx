@@ -428,8 +428,12 @@ export default function SmartScanScreen() {
   const handleBottleNotFound = () => {
     Alert.alert(
       'Bottle Not Recognised',
-      'We couldn\'t identify this bottle. Try scanning the barcode on the back, or point the camera directly at the label in good light.',
+      'We couldn\'t identify this bottle from the image. Try the barcode on the back, or search our bottle library to add it directly.',
       [
+        {
+          text: 'Search Library',
+          onPress: () => navigation.navigate('BottleSearch'),
+        },
         {
           text: 'Scan Barcode',
           onPress: () => {

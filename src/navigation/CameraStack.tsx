@@ -5,6 +5,7 @@ import IngredientScanScreen from '../screens/IngredientScanScreen';
 import RecipeURLImportScreen from '../screens/RecipeURLImportScreen';
 import SmartScanScreen from '../screens/SmartScanScreen';
 import BottleDetailScreen from '../screens/BottleDetailScreen';
+import BottleSearchScreen from '../screens/BottleSearchScreen';
 import type { Spirit } from '../data/spiritsDatabase';
 import { withScreenTour } from '../components/tour/withScreenTour';
 
@@ -12,6 +13,7 @@ export type CameraStackParamList = {
   CameraHub: undefined;
   SmartScan: undefined;
   BottleDetail: { bottle: Spirit; imageUri?: string };
+  BottleSearch: undefined;
   OCRCapture: undefined;
   IngredientScan: undefined;
   RecipeURLImport: { url?: string } | undefined;
@@ -44,6 +46,11 @@ export default function CameraStack() {
       <Stack.Screen
         name="BottleDetail"
         component={BottleDetailScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="BottleSearch"
+        component={BottleSearchScreen}
         options={{ headerShown: false }}
       />
       <Stack.Screen

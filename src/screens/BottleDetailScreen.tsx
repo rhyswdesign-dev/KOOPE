@@ -815,8 +815,18 @@ export default function BottleDetailScreen() {
           },
         },
         {
-          text: 'Manual search coming soon',
-          style: 'cancel',
+          text: 'Search Library',
+          onPress: async () => {
+            try {
+              const lookupKey = (bottle.id || bottle.name)
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, ' ')
+                .trim();
+              await supabase.from('spirits_cache').delete().eq('lookup_key', lookupKey);
+            } catch { /* silent */ }
+            setFeedbackState('dismissed');
+            navigation.navigate('BottleSearch');
+          },
         },
         { text: 'Cancel', style: 'cancel' },
       ]
