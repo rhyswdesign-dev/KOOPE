@@ -43,6 +43,8 @@ import { CellarService } from '../services/cellarService';
 import { notificationService } from '../services/notificationService';
 import { FeedbackPromptModal } from '../components/FeedbackPromptModal';
 import { useWishlist, WISHLIST_FREE_CAP } from '../store/useWishlist';
+import { useTasteModel, ALL_FLAVOUR_TAGS } from '../store/useTasteModel';
+import { flavourTagLabel } from '../utils/tasteSignal';
 
 // Import images from assets
 import * as Images from '../../assets/images';
@@ -97,7 +99,12 @@ export default function HomeBarScreen() {
   const { gate: expiryAlertsGate } = useFeatureAccess('expiry_alerts');
   const { gate: barHealthGate } = useFeatureAccess('bar_health_score');
   const { user } = useAuth();
-  const { items: wishlistItems, removeFromWishlist } = useWishlist();
+  const { items: wishlistItems, removeFromWishlist, addPriceEntry } = useWishlist();
+  const { dominantCluster, flavourScores, profileVisible } = useTasteModel();
+  const [palateExpanded, setPalateExpanded] = useState(false);
+  const [logPriceItem, setLogPriceItem] = useState<import('../store/useWishlist').WishlistItem | null>(null);
+  const [logPriceValue, setLogPriceValue] = useState('');
+  const [logPriceLocation, setLogPriceLocation] = useState('');
 
   // Defined after gate hooks so closures capture the latest gate functions.
   // Using a flat array + FlatList (not nested ScrollView) avoids gesture conflicts.
@@ -1034,6 +1041,50 @@ export default function HomeBarScreen() {
           ))}
         </ScrollView>
 
+        {/* Your Palate — visible after 5 scans, shelf tabs only */}
+        {profileVisible && activeCategory !== 'saved' && dominantCluster.length > 0 && (
+          <TouchableOpacity
+            style={styles.palateCard}
+            onPress={withHaptic(() => setPalateExpanded(p => !p), 'selection')}
+            activeOpacity={0.85}
+          >
+            <View style={styles.palateHeader}>
+              <View style={styles.palateTags}>
+                {dominantCluster.map((tag) => (
+                  <View key={tag} style={styles.palateTag}>
+                    <Text style={styles.palateTagText}>{flavourTagLabel(tag)}</Text>
+                  </View>
+                ))}
+              </View>
+              <Ionicons
+                name={palateExpanded ? 'chevron-up' : 'chevron-down'}
+                size={14}
+                color={colors.subtext}
+              />
+            </View>
+            <Text style={styles.palateHint}>Built from your scans — no setup required.</Text>
+
+            {palateExpanded && (
+              <View style={styles.palateBars}>
+                {ALL_FLAVOUR_TAGS
+                  .map((tag) => ({ tag, score: flavourScores[tag] ?? 0 }))
+                  .filter(({ score }) => score > 0)
+                  .sort((a, b) => b.score - a.score)
+                  .slice(0, 5)
+                  .map(({ tag, score }) => (
+                    <View key={tag} style={styles.palateBarRow}>
+                      <Text style={styles.palateBarLabel}>{flavourTagLabel(tag)}</Text>
+                      <View style={styles.palateBarTrack}>
+                        <View style={[styles.palateBarFill, { width: `${score}%` as any }]} />
+                      </View>
+                    </View>
+                  ))
+                }
+              </View>
+            )}
+          </TouchableOpacity>
+        )}
+
         {/* Shelf cap indicator — FREE tier only */}
         {tier === 'FREE' && homeBar.ingredients.length > 0 && (
           <TouchableOpacity
@@ -1071,8 +1122,29 @@ export default function HomeBarScreen() {
                   const lowestEntry = item.priceEntries.length > 0
                     ? item.priceEntries.reduce((a, b) => a.price < b.price ? a : b)
                     : null;
+                  const spiritProxy = {
+                    id: item.bottleId,
+                    name: item.name,
+                    brand: item.brand,
+                    type: (item.type || 'other') as any,
+                    abv: 0,
+                    priceTier: 'mid-range' as any,
+                    priceEstimate: { USD: { min: 0, max: 0 }, CAD: { min: 0, max: 0 }, GBP: { min: 0, max: 0 } },
+                    flavorProfile: [],
+                    tastingNotes: '',
+                    origin: '',
+                    searchTerms: [],
+                  };
                   return (
-                    <View key={item.bottleId} style={[styles.inventoryCard, styles.spiritCard]}>
+                    <TouchableOpacity
+                      key={item.bottleId}
+                      style={[styles.inventoryCard, styles.spiritCard]}
+                      onPress={withHaptic(() => (nav as any).navigate('Camera', {
+                        screen: 'BottleDetail',
+                        params: { bottle: spiritProxy, imageUri: item.imageUri },
+                      }), 'selection')}
+                      activeOpacity={0.82}
+                    >
                       <View style={styles.cardAccentStrip} />
                       <View style={styles.cardImageContainer}>
                         {item.imageUri ? (
@@ -1100,6 +1172,19 @@ export default function HomeBarScreen() {
                         ) : (
                           <Text style={styles.savedNoPriceText}>No price logged yet</Text>
                         )}
+                        <TouchableOpacity
+                          style={styles.savedLogPriceButton}
+                          onPress={withHaptic((e?: any) => {
+                            e?.stopPropagation?.();
+                            setLogPriceItem(item);
+                            setLogPriceValue('');
+                            setLogPriceLocation('');
+                          }, 'selection')}
+                          hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+                        >
+                          <Ionicons name="pricetag-outline" size={11} color={colors.accent} />
+                          <Text style={styles.savedLogPriceText}>Log price</Text>
+                        </TouchableOpacity>
                       </View>
                       <TouchableOpacity
                         style={styles.savedRemoveButton}
@@ -1108,7 +1193,7 @@ export default function HomeBarScreen() {
                       >
                         <Ionicons name="close-circle" size={18} color={colors.subtext} />
                       </TouchableOpacity>
-                    </View>
+                    </TouchableOpacity>
                   );
                 })}
               </View>
@@ -1770,6 +1855,61 @@ export default function HomeBarScreen() {
         visible={cartFeedbackVisible}
         onDismiss={() => setCartFeedbackVisible(false)}
       />
+
+      {/* Log price modal — Saved tab */}
+      <Modal
+        visible={!!logPriceItem}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setLogPriceItem(null)}
+      >
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+          <View style={styles.pricePromptOverlay}>
+            <TouchableOpacity style={StyleSheet.absoluteFillObject} activeOpacity={1} onPress={() => setLogPriceItem(null)} />
+            <View style={styles.pricePromptCard}>
+              <Text style={styles.pricePromptTitle}>Log a price</Text>
+              <Text style={styles.pricePromptSubtitle}>{logPriceItem?.name}</Text>
+              <TextInput
+                style={styles.pricePromptInput}
+                value={logPriceValue}
+                onChangeText={setLogPriceValue}
+                placeholder="Price (e.g. 34.99)"
+                placeholderTextColor={colors.muted}
+                keyboardType="decimal-pad"
+                autoFocus
+              />
+              <TextInput
+                style={styles.pricePromptInput}
+                value={logPriceLocation}
+                onChangeText={setLogPriceLocation}
+                placeholder="Store or location (e.g. Total Wine Miami)"
+                placeholderTextColor={colors.muted}
+              />
+              <View style={styles.pricePromptActions}>
+                <TouchableOpacity style={styles.pricePromptSkip} onPress={() => setLogPriceItem(null)}>
+                  <Text style={styles.pricePromptSkipText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.pricePromptSave}
+                  onPress={() => {
+                    const price = parseFloat(logPriceValue.replace(/[^0-9.]/g, ''));
+                    if (!isNaN(price) && price > 0 && logPriceLocation.trim() && logPriceItem) {
+                      addPriceEntry(logPriceItem.bottleId, {
+                        price,
+                        currency: 'USD',
+                        locationLabel: logPriceLocation.trim(),
+                      });
+                    }
+                    setLogPriceItem(null);
+                  }}
+                >
+                  <Text style={styles.pricePromptSaveText}>Save</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -2978,6 +3118,69 @@ const styles = StyleSheet.create({
   shelfCapCta: {
     color: colors.accent,
   },
+  // ── Your Palate ────────────────────────────────────────────────────────────
+  palateCard: {
+    marginHorizontal: spacing(2),
+    marginBottom: spacing(1.5),
+    backgroundColor: colors.card,
+    borderRadius: radii.lg,
+    padding: spacing(2),
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
+  palateHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  palateTags: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing(0.75),
+    flex: 1,
+  },
+  palateTag: {
+    paddingHorizontal: spacing(1.5),
+    paddingVertical: spacing(0.5),
+    backgroundColor: colors.accent + '18',
+    borderRadius: radii.pill,
+  },
+  palateTagText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.accent,
+  },
+  palateHint: {
+    fontSize: 11,
+    color: colors.subtext,
+    marginTop: spacing(1),
+  },
+  palateBars: {
+    marginTop: spacing(1.5),
+    gap: spacing(1),
+  },
+  palateBarRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(1.5),
+  },
+  palateBarLabel: {
+    fontSize: 12,
+    color: colors.subtext,
+    width: 70,
+  },
+  palateBarTrack: {
+    flex: 1,
+    height: 4,
+    backgroundColor: colors.line,
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  palateBarFill: {
+    height: '100%',
+    backgroundColor: colors.accent,
+    borderRadius: 2,
+  },
   editDoneButton: {
     fontSize: 15,
     fontWeight: '600',
@@ -3032,6 +3235,74 @@ const styles = StyleSheet.create({
   editCategoryChipTextActive: {
     color: colors.accent,
     fontWeight: '700',
+  },
+  savedLogPriceButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(0.5),
+    marginTop: spacing(0.75),
+  },
+  savedLogPriceText: {
+    fontSize: 11,
+    color: colors.accent,
+    fontWeight: '600',
+  },
+  pricePromptOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    justifyContent: 'center',
+    paddingHorizontal: spacing(4),
+  },
+  pricePromptCard: {
+    backgroundColor: colors.card,
+    borderRadius: radii.xl,
+    padding: spacing(4),
+    gap: spacing(2),
+  },
+  pricePromptTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  pricePromptSubtitle: {
+    fontSize: 13,
+    color: colors.subtext,
+    marginTop: -spacing(1),
+  },
+  pricePromptInput: {
+    backgroundColor: colors.bg,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: radii.md,
+    paddingHorizontal: spacing(2),
+    paddingVertical: spacing(1.5),
+    fontSize: 15,
+    color: colors.text,
+  },
+  pricePromptActions: {
+    flexDirection: 'row',
+    gap: spacing(2),
+    justifyContent: 'flex-end',
+    marginTop: spacing(0.5),
+  },
+  pricePromptSkip: {
+    paddingVertical: spacing(1.5),
+    paddingHorizontal: spacing(2),
+  },
+  pricePromptSkipText: {
+    fontSize: 15,
+    color: colors.subtext,
+  },
+  pricePromptSave: {
+    backgroundColor: colors.accent,
+    borderRadius: radii.lg,
+    paddingVertical: spacing(1.5),
+    paddingHorizontal: spacing(4),
+  },
+  pricePromptSaveText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.bg,
   },
   savedNoPriceText: {
     fontSize: 12,

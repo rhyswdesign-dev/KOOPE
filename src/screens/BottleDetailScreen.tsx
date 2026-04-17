@@ -52,6 +52,10 @@ import { ScanHistoryService } from '../services/scanHistoryService';
 import { trackEvent, ANALYTICS_EVENTS, ANALYTICS_PROPS } from '../lib/analytics';
 import { useWishlist, WISHLIST_FREE_CAP } from '../store/useWishlist';
 import { notificationService } from '../services/notificationService';
+import { useTasteModel } from '../store/useTasteModel';
+import type { FlavourTag } from '../store/useTasteModel';
+import { getTasteSignalLine } from '../utils/tasteSignal';
+import SpiritEducationPanel from '../components/SpiritEducationPanel';
 
 type BottleDetailScreenNavigationProp = CompositeNavigationProp<
   NativeStackNavigationProp<CameraStackParamList, 'BottleDetail'>,
@@ -278,6 +282,11 @@ export default function BottleDetailScreen() {
   // Stage 10 — scan feedback
   const [feedbackState, setFeedbackState] = useState<'pending' | 'confirmed' | 'dismissed'>('pending');
 
+  // Taste model
+  const { recordScan, recordThumbsUp, recordThumbsDown, totalScans, dominantCluster, profileVisible } = useTasteModel();
+  const [thumbsState, setThumbsState] = useState<'idle' | 'up' | 'down'>('idle');
+  const [showCorrectionPills, setShowCorrectionPills] = useState(false);
+
   // Wishlist
   const { saveToWishlist, isWishlisted, removeFromWishlist, addPriceEntry } = useWishlist();
   const bottleWishlistId = bottle.id || `${bottle.name}_${bottle.brand}`.toLowerCase().replace(/\s+/g, '_');
@@ -379,6 +388,11 @@ export default function BottleDetailScreen() {
   useEffect(() => {
     // Record this bottle to the user's scan history journal
     ScanHistoryService.recordScan(bottle, imageUri).catch(() => {});
+
+    // Record to taste model — only on scan results (imageUri present), not shelf taps
+    if (imageUri) {
+      recordScan(bottle, false); // addedToShelf updated later in handleAddToShelf
+    }
 
     // Fire funnel analytics — scan is the first step in the conversion funnel
     trackEvent(ANALYTICS_EVENTS.SCAN_SUCCESS, {
@@ -622,6 +636,8 @@ export default function BottleDetailScreen() {
     challengeProgressService.trackAddToInventory(user.id, bottle.id || bottle.name);
     achievementService.trackAction('homeBarIngredients');
     earnScanXP(bottle.id);
+    // Boost taste model with shelf signal
+    recordScan(bottle, true);
   };
 
   const handleSaveToWishlist = () => {
@@ -799,18 +815,8 @@ export default function BottleDetailScreen() {
           },
         },
         {
-          text: 'Add Manually',
-          onPress: async () => {
-            try {
-              const lookupKey = (bottle.id || bottle.name)
-                .toLowerCase()
-                .replace(/[^a-z0-9]+/g, ' ')
-                .trim();
-              await supabase.from('spirits_cache').delete().eq('lookup_key', lookupKey);
-            } catch { /* silent */ }
-            setFeedbackState('dismissed');
-            navigation.navigate('ManualBottleEntry', { imageUri });
-          },
+          text: 'Manual search coming soon',
+          style: 'cancel',
         },
         { text: 'Cancel', style: 'cancel' },
       ]
@@ -929,6 +935,71 @@ export default function BottleDetailScreen() {
           </ScrollView>
         )}
 
+        {/* Taste signal line — scan 3+ */}
+        {(() => {
+          const signal = getTasteSignalLine(bottleProfile.flavorProfile, bottle.name, { totalScans, dominantCluster, profileVisible } as any);
+          return signal ? <Text style={styles.tasteSignalLine}>{signal}</Text> : null;
+        })()}
+
+        {/* Thumbs feedback — scan 5+ */}
+        {totalScans >= 5 && imageUri && (
+          <View style={styles.thumbsRow}>
+            <TouchableOpacity
+              style={styles.thumbsButton}
+              onPress={() => {
+                setThumbsState('up');
+                setShowCorrectionPills(false);
+                recordThumbsUp(bottle);
+              }}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons
+                name={thumbsState === 'up' ? 'thumbs-up' : 'thumbs-up-outline'}
+                size={20}
+                color={thumbsState === 'up' ? colors.gold : colors.subtext}
+              />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.thumbsButton}
+              onPress={() => {
+                setThumbsState('down');
+                setShowCorrectionPills(true);
+              }}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons
+                name={thumbsState === 'down' ? 'thumbs-down' : 'thumbs-down-outline'}
+                size={20}
+                color={thumbsState === 'down' ? colors.subtext : colors.subtext}
+              />
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Correction pills — shown after thumbs down */}
+        {showCorrectionPills && (
+          <View style={styles.correctionRow}>
+            {(['sweet', 'smoky', 'floral', 'bitter', 'light'] as FlavourTag[]).map((tag) => (
+              <TouchableOpacity
+                key={tag}
+                style={styles.correctionPill}
+                onPress={() => {
+                  recordThumbsDown(bottle, tag, bottle.id);
+                  setShowCorrectionPills(false);
+                }}
+              >
+                <Text style={styles.correctionPillText}>Too {tag}</Text>
+              </TouchableOpacity>
+            ))}
+            <TouchableOpacity
+              style={styles.correctionPill}
+              onPress={() => setShowCorrectionPills(false)}
+            >
+              <Text style={styles.correctionPillText}>Something else</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         {/* Price Estimate */}
         <View style={styles.priceCard}>
           <View style={styles.priceHeader}>
@@ -1034,6 +1105,13 @@ export default function BottleDetailScreen() {
           </View>
           <Text style={styles.tastingNotes}>{bottleProfile.tastingNotes}</Text>
         </View>
+
+        {/* Spirit Education Panel */}
+        <SpiritEducationPanel
+          bottle={bottle}
+          serveRecommendation={serveRecommendation}
+          alwaysExpanded={tier === 'PRO'}
+        />
 
         {/* Cocktails You Can Make */}
         {!loadingCocktails && suggestedCocktails.length > 0 && (
@@ -2665,5 +2743,42 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: colors.bg,
+  },
+  // ── Taste signal + thumbs ─────────────────────────────────────────────────
+  tasteSignalLine: {
+    fontSize: 13,
+    color: colors.subtext,
+    marginHorizontal: spacing(4),
+    marginTop: spacing(0.5),
+    marginBottom: spacing(1),
+    lineHeight: 18,
+  },
+  thumbsRow: {
+    flexDirection: 'row',
+    gap: spacing(2),
+    paddingHorizontal: spacing(4),
+    paddingBottom: spacing(1),
+  },
+  thumbsButton: {
+    padding: spacing(0.5),
+  },
+  correctionRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing(1),
+    paddingHorizontal: spacing(4),
+    paddingBottom: spacing(1.5),
+  },
+  correctionPill: {
+    paddingHorizontal: spacing(2),
+    paddingVertical: spacing(0.75),
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.card,
+  },
+  correctionPillText: {
+    fontSize: 12,
+    color: colors.subtext,
   },
 });

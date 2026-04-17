@@ -398,7 +398,7 @@ export default function CameraHubScreen() {
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.quickLink}
-                onPress={withHaptic(() => navigation.navigate('ManualBottleEntry', {}), 'selection')}
+                onPress={withHaptic(() => navigation.navigate('SmartScan'), 'selection')}
               >
                 <View style={styles.quickIcon}>
                   <Ionicons name="add-circle" size={20} color={colors.gold} />

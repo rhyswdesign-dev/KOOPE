@@ -28,7 +28,6 @@ const Tab = createBottomTabNavigator<TabsParamList>();
 const CAMERA_FULLSCREEN_ROUTES = new Set([
   'SmartScan',
   'BottleDetail',
-  'ManualBottleEntry',
 ]);
 
 export default function Tabs() {
