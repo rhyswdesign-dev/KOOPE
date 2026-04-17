@@ -11,9 +11,11 @@
 import { SPIRITS_DATABASE } from '../data/spiritsDatabase';
 import type { Spirit } from '../data/spiritsDatabase';
 import { log } from '../lib/logger';
+import { supabase } from '../lib/supabase';
 
 const OPFF_API = 'https://world.openfoodfacts.org/api/v2/product';
 const UPCITEMDB_API = 'https://api.upcitemdb.com/prod/trial/lookup';
+const LCBO_API = 'https://platform.lcbo.com/catalog/v1/products';
 const LOOKUP_TIMEOUT_MS = 6000;
 const SPIRIT_KEYWORDS = [
   'whiskey', 'whisky', 'bourbon', 'scotch', 'rye',
@@ -37,7 +39,7 @@ interface ProductCandidate {
   name: string | null;
   brand: string | null;
   category: string | null;
-  source: 'open_food_facts' | 'upcitemdb';
+  source: 'open_food_facts' | 'upcitemdb' | 'lcbo';
 }
 
 interface CandidateLookupResult {
@@ -115,6 +117,12 @@ export class BarcodeService {
         barcode: normalizedBarcode,
       };
       BarcodeService.lookupCache.set(normalizedBarcode, result);
+
+      // Persist matched barcode → spirit to spirits_cache for future AI vision lookups
+      if (spirit) {
+        BarcodeService.persistBarcodeCacheEntry(normalizedBarcode, spirit).catch(() => {});
+      }
+
       return result;
     } catch (error: any) {
       if (error?.name === 'AbortError') {
@@ -155,16 +163,19 @@ export class BarcodeService {
     let failedNetworkRequests = 0;
 
     for (const code of barcodes) {
-      const [opffCandidate, upcItemDbCandidate] = await Promise.all([
+      const [opffCandidate, upcItemDbCandidate, lcboCandidate] = await Promise.all([
         BarcodeService.lookupOpenFoodFacts(code),
         BarcodeService.lookupUpcItemDb(code),
+        BarcodeService.lookupLCBO(code),
       ]);
 
-      totalRequests += 2;
+      totalRequests += 3;
       if (opffCandidate.networkError) failedNetworkRequests += 1;
       if (upcItemDbCandidate.networkError) failedNetworkRequests += 1;
+      if (lcboCandidate.networkError) failedNetworkRequests += 1;
       if (opffCandidate.candidate) allCandidates.push(opffCandidate.candidate);
       if (upcItemDbCandidate.candidate) allCandidates.push(upcItemDbCandidate.candidate);
+      if (lcboCandidate.candidate) allCandidates.push(lcboCandidate.candidate);
     }
 
     // Keep unique names first to avoid duplicate scoring from equivalent sources.
@@ -233,6 +244,59 @@ export class BarcodeService {
       },
       networkError,
     };
+  }
+
+  /**
+   * LCBO open data product catalog — ~15,000 SKUs, barcode-mapped, free.
+   * Queried by UPC; returns product name and category when found.
+   */
+  private static async lookupLCBO(barcode: string): Promise<CandidateLookupResult> {
+    const { data, networkError } = await BarcodeService.fetchJsonWithTimeout(
+      `${LCBO_API}?filter[upc_code]=${barcode}&fields[products]=name,brand,primary_category`
+    );
+
+    if (!data || !Array.isArray(data.data) || data.data.length === 0) {
+      return { candidate: null, networkError };
+    }
+
+    const attrs = (data.data[0] as any)?.attributes as Record<string, unknown> | undefined;
+    if (!attrs) return { candidate: null, networkError };
+
+    const name = (attrs.name as string | undefined) || null;
+    const brand = (attrs.brand as string | undefined) || null;
+    const category = (attrs.primary_category as string | undefined) || null;
+
+    if (!name && !brand) return { candidate: null, networkError };
+
+    return {
+      candidate: { name, brand, category, source: 'lcbo' },
+      networkError,
+    };
+  }
+
+  /**
+   * Persist a successful barcode → spirit match to spirits_cache so future
+   * AI vision lookups for the same bottle benefit immediately.
+   * Uses `barcode_XXXX` as lookup_key to avoid any schema migration.
+   */
+  private static async persistBarcodeCacheEntry(barcode: string, spirit: Spirit): Promise<void> {
+    try {
+      const lookupKey = `barcode_${barcode}`;
+      await supabase.from('spirits_cache').upsert({
+        lookup_key: lookupKey,
+        spirit_id: spirit.id,
+        spirit_name: spirit.name,
+        spirit_brand: spirit.brand,
+        spirit_type: spirit.type,
+        abv: spirit.abv,
+        origin: spirit.origin,
+        price_tier: spirit.priceTier,
+        flavor_profile: spirit.flavorProfile,
+        tasting_notes: spirit.tastingNotes,
+      }, { onConflict: 'lookup_key', ignoreDuplicates: true });
+    } catch {
+      // Non-fatal — cache write failure does not affect the user
+    }
   }
 
   private static async fetchJsonWithTimeout(url: string): Promise<{ data: any | null; networkError: boolean }> {

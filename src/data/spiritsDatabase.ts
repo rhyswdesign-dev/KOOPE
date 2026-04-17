@@ -3,6 +3,7 @@
  * Hardcoded database of popular spirits for bottle recognition
  * Includes: name, type, ABV, flavor profile, price tier, tasting notes
  */
+import { SPIRITS_DATABASE_EXTRA } from './spiritsDatabaseExtra';
 
 export type PriceTier = 'budget' | 'mid-range' | 'premium' | 'ultra-premium';
 export type SpiritType = 'gin' | 'vodka' | 'rum' | 'whiskey' | 'tequila' | 'mezcal' | 'brandy' | 'liqueur' | 'other';
@@ -51,7 +52,7 @@ export interface Spirit {
   serveGuidance?: ServeGuidance;
 }
 
-export const SPIRITS_DATABASE: Spirit[] = [
+const SPIRITS_DATABASE_CORE: Spirit[] = [
   // ===== GIN =====
   {
     id: 'tanqueray-london-dry',
@@ -3634,3 +3635,8 @@ export function getPriceTierDisplay(tier: PriceTier): string {
   };
   return tiers[tier];
 }
+
+export const SPIRITS_DATABASE: Spirit[] = [
+  ...SPIRITS_DATABASE_CORE,
+  ...SPIRITS_DATABASE_EXTRA,
+];
