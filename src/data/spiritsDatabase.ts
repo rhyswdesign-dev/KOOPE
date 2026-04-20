@@ -103,7 +103,7 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
     flavorProfile: ['Cucumber', 'Rose', 'Juniper'],
     tastingNotes: 'Uniquely infused with cucumber and rose petals. Floral, refreshing, and distinctly different from traditional London Dry gins.',
     origin: 'Scotland',
-    searchTerms: ['hendricks', 'hendrick', 'cucumber gin'],
+    searchTerms: ['hendricks', 'hendrick', 'ndricks', 'cucumber gin'],
   },
   {
     id: 'the-botanist',

@@ -563,9 +563,18 @@ export class GoogleVisionService {
       });
 
       if (error || !data?.profile) {
-        log.warn('GoogleVisionService', 'spirit-lookup failed, using OCR fallback', error);
-        // Build a minimal Spirit from what Vision already read so the user still
-        // lands on a bottle detail screen rather than "Bottle Not Recognized".
+        log.warn('GoogleVisionService', 'spirit-lookup failed, trying local DB before OCR fallback', error);
+        // Try to match the extracted name against our local database first.
+        // This handles cases where OCR gives a partial/garbled read (e.g. "NDRICKS"
+        // for Hendrick's) but the spirit is in our database — returning the full
+        // database entry avoids wrong names and the hardcoded 38% ABV default.
+        const localMatch = visionResult
+          ? this.matchBottle({ ...visionResult, text: [bottleName, ...(visionResult.text ?? [])] })
+          : null;
+        if (localMatch) {
+          log.info('GoogleVisionService', 'spirit-lookup fallback resolved via local DB', { name: localMatch.name });
+          return localMatch;
+        }
         return visionResult ? this.buildFallbackSpirit(bottleName, visionResult) : null;
       }
 
