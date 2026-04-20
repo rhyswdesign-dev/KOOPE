@@ -1201,34 +1201,8 @@ export default function BottleDetailScreen() {
           </View>
         )}
 
-        {/* What else do I need? — missing ingredients for top 3 recipes */}
-        {!loadingCocktails && user && suggestedCocktails.some(c => c.match?.missingIngredients?.length > 0) && (
-          <View style={styles.missingSection}>
-            <Text style={styles.missingSectionTitle}>What else do I need?</Text>
-            {suggestedCocktails.slice(0, 3).map((cocktail) => {
-              const missing: string[] = cocktail.match?.missingIngredients ?? [];
-              if (missing.length === 0) return null;
-              return (
-                <View key={cocktail.id} style={styles.missingRow}>
-                  <Text style={styles.missingRecipeName} numberOfLines={1}>{cocktail.name}</Text>
-                  <View style={styles.missingIngredients}>
-                    {missing.slice(0, 3).map((ing, i) => (
-                      <View key={i} style={styles.missingPill}>
-                        <Text style={styles.missingPillText}>{ing}</Text>
-                      </View>
-                    ))}
-                    {missing.length > 3 && (
-                      <Text style={styles.missingMore}>+{missing.length - 3} more</Text>
-                    )}
-                  </View>
-                </View>
-              );
-            })}
-          </View>
-        )}
-
         {/* Secondary actions row */}
-        <View style={[styles.secondaryActions, { marginBottom: spacing(1) }]}>
+        <View style={[styles.secondaryActions, { marginTop: spacing(1), marginBottom: spacing(1) }]}>
           <TouchableOpacity
             style={styles.secondaryButton}
             onPress={handleTryAnother}
@@ -2386,7 +2360,8 @@ const styles = StyleSheet.create({
     gap: spacing(1),
     backgroundColor: colors.card,
     borderRadius: radii.lg,
-    padding: spacing(2),
+    paddingVertical: spacing(2.5),
+    paddingHorizontal: spacing(2),
     borderWidth: 1,
     borderColor: colors.line,
   },
@@ -2629,8 +2604,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing(1),
-    paddingHorizontal: spacing(4),
-    paddingVertical: spacing(1.5),
+    paddingHorizontal: spacing(6),
+    paddingVertical: spacing(2),
     borderRadius: radii.lg,
     borderWidth: 1.5,
     borderColor: colors.line,

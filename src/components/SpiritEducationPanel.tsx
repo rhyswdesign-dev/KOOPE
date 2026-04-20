@@ -115,25 +115,7 @@ export default function SpiritEducationPanel({ bottle, serveRecommendation, alwa
             <Text style={styles.sectionBody}>{flavourDev}</Text>
           </View>
 
-          {/* 3. Classic serves */}
-          {classicServes.length > 0 && (
-            <View style={styles.section}>
-              <Text style={styles.sectionLabel}>Classic serves</Text>
-              <View style={styles.serveList}>
-                {classicServes.map((serve) => (
-                  <View key={serve.mode} style={styles.serveItem}>
-                    <Ionicons name="ellipse" size={5} color={colors.accent} />
-                    <Text style={styles.serveItemText}>
-                      <Text style={styles.serveItemMode}>{serve.label}</Text>
-                      {serve.description ? ` — ${serve.description}` : ''}
-                    </Text>
-                  </View>
-                ))}
-              </View>
-            </View>
-          )}
-
-          {/* 4. Substitutions */}
+          {/* 3. Substitutions */}
           {substitutions.length > 0 && (
             <View style={styles.section}>
               <Text style={styles.sectionLabel}>If you like this, try…</Text>
