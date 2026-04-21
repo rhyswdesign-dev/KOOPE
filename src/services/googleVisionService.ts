@@ -717,7 +717,7 @@ export class GoogleVisionService {
         if (brand && webText.includes(brand)) score += 10
         if (name && webText.includes(name)) score += 8
         for (const term of spirit.searchTerms) {
-          const t = term.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').trim()
+          const t = normalizeWeb(term)
           if (t.length >= 3 && webText.includes(t)) score += 5
         }
         if (score > webBestScore) { webBestScore = score; webBest = spirit }
@@ -795,9 +795,9 @@ export class GoogleVisionService {
       if (allLabels.includes(type)) score += 2;
 
       for (const term of spirit.searchTerms) {
-        const normalizedTerm = term.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').trim();
+        const normalizedTerm = normalizeForMatch(term);
         if (normalizedTerm.length < 3) continue;
-        if (normalizedText.includes(normalizedTerm)) score += 3;
+        if (normalizedText.includes(normalizedTerm)) score += 4;
       }
 
       if (score > bestScore) {
