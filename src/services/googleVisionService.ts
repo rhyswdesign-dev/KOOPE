@@ -507,10 +507,13 @@ export class GoogleVisionService {
     if (lines.length === 0) return null;
 
     // Score each line — higher = more likely to be the brand/product name
-    const NOISE = /^(\d+(\.\d+)?(%|CL|ML|L)?|ALC|ABV|VOL|PROOF|DISTILLED|BOTTLED|PRODUCED|EST\.|SINCE|LIMITED|IMPORTED|CONTAINS|PRODUCT|WARNING|GOVERNMENT|DRINK|RESPONSIBLY|www\.|©|100%|DE AGAVE|AGAVE|100% DE AGAVE|100% AGAVE|BLUE AGAVE|PURO AGAVE)$/i;
+    const NOISE = /^(\d+(\.\d+)?(%|CL|ML|L)?|ALC|ABV|VOL|PROOF|DISTILLED|BOTTLED|PRODUCED|EST\.|SINCE|DEPUIS|DESDE|LIMITED|EDITION|IMPORTED|CONTAINS|PRODUCT|WARNING|GOVERNMENT|DRINK|RESPONSIBLY|www\.|©|100%|DE AGAVE|AGAVE|100% DE AGAVE|100% AGAVE|BLUE AGAVE|PURO AGAVE|PRODUCT OF|PRODUIT DE|PRODUCTO DE|SINGLE MALT|SCOTCH WHISKY|BLENDED SCOTCH|RESERVA|RESERVA EXCLUSIVA|GRAN RESERVA|AGED \d+ YEARS?|HECHO EN MEXICO|JALISCO|SAN LUIS DEL RIO|OAXACA)$/i;
     const SPIRIT_TYPES = /\b(amaro|gin|vodka|rum|whiskey|whisky|bourbon|scotch|tequila|mezcal|cognac|brandy|liqueur|bitter|aperitivo|vermouth)\b/i;
 
     const scored = lines
+      // Strip leading punctuation/dashes before NOISE test (catches "-SINCE/DEPUIS 18Y." etc.)
+      .map(l => l.replace(/^[-–—*/]+\s*/, '').trim())
+      .filter(l => l.length >= 3)
       .filter(l => !NOISE.test(l))
       .filter(l => l.length <= 50)
       .map((l, index) => {
@@ -530,7 +533,7 @@ export class GoogleVisionService {
       })
       .sort((a, b) => b.score - a.score);
 
-    if (scored.length === 0) return lines[0].slice(0, 60);
+    if (scored.length === 0) return null;
 
     // Use the single highest-scoring line as the name anchor.
     // If it doesn't contain a spirit type but the second line does, append it.
@@ -563,19 +566,11 @@ export class GoogleVisionService {
       });
 
       if (error || !data?.profile) {
-        log.warn('GoogleVisionService', 'spirit-lookup failed, trying local DB before OCR fallback', error);
-        // Try to match the extracted name against our local database first.
-        // This handles cases where OCR gives a partial/garbled read (e.g. "NDRICKS"
-        // for Hendrick's) but the spirit is in our database — returning the full
-        // database entry avoids wrong names and the hardcoded 38% ABV default.
-        const localMatch = visionResult
-          ? this.matchBottle({ ...visionResult, text: [bottleName, ...(visionResult.text ?? [])] })
-          : null;
-        if (localMatch) {
-          log.info('GoogleVisionService', 'spirit-lookup fallback resolved via local DB', { name: localMatch.name });
-          return localMatch;
-        }
-        return visionResult ? this.buildFallbackSpirit(bottleName, visionResult) : null;
+        log.warn('GoogleVisionService', 'spirit-lookup returned no profile — hard fail', error);
+        // Do NOT build a fallback from OCR fragments. A confident wrong answer
+        // is worse than no answer. Return null so SmartScanScreen routes to
+        // the library search screen instead.
+        return null;
       }
 
       const p = data.profile;
@@ -608,57 +603,6 @@ export class GoogleVisionService {
       log.error('GoogleVisionService', 'lookupBottleProfile error', err);
       return null;
     }
-  }
-
-  /**
-   * Build a minimal Spirit profile from OCR text when the edge function is unavailable.
-   * Infers spirit type from label text so the BottleDetailScreen shows correct info.
-   */
-  private static buildFallbackSpirit(bottleName: string, result: VisionResult): Spirit {
-    const allText = (result.text?.[0] || '').toLowerCase();
-
-    const TYPE_KEYWORDS: Array<{ keywords: string[]; type: Spirit['type'] }> = [
-      { keywords: ['amaro', 'bitter', 'bitters'], type: 'liqueur' },
-      { keywords: ['gin'], type: 'gin' },
-      { keywords: ['vodka'], type: 'vodka' },
-      { keywords: ['rum', 'rhum', 'ron'], type: 'rum' },
-      { keywords: ['whiskey', 'whisky', 'bourbon', 'scotch', 'rye'], type: 'whiskey' },
-      { keywords: ['tequila', 'mezcal', 'agave'], type: 'tequila' },
-      { keywords: ['cognac', 'brandy', 'armagnac'], type: 'brandy' },
-      { keywords: ['liqueur', 'liqueur'], type: 'liqueur' },
-    ];
-
-    let spiritType: Spirit['type'] = 'other';
-    for (const { keywords, type } of TYPE_KEYWORDS) {
-      if (keywords.some(k => allText.includes(k))) {
-        spiritType = type;
-        break;
-      }
-    }
-
-    // Try to extract ABV from OCR text
-    const abvMatch = allText.match(/(\d{1,2}(?:\.\d)?)\s*%/);
-    const abv = abvMatch ? parseFloat(abvMatch[1]) : 38;
-
-    const slug = bottleName.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 40);
-
-    return {
-      id: `ocr-${slug}`,
-      name: bottleName,
-      brand: bottleName.split(' ')[0],
-      type: spiritType,
-      abv,
-      priceTier: 'mid-range',
-      priceEstimate: {
-        USD: { min: 20, max: 40 },
-        CAD: { min: 28, max: 52 },
-        GBP: { min: 18, max: 35 },
-      },
-      flavorProfile: [],
-      tastingNotes: '',
-      origin: '',
-      searchTerms: [bottleName.toLowerCase()],
-    };
   }
 
   /**
@@ -722,7 +666,7 @@ export class GoogleVisionService {
         }
         if (score > webBestScore) { webBestScore = score; webBest = spirit }
       }
-      if (webBest && webBestScore >= 8) {
+      if (webBest && webBestScore >= 12) {
         // Cross-validate against OCR: if the label has meaningful text, the
         // Web Detection match must share at least one significant word with it.
         // This prevents Vision returning "Johnnie Walker" for a Rum-Bar bottle.
@@ -805,7 +749,10 @@ export class GoogleVisionService {
         bestSpirit = spirit;
       }
     }
-    if (bestSpirit && bestScore >= 6) {
+    // Threshold of 10 requires at minimum a brand match (8) + type or searchTerm hit.
+    // This prevents single-word OCR fragments (e.g. "DITION", "VIDA") from scoring
+    // high enough to return a wrong result.
+    if (bestSpirit && bestScore >= 10) {
       log.info('GoogleVisionService', 'Bottle matched via OCR scoring', {
         brand: bestSpirit.brand,
         name: bestSpirit.name,
