@@ -507,7 +507,7 @@ export class GoogleVisionService {
     if (lines.length === 0) return null;
 
     // Score each line — higher = more likely to be the brand/product name
-    const NOISE = /^(\d+(\.\d+)?(%|CL|ML|L)?|ALC|ABV|VOL|PROOF|DISTILLED|BOTTLED|PRODUCED|EST\.|SINCE|LIMITED|IMPORTED|CONTAINS|PRODUCT|WARNING|GOVERNMENT|DRINK|RESPONSIBLY|www\.|©)$/i;
+    const NOISE = /^(\d+(\.\d+)?(%|CL|ML|L)?|ALC|ABV|VOL|PROOF|DISTILLED|BOTTLED|PRODUCED|EST\.|SINCE|LIMITED|IMPORTED|CONTAINS|PRODUCT|WARNING|GOVERNMENT|DRINK|RESPONSIBLY|www\.|©|100%|DE AGAVE|AGAVE|100% DE AGAVE|100% AGAVE|BLUE AGAVE|PURO AGAVE)$/i;
     const SPIRIT_TYPES = /\b(amaro|gin|vodka|rum|whiskey|whisky|bourbon|scotch|tequila|mezcal|cognac|brandy|liqueur|bitter|aperitivo|vermouth)\b/i;
 
     const scored = lines
@@ -698,13 +698,21 @@ export class GoogleVisionService {
       ...(result.webEntities ?? []),
     ].filter(isUsableWebResult)
 
+    const normalizeWeb = (s: string) =>
+      s.toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9\s]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+
     if (webCandidates.length > 0) {
       const webText = webCandidates.join(' ').toLowerCase().replace(/[^a-z0-9\s]/g, ' ')
       let webBest: Spirit | null = null
       let webBestScore = 0
       for (const spirit of SPIRITS_DATABASE) {
-        const brand = spirit.brand.toLowerCase()
-        const name = spirit.name.toLowerCase()
+        const brand = normalizeWeb(spirit.brand)
+        const name = normalizeWeb(spirit.name)
         let score = 0
         if (brand && webText.includes(brand)) score += 10
         if (name && webText.includes(name)) score += 8
@@ -764,12 +772,21 @@ export class GoogleVisionService {
       return null;
     }
 
+    // Helper: strip accents + non-alphanumeric so "Patrón" matches "patron" in OCR
+    const normalizeForMatch = (s: string) =>
+      s.toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9\s]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
     // Score every spirit against the full OCR text and labels.
     let bestSpirit: Spirit | null = null;
     let bestScore = 0;
     for (const spirit of SPIRITS_DATABASE) {
-      const brand = spirit.brand.toLowerCase();
-      const name = spirit.name.toLowerCase();
+      const brand = normalizeForMatch(spirit.brand);
+      const name = normalizeForMatch(spirit.name);
       const type = spirit.type.toLowerCase();
       let score = 0;
 

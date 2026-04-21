@@ -416,7 +416,7 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
     flavorProfile: ['Agave', 'Citrus', 'Pepper'],
     tastingNotes: '100% blue agave. Fresh agave, citrus, and white pepper. Smooth and clean, perfect for margaritas or sipping.',
     origin: 'Mexico',
-    searchTerms: ['patron', 'silver tequila', 'blanco'],
+    searchTerms: ['patron', 'patrón', 'patron silver', 'silver tequila', 'blanco', 'patron blanco'],
     serveGuidance: {
       priority: 'serve-first',
       premiumScore: 84,
