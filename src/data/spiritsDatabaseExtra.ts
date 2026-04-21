@@ -727,7 +727,7 @@ export const SPIRITS_DATABASE_EXTRA: Spirit[] = [
     flavorProfile: ['Vanilla', 'Oak', 'Spice', 'Dried Fruit'],
     tastingNotes: "The world's most recognised cognac. A blend of over 60 eaux-de-vie aged between 4 and 15 years. Vanilla, oak spice, and dried fruit with a long warm finish. The reference point for VSOP quality.",
     origin: 'France',
-    searchTerms: ['hennessy vsop', 'hennessy', 'cognac vsop'],
+    searchTerms: ['hennessy vsop', 'henny vsop', 'hennessy very superior'],
   },
   {
     id: 'remy-martin-xo',

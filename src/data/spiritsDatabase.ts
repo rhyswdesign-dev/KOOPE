@@ -416,7 +416,7 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
     flavorProfile: ['Agave', 'Citrus', 'Pepper'],
     tastingNotes: '100% blue agave. Fresh agave, citrus, and white pepper. Smooth and clean, perfect for margaritas or sipping.',
     origin: 'Mexico',
-    searchTerms: ['patron', 'patrón', 'patron silver', 'silver tequila', 'blanco', 'patron blanco'],
+    searchTerms: ['patron silver', 'patrón silver', 'patron blanco', 'silver tequila'],
     serveGuidance: {
       priority: 'serve-first',
       premiumScore: 84,
@@ -444,7 +444,7 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
     flavorProfile: ['Agave', 'Citrus', 'Lime'],
     tastingNotes: 'Crisp agave flavor with hints of citrus and lime. Clean, smooth, and perfect for premium margaritas.',
     origin: 'Mexico',
-    searchTerms: ['don julio', 'blanco', '1942'],
+    searchTerms: ['don julio blanco', 'don julio silver', 'dj blanco'],
     serveGuidance: {
       priority: 'serve-first',
       premiumScore: 86,
@@ -489,7 +489,7 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
     flavorProfile: ['Agave', 'Vanilla', 'Coconut'],
     tastingNotes: 'Ultra-smooth with sweet agave, vanilla, and hints of coconut. Crisp and clean finish.',
     origin: 'Mexico',
-    searchTerms: ['casamigos', 'george clooney tequila'],
+    searchTerms: ['casamigos blanco', 'casa amigos blanco', 'george clooney tequila'],
     serveGuidance: {
       priority: 'serve-first',
       premiumScore: 80,
@@ -566,7 +566,7 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
     flavorProfile: ['Fruit', 'Oak', 'Vanilla'],
     tastingNotes: 'Classic cognac with fruit, toasted oak, and vanilla. Smooth and balanced.',
     origin: 'France',
-    searchTerms: ['hennessy', 'vs', 'cognac'],
+    searchTerms: ['hennessy vs', 'hennessy very special', 'henny vs'],
   },
   {
     id: 'remy-martin-vsop',
@@ -1684,7 +1684,7 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
     flavorProfile: ['Agave', 'Vanilla', 'Caramel', 'Oak', 'Spice'],
     tastingNotes: 'Aged 8 months in American oak barrels. Rich agave with vanilla, caramel, and a warm spiced finish. Comes in a hand-painted ceramic decanter.',
     origin: 'Mexico',
-    searchTerms: ['clase azul reposado', 'clase azul tequila', 'ceramic tequila', 'hand painted tequila', 'clase azul', 'blue white ceramic bottle'],
+    searchTerms: ['clase azul reposado', 'clase azul rested', 'hand painted tequila', 'blue white ceramic bottle'],
   },
   {
     id: 'clase-azul-anejo',
@@ -1994,7 +1994,7 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
     flavorProfile: ['Agave', 'Vanilla', 'Caramel', 'Light Oak'],
     tastingNotes: 'Aged 8 months in American white oak barrels. Smooth vanilla and caramel notes complement the clean agave backbone. The squat square bottle with blue label is iconic.',
     origin: 'Mexico',
-    searchTerms: ['don julio reposado', 'don julio', 'dj reposado', 'don julio rested'],
+    searchTerms: ['don julio reposado', 'dj reposado', 'don julio rested'],
   },
   {
     id: 'don-julio-anejo',
