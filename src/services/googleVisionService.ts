@@ -728,6 +728,9 @@ export class GoogleVisionService {
     // Score every spirit against the full OCR text and labels.
     let bestSpirit: Spirit | null = null;
     let bestScore = 0;
+    let secondBestSpirit: Spirit | null = null;
+    let secondBestScore = 0;
+
     for (const spirit of SPIRITS_DATABASE) {
       const brand = normalizeForMatch(spirit.brand);
       const name = normalizeForMatch(spirit.name);
@@ -745,14 +748,37 @@ export class GoogleVisionService {
       }
 
       if (score > bestScore) {
+        secondBestScore = bestScore;
+        secondBestSpirit = bestSpirit;
         bestScore = score;
         bestSpirit = spirit;
+      } else if (score > secondBestScore) {
+        secondBestScore = score;
+        secondBestSpirit = spirit;
       }
     }
+
     // Threshold of 10 requires at minimum a brand match (8) + type or searchTerm hit.
-    // This prevents single-word OCR fragments (e.g. "DITION", "VIDA") from scoring
-    // high enough to return a wrong result.
     if (bestSpirit && bestScore >= 10) {
+      // Variant ambiguity check: if the top two results share the same brand and
+      // scores are within 4 points, we can't confidently pick a variant (e.g.
+      // Green vs Yellow Chartreuse, Patrón Silver vs Reposado). Return null so
+      // the edge function can use web entities to disambiguate.
+      if (
+        secondBestSpirit &&
+        secondBestScore >= 10 &&
+        normalizeForMatch(bestSpirit.brand) === normalizeForMatch(secondBestSpirit.brand) &&
+        bestScore - secondBestScore <= 4
+      ) {
+        log.warn('GoogleVisionService', 'Variant ambiguity — deferring to edge function', {
+          best: bestSpirit.name,
+          second: secondBestSpirit.name,
+          bestScore,
+          secondBestScore,
+        });
+        return null;
+      }
+
       log.info('GoogleVisionService', 'Bottle matched via OCR scoring', {
         brand: bestSpirit.brand,
         name: bestSpirit.name,

@@ -1495,7 +1495,7 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
     flavorProfile: ['Herbal', 'Mint', 'Spice'],
     tastingNotes: '130 herbs and plants, made by monks since 1737. Intensely herbal with mint, pine, and warming spice. Utterly unique.',
     origin: 'France',
-    searchTerms: ['chartreuse', 'green chartreuse', 'vep chartreuse'],
+    searchTerms: ['green chartreuse', 'chartreuse verte', 'verte', 'chartreuse green', 'vep chartreuse'],
   },
   {
     id: 'jagermeister',

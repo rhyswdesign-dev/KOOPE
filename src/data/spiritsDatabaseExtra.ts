@@ -899,7 +899,7 @@ export const SPIRITS_DATABASE_EXTRA: Spirit[] = [
     flavorProfile: ['Honey', 'Herbal', 'Floral', 'Saffron'],
     tastingNotes: 'Milder and sweeter than Green Chartreuse. Honey, saffron, and floral notes from 130 plants and herbs. Still made by monks in the French Alps to a 400-year-old recipe. Gentler introduction to the Chartreuse world.',
     origin: 'France',
-    searchTerms: ['chartreuse yellow', 'yellow chartreuse', 'chartreuse'],
+    searchTerms: ['yellow chartreuse', 'chartreuse jaune', 'jaune', 'chartreuse yellow'],
   },
   {
     id: 'malibu-coconut',
