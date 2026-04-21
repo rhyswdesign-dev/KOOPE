@@ -638,6 +638,17 @@ export default function BottleDetailScreen() {
     earnScanXP(bottle.id);
     // Boost taste model with shelf signal
     recordScan(bottle, true);
+    // Strengthen cache — adding to shelf is the strongest confirmation signal
+    try {
+      const lookupKey = (bottle.id || bottle.name)
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, ' ')
+        .trim();
+      await supabase.from('spirits_cache').upsert(
+        { lookup_key: lookupKey, confidence: 1.0 },
+        { onConflict: 'lookup_key' }
+      );
+    } catch { /* silent — shelf add already succeeded */ }
   };
 
   const handleSaveToWishlist = () => {
