@@ -69,7 +69,7 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
     flavorProfile: ['Juniper', 'Citrus', 'Spice'],
     tastingNotes: 'Classic London Dry with bold juniper, bright citrus peel, and subtle spice. Crisp and dry finish perfect for gin & tonics and martinis.',
     origin: 'United Kingdom',
-    searchTerms: ['tanqueray', 'tanq', 'london dry'],
+    searchTerms: ['tanqueray london dry', 'tanq london dry', 'tanqueray original'],
   },
   {
     id: 'bombay-sapphire',
@@ -386,7 +386,7 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
     flavorProfile: ['Smoke', 'Vanilla', 'Fruit'],
     tastingNotes: '12-year blended Scotch with layers of smoke, vanilla, dried fruit, and sweet spice. Complex and smooth.',
     origin: 'Scotland',
-    searchTerms: ['johnnie walker', 'black label', 'blended scotch'],
+    searchTerms: ['johnnie walker black', 'black label scotch', 'jw black'],
     serveGuidance: {
       priority: 'serve-first',
       premiumScore: 80,
@@ -698,7 +698,7 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
     flavorProfile: ['Cream', 'Chocolate', 'Whiskey'],
     tastingNotes: 'Creamy blend of Irish whiskey, cream, and cocoa. Rich, smooth, and indulgent.',
     origin: 'Ireland',
-    searchTerms: ['baileys', 'irish cream', 'cream liqueur'],
+    searchTerms: ['baileys original', 'baileys irish cream', 'irish cream liqueur'],
   },
 
   // ===== GIN (expanded) =====
@@ -942,7 +942,7 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
     flavorProfile: ['Overproof Heat', 'Raw Cane', 'Tropical Fruit', 'Funky Pot Still'],
     tastingNotes: 'A genuine Jamaican pot-still overproof rum distilled at Worthy Park Estate. Intense raw cane and funky Jamaican character with ripe tropical fruit. A true sipping or mixing overproof with real depth.',
     origin: 'Jamaica',
-    searchTerms: ['rum bar', 'rum-bar', 'rum bar white', 'rum bar overproof', 'worthy park rum', 'jamaica overproof', 'pot still rum', 'white overproof rum', 'guaranteed strength rum'],
+    searchTerms: ['rum bar white', 'rum-bar white', 'worthy park white rum', 'jamaica overproof', 'pot still rum', 'white overproof rum', 'guaranteed strength rum'],
   },
   {
     id: 'rum-bar-gold',
@@ -1100,7 +1100,7 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
     flavorProfile: ['Pear', 'Oak', 'Malt'],
     tastingNotes: 'The world\'s most awarded single malt. Fresh pear, sweet oak, and a hint of malt. Smooth and approachable.',
     origin: 'Scotland',
-    searchTerms: ['glenfiddich', 'glenfiddich 12', 'glen fiddich'],
+    searchTerms: ['glenfiddich 12', 'glenfiddich twelve', 'glen fiddich 12'],
     serveGuidance: {
       priority: 'serve-first',
       spiritFamily: 'scotch',
@@ -1179,7 +1179,7 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
     flavorProfile: ['Sherry', 'Dried Fruit', 'Spice'],
     tastingNotes: 'Sherry-cask Speyside. Rich dried fruit, Christmas spice, and warming oak. One of the most recognisable whiskies in the world.',
     origin: 'Scotland',
-    searchTerms: ['macallan', 'the macallan', 'macallan 12'],
+    searchTerms: ['macallan 12', 'the macallan 12', 'macallan twelve'],
     serveGuidance: {
       priority: 'serve-first',
       spiritFamily: 'scotch',
@@ -1391,7 +1391,7 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
     flavorProfile: ['Plum', 'Pear', 'Oak'],
     tastingNotes: 'The oldest of the great cognac houses. Light plum and pear on the nose, warm oak on the palate.',
     origin: 'France',
-    searchTerms: ['martell', 'martell vs', 'martell cognac'],
+    searchTerms: ['martell vs', 'martell very special', 'martell cognac vs'],
   },
 
   // ===== LIQUEUR (expanded) =====
@@ -1587,7 +1587,7 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
     flavorProfile: ['Clean', 'Smooth', 'Neutral', 'Subtle Vanilla'],
     tastingNotes: 'Ultra-clean Canadian vodka distilled four times and filtered through Herkimer diamonds. Exceptionally smooth with a neutral, slightly sweet finish.',
     origin: 'Canada',
-    searchTerms: ['crystal head', 'skull vodka', 'dan aykroyd vodka', 'crystal head original', 'skull bottle vodka', 'skull', 'crystal skull', 'herkimer diamond vodka'],
+    searchTerms: ['crystal head original', 'skull vodka', 'dan aykroyd vodka', 'skull bottle vodka', 'crystal skull vodka', 'herkimer diamond vodka'],
   },
   {
     id: 'crystal-head-aurora',
@@ -2214,7 +2214,7 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
     flavorProfile: ['Agave', 'Citrus', 'Light Pepper', 'Floral'],
     tastingNotes: 'Rested 45 days — the industry minimum for blanco is zero days, making Herradura Silver unusually complex. Fresh agave, citrus blossom, and a slight pepper finish.',
     origin: 'Mexico',
-    searchTerms: ['herradura silver', 'herradura blanco', 'herradura tequila', 'herradura'],
+    searchTerms: ['herradura silver', 'herradura blanco', 'herradura tequila silver'],
   },
   {
     id: 'herradura-reposado',
@@ -2301,7 +2301,7 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
     flavorProfile: ['Agave', 'Vanilla', 'Dark Caramel', 'Toasted Oak', 'Cacao'],
     tastingNotes: 'Aged 24-28 months in American oak. Rich caramel, toasted oak, and cacao with a long, warm finish. The oval egg-shaped bottle is one of the most distinctive in modern tequila.',
     origin: 'Mexico',
-    searchTerms: ['cincoro', 'cincoro anejo', 'cincoro tequila', 'oval tequila bottle', 'egg shaped tequila bottle'],
+    searchTerms: ['cincoro anejo', 'cincoro añejo', 'oval tequila bottle', 'egg shaped tequila bottle'],
   },
   {
     id: 'lobos-1707-reposado',
@@ -2335,7 +2335,7 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
     flavorProfile: ['Agave', 'Vanilla', 'Butter', 'Caramel'],
     tastingNotes: 'Aged 6 months in American white oak. Buttery vanilla and caramel with clean agave. Kendall Jenner\'s brand, now widely distributed.',
     origin: 'Mexico',
-    searchTerms: ['818 tequila', '818 reposado', 'eight one eight tequila', 'kendall jenner tequila', '818'],
+    searchTerms: ['818 reposado', 'eight one eight reposado', 'kendall jenner tequila reposado'],
   },
   {
     id: 'codigo-1530-rosa',
@@ -2621,7 +2621,7 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
     flavorProfile: ['Vanilla', 'Oak', 'Caramel', 'Fruit'],
     tastingNotes: 'Canada\'s best-selling whisky. Smooth and approachable with vanilla, caramel, and light fruit. The iconic purple velvet bag makes it one of the most recognisable bottles in the world.',
     origin: 'Canada',
-    searchTerms: ['crown royal', 'cr', 'crown royal canadian', 'purple bag whisky', 'canadian crown'],
+    searchTerms: ['crown royal deluxe', 'crown royal original', 'purple bag whisky', 'canadian crown whisky'],
   },
   {
     id: 'crown-royal-apple',
