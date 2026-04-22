@@ -287,6 +287,19 @@ export const SPIRITS_DATABASE_EXTRA: Spirit[] = [
     origin: 'Mexico',
     searchTerms: ['cincoro blanco', 'cincoro tequila blanco'],
   },
+  {
+    id: 'sierra-tequila-blanco',
+    name: 'Sierra Tequila Silver Blanco',
+    brand: 'Sierra Tequila',
+    type: 'tequila',
+    abv: 38,
+    priceTier: 'mid-range',
+    priceEstimate: { USD: { min: 22, max: 30 }, CAD: { min: 35, max: 45 }, GBP: { min: 18, max: 25 } },
+    flavorProfile: ['Agave', 'Citrus', 'Pepper', 'Light Sweetness'],
+    tastingNotes: 'Mexican blanco tequila made from 100% blue agave. Clean and straightforward — fresh agave, citrus, and pepper. Widely distributed European market tequila, recognisable by its distinctive Mexican-art label featuring a guitar player.',
+    origin: 'Mexico',
+    searchTerms: ['sierra tequila', 'sierra blanco', 'sierra silver tequila', 'sierra tequila blanco'],
+  },
 
   // ─── MEZCAL ────────────────────────────────────────────────────────────────
 
