@@ -325,7 +325,11 @@ export default function SmartScanScreen() {
 
             if (extractedName || (visionResult?.labels?.length ?? 0) > 0) {
               try {
-                bottle = await GoogleVisionService.lookupBottleProfile(extractedName || 'unknown bottle', visionResult);
+                bottle = await GoogleVisionService.lookupBottleProfile(
+                  extractedName || 'unknown bottle',
+                  visionResult,
+                  visionResult?.imageBase64,
+                );
               } catch (lookupErr: any) {
                 log.warn('SmartScanScreen', 'SpiritLookup threw', { message: lookupErr?.message });
               }

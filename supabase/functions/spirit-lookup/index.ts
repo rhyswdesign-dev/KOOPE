@@ -1,15 +1,25 @@
 /**
  * Spirit Lookup Edge Function
  *
- * Called when a scanned bottle name is not found in the local spirits database.
- * 1. Checks the spirits_cache table first (fast, free).
- * 2. If not cached, asks Claude to generate a full bottle profile.
- * 3. Saves the result to spirits_cache so it's instant on the next scan.
+ * Called when a scanned bottle is not found in the local spirits database.
  *
- * Expected request body:
- *   { bottleName: string }   — the raw name string from OCR / Vision
+ * Waterfall:
+ *   1. Check spirits_cache (fast, free)
+ *   2. If imageBase64 is present → Claude Sonnet Vision (reads the label directly)
+ *   3. If no image → Claude Haiku text-only fallback (OCR text + labels)
+ *   4. Cache result if confidence >= 0.8 (vision) or >= 0.7 (text-only)
  *
- * Returns a SpiritProfile object matching the local Spirit interface shape.
+ * Request body:
+ *   {
+ *     bottleName: string          — OCR-extracted name (used as cache key + text fallback)
+ *     imageBase64?: string        — JPEG base64 of the cropped bottle label
+ *     visionLabels?: string[]     — Google Vision label detections (shape, colour, type)
+ *   }
+ *
+ * NOTE: webEntities and bestGuessLabels are intentionally NOT used for identification.
+ * Google Web Detection reliably misidentifies uncommon bottles as the most famous brand
+ * in that category (Sierra Tequila → Jose Cuervo). Claude reading the actual label is
+ * always more accurate.
  */
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
@@ -28,43 +38,15 @@ serve(async (req) => {
   }
 
   try {
-    const { bottleName, visionLabels, webEntities, bestGuessLabels } = await req.json()
+    const { bottleName, imageBase64, visionLabels } = await req.json()
     if (!bottleName || typeof bottleName !== 'string') {
       return jsonError('Missing bottleName', 400)
     }
 
     const labels: string[] = Array.isArray(visionLabels) ? visionLabels : []
-    const entities: string[] = Array.isArray(webEntities) ? webEntities : []
-    const guesses: string[] = Array.isArray(bestGuessLabels) ? bestGuessLabels : []
+    const hasImage = typeof imageBase64 === 'string' && imageBase64.length > 0
 
-    // Web Detection sometimes returns material/object descriptions instead of brand names
-    // (e.g. "Plastic", "Glass bottle", "Ceramic decanter", "Liquid", "Product").
-    // Only trust a bestGuessLabel if it looks like an actual spirit/brand name.
-    const GENERIC_TOKENS = new Set([
-      'plastic','glass','ceramic','bottle','liquid','product','object','container',
-      'decanter','vase','jar','cup','jug','flask','vessel','pitcher','carafe',
-      'red','blue','green','black','white','brown','crystal','wood','wooden',
-      'metal','metallic','unknown','item','thing','material','surface','texture',
-      'pattern','design','art','craft','handmade','decorative','ornamental',
-      'drinkware','barware','glassware','tableware','stopper','cork',
-    ])
-    const isUsableGuess = (s: string) => {
-      const words = s.trim().toLowerCase().split(/\s+/)
-      // Reject if every word is a generic material/object/colour token
-      if (words.every(w => GENERIC_TOKENS.has(w))) return false
-      // Single short word with no brand character
-      if (words.length === 1 && s.length <= 5) return false
-      return true
-    }
-
-    const validGuess = guesses.find(isUsableGuess) ?? null
-
-    // If Google's Web Detection identified the bottle directly, use that as the
-    // primary name — it's far more reliable than garbled OCR for unique bottles
-    // like Crystal Head Vodka (no flat label) or Clase Azul (ceramic bottle).
-    const effectiveName = validGuess ?? bottleName
-
-    const lookupKey = effectiveName.toLowerCase().replace(/\s+/g, ' ').trim()
+    const lookupKey = bottleName.toLowerCase().replace(/\s+/g, ' ').trim()
 
     // ── 1. Check cache ────────────────────────────────────────────────────────
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
@@ -78,7 +60,6 @@ serve(async (req) => {
       .maybeSingle()
 
     if (cached) {
-      // Bump hit count and last_hit_at asynchronously (don't await)
       supabase
         .from('spirits_cache')
         .update({ hit_count: cached.hit_count + 1, last_hit_at: new Date().toISOString() })
@@ -97,67 +78,37 @@ serve(async (req) => {
       return jsonError('AI lookup not configured', 503)
     }
 
-    const validGuesses = guesses.filter(isUsableGuess)
-    const prompt = buildPrompt(effectiveName, labels, entities, validGuesses)
-
-    const claudeResponse = await fetch(ANTHROPIC_API_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': anthropicKey,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: 'claude-3-haiku-20240307',
-        max_tokens: 1024,
-        messages: [{ role: 'user', content: prompt }],
-      }),
-    })
-
-    if (!claudeResponse.ok) {
-      const err = await claudeResponse.text()
-      console.error('Claude API error:', claudeResponse.status, err)
-      return jsonError(`AI lookup failed: ${claudeResponse.status}: ${err}`, 502)
-    }
-
-    const claudeData = await claudeResponse.json()
-    const rawText = claudeData?.content?.[0]?.text ?? ''
-
-    // Extract JSON from Claude's response
-    const jsonMatch = rawText.match(/\{[\s\S]*\}/)
-    if (!jsonMatch) {
-      console.error('Claude response had no JSON:', rawText)
-      return jsonError('AI returned unrecognised format', 502)
-    }
-
     let profile: SpiritProfile
-    try {
-      profile = JSON.parse(jsonMatch[0]) as SpiritProfile
-    } catch (e) {
-      console.error('Failed to parse Claude JSON:', jsonMatch[0])
-      return jsonError('AI returned invalid JSON', 502)
+    let claudeConfidence: number
+    let source: string
+
+    if (hasImage) {
+      // ── Vision path: Claude Sonnet reads the label directly ─────────────────
+      const result = await callClaudeVision(anthropicKey, imageBase64, bottleName, labels)
+      profile = result.profile
+      claudeConfidence = result.confidence
+      source = 'claude-vision'
+    } else {
+      // ── Text fallback: Haiku guesses from OCR noise ──────────────────────────
+      const result = await callClaudeText(anthropicKey, bottleName, labels)
+      profile = result.profile
+      claudeConfidence = result.confidence
+      source = 'claude-text'
     }
 
-    // Normalise — fill any gaps with safe defaults
-    profile = normaliseProfile(profile, effectiveName)
-
-    const claudeConfidence = typeof (profile as any).confidence === 'number'
-      ? (profile as any).confidence
-      : 0.75
-
-    // ── 3. Save to cache — only if confidence is high enough ─────────────────
-    // Low-confidence results are returned to the client but NOT cached, so a
-    // better scan of the same bottle will trigger a fresh Claude lookup rather
-    // than serving the uncertain result forever.
-    if (claudeConfidence >= 0.7) {
-      const row = profileToRow(profile, lookupKey)
+    // ── 3. Cache if confident enough ──────────────────────────────────────────
+    // Vision results require higher confidence bar before caching — lower confidence
+    // means Claude wasn't sure even with the image, so we want a fresh attempt next time.
+    const cacheThreshold = hasImage ? 0.8 : 0.7
+    if (claudeConfidence >= cacheThreshold) {
+      const row = profileToRow(profile, lookupKey, claudeConfidence)
       await supabase.from('spirits_cache').upsert(row, { onConflict: 'lookup_key' })
     } else {
-      console.log(`Low confidence (${claudeConfidence}) — skipping cache for: ${lookupKey}`)
+      console.log(`Low confidence (${claudeConfidence}) for "${lookupKey}" — skipping cache`)
     }
 
     return new Response(
-      JSON.stringify({ profile, source: 'claude', confidence: claudeConfidence }),
+      JSON.stringify({ profile, source, confidence: claudeConfidence }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
 
@@ -166,6 +117,208 @@ serve(async (req) => {
     return jsonError((error as Error).message || 'Internal server error', 500)
   }
 })
+
+// ── Claude Vision (Sonnet) ─────────────────────────────────────────────────────
+// Passes the actual bottle image to Claude so it reads the label directly.
+// This handles any bottle in the world regardless of database coverage.
+
+async function callClaudeVision(
+  apiKey: string,
+  imageBase64: string,
+  ocrHint: string,
+  visionLabels: string[]
+): Promise<{ profile: SpiritProfile; confidence: number }> {
+  const labelsLine = visionLabels.length > 0
+    ? `\nGoogle Vision labels (bottle shape/colour/category context): ${visionLabels.join(', ')}`
+    : ''
+
+  const prompt = `You are a spirits expert and database. Look at this bottle image and identify the spirit precisely.
+
+OCR hint (may be noisy/incomplete): "${ocrHint}"${labelsLine}
+
+Read the label in the image directly — it is the authoritative source. Use the OCR hint only to cross-check.
+
+Return ONLY a JSON object (no markdown, no explanation):
+{
+  "id": "brand-name-style-slug",
+  "name": "Full Official Product Name",
+  "brand": "Brand Name",
+  "type": "gin|vodka|rum|whiskey|tequila|mezcal|brandy|liqueur|other",
+  "abv": 40.0,
+  "priceTier": "budget|mid-range|premium|ultra-premium",
+  "priceEstimate": {
+    "USD": { "min": 25, "max": 35 },
+    "CAD": { "min": 35, "max": 45 },
+    "GBP": { "min": 22, "max": 30 }
+  },
+  "flavorProfile": ["Note 1", "Note 2", "Note 3"],
+  "tastingNotes": "2-3 sentence professional tasting note.",
+  "origin": "Country",
+  "searchTerms": ["common name", "abbreviation"],
+  "confidence": 0.95
+}
+
+Rules:
+- Read the brand and product name exactly as printed on the label
+- Use real, accurate data for well-known bottles
+- For bottles you don't recognise, use what you can read on the label plus reasonable estimates for the spirit type
+- priceTier: budget = under $20, mid-range = $20–40, premium = $40–80, ultra-premium = $80+
+- confidence: 0.9+ if you can clearly read the label; 0.7–0.89 if partially obscured; below 0.7 if genuinely unclear
+- id: lowercase kebab-case`
+
+  const response = await fetch(ANTHROPIC_API_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 1024,
+      messages: [{
+        role: 'user',
+        content: [
+          {
+            type: 'image',
+            source: {
+              type: 'base64',
+              media_type: 'image/jpeg',
+              data: imageBase64,
+            },
+          },
+          {
+            type: 'text',
+            text: prompt,
+          },
+        ],
+      }],
+    }),
+  })
+
+  if (!response.ok) {
+    const err = await response.text()
+    throw new Error(`Claude Vision API error ${response.status}: ${err}`)
+  }
+
+  const data = await response.json()
+  const rawText = data?.content?.[0]?.text ?? ''
+  return parseClaudeResponse(rawText, ocrHint)
+}
+
+// ── Claude Text (Haiku) ────────────────────────────────────────────────────────
+// Fallback when no image is available. Less accurate but cheap.
+
+async function callClaudeText(
+  apiKey: string,
+  bottleName: string,
+  visionLabels: string[]
+): Promise<{ profile: SpiritProfile; confidence: number }> {
+  const labelsSection = visionLabels.length > 0
+    ? `\nVisual labels from Google Vision: ${visionLabels.join(', ')}`
+    : ''
+
+  const prompt = `You are a spirits database. Given a bottle name (from OCR), return a JSON profile.
+
+Bottle name: "${bottleName}"${labelsSection}
+
+Return ONLY a JSON object (no markdown, no explanation):
+{
+  "id": "brand-name-slug",
+  "name": "Full Official Product Name",
+  "brand": "Brand Name",
+  "type": "gin|vodka|rum|whiskey|tequila|mezcal|brandy|liqueur|other",
+  "abv": 40.0,
+  "priceTier": "budget|mid-range|premium|ultra-premium",
+  "priceEstimate": {
+    "USD": { "min": 25, "max": 35 },
+    "CAD": { "min": 35, "max": 45 },
+    "GBP": { "min": 22, "max": 30 }
+  },
+  "flavorProfile": ["Note 1", "Note 2", "Note 3"],
+  "tastingNotes": "2-3 sentence professional tasting note.",
+  "origin": "Country",
+  "searchTerms": ["common name"],
+  "confidence": 0.75
+}
+
+Rules:
+- Use real data for well-known bottles; reasonable estimates for unknown ones
+- Set confidence below 0.6 if the name is garbled or unrecognisable
+- priceTier: budget = under $20, mid-range = $20–40, premium = $40–80, ultra-premium = $80+`
+
+  const response = await fetch(ANTHROPIC_API_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+    },
+    body: JSON.stringify({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 1024,
+      messages: [{ role: 'user', content: prompt }],
+    }),
+  })
+
+  if (!response.ok) {
+    const err = await response.text()
+    throw new Error(`Claude text API error ${response.status}: ${err}`)
+  }
+
+  const data = await response.json()
+  const rawText = data?.content?.[0]?.text ?? ''
+  return parseClaudeResponse(rawText, bottleName)
+}
+
+// ── Shared helpers ─────────────────────────────────────────────────────────────
+
+function parseClaudeResponse(rawText: string, fallbackName: string): { profile: SpiritProfile; confidence: number } {
+  const jsonMatch = rawText.match(/\{[\s\S]*\}/)
+  if (!jsonMatch) {
+    console.error('Claude response had no JSON:', rawText)
+    throw new Error('AI returned unrecognised format')
+  }
+
+  let profile: SpiritProfile
+  try {
+    profile = JSON.parse(jsonMatch[0]) as SpiritProfile
+  } catch (e) {
+    console.error('Failed to parse Claude JSON:', jsonMatch[0])
+    throw new Error('AI returned invalid JSON')
+  }
+
+  const confidence = typeof (profile as any).confidence === 'number'
+    ? (profile as any).confidence
+    : 0.75
+
+  profile = normaliseProfile(profile, fallbackName)
+  return { profile, confidence }
+}
+
+function normaliseProfile(p: Partial<SpiritProfile>, bottleName: string): SpiritProfile {
+  const name = p.name || bottleName
+  const brand = p.brand || name.split(' ')[0]
+  return {
+    id: p.id || name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''),
+    name,
+    brand,
+    type: p.type || 'other',
+    abv: typeof p.abv === 'number' ? p.abv : 40,
+    priceTier: p.priceTier || 'mid-range',
+    priceEstimate: p.priceEstimate || {
+      USD: { min: 20, max: 35 },
+      CAD: { min: 28, max: 45 },
+      GBP: { min: 18, max: 30 },
+    },
+    flavorProfile: Array.isArray(p.flavorProfile) && p.flavorProfile.length > 0
+      ? p.flavorProfile
+      : ['Complex', 'Aromatic', 'Distinct'],
+    tastingNotes: p.tastingNotes || 'A distinctive spirit with its own character.',
+    origin: p.origin || 'International',
+    searchTerms: Array.isArray(p.searchTerms) ? p.searchTerms : [name.toLowerCase()],
+  }
+}
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -188,89 +341,9 @@ interface SpiritProfile {
   confidence?: number
 }
 
-// ── Prompt ─────────────────────────────────────────────────────────────────────
-
-function buildPrompt(bottleName: string, visionLabels: string[] = [], webEntities: string[] = [], bestGuessLabels: string[] = []): string {
-  const labelsSection = visionLabels.length > 0
-    ? `\nVisual labels detected by Google Vision (bottle imagery, shape, colour, packaging): ${visionLabels.join(', ')}`
-    : ''
-
-  const webSection = bestGuessLabels.length > 0 || webEntities.length > 0
-    ? `\nGoogle Web Detection results:` +
-      (bestGuessLabels.length > 0 ? `\n  Best guess: ${bestGuessLabels.join(', ')}` : '') +
-      (webEntities.length > 0 ? `\n  Matched web entities: ${webEntities.join(', ')}` : '')
-    : ''
-
-  return `You are a spirits database. Given a bottle name and optional visual context, return a JSON object with the spirit's profile.
-
-Bottle name (from OCR or Web Detection): "${bottleName}"${labelsSection}${webSection}
-
-Identification priority:
-1. If Google Web Detection "Best guess" is present, treat it as the authoritative bottle name — use it directly.
-2. If Web Detection "Matched web entities" are present, use the top-scoring entity to confirm or supplement the name.
-3. Use visual labels to resolve any remaining ambiguity (e.g. skull + crystal + vodka = Crystal Head Vodka; ceramic + hand-painted + agave = Clase Azul Tequila).
-4. If the bottle name is "unknown bottle" or OCR noise (repeated characters, gibberish), rely entirely on Web Detection and visual labels.
-
-Return ONLY a JSON object (no markdown, no explanation) in this exact shape:
-{
-  "id": "slug-from-name",
-  "name": "Full Official Bottle Name",
-  "brand": "Brand Name",
-  "type": "gin|vodka|rum|whiskey|tequila|mezcal|brandy|liqueur|other",
-  "abv": 40.0,
-  "priceTier": "budget|mid-range|premium|ultra-premium",
-  "priceEstimate": {
-    "USD": { "min": 25, "max": 35 },
-    "CAD": { "min": 35, "max": 45 },
-    "GBP": { "min": 22, "max": 30 }
-  },
-  "flavorProfile": ["Note 1", "Note 2", "Note 3"],
-  "tastingNotes": "2-3 sentence description of aroma, palate, and finish.",
-  "origin": "Country of origin",
-  "searchTerms": ["common name", "abbreviation", "alternate spelling"],
-  "confidence": 0.95
-}
-
-Rules:
-- Use real, accurate data for well-known bottles
-- For unknown bottles, make a reasonable estimate based on the spirit type and brand
-- flavorProfile should have 3-5 items, each 1-3 words
-- tastingNotes should be 2-3 sentences, professional tasting note style
-- priceTier: budget = under $20, mid-range = $20-40, premium = $40-80, ultra-premium = $80+
-- searchTerms should include lowercase common references
-- id should be lowercase kebab-case from the name
-- confidence: 0.0-1.0. Use 0.9+ for well-known bottles you are certain about. Use 0.5-0.7 for bottles you are guessing from limited info. Use below 0.5 if you cannot reliably identify the bottle — in that case still return your best guess but set confidence low.`
-}
-
-// ── Normalise ──────────────────────────────────────────────────────────────────
-
-function normaliseProfile(p: Partial<SpiritProfile>, bottleName: string): SpiritProfile {
-  const name = p.name || bottleName
-  const brand = p.brand || name.split(' ')[0]
-  return {
-    id: p.id || name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''),
-    name,
-    brand,
-    type: p.type || 'other',
-    abv: typeof p.abv === 'number' ? p.abv : 40,
-    priceTier: p.priceTier || 'mid-range',
-    priceEstimate: p.priceEstimate || {
-      USD: { min: 20, max: 35 },
-      CAD: { min: 28, max: 45 },
-      GBP: { min: 18, max: 30 },
-    },
-    flavorProfile: Array.isArray(p.flavorProfile) && p.flavorProfile.length > 0
-      ? p.flavorProfile
-      : ['Complex', 'Aromatic', 'Distinct'],
-    tastingNotes: p.tastingNotes || 'A distinctive spirit with its own character. Explore neat first.',
-    origin: p.origin || 'International',
-    searchTerms: Array.isArray(p.searchTerms) ? p.searchTerms : [name.toLowerCase()],
-  }
-}
-
 // ── Row conversion ─────────────────────────────────────────────────────────────
 
-function profileToRow(p: SpiritProfile, lookupKey: string): Record<string, unknown> {
+function profileToRow(p: SpiritProfile, lookupKey: string, confidence: number): Record<string, unknown> {
   return {
     lookup_key: lookupKey,
     name: p.name,
@@ -288,7 +361,7 @@ function profileToRow(p: SpiritProfile, lookupKey: string): Record<string, unkno
     tasting_notes: p.tastingNotes,
     origin: p.origin,
     search_terms: p.searchTerms,
-    confidence: 0.85,
+    confidence,
     source: 'claude',
   }
 }

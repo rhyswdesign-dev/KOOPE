@@ -16,6 +16,10 @@ export interface VisionResult {
   confidence: number;
   webEntities?: string[];
   bestGuessLabels?: string[];
+  /** Base64 JPEG of the cropped label — generated during analyzeImage and
+   *  kept in the result so it can be forwarded to spirit-lookup for Claude Vision
+   *  without a second encode/crop pass. Never sent to the client bundle. */
+  imageBase64?: string;
 }
 
 const DEMO_BOTTLE_RESULTS: Record<string, VisionResult> = {
@@ -144,7 +148,9 @@ export class GoogleVisionService {
         confidence: data.confidence,
       });
 
-      return data as VisionResult;
+      // Attach the already-generated base64 to the result so the scan flow can
+      // forward it to spirit-lookup without a second encode pass.
+      return { ...(data as VisionResult), imageBase64: base64Image };
     } catch (error) {
       log.error('GoogleVisionService', 'Error analyzing image', error);
       if (__DEV__) {
@@ -546,22 +552,31 @@ export class GoogleVisionService {
   }
 
   /**
-   * Call the spirit-lookup edge function (cache → Claude fallback).
-   * Converts the edge function response into a Spirit-compatible object.
+   * Call the spirit-lookup edge function (cache → Claude Vision → Claude text fallback).
+   * Passes imageBase64 when available so Claude reads the label directly rather than
+   * guessing from OCR noise. This handles any bottle in the world.
+   *
+   * NOTE: webEntities and bestGuessLabels are intentionally NOT forwarded to the edge
+   * function. Google Web Detection misidentifies uncommon bottles as the most famous
+   * brand in that category (Sierra Tequila → Jose Cuervo). Claude reading the actual
+   * label is always more accurate.
    */
-  static async lookupBottleProfile(bottleName: string, visionResult?: VisionResult): Promise<Spirit | null> {
+  static async lookupBottleProfile(
+    bottleName: string,
+    visionResult?: VisionResult,
+    imageBase64?: string,
+  ): Promise<Spirit | null> {
     try {
       const { data, error } = await supabase.functions.invoke('spirit-lookup', {
         body: {
           bottleName,
-          // Pass Vision labels so Claude has visual context (shape, colour, imagery)
-          // — critical for unique bottles like Crystal Head, Clase Azul, etc.
+          // Pass the cropped label image so Claude Vision reads it directly.
+          // When present, the edge function uses claude-sonnet-4-6 with vision
+          // instead of the text-only Haiku fallback.
+          imageBase64: imageBase64 ?? null,
+          // Vision label detections give Claude shape/colour/category context
+          // (e.g. "skull bottle", "ceramic", "agave") — useful for decorative bottles.
           visionLabels: visionResult?.labels ?? [],
-          // Web Detection results — Google's direct product/brand identification.
-          // bestGuessLabels[0] is Vision's top-level guess (e.g. "Crystal Head Vodka").
-          // webEntities are brand/product matches from web image matching.
-          webEntities: visionResult?.webEntities ?? [],
-          bestGuessLabels: visionResult?.bestGuessLabels ?? [],
         },
       });
 
