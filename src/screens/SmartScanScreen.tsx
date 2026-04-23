@@ -31,6 +31,7 @@ import { InventoryService } from '../services/inventoryService';
 import { useAuth } from '../contexts/AuthContext';
 import { useSubscription } from '../contexts/SubscriptionContext';
 import DataConsentDialog from '../components/modals/DataConsentDialog';
+import BottleNotFoundModal from '../components/BottleNotFoundModal';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { challengeProgressService } from '../services/challengeProgressService';
 import { achievementService } from '../services/achievementService';
@@ -68,6 +69,7 @@ export default function SmartScanScreen() {
   const [hasGivenConsent, setHasGivenConsent] = useState(false);
   // When true, camera opens in barcode-only mode (Stage 7 fallback)
   const [barcodeMode, setBarcodeMode] = useState(false);
+  const [showBottleNotFound, setShowBottleNotFound] = useState(false);
   // Always keep full photo scanner enabled; GoogleVisionService handles API fallback.
   const aiScanEnabled = true;
 
@@ -430,29 +432,7 @@ export default function SmartScanScreen() {
   };
 
   const handleBottleNotFound = () => {
-    Alert.alert(
-      'Bottle Not Recognised',
-      'We couldn\'t identify this bottle from the image. Try the barcode on the back, or search our bottle library to add it directly.',
-      [
-        {
-          text: 'Search Library',
-          onPress: () => navigation.navigate('BottleSearch'),
-        },
-        {
-          text: 'Scan Barcode',
-          onPress: () => {
-            setBarcodeMode(true);
-            setScanMode(null);
-            setCameraVisible(true);
-          },
-        },
-        {
-          text: 'Try Again',
-          onPress: () => handleRetake(),
-        },
-        { text: 'Cancel', style: 'cancel', onPress: () => navigation.goBack() },
-      ]
-    );
+    setShowBottleNotFound(true);
   };
 
   const handleNotABottle = () => {
@@ -528,6 +508,19 @@ export default function SmartScanScreen() {
         onAccept={handleConsentAccept}
         onDecline={handleConsentDecline}
         isPaidUser={isSubscriber}
+      />
+
+      <BottleNotFoundModal
+        visible={showBottleNotFound}
+        onTryAgain={() => { setShowBottleNotFound(false); handleRetake(); }}
+        onScanBarcode={() => {
+          setShowBottleNotFound(false);
+          setBarcodeMode(true);
+          setScanMode(null);
+          setCameraVisible(true);
+        }}
+        onSearchLibrary={() => { setShowBottleNotFound(false); navigation.navigate('BottleSearch'); }}
+        onCancel={() => { setShowBottleNotFound(false); navigation.goBack(); }}
       />
 
       <CameraCapture
