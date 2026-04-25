@@ -36,6 +36,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { challengeProgressService } from '../services/challengeProgressService';
 import { achievementService } from '../services/achievementService';
 import { ImageQualityService } from '../services/imageQualityService';
+import { supabase } from '../lib/supabase';
 
 function getManualPrefill(productName: string | null, productBrand: string | null): { brand?: string; name?: string } {
   const cleanName = productName?.trim() || '';
@@ -228,7 +229,7 @@ export default function SmartScanScreen() {
           const labelForAlert = productName ? `"${productName}"` : `barcode ${barcode || result.data}`;
           Alert.alert(
             'Bottle Not Found Yet',
-            `We found ${labelForAlert} but it's not in our database yet.\n\nManual search is coming soon — try scanning the label for more detail.`,
+            `We found ${labelForAlert} but it's not in our database yet.\n\nTry scanning the front label for more detail, or add the bottle manually from the Home Bar screen.`,
             [
               {
                 text: 'Scan Again',
@@ -308,6 +309,33 @@ export default function SmartScanScreen() {
 
           // ── Stage 1+3: Local DB lookup (Web Detection first, then OCR) ───────
           let bottle = GoogleVisionService.matchBottle(visionResult);
+
+          // If local DB matched, silently upsert to spirits_cache with confidence 1.0.
+          // This overwrites any stale Haiku-generated cache entry for the same bottle,
+          // preventing old bad data from being served on future edge function calls.
+          if (bottle) {
+            const lookupKey = bottle.name.toLowerCase().replace(/\s+/g, ' ').trim();
+            supabase.from('spirits_cache').upsert({
+              lookup_key: lookupKey,
+              name: bottle.name,
+              brand: bottle.brand,
+              spirit_type: bottle.type,
+              abv: bottle.abv,
+              price_tier: bottle.priceTier,
+              price_usd_min: bottle.priceEstimate?.USD?.min ?? null,
+              price_usd_max: bottle.priceEstimate?.USD?.max ?? null,
+              price_cad_min: bottle.priceEstimate?.CAD?.min ?? null,
+              price_cad_max: bottle.priceEstimate?.CAD?.max ?? null,
+              price_gbp_min: bottle.priceEstimate?.GBP?.min ?? null,
+              price_gbp_max: bottle.priceEstimate?.GBP?.max ?? null,
+              flavor_profile: bottle.flavorProfile,
+              tasting_notes: bottle.tastingNotes,
+              origin: bottle.origin,
+              search_terms: bottle.searchTerms,
+              confidence: 1.0,
+              source: 'local_db',
+            }, { onConflict: 'lookup_key' }).then(() => {});
+          }
 
           // ── Stage 4: Claude fallback with garbage detection ───────────────────
           if (!bottle) {
