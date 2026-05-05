@@ -21,17 +21,20 @@ import {
   Dimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as FileSystem from 'expo-file-system';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp, CompositeNavigationProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import { FlavorIcon } from '../components/FlavorIcon';
 import { colors, spacing, radii } from '../theme/tokens';
 import type { CameraStackParamList } from '../navigation/CameraStack';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { getPriceTierDisplay } from '../data/spiritsDatabase';
 import { useXPSystem } from '../store/useXPSystem';
 import * as Localization from 'expo-localization';
+import { useCurrencyPreference, convertFromUSD, formatPriceRange, CURRENCY_META, type SupportedCurrency } from '../store/useCurrencyPreference';
 import { supabase } from '../lib/supabase';
 import { InventoryService } from '../services/inventoryService';
 import { challengeProgressService } from '../services/challengeProgressService';
@@ -230,8 +233,15 @@ function getSuggestedDrinkingWindow(bottle: any): { start: string; end: string; 
   };
 }
 
-function getCellarValuation(bottle: any, currency: 'USD' | 'CAD' | 'GBP', purchasePrice?: number | null): number {
-  const estimate = bottle?.priceEstimate?.[currency];
+function getCellarValuation(bottle: any, currency: SupportedCurrency, purchasePrice?: number | null): number {
+  // Native currencies in priceEstimate; others derived from USD
+  const nativeCurrencies: Array<SupportedCurrency> = ['USD', 'CAD', 'GBP'];
+  const nativeEstimate = nativeCurrencies.includes(currency)
+    ? bottle?.priceEstimate?.[currency as 'USD' | 'CAD' | 'GBP']
+    : bottle?.priceEstimate?.['USD']
+      ? { min: convertFromUSD(bottle.priceEstimate.USD.min, currency), max: convertFromUSD(bottle.priceEstimate.USD.max, currency) }
+      : undefined;
+  const estimate = nativeEstimate;
   const midpoint = estimate ? (estimate.min + estimate.max) / 2 : 0;
   const priceTier = String(bottle?.priceTier || '').toLowerCase();
   const multiplier =
@@ -263,7 +273,7 @@ export default function BottleDetailScreen() {
   const { hasAccess: hasPremiumServePersonalization } = useFeatureAccess('premium_serve_personalization');
   const { hasAccess: hasCellarMode, gateWithTrigger: cellarModeGate } = useFeatureAccess('cellar_mode');
   const { bottle, imageUri } = route.params;
-  const [userCurrency, setUserCurrency] = useState<'USD' | 'CAD' | 'GBP'>('USD');
+  const { currency: userCurrency, setCurrency } = useCurrencyPreference();
   const [userRegion, setUserRegion] = useState<string>('');
   const [suggestedCocktails, setSuggestedCocktails] = useState<Array<any & { match: RecipeMatch }>>([]);
   const [lockedCocktailCount, setLockedCocktailCount] = useState(0);
@@ -286,6 +296,8 @@ export default function BottleDetailScreen() {
   const { recordScan, recordThumbsUp, recordThumbsDown, totalScans, dominantCluster, profileVisible } = useTasteModel();
   const [thumbsState, setThumbsState] = useState<'idle' | 'up' | 'down'>('idle');
   const [showCorrectionPills, setShowCorrectionPills] = useState(false);
+  const [showCurrencyPicker, setShowCurrencyPicker] = useState(false);
+  const [infoCardsPage, setInfoCardsPage] = useState(0);
 
   // Wishlist
   const { saveToWishlist, isWishlisted, removeFromWishlist, addPriceEntry } = useWishlist();
@@ -386,8 +398,26 @@ export default function BottleDetailScreen() {
   };
 
   useEffect(() => {
-    // Record this bottle to the user's scan history journal
-    ScanHistoryService.recordScan(bottle, imageUri).catch(() => {});
+    // Record this bottle to the user's scan history journal.
+    // Camera URIs are temporary — copy to documentDirectory first so the
+    // thumbnail survives app restarts and OS cache eviction.
+    const recordWithPersistedImage = async () => {
+      let persistedUri = imageUri;
+      if (imageUri) {
+        try {
+          const scansDir = `${FileSystem.documentDirectory}scans/`;
+          await FileSystem.makeDirectoryAsync(scansDir, { intermediates: true });
+          const bottleKey = (bottle.id || bottle.name).replace(/[^a-z0-9]/gi, '_').toLowerCase();
+          const dest = `${scansDir}${bottleKey}.jpg`;
+          await FileSystem.copyAsync({ from: imageUri, to: dest });
+          persistedUri = dest;
+        } catch {
+          // If copy fails (e.g. URI already persisted or invalid), keep original
+        }
+      }
+      ScanHistoryService.recordScan(bottle, persistedUri).catch(() => {});
+    };
+    recordWithPersistedImage();
 
     // Record to taste model — only on scan results (imageUri present), not shelf taps
     if (imageUri) {
@@ -403,19 +433,8 @@ export default function BottleDetailScreen() {
   }, [bottle.id]);
 
   useEffect(() => {
-    // Detect user's currency based on locale
     const locale = Localization.getLocales()[0];
-    const region = locale.regionCode || '';
-    setUserRegion(region);
-
-    // Map region to currency
-    if (region === 'CA') {
-      setUserCurrency('CAD');
-    } else if (region === 'GB' || region === 'UK') {
-      setUserCurrency('GBP');
-    } else {
-      setUserCurrency('USD'); // Default to USD
-    }
+    setUserRegion(locale?.regionCode || '');
   }, []);
 
   useEffect(() => {
@@ -478,6 +497,11 @@ export default function BottleDetailScreen() {
           return;
         }
 
+        // Secondary token: the bottle's own name/id, used to match cocktails that
+        // reference a specific product (e.g. 'campari') rather than a broad type
+        // (e.g. 'liqueur'). Distinct from spiritName so both are checked.
+        const bottleNameToken = normalizeSpiritToken((bottle as any).id || bottle.name);
+
         console.log('BottleDetailScreen: Filtering cocktails for spirit:', spiritName);
         console.log('BottleDetailScreen: Total recipes to check:', recipesData.length);
         if (recipesData.length > 0) {
@@ -496,13 +520,36 @@ export default function BottleDetailScreen() {
           if (baseSpirit === spiritName) return true;
           if (spiritsUsed.includes(spiritName)) return true;
 
+          // Match by specific bottle name (e.g. 'campari') so liqueurs and other
+          // named products surface cocktails that call them out directly.
+          if (bottleNameToken && bottleNameToken !== spiritName) {
+            if (baseSpirit === bottleNameToken) return true;
+            if (spiritsUsed.includes(bottleNameToken)) return true;
+          }
+
+          // Ingredient text fallback: when spiritsUsed is unpopulated, scan ingredient
+          // names directly so recipes like Negroni (base: gin, uses Campari) still surface.
+          if (spiritsUsed.length === 0 && bottleNameToken) {
+            const ingredientNames = Array.isArray(recipe.ingredients)
+              ? recipe.ingredients.map((ing: any) =>
+                  typeof ing === 'string' ? ing : (ing?.name || ing?.ingredient || '')
+                )
+              : [];
+            if (ingredientNames.some((n: string) => n.toLowerCase().includes(bottleNameToken))) {
+              return true;
+            }
+          }
+
           // Fallback only for legacy/incomplete rows where spirit fields are empty
           if (!baseSpirit && spiritsUsed.length === 0) {
             const tags = Array.isArray(recipe.tags)
               ? recipe.tags.map((t) => normalizeSpiritToken(t))
               : [];
             const category = normalizeSpiritToken(recipe.category);
-            return tags.includes(spiritName) || category === spiritName;
+            if (tags.includes(spiritName) || category === spiritName) return true;
+            if (bottleNameToken && bottleNameToken !== spiritName) {
+              return tags.includes(bottleNameToken) || category === bottleNameToken;
+            }
           }
 
           return false;
@@ -539,7 +586,7 @@ export default function BottleDetailScreen() {
             isRecipeUnlockedWithEngagement(recipe.id)
           );
           // Boost starter recipes for this spirit to the front of accessible results
-          const starterIds = SPIRIT_STARTER_MAP[spiritName] || [];
+          const starterIds = SPIRIT_STARTER_MAP[spiritName] || SPIRIT_STARTER_MAP[bottleNameToken] || [];
           const starterFirst = [
             ...accessibleData.filter(r => starterIds.includes(r.id)),
             ...accessibleData.filter(r => !starterIds.includes(r.id)),
@@ -736,8 +783,10 @@ export default function BottleDetailScreen() {
 
   const handleShareFind = async () => {
     const topRecipe = suggestedCocktails[0];
-    const priceLine = bottle.priceEstimate
-      ? ` · ${userCurrency === 'GBP' ? '£' : '$'}${bottle.priceEstimate[userCurrency].min}–${userCurrency === 'GBP' ? '£' : '$'}${bottle.priceEstimate[userCurrency].max}`
+    const nativePriceEstimate = bottle.priceEstimate?.[userCurrency as 'USD' | 'CAD' | 'GBP']
+      ?? (bottle.priceEstimate?.USD ? { min: convertFromUSD(bottle.priceEstimate.USD.min, userCurrency), max: convertFromUSD(bottle.priceEstimate.USD.max, userCurrency) } : null);
+    const priceLine = nativePriceEstimate
+      ? ` · ${formatPriceRange(nativePriceEstimate.min, nativePriceEstimate.max, userCurrency)}`
       : '';
     const recipeLine = topRecipe ? ` · Makes a great ${topRecipe.name}` : '';
     const message = `Found on KOOPE: ${bottle.name} by ${bottle.brand}${priceLine}${recipeLine}. Try KOOPE — the bartender's scanning app.`;
@@ -940,110 +989,128 @@ export default function BottleDetailScreen() {
           </View>
         )}
 
-        {/* Flavour strip — horizontal scrollable pills */}
-        {bottleProfile.flavorProfile.length > 0 && (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.flavourStrip}
-            contentContainerStyle={styles.flavourStripContent}
-          >
-            {bottleProfile.flavorProfile.map((flavour, i) => (
-              <View key={i} style={styles.flavourPill}>
-                <Text style={styles.flavourPillText}>{flavour}</Text>
-              </View>
-            ))}
-          </ScrollView>
-        )}
-
-        {/* Taste signal line — scan 3+ */}
-        {(() => {
-          const signal = getTasteSignalLine(bottleProfile.flavorProfile, bottle.name, { totalScans, dominantCluster, profileVisible } as any);
-          return signal ? <Text style={styles.tasteSignalLine}>{signal}</Text> : null;
-        })()}
-
-        {/* Thumbs feedback — scan 5+ */}
-        {totalScans >= 5 && imageUri && (
-          <View style={styles.thumbsRow}>
-            <TouchableOpacity
-              style={styles.thumbsButton}
-              onPress={() => {
-                setThumbsState('up');
-                setShowCorrectionPills(false);
-                recordThumbsUp(bottle);
-              }}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <Ionicons
-                name={thumbsState === 'up' ? 'thumbs-up' : 'thumbs-up-outline'}
-                size={20}
-                color={thumbsState === 'up' ? colors.gold : colors.subtext}
-              />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.thumbsButton}
-              onPress={() => {
-                setThumbsState('down');
-                setShowCorrectionPills(true);
-              }}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <Ionicons
-                name={thumbsState === 'down' ? 'thumbs-down' : 'thumbs-down-outline'}
-                size={20}
-                color={thumbsState === 'down' ? colors.subtext : colors.subtext}
-              />
-            </TouchableOpacity>
+        {/* Flavour & Tasting Notes — horizontal swipe cards */}
+        <View style={styles.infoCardsDotsRow}>
+          <View style={[styles.infoCardDot, infoCardsPage === 0 && styles.infoCardDotActive]} />
+          <View style={[styles.infoCardDot, infoCardsPage === 1 && styles.infoCardDotActive]} />
+        </View>
+        <ScrollView
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          style={styles.infoCardsScroll}
+          contentContainerStyle={styles.infoCardsContent}
+          onMomentumScrollEnd={(e) => {
+            const page = Math.round(e.nativeEvent.contentOffset.x / (Dimensions.get('window').width - spacing(3) * 2));
+            setInfoCardsPage(page);
+          }}
+        >
+          {/* Card 1 — Flavor Profile */}
+          <View style={styles.infoCard}>
+            <View style={styles.infoCardHeaderRow}>
+              <Text style={styles.infoCardTitle}>Flavor Profile</Text>
+              {bottleProfile.isFlavorFallback && (
+                <Text style={styles.categoryDefaultBadge}>{bottle.type} profile</Text>
+              )}
+            </View>
+            <View style={styles.flavorGrid}>
+              {bottleProfile.flavorProfile.map((flavor, index) => (
+                <View key={index} style={styles.flavorIconCell}>
+                  <View style={styles.flavorIconCircle}>
+                    <FlavorIcon flavor={flavor} size={26} color={colors.goldText} />
+                  </View>
+                  <Text style={styles.flavorIconLabel} numberOfLines={2}>{flavor}</Text>
+                </View>
+              ))}
+            </View>
           </View>
-        )}
 
-        {/* Correction pills — shown after thumbs down */}
-        {showCorrectionPills && (
-          <View style={styles.correctionRow}>
-            {(['sweet', 'smoky', 'floral', 'bitter', 'light'] as FlavourTag[]).map((tag) => (
-              <TouchableOpacity
-                key={tag}
-                style={styles.correctionPill}
-                onPress={() => {
-                  recordThumbsDown(bottle, tag, bottle.id);
-                  setShowCorrectionPills(false);
-                }}
-              >
-                <Text style={styles.correctionPillText}>Too {tag}</Text>
-              </TouchableOpacity>
-            ))}
-            <TouchableOpacity
-              style={styles.correctionPill}
-              onPress={() => setShowCorrectionPills(false)}
-            >
-              <Text style={styles.correctionPillText}>Something else</Text>
-            </TouchableOpacity>
+          {/* Card 2 — Tasting Notes */}
+          <View style={styles.infoCard}>
+            <View style={styles.infoCardHeaderRow}>
+              <Text style={styles.infoCardTitle}>Tasting Notes</Text>
+              {bottleProfile.isTastingFallback && (
+                <Text style={styles.categoryDefaultBadge}>{bottle.type} profile</Text>
+              )}
+            </View>
+            <Text style={styles.tastingNotes}>{bottleProfile.tastingNotes}</Text>
           </View>
-        )}
+        </ScrollView>
 
-        {/* Price Estimate */}
-        <View style={styles.priceCard}>
+        {/* Price Estimate — tap to change currency */}
+        <TouchableOpacity
+          style={styles.priceCard}
+          onPress={() => setShowCurrencyPicker(true)}
+          activeOpacity={0.8}
+        >
           <View style={styles.priceHeader}>
             <Ionicons name="cash-outline" size={20} color={colors.accent} />
             <Text style={styles.priceTitle}>Typical Price Range</Text>
-            {userRegion && (
-              <Text style={styles.regionBadge}>{userRegion}</Text>
-            )}
+            <View style={styles.regionBadgeTappable}>
+              <Text style={styles.regionBadgeText}>{CURRENCY_META[userCurrency].flag} {userCurrency}</Text>
+              <Ionicons name="chevron-down" size={11} color={colors.accent} />
+            </View>
           </View>
-          <Text style={styles.priceText}>
-            {userCurrency === 'GBP' ? '£' : '$'}
-            {bottle.priceEstimate[userCurrency].min} - {userCurrency === 'GBP' ? '£' : '$'}
-            {bottle.priceEstimate[userCurrency].max} {userCurrency}
-          </Text>
-          <Text style={styles.priceDisclaimer}>
-            * Prices vary by location and retailer
-          </Text>
-        </View>
+          {(() => {
+            const nativeCurrencies = ['USD', 'CAD', 'GBP'];
+            const estimate = nativeCurrencies.includes(userCurrency)
+              ? bottle.priceEstimate[userCurrency as 'USD' | 'CAD' | 'GBP']
+              : bottle.priceEstimate?.USD
+                ? { min: convertFromUSD(bottle.priceEstimate.USD.min, userCurrency), max: convertFromUSD(bottle.priceEstimate.USD.max, userCurrency) }
+                : null;
+            if (!estimate) return null;
+            return (
+              <>
+                <Text style={styles.priceText}>
+                  {formatPriceRange(estimate.min, estimate.max, userCurrency)}
+                </Text>
+                <Text style={styles.priceDisclaimer}>
+                  {nativeCurrencies.includes(userCurrency)
+                    ? '* Prices vary by location and retailer'
+                    : '* Approximate price converted from USD'}
+                </Text>
+              </>
+            );
+          })()}
+        </TouchableOpacity>
 
-        <View style={[
-          styles.serveCard,
-          serveRecommendation.isPremiumExperience && styles.serveCardPremium,
-        ]}>
+        {/* Currency picker modal */}
+        <Modal
+          visible={showCurrencyPicker}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setShowCurrencyPicker(false)}
+        >
+          <TouchableOpacity
+            style={styles.currencyModalOverlay}
+            activeOpacity={1}
+            onPress={() => setShowCurrencyPicker(false)}
+          >
+            <View style={styles.currencyModalSheet}>
+              <View style={styles.currencyModalHandle} />
+              <Text style={styles.currencyModalTitle}>Price Currency</Text>
+              {(Object.keys(CURRENCY_META) as SupportedCurrency[]).map((c) => (
+                <TouchableOpacity
+                  key={c}
+                  style={[styles.currencyOption, c === userCurrency && styles.currencyOptionActive]}
+                  onPress={() => { setCurrency(c); setShowCurrencyPicker(false); }}
+                >
+                  <Text style={styles.currencyOptionFlag}>{CURRENCY_META[c].flag}</Text>
+                  <View style={styles.currencyOptionLabels}>
+                    <Text style={[styles.currencyOptionCode, c === userCurrency && styles.currencyOptionCodeActive]}>{c}</Text>
+                    <Text style={styles.currencyOptionName}>{CURRENCY_META[c].label}</Text>
+                  </View>
+                  {c === userCurrency && (
+                    <Ionicons name="checkmark" size={18} color={colors.gold} />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
+          </TouchableOpacity>
+        </Modal>
+
+        {/* Serve Guidance */}
+        <View style={[styles.serveCard, serveRecommendation.isPremiumExperience && styles.serveCardPremium, styles.infoCard]}>
           <View style={styles.serveHeader}>
             <View style={styles.serveHeaderCopy}>
               <Text style={styles.serveEyebrow}>
@@ -1062,77 +1129,43 @@ export default function BottleDetailScreen() {
 
           <Text style={styles.serveWhy}>{serveRecommendation.why}</Text>
 
-          <FlatList
+          <ScrollView
             horizontal
-            data={serveRecommendation.serveModes}
-            keyExtractor={(mode) => mode.mode}
             showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.serveModesRail}
-            ItemSeparatorComponent={() => <View style={styles.serveModeSeparator} />}
-            renderItem={({ item: mode }) => (
-              <View style={styles.serveModeCard}>
-                <View style={styles.serveModeIcon}>
-                  <Ionicons
-                    name={
-                      mode.mode === 'neat'
-                        ? 'wine-outline'
-                        : mode.mode === 'water-drops'
-                          ? 'water-outline'
-                          : mode.mode === 'large-rock'
-                            ? 'cube-outline'
-                            : 'sparkles-outline'
-                    }
-                    size={18}
-                    color={colors.gold}
-                  />
+            style={styles.serveModesRail}
+            contentContainerStyle={styles.serveModesRailContent}
+          >
+            {serveRecommendation.serveModes.map((mode, index) => (
+              <React.Fragment key={mode.mode}>
+                {index > 0 && <View style={styles.serveModeSeparator} />}
+                <View style={styles.serveModeCard}>
+                  <View style={styles.serveModeIcon}>
+                    <Ionicons
+                      name={
+                        mode.mode === 'neat'
+                          ? 'wine-outline'
+                          : mode.mode === 'water-drops'
+                            ? 'water-outline'
+                            : mode.mode === 'large-rock'
+                              ? 'cube-outline'
+                              : 'sparkles-outline'
+                      }
+                      size={18}
+                      color={colors.gold}
+                    />
+                  </View>
+                  <Text style={styles.serveModeLabel}>{mode.label}</Text>
+                  <Text style={styles.serveModeDescription}>{mode.description}</Text>
                 </View>
-                <Text style={styles.serveModeLabel}>{mode.label}</Text>
-                <Text style={styles.serveModeDescription}>{mode.description}</Text>
-              </View>
-            )}
-          />
+              </React.Fragment>
+            ))}
+          </ScrollView>
 
           <View style={styles.serveFootnote}>
             <Ionicons name="information-circle-outline" size={16} color={colors.accent} />
             <Text style={styles.serveFootnoteText}>{serveRecommendation.cocktailUse}</Text>
           </View>
-
         </View>
-
-        {/* Flavor Profile */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeaderRow}>
-            <Text style={[styles.sectionTitle, { marginBottom: 0 }]}>Flavor Profile</Text>
-            {bottleProfile.isFlavorFallback && (
-              <Text style={styles.categoryDefaultBadge}>{bottle.type} profile</Text>
-            )}
-          </View>
-          <View style={styles.flavorTags}>
-            {bottleProfile.flavorProfile.map((flavor, index) => (
-              <View key={index} style={styles.flavorTag}>
-                <Text style={styles.flavorText}>{flavor}</Text>
-              </View>
-            ))}
-          </View>
-        </View>
-
-        {/* Tasting Notes */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeaderRow}>
-            <Text style={[styles.sectionTitle, { marginBottom: 0 }]}>Tasting Notes</Text>
-            {bottleProfile.isTastingFallback && (
-              <Text style={styles.categoryDefaultBadge}>{bottle.type} profile</Text>
-            )}
-          </View>
-          <Text style={styles.tastingNotes}>{bottleProfile.tastingNotes}</Text>
-        </View>
-
-        {/* Spirit Education Panel */}
-        <SpiritEducationPanel
-          bottle={bottle}
-          serveRecommendation={serveRecommendation}
-          alwaysExpanded={tier === 'PRO'}
-        />
 
         {/* Cocktails You Can Make */}
         {!loadingCocktails && suggestedCocktails.length > 0 && (
@@ -1212,6 +1245,16 @@ export default function BottleDetailScreen() {
           </View>
         )}
 
+        {/* About This Spirit */}
+        <View style={[styles.infoCard, { marginBottom: spacing(3) }]}>
+          <SpiritEducationPanel
+            bottle={bottle}
+            serveRecommendation={serveRecommendation}
+            alwaysExpanded={true}
+            inCard
+          />
+        </View>
+
         {/* Secondary actions row */}
         <View style={[styles.secondaryActions, { marginTop: spacing(1), marginBottom: spacing(1) }]}>
           <TouchableOpacity
@@ -1264,30 +1307,6 @@ export default function BottleDetailScreen() {
           </View>
         )}
 
-        {/* Shelf action — bottom, context-aware */}
-        <View style={[styles.shelfAction, { paddingBottom: Math.max(insets.bottom, spacing(3)) }]}>
-          {inventoryItem ? (
-            <View style={styles.shelfActionConfirmed}>
-              <Ionicons name="checkmark-circle" size={18} color={colors.gold} />
-              <Text style={styles.shelfActionConfirmedText}>In your shelf</Text>
-              <TouchableOpacity
-                onPress={() => (navigation as any).navigate('Shelf')}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              >
-                <Text style={styles.shelfActionViewLink}>View shelf →</Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <TouchableOpacity
-              style={styles.shelfActionButton}
-              onPress={handleAddToShelf}
-              activeOpacity={0.85}
-            >
-              <Ionicons name="add-circle-outline" size={18} color={colors.text} />
-              <Text style={styles.shelfActionButtonText}>Add to Shelf</Text>
-            </TouchableOpacity>
-          )}
-        </View>
 
         {false && <View style={[
           styles.cellarCard,
@@ -1428,6 +1447,31 @@ export default function BottleDetailScreen() {
         {/* end bodyContent */}
         </View>
       </ScrollView>
+
+      {/* Sticky shelf action bar — always visible */}
+      <View style={[styles.stickyShelfBar, { paddingBottom: Math.max(insets.bottom, spacing(2)) }]}>
+        {inventoryItem ? (
+          <View style={styles.stickyShelfConfirmed}>
+            <Ionicons name="checkmark-circle" size={18} color={colors.gold} />
+            <Text style={styles.stickyShelfConfirmedText}>In your shelf</Text>
+            <TouchableOpacity
+              onPress={() => (navigation as any).navigate('Shelf')}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Text style={styles.shelfActionViewLink}>View shelf →</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <TouchableOpacity
+            style={styles.stickyShelfButton}
+            onPress={handleAddToShelf}
+            activeOpacity={0.85}
+          >
+            <Ionicons name="add-circle-outline" size={20} color={colors.goldText} />
+            <Text style={styles.stickyShelfButtonText}>Add to Shelf</Text>
+          </TouchableOpacity>
+        )}
+      </View>
 
       {/* inventoryConfirmModal removed — shelf add is now silent (v2) */}
 
@@ -1812,10 +1856,16 @@ const styles = StyleSheet.create({
     lineHeight: 21,
   },
   serveModesRail: {
-    paddingRight: spacing(1),
+    marginHorizontal: -spacing(2),
+  },
+  serveModesRailContent: {
+    flexDirection: 'row',
+    paddingHorizontal: spacing(2),
+    paddingBottom: spacing(0.5),
+    gap: spacing(1.5),
   },
   serveModeSeparator: {
-    width: spacing(1.5),
+    width: 0,
   },
   serveModeCard: {
     width: 188,
@@ -1887,21 +1937,31 @@ const styles = StyleSheet.create({
     textTransform: 'capitalize',
     opacity: 0.7,
   },
-  flavorTags: {
+  flavorGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: spacing(1),
+    gap: spacing(1.5),
+    marginTop: spacing(0.5),
   },
-  flavorTag: {
+  flavorIconCell: {
+    width: '30%',
+    alignItems: 'center',
+    gap: spacing(0.75),
+  },
+  flavorIconCircle: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     backgroundColor: colors.gold,
-    paddingHorizontal: spacing(2),
-    paddingVertical: spacing(0.75),
-    borderRadius: radii.md,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  flavorText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.goldText,
+  flavorIconLabel: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: colors.subtext,
+    textAlign: 'center',
+    lineHeight: 14,
   },
   tastingNotes: {
     fontSize: 15,
@@ -2486,7 +2546,7 @@ const styles = StyleSheet.create({
     borderColor: `${colors.accent}30`,
     paddingHorizontal: spacing(2),
     paddingVertical: spacing(1.5),
-    marginBottom: spacing(2),
+    marginBottom: spacing(3),
     gap: spacing(2),
   },
   feedbackQuestion: {
@@ -2605,7 +2665,42 @@ const styles = StyleSheet.create({
     color: colors.subtext,
     alignSelf: 'center',
   },
-  // ── Shelf action bar ───────────────────────────────────────────────────────
+  // ── Sticky shelf action bar ────────────────────────────────────────────────
+  stickyShelfBar: {
+    borderTopWidth: 1,
+    borderTopColor: colors.line,
+    backgroundColor: colors.bg,
+    paddingHorizontal: spacing(3),
+    paddingTop: spacing(1.5),
+  },
+  stickyShelfButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing(1),
+    paddingVertical: spacing(1.75),
+    borderRadius: radii.lg,
+    backgroundColor: colors.gold,
+  },
+  stickyShelfButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.goldText,
+  },
+  stickyShelfConfirmed: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing(0.75),
+    paddingVertical: spacing(1.75),
+  },
+  stickyShelfConfirmedText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.gold,
+    flex: 1,
+  },
+  // ── Legacy shelf action (kept for shelfActionViewLink ref) ─────────────────
   shelfAction: {
     alignItems: 'center',
     paddingTop: spacing(2),
@@ -2739,6 +2834,123 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: colors.bg,
+  },
+  // ── Horizontal info cards (flavor/tasting + serve/about) ──────────────────
+  infoCardsScroll: {
+    marginBottom: spacing(3),
+  },
+  infoCardsContent: {
+    gap: 0,
+  },
+  infoCard: {
+    width: Dimensions.get('window').width - spacing(3) * 2,
+    marginBottom: 0,
+  },
+  infoCardHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(1.5),
+    marginBottom: spacing(1.5),
+  },
+  infoCardTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  infoCardDots: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: spacing(1),
+    marginBottom: spacing(3),
+    marginTop: spacing(1),
+  },
+  infoCardsDotsRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: spacing(1),
+    marginBottom: spacing(1.5),
+  },
+  infoCardDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.line,
+  },
+  infoCardDotActive: {
+    backgroundColor: colors.gold,
+    width: 16,
+  },
+  // ── Currency picker ────────────────────────────────────────────────────────
+  regionBadgeTappable: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: `${colors.accent}20`,
+    paddingHorizontal: spacing(1),
+    paddingVertical: spacing(0.5),
+    borderRadius: radii.sm,
+  },
+  regionBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.accent,
+  },
+  currencyModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  currencyModalSheet: {
+    backgroundColor: colors.card,
+    borderTopLeftRadius: radii.xl,
+    borderTopRightRadius: radii.xl,
+    padding: spacing(3),
+    paddingBottom: spacing(5),
+    gap: spacing(0.5),
+  },
+  currencyModalHandle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.line,
+    alignSelf: 'center',
+    marginBottom: spacing(2),
+  },
+  currencyModalTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: spacing(1.5),
+  },
+  currencyOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(1.5),
+    paddingVertical: spacing(1.5),
+    paddingHorizontal: spacing(1),
+    borderRadius: radii.md,
+  },
+  currencyOptionActive: {
+    backgroundColor: `${colors.gold}15`,
+  },
+  currencyOptionFlag: {
+    fontSize: 24,
+  },
+  currencyOptionLabels: {
+    flex: 1,
+    gap: 2,
+  },
+  currencyOptionCode: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  currencyOptionCodeActive: {
+    color: colors.gold,
+  },
+  currencyOptionName: {
+    fontSize: 12,
+    color: colors.subtext,
   },
   // ── Taste signal + thumbs ─────────────────────────────────────────────────
   tasteSignalLine: {
