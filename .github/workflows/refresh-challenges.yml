@@ -1,0 +1,36 @@
+name: Refresh Active Challenges
+
+on:
+  schedule:
+    # Runs daily at 00:05 UTC — just after midnight so daily challenges
+    # always have the correct expiry for the new day.
+    - cron: '5 0 * * *'
+  # Allow manual trigger from the GitHub Actions UI.
+  workflow_dispatch:
+
+jobs:
+  refresh:
+    name: Rotate challenge pool
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Call refresh-challenges edge function
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          response=$(curl --silent --show-error --fail-with-body \
+            --request POST \
+            --url "${SUPABASE_URL}/functions/v1/refresh-challenges" \
+            --header "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+            --header "Content-Type: application/json")
+
+          echo "Response: $response"
+
+          # Fail the job if ok is not true
+          ok=$(echo "$response" | jq -r '.ok')
+          if [ "$ok" != "true" ]; then
+            echo "Challenge refresh returned an error."
+            exit 1
+          fi
