@@ -57,6 +57,131 @@ function buildProTips(card: CollectibleRecipeCard): string[] {
   return tips.filter(Boolean).slice(0, 4);
 }
 
+function pickCardVariant(cardId: string, variants: string[]): string {
+  if (!variants.length) return '';
+  const seed = String(cardId || '')
+    .split('')
+    .reduce((sum, ch) => sum + ch.charCodeAt(0), 0);
+  return variants[seed % variants.length];
+}
+
+function deriveCardBestFor(card: CollectibleRecipeCard): string {
+  const infoText = [
+    card.id,
+    card.title,
+    card.subtitle,
+    card.categoryLabel,
+    card.unlockLabel,
+    card.buildLogic,
+    card.serviceNote,
+    ...(card.spec || []).map((line) => `${line.name} ${line.amount}`),
+    ...(card.method || []),
+    ...(card.prepBlock?.lines || []),
+    ...(card.technicalModules || []).map((module) => `${module.title} ${module.body}`),
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+
+  const isAperitif = infoText.includes('negroni') || infoText.includes('campari') || infoText.includes('amaro') || infoText.includes('aperitif') || infoText.includes('bitter');
+  const isSpiritForward = infoText.includes('martini') || infoText.includes('manhattan') || infoText.includes('stirred') || infoText.includes('old fashioned');
+  const isCitrusLed = infoText.includes('sour') || infoText.includes('citrus') || infoText.includes('lime') || infoText.includes('lemon') || infoText.includes('grapefruit');
+  const isTropical = infoText.includes('tiki') || infoText.includes('pineapple') || infoText.includes('coconut') || infoText.includes('orgeat');
+  const isDessert = infoText.includes('coffee') || infoText.includes('espresso') || infoText.includes('cream') || infoText.includes('dessert') || infoText.includes('chocolate');
+  const isSparkling = infoText.includes('spritz') || infoText.includes('sparkling') || infoText.includes('soda') || infoText.includes('tonic') || infoText.includes('highball');
+  const isZeroProof = infoText.includes('zero-proof') || infoText.includes('zero proof') || infoText.includes('non-alcoholic') || infoText.includes('mocktail');
+
+  if (isZeroProof) {
+    return pickCardVariant(card.id, [
+      'Best for guests who want a zero-proof drink that still feels structured and intentional.',
+      'Best for low/no-alcohol sessions where flavor depth still matters.',
+      'Best for alcohol-free sipping with crisp balance and real cocktail character.',
+    ]);
+  }
+  if (isAperitif && isSparkling) {
+    return pickCardVariant(card.id, [
+      'Best for pre-dinner sipping when you want bitter structure with lighter bubbly texture.',
+      'Best for aperitif service where brightness and bitterness matter more than sweetness.',
+      'Best for guests who like bitter-citrus profiles in a longer sparkling format.',
+    ]);
+  }
+  if (isAperitif) {
+    return pickCardVariant(card.id, [
+      'Best for drinkers who prefer bittersweet structure and a dry finish.',
+      'Best for guests who want layered botanical depth over fruit sweetness.',
+      'Best for aperitif drinkers who enjoy firm bitterness and clean balance.',
+    ]);
+  }
+  if (isSpiritForward) {
+    return pickCardVariant(card.id, [
+      'Best for spirit-forward drinkers who prefer clean structure and restrained sweetness.',
+      'Best for slow sipping when you want depth, clarity, and a polished finish.',
+      'Best for guests who like composed, stirred-style profiles over lighter builds.',
+    ]);
+  }
+  if (isDessert) {
+    return pickCardVariant(card.id, [
+      'Best for after-dinner drinkers who want richer flavor and round texture.',
+      'Best for dessert-cocktail fans who like plush texture with balance.',
+      'Best for guests who prefer creamy or coffee-led depth in a late-night serve.',
+    ]);
+  }
+  if (isTropical) {
+    return pickCardVariant(card.id, [
+      'Best for drinkers who want tropical intensity with balanced sweetness.',
+      'Best for guests who like fruit-forward flavor with structure, not syrup.',
+      'Best for richer island-style profiles that still finish clean.',
+    ]);
+  }
+  if (isCitrusLed && isSparkling) {
+    return pickCardVariant(card.id, [
+      'Best for drinkers who want crisp citrus refreshment in a longer, lighter format.',
+      'Best for warm-weather service when you want acidity, lift, and easy sipping.',
+      'Best for guests who like bright citrus with sparkling length.',
+    ]);
+  }
+  if (isCitrusLed) {
+    return pickCardVariant(card.id, [
+      'Best for drinkers who like bright citrus snap with a clean finish.',
+      'Best for guests who want fresh acidity with clean, snappy balance.',
+      'Best for citrus-forward palates that prefer tension over sweetness.',
+    ]);
+  }
+  if (isSparkling) {
+    return pickCardVariant(card.id, [
+      'Best for easy social sipping when you want high refreshment and low heaviness.',
+      'Best for longer service windows where carbonation and chill drive the experience.',
+      'Best for guests who want a lighter, session-friendly cocktail feel.',
+    ]);
+  }
+
+  return 'Best for drinkers who want a balanced, polished spec with clear flavor direction.';
+}
+
+function deriveCardTastingNote(card: CollectibleRecipeCard): string {
+  const infoText = [
+    card.title,
+    card.subtitle,
+    card.unlockLabel,
+    ...(card.spec || []).map((line) => `${line.name} ${line.amount}`),
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+
+  if (infoText.includes('martini') || infoText.includes('manhattan') || infoText.includes('stirred')) {
+    return 'Spirit character lands first, the middle stays composed, and the finish remains dry and polished.';
+  }
+  if (infoText.includes('sour') || infoText.includes('citrus') || infoText.includes('lime') || infoText.includes('lemon')) {
+    return 'Bright citrus opens first, sweetness rounds the middle, and the finish stays crisp and refreshing.';
+  }
+  if (infoText.includes('tiki') || infoText.includes('pineapple') || infoText.includes('coconut')) {
+    return 'Tropical fruit opens up front, depth builds through the middle, and the finish stays bright instead of heavy.';
+  }
+
+  return `${card.title} opens balanced, stays composed through the middle, and finishes clean.`;
+}
+
 function getTierLabel(card: CollectibleRecipeCard): string {
   const tier = String(card.tierLabel || '').toUpperCase();
   if (tier === 'PRO' || tier === 'PLUS') return tier;
@@ -88,10 +213,17 @@ export default function RecipeCardDetailScreen() {
   const displayedMethod = isFreeTier
     ? card.method.slice(0, 2).map((step) => trimSentence(step, 96)).filter(Boolean)
     : card.method;
-  const displayedTastingNote = card.tastingNote
+  const rawTastingNote = (card.tastingNote || deriveCardTastingNote(card)).trim();
+  const displayedTastingNote = rawTastingNote
     ? isFreeTier
-      ? trimSentence(card.tastingNote, 120)
-      : card.tastingNote
+      ? trimSentence(rawTastingNote, 120)
+      : rawTastingNote
+    : '';
+  const rawBestFor = (card.bestFor || deriveCardBestFor(card)).trim();
+  const displayedBestFor = rawBestFor
+    ? isFreeTier
+      ? trimSentence(rawBestFor, 120)
+      : rawBestFor
     : '';
   const proTips = isFreeTier ? [] : buildProTips(card);
   const heroBadge = 'Recipe';
@@ -224,10 +356,21 @@ export default function RecipeCardDetailScreen() {
               </View>
             </View>
 
-            {displayedTastingNote ? (
+            {(displayedTastingNote || displayedBestFor) ? (
               <View style={[styles.copySection, styles.copySectionLast]}>
-                <Text style={styles.copyTitle}>Tasting Note</Text>
-                <Text style={styles.tastingNoteText}>{displayedTastingNote}</Text>
+                <Text style={styles.copyTitle}>Taste & Fit</Text>
+                {displayedTastingNote ? (
+                  <>
+                    <Text style={styles.tastingSubhead}>Tasting Note</Text>
+                    <Text style={styles.tastingNoteText}>{displayedTastingNote}</Text>
+                  </>
+                ) : null}
+                {displayedBestFor ? (
+                  <>
+                    <Text style={styles.tastingSubhead}>Best For</Text>
+                    <Text style={styles.tastingNoteText}>{displayedBestFor}</Text>
+                  </>
+                ) : null}
               </View>
             ) : null}
           </View>
@@ -536,6 +679,16 @@ const styles = StyleSheet.create({
     color: '#DDD0C1',
     fontSize: 16,
     lineHeight: 22,
+  },
+  tastingSubhead: {
+    marginTop: spacing(1),
+    marginBottom: spacing(0.4),
+    color: '#C98E4B',
+    fontSize: 11,
+    lineHeight: 16,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    fontWeight: '700',
   },
   notesSection: {
     paddingHorizontal: spacing(2.25),

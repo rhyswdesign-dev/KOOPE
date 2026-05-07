@@ -6,14 +6,32 @@
       "category": "classics",
       "difficulty": "easy",
       "prepTime": 3,
-      "spirits": ["tequila"],
+      "spirits": [
+        "tequila"
+      ],
       "glass": "coupe",
       "garnish": "lime wheel, salt rim",
       "ingredients": [
-        { "item": "Tequila Blanco", "amount": "2 oz", "type": "spirit" },
-        { "item": "Fresh Lime Juice", "amount": "1 oz", "type": "citrus" },
-        { "item": "Triple Sec", "amount": "0.5 oz", "type": "liqueur" },
-        { "item": "Simple Syrup", "amount": "0.5 oz", "type": "syrup" }
+        {
+          "item": "Tequila Blanco",
+          "amount": "2 oz",
+          "type": "spirit"
+        },
+        {
+          "item": "Fresh Lime Juice",
+          "amount": "1 oz",
+          "type": "citrus"
+        },
+        {
+          "item": "Triple Sec",
+          "amount": "0.5 oz",
+          "type": "liqueur"
+        },
+        {
+          "item": "Simple Syrup",
+          "amount": "0.5 oz",
+          "type": "syrup"
+        }
       ],
       "instructions": [
         "Rim glass with lime and salt",
@@ -23,11 +41,16 @@
         "Garnish with lime wheel"
       ],
       "tips": [
-        "Use fresh lime juice for best flavor",
-        "Adjust sweetness to taste",
-        "Quality tequila makes a difference"
+        "Use fresh lime juice and taste before straining; adjust syrup by 1/4 oz at a time to dial balance.",
+        "Shake hard with cold ice for 12-15 seconds to get proper chill and dilution.",
+        "Keep the salt rim light and on the outer edge so it seasons, not overwhelms."
       ],
-      "tags": ["tequila", "citrus", "sour", "salt-rim"],
+      "tags": [
+        "tequila",
+        "citrus",
+        "sour",
+        "salt-rim"
+      ],
       "image": "margarita"
     },
     {
@@ -36,13 +59,27 @@
       "category": "classics",
       "difficulty": "easy",
       "prepTime": 2,
-      "spirits": ["gin"],
+      "spirits": [
+        "gin"
+      ],
       "glass": "collins",
       "garnish": "lime wedge",
       "ingredients": [
-        { "item": "Gin", "amount": "2 oz", "type": "spirit" },
-        { "item": "Tonic Water", "amount": "4 oz", "type": "mixer" },
-        { "item": "Fresh Lime", "amount": "1 wedge", "type": "garnish" }
+        {
+          "item": "Gin",
+          "amount": "2 oz",
+          "type": "spirit"
+        },
+        {
+          "item": "Tonic Water",
+          "amount": "4 oz",
+          "type": "mixer"
+        },
+        {
+          "item": "Fresh Lime",
+          "amount": "1 wedge",
+          "type": "garnish"
+        }
       ],
       "instructions": [
         "Fill glass with ice",
@@ -52,11 +89,16 @@
         "Garnish with lime wedge"
       ],
       "tips": [
-        "Use quality tonic for best results",
-        "Build directly in the glass",
-        "Don't over-stir - preserve carbonation"
+        "Use fully chilled tonic and pour gently down the glass wall to preserve carbonation.",
+        "Build over dense fresh ice and give one gentle lift stir only.",
+        "Express citrus peel over the surface before garnish to boost aroma without extra acidity."
       ],
-      "tags": ["gin", "highball", "easy", "refreshing"],
+      "tags": [
+        "gin",
+        "highball",
+        "easy",
+        "refreshing"
+      ],
       "image": "gin-tonic"
     },
     {
@@ -65,14 +107,32 @@
       "category": "classics",
       "difficulty": "medium",
       "prepTime": 4,
-      "spirits": ["whiskey"],
+      "spirits": [
+        "whiskey"
+      ],
       "glass": "rocks",
       "garnish": "orange peel, cherry",
       "ingredients": [
-        { "item": "Bourbon or Rye", "amount": "2 oz", "type": "spirit" },
-        { "item": "Simple Syrup", "amount": "0.25 oz", "type": "syrup" },
-        { "item": "Angostura Bitters", "amount": "2 dashes", "type": "bitters" },
-        { "item": "Orange Peel", "amount": "1", "type": "garnish" }
+        {
+          "item": "Bourbon or Rye",
+          "amount": "2 oz",
+          "type": "spirit"
+        },
+        {
+          "item": "Simple Syrup",
+          "amount": "0.25 oz",
+          "type": "syrup"
+        },
+        {
+          "item": "Angostura Bitters",
+          "amount": "2 dashes",
+          "type": "bitters"
+        },
+        {
+          "item": "Orange Peel",
+          "amount": "1",
+          "type": "garnish"
+        }
       ],
       "instructions": [
         "Add simple syrup and bitters to glass",
@@ -82,11 +142,16 @@
         "Drop peel in glass or rest on rim"
       ],
       "tips": [
-        "One large ice cube melts slower",
-        "Express oils from orange peel",
-        "Stir, don't shake"
+        "Stir 20-30 seconds with large cold ice so sweetness, bitters, and whiskey integrate cleanly.",
+        "Use one large cube to slow dilution and hold structure longer.",
+        "Express orange peel over the center and wipe the rim for stronger first-sip aroma."
       ],
-      "tags": ["whiskey", "stirred", "strong", "classic"],
+      "tags": [
+        "whiskey",
+        "stirred",
+        "strong",
+        "classic"
+      ],
       "image": "old-fashioned"
     },
     {
@@ -95,15 +160,37 @@
       "category": "classics",
       "difficulty": "medium",
       "prepTime": 5,
-      "spirits": ["rum"],
+      "spirits": [
+        "rum"
+      ],
       "glass": "collins",
       "garnish": "mint sprig, lime",
       "ingredients": [
-        { "item": "White Rum", "amount": "2 oz", "type": "spirit" },
-        { "item": "Fresh Lime Juice", "amount": "1 oz", "type": "citrus" },
-        { "item": "Simple Syrup", "amount": "0.75 oz", "type": "syrup" },
-        { "item": "Fresh Mint", "amount": "8-10 leaves", "type": "herb" },
-        { "item": "Soda Water", "amount": "2 oz", "type": "mixer" }
+        {
+          "item": "White Rum",
+          "amount": "2 oz",
+          "type": "spirit"
+        },
+        {
+          "item": "Fresh Lime Juice",
+          "amount": "1 oz",
+          "type": "citrus"
+        },
+        {
+          "item": "Simple Syrup",
+          "amount": "0.75 oz",
+          "type": "syrup"
+        },
+        {
+          "item": "Fresh Mint",
+          "amount": "8-10 leaves",
+          "type": "herb"
+        },
+        {
+          "item": "Soda Water",
+          "amount": "2 oz",
+          "type": "mixer"
+        }
       ],
       "instructions": [
         "Gently muddle mint and syrup in glass",
@@ -113,11 +200,16 @@
         "Gently stir and garnish with mint sprig"
       ],
       "tips": [
-        "Don't over-muddle mint - gentle press only",
-        "Use crushed ice for best results",
-        "Slap mint before garnishing"
+        "Gently press mint once or twice; shredding releases bitter chlorophyll notes.",
+        "Use crushed ice and churn briefly to lift aromatics and chill fast.",
+        "Top with soda last and give a single short stir to keep bubbles lively."
       ],
-      "tags": ["rum", "mint", "refreshing", "muddled"],
+      "tags": [
+        "rum",
+        "mint",
+        "refreshing",
+        "muddled"
+      ],
       "image": "mojito"
     },
     {
@@ -126,12 +218,22 @@
       "category": "classics",
       "difficulty": "medium",
       "prepTime": 3,
-      "spirits": ["gin"],
+      "spirits": [
+        "gin"
+      ],
       "glass": "martini",
       "garnish": "lemon twist or olives",
       "ingredients": [
-        { "item": "Gin", "amount": "2.5 oz", "type": "spirit" },
-        { "item": "Dry Vermouth", "amount": "0.5 oz", "type": "liqueur" }
+        {
+          "item": "Gin",
+          "amount": "2.5 oz",
+          "type": "spirit"
+        },
+        {
+          "item": "Dry Vermouth",
+          "amount": "0.5 oz",
+          "type": "liqueur"
+        }
       ],
       "instructions": [
         "Add gin and vermouth to mixing glass with ice",
@@ -140,11 +242,16 @@
         "Garnish with lemon twist or olives"
       ],
       "tips": [
-        "Stir, never shake (unless you want it cloudy)",
-        "Chill glass beforehand",
-        "Express lemon oils over drink"
+        "Stir with very cold ice for about 30 seconds for clarity and silk texture.",
+        "Pre-chill the martini glass so temperature stays tight from first sip.",
+        "Express lemon oils over the surface; avoid squeezing in juice unless requested."
       ],
-      "tags": ["gin", "stirred", "strong", "elegant"],
+      "tags": [
+        "gin",
+        "stirred",
+        "strong",
+        "elegant"
+      ],
       "image": "martini"
     },
     {
@@ -153,13 +260,27 @@
       "category": "classics",
       "difficulty": "easy",
       "prepTime": 3,
-      "spirits": ["gin"],
+      "spirits": [
+        "gin"
+      ],
       "glass": "rocks",
       "garnish": "orange peel",
       "ingredients": [
-        { "item": "Gin", "amount": "1 oz", "type": "spirit" },
-        { "item": "Campari", "amount": "1 oz", "type": "liqueur" },
-        { "item": "Sweet Vermouth", "amount": "1 oz", "type": "liqueur" }
+        {
+          "item": "Gin",
+          "amount": "1 oz",
+          "type": "spirit"
+        },
+        {
+          "item": "Campari",
+          "amount": "1 oz",
+          "type": "liqueur"
+        },
+        {
+          "item": "Sweet Vermouth",
+          "amount": "1 oz",
+          "type": "liqueur"
+        }
       ],
       "instructions": [
         "Add all ingredients to glass with ice",
@@ -167,11 +288,16 @@
         "Garnish with orange peel"
       ],
       "tips": [
-        "Equal parts - perfectly balanced",
-        "Build directly in glass",
-        "One large ice cube preferred"
+        "Keep equal parts as your base, then adjust vermouth by 1/4 oz for softer bitterness.",
+        "Stir with large cold ice for about 25 seconds to hit clean dilution.",
+        "Serve on one large cube and express orange peel right before service."
       ],
-      "tags": ["gin", "bitter", "stirred", "aperitif"],
+      "tags": [
+        "gin",
+        "bitter",
+        "stirred",
+        "aperitif"
+      ],
       "image": "negroni"
     },
     {
@@ -180,14 +306,32 @@
       "category": "classics",
       "difficulty": "medium",
       "prepTime": 4,
-      "spirits": ["whiskey"],
+      "spirits": [
+        "whiskey"
+      ],
       "glass": "rocks",
       "garnish": "cherry, orange slice",
       "ingredients": [
-        { "item": "Bourbon", "amount": "2 oz", "type": "spirit" },
-        { "item": "Fresh Lemon Juice", "amount": "0.75 oz", "type": "citrus" },
-        { "item": "Simple Syrup", "amount": "0.5 oz", "type": "syrup" },
-        { "item": "Egg White", "amount": "0.5 oz", "type": "optional" }
+        {
+          "item": "Bourbon",
+          "amount": "2 oz",
+          "type": "spirit"
+        },
+        {
+          "item": "Fresh Lemon Juice",
+          "amount": "0.75 oz",
+          "type": "citrus"
+        },
+        {
+          "item": "Simple Syrup",
+          "amount": "0.5 oz",
+          "type": "syrup"
+        },
+        {
+          "item": "Egg White",
+          "amount": "0.5 oz",
+          "type": "optional"
+        }
       ],
       "instructions": [
         "Add all ingredients to shaker (dry shake with egg white first)",
@@ -196,11 +340,16 @@
         "Garnish with cherry and orange"
       ],
       "tips": [
-        "Egg white optional - adds silky texture",
-        "Dry shake first if using egg white",
-        "Fresh citrus is essential"
+        "Dry shake first if using egg white, then shake with ice for stable foam.",
+        "Use fresh lemon and taste before pouring; 1/4 oz syrup shifts balance quickly.",
+        "Fine strain for smoother texture and a cleaner foam cap."
       ],
-      "tags": ["whiskey", "sour", "citrus", "shaken"],
+      "tags": [
+        "whiskey",
+        "sour",
+        "citrus",
+        "shaken"
+      ],
       "image": "whiskey-sour"
     },
     {
@@ -209,13 +358,27 @@
       "category": "classics",
       "difficulty": "easy",
       "prepTime": 2,
-      "spirits": ["vodka"],
+      "spirits": [
+        "vodka"
+      ],
       "glass": "copper-mug",
       "garnish": "lime wedge, mint",
       "ingredients": [
-        { "item": "Vodka", "amount": "2 oz", "type": "spirit" },
-        { "item": "Fresh Lime Juice", "amount": "0.5 oz", "type": "citrus" },
-        { "item": "Ginger Beer", "amount": "4 oz", "type": "mixer" }
+        {
+          "item": "Vodka",
+          "amount": "2 oz",
+          "type": "spirit"
+        },
+        {
+          "item": "Fresh Lime Juice",
+          "amount": "0.5 oz",
+          "type": "citrus"
+        },
+        {
+          "item": "Ginger Beer",
+          "amount": "4 oz",
+          "type": "mixer"
+        }
       ],
       "instructions": [
         "Fill copper mug with ice",
@@ -225,11 +388,16 @@
         "Garnish with lime and mint"
       ],
       "tips": [
-        "Copper mug keeps drink extra cold",
-        "Use spicy ginger beer for best flavor",
-        "Build directly in mug"
+        "Build over fresh hard ice and add ginger beer last to protect carbonation.",
+        "Stir once from the bottom; over-stirring flattens spice and fizz.",
+        "Use a chilled mug or glass so the drink stays bright and cold longer."
       ],
-      "tags": ["vodka", "ginger", "refreshing", "easy"],
+      "tags": [
+        "vodka",
+        "ginger",
+        "refreshing",
+        "easy"
+      ],
       "image": "moscow-mule"
     },
     {
@@ -238,13 +406,27 @@
       "category": "classics",
       "difficulty": "easy",
       "prepTime": 3,
-      "spirits": ["rum"],
+      "spirits": [
+        "rum"
+      ],
       "glass": "coupe",
       "garnish": "lime wheel",
       "ingredients": [
-        { "item": "White Rum", "amount": "2 oz", "type": "spirit" },
-        { "item": "Fresh Lime Juice", "amount": "0.75 oz", "type": "citrus" },
-        { "item": "Simple Syrup", "amount": "0.5 oz", "type": "syrup" }
+        {
+          "item": "White Rum",
+          "amount": "2 oz",
+          "type": "spirit"
+        },
+        {
+          "item": "Fresh Lime Juice",
+          "amount": "0.75 oz",
+          "type": "citrus"
+        },
+        {
+          "item": "Simple Syrup",
+          "amount": "0.5 oz",
+          "type": "syrup"
+        }
       ],
       "instructions": [
         "Add all ingredients to shaker with ice",
@@ -253,11 +435,16 @@
         "Garnish with lime wheel"
       ],
       "tips": [
-        "Perfect balance of sweet, sour, strong",
-        "Use quality rum",
-        "Adjust sweetness to preference"
+        "Shake hard with cold ice for 10-12 seconds, then fine strain into a chilled coupe.",
+        "Use fresh lime and tune sweetness by 1/4 oz at a time for your rum proof.",
+        "Keep rum forward; if it tastes syrupy, reduce sugar before adding more citrus."
       ],
-      "tags": ["rum", "sour", "citrus", "simple"],
+      "tags": [
+        "rum",
+        "sour",
+        "citrus",
+        "simple"
+      ],
       "image": "daiquiri"
     },
     {
@@ -266,13 +453,27 @@
       "category": "classics",
       "difficulty": "medium",
       "prepTime": 3,
-      "spirits": ["whiskey"],
+      "spirits": [
+        "whiskey"
+      ],
       "glass": "coupe",
       "garnish": "cherry",
       "ingredients": [
-        { "item": "Rye Whiskey", "amount": "2 oz", "type": "spirit" },
-        { "item": "Sweet Vermouth", "amount": "1 oz", "type": "liqueur" },
-        { "item": "Angostura Bitters", "amount": "2 dashes", "type": "bitters" }
+        {
+          "item": "Rye Whiskey",
+          "amount": "2 oz",
+          "type": "spirit"
+        },
+        {
+          "item": "Sweet Vermouth",
+          "amount": "1 oz",
+          "type": "liqueur"
+        },
+        {
+          "item": "Angostura Bitters",
+          "amount": "2 dashes",
+          "type": "bitters"
+        }
       ],
       "instructions": [
         "Add all ingredients to mixing glass with ice",
@@ -281,11 +482,16 @@
         "Garnish with cherry"
       ],
       "tips": [
-        "Stir, don't shake",
-        "Rye preferred over bourbon",
-        "Chill glass beforehand"
+        "Stir 25-30 seconds with cold ice for proper dilution and silky body.",
+        "Rye gives a drier finish; bourbon reads rounder and sweeter at the same ratio.",
+        "Keep vermouth refrigerated after opening to avoid dull, oxidized notes."
       ],
-      "tags": ["whiskey", "stirred", "strong", "classic"],
+      "tags": [
+        "whiskey",
+        "stirred",
+        "strong",
+        "classic"
+      ],
       "image": "manhattan"
     },
     {
@@ -298,9 +504,21 @@
       "glass": "wine",
       "garnish": "orange slice",
       "ingredients": [
-        { "item": "Aperol", "amount": "3 oz", "type": "liqueur" },
-        { "item": "Prosecco", "amount": "3 oz", "type": "wine" },
-        { "item": "Soda Water", "amount": "1 oz", "type": "mixer" }
+        {
+          "item": "Aperol",
+          "amount": "3 oz",
+          "type": "liqueur"
+        },
+        {
+          "item": "Prosecco",
+          "amount": "3 oz",
+          "type": "wine"
+        },
+        {
+          "item": "Soda Water",
+          "amount": "1 oz",
+          "type": "mixer"
+        }
       ],
       "instructions": [
         "Fill glass with ice",
@@ -310,11 +528,16 @@
         "Stir gently and garnish with orange"
       ],
       "tips": [
-        "3-2-1 ratio: Prosecco, Aperol, Soda",
-        "Build directly in glass",
-        "Serve immediately"
+        "Start with 3:2:1 prosecco, Aperol, soda and adjust soda last to tune bitterness.",
+        "Build in a wine glass with plenty of ice and a single gentle stir.",
+        "Serve right after topping; spritzes lose lift quickly as carbonation drops."
       ],
-      "tags": ["aperitif", "wine", "refreshing", "easy"],
+      "tags": [
+        "aperitif",
+        "wine",
+        "refreshing",
+        "easy"
+      ],
       "image": "aperol-spritz"
     },
     {
@@ -323,14 +546,32 @@
       "category": "modern",
       "difficulty": "medium",
       "prepTime": 4,
-      "spirits": ["vodka"],
+      "spirits": [
+        "vodka"
+      ],
       "glass": "martini",
       "garnish": "coffee beans",
       "ingredients": [
-        { "item": "Vodka", "amount": "2 oz", "type": "spirit" },
-        { "item": "Espresso", "amount": "1 oz", "type": "coffee" },
-        { "item": "Coffee Liqueur", "amount": "0.5 oz", "type": "liqueur" },
-        { "item": "Simple Syrup", "amount": "0.5 oz", "type": "syrup" }
+        {
+          "item": "Vodka",
+          "amount": "2 oz",
+          "type": "spirit"
+        },
+        {
+          "item": "Espresso",
+          "amount": "1 oz",
+          "type": "coffee"
+        },
+        {
+          "item": "Coffee Liqueur",
+          "amount": "0.5 oz",
+          "type": "liqueur"
+        },
+        {
+          "item": "Simple Syrup",
+          "amount": "0.5 oz",
+          "type": "syrup"
+        }
       ],
       "instructions": [
         "Add all ingredients to shaker with ice",
@@ -339,11 +580,16 @@
         "Garnish with 3 coffee beans"
       ],
       "tips": [
-        "Use fresh espresso for best foam",
-        "Shake hard to create foam",
-        "Serve immediately"
+        "Use fresh, hot espresso and shake hard to build crema and texture.",
+        "Double strain to remove ice shards so the foam cap stays smooth.",
+        "Chill the glass first to preserve foam and presentation."
       ],
-      "tags": ["vodka", "coffee", "dessert", "shaken"],
+      "tags": [
+        "vodka",
+        "coffee",
+        "dessert",
+        "shaken"
+      ],
       "image": "espresso-martini"
     },
     {
@@ -352,15 +598,37 @@
       "category": "tiki",
       "difficulty": "medium",
       "prepTime": 4,
-      "spirits": ["rum"],
+      "spirits": [
+        "rum"
+      ],
       "glass": "rocks",
       "garnish": "mint, lime, pineapple",
       "ingredients": [
-        { "item": "White Rum", "amount": "1 oz", "type": "spirit" },
-        { "item": "Dark Rum", "amount": "1 oz", "type": "spirit" },
-        { "item": "Orange Curaçao", "amount": "0.5 oz", "type": "liqueur" },
-        { "item": "Orgeat Syrup", "amount": "0.5 oz", "type": "syrup" },
-        { "item": "Fresh Lime Juice", "amount": "0.75 oz", "type": "citrus" }
+        {
+          "item": "White Rum",
+          "amount": "1 oz",
+          "type": "spirit"
+        },
+        {
+          "item": "Dark Rum",
+          "amount": "1 oz",
+          "type": "spirit"
+        },
+        {
+          "item": "Orange Curaçao",
+          "amount": "0.5 oz",
+          "type": "liqueur"
+        },
+        {
+          "item": "Orgeat Syrup",
+          "amount": "0.5 oz",
+          "type": "syrup"
+        },
+        {
+          "item": "Fresh Lime Juice",
+          "amount": "0.75 oz",
+          "type": "citrus"
+        }
       ],
       "instructions": [
         "Add all ingredients to shaker with ice",
@@ -369,11 +637,16 @@
         "Garnish extravagantly"
       ],
       "tips": [
-        "Use quality rums",
-        "Orgeat is essential",
-        "Don't skip the garnish"
+        "Orgeat is structural, not optional; adjust in small steps to avoid a candy finish.",
+        "Shake with crushed or pebble ice, then dirty-dump for body and aroma.",
+        "Balance rum blend first, then citrus, then sweetness for best control."
       ],
-      "tags": ["rum", "tiki", "tropical", "complex"],
+      "tags": [
+        "rum",
+        "tiki",
+        "tropical",
+        "complex"
+      ],
       "image": "mai-tai"
     },
     {
@@ -382,14 +655,32 @@
       "category": "classics",
       "difficulty": "easy",
       "prepTime": 2,
-      "spirits": ["tequila"],
+      "spirits": [
+        "tequila"
+      ],
       "glass": "collins",
       "garnish": "grapefruit slice, salt rim",
       "ingredients": [
-        { "item": "Tequila Blanco", "amount": "2 oz", "type": "spirit" },
-        { "item": "Fresh Grapefruit Juice", "amount": "4 oz", "type": "citrus" },
-        { "item": "Fresh Lime Juice", "amount": "0.5 oz", "type": "citrus" },
-        { "item": "Soda Water", "amount": "splash", "type": "mixer" }
+        {
+          "item": "Tequila Blanco",
+          "amount": "2 oz",
+          "type": "spirit"
+        },
+        {
+          "item": "Fresh Grapefruit Juice",
+          "amount": "4 oz",
+          "type": "citrus"
+        },
+        {
+          "item": "Fresh Lime Juice",
+          "amount": "0.5 oz",
+          "type": "citrus"
+        },
+        {
+          "item": "Soda Water",
+          "amount": "splash",
+          "type": "mixer"
+        }
       ],
       "instructions": [
         "Salt rim of glass",
@@ -399,11 +690,16 @@
         "Stir gently and garnish"
       ],
       "tips": [
-        "Fresh grapefruit juice is key",
-        "Jarritos grapefruit soda is authentic",
-        "Salt rim is essential"
+        "Use fresh grapefruit plus lime for a cleaner, less sugary finish than soda alone.",
+        "Salt only part of the rim so guests can control each sip.",
+        "Add soda last and stir once gently to preserve bubbles."
       ],
-      "tags": ["tequila", "citrus", "refreshing", "mexican"],
+      "tags": [
+        "tequila",
+        "citrus",
+        "refreshing",
+        "mexican"
+      ],
       "image": "paloma"
     },
     {
@@ -412,14 +708,32 @@
       "category": "modern",
       "difficulty": "easy",
       "prepTime": 3,
-      "spirits": ["vodka"],
+      "spirits": [
+        "vodka"
+      ],
       "glass": "martini",
       "garnish": "lime twist",
       "ingredients": [
-        { "item": "Vodka", "amount": "1.5 oz", "type": "spirit" },
-        { "item": "Triple Sec", "amount": "0.5 oz", "type": "liqueur" },
-        { "item": "Cranberry Juice", "amount": "0.5 oz", "type": "juice" },
-        { "item": "Fresh Lime Juice", "amount": "0.5 oz", "type": "citrus" }
+        {
+          "item": "Vodka",
+          "amount": "1.5 oz",
+          "type": "spirit"
+        },
+        {
+          "item": "Triple Sec",
+          "amount": "0.5 oz",
+          "type": "liqueur"
+        },
+        {
+          "item": "Cranberry Juice",
+          "amount": "0.5 oz",
+          "type": "juice"
+        },
+        {
+          "item": "Fresh Lime Juice",
+          "amount": "0.5 oz",
+          "type": "citrus"
+        }
       ],
       "instructions": [
         "Add all ingredients to shaker with ice",
@@ -428,11 +742,16 @@
         "Garnish with lime twist"
       ],
       "tips": [
-        "Use just enough cranberry for color",
-        "Fresh lime is essential",
-        "Popularized by Sex and the City"
+        "Keep cranberry restrained; it should tint and dry the drink, not turn it sweet.",
+        "Shake hard with cold ice and fine strain for a clean, bright texture.",
+        "Use fresh lime to keep acidity sharp and balanced against orange liqueur."
       ],
-      "tags": ["vodka", "fruity", "pink", "elegant"],
+      "tags": [
+        "vodka",
+        "fruity",
+        "pink",
+        "elegant"
+      ],
       "image": "cosmopolitan"
     },
     {
@@ -441,13 +760,27 @@
       "category": "tiki",
       "difficulty": "easy",
       "prepTime": 4,
-      "spirits": ["rum"],
+      "spirits": [
+        "rum"
+      ],
       "glass": "collins",
       "garnish": "pineapple wedge, cherry",
       "ingredients": [
-        { "item": "White Rum", "amount": "2 oz", "type": "spirit" },
-        { "item": "Coconut Cream", "amount": "1.5 oz", "type": "mixer" },
-        { "item": "Pineapple Juice", "amount": "3 oz", "type": "juice" }
+        {
+          "item": "White Rum",
+          "amount": "2 oz",
+          "type": "spirit"
+        },
+        {
+          "item": "Coconut Cream",
+          "amount": "1.5 oz",
+          "type": "mixer"
+        },
+        {
+          "item": "Pineapple Juice",
+          "amount": "3 oz",
+          "type": "juice"
+        }
       ],
       "instructions": [
         "Add all ingredients to blender with 1 cup ice",
@@ -456,11 +789,16 @@
         "Garnish with pineapple and cherry"
       ],
       "tips": [
-        "Use cream of coconut, not coconut milk",
-        "Fresh pineapple juice is best",
-        "Can be served frozen or shaken"
+        "Use cream of coconut for body; coconut milk alone will taste thin.",
+        "Blend just until smooth; over-blending warms and waters down texture.",
+        "If too thick, loosen with pineapple juice before adding extra ice."
       ],
-      "tags": ["rum", "tropical", "frozen", "sweet"],
+      "tags": [
+        "rum",
+        "tropical",
+        "frozen",
+        "sweet"
+      ],
       "image": "pina-colada"
     },
     {
@@ -469,15 +807,37 @@
       "category": "classics",
       "difficulty": "easy",
       "prepTime": 3,
-      "spirits": ["vodka"],
+      "spirits": [
+        "vodka"
+      ],
       "glass": "collins",
       "garnish": "celery, lemon, olives",
       "ingredients": [
-        { "item": "Vodka", "amount": "2 oz", "type": "spirit" },
-        { "item": "Tomato Juice", "amount": "4 oz", "type": "juice" },
-        { "item": "Lemon Juice", "amount": "0.5 oz", "type": "citrus" },
-        { "item": "Worcestershire", "amount": "3 dashes", "type": "sauce" },
-        { "item": "Hot Sauce", "amount": "2 dashes", "type": "sauce" }
+        {
+          "item": "Vodka",
+          "amount": "2 oz",
+          "type": "spirit"
+        },
+        {
+          "item": "Tomato Juice",
+          "amount": "4 oz",
+          "type": "juice"
+        },
+        {
+          "item": "Lemon Juice",
+          "amount": "0.5 oz",
+          "type": "citrus"
+        },
+        {
+          "item": "Worcestershire",
+          "amount": "3 dashes",
+          "type": "sauce"
+        },
+        {
+          "item": "Hot Sauce",
+          "amount": "2 dashes",
+          "type": "sauce"
+        }
       ],
       "instructions": [
         "Add all ingredients to glass with ice",
@@ -485,11 +845,16 @@
         "Garnish elaborately"
       ],
       "tips": [
-        "Perfect brunch cocktail",
-        "Adjust spice to taste",
-        "Celery salt rim optional"
+        "Build seasoning in layers: acid, salt, heat, then umami; taste between additions.",
+        "Roll between tins instead of hard-shaking to keep texture full, not foamy.",
+        "Chill the mix thoroughly before service so spice and salt stay integrated."
       ],
-      "tags": ["vodka", "savory", "brunch", "spicy"],
+      "tags": [
+        "vodka",
+        "savory",
+        "brunch",
+        "spicy"
+      ],
       "image": "bloody-mary"
     },
     {
@@ -498,14 +863,32 @@
       "category": "classics",
       "difficulty": "easy",
       "prepTime": 3,
-      "spirits": ["gin"],
+      "spirits": [
+        "gin"
+      ],
       "glass": "collins",
       "garnish": "lemon wheel, cherry",
       "ingredients": [
-        { "item": "Gin", "amount": "2 oz", "type": "spirit" },
-        { "item": "Fresh Lemon Juice", "amount": "1 oz", "type": "citrus" },
-        { "item": "Simple Syrup", "amount": "0.5 oz", "type": "syrup" },
-        { "item": "Soda Water", "amount": "2 oz", "type": "mixer" }
+        {
+          "item": "Gin",
+          "amount": "2 oz",
+          "type": "spirit"
+        },
+        {
+          "item": "Fresh Lemon Juice",
+          "amount": "1 oz",
+          "type": "citrus"
+        },
+        {
+          "item": "Simple Syrup",
+          "amount": "0.5 oz",
+          "type": "syrup"
+        },
+        {
+          "item": "Soda Water",
+          "amount": "2 oz",
+          "type": "mixer"
+        }
       ],
       "instructions": [
         "Add gin, lemon juice, and syrup to shaker with ice",
@@ -515,11 +898,16 @@
         "Garnish with lemon and cherry"
       ],
       "tips": [
-        "Named after the glass it's served in",
-        "Light and refreshing",
-        "Perfect for summer"
+        "Shake gin, lemon, and syrup first, then top with soda in glass.",
+        "Use fresh lemon and tune syrup by 1/4 oz at a time for a dry finish.",
+        "Top with soda last and give one quick lift stir only."
       ],
-      "tags": ["gin", "sour", "refreshing", "fizzy"],
+      "tags": [
+        "gin",
+        "sour",
+        "refreshing",
+        "fizzy"
+      ],
       "image": "tom-collins"
     },
     {
@@ -528,14 +916,32 @@
       "category": "classics",
       "difficulty": "medium",
       "prepTime": 4,
-      "spirits": ["gin"],
+      "spirits": [
+        "gin"
+      ],
       "glass": "champagne-flute",
       "garnish": "lemon twist",
       "ingredients": [
-        { "item": "Gin", "amount": "1 oz", "type": "spirit" },
-        { "item": "Fresh Lemon Juice", "amount": "0.5 oz", "type": "citrus" },
-        { "item": "Simple Syrup", "amount": "0.5 oz", "type": "syrup" },
-        { "item": "Champagne", "amount": "3 oz", "type": "wine" }
+        {
+          "item": "Gin",
+          "amount": "1 oz",
+          "type": "spirit"
+        },
+        {
+          "item": "Fresh Lemon Juice",
+          "amount": "0.5 oz",
+          "type": "citrus"
+        },
+        {
+          "item": "Simple Syrup",
+          "amount": "0.5 oz",
+          "type": "syrup"
+        },
+        {
+          "item": "Champagne",
+          "amount": "3 oz",
+          "type": "wine"
+        }
       ],
       "instructions": [
         "Add gin, lemon juice, and syrup to shaker with ice",
@@ -545,11 +951,16 @@
         "Garnish with lemon twist"
       ],
       "tips": [
-        "Named after French 75mm field gun",
-        "Elegant and sophisticated",
-        "Prosecco can substitute champagne"
+        "Shake gin, lemon, and syrup briskly, then fine strain before topping sparkling wine.",
+        "Use very cold sparkling wine to preserve mousse and structure.",
+        "Avoid over-sweetening; this drink should finish dry and bright."
       ],
-      "tags": ["gin", "champagne", "elegant", "celebration"],
+      "tags": [
+        "gin",
+        "champagne",
+        "elegant",
+        "celebration"
+      ],
       "image": "french-75"
     },
     {
@@ -558,14 +969,32 @@
       "category": "classics",
       "difficulty": "hard",
       "prepTime": 5,
-      "spirits": ["whiskey"],
+      "spirits": [
+        "whiskey"
+      ],
       "glass": "rocks",
       "garnish": "lemon peel",
       "ingredients": [
-        { "item": "Rye Whiskey", "amount": "2 oz", "type": "spirit" },
-        { "item": "Simple Syrup", "amount": "0.25 oz", "type": "syrup" },
-        { "item": "Peychaud's Bitters", "amount": "3 dashes", "type": "bitters" },
-        { "item": "Absinthe", "amount": "rinse", "type": "spirit" }
+        {
+          "item": "Rye Whiskey",
+          "amount": "2 oz",
+          "type": "spirit"
+        },
+        {
+          "item": "Simple Syrup",
+          "amount": "0.25 oz",
+          "type": "syrup"
+        },
+        {
+          "item": "Peychaud's Bitters",
+          "amount": "3 dashes",
+          "type": "bitters"
+        },
+        {
+          "item": "Absinthe",
+          "amount": "rinse",
+          "type": "spirit"
+        }
       ],
       "instructions": [
         "Rinse chilled glass with absinthe",
@@ -574,11 +1003,16 @@
         "Express lemon peel over drink"
       ],
       "tips": [
-        "Official cocktail of New Orleans",
-        "Don't skip the absinthe rinse",
-        "Peychaud's bitters are essential"
+        "Use a light absinthe rinse; excess quickly dominates the drink.",
+        "Stir with cold ice until silky, then strain into a chilled rinsed glass.",
+        "Express lemon peel over the top and discard to keep the profile dry."
       ],
-      "tags": ["whiskey", "strong", "complex", "new-orleans"],
+      "tags": [
+        "whiskey",
+        "strong",
+        "complex",
+        "new-orleans"
+      ],
       "image": "sazerac"
     },
     {
@@ -587,13 +1021,27 @@
       "category": "classics",
       "difficulty": "medium",
       "prepTime": 4,
-      "spirits": ["whiskey"],
+      "spirits": [
+        "whiskey"
+      ],
       "glass": "julep-cup",
       "garnish": "mint sprig, powdered sugar",
       "ingredients": [
-        { "item": "Bourbon", "amount": "2.5 oz", "type": "spirit" },
-        { "item": "Simple Syrup", "amount": "0.5 oz", "type": "syrup" },
-        { "item": "Fresh Mint", "amount": "8-10 leaves", "type": "herb" }
+        {
+          "item": "Bourbon",
+          "amount": "2.5 oz",
+          "type": "spirit"
+        },
+        {
+          "item": "Simple Syrup",
+          "amount": "0.5 oz",
+          "type": "syrup"
+        },
+        {
+          "item": "Fresh Mint",
+          "amount": "8-10 leaves",
+          "type": "herb"
+        }
       ],
       "instructions": [
         "Muddle mint and syrup in julep cup",
@@ -603,11 +1051,16 @@
         "Top with more crushed ice and garnish"
       ],
       "tips": [
-        "Kentucky Derby's official drink",
-        "Use silver julep cup if available",
-        "Crushed ice is essential"
+        "Gently press mint with syrup; do not grind leaves into pulp.",
+        "Pack crushed ice tightly and churn until the cup frosts.",
+        "Place mint garnish near the nose so aroma leads each sip."
       ],
-      "tags": ["whiskey", "mint", "kentucky-derby", "refreshing"],
+      "tags": [
+        "whiskey",
+        "mint",
+        "kentucky-derby",
+        "refreshing"
+      ],
       "image": "mint-julep"
     },
     {
@@ -616,13 +1069,27 @@
       "category": "modern",
       "difficulty": "easy",
       "prepTime": 2,
-      "spirits": ["vodka"],
+      "spirits": [
+        "vodka"
+      ],
       "glass": "rocks",
       "garnish": "none",
       "ingredients": [
-        { "item": "Vodka", "amount": "2 oz", "type": "spirit" },
-        { "item": "Coffee Liqueur", "amount": "1 oz", "type": "liqueur" },
-        { "item": "Heavy Cream", "amount": "1 oz", "type": "dairy" }
+        {
+          "item": "Vodka",
+          "amount": "2 oz",
+          "type": "spirit"
+        },
+        {
+          "item": "Coffee Liqueur",
+          "amount": "1 oz",
+          "type": "liqueur"
+        },
+        {
+          "item": "Heavy Cream",
+          "amount": "1 oz",
+          "type": "dairy"
+        }
       ],
       "instructions": [
         "Add vodka and coffee liqueur to glass with ice",
@@ -630,11 +1097,16 @@
         "Stir gently before drinking"
       ],
       "tips": [
-        "Made famous by The Big Lebowski",
-        "Can use milk instead of cream",
-        "Black Russian omits the cream"
+        "Build vodka and coffee liqueur first over ice, then float cream for layered texture.",
+        "Stir only if the guest wants a fully integrated serve.",
+        "Use fresh cold cream; warm dairy dulls the finish quickly."
       ],
-      "tags": ["vodka", "creamy", "dessert", "easy"],
+      "tags": [
+        "vodka",
+        "creamy",
+        "dessert",
+        "easy"
+      ],
       "image": "white-russian"
     },
     {
@@ -643,14 +1115,32 @@
       "category": "classics",
       "difficulty": "medium",
       "prepTime": 3,
-      "spirits": ["gin"],
+      "spirits": [
+        "gin"
+      ],
       "glass": "coupe",
       "garnish": "cherry",
       "ingredients": [
-        { "item": "Gin", "amount": "2 oz", "type": "spirit" },
-        { "item": "Maraschino Liqueur", "amount": "0.5 oz", "type": "liqueur" },
-        { "item": "Crème de Violette", "amount": "0.25 oz", "type": "liqueur" },
-        { "item": "Fresh Lemon Juice", "amount": "0.75 oz", "type": "citrus" }
+        {
+          "item": "Gin",
+          "amount": "2 oz",
+          "type": "spirit"
+        },
+        {
+          "item": "Maraschino Liqueur",
+          "amount": "0.5 oz",
+          "type": "liqueur"
+        },
+        {
+          "item": "Crème de Violette",
+          "amount": "0.25 oz",
+          "type": "liqueur"
+        },
+        {
+          "item": "Fresh Lemon Juice",
+          "amount": "0.75 oz",
+          "type": "citrus"
+        }
       ],
       "instructions": [
         "Add all ingredients to shaker with ice",
@@ -659,11 +1149,16 @@
         "Garnish with cherry"
       ],
       "tips": [
-        "Named for its sky-blue color",
-        "Crème de Violette gives purple hue",
-        "Use quality maraschino liqueur"
+        "Use creme de violette sparingly; too much can make the drink soapy.",
+        "Shake hard and fine strain for clarity and balance.",
+        "Taste before service: maraschino sweetness can vary by brand."
       ],
-      "tags": ["gin", "floral", "elegant", "purple"],
+      "tags": [
+        "gin",
+        "floral",
+        "elegant",
+        "purple"
+      ],
       "image": "aviation"
     },
     {
@@ -672,14 +1167,32 @@
       "category": "modern",
       "difficulty": "easy",
       "prepTime": 4,
-      "spirits": ["tequila"],
+      "spirits": [
+        "tequila"
+      ],
       "glass": "margarita",
       "garnish": "lime wheel, salt rim",
       "ingredients": [
-        { "item": "Tequila Blanco", "amount": "2 oz", "type": "spirit" },
-        { "item": "Fresh Lime Juice", "amount": "1 oz", "type": "citrus" },
-        { "item": "Triple Sec", "amount": "1 oz", "type": "liqueur" },
-        { "item": "Simple Syrup", "amount": "0.5 oz", "type": "syrup" }
+        {
+          "item": "Tequila Blanco",
+          "amount": "2 oz",
+          "type": "spirit"
+        },
+        {
+          "item": "Fresh Lime Juice",
+          "amount": "1 oz",
+          "type": "citrus"
+        },
+        {
+          "item": "Triple Sec",
+          "amount": "1 oz",
+          "type": "liqueur"
+        },
+        {
+          "item": "Simple Syrup",
+          "amount": "0.5 oz",
+          "type": "syrup"
+        }
       ],
       "instructions": [
         "Salt rim of glass",
@@ -689,11 +1202,16 @@
         "Garnish with lime"
       ],
       "tips": [
-        "Perfect for hot weather",
-        "Can add fruit for variations",
-        "Adjust ice for desired consistency"
+        "Start with less ice, then add gradually to reach slush texture without over-diluting.",
+        "Use fresh citrus; bottled juice turns frozen drinks flat and candy-like.",
+        "Blend briefly and serve right away before separation starts."
       ],
-      "tags": ["tequila", "frozen", "sweet", "party"],
+      "tags": [
+        "tequila",
+        "frozen",
+        "sweet",
+        "party"
+      ],
       "image": "frozen-margarita"
     },
     {
@@ -702,13 +1220,27 @@
       "category": "classics",
       "difficulty": "easy",
       "prepTime": 2,
-      "spirits": ["rum"],
+      "spirits": [
+        "rum"
+      ],
       "glass": "collins",
       "garnish": "lime wedge",
       "ingredients": [
-        { "item": "Dark Rum", "amount": "2 oz", "type": "spirit" },
-        { "item": "Ginger Beer", "amount": "4 oz", "type": "mixer" },
-        { "item": "Fresh Lime", "amount": "0.5 oz", "type": "citrus" }
+        {
+          "item": "Dark Rum",
+          "amount": "2 oz",
+          "type": "spirit"
+        },
+        {
+          "item": "Ginger Beer",
+          "amount": "4 oz",
+          "type": "mixer"
+        },
+        {
+          "item": "Fresh Lime",
+          "amount": "0.5 oz",
+          "type": "citrus"
+        }
       ],
       "instructions": [
         "Fill glass with ice",
@@ -718,11 +1250,16 @@
         "Garnish with lime"
       ],
       "tips": [
-        "Traditionally made with Gosling's rum",
-        "Build in glass, don't stir initially",
-        "Spicy ginger beer preferred"
+        "Build over ice, float dark rum on top, and serve with minimal stirring.",
+        "Use a spicy ginger beer to keep structure against the rum.",
+        "Add fresh lime right before service for a brighter finish."
       ],
-      "tags": ["rum", "ginger", "easy", "bermuda"],
+      "tags": [
+        "rum",
+        "ginger",
+        "easy",
+        "bermuda"
+      ],
       "image": "dark-n-stormy"
     },
     {
@@ -735,10 +1272,26 @@
       "glass": "rocks",
       "garnish": "cherry, orange",
       "ingredients": [
-        { "item": "Amaretto", "amount": "1.5 oz", "type": "liqueur" },
-        { "item": "Bourbon", "amount": "0.75 oz", "type": "spirit" },
-        { "item": "Fresh Lemon Juice", "amount": "1 oz", "type": "citrus" },
-        { "item": "Simple Syrup", "amount": "0.5 oz", "type": "syrup" }
+        {
+          "item": "Amaretto",
+          "amount": "1.5 oz",
+          "type": "liqueur"
+        },
+        {
+          "item": "Bourbon",
+          "amount": "0.75 oz",
+          "type": "spirit"
+        },
+        {
+          "item": "Fresh Lemon Juice",
+          "amount": "1 oz",
+          "type": "citrus"
+        },
+        {
+          "item": "Simple Syrup",
+          "amount": "0.5 oz",
+          "type": "syrup"
+        }
       ],
       "instructions": [
         "Add all ingredients to shaker with ice",
@@ -747,11 +1300,16 @@
         "Garnish with cherry and orange"
       ],
       "tips": [
-        "Adding bourbon balances the sweetness",
-        "Egg white optional for foam",
-        "Sweet and nutty flavor"
+        "Add a small bourbon split to dry out sweetness and add backbone.",
+        "Dry shake first if using egg white, then shake with ice for foam.",
+        "Keep citrus bright; this drink turns cloying quickly if under-acidified."
       ],
-      "tags": ["amaretto", "sour", "sweet", "easy"],
+      "tags": [
+        "amaretto",
+        "sour",
+        "sweet",
+        "easy"
+      ],
       "image": "amaretto-sour"
     },
     {
@@ -760,13 +1318,27 @@
       "category": "classics",
       "difficulty": "easy",
       "prepTime": 3,
-      "spirits": ["gin"],
+      "spirits": [
+        "gin"
+      ],
       "glass": "coupe",
       "garnish": "lemon twist",
       "ingredients": [
-        { "item": "Gin", "amount": "2 oz", "type": "spirit" },
-        { "item": "Fresh Lemon Juice", "amount": "0.75 oz", "type": "citrus" },
-        { "item": "Honey Syrup", "amount": "0.75 oz", "type": "syrup" }
+        {
+          "item": "Gin",
+          "amount": "2 oz",
+          "type": "spirit"
+        },
+        {
+          "item": "Fresh Lemon Juice",
+          "amount": "0.75 oz",
+          "type": "citrus"
+        },
+        {
+          "item": "Honey Syrup",
+          "amount": "0.75 oz",
+          "type": "syrup"
+        }
       ],
       "instructions": [
         "Add all ingredients to shaker with ice",
@@ -775,11 +1347,16 @@
         "Garnish with lemon twist"
       ],
       "tips": [
-        "Prohibition-era cocktail",
-        "Honey syrup: 1:1 honey and water",
-        "Simple and delicious"
+        "Use fully dissolved honey syrup so texture stays smooth and integrated.",
+        "Shake with cold ice until the tin frosts, then fine strain.",
+        "Balance honey and lemon together; adjust both in small steps."
       ],
-      "tags": ["gin", "honey", "sour", "prohibition"],
+      "tags": [
+        "gin",
+        "honey",
+        "sour",
+        "prohibition"
+      ],
       "image": "bees-knees"
     },
     {
@@ -792,8 +1369,16 @@
       "glass": "champagne-flute",
       "garnish": "peach slice",
       "ingredients": [
-        { "item": "White Peach Puree", "amount": "2 oz", "type": "fruit" },
-        { "item": "Prosecco", "amount": "4 oz", "type": "wine" }
+        {
+          "item": "White Peach Puree",
+          "amount": "2 oz",
+          "type": "fruit"
+        },
+        {
+          "item": "Prosecco",
+          "amount": "4 oz",
+          "type": "wine"
+        }
       ],
       "instructions": [
         "Add peach puree to champagne flute",
@@ -802,11 +1387,16 @@
         "Garnish with peach slice"
       ],
       "tips": [
-        "Created at Harry's Bar in Venice",
-        "Use white peaches for authentic taste",
-        "Perfect brunch cocktail"
+        "Use chilled peach puree and chilled sparkling wine for better texture.",
+        "Add puree first, then wine slowly to prevent overflow and preserve mousse.",
+        "Keep the drink lightly sweet; over-puree makes it heavy."
       ],
-      "tags": ["prosecco", "peach", "brunch", "italian"],
+      "tags": [
+        "prosecco",
+        "peach",
+        "brunch",
+        "italian"
+      ],
       "image": "bellini"
     },
     {
@@ -819,8 +1409,16 @@
       "glass": "champagne-flute",
       "garnish": "orange twist",
       "ingredients": [
-        { "item": "Champagne", "amount": "3 oz", "type": "wine" },
-        { "item": "Fresh Orange Juice", "amount": "3 oz", "type": "juice" }
+        {
+          "item": "Champagne",
+          "amount": "3 oz",
+          "type": "wine"
+        },
+        {
+          "item": "Fresh Orange Juice",
+          "amount": "3 oz",
+          "type": "juice"
+        }
       ],
       "instructions": [
         "Add orange juice to champagne flute",
@@ -829,11 +1427,16 @@
         "Garnish with orange twist"
       ],
       "tips": [
-        "Equal parts OJ and champagne",
-        "Fresh juice is essential",
-        "Classic brunch drink"
+        "Use very cold sparkling wine and juice for tighter bubbles.",
+        "Start around equal parts, then adjust toward drier by increasing wine.",
+        "Pour wine first, then juice gently to preserve carbonation."
       ],
-      "tags": ["champagne", "orange", "brunch", "easy"],
+      "tags": [
+        "champagne",
+        "orange",
+        "brunch",
+        "easy"
+      ],
       "image": "mimosa"
     },
     {
@@ -842,17 +1445,47 @@
       "category": "tiki",
       "difficulty": "hard",
       "prepTime": 5,
-      "spirits": ["gin"],
+      "spirits": [
+        "gin"
+      ],
       "glass": "collins",
       "garnish": "pineapple, cherry",
       "ingredients": [
-        { "item": "Gin", "amount": "1.5 oz", "type": "spirit" },
-        { "item": "Cherry Liqueur", "amount": "0.5 oz", "type": "liqueur" },
-        { "item": "Cointreau", "amount": "0.25 oz", "type": "liqueur" },
-        { "item": "Benedictine", "amount": "0.25 oz", "type": "liqueur" },
-        { "item": "Pineapple Juice", "amount": "4 oz", "type": "juice" },
-        { "item": "Lime Juice", "amount": "0.5 oz", "type": "citrus" },
-        { "item": "Grenadine", "amount": "0.25 oz", "type": "syrup" }
+        {
+          "item": "Gin",
+          "amount": "1.5 oz",
+          "type": "spirit"
+        },
+        {
+          "item": "Cherry Liqueur",
+          "amount": "0.5 oz",
+          "type": "liqueur"
+        },
+        {
+          "item": "Cointreau",
+          "amount": "0.25 oz",
+          "type": "liqueur"
+        },
+        {
+          "item": "Benedictine",
+          "amount": "0.25 oz",
+          "type": "liqueur"
+        },
+        {
+          "item": "Pineapple Juice",
+          "amount": "4 oz",
+          "type": "juice"
+        },
+        {
+          "item": "Lime Juice",
+          "amount": "0.5 oz",
+          "type": "citrus"
+        },
+        {
+          "item": "Grenadine",
+          "amount": "0.25 oz",
+          "type": "syrup"
+        }
       ],
       "instructions": [
         "Add all ingredients to shaker with ice",
@@ -861,11 +1494,16 @@
         "Garnish elaborately"
       ],
       "tips": [
-        "Created at Raffles Hotel Singapore",
-        "Complex and fruity",
-        "Many variations exist"
+        "Build accurately with measured pours; small overages make this drink muddy fast.",
+        "Shake hard with ice, then strain over fresh ice for brightness.",
+        "If sweetness creeps up, increase citrus slightly before reducing liqueurs."
       ],
-      "tags": ["gin", "tropical", "complex", "tiki"],
+      "tags": [
+        "gin",
+        "tropical",
+        "complex",
+        "tiki"
+      ],
       "image": "singapore-sling"
     },
     {
@@ -874,15 +1512,37 @@
       "category": "classics",
       "difficulty": "medium",
       "prepTime": 3,
-      "spirits": ["gin"],
+      "spirits": [
+        "gin"
+      ],
       "glass": "coupe",
       "garnish": "orange peel",
       "ingredients": [
-        { "item": "Gin", "amount": "0.75 oz", "type": "spirit" },
-        { "item": "Cointreau", "amount": "0.75 oz", "type": "liqueur" },
-        { "item": "Lillet Blanc", "amount": "0.75 oz", "type": "wine" },
-        { "item": "Fresh Lemon Juice", "amount": "0.75 oz", "type": "citrus" },
-        { "item": "Absinthe", "amount": "dash", "type": "spirit" }
+        {
+          "item": "Gin",
+          "amount": "0.75 oz",
+          "type": "spirit"
+        },
+        {
+          "item": "Cointreau",
+          "amount": "0.75 oz",
+          "type": "liqueur"
+        },
+        {
+          "item": "Lillet Blanc",
+          "amount": "0.75 oz",
+          "type": "wine"
+        },
+        {
+          "item": "Fresh Lemon Juice",
+          "amount": "0.75 oz",
+          "type": "citrus"
+        },
+        {
+          "item": "Absinthe",
+          "amount": "dash",
+          "type": "spirit"
+        }
       ],
       "instructions": [
         "Add all ingredients to shaker with ice",
@@ -891,11 +1551,16 @@
         "Garnish with orange peel"
       ],
       "tips": [
-        "Hangover cure from 1930s",
-        "Equal parts of main ingredients",
-        "Absinthe adds complexity"
+        "Rinse the glass lightly with absinthe; keep it aromatic, not dominant.",
+        "Keep equal-parts structure tight and use fresh lemon for lift.",
+        "Shake briskly and serve very cold in a chilled coupe."
       ],
-      "tags": ["gin", "citrus", "balanced", "hangover-cure"],
+      "tags": [
+        "gin",
+        "citrus",
+        "balanced",
+        "hangover-cure"
+      ],
       "image": "corpse-reviver"
     },
     {
@@ -904,14 +1569,32 @@
       "category": "classics",
       "difficulty": "medium",
       "prepTime": 3,
-      "spirits": ["gin"],
+      "spirits": [
+        "gin"
+      ],
       "glass": "coupe",
       "garnish": "lime wheel",
       "ingredients": [
-        { "item": "Gin", "amount": "0.75 oz", "type": "spirit" },
-        { "item": "Green Chartreuse", "amount": "0.75 oz", "type": "liqueur" },
-        { "item": "Maraschino Liqueur", "amount": "0.75 oz", "type": "liqueur" },
-        { "item": "Fresh Lime Juice", "amount": "0.75 oz", "type": "citrus" }
+        {
+          "item": "Gin",
+          "amount": "0.75 oz",
+          "type": "spirit"
+        },
+        {
+          "item": "Green Chartreuse",
+          "amount": "0.75 oz",
+          "type": "liqueur"
+        },
+        {
+          "item": "Maraschino Liqueur",
+          "amount": "0.75 oz",
+          "type": "liqueur"
+        },
+        {
+          "item": "Fresh Lime Juice",
+          "amount": "0.75 oz",
+          "type": "citrus"
+        }
       ],
       "instructions": [
         "Add all ingredients to shaker with ice",
@@ -920,11 +1603,16 @@
         "Garnish with lime wheel"
       ],
       "tips": [
-        "Equal parts of everything",
-        "Chartreuse gives herbal notes",
-        "Prohibition-era recipe"
+        "Equal parts is the framework; precision matters because each modifier is assertive.",
+        "Shake hard and fine strain to keep texture clean and focused.",
+        "If too sharp, reduce lime slightly before changing liqueur ratios."
       ],
-      "tags": ["gin", "herbal", "balanced", "equal-parts"],
+      "tags": [
+        "gin",
+        "herbal",
+        "balanced",
+        "equal-parts"
+      ],
       "image": "last-word"
     },
     {
@@ -933,14 +1621,32 @@
       "category": "modern",
       "difficulty": "medium",
       "prepTime": 4,
-      "spirits": ["whiskey"],
+      "spirits": [
+        "whiskey"
+      ],
       "glass": "rocks",
       "garnish": "candied ginger",
       "ingredients": [
-        { "item": "Blended Scotch", "amount": "2 oz", "type": "spirit" },
-        { "item": "Fresh Lemon Juice", "amount": "0.75 oz", "type": "citrus" },
-        { "item": "Honey-Ginger Syrup", "amount": "0.75 oz", "type": "syrup" },
-        { "item": "Islay Scotch", "amount": "0.25 oz", "type": "spirit" }
+        {
+          "item": "Blended Scotch",
+          "amount": "2 oz",
+          "type": "spirit"
+        },
+        {
+          "item": "Fresh Lemon Juice",
+          "amount": "0.75 oz",
+          "type": "citrus"
+        },
+        {
+          "item": "Honey-Ginger Syrup",
+          "amount": "0.75 oz",
+          "type": "syrup"
+        },
+        {
+          "item": "Islay Scotch",
+          "amount": "0.25 oz",
+          "type": "spirit"
+        }
       ],
       "instructions": [
         "Shake blended scotch, lemon, and syrup with ice",
@@ -949,11 +1655,16 @@
         "Garnish with candied ginger"
       ],
       "tips": [
-        "Created by Sam Ross in 2005",
-        "Honey-ginger syrup is key",
-        "Smoky float adds complexity"
+        "Build honey-ginger syrup fresh; old syrup loses brightness quickly.",
+        "Shake base ingredients well, then float smoky whisky gently on top.",
+        "Keep ginger present but controlled so smoke and citrus remain clear."
       ],
-      "tags": ["whiskey", "scotch", "modern", "ginger"],
+      "tags": [
+        "whiskey",
+        "scotch",
+        "modern",
+        "ginger"
+      ],
       "image": "penicillin"
     },
     {
@@ -962,16 +1673,42 @@
       "category": "classics",
       "difficulty": "medium",
       "prepTime": 3,
-      "spirits": ["whiskey"],
+      "spirits": [
+        "whiskey"
+      ],
       "glass": "rocks",
       "garnish": "lemon peel",
       "ingredients": [
-        { "item": "Rye Whiskey", "amount": "0.75 oz", "type": "spirit" },
-        { "item": "Cognac", "amount": "0.75 oz", "type": "spirit" },
-        { "item": "Sweet Vermouth", "amount": "0.75 oz", "type": "liqueur" },
-        { "item": "Benedictine", "amount": "0.25 oz", "type": "liqueur" },
-        { "item": "Peychaud's Bitters", "amount": "2 dashes", "type": "bitters" },
-        { "item": "Angostura Bitters", "amount": "2 dashes", "type": "bitters" }
+        {
+          "item": "Rye Whiskey",
+          "amount": "0.75 oz",
+          "type": "spirit"
+        },
+        {
+          "item": "Cognac",
+          "amount": "0.75 oz",
+          "type": "spirit"
+        },
+        {
+          "item": "Sweet Vermouth",
+          "amount": "0.75 oz",
+          "type": "liqueur"
+        },
+        {
+          "item": "Benedictine",
+          "amount": "0.25 oz",
+          "type": "liqueur"
+        },
+        {
+          "item": "Peychaud's Bitters",
+          "amount": "2 dashes",
+          "type": "bitters"
+        },
+        {
+          "item": "Angostura Bitters",
+          "amount": "2 dashes",
+          "type": "bitters"
+        }
       ],
       "instructions": [
         "Add all ingredients to mixing glass with ice",
@@ -980,11 +1717,16 @@
         "Garnish with lemon peel"
       ],
       "tips": [
-        "Named after French Quarter",
-        "Complex and spirit-forward",
-        "Both bitters are essential"
+        "Stir thoroughly with cold ice for silky texture and proper dilution.",
+        "Use both bitters types; the split is key to aromatic depth.",
+        "Serve over fresh large ice or up in a chilled glass depending on house style."
       ],
-      "tags": ["whiskey", "cognac", "complex", "new-orleans"],
+      "tags": [
+        "whiskey",
+        "cognac",
+        "complex",
+        "new-orleans"
+      ],
       "image": "vieux-carre"
     },
     {
@@ -993,14 +1735,32 @@
       "category": "classics",
       "difficulty": "medium",
       "prepTime": 4,
-      "spirits": ["gin"],
+      "spirits": [
+        "gin"
+      ],
       "glass": "coupe",
       "garnish": "raspberry",
       "ingredients": [
-        { "item": "Gin", "amount": "2 oz", "type": "spirit" },
-        { "item": "Raspberry Syrup", "amount": "0.5 oz", "type": "syrup" },
-        { "item": "Fresh Lemon Juice", "amount": "0.75 oz", "type": "citrus" },
-        { "item": "Egg White", "amount": "1", "type": "egg" }
+        {
+          "item": "Gin",
+          "amount": "2 oz",
+          "type": "spirit"
+        },
+        {
+          "item": "Raspberry Syrup",
+          "amount": "0.5 oz",
+          "type": "syrup"
+        },
+        {
+          "item": "Fresh Lemon Juice",
+          "amount": "0.75 oz",
+          "type": "citrus"
+        },
+        {
+          "item": "Egg White",
+          "amount": "1",
+          "type": "egg"
+        }
       ],
       "instructions": [
         "Dry shake all ingredients",
@@ -1009,11 +1769,16 @@
         "Garnish with raspberry"
       ],
       "tips": [
-        "Pre-Prohibition classic",
-        "Dry shake creates silky foam",
-        "Beautiful pink color"
+        "Dry shake first for stable foam, then shake with ice and fine strain.",
+        "Raspberry and citrus should be bright, not jammy; adjust syrup carefully.",
+        "Use a chilled coupe so the foam cap holds longer."
       ],
-      "tags": ["gin", "raspberry", "pink", "egg-white"],
+      "tags": [
+        "gin",
+        "raspberry",
+        "pink",
+        "egg-white"
+      ],
       "image": "clover-club"
     }
   ],

@@ -32,7 +32,7 @@ import { useUserTier } from '../store/useUserTier';
 import { InventoryService } from '../services/inventoryService';
 import { useAuth } from '../contexts/AuthContext';
 import { hasIngredient, parseIngredients } from '../utils/recipeMatching';
-import { getSpiritSubstitutions, getSubstitutionMessage } from '../utils/spiritSubstitutions';
+import { getMissingWithSubstitutions, getSubstitutionMessage } from '../utils/spiritSubstitutions';
 import type { UserInventoryItem } from '../types/database';
 import { logRecipeCompletion, updateCompletionRating, syncCompletionToSupabase } from '../services/recipeCompletionService';
 import { getCompletionPromptConfig } from '../lib/completions/brandCapture';
@@ -47,6 +47,16 @@ type CocktailDetailScreenRouteProp = {
     cocktailId: string;
     cocktail?: any; // Optional: Pass full cocktail object for local recipes
   };
+};
+
+type SubstituteRow = {
+  ingredient: string;
+  suggestion: string;
+  note: string;
+  confidence: 'high' | 'medium' | 'low';
+  inInventory: boolean;
+  isSpirit: boolean;
+  alternatives?: string;
 };
 
 const REFERENCE_DEVICE_WIDTH = 390;
@@ -82,6 +92,7 @@ const DETAIL_AMOUNT_PREFIX_REGEX =
   /^\s*((?:\d+\s+)?(?:\d+\/\d+|\d*\.?\d+)\s*(?:oz|ml|dash(?:es)?|drop(?:s)?|tsp|tbsp|cl|cup(?:s)?|part(?:s)?)?)\s+(.+)$/i;
 const DETAIL_AMOUNT_ONLY_REGEX =
   /^\s*((?:\d+\s+)?(?:\d+\/\d+|\d*\.?\d+)\s*(?:oz|ml|dash(?:es)?|drop(?:s)?|tsp|tbsp|cl|cup(?:s)?|part(?:s)?|top)?)\s*$/i;
+const DETAIL_HAS_UNIT_REGEX = /(?:oz|ml|dash(?:es)?|drop(?:s)?|tsp|tbsp|cl|cup(?:s)?|part(?:s)?|top)\b/i;
 
 function slugifyRecipeKey(value: string): string {
   return String(value || '')
@@ -95,8 +106,9 @@ function splitIngredientAmount(displayName: string): { amount: string; name: str
   const match = String(displayName || '').trim().match(DETAIL_AMOUNT_PREFIX_REGEX);
   if (!match) return null;
 
+  const rawAmount = String(match[1] || '').trim();
   return {
-    amount: formatIngredientAmount(match[1]),
+    amount: DETAIL_HAS_UNIT_REGEX.test(rawAmount) ? formatIngredientAmount(rawAmount) : rawAmount,
     name: match[2].trim(),
   };
 }
@@ -107,14 +119,19 @@ function splitAmountOnlyNote(note: string): { amount: string; note?: string } | 
 
   const amountOnly = trimmed.match(DETAIL_AMOUNT_ONLY_REGEX);
   if (amountOnly) {
-    return { amount: formatIngredientAmount(amountOnly[1]) };
+    const rawAmount = String(amountOnly[1] || '').trim();
+    return {
+      amount: DETAIL_HAS_UNIT_REGEX.test(rawAmount) ? formatIngredientAmount(rawAmount) : rawAmount,
+    };
   }
 
   const prefixed = trimmed.match(DETAIL_AMOUNT_PREFIX_REGEX);
   if (!prefixed) return null;
 
   return {
-    amount: formatIngredientAmount(prefixed[1]),
+    amount: DETAIL_HAS_UNIT_REGEX.test(String(prefixed[1] || '').trim())
+      ? formatIngredientAmount(prefixed[1])
+      : String(prefixed[1] || '').trim(),
     note: prefixed[2].trim() || undefined,
   };
 }
@@ -137,6 +154,8 @@ function isWeakTastingNote(value: string): boolean {
   if (!normalized) return true;
 
   if (/\d/.test(normalized)) return true; // likely a spec or numbered instruction
+  if (normalized.includes('•')) return true; // usually category/base labels, not tasting copy
+  if (/\b[a-z-]+\s+based\b/.test(normalized)) return true; // e.g. "mixed-based"
 
   const methodyWords = [
     'recipe',
@@ -245,6 +264,11 @@ function hasAnyText(haystack: string, needles: string[]): boolean {
 }
 
 function deriveTastingNote(cocktail: any, parsedIngredients: any[], parsedInstructions: string[], parsedTips: string[]): string {
+  const cocktailId = String(cocktail?.id || '').toLowerCase();
+  if (cocktailId === 'caipirinha') {
+    return 'Muddled lime oils hit first, cane sweetness rounds the center, and cachaça leaves a grassy, dry finish.';
+  }
+
   const infoText = [
     cocktail?.title,
     cocktail?.subtitle,
@@ -257,33 +281,232 @@ function deriveTastingNote(cocktail: any, parsedIngredients: any[], parsedInstru
     .join(' ')
     .toLowerCase();
 
-  if (hasAnyText(infoText, ['campari', 'aperol', 'vermouth', 'aperitif'])) {
+  const isAperitif = hasAnyText(infoText, ['campari', 'aperol', 'vermouth', 'aperitif']);
+  const isMintCitrus = hasAnyText(infoText, ['mint', 'lime', 'mojito']);
+  const isCoffeeDessert = hasAnyText(infoText, ['coffee', 'espresso', 'cacao', 'chocolate', 'dairy cream', 'heavy cream', 'half-and-half']);
+  const isTropical = hasAnyText(infoText, ['pineapple', 'coconut', 'tropical', 'orgeat', 'passion fruit', 'falernum']);
+  const isGinBotanical = hasAnyText(infoText, ['gin', 'juniper']);
+  const isDarkSpirit = hasAnyText(infoText, ['whiskey', 'bourbon', 'rye', 'cognac', 'brandy']);
+  const isSparkling = hasAnyText(infoText, ['sparkling', 'soda', 'prosecco', 'tonic']);
+
+  if (isAperitif) {
     return 'Bitter citrus leads up front, a softer sweet middle follows, and the finish stays brisk and appetite-sharpening.';
   }
-  if (hasAnyText(infoText, ['mint', 'lime', 'mojito'])) {
+  if (isMintCitrus) {
     return 'Bright lime lands first, fresh mint keeps the middle cool, and the finish stays crisp, lifted, and clean.';
   }
-  if (hasAnyText(infoText, ['cream', 'crème', 'cacao', 'nutmeg'])) {
-    return 'Silky and dessert-leaning up front, with a rounded middle and a soft, lingering finish.';
-  }
-  if (hasAnyText(infoText, ['coffee', 'espresso'])) {
-    return 'Roasted coffee opens first, balanced by gentle sweetness and a smooth, lingering finish.';
-  }
-  if (hasAnyText(infoText, ['pineapple', 'coconut', 'tropical', 'rum'])) {
+  if (isTropical) {
     return 'Tropical fruit arrives first, sweetness stays rounded through the middle, and the finish remains bright rather than heavy.';
   }
-  if (hasAnyText(infoText, ['gin', 'juniper'])) {
+  if (isCoffeeDessert) {
+    return 'Silky and dessert-leaning up front, with a rounded middle and a soft, lingering finish.';
+  }
+  if (isGinBotanical) {
     return 'Botanical lift opens the drink, citrus keeps the middle focused, and the finish lands crisp and structured.';
   }
-  if (hasAnyText(infoText, ['whiskey', 'bourbon', 'rye', 'cognac', 'brandy'])) {
+  if (isDarkSpirit) {
     return 'Warm spirit character leads, the middle stays rounded and composed, and the finish lands dry and polished.';
   }
-  if (hasAnyText(infoText, ['sparkling', 'soda', 'prosecco', 'tonic'])) {
+  if (isSparkling) {
     return 'Light aromatics show first, a clean middle keeps the drink easygoing, and the finish stays lifted and refreshing.';
   }
 
   return `${cocktail?.title || 'This drink'} lands balanced, polished, and easy to come back to.`;
 }
+
+function pickVariantById(cocktailId: string, variants: string[]): string {
+  if (!variants.length) return '';
+  const seed = cocktailId
+    .split('')
+    .reduce((sum, ch) => sum + ch.charCodeAt(0), 0);
+  return variants[seed % variants.length];
+}
+
+function deriveBestFor(
+  cocktail: any,
+  parsedIngredients: any[],
+  parsedInstructions: string[] = [],
+  parsedTips: string[] = []
+): string {
+  const cocktailId = String(cocktail?.id || '').toLowerCase();
+  if (cocktailId === 'caipirinha') {
+    return 'Best for drinkers who like bold lime, rustic cane character, and less polished sweetness.';
+  }
+
+  const infoText = [
+    cocktail?.title,
+    cocktail?.subtitle,
+    cocktail?.description,
+    cocktail?.category,
+    cocktail?.method,
+    cocktail?.glassware,
+    cocktail?.glass,
+    ...(parsedIngredients || []).map((ingredient: any) => `${ingredient.name} ${ingredient.amount} ${ingredient.note}`),
+    ...(parsedInstructions || []),
+    ...(parsedTips || []),
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+
+  const isNonAlcoholic = cocktail?.isNonAlcoholic || hasAnyText(infoText, ['zero-proof', 'non-alcoholic', 'mocktail']);
+  const isAperitif = hasAnyText(infoText, ['negroni', 'campari', 'amaro', 'aperitif', 'bitter', 'spritz']);
+  const isSpiritForward = hasAnyText(infoText, ['martini', 'manhattan', 'old fashioned', 'stirred']);
+  const isCitrusLed = hasAnyText(infoText, ['sour', 'lemon', 'lime', 'citrus', 'grapefruit']);
+  const isTropical = hasAnyText(infoText, ['tiki', 'pineapple', 'coconut', 'tropical', 'orgeat']);
+  const isDessert = hasAnyText(infoText, ['espresso', 'coffee', 'dessert', 'cacao', 'chocolate', 'dairy cream', 'heavy cream', 'half-and-half', 'ice cream']);
+  const isHighball = hasAnyText(infoText, ['highball', 'collins', 'soda', 'tonic', 'ginger beer', 'sparkling']);
+
+  const spirit = String(cocktail?.base || cocktail?.baseSpirit || '').toLowerCase();
+  const spiritLabel =
+    spirit === 'whiskey' || spirit === 'bourbon' || spirit === 'rye'
+      ? 'whiskey'
+      : spirit === 'tequila' || spirit === 'mezcal'
+      ? 'agave'
+      : spirit === 'rum' || spirit === 'cachaca' || spirit === 'cachaça'
+      ? 'rum'
+      : spirit === 'gin'
+      ? 'gin'
+      : spirit || 'balanced';
+
+  if (isNonAlcoholic) {
+    return pickVariantById(cocktailId, [
+      'Best for guests who want a grown-up zero-proof drink with real structure, not just sweetness.',
+      'Best for low/no-alcohol nights when you still want layered flavor and a proper cocktail feel.',
+      'Best for guests who want alcohol-free options that still drink crisp, balanced, and intentional.',
+    ]);
+  }
+  if (isAperitif && isHighball) {
+    return pickVariantById(cocktailId, [
+      'Best for pre-dinner sipping when you want bitterness, bubbles, and a lighter overall weight.',
+      'Best for early-evening service when you want an aperitif profile without heavy sweetness.',
+      'Best for guests who like bitter-citrus structure in a long, sparkling format.',
+    ]);
+  }
+  if (isAperitif) {
+    return pickVariantById(cocktailId, [
+      'Best for drinkers who like bittersweet, appetite-sharpening cocktails with a drier finish.',
+      'Best for guests who prefer firm bitter structure over sweeter fruit-forward profiles.',
+      'Best for aperitif drinkers who want layered botanical depth and a clean finish.',
+    ]);
+  }
+  if (isSpiritForward) {
+    return pickVariantById(cocktailId, [
+      `Best for ${spiritLabel}-forward drinkers who prefer clean structure and restrained sweetness.`,
+      'Best for slow sipping when you want clarity, depth, and a polished spirit-led profile.',
+      'Best for guests who prefer stirred-style structure with a drier, more composed finish.',
+    ]);
+  }
+  if (isDessert) {
+    return pickVariantById(cocktailId, [
+      'Best for after-dinner drinkers who want richer flavor, softer texture, and a round finish.',
+      'Best for dessert-cocktail fans who like plush texture without losing structure.',
+      'Best for guests who want coffee/cream-leaning depth in a polished late-night serve.',
+    ]);
+  }
+  if (isTropical) {
+    return pickVariantById(cocktailId, [
+      'Best for drinkers who want tropical intensity with balanced sweetness and bright acidity.',
+      'Best for guests who like vacation-style flavor but still want a structured finish.',
+      'Best for fruit-forward palates that prefer layered rum/tiki character over simple sweetness.',
+    ]);
+  }
+  if (isCitrusLed && isHighball) {
+    return pickVariantById(cocktailId, [
+      'Best for drinkers who want crisp citrus refreshment in a lighter, longer format.',
+      'Best for warm-weather service when you want acidity, lift, and easy sipping.',
+      'Best for guests who like bright citrus profiles with sparkling or soda-driven length.',
+    ]);
+  }
+  if (isCitrusLed) {
+    return pickVariantById(cocktailId, [
+      'Best for drinkers who like bright acidity and a crisp, refreshing profile.',
+      'Best for guests who prefer citrus-led balance with a clean, snappy finish.',
+      'Best for palates that want freshness and tension over round sweetness.',
+    ]);
+  }
+  if (isHighball) {
+    return pickVariantById(cocktailId, [
+      'Best for easy social sipping when you want lower perceived intensity and high refreshment.',
+      'Best for longer service windows where crisp temperature and carbonation matter.',
+      'Best for guests who want a lighter, session-friendly cocktail with clear flavor definition.',
+    ]);
+  }
+
+  return `Best for drinkers exploring ${spiritLabel} cocktails with clear flavor definition.`;
+}
+
+function isLikelySpiritIngredient(name: string): boolean {
+  const value = String(name || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+  if (!value) return false;
+  return [
+    /\bvodka\b/,
+    /\bgin\b/,
+    /\brum\b/,
+    /\bcachaca\b/,
+    /\btequila\b/,
+    /\bmezcal\b/,
+    /\bwhiskey\b/,
+    /\bwhisky\b/,
+    /\bbourbon\b/,
+    /\brye\b/,
+    /\bscotch\b/,
+    /\bbrandy\b/,
+    /\bcognac\b/,
+    /\barmagnac\b/,
+    /\bpisco\b/,
+  ].some((pattern) => pattern.test(value));
+}
+
+const TASTING_NOTE_OVERRIDES: Record<string, string> = {
+  'moscow-mule':
+    'Crackling ginger and lime open bright, vodka keeps the core clean and neutral, and the finish stays icy, dry, and snappy.',
+  'dark-stormy':
+    'Fresh lime and fiery ginger hit first, dark rum brings caramel-molasses depth through the middle, and the finish stays dry, peppery, and brisk.',
+  'kentucky-mule':
+    'Ginger bite hits first, bourbon vanilla and oak round the middle, and the finish lands crisp with warm spice.',
+  'gin-rickey':
+    'Juniper and sharp lime lead immediately, soda keeps the body feather-light, and the finish lands bone-dry and brisk.',
+  'john-collins':
+    'Lemon opens tart, bourbon adds soft caramel through the middle, and soda lifts the finish so it stays bright and easy.',
+  'vodka-soda':
+    'Neutral spirit stays in the background while soda and citrus keep the sip clean, cold, and sharply refreshing.',
+  'ranch-water':
+    'Bright lime snaps first, tequila minerality runs through the middle, and the finish stays extra-crisp from Topo Chico.',
+  highball:
+    'Whisky grain and gentle oak open softly, fine bubbles lighten the center, and the finish stays precise, dry, and long.',
+  'aperol-spritz':
+    'Bright orange peel and gentle bitterness open first, prosecco keeps the middle light, and the finish stays breezy and softly dry.',
+  'negroni-sbagliato':
+    'Campari bitterness leads, vermouth richness rounds the center, and prosecco lightens the finish without softening the structure.',
+  'spritz-veneziano':
+    'Zesty orange and herbal bitterness arrive early, the middle stays crisp and fizzy, and the finish lands drier and more savory.',
+  'black-russian':
+    'Coffee liqueur sweetness opens first, vodka keeps the center leaner than expected, and the finish stays dark, clean, and lightly bitter.',
+  'brandy-alexander':
+    'Cocoa and nutmeg aromatics arrive first, cognac warmth fills the middle, and the cream finish lands silky and mellow.',
+  grasshopper:
+    'Cool mint-chocolate sweetness hits immediately, cream softens the middle, and the finish stays frosty, sweet, and nostalgic.',
+  mudslide:
+    'Coffee and chocolate sweetness open first, Irish cream thickens the middle, and the finish lands rich, creamy, and decadent.',
+  'golden-cadillac':
+    'Vanilla-anise notes from Galliano open first, cocoa rounds the center, and the finish stays creamy with soft spice.',
+  'pink-squirrel':
+    'Nutty almond-cherry sweetness opens quickly, cocoa cream fills the middle, and the finish stays candy-like and plush.',
+  revolver:
+    'Orange bitters and coffee aromas lead, bourbon spice drives the middle, and the finish lands dry, roasty, and assertive.',
+  'porto-flip':
+    'Port fruit richness opens first, egg yolk gives the center a custard-like body, and the finish stays velvety with warm spice.',
+  'brandy-milk-punch':
+    'Vanilla and nutmeg open softly, milk smooths the middle, and brandy warmth lingers in a gentle, comforting finish.',
+  stinger:
+    'Mint coolness lands first, cognac richness follows in the middle, and the finish is brisk, clean, and warming at once.',
+  alexander:
+    'Cocoa cream arrives first, gin botanicals quietly dry the middle, and the finish lands lighter and crisper than Brandy Alexander.',
+};
 
 function enhanceTips(cocktail: any, parsedIngredients: any[], parsedInstructions: string[], parsedTips: string[]): string[] {
   const existing = (parsedTips || [])
@@ -348,7 +571,6 @@ const nonAlcoholicBeverages = [
     abv: '0.0%',
     flavorNotes: ['Fresh herbs', 'Garden peas', 'Mint', 'Rosemary'],
     useCase: 'Perfect for G&T-style serves and herb-forward cocktails',
-    buyLink: 'https://seedlipdrinks.com',
     recipes: [
       {
         name: 'Garden 108 & Tonic',
@@ -388,7 +610,6 @@ const nonAlcoholicBeverages = [
     abv: '0.0%',
     flavorNotes: ['Honey', 'Vanilla', 'Oak', 'Smoke'],
     useCase: 'Ideal for whiskey cocktails like Old Fashioned and Manhattan',
-    buyLink: 'https://lyres.com',
     recipes: [
       {
         name: 'Smokeless Old Fashioned',
@@ -1159,6 +1380,8 @@ export default function CocktailDetailScreen() {
   const [hasMadeIt, setHasMadeIt] = useState(false);
   const [userInventory, setUserInventory] = useState<UserInventoryItem[]>([]);
   const [missingIngredientNames, setMissingIngredientNames] = useState<string[]>([]);
+  const [substituteRows, setSubstituteRows] = useState<SubstituteRow[]>([]);
+  const [substituteModalVisible, setSubstituteModalVisible] = useState(false);
   const [makeFlowVisible, setMakeFlowVisible] = useState(false);
   const [ratingFlowVisible, setRatingFlowVisible] = useState(false);
   const [brandSelections, setBrandSelections] = useState<Record<string, string>>({});
@@ -1502,18 +1725,44 @@ export default function CocktailDetailScreen() {
   const normalizeText = (value: string): string =>
     value.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
 
+  const isGarnishLike = (value: string): boolean => {
+    const t = normalizeText(value);
+    return [
+      'garnish',
+      'sprig',
+      'slice',
+      'wheel',
+      'wedge',
+      'twist',
+      'peel',
+      'leaf',
+      'mint',
+      'basil',
+      'thyme',
+      'rosemary',
+      'coffee bean',
+      'cherry',
+      'olive',
+    ].some((token) => t.includes(token));
+  };
+
   const getSuggestionsForIngredient = (ingredientName: string): string[] => {
     const needle = normalizeText(ingredientName);
     if (!needle) return [];
     const tokens = needle.split(' ').filter(Boolean);
+    const garnishMode = isGarnishLike(ingredientName);
 
     return userInventory
       .map((item) => item.item_name)
       .filter((name): name is string => Boolean(name))
       .filter((name) => {
+        if (!garnishMode) return true;
+        return isGarnishLike(name);
+      })
+      .filter((name) => {
         const normalizedName = normalizeText(name);
         if (normalizedName.includes(needle)) return true;
-        return tokens.some((token) => token.length >= 3 && normalizedName.includes(token));
+        return tokens.some((token) => token.length >= 4 && normalizedName.includes(token));
       })
       .slice(0, 5);
   };
@@ -1776,6 +2025,13 @@ export default function CocktailDetailScreen() {
     : 'Recipe';
   const heroKicker = React.useMemo(() => buildHeroKicker(cocktail), [cocktail]);
   const tastingNote = React.useMemo(() => {
+    const recipeId = String(cocktail?.id || route.params.cocktailId || '').toLowerCase();
+    const override = TASTING_NOTE_OVERRIDES[recipeId];
+    if (override) return override;
+
+    const authored = String(cocktail?.tastingNote || '').trim();
+    if (authored && !isWeakTastingNote(authored)) return authored;
+
     const description = String(cocktail?.description || '').trim();
     if (!isWeakTastingNote(description)) return description;
 
@@ -1785,6 +2041,11 @@ export default function CocktailDetailScreen() {
     }
 
     return deriveTastingNote(cocktail, parsedIngredients, parsedInstructions, parsedTips);
+  }, [cocktail, parsedIngredients, parsedInstructions, parsedTips, route.params.cocktailId]);
+  const bestFor = React.useMemo(() => {
+    const authored = String(cocktail?.bestFor || '').trim();
+    if (authored) return ensureSentenceEnding(authored);
+    return deriveBestFor(cocktail, parsedIngredients, parsedInstructions, parsedTips);
   }, [cocktail, parsedIngredients, parsedInstructions, parsedTips]);
   const displayedInstructions = React.useMemo(() => {
     if (!isFreeTier) return parsedInstructions;
@@ -1798,6 +2059,10 @@ export default function CocktailDetailScreen() {
     if (!tastingNote) return '';
     return isFreeTier ? trimSentence(tastingNote, 120) : tastingNote;
   }, [isFreeTier, tastingNote]);
+  const displayedBestFor = React.useMemo(() => {
+    if (!bestFor) return '';
+    return isFreeTier ? trimSentence(bestFor, 120) : bestFor;
+  }, [isFreeTier, bestFor]);
 
   const handleShare = async () => {
     if (!cocktail) return;
@@ -1895,6 +2160,84 @@ export default function CocktailDetailScreen() {
     openMadeItFlow();
   };
 
+  const handleFindSubstitutes = () => {
+    if (!parsedIngredients.length) {
+      Alert.alert('Substitutes', 'No ingredients listed for this recipe yet.');
+      return;
+    }
+
+    const missing = ingredientStats.missing;
+
+    const available = userInventory
+      .map((item) => String(item.item_name || '').trim())
+      .filter(Boolean);
+    const availableLower = available.map((name) => name.toLowerCase());
+    const targetIngredients = missing.length
+      ? missing
+      : parsedIngredients
+          .map((ingredient: any) => String(ingredient.matchName || ingredient.name || '').trim())
+          .filter(Boolean);
+    const suggestions = getMissingWithSubstitutions(targetIngredients, available);
+
+    const rows: SubstituteRow[] = suggestions.map((entry) => {
+      if (!entry.substitutions || entry.substitutions.substitutes.length === 0) {
+        const shelfIdeas = getSuggestionsForIngredient(entry.ingredient);
+        if (shelfIdeas.length > 0) {
+          return {
+            ingredient: entry.ingredient,
+            suggestion: shelfIdeas[0],
+            note: 'Closest match from your shelf.',
+            confidence: 'low',
+            inInventory: true,
+            isSpirit: isLikelySpiritIngredient(entry.ingredient),
+            alternatives: shelfIdeas.slice(1, 3).join(', ') || undefined,
+          };
+        }
+        return {
+          ingredient: entry.ingredient,
+          suggestion: 'No strong swap found',
+          note: 'Use original ingredient when possible.',
+          confidence: 'low',
+          inInventory: false,
+          isSpirit: isLikelySpiritIngredient(entry.ingredient),
+        };
+      }
+
+      const preferred = entry.canSubstitute
+        ? entry.substitutions.substitutes.find((sub) =>
+            availableLower.some((name) => name.includes(sub.name.toLowerCase()) || sub.name.toLowerCase().includes(name))
+          ) || entry.substitutions.substitutes[0]
+        : entry.substitutions.substitutes[0];
+
+      const ranked = [...entry.substitutions.substitutes].sort((a, b) => {
+        const aIn = availableLower.some((name) => name.includes(a.name.toLowerCase()) || a.name.toLowerCase().includes(name));
+        const bIn = availableLower.some((name) => name.includes(b.name.toLowerCase()) || b.name.toLowerCase().includes(name));
+        if (aIn !== bIn) return aIn ? -1 : 1;
+        const score = { high: 0, medium: 1, low: 2 } as const;
+        return score[a.confidence] - score[b.confidence];
+      });
+
+      const top = ranked[0];
+      const inInventory = availableLower.some((name) =>
+        name.includes(top.name.toLowerCase()) || top.name.toLowerCase().includes(name)
+      );
+      const alternatives = ranked.slice(1, 3).map((sub) => sub.name).join(', ');
+
+      return {
+        ingredient: entry.ingredient,
+        suggestion: top.name,
+        note: getSubstitutionMessage(entry.ingredient, [top]).replace(/^Try\s+.+?\s+instead\s+-\s+/i, ''),
+        confidence: top.confidence,
+        inInventory,
+        isSpirit: isLikelySpiritIngredient(entry.ingredient),
+        alternatives: alternatives || undefined,
+      };
+    });
+
+    setSubstituteRows(rows);
+    setSubstituteModalVisible(true);
+  };
+
   useLayoutEffect(() => {
     nav.setOptions({
       headerShown: false,
@@ -1917,6 +2260,9 @@ export default function CocktailDetailScreen() {
       </SafeAreaView>
     );
   }
+
+  const spiritSubstituteRows = substituteRows.filter((row) => row.isSpirit);
+  const otherSubstituteRows = substituteRows.filter((row) => !row.isSpirit);
 
   return (
     <View style={styles.container}>
@@ -2089,8 +2435,20 @@ export default function CocktailDetailScreen() {
                 <Text style={[styles.secondaryButtonText, useRecipeCardLayout && styles.referenceSecondaryButtonText]}>
                   {hasMadeIt ? "You Made It!" : "How did you make it?"}
                 </Text>
+                {!hasMadeIt ? (
+                  <Text style={[styles.secondaryButtonXP, useRecipeCardLayout && styles.referenceSecondaryButtonXP]}>+50 XP</Text>
+                ) : null}
               </TouchableOpacity>
             )}
+
+            <TouchableOpacity
+              style={[styles.secondaryButton, useRecipeCardLayout && styles.referenceSecondaryButton]}
+              onPress={handleFindSubstitutes}
+            >
+              <Text style={[styles.secondaryButtonText, useRecipeCardLayout && styles.referenceSecondaryButtonText]}>
+                Find Ingredient Substitutes
+              </Text>
+            </TouchableOpacity>
           </View>
 
           <View style={[styles.recipeEditorialShell, useRecipeCardLayout && styles.referenceRecipeEditorialShell]}>
@@ -2187,7 +2545,7 @@ export default function CocktailDetailScreen() {
                 </View>
               )}
 
-              {displayedTastingNote ? (
+              {(displayedTastingNote || displayedBestFor) ? (
                 <View style={[styles.recipeEditorialSection, styles.recipeEditorialSectionLast]}>
                   <Text
                     style={[
@@ -2196,9 +2554,20 @@ export default function CocktailDetailScreen() {
                       useRecipeCardLayout && styles.referenceRecipeEditorialTitle,
                     ]}
                   >
-                    Tasting Note
+                    Taste & Fit
                   </Text>
-                  <Text style={[styles.tastingNoteText, useRecipeCardLayout && styles.referenceTastingNoteText]}>{displayedTastingNote}</Text>
+                  {displayedTastingNote ? (
+                    <>
+                      <Text style={[styles.tastingSubhead, useRecipeCardLayout && styles.referenceTastingSubhead]}>Tasting Note</Text>
+                      <Text style={[styles.tastingNoteText, useRecipeCardLayout && styles.referenceTastingNoteText]}>{displayedTastingNote}</Text>
+                    </>
+                  ) : null}
+                  {displayedBestFor ? (
+                    <>
+                      <Text style={[styles.tastingSubhead, useRecipeCardLayout && styles.referenceTastingSubhead]}>Best For</Text>
+                      <Text style={[styles.tastingNoteText, useRecipeCardLayout && styles.referenceTastingNoteText]}>{displayedBestFor}</Text>
+                    </>
+                  ) : null}
                 </View>
               ) : null}
             </View>
@@ -2223,22 +2592,6 @@ export default function CocktailDetailScreen() {
           </View>
         )}
 
-        {/* --- AI Support --- */}
-        <View style={styles.aiSupportSection}>
-          <Text style={styles.aiSupportHeader}>AI SUPPORT</Text>
-          <View style={styles.aiButtonsRow}>
-            <TouchableOpacity style={styles.aiButton} onPress={() => Alert.alert('Coming Soon', 'AI Substitutes')}>
-              <MaterialCommunityIcons name="swap-horizontal" size={20} color={colors.accent} />
-              <Text style={styles.aiButtonTitle}>Find Ingredient Substitutes</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.aiButton} onPress={() => Alert.alert('Coming Soon', 'AI Customization')}>
-              <MaterialCommunityIcons name="wand" size={20} color={colors.accent} />
-              <Text style={styles.aiButtonTitle}>Customize This Recipe</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
         <View style={{ height: 60 }} />
       </ScrollView>
 
@@ -2253,6 +2606,107 @@ export default function CocktailDetailScreen() {
           preSelectedIngredients={missingIngredientNames}
         />
       )}
+
+      <Modal
+        visible={substituteModalVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setSubstituteModalVisible(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>
+                {ingredientStats.missing.length > 0 ? 'Ingredient Substitutes' : 'Optional Swaps'}
+              </Text>
+              <TouchableOpacity onPress={() => setSubstituteModalVisible(false)}>
+                <Ionicons name="close" size={24} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.modalScroll} showsVerticalScrollIndicator={false}>
+              <View style={styles.substituteLegendCard}>
+                <View style={styles.substituteLegendHeaderRow}>
+                  <Text style={styles.substituteLegendTitle}>Confidence Legend</Text>
+                  <TouchableOpacity
+                    style={styles.substituteLegendInfoButton}
+                    onPress={() =>
+                      Alert.alert(
+                        'Confidence Legend',
+                        'High: very close swap.\nMedium: good swap with some flavor shift.\nLow: backup option when flexibility matters most.'
+                      )
+                    }
+                  >
+                    <Text style={styles.substituteLegendInfoButtonText}>?</Text>
+                  </TouchableOpacity>
+                </View>
+                <Text style={styles.substituteLegendText}>High: same family or very close flavor/role.</Text>
+                <Text style={styles.substituteLegendText}>Medium: workable swap with a noticeable profile shift.</Text>
+                <Text style={styles.substituteLegendText}>Low: backup option when you want flexibility over accuracy.</Text>
+              </View>
+
+              {spiritSubstituteRows.length > 0 ? (
+                <View style={styles.substituteGroup}>
+                  <Text style={styles.substituteGroupTitle}>Spirit swaps</Text>
+                  {spiritSubstituteRows.map((row, idx) => (
+                    <View key={`spirit-${row.ingredient}-${idx}`} style={styles.substituteCard}>
+                      <View style={styles.substituteRowTop}>
+                        <Text style={styles.substituteIngredient}>{row.ingredient}</Text>
+                        <Text style={styles.substituteConfidence}>{row.confidence.toUpperCase()}</Text>
+                      </View>
+                      <Text style={styles.substituteSuggestion}>Try {row.suggestion}</Text>
+                      <Text style={styles.substituteNote}>{row.note}</Text>
+                      {row.alternatives ? (
+                        <Text style={styles.substituteAltText}>Also consider: {row.alternatives}</Text>
+                      ) : null}
+                      {row.inInventory ? (
+                        <Text style={styles.substituteInventoryTag}>You already have this substitute</Text>
+                      ) : null}
+                    </View>
+                  ))}
+                </View>
+              ) : null}
+
+              {otherSubstituteRows.length > 0 ? (
+                <View style={styles.substituteGroup}>
+                  <Text style={styles.substituteGroupTitle}>Other ingredient swaps</Text>
+                  {otherSubstituteRows.map((row, idx) => (
+                    <View key={`other-${row.ingredient}-${idx}`} style={styles.substituteCard}>
+                      <View style={styles.substituteRowTop}>
+                        <Text style={styles.substituteIngredient}>{row.ingredient}</Text>
+                        <Text style={styles.substituteConfidence}>{row.confidence.toUpperCase()}</Text>
+                      </View>
+                      <Text style={styles.substituteSuggestion}>Try {row.suggestion}</Text>
+                      <Text style={styles.substituteNote}>{row.note}</Text>
+                      {row.alternatives ? (
+                        <Text style={styles.substituteAltText}>Also consider: {row.alternatives}</Text>
+                      ) : null}
+                      {row.inInventory ? (
+                        <Text style={styles.substituteInventoryTag}>You already have this substitute</Text>
+                      ) : null}
+                    </View>
+                  ))}
+                </View>
+              ) : null}
+
+              {!spiritSubstituteRows.length && !otherSubstituteRows.length ? (
+                <View style={styles.substituteCard}>
+                  <Text style={styles.substituteNote}>No substitute suggestions found yet.</Text>
+                </View>
+              ) : null}
+            </ScrollView>
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={styles.modalPrimaryButton}
+                onPress={() => setSubstituteModalVisible(false)}
+              >
+                <Text style={styles.modalPrimaryButtonText}>Done</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       <Modal visible={makeFlowVisible} animationType="slide" transparent onRequestClose={() => setMakeFlowVisible(false)}>
         <View style={styles.modalBackdrop}>
@@ -2718,11 +3172,13 @@ const styles = StyleSheet.create({
   secondaryButton: {
     backgroundColor: 'rgba(242,229,213,0.03)',
     borderRadius: radii.pill,
-    height: 54,
+    minHeight: 54,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
     borderColor: 'rgba(214,138,56,0.18)',
+    paddingHorizontal: spacing(2),
+    paddingVertical: spacing(1),
   },
   referenceSecondaryButton: {
     height: rs(54),
@@ -2735,6 +3191,18 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 15,
     fontWeight: '600',
+  },
+  secondaryButtonXP: {
+    color: colors.accent,
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+    marginTop: 2,
+    textAlign: 'center',
+  },
+  referenceSecondaryButtonXP: {
+    fontSize: rs(11),
+    color: '#D89A46',
   },
   referenceSecondaryButtonText: {
     fontSize: rs(14),
@@ -2964,10 +3432,27 @@ const styles = StyleSheet.create({
     lineHeight: 32,
     fontWeight: '400',
   },
+  tastingSubhead: {
+    marginTop: spacing(1.25),
+    marginBottom: spacing(0.5),
+    color: '#C98E4B',
+    fontSize: 11,
+    lineHeight: 16,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    fontWeight: '700',
+  },
   referenceTastingNoteText: {
     fontSize: rs(16),
     lineHeight: rs(22),
     color: '#DDD0C1',
+  },
+  referenceTastingSubhead: {
+    marginTop: rs(8),
+    marginBottom: rs(4),
+    fontSize: rs(10),
+    lineHeight: rs(14),
+    letterSpacing: 0.8,
   },
 
   // Section
@@ -3116,41 +3601,6 @@ const styles = StyleSheet.create({
     color: colors.goldText,
   },
 
-  // AI Support
-  aiSupportSection: {
-    marginTop: spacing(5),
-    paddingHorizontal: spacing(3),
-  },
-  aiSupportHeader: {
-    fontSize: 12,
-    fontWeight: '800',
-    letterSpacing: 1.5,
-    color: colors.subtext,
-    marginBottom: spacing(2),
-    textTransform: 'uppercase',
-  },
-  aiButtonsRow: {
-    flexDirection: 'row',
-    gap: spacing(2),
-  },
-  aiButton: {
-    flex: 1,
-    backgroundColor: 'rgba(38,28,22,0.84)',
-    borderRadius: 22,
-    padding: spacing(2.5),
-    height: 120,
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    borderWidth: 1,
-    borderColor: 'rgba(214,138,56,0.1)',
-  },
-  aiButtonTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-    marginTop: spacing(1),
-  },
-
   // Make flow modal
   modalBackdrop: {
     flex: 1,
@@ -3260,6 +3710,108 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 14,
     fontWeight: '600',
+  },
+  substituteCard: {
+    backgroundColor: 'rgba(38,28,22,0.84)',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(214,138,56,0.12)',
+    padding: spacing(1.75),
+    marginBottom: spacing(1.25),
+  },
+  substituteGroup: {
+    marginBottom: spacing(1),
+  },
+  substituteLegendCard: {
+    backgroundColor: 'rgba(38,28,22,0.62)',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(214,138,56,0.1)',
+    padding: spacing(1.25),
+    marginBottom: spacing(1.25),
+  },
+  substituteLegendTitle: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  substituteLegendHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing(0.5),
+  },
+  substituteLegendInfoButton: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 1,
+    borderColor: 'rgba(214,138,56,0.45)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(214,138,56,0.12)',
+  },
+  substituteLegendInfoButtonText: {
+    color: colors.accent,
+    fontSize: 11,
+    fontWeight: '800',
+    lineHeight: 13,
+  },
+  substituteLegendText: {
+    color: colors.subtext,
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  substituteGroupTitle: {
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 1,
+    color: colors.subtext,
+    textTransform: 'uppercase',
+    marginBottom: spacing(1),
+  },
+  substituteRowTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing(0.75),
+  },
+  substituteIngredient: {
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: '700',
+    flex: 1,
+    paddingRight: spacing(1),
+  },
+  substituteConfidence: {
+    color: colors.accent,
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.8,
+  },
+  substituteSuggestion: {
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: '600',
+    marginBottom: spacing(0.5),
+  },
+  substituteNote: {
+    color: colors.subtext,
+    fontSize: 13,
+    lineHeight: 19,
+  },
+  substituteAltText: {
+    marginTop: spacing(0.5),
+    color: colors.subtext,
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  substituteInventoryTag: {
+    marginTop: spacing(1),
+    alignSelf: 'flex-start',
+    color: colors.success,
+    fontSize: 12,
+    fontWeight: '700',
   },
   ratingCard: {
     backgroundColor: colors.bg,

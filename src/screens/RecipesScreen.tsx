@@ -701,9 +701,9 @@ const sampleRecipes = [
     ],
     description: 'Refreshing non-alcoholic version of the classic mojito.',
     tips: [
-      'Never shred mint—gentle press only to avoid bitterness',
-      'Use fresh lime juice for best flavor',
-      'Build directly in the glass to preserve carbonation',
+      'Shake hard with ice for 10-12 seconds, then strain into a chilled shot glass.',
+      'If using a sugar rim, keep it thin so sweetness does not bury the lemon.',
+      'Use fresh lemon juice and taste once before serving; adjust syrup by 1/4 oz if needed.',
     ],
   },
   {
@@ -738,9 +738,9 @@ const sampleRecipes = [
     ],
     description: 'Herbal and garden fresh zero-proof G&T.',
     tips: [
-      'Use premium tonic water for best flavor',
-      'Chill the glass beforehand for extra refreshment',
-      'The cucumber adds a crisp, garden-fresh element',
+      'Use fully chilled tonic and pour slowly down the side to keep carbonation tight.',
+      'Pre-chill the glass for 10 minutes so dilution stays controlled from first sip.',
+      'Add cucumber before tonic and press once lightly to release aroma without bitterness.',
     ],
   },
   {
@@ -775,9 +775,9 @@ const sampleRecipes = [
     ],
     description: 'Sophisticated spritz with herbal complexity.',
     tips: [
-      'Lightly torch rosemary to release aromatic oils',
-      'Use elderflower tonic for extra botanical depth',
-      'Express citrus oils from the grapefruit twist over the drink',
+      'Clap rosemary between your hands before garnish to wake aroma without adding smoke bitterness.',
+      'If using elderflower tonic, reduce lemon slightly to keep the finish dry.',
+      'Express grapefruit oils over the surface right before service, then discard pith-heavy peel.',
     ],
   },
   {
@@ -812,9 +812,9 @@ const sampleRecipes = [
     ],
     description: 'Zero-proof take on the classic gimlet.',
     tips: [
-      'Slap basil between hands before garnishing to release oils',
-      'Chill coupe in freezer for 10 minutes before serving',
-      'Double strain for crystal-clear presentation',
+      'Dry-shake basil leaf lightly in the tin first, then add ice and shake for a cleaner herb aroma.',
+      'Pre-chill the coupe for at least 10 minutes to keep the finish crisp.',
+      'Fine strain to catch basil fragments and keep the texture polished.',
     ],
   },
   {
@@ -849,9 +849,9 @@ const sampleRecipes = [
     ],
     description: 'Classic Old Fashioned without the alcohol.',
     tips: [
-      'The large ice cube melts slowly, preventing dilution',
-      'Stir thoroughly to integrate the maple and bitters',
-      'Express orange oils generously for aromatic depth',
+      'Stir for a full 25-30 seconds so maple integrates fully with bitters and spirit.',
+      'Use one dense large cube to slow dilution and preserve structure.',
+      'Express orange peel over the surface and around the rim for stronger first-sip aroma.',
     ],
   },
   {
@@ -883,9 +883,9 @@ const sampleRecipes = [
     ],
     description: 'Sophisticated zero-proof Manhattan.',
     tips: [
-      'Stir, don\'t shake, for a silky texture',
-      'Chill the coupe beforehand for best results',
-      'Use Luxardo cherries for authentic flavor',
+      'Stir with cold ice for about 25 seconds to reach silky texture without over-diluting.',
+      'Keep the coupe freezer-cold so the drink stays tight and aromatic.',
+      'Use a quality cherry and add a few drops of cherry syrup only if you need extra roundness.',
     ],
   },
   {
@@ -919,9 +919,9 @@ const sampleRecipes = [
     ],
     description: 'Zero-proof whiskey sour with maple sweetness.',
     tips: [
-      'Dry shake first (no ice) to create silky foam',
-      'Use aquafaba (chickpea liquid) as vegan egg white alternative',
-      'Draw a toothpick through the bitters drops for decorative patterns',
+      'Dry shake first for at least 12 seconds, then shake with ice for stable foam.',
+      'If using aquafaba, strain it first and use slightly less than egg white to avoid a beany finish.',
+      'Let foam set for 20-30 seconds before adding bitters so garnish lines stay sharp.',
     ],
   },
   {
@@ -956,7 +956,7 @@ const sampleRecipes = [
     tips: [
       'Use a neutral tonic to keep juniper clean and dry',
       'Crack juniper berries before adding to release aromatics',
-      'Quality non-alcoholic gin makes all the difference',
+      'Use very cold non-alcoholic gin so the tonic stays bright and not watery.',
     ],
   },
   {
@@ -990,8 +990,8 @@ const sampleRecipes = [
     description: 'Perfect aperitif hour spritz.',
     tips: [
       'Serve very cold—this drink relies on bitterness, not sweetness',
-      'Quality non-alcoholic aperitivo like Ghia makes a difference',
-      'Keep it simple to let the botanicals shine',
+      'Start with a 2:3 aperitivo-to-soda ratio, then adjust by 1/4 oz to dial bitterness.',
+      'Use a single quick lift stir; too much agitation flattens aroma and texture.',
     ],
   },
   {
@@ -1026,9 +1026,9 @@ const sampleRecipes = [
     ],
     description: 'Probiotic-rich mule with fresh ginger.',
     tips: [
-      'Kombucha provides natural probiotics for gut health',
-      'Adjust sweetness to taste—kombucha is naturally tangy',
-      'Don\'t over-stir to preserve kombucha carbonation',
+      'Use freshly opened kombucha and build over hard cold ice to preserve fizz.',
+      'Adjust agave in 1/8 oz steps since kombucha sweetness changes by brand and batch.',
+      'Give one gentle stir only; over-stirring strips carbonation and spice lift.',
     ],
   },
   {
@@ -1063,8 +1063,8 @@ const sampleRecipes = [
     description: 'Mindful drinking with hemp and adaptogens.',
     tips: [
       'Brew chamomile strong, then chill—dilute later for balance',
-      'Chamomile adds natural calm without overwhelming',
-      'Use cold-brew chamomile for smoother flavor',
+      'Steep chamomile 5-6 minutes max; longer extraction turns the finish woody.',
+      'Strain tea completely before building so fine particles do not mute texture.',
     ],
   },
   {
@@ -1097,9 +1097,9 @@ const sampleRecipes = [
     ],
     description: 'Citrus-forward wellness cocktail.',
     tips: [
-      'Keep hemp subtle—this is about refreshment, not heaviness',
-      'Adjust syrup to taste based on desired sweetness',
-      'Serve immediately while bubbles are fresh',
+      'Start with less hemp syrup and increase in 1/8 oz steps to keep the finish clean.',
+      'Balance lemon and syrup together; if one moves, adjust the other to keep structure.',
+      'Top with soda last and serve immediately while carbonation is lively.',
     ],
   },
   {
@@ -1132,9 +1132,9 @@ const sampleRecipes = [
     ],
     description: 'Classic Negroni flavor without alcohol.',
     tips: [
-      'Equal parts is key to Negroni balance',
-      'Stir thoroughly to achieve proper dilution',
-      'Express orange oils generously for aromatic impact',
+      'Keep the equal-parts build, then fine-tune bitterness with a small 1/4 oz vermouth adjustment if needed.',
+      'Stir with large cold ice for about 25 seconds to hit proper chill and dilution.',
+      'Express orange peel over the center of the drink and wipe the rim for better aroma carry.',
     ],
   },
   {
@@ -1168,9 +1168,9 @@ const sampleRecipes = [
     ],
     description: 'Elegant zero-proof martini.',
     tips: [
-      'Stir, don\'t shake, for a silky texture',
-      'Chill the coupe glass in the freezer beforehand',
-      'Express the lemon oils over the drink before garnishing',
+      'Stir with dense cold ice for 25-30 seconds for a cleaner, silkier texture than shaking.',
+      'Use a fully chilled coupe and serve immediately to preserve snap and clarity.',
+      'Express lemon oils from a wide peel; avoid white pith to keep bitterness down.',
     ],
   },
   {
@@ -1204,9 +1204,9 @@ const sampleRecipes = [
     ],
     description: 'Contemplative sipping with forest botanicals.',
     tips: [
-      'Use a 2:1 honey-to-water ratio for honey syrup',
-      'Slap sage gently between hands before garnishing',
-      'The large ice cube melts slowly, preserving flavors',
+      'Use a 2:1 honey syrup and stir until fully integrated before adding dilution.',
+      'Slap sage once, then place it near the rim so aroma hits before the sip.',
+      'Serve on one large clear cube to preserve the earthy profile longer.',
     ],
   },
   {
@@ -1240,9 +1240,9 @@ const sampleRecipes = [
     ],
     description: 'Energy-focused coffee cocktail.',
     tips: [
-      'Use smooth, low-acid cold brew to avoid bitterness',
-      'Orange peel adds unexpected citrus brightness',
-      'Serve immediately for maximum carbonation',
+      'Use low-acid cold brew concentrate so soda lift stays bright instead of harsh.',
+      'Express orange peel over the top only; too much peel in-glass can turn pithy.',
+      'Add soda last and give one short stir to keep carbonation intact.',
     ],
   },
   {
@@ -1275,9 +1275,9 @@ const sampleRecipes = [
     ],
     description: 'Zero-proof espresso martini with clean energy.',
     tips: [
-      'Fine strain for silky foam and clean presentation',
-      'Dry shake first to create maximum foam',
-      'Use quality cold brew for best flavor',
+      'Dry shake hard first, then shake with ice to build dense, stable foam.',
+      'Double strain to remove ice chips so the foam cap stays smooth.',
+      'Use concentrated cold brew and chill it well before shaking for tighter texture.',
     ],
   },
   {
@@ -1309,9 +1309,9 @@ const sampleRecipes = [
     ],
     description: 'Euphoric blend of adaptogens and botanicals.',
     tips: [
-      'Keep ABV clearly labeled on menu for transparency',
-      'Aromatized wines add complexity without high alcohol',
-      'Serve well-chilled for best flavor',
+      'Measure this one precisely: low-ABV drinks lose structure fast when over-poured.',
+      'If it tastes thin, reduce soda by 1/2 oz before adding more base.',
+      'Keep all components fridge-cold and serve immediately to protect lift and aroma.',
     ],
   },
   {
@@ -1521,9 +1521,9 @@ const sampleRecipes = [
     ],
     description: 'Digestive health with refreshing taste.',
     tips: [
-      'Copper heightens cold + spice',
-      'Alternative: Wine glass or rocks glass',
-      'Don\'t over-stir to preserve kombucha probiotics',
+      'Use a cold copper mug when possible; it keeps the spice profile sharper longer.',
+      'Add ginger kombucha last and stir once from the bottom to avoid flattening.',
+      'If serving in glassware, pack with dense fresh ice so chill stays consistent.',
     ],
   },
   {
@@ -1556,9 +1556,9 @@ const sampleRecipes = [
     ],
     description: 'Light and refreshing wellness drink.',
     tips: [
-      'Great as a palate reset between courses',
-      'Adjust shrub amount to taste—they vary in intensity',
-      'Apple cider vinegar base adds digestive benefits',
+      'Use this as a low-sugar palate reset by keeping shrub at the lower end, then adjust upward.',
+      'Adjust shrub in 1/4 oz steps; acidity can swing quickly between brands.',
+      'Top with soda last and give one gentle stir so acidity stays crisp, not flat.',
     ],
   },
   {
@@ -1590,9 +1590,9 @@ const sampleRecipes = [
     ],
     description: 'Evening relaxation with stress support.',
     tips: [
-      'Avoid boiling—heat kills aromatics',
-      'Whisk vigorously to prevent turmeric clumps',
-      'Add black pepper to enhance turmeric absorption',
+      'Heat gently below simmer; boiling mutes spice aromatics and sweetness.',
+      'Whisk continuously while adding powder to avoid gritty turmeric pockets.',
+      'Dissolve turmeric blend with a splash of warm milk first, then combine for smoother texture.',
     ],
   },
   {
@@ -1624,9 +1624,9 @@ const sampleRecipes = [
     ],
     description: 'Sparkling chai with stress-relieving adaptogens.',
     tips: [
-      'Works hot or cold depending on season',
-      'For hot version, use warm chai and skip ice',
-      'Quality chai concentrate makes all the difference',
+      'For cold service, fully chill chai concentrate first so carbonation does not collapse.',
+      'For hot service, skip soda and top with lightly frothed milk for texture.',
+      'Choose a balanced chai base; overly sweet concentrates hide spice complexity.',
     ],
   },
 ];
@@ -2149,6 +2149,7 @@ export default function RecipesScreen() {
       tabNavigator?.setOptions({
         tabBarStyle: { backgroundColor: colors.bg, borderTopColor: 'transparent' },
       });
+      return undefined;
     }
   }, [showSearchInput]);
 
@@ -2400,7 +2401,7 @@ export default function RecipesScreen() {
     }
 
     // Sort recipes
-    if (currentFilters.sortOrder === 'taste-match' && tier !== 'FREE') {
+    if ((currentFilters.sortOrder as string | undefined) === 'taste-match' && tier !== 'FREE') {
       recipes = recipes.sort((a, b) => (tasteMatchScores[b.id] ?? 0) - (tasteMatchScores[a.id] ?? 0));
     } else if (currentFilters.sortOrder === 'alphabetical-asc') {
       recipes = recipes.sort((a, b) => a.name.localeCompare(b.name));
@@ -2700,7 +2701,6 @@ export default function RecipesScreen() {
                         navigation.navigate('CocktailList', {
                           title: 'Mocktails',
                           cocktailIds: ALL_MOCKTAILS.map(recipe => recipe.id),
-                          cocktails: ALL_MOCKTAILS,
                           category: 'mocktails'
                         });
                       }}

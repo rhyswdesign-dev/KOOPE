@@ -49,6 +49,71 @@ interface RecipeIngredientEntry {
   amount: string;
 }
 
+function generateFallbackTips(recipe: any): string[] {
+  const method = String(recipe?.method || '').toLowerCase();
+  const glass = String(recipe?.glass || recipe?.glassware || '').toLowerCase();
+  const instructions = (recipe?.instructions || []).join(' ').toLowerCase();
+  const ingredientNames = (recipe?.ingredients || [])
+    .map((item: any) => {
+      if (typeof item === 'string') return item.toLowerCase();
+      return String(item?.name || item?.item || '').toLowerCase();
+    })
+    .filter(Boolean);
+
+  const has = (keyword: string) =>
+    ingredientNames.some((name: string) => name.includes(keyword)) || instructions.includes(keyword);
+
+  const tips: string[] = [];
+
+  if (method.includes('stir')) {
+    tips.push('Stir with plenty of cold ice for about 20-30 seconds so the drink is chilled and properly diluted.');
+  }
+  if (method.includes('shake')) {
+    tips.push('Shake hard for 10-15 seconds; you want the tin frosty to lock in chill and texture.');
+  }
+  if (method.includes('build')) {
+    tips.push('Build over fresh ice and give one gentle lift stir so you combine without killing carbonation.');
+  }
+  if (has('citrus') || has('lemon') || has('lime') || has('grapefruit') || has('orange')) {
+    tips.push('Use fresh citrus and taste before serving; 1/4 oz can shift a drink from flat to balanced.');
+  }
+  if (has('mint') || has('basil') || has('rosemary') || has('sage')) {
+    tips.push('Treat herbs gently: slap or light press to release aroma without pulling bitter green notes.');
+  }
+  if (has('vermouth')) {
+    tips.push('Keep vermouth refrigerated after opening and replace regularly; oxidized vermouth dulls the drink.');
+  }
+  if (has('egg white') || has('aquafaba')) {
+    tips.push('For better foam, dry shake first, then shake with ice and fine strain for a tighter head.');
+  }
+  if (has('soda') || has('tonic') || has('sparkling') || has('prosecco') || has('kombucha')) {
+    tips.push('Always add carbonated ingredients last and stir lightly to keep bubbles and aroma intact.');
+  }
+  if (glass.includes('coupe') || glass.includes('martini') || glass.includes('nick')) {
+    tips.push('Pre-chill the glassware for at least 10 minutes to keep service temperature crisp from first sip.');
+  }
+  if (has('orange peel') || has('lemon twist') || has('grapefruit twist') || has('lime peel')) {
+    tips.push('Express citrus peel oils directly over the surface right before garnish to boost first-sip aroma.');
+  }
+
+  if (tips.length === 0) {
+    tips.push('Use cold, dense ice and taste before serving; tiny dilution and temperature adjustments improve balance fast.');
+  }
+
+  return tips.slice(0, 3);
+}
+
+function getRecipeProTips(recipe: any): string[] {
+  const rawTips = Array.isArray(recipe?.tips) ? recipe.tips : [];
+  const cleaned = rawTips
+    .map((tip: unknown) => String(tip || '').trim())
+    .filter((tip: string) => tip.length > 0)
+    .slice(0, 3);
+
+  if (cleaned.length > 0) return cleaned;
+  return generateFallbackTips(recipe);
+}
+
 export default function RecipeDetailScreen() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute();
@@ -115,6 +180,7 @@ export default function RecipeDetailScreen() {
   );
 
   const tasteMatchPercent: number | undefined = recipe?.tasteMatchPercent;
+  const proTips = useMemo(() => getRecipeProTips(recipe), [recipe]);
 
   // Serif font family helper
   const serifFont = Platform.select({ ios: 'Georgia', android: 'serif', default: 'serif' });
@@ -710,11 +776,11 @@ export default function RecipeDetailScreen() {
 
           {proTipsOpen && (
             <View style={styles.proTipsContent}>
-              <Text style={styles.proTipsText}>
-                Use large-format ice to minimize dilution while keeping the drink freezing cold.
-                {'\n\n'}
-                Expressing the orange twist over the glass adds essential aromatic oils that enhance the first sip.
-              </Text>
+              {proTips.map((tip, index) => (
+                <Text key={`${tip}_${index}`} style={styles.proTipsText}>
+                  {`- ${tip}`}
+                </Text>
+              ))}
             </View>
           )}
         </View>
