@@ -8,6 +8,47 @@ import { supabase } from '../lib/supabase';
 import { log } from '../lib/logger';
 
 class ChallengeService {
+  private async refreshActiveChallengePool(reason: string): Promise<void> {
+    try {
+      const { error } = await supabase.rpc('refresh_active_challenges');
+
+      if (error) {
+        log.warn('challengeService', 'Could not refresh active challenge pool', {
+          reason,
+          error
+        });
+        return;
+      }
+
+      log.info('challengeService', 'Refreshed active challenge pool', { reason });
+    } catch (error) {
+      log.warn('challengeService', 'Refresh active challenge pool failed', {
+        reason,
+        error
+      });
+    }
+  }
+
+  private async loadActiveChallengeRows() {
+    const now = new Date().toISOString();
+
+    return supabase
+      .from('challenges')
+      .select('*')
+      .gte('expires_at', now)
+      .order('frequency', { ascending: true })
+      .order('difficulty', { ascending: true });
+  }
+
+  private isMissingChallengePeriod(challenges: any[] | null): boolean {
+    if (!challenges || challenges.length === 0) {
+      return true;
+    }
+
+    const activeFrequencies = new Set(challenges.map(challenge => challenge.frequency));
+    return !['daily', 'weekly', 'monthly'].every(frequency => activeFrequencies.has(frequency));
+  }
+
   private isTransientNetworkError(error: any): boolean {
     const message = String(error?.message || '').toLowerCase();
     const details = String(error?.details || '').toLowerCase();
@@ -24,25 +65,33 @@ class ChallengeService {
    */
   async getActiveChallenges(userId: string): Promise<Challenge[]> {
     try {
-      const now = new Date().toISOString();
-
       // Get all active challenges (not expired)
-      const { data: challenges, error: challengesError } = await supabase
-        .from('challenges')
-        .select('*')
-        .gte('expires_at', now)
-        .order('frequency', { ascending: true })
-        .order('difficulty', { ascending: true });
+      let { data: challenges, error: challengesError } = await this.loadActiveChallengeRows();
 
       if (challengesError) throw challengesError;
 
-      if (!challenges || challenges.length === 0) {
-        log.warn('challengeService', 'No active challenges found');
+      if (this.isMissingChallengePeriod(challenges)) {
+        await this.refreshActiveChallengePool('active challenge pool missing period');
+
+        const refreshed = await this.loadActiveChallengeRows();
+        challenges = refreshed.data;
+        challengesError = refreshed.error;
+
+        if (challengesError) throw challengesError;
+      }
+
+      if (this.isMissingChallengePeriod(challenges)) {
+        log.warn('challengeService', 'Active challenges are still incomplete after refresh', {
+          count: challenges?.length ?? 0,
+          frequencies: [...new Set((challenges ?? []).map(challenge => challenge.frequency))]
+        });
         return [];
       }
 
+      const activeChallenges = challenges ?? [];
+
       // Get user's progress for these challenges
-      const challengeIds = challenges.map(c => c.id);
+      const challengeIds = activeChallenges.map(c => c.id);
       const { data: progress, error: progressError } = await supabase
         .from('user_challenge_progress')
         .select('*')
@@ -56,7 +105,7 @@ class ChallengeService {
       // Merge challenges with user progress
       const progressMap = new Map(progress?.map(p => [p.challenge_id, p]) || []);
 
-      const challengesWithProgress: Challenge[] = challenges.map(challenge => ({
+      const challengesWithProgress: Challenge[] = activeChallenges.map(challenge => ({
         id: challenge.id,
         title: challenge.title,
         description: challenge.description,
