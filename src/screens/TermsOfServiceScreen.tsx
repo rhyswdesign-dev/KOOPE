@@ -29,179 +29,72 @@ export default function TermsOfServiceScreen({ onBack }: TermsOfServiceScreenPro
         <View style={styles.header}>
           <Text style={styles.title}>Terms of Service</Text>
           <Text style={styles.subtitle}>
-            Effective Date: March 1, 2024
+            Last Updated: 31 May 2026
           </Text>
         </View>
 
         {/* Content */}
         <View style={styles.content}>
           <Section
-            title="Agreement to Terms"
-            content="By accessing and using the Home Game Advantage mobile application ('App'), you agree to be bound by these Terms of Service ('Terms'). If you disagree with any part of these terms, you may not access the App."
+            title="Acceptance"
+            content="By accessing or using KŌOPE, you agree to be bound by these Terms of Service. If you do not agree, please do not use the app."
           />
 
           <Section
-            title="Description of Service"
-            content="Home Game Advantage is a mobile application that helps users discover bars, learn about spirits, participate in events, and improve home bartending skills."
-            subsections={[
-              {
-                subtitle: "Core Features",
-                content: "• Bar discovery and recommendations\n• Spirit education and tasting notes\n• Event registration and participation\n• Personalized recipe and inventory tools\n• XP and tier progression system"
-              },
-              {
-                subtitle: "User-Generated Content",
-                content: "• Reviews and ratings of bars and spirits\n• Recipe logs, ratings, and notes\n• Profile information and preferences\n• Event feedback and participation history"
-              }
-            ]}
+            title="Eligibility"
+            content="You must be of legal drinking age in your jurisdiction to access alcohol-related content within KŌOPE. By using the app, you confirm that you meet this requirement."
           />
 
           <Section
-            title="User Accounts and Responsibilities"
-            content="To access certain features of the App, you must create an account. You are responsible for maintaining the confidentiality of your account information."
-            subsections={[
-              {
-                subtitle: "Account Requirements",
-                content: "• You must be at least 21 years of age to use this App\n• You must provide accurate and complete information\n• You are responsible for all activities under your account\n• You must notify us immediately of any unauthorized use"
-              },
-              {
-                subtitle: "Prohibited Activities",
-                content: "• Providing false or misleading information\n• Using the App for illegal activities\n• Harassing, threatening, or intimidating other users\n• Attempting to gain unauthorized access to the App\n• Distributing spam, malware, or other harmful content"
-              }
-            ]}
+            title="Accounts"
+            content="You are responsible for maintaining the security of your account credentials and for all activities that occur under your account. Please notify us immediately of any unauthorised use."
           />
 
           <Section
-            title="Content and Conduct"
-            content="Users may contribute content to the App, including reviews, comments, and profile information. All user-generated content must comply with our community guidelines."
-            subsections={[
-              {
-                subtitle: "Content Standards",
-                content: "• Content must be accurate and not misleading\n• No hate speech, harassment, or discriminatory language\n• No promotion of illegal activities\n• Respect intellectual property rights\n• No spam or commercial solicitation"
-              },
-              {
-                subtitle: "Content Ownership",
-                content: "• You retain ownership of content you create\n• You grant us a license to use, display, and distribute your content\n• We may moderate and remove content that violates these terms\n• We are not responsible for user-generated content"
-              }
-            ]}
+            title="User-Generated Content"
+            content="KŌOPE allows you to create and store content such as bottle scans and inventory data. You retain ownership of your content. By submitting content, you grant KŌOPE a limited licence to store and process it solely to provide the service."
           />
 
           <Section
-            title="Privacy and Data Protection"
-            content="Your privacy is important to us. Our collection and use of personal information is governed by our Privacy Policy, which is incorporated into these Terms by reference."
-          />
-
-          <Section
-            title="Events and Third-Party Services"
-            content="The App may facilitate registration for events and connect you with third-party venues and services. Your participation in such events and use of third-party services is subject to their own terms and conditions."
-            subsections={[
-              {
-                subtitle: "Event Participation",
-                content: "• Event registration may require additional agreements\n• We are not responsible for event cancellations or changes\n• Refund policies are determined by event organizers\n• You participate in events at your own risk"
-              },
-              {
-                subtitle: "Third-Party Integrations",
-                content: "• We may integrate with payment, authentication, and support providers\n• Third-party services have their own terms and privacy policies\n• We are not responsible for third-party service availability or functionality\n• Your use of third-party services is at your own discretion"
-              }
-            ]}
+            title="Subscriptions and Billing"
+            content="Certain features require a paid subscription. Pricing, billing periods, and renewal terms are displayed before purchase. Subscriptions renew automatically unless cancelled before the renewal date. Refunds are handled in accordance with applicable app store policies (Apple App Store or Google Play). To cancel, manage your subscription through your device’s app store settings."
           />
 
           <Section
             title="Intellectual Property"
-            content="The App and its original content, features, and functionality are owned by Home Game Advantage and are protected by international copyright, trademark, patent, trade secret, and other intellectual property laws."
-            subsections={[
-              {
-                subtitle: "Our Rights",
-                content: "• All App content, design, and functionality\n• Home Game Advantage trademarks and branding\n• Proprietary algorithms and recommendation systems\n• Original educational content and materials"
-              },
-              {
-                subtitle: "User Rights",
-                content: "• Limited license to use the App for personal purposes\n• Right to create and share user-generated content\n• Right to access and download your own data\n• Right to terminate your account at any time"
-              }
-            ]}
+            content="All KŌOPE branding, content, software, graphics, and educational materials are the property of KŌOPE or its licensors. You may not reproduce, distribute, or create derivative works without prior written permission."
           />
 
           <Section
-            title="Disclaimers and Limitations"
-            content="The App is provided 'as is' without warranties of any kind. We disclaim all warranties, express or implied, including but not limited to merchantability, fitness for a particular purpose, and non-infringement."
-            subsections={[
-              {
-                subtitle: "Service Availability",
-                content: "• We do not guarantee uninterrupted service availability\n• Maintenance and updates may temporarily disrupt service\n• We may modify or discontinue features at any time\n• Technical issues may affect App performance"
-              },
-              {
-                subtitle: "Content Accuracy",
-                content: "• Information in the App may not always be current or accurate\n• User reviews and ratings reflect individual opinions\n• We do not verify all user-generated content\n• You should verify information independently"
-              }
-            ]}
+            title="Responsible Consumption"
+            content="KŌOPE promotes the responsible enjoyment of alcoholic beverages. You are solely responsible for your consumption decisions. Nothing in the app constitutes professional advice regarding alcohol consumption."
           />
 
           <Section
-            title="Liability and Indemnification"
-            content="To the maximum extent permitted by law, Home Game Advantage shall not be liable for any indirect, incidental, special, consequential, or punitive damages arising out of your use of the App."
-            subsections={[
-              {
-                subtitle: "User Indemnification",
-                content: "You agree to indemnify and hold harmless Home Game Advantage from any claims, losses, damages, or expenses arising from your use of the App, violation of these Terms, or infringement of any rights of others."
-              },
-              {
-                subtitle: "Limitation of Liability",
-                content: "Our total liability to you for all claims arising out of or relating to the App shall not exceed the amount you have paid us in the twelve months preceding the claim, or $100, whichever is greater."
-              }
-            ]}
+            title="Disclaimer and Limitation of Liability"
+            content="KŌOPE is provided on an “as is” and “as available” basis without warranties of any kind. To the maximum extent permitted by law, KŌOPE shall not be liable for indirect, incidental, or consequential damages arising from use of the service."
           />
 
           <Section
-            title="Termination"
-            content="We may terminate or suspend your account and access to the App at our sole discretion, without notice, for conduct that we believe violates these Terms or is harmful to other users, us, or third parties."
-            subsections={[
-              {
-                subtitle: "Your Rights Upon Termination",
-                content: "• You may terminate your account at any time\n• Upon termination, you may request a copy of your data\n• Some provisions of these Terms survive termination\n• You remain responsible for any outstanding obligations"
-              },
-              {
-                subtitle: "Effect of Termination",
-                content: "• Your right to use the App immediately ceases\n• We may delete your account and associated data\n• You must cease all use of our intellectual property\n• Surviving provisions remain in effect"
-              }
-            ]}
+            title="Governing Law"
+            content="These Terms are governed by and construed in accordance with the laws of the Province of Ontario, Canada. Any disputes arising from these Terms shall be resolved in the courts of Ontario, Canada."
           />
 
           <Section
-            title="Governing Law and Disputes"
-            content="These Terms shall be governed by and construed in accordance with the laws of [Jurisdiction], without regard to its conflict of law provisions."
-            subsections={[
-              {
-                subtitle: "Dispute Resolution",
-                content: "• We encourage resolving disputes through direct communication\n• Binding arbitration may be required for certain disputes\n• Class action waivers may apply\n• Jurisdiction and venue provisions apply to legal proceedings"
-              }
-            ]}
+            title="Changes to These Terms"
+            content="We may update these Terms periodically. We will notify you of material changes via the app or email. Continued use of KŌOPE after changes take effect constitutes acceptance of the revised Terms."
           />
 
           <Section
-            title="Changes to Terms"
-            content="We reserve the right to modify these Terms at any time. We will notify users of material changes through the App or by email. Your continued use of the App after such changes constitutes acceptance of the new Terms."
-          />
-
-          <Section
-            title="Severability and Entire Agreement"
-            content="If any provision of these Terms is found to be unenforceable, the remaining provisions will remain in full force and effect. These Terms, together with our Privacy Policy, constitute the entire agreement between you and Home Game Advantage."
-          />
-
-          <Section
-            title="Contact Information"
-            content="If you have any questions about these Terms of Service, please contact us:"
-            subsections={[
-              {
-                subtitle: "Contact Details",
-                content: "Email: legal@homegameadvantage.com\nAddress: [Company Address]\nPhone: [Phone Number]\n\nWe will respond to your inquiries within 30 days."
-              }
-            ]}
+            title="Contact"
+            content="Questions regarding these Terms may be directed to legal@koope.com."
           />
         </View>
 
         {/* Footer */}
         <View style={styles.footer}>
           <Text style={styles.footerText}>
-            By using Home Game Advantage, you acknowledge that you have read, understood, and agree to be bound by these Terms of Service.
+            By using KŌOPE, you acknowledge that you have read, understood, and agree to be bound by these Terms of Service.
           </Text>
         </View>
       </ScrollView>

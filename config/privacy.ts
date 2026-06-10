@@ -11,7 +11,7 @@ import { AppPrivacyConfig } from '../src/types/consent';
  * Use YYYY-MM-DD format for easy comparison and sorting
  */
 export const PRIVACY_VERSION = '2025-09-20';
-export const TERMS_VERSION = '2025-09-20';
+export const TERMS_VERSION = '2026-05-31';
 
 /**
  * Regional compliance configuration

@@ -1,6 +1,5 @@
-// @ts-nocheck
 /**
- * TERMS & CONDITIONS SCREEN
+ * TERMS OF SERVICE SCREEN
  * Displays terms content with acceptance tracking and version management
  * Requires explicit checkbox agreement on first run or version changes
  */
@@ -30,7 +29,7 @@ interface RouteParams {
 }
 
 /**
- * Terms & Conditions screen with mandatory acceptance tracking
+ * Terms of Service screen with mandatory acceptance tracking
  */
 export default function TermsScreen() {
   const navigation = useNavigation();
@@ -46,7 +45,7 @@ export default function TermsScreen() {
   const [lastUpdated, setLastUpdated] = useState<string>('');
 
   /**
-   * Load terms & conditions markdown content
+   * Load terms of service markdown content
    */
   const loadTermsContent = async () => {
     try {
@@ -56,141 +55,67 @@ export default function TermsScreen() {
       // For this implementation, we'll use embedded content
       // In production, you'd load from bundled assets or fetch from server
       const markdownContent = `---
-title: Terms & Conditions
-updated: 2025-09-20
-version: 1.0.0
+title: Terms of Service
+updated: 2026-05-31
+version: 2026-05-31
 language: en-CA
 ---
 
-# Terms & Conditions
+# Terms of Service
 
-**Effective Date:** September 20, 2025
-**Last Updated:** September 20, 2025
+**Last Updated:** 31 May 2026
 
-## Agreement to Terms
+## Acceptance
 
-By downloading, installing, or using the Home Game Advantage mobile application (the "App"), you agree to be bound by these Terms & Conditions ("Terms"). If you do not agree to these Terms, do not use our App.
-
-## Description of Service
-
-Home Game Advantage is a bartending education mobile application that provides:
-- Interactive bartending lessons and tutorials
-- Cocktail recipes and mixing techniques
-- Progress tracking and achievement systems
-- Educational content about spirits, wine, and beverage service
+By accessing or using KŌOPE, you agree to be bound by these Terms of Service. If you do not agree, please do not use the app.
 
 ## Eligibility
 
-You must be of legal drinking age in your jurisdiction to use this App. In the United States, this means you must be at least 21 years old. By using our App, you represent and warrant that you meet this requirement and have the legal capacity to enter into these Terms.
+You must be of legal drinking age in your jurisdiction to access alcohol-related content within KŌOPE. By using the app, you confirm that you meet this requirement.
 
-## User Accounts
+## Accounts
 
-### Account Creation
-- You must provide accurate and complete information when creating an account
-- You are responsible for maintaining the security of your account credentials
-- You must notify us immediately of any unauthorized use of your account
+You are responsible for maintaining the security of your account credentials and for all activities that occur under your account. Please notify us immediately of any unauthorised use.
 
-### Account Responsibilities
-- You are solely responsible for all activity that occurs under your account
-- You may not share your account with others or allow others to use your account
-- You must keep your account information current and accurate
+## User-Generated Content
 
-## Acceptable Use
+KŌOPE allows you to create and store content such as bottle scans and inventory data. You retain ownership of your content. By submitting content, you grant KŌOPE a limited licence to store and process it solely to provide the service.
 
-### Permitted Uses
-You may use our App for:
-- Personal, non-commercial educational purposes
-- Learning bartending skills and techniques
-- Tracking your progress and achievements
-- Accessing recipes and educational content
+## Subscriptions and Billing
 
-### Prohibited Activities
-You may not:
-- **Violate Laws**: Use the App for any unlawful purpose or in violation of local, provincial, or federal laws
-- **Infringe Rights**: Violate intellectual property rights or other proprietary rights
-- **Harm Others**: Harass, abuse, or harm other users or individuals
-- **Misuse Content**: Copy, distribute, or create derivative works from our content without permission
-- **Reverse Engineer**: Attempt to reverse engineer, decompile, or disassemble the App
-- **Circumvent Security**: Bypass or circumvent security measures or access controls
-
-## Educational Content Disclaimer
-
-### Not Professional Advice
-- Our App provides educational content for informational purposes only
-- Content should not be considered professional bartending or business advice
-- We recommend seeking professional training for commercial bartending roles
-
-### Responsible Service
-- Users are responsible for understanding and complying with local alcohol service laws
-- Always practice responsible alcohol service and consumption
-- We do not encourage excessive alcohol consumption or service to minors
+Certain features require a paid subscription. Pricing, billing periods, and renewal terms are displayed before purchase. Subscriptions renew automatically unless cancelled before the renewal date. Refunds are handled in accordance with applicable app store policies (Apple App Store or Google Play). To cancel, manage your subscription through your device’s app store settings.
 
 ## Intellectual Property
 
-### Our Content
-- All content in the App, including recipes, lessons, images, and text, is owned by us or our licensors
-- Our content is protected by copyright, trademark, and other intellectual property laws
-- You may not use our content outside the App without our written permission
+All KŌOPE branding, content, software, graphics, and educational materials are the property of KŌOPE or its licensors. You may not reproduce, distribute, or create derivative works without prior written permission.
 
-### Trademarks
-- "Home Game Advantage" and our logos are trademarks of our company
-- You may not use our trademarks without our prior written consent
+## Responsible Consumption
 
-## Disclaimers and Limitations
+KŌOPE promotes the responsible enjoyment of alcoholic beverages. You are solely responsible for your consumption decisions. Nothing in the app constitutes professional advice regarding alcohol consumption.
 
-### Service Availability
-- We strive to keep the App available but cannot guarantee uninterrupted service
-- We may suspend or terminate the service for maintenance, updates, or other reasons
+## Disclaimer and Limitation of Liability
 
-### Content Accuracy
-- We make reasonable efforts to ensure content accuracy but cannot guarantee it
-- Recipes and techniques may vary based on local preferences and regulations
-- Users should verify information and use their judgment when applying techniques
-
-### Limitation of Liability
-To the maximum extent permitted by law:
-- We are not liable for any indirect, incidental, or consequential damages
-- Our total liability is limited to the amount you paid for the App (if any)
-- We disclaim all warranties except those that cannot be legally excluded
-
-## Termination
-
-### Your Right to Terminate
-You may stop using the App at any time and delete your account through the App settings.
-
-### Our Right to Terminate
-We may suspend or terminate your access to the App if you:
-- Violate these Terms or our policies
-- Engage in prohibited activities
-- Pose a risk to other users or our systems
-
-## Updates and Changes
-
-### Terms Updates
-- We may modify these Terms from time to time
-- We will notify you of material changes through the App or other means
-- Your continued use after changes constitutes acceptance of the new Terms
+KŌOPE is provided on an “as is” and “as available” basis without warranties of any kind. To the maximum extent permitted by law, KŌOPE shall not be liable for indirect, incidental, or consequential damages arising from use of the service.
 
 ## Governing Law
 
-These Terms are governed by the laws of the Province of Ontario, Canada, without regard to conflict of law principles.
+These Terms are governed by and construed in accordance with the laws of the Province of Ontario, Canada. Any disputes arising from these Terms shall be resolved in the courts of Ontario, Canada.
 
-## Contact Information
+## Changes to These Terms
 
-If you have questions about these Terms, please contact us:
+We may update these Terms periodically. We will notify you of material changes via the app or email. Continued use of KŌOPE after changes take effect constitutes acceptance of the revised Terms.
 
-**Email**: support@homegameadvantage.com
-**Legal**: legal@homegameadvantage.com
+## Contact
 
----
+Questions regarding these Terms may be directed to legal@koope.com.
 
-**By using the Home Game Advantage app, you acknowledge that you have read, understood, and agree to be bound by these Terms & Conditions.**`;
+**By using KŌOPE, you acknowledge that you have read, understood, and agree to be bound by these Terms of Service.**`;
 
       // Parse front-matter to extract metadata
       const { content: parsedContent, metadata } = parseFrontMatter(markdownContent);
 
       setContent(parsedContent);
-      setLastUpdated(metadata.updated || 'September 20, 2025');
+      setLastUpdated(metadata.updated || '2026-05-31');
 
       // Check if user has already accepted current terms
       const hasAcceptedCurrent = await hasAcceptedCurrentTerms;
@@ -198,7 +123,7 @@ If you have questions about these Terms, please contact us:
 
     } catch (err) {
       log.error('TermsScreen', 'Failed to load terms', err as Error);
-      setError('Failed to load terms & conditions. Please try again.');
+      setError('Failed to load terms of service. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -248,7 +173,7 @@ If you have questions about these Terms, please contact us:
 
       Alert.alert(
         'Terms Accepted',
-        'Thank you for accepting our Terms & Conditions.',
+        'Thank you for accepting our Terms of Service.',
         [
           {
             text: 'OK',
@@ -296,7 +221,7 @@ If you have questions about these Terms, please contact us:
   // Set up navigation header
   useEffect(() => {
     navigation.setOptions({
-      title: 'Terms & Conditions',
+      title: 'Terms of Service',
       headerStyle: { backgroundColor: colors.bg },
       headerTintColor: colors.text,
       headerTitleStyle: { color: colors.text, fontWeight: '900' },
@@ -308,7 +233,7 @@ If you have questions about these Terms, please contact us:
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.accent} />
-          <Text style={styles.loadingText}>Loading Terms & Conditions...</Text>
+          <Text style={styles.loadingText}>Loading Terms of Service...</Text>
         </View>
       </SafeAreaView>
     );
@@ -358,7 +283,7 @@ If you have questions about these Terms, please contact us:
             <View style={styles.checkboxContainer}>
               <Ionicons name="alert-circle" size={24} color={colors.warning} />
               <Text style={styles.acceptanceText}>
-                You must read and accept these Terms & Conditions to continue using the app.
+                You must read and accept these Terms of Service to continue using the app.
               </Text>
             </View>
 
@@ -377,7 +302,7 @@ If you have questions about these Terms, please contact us:
                 <>
                   <Ionicons name="checkmark" size={20} color={colors.white} />
                   <Text style={styles.acceptButtonText}>
-                    I Accept These Terms & Conditions
+                    I Accept These Terms of Service
                   </Text>
                 </>
               )}
@@ -513,8 +438,4 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
   },
-
-  // Colors for success/warning (since they might not be in your theme)
-  success: '#10b981',
-  warning: '#f59e0b',
 });

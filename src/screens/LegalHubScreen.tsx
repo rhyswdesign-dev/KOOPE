@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * LEGAL HUB SCREEN
  * Central hub for all legal and privacy-related content
@@ -31,7 +30,16 @@ export default function LegalHubScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { needsPrompt, hasSeenCurrentPrivacy, hasAcceptedCurrentTerms } = useConsent();
 
-  const legalItems = [
+  type LegalItem = {
+    id: string;
+    title: string;
+    subtitle: string;
+    icon: keyof typeof Ionicons.glyphMap;
+    badge: string | null;
+    onPress: () => void;
+  };
+
+  const legalItems: LegalItem[] = [
     {
       id: 'privacy',
       title: 'Privacy Policy',
@@ -42,7 +50,7 @@ export default function LegalHubScreen() {
     },
     {
       id: 'terms',
-      title: 'Terms & Conditions',
+      title: 'Terms of Service',
       subtitle: 'Rules and agreements for using our app',
       icon: 'document-text-outline' as const,
       badge: !hasAcceptedCurrentTerms ? 'Action Required' : null,
@@ -54,7 +62,7 @@ export default function LegalHubScreen() {
       subtitle: 'Control your privacy and data sharing preferences',
       icon: 'settings-outline' as const,
       badge: needsPrompt ? 'Review Needed' : null,
-      onPress: () => navigation.navigate('ConsentCenter' as never),
+      onPress: () => navigation.navigate('Settings'),
     },
   ];
 
@@ -68,12 +76,12 @@ export default function LegalHubScreen() {
       badge: null,
       onPress: () => {
         // Navigate to CPRA-specific form or section
-        navigation.navigate('ConsentCenter' as never, { tab: 'cpra' });
+        navigation.navigate('PrivacyPolicy');
       },
     });
   }
 
-  const renderLegalItem = (item: typeof legalItems[0]) => (
+  const renderLegalItem = (item: LegalItem) => (
     <TouchableOpacity
       key={item.id}
       style={styles.legalItem}
