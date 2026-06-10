@@ -1,50 +1,5 @@
-// @ts-nocheck
-import OpenAI from 'openai';
 import { log } from '../lib/logger';
-
-// Initialize OpenAI client
-const openai = new OpenAI({
-  apiKey: process.env.EXPO_PUBLIC_OPENAI_API_KEY || 'dev-key',
-});
-
-// Vision model configuration
-const VISION_MODEL = 'gpt-4-vision-preview';
-
-const hasValidOpenAIKey = () => {
-  const apiKey = process.env.EXPO_PUBLIC_OPENAI_API_KEY;
-  return !!apiKey &&
-    apiKey !== 'your-openai-api-key-here' &&
-    apiKey !== 'dev-key' &&
-    isValidApiKey(apiKey);
-};
-
-// Mock mode is allowed only in non-production by default, or via explicit env override.
-const shouldUseMockAI = () => {
-  const override = process.env.EXPO_PUBLIC_AI_ALLOW_MOCKS;
-  if (override === 'true') return true;
-  if (override === 'false') return false;
-  return process.env.NODE_ENV !== 'production';
-};
-
-// Validate API key format
-const isValidApiKey = (key: string): boolean => {
-  if (!key) return false;
-  return key.startsWith('sk-') && key.length > 40; // OpenAI keys are typically 51 chars
-};
-
-// Get setup instructions for user
-const getSetupInstructions = (): string => {
-  return `
-🔧 To use real OpenAI API instead of mocks:
-
-1. Get an API key from https://platform.openai.com/api-keys
-2. Update your .env file:
-   EXPO_PUBLIC_OPENAI_API_KEY=sk-your-actual-key-here
-3. Restart with: npx expo start --clear
-
-💰 Estimated cost: ~$0.01-0.03 per recipe with GPT-4
-`;
-};
+import { supabase } from '../lib/supabase';
 
 export interface FormattedRecipe {
   title: string;
@@ -87,19 +42,8 @@ export class AIRecipeFormatter {
     developmentMode: boolean;
     setupInstructions?: string;
   } {
-    const openAIKey = process.env.EXPO_PUBLIC_OPENAI_API_KEY;
-    const googleCloudKey = process.env.EXPO_PUBLIC_GOOGLE_CLOUD_API_KEY;
-
-    const openAIValid = hasValidOpenAIKey();
-    const googleCloudValid = googleCloudKey && googleCloudKey !== 'your-google-cloud-api-key-here';
-    const inDevelopmentMode = shouldUseMockAI();
-
-    return {
-      openAI: !!openAIValid,
-      googleCloud: !!googleCloudValid,
-      developmentMode: inDevelopmentMode,
-      setupInstructions: inDevelopmentMode ? getSetupInstructions() : undefined
-    };
+    // AI calls now route through Edge Functions — keys are server-side secrets.
+    return { openAI: true, googleCloud: true, developmentMode: false };
   }
 
   /**
@@ -146,67 +90,24 @@ export class AIRecipeFormatter {
 
       log.info('AIRecipeFormatter', 'Auto-detected recipe type', { detectedType });
 
-      // Check if we're in development mode
-      if (!hasValidOpenAIKey()) {
-        if (!shouldUseMockAI()) {
-          throw new Error('AI recipe extraction is not configured for production. Set EXPO_PUBLIC_OPENAI_API_KEY.');
-        }
-
-        log.debug('AIRecipeFormatter', 'Development mode: Using mock AI response');
-        log.debug('AIRecipeFormatter', 'Setup instructions', { instructions: getSetupInstructions() });
-        await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate API delay
-
-        return this.getMockFormattedRecipe(enhancedInput);
-      }
-
-      log.info('AIRecipeFormatter', 'Using real OpenAI API for recipe formatting');
-
-      const prompt = this.buildPrompt(enhancedInput);
+      const userPrompt = this.buildPrompt(enhancedInput);
       const systemPrompt = this.getSystemPrompt(detectedType);
 
-      const completion = await openai.chat.completions.create({
-        model: "gpt-3.5-turbo",
-        messages: [
-          {
-            role: "system",
-            content: systemPrompt
-          },
-          {
-            role: "user",
-            content: prompt
-          }
-        ],
-        temperature: 0.3, // Lower temperature for more consistent formatting
-        max_tokens: 1000,
+      // Route through the recipe-format Edge Function — key never hits the client
+      const { data, error } = await supabase.functions.invoke('recipe-format', {
+        body: { mode: 'text', systemPrompt, userPrompt },
       });
 
-      const responseText = completion.choices[0]?.message?.content;
-      if (!responseText) {
-        throw new Error('No response from AI service');
+      if (error || !data?.result) {
+        log.error('AIRecipeFormatter', 'recipe-format edge function error', error);
+        throw new Error('AI formatting failed. Please try again or use manual formatting.');
       }
 
-      // Parse the JSON response
-      const formattedRecipe = JSON.parse(responseText) as FormattedRecipe;
-
-      // Validate and clean the response
+      const formattedRecipe = JSON.parse(data.result) as FormattedRecipe;
       return this.validateAndCleanRecipe(formattedRecipe);
 
     } catch (error: any) {
-      log.error('AIRecipeFormatter', 'Recipe formatting error', { error });
-
-      // Provide more specific error messages
-      if (error.message?.includes('API key')) {
-        throw new Error('Invalid API key. Please check your OpenAI API key in settings.');
-      }
-
-      if (error.message?.includes('quota') || error.message?.includes('rate limit')) {
-        throw new Error('API quota exceeded. Please try again later or check your OpenAI billing.');
-      }
-
-      if (error.message?.includes('network') || error.message?.includes('timeout')) {
-        throw new Error('Network error. Please check your internet connection and try again.');
-      }
-
+      log.error('AIRecipeFormatter', 'Recipe formatting error', error);
       throw new Error('AI formatting failed. Please try again or use manual formatting.');
     }
   }
@@ -217,21 +118,6 @@ export class AIRecipeFormatter {
   static async analyzeRecipeImage(imageUrl: string, recipeType?: RecipeType): Promise<FormattedRecipe> {
     try {
       log.info('AIRecipeFormatter', 'Starting recipe image analysis', { imageUrl });
-
-      // Check if we're in development mode
-      if (!hasValidOpenAIKey()) {
-        if (!shouldUseMockAI()) {
-          throw new Error('AI image analysis is not configured for production. Set EXPO_PUBLIC_OPENAI_API_KEY.');
-        }
-
-        log.debug('AIRecipeFormatter', 'Development mode: Using mock vision analysis');
-        log.debug('AIRecipeFormatter', 'Setup instructions', { instructions: getSetupInstructions() });
-        await new Promise(resolve => setTimeout(resolve, 3000)); // Simulate processing delay
-
-        return this.getMockVisionAnalysis(recipeType || 'cocktail');
-      }
-
-      log.info('AIRecipeFormatter', 'Using real OpenAI Vision API for image analysis');
 
       const systemPrompt = `You are an expert mixologist and recipe analyzer. You can see cocktail recipes, ingredients lists, bar menus, and recipe cards in images. Extract and structure the recipe information into a clean, professional format. Always respond with valid JSON only.
 
@@ -262,63 +148,22 @@ Focus on:
 
 Please extract all visible recipe information from the image. If you can see multiple recipes, focus on the most prominent one.`;
 
-      const completion = await openai.chat.completions.create({
-        model: VISION_MODEL,
-        messages: [
-          {
-            role: "system",
-            content: systemPrompt
-          },
-          {
-            role: "user",
-            content: [
-              {
-                type: "text",
-                text: userPrompt
-              },
-              {
-                type: "image_url",
-                image_url: {
-                  url: imageUrl,
-                  detail: "high"
-                }
-              }
-            ]
-          }
-        ],
-        temperature: 0.3,
-        max_tokens: 1000,
+      // Route through the recipe-format Edge Function — key never hits the client
+      const { data, error } = await supabase.functions.invoke('recipe-format', {
+        body: { mode: 'image', systemPrompt, userPrompt, imageUrl },
       });
 
-      const responseText = completion.choices[0]?.message?.content;
-      if (!responseText) {
-        throw new Error('No response from vision AI service');
-      }
-
-      log.info('AIRecipeFormatter', 'Vision analysis complete');
-
-      // Parse the JSON response
-      const analysisResult = JSON.parse(responseText) as FormattedRecipe;
-
-      // Validate and clean the response
-      return this.validateAndCleanRecipe(analysisResult);
-
-    } catch (error: any) {
-      log.error('AIRecipeFormatter', 'Vision analysis error', { error });
-
-      // Provide more specific error messages for vision analysis
-      if (error.message?.includes('API key')) {
-        throw new Error('Invalid API key. Please check your OpenAI API key in settings.');
-      }
-
-      if (error.message?.includes('quota') || error.message?.includes('rate limit')) {
-        throw new Error('API quota exceeded. Please try again later or check your OpenAI billing.');
-      }
-
-      if (error.message?.includes('image') || error.message?.includes('vision')) {
+      if (error || !data?.result) {
+        log.error('AIRecipeFormatter', 'recipe-format vision edge function error', error);
         throw new Error('Image analysis failed. Please try with a clearer image or use text extraction instead.');
       }
 
+      log.info('AIRecipeFormatter', 'Vision analysis complete');
+      const analysisResult = JSON.parse(data.result) as FormattedRecipe;
+      return this.validateAndCleanRecipe(analysisResult);
+
+    } catch (error: any) {
+      log.error('AIRecipeFormatter', 'Vision analysis error', error);
       throw new Error('Vision analysis failed. Please try again or use text extraction.');
     }
   }
@@ -328,24 +173,8 @@ Please extract all visible recipe information from the image. If you can see mul
    */
   static async extractTextFromImage(imageUrl: string): Promise<string> {
     try {
-      // Use our OCR service to extract text from the image
       const { OCRService } = await import('./ocrService');
-
-      // For development mode, return mock response
-      if (!hasValidOpenAIKey()) {
-        if (!shouldUseMockAI()) {
-          throw new Error('AI OCR fallback is not configured for production. Set EXPO_PUBLIC_OPENAI_API_KEY.');
-        }
-
-        log.debug('AIRecipeFormatter', 'Development mode: Using mock OCR response');
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        return "2 oz gin, 1 oz fresh lime juice, 3/4 oz simple syrup, mint leaves. Muddle mint, add other ingredients, shake with ice, strain over crushed ice.";
-      }
-
-      // In production, this would process the imageUrl with OCR
-      // For now, return a helpful message
       return "OCR text extraction from images - please use the camera feature in the app for better results.";
-
     } catch (error: any) {
       log.error('AIRecipeFormatter', 'Image text extraction error', { error });
       return "Could not extract text from image. Please try using the camera feature.";
@@ -409,8 +238,9 @@ Tip: Instagram posts often contain recipe details in the caption or comments.`;
             return `Instagram Recipe Description: ${descMatch[1]}\n\nSource: ${url}`;
           }
         }
-      } catch (fetchError) {
-        log.debug('AIRecipeFormatter', 'Instagram fetch failed (expected)', { error: fetchError.message });
+      } catch (fetchError: unknown) {
+        const message = fetchError instanceof Error ? fetchError.message : String(fetchError);
+        log.debug('AIRecipeFormatter', 'Instagram fetch failed (expected)', { error: message });
       }
 
       return fallbackText;
@@ -524,7 +354,7 @@ Tip: Instagram posts often contain recipe details in the caption or comments.`;
                 recipe.name && `Recipe: ${recipe.name}`,
                 recipe.description && `Description: ${recipe.description}`,
                 recipe.recipeIngredient && `Ingredients: ${recipe.recipeIngredient.join(', ')}`,
-                recipe.recipeInstructions && `Instructions: ${recipe.recipeInstructions.map(inst =>
+                recipe.recipeInstructions && `Instructions: ${recipe.recipeInstructions.map((inst: string | { text?: string; name?: string }) =>
                   typeof inst === 'string' ? inst : inst.text || inst.name || ''
                 ).join('. ')}`
               ].filter(Boolean).join('\n\n');
