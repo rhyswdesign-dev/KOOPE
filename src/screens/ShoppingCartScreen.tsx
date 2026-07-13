@@ -513,7 +513,7 @@ export default function ShoppingCartScreen() {
             </View>
             <TouchableOpacity
               style={styles.aiActionCard}
-              onPress={() => Alert.alert('Smart Shopping', 'AI-powered shopping optimization coming soon! Get store suggestions, price comparisons, and bundling recommendations.')}
+              onPress={() => Alert.alert('Smart Shopping', 'AI-powered shopping optimization is not enabled for this build yet. Keep using grouped lists and sorting for faster checkout planning.')}
             >
               <View style={styles.aiActionContent}>
                 <Ionicons name="cart-outline" size={22} color={colors.accent} />

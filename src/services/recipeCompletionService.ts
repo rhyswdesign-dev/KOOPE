@@ -1,8 +1,28 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { log } from '../lib/logger';
-import { supabase } from '../lib/supabase';
 
 const STORAGE_KEY = 'recipe_completion_logs_v1';
+
+type SupabaseClient = {
+  from: (table: string) => {
+    insert: (rows: unknown[]) => Promise<unknown>;
+  };
+  rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: unknown }>;
+};
+
+let cachedSupabase: SupabaseClient | null = null;
+
+function getSupabaseClient(): SupabaseClient | null {
+  if (cachedSupabase) return cachedSupabase;
+  try {
+    const mod = require('../lib/supabase') as { supabase?: SupabaseClient };
+    cachedSupabase = mod.supabase ?? null;
+    return cachedSupabase;
+  } catch (error) {
+    log.warn('RecipeCompletionService', 'Supabase unavailable; skipping sync operation', { error });
+    return null;
+  }
+}
 
 export interface IngredientBrandSelection {
   ingredient: string;
@@ -92,6 +112,8 @@ export async function getRecipeCompletions(userId?: string): Promise<RecipeCompl
  */
 export async function syncCompletionToSupabase(log_entry: RecipeCompletionLog): Promise<void> {
   if (!log_entry.userId) return;
+  const supabase = getSupabaseClient();
+  if (!supabase) return;
 
   try {
     const rows = log_entry.ingredientBrands
@@ -122,6 +144,9 @@ export async function syncCompletionToSupabase(log_entry: RecipeCompletionLog): 
 export async function getAggregatedBrandData(recipeId: string): Promise<
   { ingredient: string; brand: string; count: number }[]
 > {
+  const supabase = getSupabaseClient();
+  if (!supabase) return [];
+
   try {
     const { data, error } = await supabase.rpc('get_recipe_brand_aggregates', {
       p_recipe_id: recipeId,

@@ -18,7 +18,6 @@ import {
   Keyboard,
   ScrollView,
   Dimensions,
-  ImageSourcePropType,
   Easing,
 } from 'react-native';
 
@@ -35,7 +34,7 @@ import { withHaptic } from '../lib/haptics';
 
 const serifFont = Platform.select({ ios: 'Georgia', android: 'serif', default: 'serif' });
 
-const BACKGROUNDS: ImageSourcePropType[] = [
+const BACKGROUNDS: number[] = [
   require('../../assets/images/backgrounds/camera/bg-01.png'),
   require('../../assets/images/backgrounds/camera/bg-02.png'),
   require('../../assets/images/backgrounds/camera/bg-03.png'),

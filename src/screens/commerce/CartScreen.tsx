@@ -1,4 +1,3 @@
-// @ts-nocheck
 import React, { useLayoutEffect, useState } from 'react';
 import {
   View,
@@ -6,10 +5,10 @@ import {
   ScrollView,
   StyleSheet,
   TouchableOpacity,
-  Pressable,
   Image,
   TextInput,
   Alert,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -51,6 +50,7 @@ export default function CartScreen() {
   const { state, removeFromCart, updateQuantity, applyPromoCode, removePromoCode } = useCart();
   const [promoCodeInput, setPromoCodeInput] = useState('');
   const [isApplyingPromo, setIsApplyingPromo] = useState(false);
+  const isIOS = Platform.OS === 'ios';
 
   useLayoutEffect(() => {
     nav.setOptions({
@@ -107,6 +107,10 @@ export default function CartScreen() {
   };
 
   const handleCheckout = () => {
+    if (isIOS) {
+      nav.navigate('Paywall', { source: 'cart_screen_ios_gate', displayCloseButton: true });
+      return;
+    }
     if (state.items.length === 0) {
       Alert.alert('Empty Cart', 'Please add items to your cart before checking out.');
       return;
@@ -122,12 +126,41 @@ export default function CartScreen() {
         <Text style={styles.emptySubtitle}>
           Browse our premium products and subscription plans to get started
         </Text>
+        {isIOS ? (
+          <TouchableOpacity
+            style={styles.shopButton}
+            onPress={() => nav.navigate('Paywall', { source: 'cart_empty_ios_notice', displayCloseButton: true })}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.shopButtonText}>View Subscription Options</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity
+            style={styles.shopButton}
+            onPress={() => nav.navigate('Pricing')}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.shopButtonText}>Start Shopping</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    );
+  }
+
+  if (isIOS) {
+    return (
+      <View style={styles.emptyContainer}>
+        <Ionicons name="information-circle-outline" size={72} color={colors.subtext} />
+        <Text style={styles.emptyTitle}>Cart checkout is disabled on iOS</Text>
+        <Text style={styles.emptySubtitle}>
+          This build only supports App Store managed subscriptions on iOS.
+        </Text>
         <TouchableOpacity
           style={styles.shopButton}
-          onPress={() => nav.navigate('Pricing')}
+          onPress={() => nav.navigate('Paywall', { source: 'cart_ios_notice', displayCloseButton: true })}
           activeOpacity={0.8}
         >
-          <Text style={styles.shopButtonText}>Start Shopping</Text>
+          <Text style={styles.shopButtonText}>Open Paywall</Text>
         </TouchableOpacity>
       </View>
     );
@@ -157,7 +190,7 @@ export default function CartScreen() {
                 {item.recipeId && (
                   <TouchableOpacity
                     style={styles.viewRecipeButton}
-                    onPress={() => nav.navigate('CocktailDetail', { cocktailId: item.recipeId })}
+                    onPress={() => nav.navigate('CocktailDetail', { cocktailId: item.recipeId! })}
                     activeOpacity={0.7}
                   >
                     <Ionicons name="book-outline" size={14} color={colors.accent} />

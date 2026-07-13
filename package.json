@@ -23,6 +23,8 @@
     "recipes:upload-missing": "npx tsx scripts/upload-missing-recipes.ts",
     "recipes:verify": "npx tsx scripts/verify-recipes.ts",
     "recipes:list": "npx tsx scripts/list-all-recipes.ts",
+    "catalog:sync": "npx tsx scripts/sync-spirits-catalog.ts",
+    "catalog:verify": "npx tsx scripts/verify-spirits-catalog.ts",
     "images:verify": "npx tsx scripts/verify-image-mappings.ts",
     "images:fix": "npx tsx scripts/auto-fix-image-mappings.ts"
   },

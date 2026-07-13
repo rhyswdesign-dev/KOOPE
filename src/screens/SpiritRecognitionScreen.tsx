@@ -1,4 +1,3 @@
-// @ts-nocheck
 import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
@@ -212,7 +211,7 @@ export default function SpiritRecognitionScreen() {
         spiritEducation.description,
         [
           { text: 'Got it!' },
-          { text: 'View Lessons', onPress: () => navigation.navigate('Main', { screen: 'Lessons' }) }
+          { text: 'View Lessons', onPress: () => navigation.navigate('Main') }
         ]
       );
     }
@@ -230,7 +229,7 @@ export default function SpiritRecognitionScreen() {
   if (!permission.granted) {
     return (
       <View style={styles.centered}>
-        <Ionicons name="camera-off" size={64} color={colors.muted} />
+        <Ionicons name="camera-outline" size={64} color={colors.muted} />
         <Text style={styles.errorText}>Camera access needed</Text>
         <Text style={styles.errorSubtext}>
           We need camera access to scan spirit bottles

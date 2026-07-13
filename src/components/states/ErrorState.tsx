@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * ERROR STATE COMPONENT
  * Professional error handling with contextual messages and recovery actions
@@ -12,6 +11,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   Dimensions,
+  type ViewStyle,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, radii } from '../../theme/tokens';
@@ -33,7 +33,16 @@ interface ErrorStateProps {
 
 const { width: screenWidth } = Dimensions.get('window');
 
-const ERROR_CONFIGS = {
+interface ErrorConfig {
+  icon: keyof typeof Ionicons.glyphMap;
+  title: string;
+  message: string;
+  actionText?: string;
+  secondaryActionText?: string;
+  severity: 'low' | 'medium' | 'high';
+}
+
+const ERROR_CONFIGS: Record<NonNullable<ErrorStateProps['type']>, ErrorConfig> = {
   network: {
     icon: 'wifi-outline',
     title: 'Connection Problem',
@@ -147,7 +156,7 @@ export default function ErrorState({
   };
 
   const getContainerStyle = () => {
-    const baseStyle = [styles.container];
+    const baseStyle: ViewStyle[] = [styles.container];
 
     if (size === 'small') {
       baseStyle.push(styles.smallContainer);
@@ -240,7 +249,7 @@ export default function ErrorState({
             ]}
           >
             <Ionicons
-              name={displayIcon as any}
+              name={displayIcon as keyof typeof Ionicons.glyphMap}
               size={getIconSize()}
               color={getSeverityColor()}
             />

@@ -42,6 +42,8 @@ export interface Recipe {
   imageUrl?: string;
   sourceUrl?: string;
   videoUrl?: string;
+  tastingNote?: string; // 1-sentence sensory summary (front/mid/finish)
+  bestFor?: string; // Who this drink is best suited for
 
   // Tags & Classification
   tags: string[];

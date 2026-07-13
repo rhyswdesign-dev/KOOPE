@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Survey Results Screen - Shows placement results and explanation
  */
@@ -43,7 +42,7 @@ export default function SurveyResultsScreen({ navigation, route }: SurveyResults
       // Award 100 XP one-time for completing the taste profile (hasCompletedProfile guards repeat)
       markProfileComplete();
       // Navigate to the lessons tree where users can see their recommended starting point
-      navigation.navigate('Lessons');
+      navigation.navigate('Main');
     }
   };
 

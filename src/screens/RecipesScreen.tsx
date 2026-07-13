@@ -2623,7 +2623,7 @@ export default function RecipesScreen() {
                   </Text>
                 </Pressable>
                 <Pressable
-                  onPress={withHaptic(() => predictiveEngineGate('T9', () => setViewMode('personalized')), 'selection')}
+                  onPress={withHaptic(() => setViewMode('personalized'), 'selection')}
                   style={{
                     flex: 1,
                     paddingVertical: spacing(1),
@@ -2843,42 +2843,13 @@ export default function RecipesScreen() {
 
             {/* Personalized Feed - For You View */}
             {viewMode === 'personalized' && (
-              <>
-                {tier !== 'PRO' && (
-                  <Pressable
-                    onPress={withHaptic(() => predictiveEngineGate('T9'), 'selection')}
-                    style={{
-                      marginHorizontal: spacing(2),
-                      marginBottom: spacing(1.5),
-                      padding: spacing(2),
-                      borderRadius: radii.lg,
-                      backgroundColor: colors.card,
-                      borderWidth: 1,
-                      borderColor: colors.line,
-                    }}
-                  >
-                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing(0.75) }}>
-                      <Ionicons name="pulse-outline" size={16} color={colors.accent} style={{ marginRight: spacing(0.75) }} />
-                      <Text style={{ color: colors.accent, fontSize: 12, fontWeight: '800', letterSpacing: 0.6, textTransform: 'uppercase' }}>
-                        Mixologist Preview
-                      </Text>
-                    </View>
-                    <Text style={{ color: colors.text, fontSize: 18, fontWeight: '800', marginBottom: spacing(0.5) }}>
-                      Your Taste Graph is building
-                    </Text>
-                    <Text style={{ color: colors.subtext, fontSize: 14, lineHeight: 20 }}>
-                      Keep scanning and saving. Pro unlocks full predictive picks, deeper reasons behind each match, and flavor controls that shape your For You feed.
-                    </Text>
-                  </Pressable>
-                )}
-                <ForYouFeed
-                  onCocktailPress={handleCocktailPress}
-                  onSaveCocktail={handleSaveRecipe}
-                  onAddToCart={handleAddToGroceryList}
-                  savedRecipeIds={savedRecipeIds}
-                  onRefineProfile={() => flavorControlsGate('T12', () => navigation.navigate('RefineYourTaste'))}
-                />
-              </>
+              <ForYouFeed
+                onCocktailPress={handleCocktailPress}
+                onSaveCocktail={handleSaveRecipe}
+                onAddToCart={handleAddToGroceryList}
+                savedRecipeIds={savedRecipeIds}
+                onRefineProfile={() => flavorControlsGate('T12', () => navigation.navigate('RefineYourTaste'))}
+              />
             )}
 
             {/* All Cocktails Header - Browse mode only (search has its own full-screen overlay) */}

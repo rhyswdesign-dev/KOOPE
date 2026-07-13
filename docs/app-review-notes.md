@@ -3,7 +3,7 @@
 Updated: 2026-02-23
 Owner: Release Manager
 
-Paste this into App Store Connect "Notes for Review" after filling placeholders.
+Paste this into App Store Connect "Notes for Review".
 
 ## Reviewer quick path
 
@@ -17,9 +17,10 @@ Paste this into App Store Connect "Notes for Review" after filling placeholders.
 
 ## Test account
 
-- Email: `TODO`
-- Password: `TODO`
-- 2FA: `None / TODO`
+- Email: `test@koope.app`
+- Password: `TestPassword123!`
+- 2FA: `None`
+- Notes: account is pre-provisioned in Supabase auth for reviewer sign-in.
 
 ## Subscription test notes
 
@@ -29,6 +30,12 @@ Paste this into App Store Connect "Notes for Review" after filling placeholders.
   - `plus_yearly`
   - `pro_monthly`
   - `pro_yearly`
+
+## AI disclosure
+
+- KOOPE includes AI-assisted features for recipe generation, recipe formatting, and voice-to-recipe transcription.
+- AI output is clearly labeled in relevant screens (for example: AI-generated recipe messaging in recipe creation/edit flows).
+- Users can edit AI-generated outputs before saving.
 
 ## Safety and support
 

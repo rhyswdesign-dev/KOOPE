@@ -1,4 +1,3 @@
-// @ts-nocheck
 import React, { useState, useCallback } from 'react';
 import {
   View,
@@ -8,6 +7,8 @@ import {
   StyleSheet,
   ActivityIndicator,
   Alert,
+  type StyleProp,
+  type ViewStyle,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, radii, fonts } from '../theme/tokens';
@@ -17,7 +18,7 @@ import { log } from '../lib/logger';
 interface AIRecipeSearchProps {
   onRecipeFound: (recipe: FormattedRecipe) => void;
   placeholder?: string;
-  style?: any;
+  style?: StyleProp<ViewStyle>;
 }
 
 export default function AIRecipeSearch({
@@ -50,11 +51,12 @@ export default function AIRecipeSearch({
       onRecipeFound(formattedRecipe);
       setQuery(''); // Clear search after successful result
 
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unable to process your request. Please try again.';
       log.error('AIRecipeSearch', 'AI search error', error);
       Alert.alert(
         'AI Search Failed',
-        error.message || 'Unable to process your request. Please try again.',
+        message,
         [{ text: 'OK' }]
       );
     } finally {

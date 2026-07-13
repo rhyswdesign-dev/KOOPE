@@ -3,6 +3,8 @@ import { NavigationContainer, DefaultTheme, createNavigationContainerRef } from 
 import { KeyboardAvoidingView, Platform, Keyboard, LayoutAnimation, UIManager } from 'react-native';
 import Constants from 'expo-constants';
 import RootNavigator from './src/navigation/RootNavigator';
+import MaintenanceScreen from './src/screens/MaintenanceScreen';
+import { useKillSwitch } from './src/hooks/useKillSwitch';
 import { colors } from './src/theme/tokens';
 import SplashScreen from './src/screens/SplashScreen';
 import BartendingWelcomeScreen from './src/screens/BartendingWelcomeScreen';
@@ -125,6 +127,8 @@ const navigationRef = createNavigationContainerRef<any>();
 const HTTP_URL_PATTERN = /(https?:\/\/[^\s"'<>]+)/i;
 
 export default function App() {
+  const { isEnabled: killSwitchEnabled, config: killSwitchConfig } = useKillSwitch();
+
   const {
     appState,
     handleSplashFinish,
@@ -286,6 +290,11 @@ export default function App() {
   }, [appState, launchSmartScanAfterOnboarding]);
 
   console.log('App state:', appState);
+
+  // Kill switch — blocks the entire app regardless of onboarding state.
+  if (killSwitchEnabled) {
+    return <MaintenanceScreen config={killSwitchConfig} />;
+  }
 
   // Show splash screen
   if (appState === 'loading' || appState === 'splash') {

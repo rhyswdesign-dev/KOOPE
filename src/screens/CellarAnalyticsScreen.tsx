@@ -177,7 +177,7 @@ function CellarAnalyticsScreen() {
         <View style={styles.actionRow}>
           <TouchableOpacity
             style={styles.actionGhost}
-            onPress={() => Alert.alert('Coming Soon', 'Report download will be available in a future update.')}
+            onPress={() => Alert.alert('Report Download', 'Report download is not enabled for this build yet.')}
           >
             <Ionicons name="download-outline" size={16} color={colors.text} />
             <Text style={styles.actionGhostText}>DOWNLOAD REPORT</Text>

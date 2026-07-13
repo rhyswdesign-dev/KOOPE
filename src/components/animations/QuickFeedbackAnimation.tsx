@@ -10,7 +10,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 const { width } = Dimensions.get('window');
 
-interface QuickFeedbackAnimationProps {
+export interface QuickFeedbackAnimationProps {
   type: 'correct' | 'incorrect' | 'streak';
   visible: boolean;
   onComplete?: () => void;

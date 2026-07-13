@@ -142,7 +142,17 @@ export default function VaultScreen() {
       headerTitleStyle: { color: colors.text, fontWeight: '700', fontSize: 22, fontFamily: serif },
       headerShadowVisible: false,
       headerLeft: () => (
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginLeft: 16 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginLeft: 4 }}>
+          {/* Back button */}
+          <Pressable
+            hitSlop={12}
+            onPress={() => nav.goBack()}
+            accessible={true}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+          >
+            <Ionicons name="chevron-back" size={28} color={colors.text} />
+          </Pressable>
           {/* XP Balance */}
           <Pressable
             hitSlop={12}

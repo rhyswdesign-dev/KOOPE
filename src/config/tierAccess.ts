@@ -6,6 +6,12 @@
 export type UserTier = 'FREE' | 'PLUS' | 'PRO';
 
 /**
+ * Number of free recipe cards shown in the post-scan Answer Card's "unlocks N
+ * cocktails" hook, before the locked-card paywall tease.
+ */
+export const ANSWER_CARD_FREE_RECIPE_COUNT = 3;
+
+/**
  * FREE tier gets access to these 9 classic cocktails with full recipe cards
  */
 export const FREE_TIER_COCKTAILS = [
@@ -257,6 +263,7 @@ export const SPIRIT_STARTER_MAP: Record<string, string[]> = {
   cognac:   [],
   mezcal:   [],
   liqueur:  [],
+  campari:  ['negroni', 'americano'],
 };
 
 /**

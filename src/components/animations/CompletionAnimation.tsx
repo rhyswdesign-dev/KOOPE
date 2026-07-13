@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Completion Animation Component
  * Displays celebratory Lottie animations for various completion events
@@ -12,7 +11,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 const { width, height } = Dimensions.get('window');
 
-interface CompletionAnimationProps {
+export interface CompletionAnimationProps {
   type: 'question_correct' | 'lesson_complete' | 'perfect_score' | 'first_lesson' | 'streak' | 'level_up';
   message?: string;
   score?: number;
@@ -299,7 +298,7 @@ const styles = StyleSheet.create({
   },
   content: {
     backgroundColor: colors.surface,
-    borderRadius: radii.large,
+    borderRadius: radii.lg,
     padding: spacing(6),
     alignItems: 'center',
     maxWidth: width * 0.8,

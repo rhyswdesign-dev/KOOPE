@@ -1,4 +1,3 @@
-// @ts-nocheck
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Animated, Dimensions, Image } from 'react-native';
 import { Video, ResizeMode } from 'expo-av';
@@ -17,18 +16,18 @@ export default function SplashScreen({ onFinish }: SplashScreenProps) {
   const fadeAnim = React.useRef(new Animated.Value(0)).current;
   const scaleAnim = React.useRef(new Animated.Value(0.8)).current;
   const [isVideoLoaded, setIsVideoLoaded] = useState(false);
+  const [videoUnavailable, setVideoUnavailable] = useState(false);
 
   // Array of video sources - all your bartending segments
   const videoSources = [
-    require('../../assets/videos/bartending-splash.mov'),      // Video 1: Original MixedMindStudios video (30MB)
-    require('../../assets/videos/bartending-splash-2.mov'),    // Video 2: Second MixedMindStudios video (12MB)
-    require('../../assets/videos/bartending-splash-3.mov'),    // Video 3: Screen Recording 1 (12MB)
-    require('../../assets/videos/bartending-splash-4.mov'),    // Video 4: Screen Recording 2 (9.4MB)
-    require('../../assets/videos/bartending-splash-5.mov'),    // Video 5: Screen Recording 3 (8.0MB)
-    require('../../assets/videos/bartending-splash-6.mov'),    // Video 6: Screen Recording 4 (13MB)
-    require('../../assets/videos/bartending-splash-7.mov'),    // Video 7: Screen Recording 5 (10MB)
-    require('../../assets/videos/bartending-splash-8.mov'),    // Video 8: Screen Recording 6 (8.0MB)
-    require('../../assets/videos/bartending-splash-9.mov'),    // Video 9: Video 1780 display (13MB)
+    require('../../assets/videos/bartending-splash-2.mov'),
+    require('../../assets/videos/bartending-splash-3.mov'),
+    require('../../assets/videos/bartending-splash-4.mov'),
+    require('../../assets/videos/bartending-splash-5.mov'),
+    require('../../assets/videos/bartending-splash-6.mov'),
+    require('../../assets/videos/bartending-splash-7.mov'),
+    require('../../assets/videos/bartending-splash-8.mov'),
+    require('../../assets/videos/bartending-splash-9.mov'),
   ];
 
   // Randomly select a video each time the splash screen loads
@@ -54,36 +53,43 @@ export default function SplashScreen({ onFinish }: SplashScreenProps) {
       }),
     ]).start();
 
-    // Auto-finish after 5 seconds (longer to appreciate the video)
-    const timer = setTimeout(onFinish, 5000);
+    // Keep startup snappy; the video is decorative and should not block entry.
+    const timer = setTimeout(onFinish, 2800);
     return () => clearTimeout(timer);
   }, [fadeAnim, scaleAnim, onFinish]);
 
   return (
     <View style={styles.container}>
       {/* Video Background */}
-      <Video
-        style={styles.backgroundVideo}
-        source={selectedVideo}
-        shouldPlay={isVideoLoaded}
-        isLooping
-        isMuted
-        resizeMode={ResizeMode.COVER}
-        useNativeControls={false}
-        posterSource={undefined}
-        onLoad={() => {
-          log.info('SplashScreen', 'Video loaded successfully');
-          setIsVideoLoaded(true);
-        }}
-        onLoadStart={() => {
-          log.info('SplashScreen', 'Video started loading');
-          setIsVideoLoaded(false);
-        }}
-        onError={(error) => {
-          log.error('SplashScreen', 'Video error', error);
-          setIsVideoLoaded(false);
-        }}
+      <Image
+        source={require('../../assets/splash-icon.png')}
+        style={styles.fallbackImage}
+        resizeMode="cover"
       />
+      {!videoUnavailable ? (
+        <Video
+          style={styles.backgroundVideo}
+          source={selectedVideo}
+          shouldPlay
+          isLooping
+          isMuted
+          resizeMode={ResizeMode.COVER}
+          useNativeControls={false}
+          onLoad={() => {
+            log.info('SplashScreen', 'Video loaded successfully');
+            setIsVideoLoaded(true);
+          }}
+          onLoadStart={() => {
+            log.info('SplashScreen', 'Video started loading');
+            setIsVideoLoaded(false);
+          }}
+          onError={(error) => {
+            log.error('SplashScreen', 'Video error', error);
+            setVideoUnavailable(true);
+            setIsVideoLoaded(false);
+          }}
+        />
+      ) : null}
 
       {/* Video overlay for better text contrast */}
       <View style={styles.videoOverlay} />
@@ -100,7 +106,7 @@ export default function SplashScreen({ onFinish }: SplashScreenProps) {
       </Animated.View>
 
       {/* Loading indicator - show while video is loading */}
-      {!isVideoLoaded && (
+      {!isVideoLoaded && !videoUnavailable && (
         <View style={styles.footer}>
           <Text style={styles.loadingText}>Loading...</Text>
           <View style={styles.loadingDots}>
@@ -131,6 +137,15 @@ const styles = StyleSheet.create({
     height: height + 40,
     minWidth: width + 40,
     minHeight: height + 40,
+  },
+  fallbackImage: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    bottom: 0,
+    right: 0,
+    width,
+    height,
   },
   videoOverlay: {
     position: 'absolute',
@@ -171,7 +186,7 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: colors.white,
+    backgroundColor: '#FFFFFF',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.7,

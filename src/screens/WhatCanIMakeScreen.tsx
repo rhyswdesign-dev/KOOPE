@@ -605,8 +605,8 @@ export default function WhatCanIMakeScreen() {
 
       <FeedbackPromptModal
         featureKey="shopping_cart_recipe"
-        title="Shopping cart — coming soon"
-        body="We're building a smart cart that lets you add missing ingredients directly from any recipe and order them through the app — no separate store trips needed. Would you use this?"
+        title="Shopping cart feedback"
+        body="Would you use a smart cart that adds missing ingredients from recipes and helps plan your next bottle run?"
         visible={cartFeedbackVisible}
         onDismiss={() => setCartFeedbackVisible(false)}
       />
@@ -621,8 +621,8 @@ export default function WhatCanIMakeScreen() {
 
       <FeedbackPromptModal
         featureKey="ai_bartender"
-        title="Bartender Hotline — coming soon"
-        body="A direct line to a bartender who knows your inventory. Ask technique questions, get recipe ideas, and troubleshoot drinks in real time. Would you use this?"
+        title="Bartender Hotline feedback"
+        body="Would you use a direct line to an AI bartender that knows your inventory and helps troubleshoot recipes in real time?"
         visible={chatFeedbackVisible}
         onDismiss={() => setChatFeedbackVisible(false)}
       />

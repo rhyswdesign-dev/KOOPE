@@ -11,7 +11,7 @@
  * Start with generic search links, upgrade to API integrations later.
  */
 
-import { Linking } from 'react-native';
+import { Linking, Platform } from 'react-native';
 import { trackEvent, ANALYTICS_EVENTS, ANALYTICS_PROPS } from '../lib/analytics';
 import { log } from '../lib/logger';
 
@@ -212,6 +212,14 @@ export async function openAffiliateLink(
   source: string
 ): Promise<boolean> {
   try {
+    if (Platform.OS === 'ios') {
+      log.warn('Affiliate', 'Blocked affiliate open on iOS for App Store compliance', {
+        provider: link.provider,
+        source,
+      });
+      return false;
+    }
+
     // Track the click
     trackEvent(ANALYTICS_EVENTS.AFFILIATE_LINK_CLICKED, {
       [ANALYTICS_PROPS.AFFILIATE_PROVIDER]: link.provider,

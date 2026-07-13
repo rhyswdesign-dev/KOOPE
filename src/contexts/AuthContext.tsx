@@ -163,7 +163,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const signInWithEmail = async (email: string, password: string) => {
     try {
       log.info('AuthContext', 'Email Sign-In initiated');
-      console.log('📧 Starting Email Sign-In...', { email });
+      console.log('📧 Starting Email Sign-In...');
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,

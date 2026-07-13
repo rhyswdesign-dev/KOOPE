@@ -19,6 +19,8 @@
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSCameraUsageDescription": "KOOPE uses your camera to scan bottles, capture recipe cards, and detect ingredients.",
+        "NSMicrophoneUsageDescription": "KOOPE uses your microphone for optional voice recipe capture and voice search.",
+        "NSLocationWhenInUseUsageDescription": "KOOPE uses your location only when you ask to find nearby support resources.",
         "NSPhotoLibraryUsageDescription": "KOOPE needs photo library access so you can import recipe and ingredient photos.",
         "NSPhotoLibraryAddUsageDescription": "KOOPE saves edited photos and recipe images to your library when you choose to export them."
       },

@@ -60,7 +60,9 @@
     <key>NSCameraUsageDescription</key>
     <string>KOOPE uses your camera to scan bottles, capture recipe cards, and detect ingredients.</string>
     <key>NSMicrophoneUsageDescription</key>
-    <string>Allow $(PRODUCT_NAME) to access your microphone</string>
+    <string>KOOPE uses your microphone for optional voice recipe capture and voice search.</string>
+    <key>NSLocationWhenInUseUsageDescription</key>
+    <string>KOOPE uses your location only when you ask to find nearby support resources.</string>
     <key>NSPhotoLibraryAddUsageDescription</key>
     <string>KOOPE saves edited photos and recipe images to your library when you choose to export them.</string>
     <key>NSPhotoLibraryUsageDescription</key>

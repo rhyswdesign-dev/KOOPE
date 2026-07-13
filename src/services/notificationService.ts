@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * NOTIFICATION SERVICE
  * Comprehensive push notification and in-app notification system
@@ -115,12 +114,14 @@ class NotificationService {
 
       // Configure notification behavior
       Notifications.setNotificationHandler({
-        handleNotification: async (notification) => {
+        handleNotification: async () => {
           // Check if we're in quiet hours
           const inQuietHours = await this.isInQuietHours();
 
           return {
             shouldShowAlert: !inQuietHours,
+            shouldShowBanner: !inQuietHours,
+            shouldShowList: !inQuietHours,
             shouldPlaySound: !inQuietHours,
             shouldSetBadge: true,
           };
@@ -234,7 +235,9 @@ class NotificationService {
       data: notification.request.content.data,
       timestamp: Date.now(),
       read: false,
-      actionUrl: notification.request.content.data?.actionUrl,
+      actionUrl: typeof notification.request.content.data?.actionUrl === 'string'
+        ? notification.request.content.data.actionUrl
+        : undefined,
     };
 
     // Add to in-app notifications
@@ -251,7 +254,7 @@ class NotificationService {
   private handleNotificationResponse(response: Notifications.NotificationResponse) {
     const data = response.notification.request.content.data;
 
-    if (data?.actionUrl) {
+    if (typeof data?.actionUrl === 'string') {
       // Handle deep link navigation
       log.nav('NotificationService', data.actionUrl, { data });
       // You would integrate with your navigation service here
@@ -285,6 +288,7 @@ class NotificationService {
         sound: true,
       },
       trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
         seconds: delayMinutes * 60,
       },
     });
@@ -314,6 +318,7 @@ class NotificationService {
         sound: true,
       },
       trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
         seconds: 60, // 1 minute delay for immediate feedback
       },
     });
@@ -345,6 +350,7 @@ class NotificationService {
         sound: true,
       },
       trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
         seconds: 2, // Almost immediate for celebration
       },
     });
@@ -382,6 +388,7 @@ class NotificationService {
         sound: true,
       },
       trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DATE,
         date: tomorrow,
       },
     });
@@ -594,7 +601,7 @@ class NotificationService {
         },
         sound: true,
       },
-      trigger: { seconds: 2 },
+      trigger: { type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL, seconds: 2 },
     });
 
     log.info('NotificationService', 'Certification unlock notification scheduled', { certTitle });
@@ -618,7 +625,7 @@ class NotificationService {
         },
         sound: true,
       },
-      trigger: { seconds: 60 * 60 * 24 }, // 24 hours
+      trigger: { type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL, seconds: 60 * 60 * 24 }, // 24 hours
     });
     log.info('NotificationService', 'Low stock alert scheduled', { itemId, itemName });
   }
@@ -657,7 +664,7 @@ class NotificationService {
       await Notifications.scheduleNotificationAsync({
         identifier: `trial_notification_day${daysFromStart}`,
         content: { title, body, data: { type: 'trial' }, sound: true },
-        trigger: { seconds: secondsFromNow },
+        trigger: { type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL, seconds: secondsFromNow },
       }).catch((err) => log.warn('NotificationService', 'Trial notif failed', err));
     };
 
@@ -701,7 +708,7 @@ class NotificationService {
           data: { type: 'test' },
           sound: true,
         },
-        trigger: { seconds: 2 },
+        trigger: { type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL, seconds: 2 },
       });
     }
   }

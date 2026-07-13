@@ -206,6 +206,17 @@ export const PAYWALL_TRIGGERS: Record<string, PaywallTrigger> = {
     ctaText: 'Claim Drops with KŌOPE+',
     analyticsEvent: 'paywall_trigger_weekly_drop_nudge',
   },
+
+  // T15 — Post-scan Answer Card recipe hook (tap on the locked 4th recipe card)
+  T15: {
+    id: 'T15',
+    featureKey: 'inventory_unlimited',
+    requiredPlan: 'plus',
+    mode: 'hard',
+    message: 'This bottle unlocks even more cocktails with KŌOPE+ — your full recipe library, matched to your shelf.',
+    ctaText: 'Unlock KŌOPE+',
+    analyticsEvent: 'paywall_trigger_recipe_hook',
+  },
 };
 
 // ============================================================================

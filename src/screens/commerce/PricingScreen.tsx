@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Pressable,
   Image,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -116,6 +117,8 @@ export default function PricingScreen() {
   const { addToCart, getCartItemCount } = useCart();
   const [selectedTab, setSelectedTab] = useState<'plans' | 'products'>('plans');
 
+  const isIOS = Platform.OS === 'ios';
+
   useLayoutEffect(() => {
     nav.setOptions({
       title: 'Premium & Products',
@@ -139,6 +142,10 @@ export default function PricingScreen() {
   }, [nav, getCartItemCount()]);
 
   const handleSelectPlan = (plan: PricingPlan) => {
+    if (isIOS) {
+      nav.navigate('Paywall', { source: 'pricing_screen_ios_gate', displayCloseButton: true });
+      return;
+    }
     addToCart({
       type: 'plan',
       planId: plan.id,
@@ -150,6 +157,9 @@ export default function PricingScreen() {
   };
 
   const handleAddProduct = (product: Product) => {
+    if (isIOS) {
+      return;
+    }
     if (!product.inStock) return;
     
     addToCart({
@@ -261,6 +271,26 @@ export default function PricingScreen() {
     </View>
   );
 
+  if (isIOS) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.iosComplianceCard}>
+          <Text style={styles.iosComplianceTitle}>Store purchases are disabled on iOS</Text>
+          <Text style={styles.iosComplianceBody}>
+            This build only supports App Store managed subscriptions on iOS.
+          </Text>
+          <TouchableOpacity
+            style={styles.iosComplianceButton}
+            onPress={() => nav.navigate('Paywall', { source: 'pricing_screen_ios_notice', displayCloseButton: true })}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.iosComplianceButtonText}>View Subscription Options</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       {/* Tab Selector */}
@@ -324,6 +354,38 @@ const styles = StyleSheet.create({
     margin: spacing(2),
     borderRadius: radii.lg,
     padding: spacing(0.5),
+  },
+  iosComplianceCard: {
+    margin: spacing(2),
+    backgroundColor: colors.card,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.line,
+    padding: spacing(2),
+    gap: spacing(1),
+  },
+  iosComplianceTitle: {
+    color: colors.text,
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  iosComplianceBody: {
+    color: colors.subtext,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  iosComplianceButton: {
+    marginTop: spacing(1),
+    alignSelf: 'flex-start',
+    backgroundColor: colors.accent,
+    borderRadius: radii.md,
+    paddingHorizontal: spacing(2),
+    paddingVertical: spacing(1.25),
+  },
+  iosComplianceButtonText: {
+    color: colors.white,
+    fontSize: 14,
+    fontWeight: '700',
   },
   tab: {
     flex: 1,

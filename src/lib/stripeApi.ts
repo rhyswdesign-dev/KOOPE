@@ -6,6 +6,7 @@
 import { log } from './logger';
 import { CURRENCY } from '../config/stripe';
 import Constants from 'expo-constants';
+import { supabase } from './supabase';
 
 // Supabase Edge Functions URL
 // Functions are deployed at: https://<project-ref>.supabase.co/functions/v1/<function-name>
@@ -35,21 +36,24 @@ export async function createPaymentIntent(
   params: CreatePaymentIntentParams
 ): Promise<CreatePaymentIntentResponse | null> {
   try {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session?.access_token) {
+      log.error('StripeAPI', 'Not authenticated')
+      return null
+    }
+
     const response = await fetch(`${API_BASE_URL}/create-payment-intent`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`,
       },
       body: JSON.stringify({
         amount: params.amount,
         currency: params.currency || CURRENCY,
-        userId: params.userId,
+        // userId is derived server-side from the JWT — do not send it
         paymentMethodId: params.paymentMethodId,
-        metadata: {
-          type: 'vault_purchase',
-          userId: params.userId,
-          ...params.metadata,
-        },
+        metadata: params.metadata,
       }),
     });
 
@@ -81,14 +85,18 @@ export async function confirmPaymentIntent(
   paymentIntentId: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session?.access_token) {
+      return { success: false, error: 'Not authenticated' }
+    }
+
     const response = await fetch(`${API_BASE_URL}/confirm-payment-intent`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`,
       },
-      body: JSON.stringify({
-        paymentIntentId,
-      }),
+      body: JSON.stringify({ paymentIntentId }),
     });
 
     if (!response.ok) {

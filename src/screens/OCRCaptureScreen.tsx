@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useLayoutEffect } from 'react';
+import React, { useState, useRef, useLayoutEffect } from 'react';
 import {
   View,
   Text,
@@ -21,7 +21,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { colors, spacing, radii, serif } from '../theme/tokens';
 import { OCRService } from '../services/ocrService';
-import { AIRecipeFormatter } from '../services/aiRecipeFormatter';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { log } from '../lib/logger';
 
@@ -86,9 +85,9 @@ export default function OCRCaptureScreen() {
   const [extractedText, setExtractedText] = useState<string | null>(null);
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [imageDims, setImageDims] = useState({ w: 1, h: 1 });
-  const [visionLoading, setVisionLoading] = useState(false);
   // True when the text was extracted from a cropped menu region
   const [fromMenu, setFromMenu] = useState(false);
+  const smartSelRef = useRef<SelectionBox | null>(null);
 
   // Crop state — stored as absolute px within the displayed image container
   const cropContainerRef = useRef<{ x: number; y: number; w: number; h: number }>({
@@ -96,8 +95,6 @@ export default function OCRCaptureScreen() {
   });
   // Selection box in px (within the displayed image)
   const [sel, setSel] = useState({ x: 40, y: 40, w: 220, h: 160 });
-  const selRef = useRef(sel);
-  selRef.current = sel;
 
   useLayoutEffect(() => {
     nav.setOptions({
@@ -109,32 +106,7 @@ export default function OCRCaptureScreen() {
     });
   }, [nav]);
 
-  // ─── Image capture ──────────────────────────────────────────────────────
-
-  const captureAndExtract = async (source: 'camera' | 'gallery') => {
-    try {
-      setMode('loading');
-      setLoadingLabel('Reading recipe...');
-      const result = source === 'camera'
-        ? await OCRService.takePhotoAndExtractText()
-        : await OCRService.pickImageAndExtractText();
-
-      if (result) {
-        setFromMenu(false);
-        setExtractedText(result.text);
-        setImageUri(result.imageUri);
-        setMode('result');
-      } else {
-        setMode('initial');
-      }
-    } catch (error: any) {
-      log.error('OCRCaptureScreen', 'Capture error', error);
-      Alert.alert('Error', 'Could not process the image. Please try again.');
-      setMode('initial');
-    }
-  };
-
-  // ─── Menu isolation: capture image then go to crop mode ─────────────────
+  // ─── Image capture & crop mode ───────────────────────────────────────────
 
   const captureForCrop = async (source: 'camera' | 'gallery') => {
     try {
@@ -147,12 +119,29 @@ export default function OCRCaptureScreen() {
       if (!result) { setMode('initial'); return; }
 
       // Get image dimensions
+      let capturedW = 0;
+      let capturedH = 0;
       await new Promise<void>((resolve) => {
         Image.getSize(result.imageUri, (w, h) => {
+          capturedW = w;
+          capturedH = h;
           setImageDims({ w, h });
           resolve();
         }, () => resolve());
       });
+
+      // Smart auto-detect recipe block (best effort)
+      try {
+        setLoadingLabel('Detecting recipe area...');
+        const region = await OCRService.detectRecipeRegion(
+          result.imageUri,
+          capturedW || 0,
+          capturedH || 0
+        );
+        smartSelRef.current = region;
+      } catch {
+        smartSelRef.current = null;
+      }
 
       setFromMenu(true);
       setImageUri(result.imageUri);
@@ -176,7 +165,9 @@ export default function OCRCaptureScreen() {
     try {
       const container = cropContainerRef.current;
       if (container.w === 0) {
-        // Fallback — no container measured yet, just use full image
+        // Fallback — no container measured yet: OCR full image
+        const text = await OCRService.extractTextFromImage(imageUri);
+        setExtractedText(text);
         setMode('result');
         return;
       }
@@ -190,8 +181,8 @@ export default function OCRCaptureScreen() {
       // Scale to actual image pixel dimensions
       const cropX = Math.max(0, Math.round(ratioX * imageDims.w));
       const cropY = Math.max(0, Math.round(ratioY * imageDims.h));
-      const cropW = Math.min(imageDims.w - cropX, Math.round(ratioW * imageDims.w));
-      const cropH = Math.min(imageDims.h - cropY, Math.round(ratioH * imageDims.h));
+      const cropW = Math.max(1, Math.min(imageDims.w - cropX, Math.round(ratioW * imageDims.w)));
+      const cropH = Math.max(1, Math.min(imageDims.h - cropY, Math.round(ratioH * imageDims.h)));
 
       const cropped = await ImageManipulator.manipulateAsync(
         imageUri,
@@ -208,93 +199,59 @@ export default function OCRCaptureScreen() {
       setMode('result');
     } catch (error: any) {
       log.error('OCRCaptureScreen', 'Crop extract error', error);
-      // If crop fails, proceed with original full image
+      // If crop fails, proceed with original full image OCR
+      try {
+        const fallbackText = await OCRService.extractTextFromImage(imageUri);
+        setExtractedText(fallbackText);
+      } catch (inner: any) {
+        log.error('OCRCaptureScreen', 'Fallback full-image OCR failed', inner);
+      }
       setMode('result');
     }
   };
 
   // ─── Format & save ───────────────────────────────────────────────────────
 
-  const handleFormatAndSave = async () => {
+  const handleFormatAndSave = () => {
     if (!extractedText) return;
-
-    if (imageUri) {
-      try {
-        setVisionLoading(true);
-        const analysisResult = await AIRecipeFormatter.analyzeRecipeImage(imageUri, 'cocktail');
-        nav.navigate('AIRecipeFormat', {
-          recipe: {
-            id: `vision-${Date.now()}`,
-            title: analysisResult.title,
-            sourceUrl: null,
-            imageUrl: imageUri,
-            extractedText: `Vision Analysis: ${analysisResult.description}`,
-            userNotes: 'Recipe scanned from image',
-            fromMenu,
-            createdAt: new Date(),
-            visionAnalysis: analysisResult,
-          },
-        });
-      } catch (error: any) {
-        log.warn('OCRCaptureScreen', 'Vision failed, falling back to text', error);
-        nav.navigate('AIRecipeFormat', {
-          recipe: {
-            id: `ocr-${Date.now()}`,
-            title: 'Scanned Recipe',
-            sourceUrl: null,
-            imageUrl: imageUri,
-            extractedText,
-            userNotes: 'Recipe extracted from image',
-            fromMenu,
-            createdAt: new Date(),
-          },
-        });
-      } finally {
-        setVisionLoading(false);
-      }
-    } else {
-      nav.navigate('AIRecipeFormat', {
-        recipe: {
-          id: `ocr-${Date.now()}`,
-          title: 'Scanned Recipe',
-          sourceUrl: null,
-          imageUrl: null,
-          extractedText,
-          userNotes: 'Recipe extracted from image',
-          fromMenu,
-          createdAt: new Date(),
-        },
-      });
-    }
+    // Pass the raw OCR text directly — AIRecipeFormatScreen calls the AI formatter
+    // with this text to produce structured ingredients + steps. No vision analysis here;
+    // vision mocks were returning generic recipes unrelated to the actual scan.
+    nav.navigate('AIRecipeFormat', {
+      recipe: {
+        id: `ocr-${Date.now()}`,
+        title: 'Scanned Recipe',
+        sourceUrl: null,
+        imageUrl: imageUri ?? null,
+        extractedText,
+        userNotes: 'Recipe extracted from image',
+        fromMenu,
+        createdAt: new Date(),
+      },
+    });
   };
 
   // ─── Crop PanResponder helpers ───────────────────────────────────────────
 
   // We use four corner handles + a drag-whole-box handle
-  const makeDragResponder = useCallback((
-    onMove: (dx: number, dy: number) => void
-  ) => {
-    const start = { x: 0, y: 0 };
+  const boxPan = useRef((() => {
+    let last = { dx: 0, dy: 0 };
     return PanResponder.create({
       onStartShouldSetPanResponder: () => true,
-      onPanResponderGrant: (_, gs) => {
-        start.x = gs.x0;
-        start.y = gs.y0;
-      },
+      onPanResponderGrant: () => { last = { dx: 0, dy: 0 }; },
       onPanResponderMove: (_, gs) => {
-        onMove(gs.dx, gs.dy);
+        const ddx = gs.dx - last.dx;
+        const ddy = gs.dy - last.dy;
+        last = { dx: gs.dx, dy: gs.dy };
+        const c = cropContainerRef.current;
+        setSel(prev => ({
+          ...prev,
+          x: Math.max(0, Math.min(c.w - prev.w, prev.x + ddx)),
+          y: Math.max(0, Math.min(c.h - prev.h, prev.y + ddy)),
+        }));
       },
     });
-  }, []);
-
-  const boxPan = useRef(makeDragResponder((dx, dy) => {
-    const c = cropContainerRef.current;
-    setSel(prev => ({
-      ...prev,
-      x: Math.max(0, Math.min(c.w - prev.w, prev.x + dx)),
-      y: Math.max(0, Math.min(c.h - prev.h, prev.y + dy)),
-    }));
-  })).current;
+  })()).current;
 
   // Corner handles
   const makeCornerPan = (corner: 'tl' | 'tr' | 'bl' | 'br') => {
@@ -348,26 +305,37 @@ export default function OCRCaptureScreen() {
     // Image fills width, height is proportional
     const displayW = SCREEN_WIDTH;
     const displayH = Math.round((imageDims.h / imageDims.w) * displayW);
-    const containerH = Math.min(displayH, SCREEN_HEIGHT * 0.58);
+    const containerH = Math.min(displayH, SCREEN_HEIGHT * 0.55);
+
+    const rotate = async (deg: number, resetDims = false) => {
+      if (!imageUri) return;
+      const result = await ImageManipulator.manipulateAsync(
+        imageUri,
+        [{ rotate: deg }],
+        { compress: 0.9, format: ImageManipulator.SaveFormat.JPEG }
+      );
+      if (resetDims) {
+        await new Promise<void>((resolve) => {
+          Image.getSize(result.uri, (w, h) => { setImageDims({ w, h }); resolve(); }, () => resolve());
+        });
+      }
+      setImageUri(result.uri);
+    };
 
     return (
       <View style={styles.cropScreen}>
         <StatusBar barStyle="light-content" />
 
         {/* Header */}
-        <View style={[styles.cropHeader, { paddingTop: insets.top + 8 }]}>
-          <TouchableOpacity onPress={() => setMode('initial')} style={styles.cropHeaderBtn}>
-            <Ionicons name="close" size={22} color={colors.text} />
+        <View style={[styles.cropHeader, { paddingTop: insets.top + 6 }]}>
+          <TouchableOpacity onPress={() => setMode('initial')} style={styles.cropCloseBtn} activeOpacity={0.7}>
+            <Ionicons name="close" size={18} color={colors.text} />
           </TouchableOpacity>
-          <Text style={styles.cropHeaderTitle}>Select Recipe</Text>
+          <View style={styles.cropHeaderCenter}>
+            <Text style={styles.cropHeaderTitle}>Crop Selection</Text>
+            <Text style={styles.cropHeaderSub}>Drag corners to resize</Text>
+          </View>
           <View style={{ width: 36 }} />
-        </View>
-
-        {/* Instruction */}
-        <View style={styles.cropInstructionWrap}>
-          <Text style={styles.cropInstruction}>
-            Drag the box over the recipe you want to extract
-          </Text>
         </View>
 
         {/* Image + selection overlay */}
@@ -376,10 +344,21 @@ export default function OCRCaptureScreen() {
           onLayout={e => {
             const { width, height } = e.nativeEvent.layout;
             cropContainerRef.current = { x: 0, y: 0, w: width, h: height };
-            // Centre the initial selection
-            const sw = width * 0.75;
-            const sh = height * 0.4;
-            setSel({ x: (width - sw) / 2, y: (height - sh) / 2, w: sw, h: sh });
+            const smart = smartSelRef.current;
+            if (smart) {
+              // Add a generous left buffer so detected region doesn't clip first characters
+              const rawX = smart.x * width;
+              const x = Math.max(0, rawX - 12);
+              const rawW = smart.w * width + (rawX - x);
+              const w = Math.max(MIN_SIZE, Math.min(width - x, rawW + 12));
+              const y = Math.max(0, Math.min(height - MIN_SIZE, smart.y * height));
+              const h = Math.max(MIN_SIZE, Math.min(height - y, smart.h * height));
+              setSel({ x, y, w, h });
+            } else {
+              // Default: full width with small horizontal margin so user sees the crop box
+              const margin = 4;
+              setSel({ x: margin, y: height * 0.1, w: width - margin * 2, h: height * 0.8 });
+            }
           }}
         >
           <Image
@@ -388,47 +367,21 @@ export default function OCRCaptureScreen() {
             resizeMode="contain"
           />
 
-          {/* Dark overlay — four quadrants around selection */}
+          {/* Dark scrim — four quadrants around selection */}
           <View style={StyleSheet.absoluteFill} pointerEvents="none">
-            {/* Top */}
             <View style={[styles.overlay, { top: 0, left: 0, right: 0, height: sel.y }]} />
-            {/* Bottom */}
-            <View style={[styles.overlay, {
-              top: sel.y + sel.h,
-              left: 0, right: 0,
-              bottom: 0,
-            }]} />
-            {/* Left */}
-            <View style={[styles.overlay, {
-              top: sel.y, left: 0,
-              width: sel.x, height: sel.h,
-            }]} />
-            {/* Right */}
-            <View style={[styles.overlay, {
-              top: sel.y, left: sel.x + sel.w,
-              right: 0, height: sel.h,
-            }]} />
+            <View style={[styles.overlay, { top: sel.y + sel.h, left: 0, right: 0, bottom: 0 }]} />
+            <View style={[styles.overlay, { top: sel.y, left: 0, width: sel.x, height: sel.h }]} />
+            <View style={[styles.overlay, { top: sel.y, left: sel.x + sel.w, right: 0, height: sel.h }]} />
           </View>
 
-          {/* Selection border */}
+          {/* Selection box */}
           <View
-            style={[styles.selectionBorder, {
-              left: sel.x, top: sel.y,
-              width: sel.w, height: sel.h,
-            }]}
+            style={[styles.selectionBorder, { left: sel.x, top: sel.y, width: sel.w, height: sel.h }]}
             pointerEvents="box-none"
           >
             {/* Drag whole box */}
-            <View
-              style={styles.selectionDragArea}
-              {...boxPan.panHandlers}
-            />
-
-            {/* Corner handles */}
-            <View style={[styles.handle, styles.handleTL]} {...tlPan.panHandlers} />
-            <View style={[styles.handle, styles.handleTR]} {...trPan.panHandlers} />
-            <View style={[styles.handle, styles.handleBL]} {...blPan.panHandlers} />
-            <View style={[styles.handle, styles.handleBR]} {...brPan.panHandlers} />
+            <View style={styles.selectionDragArea} {...boxPan.panHandlers} />
 
             {/* Rule-of-thirds guides */}
             <View pointerEvents="none" style={StyleSheet.absoluteFill}>
@@ -437,22 +390,94 @@ export default function OCRCaptureScreen() {
               <View style={[styles.gridLine, styles.gridH1]} />
               <View style={[styles.gridLine, styles.gridH2]} />
             </View>
+
+            {/* Visible L-shaped corner brackets (pointerEvents none — touch handled by handles below) */}
+            <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+              {/* Top-left */}
+              <View style={[styles.cornerBracket, styles.cornerTL]}>
+                <View style={[styles.bracketArm, styles.bracketArmH]} />
+                <View style={[styles.bracketArm, styles.bracketArmV]} />
+                <View style={styles.bracketDot} />
+              </View>
+              {/* Top-right */}
+              <View style={[styles.cornerBracket, styles.cornerTR]}>
+                <View style={[styles.bracketArm, styles.bracketArmH, styles.bracketArmRight]} />
+                <View style={[styles.bracketArm, styles.bracketArmV]} />
+                <View style={styles.bracketDot} />
+              </View>
+              {/* Bottom-left */}
+              <View style={[styles.cornerBracket, styles.cornerBL]}>
+                <View style={[styles.bracketArm, styles.bracketArmH]} />
+                <View style={[styles.bracketArm, styles.bracketArmV, styles.bracketArmBottom]} />
+                <View style={[styles.bracketDot, styles.bracketDotBottom]} />
+              </View>
+              {/* Bottom-right */}
+              <View style={[styles.cornerBracket, styles.cornerBR]}>
+                <View style={[styles.bracketArm, styles.bracketArmH, styles.bracketArmRight]} />
+                <View style={[styles.bracketArm, styles.bracketArmV, styles.bracketArmBottom]} />
+                <View style={[styles.bracketDot, styles.bracketDotBottom]} />
+              </View>
+            </View>
+
+            {/* Invisible touch handles (sized for fat-finger accuracy) */}
+            <View style={[styles.handle, styles.handleTL]} {...tlPan.panHandlers} />
+            <View style={[styles.handle, styles.handleTR]} {...trPan.panHandlers} />
+            <View style={[styles.handle, styles.handleBL]} {...blPan.panHandlers} />
+            <View style={[styles.handle, styles.handleBR]} {...brPan.panHandlers} />
           </View>
         </View>
 
-        {/* Actions */}
-        <View style={[styles.cropActions, { paddingBottom: insets.bottom + spacing(2) }]}>
+        {/* Bottom panel */}
+        <View style={[styles.cropBottomPanel, { paddingBottom: Math.max(insets.bottom, 16) + 8 }]}>
+          {/* Rotate row */}
+          <View style={styles.cropRotateRow}>
+            <Text style={styles.cropRotateLabel}>Rotate</Text>
+            <View style={styles.cropRotateBtns}>
+              {[
+                { label: '−2°', deg: -2 },
+                { label: '+2°', deg: 2 },
+                { label: '↺ 90°', deg: -90, reset: true },
+                { label: '↻ 90°', deg: 90, reset: true },
+              ].map(({ label, deg, reset }) => (
+                <TouchableOpacity
+                  key={label}
+                  style={styles.cropRotateBtn}
+                  onPress={() => rotate(deg, reset)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.cropRotateBtnText}>{label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          {/* Divider */}
+          <View style={styles.cropDivider} />
+
+          {/* Extract CTA */}
           <TouchableOpacity style={styles.cropExtractBtn} onPress={cropAndExtract} activeOpacity={0.85}>
-            <Ionicons name="scan" size={20} color={colors.goldText} />
+            <Ionicons name="scan" size={18} color={colors.goldText} />
             <Text style={styles.cropExtractText}>Extract This Recipe</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.cropSkipBtn} onPress={() => {
-            // Skip crop — use full image
-            setMode('loading');
-            setLoadingLabel('Reading recipe...');
-            cropAndExtract();
-          }}>
-            <Text style={styles.cropSkipText}>Use full image</Text>
+
+          {/* Skip link — bypasses crop, OCRs the original full image */}
+          <TouchableOpacity
+            style={styles.cropSkipBtn}
+            onPress={async () => {
+              if (!imageUri) return;
+              setMode('loading');
+              setLoadingLabel('Reading recipe...');
+              try {
+                const text = await OCRService.extractTextFromImage(imageUri);
+                setExtractedText(text);
+              } catch {
+                setExtractedText('');
+              }
+              setMode('result');
+            }}
+            activeOpacity={0.65}
+          >
+            <Text style={styles.cropSkipText}>Use full image instead</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -557,18 +582,12 @@ export default function OCRCaptureScreen() {
           {/* ── Actions ── */}
           <View style={styles.actionsSection}>
             <TouchableOpacity
-              style={[styles.primaryButton, visionLoading && styles.buttonDisabled]}
+              style={styles.primaryButton}
               onPress={handleFormatAndSave}
-              disabled={visionLoading}
               activeOpacity={0.82}
             >
-              {visionLoading
-                ? <ActivityIndicator size="small" color={colors.goldText} />
-                : <Ionicons name="sparkles" size={18} color={colors.goldText} />
-              }
-              <Text style={styles.primaryButtonText}>
-                {visionLoading ? 'Formatting...' : 'Format & Save to My Recipes'}
-              </Text>
+              <Ionicons name="sparkles" size={18} color={colors.goldText} />
+              <Text style={styles.primaryButtonText}>Format & Save to My Recipes</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.secondaryButton} onPress={() => {
@@ -618,14 +637,14 @@ export default function OCRCaptureScreen() {
 
         {/* Standard scan */}
         <View style={styles.buttonGroup}>
-          <TouchableOpacity style={styles.primaryButton} onPress={() => captureAndExtract('camera')} activeOpacity={0.82}>
+          <TouchableOpacity style={styles.primaryButton} onPress={() => captureForCrop('camera')} activeOpacity={0.82}>
             <Ionicons name="camera" size={20} color={colors.goldText} />
-            <Text style={styles.primaryButtonText}>Take Photo</Text>
+            <Text style={styles.primaryButtonText}>Take Photo & Crop</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.secondaryButton} onPress={() => captureAndExtract('gallery')} activeOpacity={0.75}>
+          <TouchableOpacity style={styles.secondaryButton} onPress={() => captureForCrop('gallery')} activeOpacity={0.75}>
             <Ionicons name="images-outline" size={18} color={colors.gold} />
-            <Text style={styles.secondaryButtonText}>Choose from Gallery</Text>
+            <Text style={styles.secondaryButtonText}>Choose & Crop</Text>
           </TouchableOpacity>
         </View>
 
@@ -721,21 +740,26 @@ const styles = StyleSheet.create({
   menuIsolateSecondary: { fontSize: 12, color: colors.subtext, marginTop: 2 },
 
   // Crop screen
-  cropScreen: { flex: 1, backgroundColor: '#0A0704' },
+  cropScreen: { flex: 1, backgroundColor: '#080604' },
   cropHeader: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: spacing(2), paddingBottom: spacing(1),
+    paddingHorizontal: spacing(2), paddingBottom: spacing(1.5),
+    borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)',
   },
-  cropHeaderBtn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
-  cropHeaderTitle: { fontFamily: serif, fontSize: 17, fontWeight: '700', color: colors.text },
-  cropInstructionWrap: { paddingHorizontal: spacing(3), paddingBottom: spacing(2) },
-  cropInstruction: { fontSize: 13, color: colors.subtext, textAlign: 'center' },
+  cropCloseBtn: {
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  cropHeaderCenter: { alignItems: 'center', gap: 2 },
+  cropHeaderTitle: { fontFamily: serif, fontSize: 16, fontWeight: '700', color: colors.text },
+  cropHeaderSub: { fontSize: 11, color: colors.subtext, letterSpacing: 0.3 },
   cropImageContainer: { width: SCREEN_WIDTH, overflow: 'hidden' },
-  overlay: { position: 'absolute', backgroundColor: 'rgba(0,0,0,0.62)' },
+  overlay: { position: 'absolute', backgroundColor: 'rgba(0,0,0,0.68)' },
   selectionBorder: {
     position: 'absolute',
-    borderWidth: 1.5,
-    borderColor: colors.gold,
+    borderWidth: 1,
+    borderColor: 'rgba(214,138,56,0.5)',
   },
   selectionDragArea: {
     position: 'absolute',
@@ -753,24 +777,64 @@ const styles = StyleSheet.create({
   handleTR: { top: -HANDLE_HIT / 2, right: -HANDLE_HIT / 2 },
   handleBL: { bottom: -HANDLE_HIT / 2, left: -HANDLE_HIT / 2 },
   handleBR: { bottom: -HANDLE_HIT / 2, right: -HANDLE_HIT / 2 },
-  // Visual handle nub rendered via border
-  gridLine: { position: 'absolute', backgroundColor: 'rgba(214,138,56,0.25)' },
+  // ── L-shaped corner brackets ──────────────────────────────────────────────
+  cornerBracket: { position: 'absolute', width: 22, height: 22 },
+  cornerTL: { top: -2, left: -2 },
+  cornerTR: { top: -2, right: -2 },
+  cornerBL: { bottom: -2, left: -2 },
+  cornerBR: { bottom: -2, right: -2 },
+  bracketArm: { position: 'absolute', backgroundColor: colors.gold, borderRadius: 1.5 },
+  bracketArmH: { left: 0, top: 0, width: 22, height: 3 },
+  bracketArmRight: { left: undefined, right: 0 },
+  bracketArmV: { left: 0, top: 0, width: 3, height: 22 },
+  bracketArmBottom: { top: undefined, bottom: 0 },
+  bracketDot: { position: 'absolute', top: 0, left: 0, width: 5, height: 5, borderRadius: 2.5, backgroundColor: colors.gold },
+  bracketDotBottom: { top: undefined, bottom: 0 },
+  // ── Rule-of-thirds ────────────────────────────────────────────────────────
+  gridLine: { position: 'absolute', backgroundColor: 'rgba(214,138,56,0.18)' },
   gridV1: { left: '33.3%', top: 0, bottom: 0, width: 1 },
   gridV2: { left: '66.6%', top: 0, bottom: 0, width: 1 },
   gridH1: { top: '33.3%', left: 0, right: 0, height: 1 },
   gridH2: { top: '66.6%', left: 0, right: 0, height: 1 },
-  cropActions: {
+  // ── Bottom panel ──────────────────────────────────────────────────────────
+  cropBottomPanel: {
     flex: 1, justifyContent: 'flex-end',
-    paddingHorizontal: spacing(3), paddingTop: spacing(3), gap: spacing(1.5),
+    paddingHorizontal: spacing(3),
+    paddingTop: spacing(2.5),
+    backgroundColor: '#080604',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(214,138,56,0.15)',
+  },
+  cropRotateRow: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing(2),
+    marginBottom: spacing(2),
+  },
+  cropRotateLabel: {
+    fontSize: 11, fontWeight: '700', letterSpacing: 1, color: colors.subtext,
+    textTransform: 'uppercase', width: 44,
+  },
+  cropRotateBtns: { flex: 1, flexDirection: 'row', gap: spacing(1) },
+  cropRotateBtn: {
+    flex: 1, minHeight: 38, borderRadius: 10,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.09)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  cropRotateBtnText: { color: colors.text, fontSize: 12, fontWeight: '600' },
+  cropDivider: {
+    height: 1, backgroundColor: 'rgba(255,255,255,0.06)', marginBottom: spacing(2),
   },
   cropExtractBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     backgroundColor: colors.gold, borderRadius: radii.pill,
     paddingVertical: spacing(2), gap: spacing(1.25),
+    marginBottom: spacing(1.5),
+    shadowColor: colors.gold, shadowOpacity: 0.35, shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 }, elevation: 6,
   },
   cropExtractText: { fontSize: 16, fontWeight: '700', color: colors.goldText },
-  cropSkipBtn: { alignItems: 'center', paddingVertical: spacing(1) },
-  cropSkipText: { fontSize: 14, color: colors.subtext },
+  cropSkipBtn: { alignItems: 'center', paddingVertical: spacing(1.25) },
+  cropSkipText: { fontSize: 13, color: colors.subtext, fontWeight: '500' },
 
   // Result
   resultScroll: { flex: 1 },

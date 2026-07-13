@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * UI Components Index
  * Central export file for all UI components
@@ -16,11 +15,11 @@ export { default as PillButton } from '../PillButton';
 export { default as SectionTitle } from './SectionTitle';
 export { default as Header } from './Header';
 export { default as SearchInput } from './SearchInput';
-export { default as Toast } from './Toast';
-export { default as Modal } from './Modal';
-export { default as ConfirmDialog } from './ConfirmDialog';
+export { ToastProvider as Toast, useToast } from './Toast';
+export { ModalProvider as Modal, useModal } from './Modal';
+export { ConfirmDialogProvider as ConfirmDialog, useConfirmDialog, useQuickConfirm } from './ConfirmDialog';
 export { default as EmptyState, SearchEmptyState, ErrorEmptyState, OfflineEmptyState, ListEmptyState } from './EmptyState';
-export { default as LoadingOverlay, LoadingProvider, useLoading, useAsyncOperation, useProgressLoading } from './LoadingOverlay';
+export { LoadingProvider as LoadingOverlay, LoadingProvider, useLoading, useAsyncOperation, useProgressLoading } from './LoadingOverlay';
 export { default as AudioButton } from './AudioButton';
 export { default as Heading } from './Heading';
 export { default as InPageTabBar } from './InPageTabBar';

@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { searchHistoryService, SearchSuggestion } from './searchHistoryService';
 import { ALL_COCKTAILS } from '../data/cocktails';
 import { formatIngredientDisplay, ingredientListToSearchText } from '../utils/ingredientFormatting';
@@ -128,17 +127,29 @@ class SearchService {
     this.searchIndex = [...recipes, ...spirits, ...events, ...users];
   }
 
+  private getCocktailProp(cocktail: unknown, key: string): unknown {
+    if (!cocktail || typeof cocktail !== 'object') return undefined;
+    return (cocktail as Record<string, unknown>)[key];
+  }
+
   private getCocktailRecipes(): SearchableItem[] {
     // Dynamically convert ALL_COCKTAILS to SearchableItem format
-    return ALL_COCKTAILS.map(cocktail => ({
+    return ALL_COCKTAILS.map(cocktail => {
+      const era = this.getCocktailProp(cocktail, 'era');
+      const base = this.getCocktailProp(cocktail, 'base');
+      const eraText = typeof era === 'string' ? `${era.charAt(0).toUpperCase()}${era.slice(1)}` : '';
+      const baseText = typeof base === 'string' ? `${base.charAt(0).toUpperCase()}${base.slice(1)}` : '';
+      return ({
       id: cocktail.id,
       title: cocktail.name,
-      subtitle: cocktail.subtitle || cocktail.era ? `${cocktail.era ? cocktail.era.charAt(0).toUpperCase() + cocktail.era.slice(1) : ''} • ${cocktail.base ? cocktail.base.charAt(0).toUpperCase() + cocktail.base.slice(1) : ''}-based` : undefined,
+      subtitle: cocktail.subtitle || eraText || baseText
+        ? `${eraText} • ${baseText}-based`
+        : undefined,
       description: cocktail.description,
       category: 'recipe' as const,
       tags: [
-        cocktail.era || 'classic',
-        cocktail.base || 'spirit',
+        (typeof era === 'string' ? era : undefined) || 'classic',
+        (typeof base === 'string' ? base : undefined) || 'spirit',
         cocktail.difficulty?.toLowerCase() || 'medium',
         ...(cocktail.ingredients || []).map(ing =>
           formatIngredientDisplay(ing).name.toLowerCase().split(' ').filter(word => word.length > 2)
@@ -151,7 +162,7 @@ class SearchService {
       popularity: cocktail.rating ? Math.round(cocktail.rating * 20) : Math.round(Math.random() * 30 + 70),
       image: cocktail.image,
       data: cocktail
-    }));
+    })});
 
     // Remove the old hardcoded recipes
     /*const cocktailRecipes = [
@@ -1033,13 +1044,19 @@ class SearchService {
     abvRange: [number, number];
     timeRange: [number, number];
   } {
-    const currentResults = query ? this.search(query) : this.searchIndex;
+    const normalizedQuery = query?.trim().toLowerCase();
+    const currentResults = normalizedQuery
+      ? this.searchIndex.filter((item) => {
+          const haystack = `${item.title} ${item.subtitle || ''} ${item.description || ''} ${item.tags.join(' ')}`.toLowerCase();
+          return haystack.includes(normalizedQuery);
+        })
+      : this.searchIndex;
 
     // Count categories
-    const categoryCounts = currentResults.reduce((acc, item) => {
+    const categoryCounts = currentResults.reduce<Record<string, number>>((acc, item) => {
       acc[item.category] = (acc[item.category] || 0) + 1;
       return acc;
-    }, {} as Record<string, number>);
+    }, {});
 
     const categories = Object.entries(categoryCounts).map(([key, count]) => ({
       key,
@@ -1048,12 +1065,12 @@ class SearchService {
     }));
 
     // Count difficulties
-    const difficultyCounts = currentResults.reduce((acc, item) => {
+    const difficultyCounts = currentResults.reduce<Record<string, number>>((acc, item) => {
       if (item.difficulty) {
         acc[item.difficulty] = (acc[item.difficulty] || 0) + 1;
       }
       return acc;
-    }, {} as Record<string, number>);
+    }, {});
 
     const difficulties = Object.entries(difficultyCounts).map(([key, count]) => ({
       key,

@@ -452,6 +452,8 @@ export class RecipesRepository {
 
       image: getCocktailImage(data.id, data.image_url || 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=240&h=160&fit=crop'),
       imageUrl: data.image_url,
+      tastingNote: data.tasting_note || undefined,
+      bestFor: data.best_for || undefined,
 
       tags: data.tags || [],
       isPublic: true,
@@ -501,6 +503,8 @@ export class RecipesRepository {
       imageUrl: data.image_url,
       sourceUrl: data.source_url,
       videoUrl: data.video_url,
+      tastingNote: data.tasting_note || undefined,
+      bestFor: data.best_for || undefined,
 
       tags: data.tags || [],
       occasion: data.occasion || [],

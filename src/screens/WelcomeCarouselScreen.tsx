@@ -1,4 +1,3 @@
-// @ts-nocheck
 import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, ScrollView, Pressable, StyleSheet, Dimensions, Animated
@@ -267,7 +266,6 @@ const styles = StyleSheet.create({
     height: 8,
     borderRadius: 4,
     backgroundColor: colors.muted,
-    transition: 'all 0.3s ease',
   },
   activeDot: {
     width: 24,

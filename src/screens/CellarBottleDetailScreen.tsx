@@ -388,7 +388,7 @@ function CellarBottleDetailScreen() {
         <View style={styles.actionRow}>
           <TouchableOpacity
             style={styles.actionGhost}
-            onPress={() => Alert.alert('Coming Soon', 'Market listing will be available in a future update.')}
+            onPress={() => Alert.alert('Market Listing', 'Market listing is not enabled for this build yet.')}
           >
             <Text style={styles.actionGhostText}>LIST ON MARKET</Text>
           </TouchableOpacity>

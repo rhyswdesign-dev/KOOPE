@@ -160,6 +160,69 @@ export class GoogleVisionService {
     }
   }
 
+  /**
+   * Consolidated bottle recognition — calls the `bottle-recognize` edge
+   * function, which does Google Vision + local-catalog matching + (on a
+   * catalog miss) the Claude Vision fallback in ONE server-side round trip,
+   * instead of the client chaining analyzeImage() -> matchBottle() ->
+   * lookupBottleProfile() across two separate edge function calls.
+   * Bottle scan type only — recipe/ingredient scans still use analyzeImage().
+   */
+  static async recognizeBottle(imageUri: string): Promise<{ spirit: Spirit | null; confidence: number; source: string; isSpiritImage: boolean }> {
+    try {
+      const base64Image = await this.convertImageToBase64(imageUri);
+
+      const { data, error } = await supabase.functions.invoke('bottle-recognize', {
+        body: { imageBase64: base64Image },
+      });
+
+      if (error) {
+        log.warn('GoogleVisionService', 'bottle-recognize call failed', error);
+        return { spirit: null, confidence: 0, source: 'error', isSpiritImage: true };
+      }
+
+      if (data?.isSpiritImage === false) {
+        return { spirit: null, confidence: 0, source: 'none', isSpiritImage: false };
+      }
+
+      if (!data?.profile) {
+        log.warn('GoogleVisionService', 'bottle-recognize returned no profile', error);
+        return { spirit: null, confidence: 0, source: 'error', isSpiritImage: true };
+      }
+
+      const p = data.profile;
+      const confidence = typeof data.confidence === 'number' ? data.confidence : 0.85;
+      log.info('GoogleVisionService', 'bottle-recognize resolved', {
+        name: p.name,
+        source: data.source,
+        confidence,
+      });
+
+      const spirit: Spirit = {
+        id: p.id || p.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+        name: p.name,
+        brand: p.brand,
+        type: p.type as Spirit['type'],
+        abv: p.abv ?? 40,
+        priceTier: (p.priceTier ?? 'mid-range') as Spirit['priceTier'],
+        priceEstimate: p.priceEstimate ?? {
+          USD: { min: 20, max: 35 },
+          CAD: { min: 28, max: 45 },
+          GBP: { min: 18, max: 30 },
+        },
+        flavorProfile: p.flavorProfile ?? [],
+        tastingNotes: p.tastingNotes ?? '',
+        origin: p.origin ?? '',
+        searchTerms: p.searchTerms ?? [],
+      };
+
+      return { spirit, confidence, source: data.source ?? 'bottle-recognize', isSpiritImage: true };
+    } catch (err) {
+      log.error('GoogleVisionService', 'recognizeBottle error', err);
+      return { spirit: null, confidence: 0, source: 'error', isSpiritImage: true };
+    }
+  }
+
   private static async convertImageToBase64(imageUri: string): Promise<string> {
     try {
       // Stage 8 — centre-crop to 60% width / 70% height before sending to Vision.
@@ -177,7 +240,7 @@ export class GoogleVisionService {
       const result = await ImageManipulator.manipulateAsync(
         imageUri,
         [{ crop: { originX, originY, width: cropW, height: cropH } }],
-        { base64: true, compress: 0.85, format: ImageManipulator.SaveFormat.JPEG }
+        { base64: true, compress: 0.6, format: ImageManipulator.SaveFormat.JPEG }
       );
       if (!result.base64) throw new Error('No base64 data returned');
       return result.base64;
@@ -513,7 +576,10 @@ export class GoogleVisionService {
     if (lines.length === 0) return null;
 
     // Score each line — higher = more likely to be the brand/product name
-    const NOISE = /^(\d+(\.\d+)?(%|CL|ML|L)?|ALC|ABV|VOL|PROOF|DISTILLED|BOTTLED|PRODUCED|EST\.|SINCE|DEPUIS|DESDE|LIMITED|EDITION|IMPORTED|CONTAINS|PRODUCT|WARNING|GOVERNMENT|DRINK|RESPONSIBLY|www\.|©|100%|DE AGAVE|AGAVE|AGAVE AZUL|100% DE AGAVE|100% AGAVE|BLUE AGAVE|PURO AGAVE|PRODUCT OF|PRODUIT DE|PRODUCTO DE|ELABORADO DE|IMPORTADO|SINGLE MALT|SCOTCH WHISKY|BLENDED SCOTCH|RESERVA|RESERVA EXCLUSIVA|GRAN RESERVA|AGED \d+ YEARS?|HECHO EN MEXICO|JALISCO|SAN LUIS DEL RIO|OAXACA)$/i;
+    // Bare spirit-category words are too generic to be a useful bottle name — filtering
+    // them prevents "TEQUILA" / "GIN" / "LIQUEUR" from becoming the cache key and
+    // poisoning the spirits_cache for every bottle of that type.
+    const NOISE = /^(\d+(\.\d+)?(%|CL|ML|L)?|ALC|ABV|VOL|PROOF|DISTILLED|BOTTLED|PRODUCED|EST\.|SINCE|DEPUIS|DESDE|LIMITED|EDITION|IMPORTED|CONTAINS|PRODUCT|WARNING|GOVERNMENT|DRINK|RESPONSIBLY|www\.|©|100%|DE AGAVE|AGAVE|AGAVE AZUL|100% DE AGAVE|100% AGAVE|BLUE AGAVE|PURO AGAVE|PRODUCT OF|PRODUIT DE|PRODUCTO DE|ELABORADO DE|IMPORTADO|SINGLE MALT|SCOTCH WHISKY|BLENDED SCOTCH|RESERVA|RESERVA EXCLUSIVA|GRAN RESERVA|AGED \d+ YEARS?|HECHO EN MEXICO|JALISCO|SAN LUIS DEL RIO|OAXACA|GIN|VODKA|RUM|WHISKEY|WHISKY|BOURBON|SCOTCH|TEQUILA|MEZCAL|COGNAC|BRANDY|LIQUEUR|AMARO|BITTER|APERITIVO|VERMOUTH|REPOSADO|BLANCO|ANEJO|AÑEJO|SILVER|GOLD|PLATINUM)$/i;
     const SPIRIT_TYPES = /\b(amaro|gin|vodka|rum|whiskey|whisky|bourbon|scotch|tequila|mezcal|cognac|brandy|liqueur|bitter|aperitivo|vermouth)\b/i;
 
     const scored = lines
@@ -565,7 +631,7 @@ export class GoogleVisionService {
     bottleName: string,
     visionResult?: VisionResult,
     imageBase64?: string,
-  ): Promise<Spirit | null> {
+  ): Promise<{ spirit: Spirit | null; confidence: number }> {
     try {
       const { data, error } = await supabase.functions.invoke('spirit-lookup', {
         body: {
@@ -585,13 +651,15 @@ export class GoogleVisionService {
         // Do NOT build a fallback from OCR fragments. A confident wrong answer
         // is worse than no answer. Return null so SmartScanScreen routes to
         // the library search screen instead.
-        return null;
+        return { spirit: null, confidence: 0 };
       }
 
       const p = data.profile;
+      const confidence = typeof data.confidence === 'number' ? data.confidence : 0.85;
       log.info('GoogleVisionService', 'spirit-lookup resolved', {
         name: p.name,
         source: data.source,
+        confidence,
       });
 
       // Map to Spirit shape (compatible with BottleDetailScreen)
@@ -613,10 +681,10 @@ export class GoogleVisionService {
         searchTerms: p.searchTerms ?? [],
       };
 
-      return spirit;
+      return { spirit, confidence };
     } catch (err) {
       log.error('GoogleVisionService', 'lookupBottleProfile error', err);
-      return null;
+      return { spirit: null, confidence: 0 };
     }
   }
 
@@ -686,12 +754,24 @@ export class GoogleVisionService {
         // Web Detection match must share at least one significant word with it.
         // This prevents Vision returning "Johnnie Walker" for a Rum-Bar bottle.
         // (For label-less/decorative bottles the OCR is empty so we always trust Web Detection.)
-        const ocrWords = normalizedText.split(/\s+/).filter(w => w.length >= 4)
+        // Generic category words appear in every bottle's OCR and many searchTerms —
+        // they must not count as brand-confirming overlap (e.g. "liqueur" matching
+        // Chartreuse OCR to Drambuie's searchTerms, or "tequila" to Jose Cuervo).
+        const GENERIC_SPIRIT_WORDS = new Set([
+          'liqueur','whisky','whiskey','bourbon','scotch','vodka','gin','rum',
+          'tequila','mezcal','cognac','brandy','spirit','spirits','amaro','bitter',
+          'aperitivo','vermouth','reposado','blanco','anejo','silver','gold',
+          'premium','reserve','aged','single','malt','blended','special','edition',
+        ])
+        const ocrWords = normalizedText.split(/\s+/)
+          .filter(w => w.length >= 4)
+          .filter(w => !GENERIC_SPIRIT_WORDS.has(w))
         if (ocrWords.length >= 3) {
           const candidateWords = new Set(
             [webBest.brand, webBest.name, ...webBest.searchTerms]
               .join(' ').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/)
               .filter(w => w.length >= 4)
+              .filter(w => !GENERIC_SPIRIT_WORDS.has(w))
           )
           const hasOcrOverlap = ocrWords.some(w => candidateWords.has(w))
           if (!hasOcrOverlap) {
@@ -745,21 +825,35 @@ export class GoogleVisionService {
     let bestScore = 0;
     let secondBestSpirit: Spirit | null = null;
     let secondBestScore = 0;
+    // Track per-winner breakdown for the high-confidence gate below.
+    let bestBrandScore = 0;
+    let bestNameScore = 0;
+    let bestMultiWordTermHits = 0;
 
     for (const spirit of SPIRITS_DATABASE) {
       const brand = normalizeForMatch(spirit.brand);
       const name = normalizeForMatch(spirit.name);
       const type = spirit.type.toLowerCase();
       let score = 0;
+      let brandScore = 0;
+      let nameScore = 0;
+      let multiWordTermHits = 0;
 
-      if (brand && normalizedText.includes(brand)) score += 8;
-      if (name && normalizedText.includes(name)) score += 6;
+      if (brand && normalizedText.includes(brand)) { brandScore = 8; score += 8; }
+      if (name && normalizedText.includes(name)) { nameScore = 6; score += 6; }
       if (allLabels.includes(type)) score += 2;
 
       for (const term of spirit.searchTerms) {
         const normalizedTerm = normalizeForMatch(term);
         if (normalizedTerm.length < 3) continue;
-        if (normalizedText.includes(normalizedTerm)) score += 4;
+        if (normalizedText.includes(normalizedTerm)) {
+          // Multi-word terms (2+ words) are meaningful product descriptors.
+          // Single-word terms (e.g. "foursquare") can appear as distillery
+          // attribution text on an unrelated bottle — don't count them toward
+          // the high-confidence gate.
+          if (normalizedTerm.trim().split(/\s+/).length >= 2) multiWordTermHits++;
+          score += 4;
+        }
       }
 
       if (score > bestScore) {
@@ -767,21 +861,33 @@ export class GoogleVisionService {
         secondBestSpirit = bestSpirit;
         bestScore = score;
         bestSpirit = spirit;
+        bestBrandScore = brandScore;
+        bestNameScore = nameScore;
+        bestMultiWordTermHits = multiWordTermHits;
       } else if (score > secondBestScore) {
         secondBestScore = score;
         secondBestSpirit = spirit;
       }
     }
 
-    // Threshold of 10 requires at minimum a brand match (8) + type or searchTerm hit.
-    if (bestSpirit && bestScore >= 10) {
+    // High-confidence gate: brand must appear in OCR AND at least one of:
+    //   (a) the product name appears verbatim as a substring, or
+    //   (b) a multi-word search term matches.
+    // This prevents a brand name that appears only as distillery attribution
+    // text (e.g. "Distilled at Foursquare Rum Distillery" on a Doorly's label)
+    // from producing a false DB match. Bottles that don't pass this gate fall
+    // through to Claude Vision, which reads the label directly.
+    const isHighConfidence =
+      bestBrandScore > 0 && (bestNameScore > 0 || bestMultiWordTermHits > 0);
+
+    if (bestSpirit && bestScore >= 14 && isHighConfidence) {
       // Variant ambiguity check: if the top two results share the same brand and
       // scores are within 4 points, we can't confidently pick a variant (e.g.
       // Green vs Yellow Chartreuse, Patrón Silver vs Reposado). Return null so
       // the edge function can use web entities to disambiguate.
       if (
         secondBestSpirit &&
-        secondBestScore >= 10 &&
+        secondBestScore >= 14 &&
         normalizeForMatch(bestSpirit.brand) === normalizeForMatch(secondBestSpirit.brand) &&
         bestScore - secondBestScore <= 4
       ) {

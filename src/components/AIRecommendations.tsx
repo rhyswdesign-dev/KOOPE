@@ -1,4 +1,3 @@
-// @ts-nocheck
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
@@ -15,11 +14,9 @@ import RecipeCard from './RecipeCard';
 import { createRecipeCardProps } from '../utils/recipeActions';
 import { AIRecommendationEngine, UserTasteProfile, SmartRecommendation } from '../services/aiRecommendationEngine';
 import { HomeBar, HomeBarService } from '../services/homeBarService';
-import { loadUserProfile } from '../services/userProfileService';
 import { trackRecommendationView, trackRecommendationSaved } from '../services/recommendationTrackingService';
 import RecommendationFeedbackModal from './RecommendationFeedbackModal';
 import { log } from '../lib/logger';
-import { supabase } from '../lib/supabase';
 
 interface AIRecommendationsProps {
   navigation: any;
@@ -156,12 +153,15 @@ export default function AIRecommendations({
       const month = now.getMonth();
 
       // Determine context
+      const timeOfDay: 'morning' | 'afternoon' | 'evening' | 'night' =
+        hour >= 5 && hour < 12 ? 'morning' :
+        hour >= 12 && hour < 17 ? 'afternoon' :
+        hour >= 17 && hour < 22 ? 'evening' : 'night';
+      const season = ['winter', 'spring', 'summer', 'fall'][Math.floor(month / 3)] as 'winter' | 'spring' | 'summer' | 'fall';
       const context = {
-        timeOfDay: hour >= 5 && hour < 12 ? 'morning' :
-                  hour >= 12 && hour < 17 ? 'afternoon' :
-                  hour >= 17 && hour < 22 ? 'evening' : 'night',
+        timeOfDay,
         weather: 'mild' as const,
-        season: ['winter', 'spring', 'summer', 'fall'][Math.floor(month / 3)] as 'winter' | 'spring' | 'summer' | 'fall',
+        season,
         mood: 'relaxed' as const,
       };
 
@@ -412,7 +412,10 @@ export default function AIRecommendations({
                 <RecipeCard
                   style={styles.recipeCard}
                   {...createRecipeCardProps(recipeCardData, navigation, {
-                    toggleSavedCocktail: (recipe) => handleRecipeSave(recommendation, recipe),
+                    toggleSavedCocktail: (recipe) => {
+                      handleRecipeSave(recommendation, recipe);
+                      return 'success';
+                    },
                     isCocktailSaved,
                     setSelectedRecipe,
                     setGroceryListVisible,

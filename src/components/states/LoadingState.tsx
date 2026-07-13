@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * LOADING STATE COMPONENT
  * Professional loading indicators with animations and contextual messages
@@ -13,9 +12,11 @@ import {
   Animated,
   Dimensions,
   ActivityIndicator,
+  type ViewStyle,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, radii } from '../../theme/tokens';
+import ShakerLoader from '../animations/ShakerLoader';
 
 interface LoadingStateProps {
   type?: 'default' | 'splash' | 'content' | 'search' | 'upload' | 'lesson' | 'quiz';
@@ -71,7 +72,6 @@ export default function LoadingState({
   overlay = false,
   transparent = false,
 }: LoadingStateProps) {
-  const spinValue = useRef(new Animated.Value(0)).current;
   const scaleValue = useRef(new Animated.Value(1)).current;
   const fadeValue = useRef(new Animated.Value(0)).current;
   const progressValue = useRef(new Animated.Value(0)).current;
@@ -87,16 +87,6 @@ export default function LoadingState({
       duration: 300,
       useNativeDriver: true,
     }).start();
-
-    // Continuous spin animation
-    const spinAnimation = Animated.loop(
-      Animated.timing(spinValue, {
-        toValue: 1,
-        duration: 2000,
-        useNativeDriver: true,
-      })
-    );
-    spinAnimation.start();
 
     // Pulse animation for splash
     if (type === 'splash') {
@@ -118,7 +108,6 @@ export default function LoadingState({
     }
 
     return () => {
-      spinAnimation.stop();
       scaleValue.stopAnimation();
     };
   }, []);
@@ -133,13 +122,8 @@ export default function LoadingState({
     }
   }, [progress, showProgress]);
 
-  const spin = spinValue.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '360deg'],
-  });
-
   const getContainerStyle = () => {
-    const baseStyle = [styles.container];
+    const baseStyle: ViewStyle[] = [styles.container];
 
     if (overlay) {
       baseStyle.push(styles.overlay);
@@ -210,7 +194,7 @@ export default function LoadingState({
           ]}
         >
           <Ionicons
-            name={getIconName() as any}
+            name={getIconName() as keyof typeof Ionicons.glyphMap}
             size={getIconSize()}
             color={colors.accent}
           />
@@ -230,25 +214,7 @@ export default function LoadingState({
 
     return (
       <View style={styles.loaderContainer}>
-        <Animated.View
-          style={[
-            styles.iconContainer,
-            {
-              transform: [{ rotate: spin }],
-            },
-          ]}
-        >
-          <Ionicons
-            name={getIconName() as any}
-            size={getIconSize()}
-            color={colors.accent}
-          />
-        </Animated.View>
-        <ActivityIndicator
-          size="large"
-          color={colors.accent}
-          style={styles.activityIndicator}
-        />
+        <ShakerLoader size={getIconSize() + 8} />
       </View>
     );
   };

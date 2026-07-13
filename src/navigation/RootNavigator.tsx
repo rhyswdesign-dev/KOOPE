@@ -70,7 +70,6 @@ import AchievementsScreen from '../screens/AchievementsScreen';
 import SubscriptionDebugScreen from '../screens/SubscriptionDebugScreen';
 import PaywallScreen from '../screens/PaywallScreen';
 import CustomerCenterScreen from '../screens/CustomerCenterScreen';
-import RequirePro from '../components/RequirePro';
 import { VaultCategory } from '../config/vaultTypes';
 
 import ProfileSavedItemsScreen from '../screens/ProfileSavedItemsScreen';
@@ -442,13 +441,7 @@ export default function RootNavigator({ initialRouteName = 'Main' }: RootNavigat
     <Stack.Screen name="RecipeDetail" component={RecipeDetailWithTour} options={{ headerShown: true, title: 'Recipe' }} />
     <Stack.Screen name="RecipeEditor" component={AddRecipeScreen} options={{ headerShown: true, title: 'Edit Recipe' }} />
     <Stack.Screen name="AIRecipeGenerator" component={AIRecipeGeneratorScreen} options={{ headerShown: false }} />
-    <Stack.Screen name="AIRecipeFormat" options={{ headerShown: true, title: 'AI Recipe Formatting' }}>
-      {() => (
-        <RequirePro>
-          <AIRecipeFormatScreen />
-        </RequirePro>
-      )}
-    </Stack.Screen>
+    <Stack.Screen name="AIRecipeFormat" component={AIRecipeFormatScreen} options={{ headerShown: true, title: 'Format Recipe' }} />
     <Stack.Screen name="OCRCapture" component={OCRCaptureScreen} options={{ headerShown: true, title: 'Scan Recipe' }} />
     <Stack.Screen name="URLRecipeInput" component={URLRecipeInputScreen} options={{ headerShown: true, title: 'Add from URL' }} />
     <Stack.Screen name="VoiceRecipe" component={VoiceRecipeScreen} options={{ headerShown: true, title: 'Voice Recipe Input' }} />
@@ -469,7 +462,6 @@ export default function RootNavigator({ initialRouteName = 'Main' }: RootNavigat
       <Stack.Screen name="UnlockDeck" component={UnlockDeckScreen} options={{ headerShown: false }} />
       <Stack.Screen name="RecipeCardDetail" component={RecipeCardDetailScreen} options={{ headerShown: false }} />
     </Stack.Navigator>
-    <TrialBanner />
     </View>
   );
 }

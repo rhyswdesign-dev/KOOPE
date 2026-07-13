@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * XP Balance Modal
  * Shows XP balance, transaction history, and ways to earn more XP
@@ -51,7 +50,7 @@ export default function XPBalanceModal({ visible, onClose }: XPBalanceModalProps
     { icon: 'share-outline', label: 'Share a Cocktail', amount: XP_EARNING_RATES.shareCocktail, frequency: 'Per share' },
     { icon: 'gift-outline', label: 'Open Vault Daily Drop', amount: XP_EARNING_RATES.vaultDailyDrop, frequency: 'Once per day' },
     { icon: 'star-outline', label: 'Earn Seasonal Item', amount: XP_EARNING_RATES.vaultSeasonalItem, frequency: 'Per item' },
-    { icon: 'person-outline', label: 'Complete Profile', amount: XP_EARNING_RATES.profileComplete, frequency: 'One-time' },
+    { icon: 'person-outline', label: 'Complete Profile', amount: XP_EARNING_RATES.tasteProfileCompleted, frequency: 'One-time' },
     { icon: 'people-outline', label: 'Invite a Friend', amount: XP_EARNING_RATES.inviteFriend, frequency: 'Per friend signup' },
   ];
 

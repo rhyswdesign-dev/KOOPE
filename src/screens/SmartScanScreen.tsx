@@ -8,7 +8,7 @@
  * not scan capability.
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -18,7 +18,7 @@ import {
   ActivityIndicator,
   BackHandler,
 } from 'react-native';
-import { useNavigation, useIsFocused } from '@react-navigation/native';
+import { useNavigation, useIsFocused, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, radii } from '../theme/tokens';
@@ -58,6 +58,7 @@ function getManualPrefill(productName: string | null, productBrand: string | nul
 
 export default function SmartScanScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<CameraStackParamList>>();
+  const route = useRoute<any>();
   const isFocused = useIsFocused();
   const { user } = useAuth();
   const { isSubscriber } = useSubscription();
@@ -68,32 +69,38 @@ export default function SmartScanScreen() {
   const [cameraMode, setCameraMode] = useState<'bottle' | 'recipe' | 'ingredients'>('bottle');
   const [showConsentDialog, setShowConsentDialog] = useState(false);
   const [hasGivenConsent, setHasGivenConsent] = useState(false);
-  // When true, camera opens in barcode-only mode (Stage 7 fallback)
-  const [barcodeMode, setBarcodeMode] = useState(false);
+  // When true, camera opens in barcode-only mode (Stage 7 fallback, or correction flow)
+  const [barcodeMode, setBarcodeMode] = useState(
+    () => !!(route?.params as any)?.barcodeOnly
+  );
   const [showBottleNotFound, setShowBottleNotFound] = useState(false);
   // Always keep full photo scanner enabled; GoogleVisionService handles API fallback.
   const aiScanEnabled = true;
+
+  // Guard to ensure camera only auto-opens on first mount, not on re-focus
+  // after returning from BottleDetail or other downstream screens.
+  const hasOpenedOnMountRef = useRef(false);
 
   // Check consent status on mount
   useEffect(() => {
     checkConsentStatus();
   }, []);
 
-  // Show/hide camera based on focus + consent.
-  // Small delay avoids modal+jump glitch during stack transition.
+  // Open camera once on mount (after consent resolves), never again on re-focus.
+  useEffect(() => {
+    if (hasOpenedOnMountRef.current) return;
+    if (!hasGivenConsent) return;
+    hasOpenedOnMountRef.current = true;
+    const timer = setTimeout(() => setCameraVisible(true), 120);
+    return () => clearTimeout(timer);
+  }, [hasGivenConsent]);
+
+  // Close camera when screen loses focus (navigating away, tab switch, etc.)
   useEffect(() => {
     if (!isFocused) {
       setCameraVisible(false);
-      return;
     }
-    if (!hasGivenConsent || showConsentDialog) return;
-
-    const timer = setTimeout(() => {
-      setCameraVisible(true);
-    }, 120);
-
-    return () => clearTimeout(timer);
-  }, [hasGivenConsent, isFocused, showConsentDialog]);
+  }, [isFocused]);
 
   const checkConsentStatus = async () => {
     try {
@@ -222,7 +229,7 @@ export default function SmartScanScreen() {
           }
           achievementService.trackAction('bottlesScanned');
 
-          navigation.replace('BottleDetail', { bottle: spirit });
+          navigation.replace('BottleDetail', { bottle: spirit, scannedBarcode: barcode || result.data });
         } else {
           // Barcode found but not in our spirits DB — go to manual entry
           const prefill = getManualPrefill(productName, productBrand);
@@ -281,12 +288,52 @@ export default function SmartScanScreen() {
         return;
       }
 
+      // ── Bottle mode: ONE consolidated server round trip ──────────────────────
+      // bottle-recognize does Vision + spirit-gate + local-catalog match +
+      // (on a catalog miss) the Claude fallback, all in a single invocation —
+      // this replaces what used to be up to two chained client-initiated
+      // calls (vision-analyze, then spirit-lookup on a local-match miss).
+      if (cameraMode === 'bottle') {
+        const { spirit: bottle, confidence: scanConfidence, isSpiritImage } =
+          await GoogleVisionService.recognizeBottle(uri);
+
+        if (!isSpiritImage) {
+          log.warn('SmartScanScreen', 'Stage 2 gate: no spirit signal detected');
+          setAnalyzing(false);
+          setScanMode(null);
+          handleNotABottle();
+          return;
+        }
+
+        await InventoryService.recordScan({
+          userId: user?.id || null,
+          scanType: 'bottle',
+          itemName: bottle?.name,
+          brandName: bottle?.brand,
+          imageUrl: uri,
+          addedToInventory: false,
+        });
+
+        if (bottle) {
+          if (user?.id) {
+            challengeProgressService.trackScanBottle(user.id, bottle.id || bottle.name, bottle.type);
+          }
+          achievementService.trackAction('bottlesScanned');
+          navigation.replace('BottleDetail', { bottle, imageUri: uri, scanConfidence });
+        } else {
+          // ── Stage 7: Barcode fallback ─────────────────────────────────────
+          // Vision couldn't identify the bottle — offer barcode scan as a
+          // 100%-accurate fallback before falling through to "not recognised".
+          handleBottleNotFound();
+        }
+        return;
+      }
+
+      // ── Recipe / ingredient modes — unchanged, still use vision-analyze ──────
       const visionResult = await GoogleVisionService.analyzeImage(uri);
 
-      // Use the mode the user explicitly selected in the camera UI.
       // Map 'ingredients' → 'ingredient' to match the scanType values used below.
       const modeMap: Record<string, string> = {
-        bottle: 'bottle',
         recipe: 'recipe',
         ingredients: 'ingredient',
       };
@@ -295,101 +342,6 @@ export default function SmartScanScreen() {
       log.info('SmartScanScreen', 'Scan type', { scanType, cameraMode });
 
       switch (scanType) {
-        case 'bottle': {
-          // ── Stage 2: Spirit-signal gate ──────────────────────────────────────
-          // Reject if Vision sees no spirit-related labels at all. This prevents
-          // plastic objects, hands, shelf tags, and random items from reaching Claude.
-          if (!GoogleVisionService.isSpiritImage(visionResult)) {
-            log.warn('SmartScanScreen', 'Stage 2 gate: no spirit signal in labels', { labels: visionResult.labels });
-            setAnalyzing(false);
-            setScanMode(null);
-            handleNotABottle();
-            break;
-          }
-
-          // ── Stage 1+3: Local DB lookup (Web Detection first, then OCR) ───────
-          let bottle = GoogleVisionService.matchBottle(visionResult);
-
-          // If local DB matched, silently upsert to spirits_cache with confidence 1.0.
-          // This overwrites any stale Haiku-generated cache entry for the same bottle,
-          // preventing old bad data from being served on future edge function calls.
-          if (bottle) {
-            const lookupKey = bottle.name.toLowerCase().replace(/\s+/g, ' ').trim();
-            supabase.from('spirits_cache').upsert({
-              lookup_key: lookupKey,
-              name: bottle.name,
-              brand: bottle.brand,
-              spirit_type: bottle.type,
-              abv: bottle.abv,
-              price_tier: bottle.priceTier,
-              price_usd_min: bottle.priceEstimate?.USD?.min ?? null,
-              price_usd_max: bottle.priceEstimate?.USD?.max ?? null,
-              price_cad_min: bottle.priceEstimate?.CAD?.min ?? null,
-              price_cad_max: bottle.priceEstimate?.CAD?.max ?? null,
-              price_gbp_min: bottle.priceEstimate?.GBP?.min ?? null,
-              price_gbp_max: bottle.priceEstimate?.GBP?.max ?? null,
-              flavor_profile: bottle.flavorProfile,
-              tasting_notes: bottle.tastingNotes,
-              origin: bottle.origin,
-              search_terms: bottle.searchTerms,
-              confidence: 1.0,
-              source: 'local_db',
-            }, { onConflict: 'lookup_key' }).then(() => {});
-          }
-
-          // ── Stage 4: Claude fallback with garbage detection ───────────────────
-          if (!bottle) {
-            const rawName = GoogleVisionService.extractBottleNameFromOCR(visionResult);
-
-            const isGarbled = (name: string | null): boolean => {
-              if (!name) return true;
-              const chars = name.replace(/\s/g, '').toUpperCase();
-              if (chars.length < 4) return true;
-              const freq = [...chars].reduce((acc, c) => { acc[c] = (acc[c] || 0) + 1; return acc; }, {} as Record<string, number>);
-              const maxFreq = Math.max(...Object.values(freq));
-              return maxFreq / chars.length > 0.4;
-            };
-
-            const extractedName = isGarbled(rawName) ? '' : rawName;
-            log.info('SmartScanScreen', 'SpiritLookup', { rawName, extractedName, garbled: isGarbled(rawName) });
-
-            if (extractedName || (visionResult?.labels?.length ?? 0) > 0) {
-              try {
-                bottle = await GoogleVisionService.lookupBottleProfile(
-                  extractedName || 'unknown bottle',
-                  visionResult,
-                  visionResult?.imageBase64,
-                );
-              } catch (lookupErr: any) {
-                log.warn('SmartScanScreen', 'SpiritLookup threw', { message: lookupErr?.message });
-              }
-            }
-          }
-
-          await InventoryService.recordScan({
-            userId: user?.id || null,
-            scanType: 'bottle',
-            itemName: bottle?.name,
-            brandName: bottle?.brand,
-            imageUrl: uri,
-            addedToInventory: false,
-          });
-
-          if (bottle) {
-            if (user?.id) {
-              challengeProgressService.trackScanBottle(user.id, bottle.id || bottle.name, bottle.type);
-            }
-            achievementService.trackAction('bottlesScanned');
-            navigation.replace('BottleDetail', { bottle, imageUri: uri });
-          } else {
-            // ── Stage 7: Barcode fallback ─────────────────────────────────────
-            // Vision couldn't identify the bottle — offer barcode scan as a
-            // 100%-accurate fallback before falling through to "not recognised".
-            handleBottleNotFound();
-          }
-          break;
-        }
-
         case 'recipe': {
           await InventoryService.recordScan({
             userId: user?.id || null,
@@ -524,11 +476,11 @@ export default function SmartScanScreen() {
     navigation.navigate('RecipeURLImport');
   };
 
-  const analyzingTitle = scanMode === 'barcode' ? 'Looking up barcode...' : 'Analyzing with AI...';
+  const analyzingTitle = scanMode === 'barcode' ? 'Looking up barcode...' : 'Identifying bottle...';
   const analyzingSubtitle =
     scanMode === 'barcode'
       ? 'Searching spirits database'
-      : 'Detecting bottles, recipes, and ingredients';
+      : 'Reading label';
   return (
     <>
       <DataConsentDialog
@@ -555,11 +507,11 @@ export default function SmartScanScreen() {
         visible={cameraVisible}
         onClose={handleCameraClose}
         onImageCaptured={handleImageCaptured}
-        // Enable barcode scanning in barcode-only mode OR as Stage 7 fallback
-        // (barcodeMode=true when Vision failed to identify the bottle).
-        // Never wire barcode in normal AI photo mode — causes auto-fire on any
-        // barcode that appears in frame.
-        onBarcodeScanned={(!aiScanEnabled || barcodeMode) ? handleBarcodeScanned : undefined}
+        // Barcode-first: detection now runs continuously, silently, underneath
+        // normal photo-mode framing too (not just barcode-only/Stage-7 fallback).
+        // CameraCapture's stability gate (consecutive-frame match) prevents the
+        // false-fire-on-any-barcode-in-frame regression this used to guard against.
+        onBarcodeScanned={handleBarcodeScanned}
         barcodeOnly={!aiScanEnabled || barcodeMode}
         autoCloseOnCapture={false}
         title="Smart Scan"

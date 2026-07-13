@@ -47,9 +47,7 @@ BEGIN
     requirement_type, requirement_count,
     icon, color, expires_at, data_collected
   ) VALUES
-  ('Quick Learner',   'Complete 1 lesson today',                     'skill',       'daily', 'easy',   50,  NULL,             'lesson_complete',  1, 'book-outline',          '#4CAF50', daily_expiry, NULL),
   ('Recipe Explorer', 'View 3 cocktail recipes',                     'exploration', 'daily', 'easy',   30,  NULL,             'recipe_view',      3, 'restaurant-outline',    '#2196F3', daily_expiry, NULL),
-  ('Dedicated Student','Complete 3 lessons today',                   'skill',       'daily', 'medium', 100, NULL,             'lesson_complete',  3, 'school-outline',        '#FF9800', daily_expiry, NULL),
   ('XP Hunter',       'Earn 200 XP today',                           'progress',    'daily', 'medium',  75, NULL,             'xp_earn',        200, 'star-outline',          '#9C27B0', daily_expiry, NULL),
   ('First Scan',      'Scan a bottle to add it to your bar',         'exploration', 'daily', 'easy',   50,  NULL,             'scan_bottle',      1, 'scan-outline',          '#43A047', daily_expiry, ARRAY['bottle_id','spirit_category','brand']),
   ('Bar Builder',     'Add 3 bottles to your inventory today',       'progress',    'daily', 'medium', 100, NULL,             'add_to_inventory', 3, 'add-circle-outline',    '#FF9800', daily_expiry, ARRAY['bottle_id','item_type','category']),
@@ -64,10 +62,8 @@ BEGIN
     requirement_type, requirement_count,
     icon, color, expires_at, data_collected
   ) VALUES
-  ('Weekly Warrior',     'Complete 10 lessons this week',                              'skill',       'weekly', 'medium', 300, NULL,             'lesson_complete',   10, 'trophy-outline',            '#E91E63', weekly_expiry, NULL),
   ('Streak Keeper',      'Maintain a 7-day streak',                                   'progress',    'weekly', 'hard',   500, 'streak_master',  'streak_maintain',    7, 'flame-outline',             '#FF5722', weekly_expiry, NULL),
   ('Recipe Collector',   'View 20 different recipes',                                 'exploration', 'weekly', 'medium', 250, NULL,             'recipe_view',       20, 'library-outline',           '#00BCD4', weekly_expiry, NULL),
-  ('Perfect Score',      'Get 100% on 3 quizzes',                                     'skill',       'weekly', 'hard',   400, 'perfectionist',  'quiz_perfect',       3, 'checkmark-circle-outline',  '#8BC34A', weekly_expiry, NULL),
   ('Category Explorer',  'Scan bottles from 3 different spirit categories this week', 'exploration', 'weekly', 'medium', 250, NULL,             'scan_new_category',  3, 'compass-outline',           '#9C27B0', weekly_expiry, ARRAY['spirit_category','bottle_id']),
   ('Stocked Up',         'Add 10 items to your inventory this week',                  'progress',    'weekly', 'medium', 300, NULL,             'add_to_inventory',  10, 'wine-outline',              '#00BCD4', weekly_expiry, ARRAY['bottle_id','item_type','category']),
   ('Recipe Librarian',   'Save 5 cocktail recipes this week',                         'exploration', 'weekly', 'medium', 200, NULL,             'save_recipe',        5, 'library-outline',           '#8BC34A', weekly_expiry, ARRAY['recipe_id']),
@@ -83,8 +79,6 @@ BEGIN
     requirement_type, requirement_count,
     icon, color, expires_at, data_collected
   ) VALUES
-  ('Mixology Master',  'Complete 30 lessons this month',                    'skill',       'monthly', 'hard', 1000, 'mixology_master', 'lesson_complete',   30, 'medal-outline',      '#FFD700', monthly_expiry, NULL),
-  ('Knowledge Seeker', 'Complete 5 full modules',                           'progress',    'monthly', 'epic', 2000, 'knowledge_seeker','module_complete',    5, 'ribbon-outline',     '#673AB7', monthly_expiry, NULL),
   ('Vault Collector',  'Unlock 5 vault items',                              'progress',    'monthly', 'hard',  750, 'collector',       'vault_unlock',       5, 'lock-open-outline',  '#607D8B', monthly_expiry, NULL),
   ('Spirit Curious',   'Scan bottles from 6 different spirit categories',   'exploration', 'monthly', 'hard',  750, 'spirit_curious',  'scan_new_category',  6, 'flask-outline',      '#673AB7', monthly_expiry, ARRAY['spirit_category','bottle_id']),
   ('Home Bar Pro',     'Add 25 bottles to your inventory this month',       'progress',    'monthly', 'epic', 1500, 'home_bar_pro',    'add_to_inventory',  25, 'home-outline',       '#FFD700', monthly_expiry, ARRAY['bottle_id','item_type','category']),

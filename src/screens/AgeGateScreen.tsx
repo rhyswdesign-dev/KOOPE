@@ -1,4 +1,3 @@
-// @ts-nocheck
 import React, { useMemo, useState } from 'react';
 import {
   KeyboardAvoidingView,
@@ -69,14 +68,15 @@ export default function AgeGateScreen({ onVerified }: AgeGateScreenProps) {
     [day.length, month.length, requiresSubdivision, subdivision, year.length]
   );
   const countryPages = useMemo(() => {
-    const basePages = [];
+    const otherRegionOption = { code: 'OTHER' as const, label: 'Other region' };
+    const basePages: Array<Array<{ code: SupportedCountryCode | 'OTHER'; label: string }>> = [];
     for (let index = 0; index < COUNTRY_OPTIONS.length; index += 6) {
       basePages.push(COUNTRY_OPTIONS.slice(index, index + 6));
     }
     const lastPage = [...(basePages[basePages.length - 1] || [])];
-    lastPage.push({ code: 'OTHER' as const, label: 'Other region' });
+    lastPage.push(otherRegionOption);
     if (basePages.length === 0) {
-      return [[{ code: 'OTHER' as const, label: 'Other region' }]];
+      return [[otherRegionOption]];
     }
     basePages[basePages.length - 1] = lastPage;
     return basePages;

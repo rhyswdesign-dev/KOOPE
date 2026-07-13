@@ -17,6 +17,7 @@ import { useXPSystem } from '../store/useXPSystem';
 import { useUser } from '../store/useUser';
 import { HomeBarService } from '../services/homeBarService';
 import { useNotifications } from '../services/notificationService';
+import { useCurrencyPreference, CURRENCY_META, type SupportedCurrency } from '../store/useCurrencyPreference';
 
 const serifFont = Platform.select({ ios: 'Georgia', android: 'serif', default: 'serif' });
 
@@ -26,6 +27,8 @@ export default function SettingsScreen() {
   const { balance: xpBalance, earnXP, resetXPSystem } = useXPSystem();
   const { resetUser } = useUser();
   const { preferences: notificationPrefs, updatePreferences } = useNotifications();
+  const { currency, setCurrency, isUserOverride, resetToLocale } = useCurrencyPreference();
+  const [currencyPickerOpen, setCurrencyPickerOpen] = useState(false);
 
   const [expandedSections, setExpandedSections] = useState({
     notifications: false,
@@ -191,6 +194,75 @@ export default function SettingsScreen() {
             </TouchableOpacity>
           </View>
 
+          {/* Preferences Section */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Preferences</Text>
+
+            {/* Currency row */}
+            <TouchableOpacity
+              style={styles.settingItem}
+              onPress={() => setCurrencyPickerOpen(prev => !prev)}
+              activeOpacity={0.7}
+            >
+              <View style={styles.settingItemLeft}>
+                <Ionicons name="cash-outline" size={22} color={colors.text} />
+                <Text style={styles.settingItemText}>Currency</Text>
+              </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Text style={{ fontSize: 14, color: colors.gold, fontWeight: '700' }}>
+                  {CURRENCY_META[currency].flag} {currency}
+                </Text>
+                <Ionicons
+                  name={currencyPickerOpen ? 'chevron-up' : 'chevron-down'}
+                  size={18}
+                  color={colors.subtext}
+                />
+              </View>
+            </TouchableOpacity>
+
+            {currencyPickerOpen && (
+              <View style={currencyStyles.picker}>
+                {(Object.keys(CURRENCY_META) as SupportedCurrency[]).map((c) => {
+                  const isActive = currency === c;
+                  return (
+                    <TouchableOpacity
+                      key={c}
+                      style={[currencyStyles.option, isActive && currencyStyles.optionActive]}
+                      onPress={() => {
+                        setCurrency(c);
+                        setCurrencyPickerOpen(false);
+                      }}
+                      activeOpacity={0.75}
+                    >
+                      <Text style={currencyStyles.optionFlag}>{CURRENCY_META[c].flag}</Text>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[currencyStyles.optionCode, isActive && currencyStyles.optionCodeActive]}>
+                          {c}
+                        </Text>
+                        <Text style={currencyStyles.optionLabel}>{CURRENCY_META[c].label}</Text>
+                      </View>
+                      <Text style={[currencyStyles.optionSymbol, isActive && currencyStyles.optionSymbolActive]}>
+                        {CURRENCY_META[c].symbol}
+                      </Text>
+                      {isActive && (
+                        <Ionicons name="checkmark" size={16} color={colors.gold} />
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
+                {isUserOverride && (
+                  <TouchableOpacity
+                    style={currencyStyles.resetRow}
+                    onPress={() => { resetToLocale(); setCurrencyPickerOpen(false); }}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={currencyStyles.resetText}>Reset to device default</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
+          </View>
+
           {/* Subscription Section */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Subscription</Text>
@@ -299,22 +371,6 @@ export default function SettingsScreen() {
 
             {expandedSections.notifications && (
               <>
-                <View style={styles.settingItem}>
-                  <View style={styles.settingItemLeft}>
-                    <Ionicons name="school-outline" size={22} color={colors.text} />
-                    <View>
-                      <Text style={styles.settingItemText}>Lessons</Text>
-                      <Text style={styles.settingItemSubtext}>Lesson reminders and streaks</Text>
-                    </View>
-                  </View>
-                  <Switch
-                    value={notificationPrefs.lessons}
-                    onValueChange={(value) => updatePreferences({ lessons: value })}
-                    thumbColor={notificationPrefs.lessons ? colors.white : colors.subtle}
-                    trackColor={{ true: colors.accent, false: colors.line }}
-                  />
-                </View>
-
                 <View style={styles.settingItem}>
                   <View style={styles.settingItemLeft}>
                     <Ionicons name="archive-outline" size={22} color={colors.text} />
@@ -710,3 +766,63 @@ const styles = StyleSheet.create({
       opacity: 0.6,
     },
   });
+
+const currencyStyles = StyleSheet.create({
+  picker: {
+    marginHorizontal: spacing(3),
+    marginBottom: spacing(1),
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(214,138,56,0.14)',
+    overflow: 'hidden',
+  },
+  option: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing(1.5),
+    paddingHorizontal: spacing(2),
+    gap: spacing(1.5),
+    borderBottomWidth: 0.5,
+    borderBottomColor: 'rgba(255,255,255,0.06)',
+  },
+  optionActive: {
+    backgroundColor: 'rgba(214,138,56,0.1)',
+    borderLeftWidth: 2,
+    borderLeftColor: colors.gold,
+  },
+  optionFlag: {
+    fontSize: 22,
+  },
+  optionCode: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  optionCodeActive: {
+    color: colors.gold,
+  },
+  optionLabel: {
+    fontSize: 12,
+    color: colors.subtext,
+    marginTop: 1,
+  },
+  optionSymbol: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.subtext,
+    marginRight: spacing(0.5),
+  },
+  optionSymbolActive: {
+    color: colors.gold,
+  },
+  resetRow: {
+    alignItems: 'center',
+    paddingVertical: spacing(1.5),
+  },
+  resetText: {
+    fontSize: 13,
+    color: colors.subtext,
+    opacity: 0.7,
+  },
+});

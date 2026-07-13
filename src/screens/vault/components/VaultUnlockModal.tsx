@@ -15,6 +15,7 @@ import {
   Alert,
   Image,
   Animated,
+  Platform,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { colors, spacing, radii } from '../../../theme/tokens';
@@ -36,6 +37,7 @@ export default function VaultUnlockModal({
   onClose
 }: VaultUnlockModalProps) {
   const { unlockVaultItem } = useVault();
+  const cashDiscountEnabled = Platform.OS !== 'ios';
   const [useDiscountOption, setUseDiscountOption] = useState(false);
   const [isUnlocking, setIsUnlocking] = useState(false);
   const [unlockSuccess, setUnlockSuccess] = useState(false);
@@ -64,7 +66,7 @@ export default function VaultUnlockModal({
   const { canUnlock, reason } = canUserUnlockItem(item, userProfile);
   
   const getUnlockCosts = () => {
-    if (useDiscountOption && item.discountOption) {
+    if (cashDiscountEnabled && useDiscountOption && item.discountOption) {
       return {
         xp: item.discountOption.reducedXP,
         cash: item.discountOption.cashPrice
@@ -79,6 +81,7 @@ export default function VaultUnlockModal({
   const costs = getUnlockCosts();
 
   const canAffordDiscountOption = () => {
+    if (!cashDiscountEnabled) return false;
     if (!item.discountOption) return false;
     return userProfile.xpBalance >= item.discountOption.reducedXP;
   };
@@ -95,7 +98,7 @@ export default function VaultUnlockModal({
       const success = await unlockVaultItem({
         userId: userProfile.userId,
         itemId: item.id,
-        useDiscountOption,
+        useDiscountOption: cashDiscountEnabled && useDiscountOption,
       });
 
       if (success) {
@@ -275,7 +278,7 @@ export default function VaultUnlockModal({
             </TouchableOpacity>
 
             {/* Discount Option */}
-            {item.discountOption && (
+            {item.discountOption && cashDiscountEnabled && (
               <TouchableOpacity
                 style={[
                   styles.pricingOption,

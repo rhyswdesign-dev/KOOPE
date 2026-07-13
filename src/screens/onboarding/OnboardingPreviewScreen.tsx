@@ -1,4 +1,3 @@
-// @ts-nocheck
 import React from 'react';
 import { Alert, StyleSheet, Text, View } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -39,7 +38,7 @@ export default function OnboardingPreviewScreen() {
   }, [navigation, isPreview]);
 
   const handleViewMasteryLessons = React.useCallback(() => {
-    navigation.navigate('Main' as never, { screen: 'Lessons' } as never);
+    navigation.navigate('Main');
   }, [navigation]);
 
   return (

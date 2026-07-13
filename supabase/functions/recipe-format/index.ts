@@ -48,7 +48,14 @@ serve(async (req) => {
       return jsonError('Invalid or expired token', 401)
     }
 
-    // 2. Parse request
+    // 2. Check tier — recipe formatting requires Plus or Pro
+    const tier: string = user.user_metadata?.tier ?? 'free'
+    const TIER_RANK: Record<string, number> = { free: 0, koope_plus: 1, koope_pro: 2 }
+    if ((TIER_RANK[tier] ?? 0) < TIER_RANK['koope_plus']) {
+      return jsonError('Recipe formatting requires a Plus or Pro subscription.', 403)
+    }
+
+    // 3. Parse request
     const body = await req.json()
     const { mode, systemPrompt, userPrompt, imageUrl } = body
 

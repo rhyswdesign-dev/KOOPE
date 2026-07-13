@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Firebase Status Component
  * Shows Firebase connection status for debugging
@@ -111,7 +110,7 @@ const styles = StyleSheet.create({
   },
   container: {
     backgroundColor: colors.card,
-    borderRadius: radii.medium,
+    borderRadius: radii.md,
     padding: spacing(3),
     marginVertical: spacing(2),
     borderWidth: 1,
@@ -139,7 +138,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing(2),
     paddingVertical: spacing(1),
     backgroundColor: colors.primary + '20',
-    borderRadius: radii.small,
+    borderRadius: radii.sm,
   },
   reconnectText: {
     fontSize: 12,

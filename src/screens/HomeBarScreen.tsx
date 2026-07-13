@@ -186,6 +186,7 @@ export default function HomeBarScreen() {
   const loadStoredIngredients = async () => {
     try {
       if (!user) return;
+      await HomeBarService.migrateLegacyImageUrisOnce();
 
       const remoteItems = await InventoryService.getUserInventory(user.id);
       const mappedRemote: InventoryItem[] = remoteItems.map((item) => {
@@ -225,6 +226,7 @@ export default function HomeBarScreen() {
           notes: item.notes || undefined,
           volume: item.volume || 750,
           imageUrl: item.image_url || undefined,
+          imageUri: item.image_url || undefined,
           addedAt: item.added_at ? new Date(item.added_at) : new Date(),
           isFavorite: item.is_favorite || false,
           tags: item.flavor_tags || [],
@@ -243,14 +245,25 @@ export default function HomeBarScreen() {
 
       const storedIngredients = await HomeBarService.getStoredIngredients();
       const combined = [...mappedRemote];
-      const seen = new Set(combined.map((i) => `${i.name.toLowerCase()}|${(i.category || '').toLowerCase()}`));
+      const seen = new Map(combined.map((i, index) => [`${i.name.toLowerCase()}|${(i.category || '').toLowerCase()}`, index]));
 
       for (const item of storedIngredients) {
         const key = `${item.name.toLowerCase()}|${(item.category || '').toLowerCase()}`;
-        if (!seen.has(key)) {
-          combined.push(item);
-          seen.add(key);
+        const existingIndex = seen.get(key);
+        if (existingIndex !== undefined) {
+          const existing = combined[existingIndex];
+          combined[existingIndex] = {
+            ...existing,
+            imageUrl: existing.imageUrl || item.imageUri || item.imageUrl,
+            imageUri: (existing as any).imageUri || item.imageUri || item.imageUrl,
+            notes: existing.notes || item.notes,
+            brand: existing.brand || item.brand,
+          };
+          continue;
         }
+
+        combined.push(item as InventoryItem);
+        seen.set(key, combined.length - 1);
       }
 
       // Merge cellar record quantity onto inventory items so the Low Stock
@@ -673,6 +686,7 @@ export default function HomeBarScreen() {
   };
 
   const getIngredientImage = (item: BarIngredient) => {
+    if ((item as any).imageUri) return { uri: (item as any).imageUri };
     if (item.imageUrl) return { uri: item.imageUrl };
 
     const haystack = `${item.category || ''} ${item.subcategory || ''} ${item.name || ''} ${item.brand || ''}`.toLowerCase();
@@ -1850,8 +1864,8 @@ export default function HomeBarScreen() {
 
       <FeedbackPromptModal
         featureKey="shopping_cart"
-        title="Shopping cart — coming soon"
-        body="We're building a smart cart that lets you add missing ingredients directly from any recipe and order them through the app — no separate store trips needed. Would you use this?"
+        title="Shopping cart feedback"
+        body="Would you use a smart cart that adds missing ingredients from recipes and helps plan your next bottle run?"
         visible={cartFeedbackVisible}
         onDismiss={() => setCartFeedbackVisible(false)}
       />
@@ -2031,7 +2045,7 @@ const styles = StyleSheet.create({
   },
   categoryFilters: {
     marginTop: spacing(2.5),
-    marginBottom: spacing(0.5),
+    marginBottom: spacing(2),
   },
   categoryFiltersContent: {
     paddingHorizontal: spacing(3),

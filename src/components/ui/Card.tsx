@@ -1,4 +1,3 @@
-// @ts-nocheck
 import React from 'react';
 import {
   View,
@@ -7,6 +6,7 @@ import {
   StyleSheet,
   ViewStyle,
   ImageStyle,
+  StyleProp,
   TouchableOpacity,
   ImageSourcePropType,
 } from 'react-native';
@@ -41,11 +41,11 @@ interface CardProps {
   onPress?: () => void;
 
   // Layout
-  width?: number | string;
+  width?: number | `${number}%` | 'auto';
 
   // Style overrides
-  style?: ViewStyle;
-  imageStyle?: ImageStyle;
+  style?: StyleProp<ViewStyle>;
+  imageStyle?: StyleProp<ImageStyle>;
 }
 
 const Card: React.FC<CardProps> = ({

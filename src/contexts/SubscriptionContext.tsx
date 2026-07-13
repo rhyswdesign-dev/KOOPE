@@ -590,6 +590,22 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
           }
 
           log.info('SubscriptionContext', 'RevenueCat not configured - running in free mode');
+
+          // Apply dev tier override even when RevenueCat key is missing (Expo Go / simulator)
+          if (__DEV__) {
+            const devTier = process.env.EXPO_PUBLIC_DEV_TIER_OVERRIDE as UserTier | undefined;
+            if (devTier === 'PRO' || devTier === 'PLUS') {
+              log.info('SubscriptionContext', `DEV_TIER_OVERRIDE active (no RC key): ${devTier}`);
+              const tierStore = useUserTier.getState();
+              tierStore.setTier(devTier);
+              tierStore.setSubscriptionStatus('active');
+              setIsKoopePro(true);
+              setIsPro(devTier === 'PRO');
+              setIsPrestige(false);
+              setIsSubscriber(true);
+            }
+          }
+
           setIsLoading(false);
           return;
         }
@@ -641,7 +657,23 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
           log.warn('SubscriptionContext', 'RevenueCat initialization failed', { error: errorMessage });
         }
 
-        // Continue in free mode - don't block the app
+        // In dev, respect EXPO_PUBLIC_DEV_TIER_OVERRIDE so the team can test
+        // gated features without a real RevenueCat purchase.
+        // Set EXPO_PUBLIC_DEV_TIER_OVERRIDE=PRO (or PLUS) in .env.local.
+        if (__DEV__) {
+          const devTier = process.env.EXPO_PUBLIC_DEV_TIER_OVERRIDE as UserTier | undefined;
+          if (devTier === 'PRO' || devTier === 'PLUS') {
+            log.info('SubscriptionContext', `DEV_TIER_OVERRIDE active: ${devTier}`);
+            const tierStore = useUserTier.getState();
+            tierStore.setTier(devTier);
+            tierStore.setSubscriptionStatus('active');
+            setIsKoopePro(true);
+            setIsPro(devTier === 'PRO');
+            setIsSubscriber(true);
+          }
+        }
+
+        // Continue in free mode (or overridden mode) - don't block the app
         setError(null);
         revenueCatConfiguredRef.current = false;
       } finally {

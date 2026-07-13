@@ -70,5 +70,6 @@ export interface UserChallengeProgress {
 
 export interface ChallengeReward {
   xp: number;
+  keys?: number;
   badge?: string;
 }

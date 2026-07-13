@@ -12,6 +12,7 @@ import {
   MonetizationItem,
   UnlockedVaultItem
 } from '../types/vault';
+import { Platform } from 'react-native';
 
 // Supabase repository imports
 import { VaultRepository } from '../repos/supabase/vaultRepo';
@@ -31,6 +32,17 @@ class VaultService {
    */
   async unlockVaultItem(request: VaultUnlockRequest): Promise<VaultUnlockResponse> {
     try {
+      if (Platform.OS === 'ios' && request.useDiscountOption) {
+        log.warn('VaultService', 'Blocked cash discount unlock on iOS for App Store compliance', {
+          itemId: request.itemId,
+          userId: request.userId,
+        });
+        return {
+          success: false,
+          error: 'payment_failed',
+        };
+      }
+
       // 1. Validate user exists and get current profile
       const userProfile = await this.getUserVaultProfile(request.userId);
       if (!userProfile) {

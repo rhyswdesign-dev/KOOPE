@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * MARKDOWN RENDERER COMPONENT
  * Renders markdown content with proper styling and anchor support
@@ -6,7 +5,7 @@
  */
 
 import React, { useRef, useEffect } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View, Text } from 'react-native';
 import Markdown from 'react-native-markdown-display';
 import { colors, spacing, radii } from '../theme/tokens';
 
@@ -59,7 +58,9 @@ export default function MarkdownView({
       return (
         <View
           key={node.key}
-          ref={(ref) => ref && (anchorRefs.current[anchorId] = ref)}
+          ref={(ref) => {
+            if (ref) anchorRefs.current[anchorId] = ref;
+          }}
           style={styles.heading2}
         >
           {children}

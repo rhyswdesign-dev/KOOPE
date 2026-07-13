@@ -35,7 +35,6 @@ import {
   cocktailVariations,
   techniquePlaybooks,
   drinkingGames,
-  barFeatures,
 } from '../config/vaultContent';
 import { getProIdentityProgress, PRO_XP_MULTIPLIER } from '../config/proIdentity';
 import { WEEKLY_FOR_YOU_DROP_RECIPES } from '../data/weeklyForYouDropRecipes';
@@ -76,7 +75,7 @@ export default function ProfileScreen() {
   const createdRecipeCount = recipes.filter(r => r.type === 'created' || r.type === 'ai_generated').length;
   const importedRecipeCount = recipes.filter(r => (r.type as string) === 'imported').length;
   const claimedDropCount = useMemo(() => {
-    const weeklyDropIds = new Set(WEEKLY_FOR_YOU_DROP_RECIPES.map((recipe) => recipe.id));
+    const weeklyDropIds = new Set<string>(WEEKLY_FOR_YOU_DROP_RECIPES.map((recipe) => recipe.id));
     return (savedItems.savedCocktails || []).filter((item) => weeklyDropIds.has(item.id)).length;
   }, [savedItems.savedCocktails]);
   const proIdentity = useMemo(() => getProIdentityProgress({
@@ -164,8 +163,6 @@ export default function ProfileScreen() {
     const safeVariations = cocktailVariations || [];
     const safePlaybooks = techniquePlaybooks || [];
     const safeGames = drinkingGames || [];
-    const safeBarFeatures = barFeatures || [];
-
     const freeVariations = safeVariations.filter(v => !v.requiredTier);
     const freePlaybooks = safePlaybooks.filter(p => !p.requiredTier);
     const freeGames = safeGames.filter(g => !g.requiredTier);
@@ -178,7 +175,6 @@ export default function ProfileScreen() {
       ...safeVariations.filter(v => v.requiredTier === 'PLUS'),
       ...safePlaybooks.filter(p => p.requiredTier === 'PLUS'),
       ...safeGames.filter(g => g.requiredTier === 'PLUS'),
-      ...safeBarFeatures.filter(b => b.requiredTier === 'PLUS'),
     ].length;
 
     const cheapestFreeItem = Math.min(
@@ -339,51 +335,7 @@ export default function ProfileScreen() {
               </View>
             </View>
 
-            {tier === 'PRO' && (
-              <View style={styles.proIdentityCard}>
-                <View style={styles.proIdentityHeader}>
-                  <View>
-                    <Text style={styles.proIdentityEyebrow}>Wave 4 Identity</Text>
-                    <Text style={styles.proIdentityTitle}>Pro Status & Certifications</Text>
-                  </View>
-                  <View style={styles.proIdentityBadge}>
-                    <Text style={styles.proIdentityBadgeText}>{proIdentity.earnedCount}/{proIdentity.totalCount}</Text>
-                  </View>
-                </View>
-
-                <View style={styles.proIdentityGrid}>
-                  <View style={styles.proIdentityMetric}>
-                    <Text style={styles.proIdentityMetricLabel}>Current Cert</Text>
-                    <Text style={styles.proIdentityMetricValue}>{proIdentity.current?.title || 'In Progress'}</Text>
-                  </View>
-                  <View style={styles.proIdentityMetric}>
-                    <Text style={styles.proIdentityMetricLabel}>XP Multiplier</Text>
-                    <Text style={styles.proIdentityMetricValue}>{PRO_XP_MULTIPLIER}x</Text>
-                  </View>
-                  <View style={styles.proIdentityMetric}>
-                    <Text style={styles.proIdentityMetricLabel}>Claimed Drops</Text>
-                    <Text style={styles.proIdentityMetricValue}>{claimedDropCount}</Text>
-                  </View>
-                </View>
-
-                <Text style={styles.proIdentityBody}>
-                  {proIdentity.current
-                    ? `${proIdentity.current.title} is active. Your profile now has both a recurring reward loop and an identity track.`
-                    : 'Your Pro identity track has started. Claim drops, complete lessons, and unlock achievements to earn your first certification.'}
-                </Text>
-
-                {proIdentity.next && (
-                  <View style={styles.proIdentityNextCard}>
-                    <Text style={styles.proIdentityNextEyebrow}>Next Certification</Text>
-                    <Text style={styles.proIdentityNextTitle}>{proIdentity.next.title}</Text>
-                    <Text style={styles.proIdentityNextBody}>{proIdentity.next.body}</Text>
-                    <Text style={styles.proIdentityChecklist}>
-                      {`${Math.min(completedLessons?.length || 0, proIdentity.next.requiredLessons)}/${proIdentity.next.requiredLessons} lessons • ${Math.min(unlockedAchievementCount, proIdentity.next.requiredAchievements)}/${proIdentity.next.requiredAchievements} achievements • ${Math.min(claimedDropCount, proIdentity.next.requiredDrops)}/${proIdentity.next.requiredDrops} drops`}
-                    </Text>
-                  </View>
-                )}
-              </View>
-            )}
+            {/* Wave 4 Identity — archived, pending redesign */}
 
             {/* XP Affordability Card — free users only.
                 Makes XP feel like currency ("you can unlock X items") rather than an abstract score. */}
@@ -459,13 +411,13 @@ export default function ProfileScreen() {
               </View>
             )}
 
-            {/* Stats Overview - 2x2 Grid */}
+            {/* Stats Overview */}
             <View style={styles.section}>
               <Heading level={2} style={styles.sectionTitle}>Stats Overview</Heading>
               <View style={styles.statsGrid}>
                 <View style={styles.statBox}>
-                  <Text style={styles.statBoxLabel}>Lessons{'\n'}Completed</Text>
-                  <Text style={styles.statValue}>{completedLessons.length}</Text>
+                  <Text style={styles.statBoxLabel}>Bottles{'\n'}Scanned</Text>
+                  <Text style={styles.statValue}>{scanHistory.length}</Text>
                 </View>
                 <View style={styles.statBox}>
                   <Text style={styles.statBoxLabel}>Saved{'\n'}Drinks</Text>
@@ -600,29 +552,29 @@ export default function ProfileScreen() {
               </View>
             )}
 
-            {/* Quick Summary */}
-            <View style={styles.section}>
-              <Heading level={2} style={styles.sectionTitle}>Your Journey</Heading>
-              <View style={styles.insightCard}>
-                <View style={styles.insightContent}>
-                  <Heading level={3} style={styles.insightSubtitle}>
-                    {completedLessons.length === 0
-                      ? 'Ready to start learning?'
-                      : completedLessons.length < 10
-                        ? 'Great start!'
-                        : 'Making great progress!'}
-                  </Heading>
-                  <Text style={styles.insightDescription}>
-                    {completedLessons.length === 0
-                      ? 'Complete your first lesson to begin your bartending journey.'
-                      : `You've completed ${completedLessons.length} lesson${completedLessons.length !== 1 ? 's' : ''}, saved ${savedTotalCount} drink${savedTotalCount !== 1 ? 's' : ''}, unlocked ${unlockedAchievementCount} achievement${unlockedAchievementCount !== 1 ? 's' : ''}, and earned ${totalXP.toLocaleString()} XP.`}
-                  </Text>
-                </View>
-                <View style={styles.insightImage}>
-                  <MaterialCommunityIcons name="glass-cocktail" size={48} color={colors.accent} />
+            {/* Quick Summary — only shown once there's something to report */}
+            {(completedLessons.length > 0 || savedTotalCount > 0 || unlockedAchievementCount > 0) && (
+              <View style={styles.section}>
+                <Heading level={2} style={styles.sectionTitle}>Your Journey</Heading>
+                <View style={styles.insightCard}>
+                  <View style={styles.insightContent}>
+                    <Heading level={3} style={styles.insightSubtitle}>
+                      {completedLessons.length > 0
+                        ? completedLessons.length < 10 ? 'Great start!' : 'Making great progress!'
+                        : savedTotalCount > 0 ? 'Building your collection' : 'Getting started!'}
+                    </Heading>
+                    <Text style={styles.insightDescription}>
+                      {completedLessons.length > 0
+                        ? `You've completed ${completedLessons.length} lesson${completedLessons.length !== 1 ? 's' : ''}, saved ${savedTotalCount} drink${savedTotalCount !== 1 ? 's' : ''}, unlocked ${unlockedAchievementCount} achievement${unlockedAchievementCount !== 1 ? 's' : ''}, and earned ${totalXP.toLocaleString()} XP.`
+                        : `You've saved ${savedTotalCount} drink${savedTotalCount !== 1 ? 's' : ''}, scanned ${scanHistory.length} bottle${scanHistory.length !== 1 ? 's' : ''}, and earned ${totalXP.toLocaleString()} XP so far.`}
+                    </Text>
+                  </View>
+                  <View style={styles.insightImage}>
+                    <MaterialCommunityIcons name="glass-cocktail" size={48} color={colors.accent} />
+                  </View>
                 </View>
               </View>
-            </View>
+            )}
           </ScrollView>
 
           {/* Recipe Preferences Modal */}
@@ -1038,28 +990,31 @@ const styles = StyleSheet.create({
   },
   statsGrid: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing(1.5),
+    justifyContent: 'space-between',
   },
   statBox: {
-    flex: 1,
-    minWidth: '47%',
+    width: '24%',
     backgroundColor: colors.card,
     borderRadius: radii.lg,
-    padding: spacing(2.5),
+    paddingVertical: spacing(1.1),
+    paddingHorizontal: spacing(0.5),
     borderWidth: 1,
     borderColor: colors.line,
+    alignItems: 'center',
   },
   statBoxLabel: {
-    fontSize: 12,
+    fontSize: 11,
     color: colors.subtext,
-    marginBottom: spacing(1),
-    lineHeight: 16,
+    marginBottom: spacing(0.5),
+    lineHeight: 14,
+    minHeight: 28,
+    textAlign: 'center',
   },
   statValue: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: '700',
     color: colors.text,
+    textAlign: 'center',
   },
   badgesScroll: {
     marginTop: spacing(1),
@@ -1162,11 +1117,11 @@ const styles = StyleSheet.create({
   proIdentityCard: {
     backgroundColor: colors.card,
     borderRadius: radii.lg,
-    padding: spacing(3),
+    padding: spacing(2.5),
     marginBottom: spacing(3),
     borderWidth: 1,
     borderColor: 'rgba(224, 168, 84, 0.24)',
-    gap: spacing(2),
+    gap: spacing(1.5),
     shadowColor: colors.accent,
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.08,
@@ -1185,10 +1140,10 @@ const styles = StyleSheet.create({
     color: colors.accent,
     textTransform: 'uppercase',
     letterSpacing: 1,
-    marginBottom: spacing(0.75),
+    marginBottom: spacing(0.5),
   },
   proIdentityTitle: {
-    fontSize: 22,
+    fontSize: 19,
     color: colors.text,
     fontFamily: serifFont,
     fontWeight: '700',

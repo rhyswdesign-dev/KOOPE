@@ -15,6 +15,7 @@ import TutorialIconButton from '../components/tour/TutorialIconButton';
 import { triggerHaptic } from '../lib/haptics';
 import type { ScreenTourId } from '../config/screenTours';
 import { useTutorialPreferences } from '../store/useTutorialPreferences';
+import { TrialBanner } from '../components/TrialBanner';
 
 type TabsParamList = {
   Lessons: undefined;
@@ -77,8 +78,8 @@ export default function Tabs() {
           },
         }}
       >
-        <Tab.Screen name="Lessons" component={LessonsStack} />
         <Tab.Screen name="Recipes" component={RecipesStack} options={{ tabBarLabel: 'Discover' }} />
+        <Tab.Screen name="Shelf" component={InventoryStack} options={{ tabBarLabel: 'Your Shelf' }} />
         <Tab.Screen
           name="Camera"
           component={CameraStack}
@@ -93,7 +94,7 @@ export default function Tabs() {
             };
           }}
         />
-        <Tab.Screen name="Shelf" component={InventoryStack} options={{ tabBarLabel: 'Your Shelf' }} />
+        <Tab.Screen name="Lessons" component={LessonsStack} />
         <Tab.Screen name="Profile" component={ProfileStack} />
       </Tab.Navigator>
       {showTutorialIcons && (
@@ -114,6 +115,7 @@ export default function Tabs() {
       <SafeAreaView edges={['top']} style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 1000 }}>
         <OfflineIndicator />
       </SafeAreaView>
+      <TrialBanner />
     </View>
   );
 }

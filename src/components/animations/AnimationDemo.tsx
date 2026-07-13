@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Animation Demo Component
  * Demonstrates the various completion animations available
@@ -10,11 +9,13 @@ import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
 import { CompletionAnimation } from './CompletionAnimation';
 import { QuickFeedbackAnimation } from './QuickFeedbackAnimation';
 import { colors, spacing, radii } from '../../theme/tokens';
+import type { CompletionAnimationProps } from './CompletionAnimation';
+import type { QuickFeedbackAnimationProps } from './QuickFeedbackAnimation';
 
 export const AnimationDemo: React.FC = () => {
   const [activeAnimation, setActiveAnimation] = useState<{
     type: 'completion' | 'quick';
-    subtype: string;
+    subtype: CompletionAnimationProps['type'] | QuickFeedbackAnimationProps['type'];
   } | null>(null);
 
   const completionAnimationTypes = [
@@ -32,11 +33,11 @@ export const AnimationDemo: React.FC = () => {
     { type: 'streak', label: 'Streak (3 in a row)' },
   ] as const;
 
-  const showCompletionAnimation = (type: any) => {
+  const showCompletionAnimation = (type: CompletionAnimationProps['type']) => {
     setActiveAnimation({ type: 'completion', subtype: type });
   };
 
-  const showQuickFeedback = (type: any) => {
+  const showQuickFeedback = (type: QuickFeedbackAnimationProps['type']) => {
     setActiveAnimation({ type: 'quick', subtype: type });
   };
 
@@ -114,7 +115,7 @@ completionAnimation.showAnimation('perfect_score', {
 
       {/* Completion Animation */}
       <CompletionAnimation
-        type={activeAnimation?.subtype as any}
+        type={(activeAnimation?.subtype ?? 'question_correct') as CompletionAnimationProps['type']}
         visible={activeAnimation?.type === 'completion'}
         onComplete={hideAnimation}
         message="Demo animation!"
@@ -124,7 +125,7 @@ completionAnimation.showAnimation('perfect_score', {
 
       {/* Quick Feedback Animation */}
       <QuickFeedbackAnimation
-        type={activeAnimation?.subtype as any}
+        type={(activeAnimation?.subtype ?? 'correct') as QuickFeedbackAnimationProps['type']}
         visible={activeAnimation?.type === 'quick'}
         onComplete={hideAnimation}
         streakCount={activeAnimation?.subtype === 'streak' ? 3 : undefined}
@@ -177,7 +178,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     paddingHorizontal: spacing(3),
     paddingVertical: spacing(2),
-    borderRadius: radii.medium,
+    borderRadius: radii.md,
     marginRight: spacing(2),
     marginBottom: spacing(2),
   },
@@ -195,7 +196,7 @@ const styles = StyleSheet.create({
   codeBlock: {
     backgroundColor: colors.card,
     padding: spacing(4),
-    borderRadius: radii.medium,
+    borderRadius: radii.md,
     borderWidth: 1,
     borderColor: colors.border,
   },

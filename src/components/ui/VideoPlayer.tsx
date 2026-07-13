@@ -1,10 +1,9 @@
-// @ts-nocheck
 /**
  * VideoPlayer Component
  * Inline and fullscreen video player with controls
  */
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   View, 
   Text, 
@@ -17,7 +16,6 @@ import {
 } from 'react-native';
 import { VideoView, useVideoPlayer } from 'expo-video';
 import { Ionicons } from '@expo/vector-icons';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, spacing, radii, fonts } from '../../theme/tokens';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
@@ -65,7 +63,6 @@ export default function VideoPlayer({
   onFullscreenEnter,
   onFullscreenExit,
 }: VideoPlayerProps) {
-  const insets = useSafeAreaInsets();
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [controls, setControls] = useState<VideoControls>({
     isPlaying: false,
@@ -74,7 +71,7 @@ export default function VideoPlayer({
     isLoaded: false,
     showControls: true,
   });
-  const [controlsTimeout, setControlsTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [controlsTimeout, setControlsTimeout] = useState<ReturnType<typeof setTimeout> | null>(null);
 
   // Create video player instance
   const player = useVideoPlayer(source, (player) => {
@@ -87,11 +84,11 @@ export default function VideoPlayer({
 
   useEffect(() => {
     // Set up event listeners for the video player
-    const subscription = player.addListener('playingChange', (oldIsPlaying, newIsPlaying) => {
-      setControls(prev => ({ ...prev, isPlaying: newIsPlaying }));
+    const subscription = player.addListener('playingChange', ({ isPlaying }) => {
+      setControls(prev => ({ ...prev, isPlaying }));
     });
 
-    const statusSubscription = player.addListener('statusChange', (status, oldStatus, error) => {
+    const statusSubscription = player.addListener('statusChange', ({ status }) => {
       if (status === 'readyToPlay') {
         setControls(prev => ({ 
           ...prev, 
@@ -108,7 +105,7 @@ export default function VideoPlayer({
       });
     });
 
-    const timeSubscription = player.addListener('timeUpdate', (currentTime, bufferedTime) => {
+    const timeSubscription = player.addListener('timeUpdate', ({ currentTime }) => {
       setControls(prev => ({ 
         ...prev, 
         position: currentTime * 1000 // Convert to milliseconds
@@ -139,11 +136,6 @@ export default function VideoPlayer({
       setIsFullscreen(true);
       onFullscreenEnter?.();
     }
-  };
-
-  const seekTo = (position: number) => {
-    // Convert milliseconds to seconds for expo-video
-    player.currentTime = position / 1000;
   };
 
   const showControlsTemporarily = () => {

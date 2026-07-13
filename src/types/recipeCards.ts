@@ -35,6 +35,7 @@ export interface CollectibleRecipeCard {
   spec: CollectibleRecipeCardSpecLine[];
   method: string[];
   tastingNote?: string;
+  bestFor?: string;
   prepBlock?: {
     title: string;
     lines: string[];

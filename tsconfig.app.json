@@ -22,6 +22,7 @@
     "MixMind",
     "src/tests",
     "src/components/__tests__",
+    "src/**/*OLD*",
     "**/*.test.ts",
     "**/*.test.tsx",
     "**/*.spec.ts",

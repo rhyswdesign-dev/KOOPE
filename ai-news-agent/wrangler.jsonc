@@ -1,0 +1,26 @@
+{
+  "name": "ai-news-agent",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-06-01",
+  "compatibility_flags": ["nodejs_compat"],
+
+  // Monday 8:00am UTC = ~9am UK / ~4am EST (good "check your inbox before work" timing)
+  "triggers": {
+    "crons": ["0 8 * * 1"]
+  },
+
+  "send_email": [
+    {
+      "name": "EMAIL"
+      // Optional: lock to a single destination for safety
+      // "destination_address": "rhysw.design@gmail.com"
+    }
+  ],
+
+  // Set these with: wrangler secret put ANTHROPIC_API_KEY
+  // Then: wrangler secret put RECIPIENT_EMAIL
+  // Then: wrangler secret put FROM_EMAIL  (must be on your verified Cloudflare Email domain)
+  "vars": {
+    "FROM_NAME": "Rhys's AI Digest"
+  }
+}

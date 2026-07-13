@@ -1328,7 +1328,7 @@ export default function OnboardingQuestionnaireScreen({ onComplete, previewMode 
           {!previewMode ? (
             <View style={styles.proPricingWrap}>
               <Text style={styles.proNote}>Pro features unlock during trial days 6–7.</Text>
-              <Text style={styles.proPricingLabel}>Pro pricing (coming soon in trial days 6-7)</Text>
+              <Text style={styles.proPricingLabel}>Pro pricing (unlocks in trial days 6-7)</Text>
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}

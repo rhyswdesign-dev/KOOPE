@@ -1,4 +1,3 @@
-// @ts-nocheck
 import React, { useCallback } from 'react';
 import {
   View,
@@ -156,7 +155,7 @@ export default function NotificationCenterScreen() {
 
   const renderEmptyState = () => (
     <EmptyState
-      icon="notifications-outline"
+      icon="bell-outline"
       title="No Notifications"
       message="You're all caught up! We'll let you know when something important happens."
     />

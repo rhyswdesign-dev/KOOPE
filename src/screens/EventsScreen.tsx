@@ -121,7 +121,7 @@ export default function EventsScreen() {
       {/* Footer */}
       <View style={styles.footer}>
         <Text style={styles.footerText}>
-          More events coming soon. Check back regularly!
+          More events are added on a rolling basis. Check back regularly.
         </Text>
       </View>
     </ScrollView>
@@ -169,7 +169,7 @@ function EventCard({ event, isPro }: EventCardProps) {
     const discount = isPro ? '\n\n💎 PRO Discount Available!' : '';
     Alert.alert(
       event.title,
-      `📅 ${formatDate(event.dateISO)} at ${formatTime(event.dateISO)}\n📍 ${event.city}\n\nEvent registration and details coming soon!${discount}`,
+      `📅 ${formatDate(event.dateISO)} at ${formatTime(event.dateISO)}\n📍 ${event.city}\n\nEvent registration details will be available in-app.${discount}`,
       [{ text: 'Got it!' }]
     );
   };

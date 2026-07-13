@@ -1,5 +1,6 @@
 import { log } from '../lib/logger';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as FileSystem from 'expo-file-system';
 
 export interface BarIngredient {
   id: string;
@@ -15,6 +16,7 @@ export interface BarIngredient {
   isFavorite: boolean;
   tags: string[];
   imageUrl?: string;
+  imageUri?: string;
 }
 
 export interface HomeBar {
@@ -114,6 +116,8 @@ export const COMPREHENSIVE_MOCK_INVENTORY: BarIngredient[] = [
  */
 export class HomeBarService {
   private static STORAGE_KEY = 'home_bar_ingredients';
+  private static IMAGE_URI_MIGRATION_KEY = 'home_bar_image_uri_migrated_v1';
+  private static DOCUMENT_DIRECTORY = (FileSystem as unknown as { documentDirectory?: string }).documentDirectory ?? '';
 
   /**
    * Add ingredient to home bar inventory
@@ -156,6 +160,71 @@ export class HomeBarService {
     } catch (error) {
       log.error('HomeBarService', 'Failed to load stored ingredients', error);
       return [];
+    }
+  }
+
+  /**
+   * One-time migration: move legacy temporary image URIs into persistent
+   * app document storage so shelf thumbnails survive restarts/cache cleanup.
+   */
+  static async migrateLegacyImageUrisOnce(): Promise<void> {
+    try {
+      const alreadyMigrated = await AsyncStorage.getItem(this.IMAGE_URI_MIGRATION_KEY);
+      if (alreadyMigrated === '1') return;
+
+      const stored = await AsyncStorage.getItem(this.STORAGE_KEY);
+      if (!stored) {
+        await AsyncStorage.setItem(this.IMAGE_URI_MIGRATION_KEY, '1');
+        return;
+      }
+
+      const parsed = JSON.parse(stored) as BarIngredient[];
+      const scansDir = `${this.DOCUMENT_DIRECTORY}scans/`;
+      if (this.DOCUMENT_DIRECTORY) {
+        await FileSystem.makeDirectoryAsync(scansDir, { intermediates: true }).catch(() => {});
+      }
+
+      let changed = false;
+      const migrated = await Promise.all(
+        parsed.map(async (item) => {
+          const candidate = (item as any).imageUri || item.imageUrl;
+          if (!candidate || typeof candidate !== 'string') return item;
+          if (!candidate.startsWith('file://')) return item;
+          if (this.DOCUMENT_DIRECTORY && candidate.startsWith(this.DOCUMENT_DIRECTORY)) return item;
+
+          try {
+            const extMatch = candidate.match(/\.(jpg|jpeg|png|heic|webp)(\?|$)/i);
+            const ext = extMatch?.[1]?.toLowerCase() || 'jpg';
+            const safeId = (item.id || `${item.name}_${Date.now()}`)
+              .replace(/[^a-z0-9]/gi, '_')
+              .toLowerCase();
+            const dest = `${scansDir}shelf_${safeId}.${ext}`;
+
+            const info = await FileSystem.getInfoAsync(candidate);
+            if (!info.exists) return item;
+
+            await FileSystem.copyAsync({ from: candidate, to: dest });
+            changed = true;
+            return {
+              ...item,
+              imageUri: dest,
+              imageUrl: dest,
+            };
+          } catch {
+            return item;
+          }
+        })
+      );
+
+      if (changed) {
+        await AsyncStorage.setItem(this.STORAGE_KEY, JSON.stringify(migrated));
+        log.info('HomeBarService', 'Migrated legacy shelf image URIs to persistent storage');
+      }
+
+      await AsyncStorage.setItem(this.IMAGE_URI_MIGRATION_KEY, '1');
+    } catch (error) {
+      log.warn('HomeBarService', 'Image URI migration skipped due to error', { error });
+      // Fail-open: don't block app; allow retry next launch if flag wasn't set.
     }
   }
 
@@ -375,7 +444,7 @@ export class HomeBarService {
         commonBrands: ['Moët & Chandon', 'Veuve Clicquot', 'Perrier-Jouët'],
         description: 'Sparkling wine topper for elegant champagne cocktails',
         averagePrice: 30,
-        essentialLevel: 'optional',
+        essentialLevel: 'nice-to-have',
         usedInCocktails: ['French 75', 'Champagne Cocktail', 'Bellini', 'Kir Royale']
       },
       {
@@ -385,7 +454,7 @@ export class HomeBarService {
         commonBrands: ['La Marca', 'Mionetto', 'Zonin'],
         description: 'Italian sparkling wine for spritzes and cocktail tops',
         averagePrice: 15,
-        essentialLevel: 'optional',
+        essentialLevel: 'nice-to-have',
         usedInCocktails: ['Aperol Spritz', 'Hugo Spritz', 'Bellini']
       }
     ];

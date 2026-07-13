@@ -1,4 +1,3 @@
-// @ts-nocheck
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -170,7 +169,7 @@ export default function RefineYourTasteScreen({ navigation }: Props) {
 
         if (!mounted) return;
         setGraphData(baseGraph);
-        setOccasionMode(dbProfile?.moodPreferences?.forYouOccasionMode || 'casual');
+        setOccasionMode('casual');
         setAbvPreference(
           dbProfile?.tasteProfile?.preferredABV
             ? abvPreferenceFromRange(dbProfile.tasteProfile.preferredABV)
@@ -219,8 +218,8 @@ export default function RefineYourTasteScreen({ navigation }: Props) {
     );
 
     const ranked = predictions.slice().sort((a, b) => {
-      const aOccasionBoost = String(a.description || a.subtitle || '').toLowerCase().includes(occasionMode) ? 1 : 0;
-      const bOccasionBoost = String(b.description || b.subtitle || '').toLowerCase().includes(occasionMode) ? 1 : 0;
+      const aOccasionBoost = String(a.description || '').toLowerCase().includes(occasionMode) ? 1 : 0;
+      const bOccasionBoost = String(b.description || '').toLowerCase().includes(occasionMode) ? 1 : 0;
       return bOccasionBoost - aOccasionBoost;
     });
 
@@ -274,7 +273,6 @@ export default function RefineYourTasteScreen({ navigation }: Props) {
         spiritScores,
         preferredABV: abvPreference,
         complexityScore: Math.round(finalTasteProfile.preferredComplexity * 100),
-        lastSurveyUpdate: Date.now(),
       });
 
       if (user?.id) {
@@ -475,15 +473,15 @@ export default function RefineYourTasteScreen({ navigation }: Props) {
             <Text style={styles.sectionTitle}>Preview Your Next For You Drop</Text>
             <Text style={styles.sectionSubtitle}>These are the kinds of cocktails your current graph is pushing to the top.</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.previewScroll}>
-              {previewCocktails.map((cocktail, index) => (
+              {(previewCocktails as any[]).map((cocktail, index) => (
                 <View key={cocktail.id || index} style={styles.previewCardWrap}>
                   <RecipeCard
-                    {...createRecipeCardProps(cocktail, navigation, {
+                    {...createRecipeCardProps(cocktail as any, navigation, {
                       showSaveButton: false,
                       showCartButton: false,
                       showDeleteButton: false,
                     })}
-                    onPress={() => handleRecipeView(cocktail, navigation)}
+                    onPress={() => handleRecipeView(cocktail as any, navigation)}
                   />
                 </View>
               ))}

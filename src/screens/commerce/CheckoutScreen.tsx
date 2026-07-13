@@ -9,6 +9,7 @@ import {
   TextInput,
   Switch,
   Alert,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -66,6 +67,7 @@ const mockPaymentMethods: PaymentMethod[] = [
 export default function CheckoutScreen() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { state, clearCart } = useCart();
+  const isIOS = Platform.OS === 'ios';
   const [selectedShippingAddress, setSelectedShippingAddress] = useState<Address>(
     mockAddresses.find(addr => addr.isDefault) || mockAddresses[0]
   );
@@ -86,6 +88,10 @@ export default function CheckoutScreen() {
   }, [nav]);
 
   const handlePlaceOrder = async () => {
+    if (isIOS) {
+      nav.navigate('Paywall', { source: 'checkout_ios_gate', displayCloseButton: true });
+      return;
+    }
     setIsProcessing(true);
     
     // Simulate payment processing
@@ -124,6 +130,27 @@ export default function CheckoutScreen() {
     }
     return pm.type.charAt(0).toUpperCase() + pm.type.slice(1);
   };
+
+  if (isIOS) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.iosBlockedWrap}>
+          <Ionicons name="information-circle-outline" size={64} color={colors.subtext} />
+          <Text style={styles.iosBlockedTitle}>Checkout is disabled on iOS</Text>
+          <Text style={styles.iosBlockedBody}>
+            This build only supports App Store managed subscriptions on iOS.
+          </Text>
+          <TouchableOpacity
+            style={styles.iosBlockedButton}
+            onPress={() => nav.navigate('Paywall', { source: 'checkout_ios_notice', displayCloseButton: true })}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.iosBlockedButtonText}>Open Paywall</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -238,7 +265,7 @@ export default function CheckoutScreen() {
         <TouchableOpacity
           style={[styles.placeOrderButton, isProcessing && styles.processingButton]}
           onPress={handlePlaceOrder}
-          disabled={isProcessing}
+          disabled={isProcessing || isIOS}
           activeOpacity={0.8}
         >
           <Text style={styles.placeOrderButtonText}>
@@ -294,6 +321,40 @@ const styles = StyleSheet.create({
   switchLabel: {
     fontSize: 14,
     color: colors.text,
+  },
+  iosBlockedWrap: {
+    margin: spacing(2),
+    backgroundColor: colors.card,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.line,
+    padding: spacing(2),
+    alignItems: 'center',
+    gap: spacing(1),
+  },
+  iosBlockedTitle: {
+    color: colors.text,
+    fontSize: 18,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+  iosBlockedBody: {
+    color: colors.subtext,
+    fontSize: 14,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  iosBlockedButton: {
+    marginTop: spacing(1),
+    backgroundColor: colors.accent,
+    borderRadius: radii.md,
+    paddingHorizontal: spacing(2),
+    paddingVertical: spacing(1.25),
+  },
+  iosBlockedButtonText: {
+    color: colors.white,
+    fontSize: 14,
+    fontWeight: '700',
   },
   addressCard: {
     flexDirection: 'row',

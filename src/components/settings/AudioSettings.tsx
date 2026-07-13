@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Audio Settings Component
  * Allows users to control their audio experience
@@ -6,7 +5,7 @@
 
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, Switch } from 'react-native';
-import { Slider } from '@react-native-community/slider';
+import Slider from '@react-native-community/slider';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, radii } from '../../theme/tokens';
 import { useAudio } from '../../hooks/useAudio';
@@ -115,7 +114,6 @@ export const AudioSettings: React.FC = () => {
               onValueChange={handleVolumeChange}
               minimumTrackTintColor={colors.primary}
               maximumTrackTintColor={colors.border}
-              thumbStyle={styles.sliderThumb}
               step={0.1}
             />
             <Ionicons name="volume-high" size={20} color={colors.textSecondary} />
@@ -264,11 +262,6 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 40,
   },
-  sliderThumb: {
-    backgroundColor: colors.primary,
-    width: 20,
-    height: 20,
-  },
   volumeValue: {
     fontSize: 14,
     fontWeight: '600',
@@ -308,7 +301,7 @@ const styles = StyleSheet.create({
   },
   statusContainer: {
     backgroundColor: colors.card,
-    borderRadius: radii.medium,
+    borderRadius: radii.md,
     padding: spacing(4),
     borderWidth: 1,
     borderColor: colors.border,

@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * ADVANCED SEARCH FILTERS COMPONENT
  * Comprehensive filtering interface for cocktail recipes and content
@@ -21,6 +20,8 @@ import { Ionicons } from '@expo/vector-icons';
 import Slider from '@react-native-community/slider';
 import { colors, spacing, radii } from '../../theme/tokens';
 import { FilterOptions } from '../../services/searchService';
+
+type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 
 export interface AdvancedFilterState {
   categories: string[];
@@ -141,13 +142,13 @@ export default function AdvancedFilters({
     return count;
   };
 
-  const renderSectionHeader = (title: string, icon: string, sectionKey: string) => (
+  const renderSectionHeader = (title: string, icon: IoniconName, sectionKey: string) => (
     <TouchableOpacity
       style={styles.sectionHeader}
       onPress={() => setActiveSection(activeSection === sectionKey ? null : sectionKey)}
     >
       <View style={styles.sectionHeaderContent}>
-        <Ionicons name={icon as any} size={20} color={colors.accent} />
+        <Ionicons name={icon} size={20} color={colors.accent} />
         <Text style={styles.sectionTitle}>{title}</Text>
       </View>
       <Ionicons
@@ -210,7 +211,7 @@ export default function AdvancedFilters({
           onValueChange={(val) => onChange([val, value[1]])}
           minimumTrackTintColor={colors.accent}
           maximumTrackTintColor={colors.line}
-          thumbStyle={styles.sliderThumb}
+          thumbTintColor={colors.accent}
         />
         <Slider
           style={styles.slider}
@@ -220,7 +221,7 @@ export default function AdvancedFilters({
           onValueChange={(val) => onChange([value[0], val])}
           minimumTrackTintColor={colors.accent}
           maximumTrackTintColor={colors.line}
-          thumbStyle={styles.sliderThumb}
+          thumbTintColor={colors.accent}
         />
       </View>
     </View>
@@ -407,7 +408,7 @@ export default function AdvancedFilters({
                       styles.optionItem,
                       filters.sortBy === sort.key && styles.optionItemSelected,
                     ]}
-                    onPress={() => updateFilter('sortBy', sort.key as any)}
+                    onPress={() => updateFilter('sortBy', sort.key as FilterOptions['sortBy'])}
                   >
                     <Text
                       style={[
@@ -618,9 +619,6 @@ const styles = StyleSheet.create({
   },
   slider: {
     height: 40,
-  },
-  sliderThumb: {
-    backgroundColor: colors.accent,
   },
   switchOption: {
     flexDirection: 'row',
