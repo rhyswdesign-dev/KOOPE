@@ -95,6 +95,26 @@ console.error = (...args: any[]) => {
     return;
   }
 
+  // Supabase unreachable-backend noise (audit/sprint-1 device-test fix):
+  // when the backend is offline or the project URL is unreachable, GoTrue's
+  // auto-refresh loop and edge-function calls emit AuthRetryableFetchError /
+  // "Network request failed" / FunctionsFetchError repeatedly. These are
+  // expected degradation (the app runs signed-out), not bugs — and in dev
+  // each one paints a red LogBox error over the app, which reads as a crash.
+  // Downgrade to a quiet log so genuine errors stay visible.
+  const errorText =
+    typeof message === 'string'
+      ? message
+      : `${message?.name ?? ''} ${message?.message ?? ''}`;
+  if (
+    errorText.includes('AuthRetryableFetchError') ||
+    errorText.includes('Network request failed') ||
+    errorText.includes('FunctionsFetchError')
+  ) {
+    console.log('[Handled] Supabase backend unreachable — continuing in offline/signed-out mode');
+    return;
+  }
+
   // Check if it's a Firebase error object
   if (args.length > 0 && isNetworkError(args[0])) {
     return;
@@ -103,6 +123,37 @@ console.error = (...args: any[]) => {
   // Log all other errors normally
   originalConsoleError.apply(console, args);
 };
+
+// Global safety net for unhandled promise rejections (audit/sprint-1
+// device-test fix). React's ErrorBoundary only catches render-phase errors —
+// an async supabase/fetch call that rejects with no .catch() bypasses it
+// entirely and surfaces as a red screen in dev. Known chains have been given
+// explicit .catch() handlers; this tracker is the backstop for any path we
+// missed: network-type rejections are logged and swallowed (the app degrades
+// gracefully offline), everything else is re-reported so real bugs still show.
+const installUnhandledRejectionSafetyNet = () => {
+  const hermes = (global as any)?.HermesInternal;
+  if (!hermes?.enablePromiseRejectionTracker) return;
+  hermes.enablePromiseRejectionTracker({
+    allRejections: true,
+    onUnhandled: (id: number, error: any) => {
+      const text = `${error?.name ?? ''} ${error?.message ?? String(error)}`;
+      if (
+        isNetworkError(error) ||
+        text.includes('AuthRetryableFetchError') ||
+        text.includes('Network request failed') ||
+        text.includes('FunctionsFetchError')
+      ) {
+        console.log('[Handled] Unhandled network rejection — continuing offline', text.trim());
+        return;
+      }
+      // Non-network rejection: surface it like the default tracker would.
+      console.error(`Possible unhandled promise rejection (id: ${id}):`, error);
+    },
+    onHandled: () => {},
+  });
+};
+installUnhandledRejectionSafetyNet();
 
 // KOOPE Dark Theme for React Navigation
 const KOOPETheme = {
@@ -207,7 +258,10 @@ function AppInner() {
 
     initializeUserRecipes();
 
-    // Record daily activity for streak tracking + award daily login XP
+    // Record daily activity for streak tracking + award daily login XP.
+    // .catch() required (audit/sprint-1 device-test fix): this chain runs at
+    // startup and previously had no rejection handler — any failure became an
+    // unhandled promise rejection instead of a skipped streak tick.
     streakService.recordActivity('app_open').then((result) => {
       if (result.streakIncreased) {
         // First app open of the day — award 10 XP daily login bonus
@@ -217,6 +271,8 @@ function AppInner() {
           console.log(`🎉 New record streak!`);
         }
       }
+    }).catch((error) => {
+      console.warn('Streak tracking failed at startup (non-fatal)', error?.message ?? error);
     });
   }, []);
 

@@ -65,6 +65,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setSession(session);
       setUser(session?.user ?? null);
       setIsLoading(false);
+    }).catch((error) => {
+      // Degrade to signed-out instead of crashing (audit/sprint-1 device-test
+      // fix): when the Supabase backend is unreachable — offline, or the
+      // project URL itself is dead — a stored session that needs a token
+      // refresh makes getSession() reject with AuthRetryableFetchError. This
+      // chain previously had no .catch(), so that rejection went unhandled
+      // and surfaced as a crash/red screen on-device instead of a friendly
+      // signed-out state. The app works signed-out by design, so that is the
+      // safe fallback; onAuthStateChange will restore the session if the
+      // backend comes back.
+      log.warn('AuthContext', 'Could not load initial session (backend unreachable?)', { error: error?.message });
+      setSession(null);
+      setUser(null);
+      setIsLoading(false);
     });
 
     // Listen for auth changes
