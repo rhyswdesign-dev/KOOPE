@@ -10,6 +10,27 @@ import { log } from '../lib/logger';
 import { findSpirit, SPIRITS_DATABASE, type Spirit } from '../data/spiritsDatabase';
 import { supabase } from '../lib/supabase';
 
+/**
+ * True when an error means "the backend could not be reached at all" —
+ * device offline, DNS failure, or the Supabase project unreachable — as
+ * opposed to the backend answering with a failure. Used to surface an
+ * honest connection state in the scan UI instead of "Bottle Not Found"
+ * (audit/sprint-1 device-test fix).
+ */
+export function isConnectivityError(error: unknown): boolean {
+  if (!error) return false;
+  const text = `${(error as any)?.name ?? ''} ${(error as any)?.message ?? String(error)}`;
+  return (
+    text.includes('FunctionsFetchError') ||
+    text.includes('AuthRetryableFetchError') ||
+    text.includes('Network request failed') ||
+    text.includes('Failed to fetch') ||
+    text.includes('NetworkError') ||
+    text.includes('ECONNREFUSED') ||
+    text.includes('timeout')
+  );
+}
+
 export interface VisionResult {
   labels: string[];
   text?: string[];
@@ -178,6 +199,15 @@ export class GoogleVisionService {
 
       if (error) {
         log.warn('GoogleVisionService', 'bottle-recognize call failed', error);
+        // Distinguish "couldn't reach the backend" from "backend answered but
+        // failed" (audit/sprint-1 device-test fix). supabase.functions.invoke
+        // reports fetch-level failures as FunctionsFetchError in `error`
+        // rather than throwing. Previously both cases collapsed into
+        // source:'error' -> spirit:null, which the scan screen presented as
+        // "Bottle Not Found" — a lie when the real problem is connectivity.
+        if (isConnectivityError(error)) {
+          return { spirit: null, confidence: 0, source: 'network_error', isSpiritImage: true };
+        }
         return { spirit: null, confidence: 0, source: 'error', isSpiritImage: true };
       }
 
@@ -219,6 +249,9 @@ export class GoogleVisionService {
       return { spirit, confidence, source: data.source ?? 'bottle-recognize', isSpiritImage: true };
     } catch (err) {
       log.error('GoogleVisionService', 'recognizeBottle error', err);
+      if (isConnectivityError(err)) {
+        return { spirit: null, confidence: 0, source: 'network_error', isSpiritImage: true };
+      }
       return { spirit: null, confidence: 0, source: 'error', isSpiritImage: true };
     }
   }

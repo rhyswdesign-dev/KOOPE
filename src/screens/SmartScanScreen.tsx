@@ -22,7 +22,7 @@ import { useNavigation, useIsFocused, useRoute } from '@react-navigation/native'
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, radii } from '../theme/tokens';
-import { GoogleVisionService } from '../services/googleVisionService';
+import { GoogleVisionService, isConnectivityError } from '../services/googleVisionService';
 import { BarcodeService } from '../services/barcodeService';
 import CameraCapture from '../components/camera/CameraCapture';
 import type { CameraStackParamList } from '../navigation/CameraStack';
@@ -252,7 +252,21 @@ export default function SmartScanScreen() {
         }
       } catch (error) {
         log.error('SmartScanScreen', 'Error looking up barcode', error);
-        handleRetake();
+        // Never fail silently (audit/sprint-1 device-test fix): a connection
+        // failure gets the honest offline state; anything else gets a visible
+        // error with a path forward instead of the camera quietly reopening.
+        if (isConnectivityError(error)) {
+          handleScanConnectionError();
+        } else {
+          Alert.alert(
+            'Lookup Failed',
+            'Something went wrong looking up that barcode. Please try again.',
+            [
+              { text: 'Try Again', onPress: () => handleRetake() },
+              { text: 'Cancel', style: 'cancel', onPress: () => navigation.goBack() },
+            ]
+          );
+        }
       } finally {
         setAnalyzing(false);
         setScanMode(null);
@@ -294,8 +308,18 @@ export default function SmartScanScreen() {
       // this replaces what used to be up to two chained client-initiated
       // calls (vision-analyze, then spirit-lookup on a local-match miss).
       if (cameraMode === 'bottle') {
-        const { spirit: bottle, confidence: scanConfidence, isSpiritImage } =
+        const { spirit: bottle, confidence: scanConfidence, isSpiritImage, source } =
           await GoogleVisionService.recognizeBottle(uri);
+
+        // Connection failure is not "bottle not found" (audit/sprint-1
+        // device-test fix): surface an honest connection state with a retry
+        // instead of pretending the bottle isn't in the database.
+        if (source === 'network_error') {
+          setAnalyzing(false);
+          setScanMode(null);
+          handleScanConnectionError();
+          return;
+        }
 
         if (!isSpiritImage) {
           log.warn('SmartScanScreen', 'Stage 2 gate: no spirit signal detected');
@@ -400,11 +424,17 @@ export default function SmartScanScreen() {
       }
     } catch (error) {
       log.error('SmartScanScreen', 'Error analyzing image', error);
-      Alert.alert(
-        'Analysis Failed',
-        'Failed to analyze the image. Please try again.',
-        [{ text: 'OK', onPress: () => handleRetake() }]
-      );
+      // Connection failures get the honest offline state rather than a
+      // generic "Analysis Failed" (audit/sprint-1 device-test fix).
+      if (isConnectivityError(error)) {
+        handleScanConnectionError();
+      } else {
+        Alert.alert(
+          'Analysis Failed',
+          'Failed to analyze the image. Please try again.',
+          [{ text: 'OK', onPress: () => handleRetake() }]
+        );
+      }
     } finally {
       setAnalyzing(false);
       setScanMode(null);
@@ -413,6 +443,21 @@ export default function SmartScanScreen() {
 
   const handleBottleNotFound = () => {
     setShowBottleNotFound(true);
+  };
+
+  // Branded connection-failure state (audit/sprint-1 device-test fix):
+  // scanning needs the backend, and a connection failure must never be a
+  // silent retake, a spinner-forever, or a fake "Bottle Not Found".
+  // Alert.alert renders through the app's branded modal (installAppAlert).
+  const handleScanConnectionError = () => {
+    Alert.alert(
+      "You're Offline",
+      'Scanning needs a connection. Check your internet and try again.',
+      [
+        { text: 'Retry', onPress: () => handleRetake() },
+        { text: 'Cancel', style: 'cancel', onPress: () => navigation.goBack() },
+      ]
+    );
   };
 
   const handleNotABottle = () => {
