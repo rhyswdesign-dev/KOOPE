@@ -24,6 +24,42 @@
 --      and restricts each user to only their own rows, while leaving the backend
 --      service role full access so payments/fulfillment still work server-side.
 --
+-- !!! READ THIS BEFORE APPLYING — RISK FLAGGED IN THE audit/sprint-1 REVIEW !!!
+--
+--   This migration's `recipes` fix has TWO different behaviors depending on
+--   whether the LIVE `recipes` table has a `user_id` column, and picking the
+--   wrong one SILENTLY BREAKS THE APP:
+--
+--     - No user_id  -> "shared catalog" branch: everyone keeps public READ
+--       access. This is the behavior the plain-language summary above promises.
+--     - Has user_id -> "per-user" branch: SELECT becomes OWNER-ONLY
+--       (`USING (auth.uid() = user_id)`). If the live table is actually the
+--       SHARED catalog and merely happens to have a `user_id` column (e.g. a
+--       "created_by" audit column, not an ownership column), this branch will
+--       make every user's recipe browsing return ONLY rows they authored —
+--       i.e. it HIDES THE CATALOG from everyone else. That is the opposite of
+--       what this migration is supposed to do, and it will not throw an error;
+--       it will just silently return empty/partial results.
+--
+--   The Engineering Audit (§3.1) already flags that TWO competing `recipes`
+--   migrations exist (002_create_recipes_table.sql, catalog-shaped, no
+--   user_id vs. 002_app_data_schema.sql, per-user-shaped, has user_id) and it
+--   is NOT knowable from the repo alone which one is live in production.
+--
+--   THE REVIEWER APPLYING THIS MUST, BEFORE RUNNING IT:
+--     1. Run against the LIVE database:
+--          SELECT column_name FROM information_schema.columns
+--           WHERE table_schema = 'public' AND table_name = 'recipes';
+--     2. Confirm which shape is live: no `user_id` => shared catalog (the
+--        common case, since the app's `recipesRepo.ts` reads/caches a shared
+--        recipe list) vs. has `user_id` => confirm with the table's actual
+--        data (do rows belong to many different users, or is `user_id` unused
+--        metadata on an otherwise-shared catalog?) which behavior is correct.
+--     3. If the live table has `user_id` AND is meant to stay a shared,
+--        publicly-browsable catalog, DO NOT apply this file as-is — it needs
+--        a manual policy change (e.g. keep public SELECT, only scope
+--        INSERT/UPDATE/DELETE to the owner) before it is safe to run.
+--
 -- WHY THIS IS A SEPARATE, UNAPPLIED FILE:
 --   The Engineering Audit (§2.4, §3.1) warns that the tracked migrations do NOT
 --   reliably reflect the LIVE database — roughly 30 ad-hoc `.sql` files were run
