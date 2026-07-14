@@ -640,13 +640,9 @@ export default function ProfileScreen() {
                 <Text style={[styles.quickActionText, { color: colors.gold }]}>Upgrade</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity
-                style={styles.quickActionButton}
-                onPress={() => nav.navigate('ShoppingCart')}
-              >
-                <Ionicons name="cart-outline" size={20} color={colors.text} />
-                <Text style={styles.quickActionText}>Cart</Text>
-              </TouchableOpacity>
+              {/* Kill List (Master Plan §2.4): Cart quick action removed
+                  (audit/sprint-1 review) — it navigated to the killed
+                  ShoppingCart screen. */}
             </View>
           </View>
         </ScrollView>

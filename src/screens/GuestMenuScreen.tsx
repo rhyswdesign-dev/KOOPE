@@ -231,15 +231,11 @@ export default function GuestMenuScreen() {
                 </View>
               );
             })}
-            {missingIngredients.length > 0 && (
-              <TouchableOpacity
-                style={styles.addToCartButton}
-                onPress={() => nav.navigate('ShoppingCart')}
-              >
-                <Ionicons name="cart-outline" size={16} color={colors.accent} />
-                <Text style={styles.addToCartText}>Add missing items to cart</Text>
-              </TouchableOpacity>
-            )}
+            {/* Kill List (Master Plan §2.4): "Add missing items to cart" removed
+                (audit/sprint-1 review) — it navigated to the killed ShoppingCart
+                screen. The "Need to buy" badges above still flag missing items;
+                the missing-ingredients list is affiliate-out territory once that
+                surface ships, not an in-app cart. */}
           </View>
 
           {/* Prep Timeline */}

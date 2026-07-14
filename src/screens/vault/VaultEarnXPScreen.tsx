@@ -69,28 +69,11 @@ export default function VaultEarnXPScreen() {
       estimatedTime: '3-5 min',
       navigationTarget: 'Recipes',
     },
-    {
-      id: 'small_challenge',
-      title: 'Complete Small Challenge',
-      description: 'Quick skill challenges and competitions',
-      expectedXP: 250,
-      icon: 'trophy',
-      iconFamily: 'ionicons',
-      color: colors.gold,
-      estimatedTime: '10-15 min',
-      navigationTarget: 'Events',
-    },
-    {
-      id: 'win_event',
-      title: 'Win Competition Event',
-      description: 'Participate in major competitions',
-      expectedXP: 1000,
-      icon: 'medal',
-      iconFamily: 'ionicons',
-      color: '#4CAF50',
-      estimatedTime: '30-60 min',
-      navigationTarget: 'Events',
-    },
+    // 'small_challenge' and 'win_event' quests removed (audit/sprint-1 review):
+    // both linked to the killed Events screen (Master Plan Kill List §2.4).
+    // Challenges survive as the verb layer feeding the XP spine per the plan,
+    // but not through this dead entry point — re-add once a live challenge
+    // surface exists to link to.
   ];
   
   useLayoutEffect(() => {

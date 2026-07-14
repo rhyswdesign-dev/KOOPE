@@ -250,6 +250,8 @@ export default function BarOptimizerScreen() {
     );
   }
 
+  // Kill List (Master Plan §2.4): header cart icon removed (audit/sprint-1
+  // review) — it used to navigate to the killed ShoppingCart screen.
   return (
     <SafeAreaView style={styles.container}>
       <MainPageHeader
@@ -257,13 +259,6 @@ export default function BarOptimizerScreen() {
         subtitle={`${inventoryCount} items analyzed`}
         showBackButton
         onBackPress={() => nav.goBack()}
-        rightActions={[
-          {
-            icon: 'cart-outline',
-            onPress: () => nav.navigate('ShoppingCart'),
-            accessibilityLabel: 'Open shopping cart',
-          },
-        ]}
       />
 
       <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer} showsVerticalScrollIndicator={false}>

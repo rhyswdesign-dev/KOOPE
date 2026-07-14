@@ -126,34 +126,19 @@ export default function PricingScreen() {
       headerTintColor: colors.text,
       headerTitleStyle: { color: colors.text, fontWeight: '900' },
       headerShadowVisible: false,
-      headerRight: () => (
-        <Pressable hitSlop={12} onPress={() => nav.navigate('Cart')}>
-          <View style={{ position: 'relative' }}>
-            <Ionicons name="bag-outline" size={24} color={colors.text} />
-            {getCartItemCount() > 0 && (
-              <View style={styles.cartBadge}>
-                <Text style={styles.cartBadgeText}>{getCartItemCount()}</Text>
-              </View>
-            )}
-          </View>
-        </Pressable>
-      ),
+      // Kill List (Master Plan §2.4): the header cart icon used to navigate to
+      // the mock Cart screen — removed (audit/sprint-1 review), not replaced,
+      // since in-app checkout is permanently gone (commerce = affiliate links out).
     });
-  }, [nav, getCartItemCount()]);
+  }, [nav]);
 
   const handleSelectPlan = (plan: PricingPlan) => {
-    if (isIOS) {
-      nav.navigate('Paywall', { source: 'pricing_screen_ios_gate', displayCloseButton: true });
-      return;
-    }
-    addToCart({
-      type: 'plan',
-      planId: plan.id,
-      quantity: 1,
-      price: plan.price,
-      name: plan.name,
-    });
-    nav.navigate('Cart');
+    // Kill List (Master Plan §2.4): both platforms now route to Paywall — the
+    // one live subscription entry point. The Android path previously added the
+    // plan to a local cart then navigated to the killed Cart screen; that
+    // navigation is removed (audit/sprint-1 review) rather than left as a
+    // dead-end tap.
+    nav.navigate('Paywall', { source: 'pricing_screen_plan_select', displayCloseButton: true });
   };
 
   const handleAddProduct = (product: Product) => {
