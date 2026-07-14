@@ -8,13 +8,11 @@ import TrialBanner from '../components/TrialBanner';
 import ProUnlockCard from '../components/ProUnlockCard';
 import Tabs from './Tabs';
 import AccountSetupScreen from '../screens/AccountSetupScreen';
-import EventsScreen from '../screens/EventsScreen';
+import RemovedContentScreen from '../screens/RemovedContentScreen';
 import HacksTipsLibraryScreen from '../screens/HacksTipsLibraryScreen';
 import BrandScreen from '../screens/BrandScreen';
 import BarThemeScreen from '../screens/BarThemeScreen';
 import BarDetailsScreen from '../screens/BarDetailsScreen';
-import KingsCupScreen from '../screens/KingsCupScreen';
-import GameDetailsScreen from '../screens/GameDetailsScreen';
 import MixologyMasterClassScreen from '../screens/MixologyMasterClassScreen';
 import XPTransactionScreen from '../screens/XPTransactionScreen';
 import XPReminderScreen from '../screens/XPReminderScreen';
@@ -51,8 +49,6 @@ import ProfileScreen from '../screens/ProfileScreen';
 import RecipeDetailScreen from '../screens/RecipeDetailScreen';
 import { withScreenTour } from '../components/tour/withScreenTour';
 import AIRecipeGeneratorScreen from '../screens/AIRecipeGeneratorScreen';
-import CartScreen from '../screens/commerce/CartScreen';
-import CheckoutScreen from '../screens/commerce/CheckoutScreen';
 import OrderConfirmationScreen from '../screens/commerce/OrderConfirmationScreen';
 import OrderHistoryScreen from '../screens/commerce/OrderHistoryScreen';
 import AddRecipeScreen from '../screens/AddRecipeScreen';
@@ -64,7 +60,6 @@ import VoiceRecipeScreen from '../screens/VoiceRecipeScreen';
 import HomeBarScreen from '../screens/HomeBarScreen';
 import RecipesScreen from '../screens/RecipesScreen';
 import SpiritRecognitionScreen from '../screens/SpiritRecognitionScreen';
-import ShoppingCartScreen from '../screens/ShoppingCartScreen';
 import InventoryInsightsScreen from '../screens/InventoryInsightsScreen';
 import AchievementsScreen from '../screens/AchievementsScreen';
 import SubscriptionDebugScreen from '../screens/SubscriptionDebugScreen';
@@ -244,8 +239,8 @@ export default function RootNavigator({ initialRouteName = 'Main' }: RootNavigat
     >
       <Stack.Screen name="Main" component={Tabs} />
       <Stack.Screen name="Bars" component={LegacyRemovedContentScreen} options={{ headerShown: true, title: 'Recipes' }} />
-      {/* Kill List (Master Plan §2.4): Events shipped 3 hardcoded mock events behind a paywall — routed to the legacy-removed placeholder so no live room lies to users. */}
-      <Stack.Screen name="Events" component={LegacyRemovedContentScreen} options={{ headerShown: true, title: 'Events' }} />
+      {/* Kill List (Master Plan §2.4): Events shipped 3 hardcoded mock events behind a paywall — routed to RemovedContentScreen so no live room lies to users. */}
+      <Stack.Screen name="Events" component={RemovedContentScreen} options={{ headerShown: true, title: 'Events' }} />
       <Stack.Screen name="HacksTipsLibrary" component={HacksTipsLibraryScreen} options={{ headerShown: true, title: 'Hacks & Tips' }} />
       <Stack.Screen name="Brand" component={BrandScreen} options={({ route }) => ({ headerShown: true, title: route.params.brand })} />
       <Stack.Screen name="BarTheme" component={BarThemeScreen} options={({ route }) => ({ headerShown: true, title: route.params.theme })} />
@@ -345,9 +340,9 @@ export default function RootNavigator({ initialRouteName = 'Main' }: RootNavigat
       <Stack.Screen name="SunsetTerrace" component={LegacyRemovedContentScreen} options={{ headerShown: false }} />
       <Stack.Screen name="MidnightLounge" component={LegacyRemovedContentScreen} options={{ headerShown: false }} />
       <Stack.Screen name="GoldenEra" component={LegacyRemovedContentScreen} options={{ headerShown: false }} />
-      {/* Kill List (Master Plan §2.4): drinking games are off-brand and an App Store risk — routed to the legacy-removed placeholder. */}
-      <Stack.Screen name="KingsCup" component={LegacyRemovedContentScreen} options={{ headerShown: true, title: "King's Cup" }} />
-      <Stack.Screen name="GameDetails" component={LegacyRemovedContentScreen} options={{ headerShown: true, title: 'Game Details' }} />
+      {/* Kill List (Master Plan §2.4): drinking games are off-brand and an App Store risk — routed to RemovedContentScreen. */}
+      <Stack.Screen name="KingsCup" component={RemovedContentScreen} options={{ headerShown: true, title: "King's Cup" }} />
+      <Stack.Screen name="GameDetails" component={RemovedContentScreen} options={{ headerShown: true, title: 'Game Details' }} />
       <Stack.Screen name="AccountSetup" component={AccountSetupScreen} options={{ headerShown:false }} />
       <Stack.Screen name="XPReminder" component={XPReminderScreen} options={{ headerShown: false }} />
       <Stack.Screen name="MixologyMasterClass" component={MixologyMasterClassScreen} options={{ headerShown: false }} />
@@ -410,9 +405,9 @@ export default function RootNavigator({ initialRouteName = 'Main' }: RootNavigat
     {/* Lesson screens */}
     {/* Commerce screens */}
     <Stack.Screen name="Pricing" component={PricingScreen} options={{ headerShown: true, title: 'Premium' }} />
-    {/* Kill List (Master Plan §2.4): in-app checkout is a legal firewall issue (affiliate out, never checkout in-app) and shipped as mock commerce — routed to the legacy-removed placeholder. */}
-    <Stack.Screen name="Cart" component={LegacyRemovedContentScreen} options={{ headerShown: true, title: 'Cart' }} />
-    <Stack.Screen name="Checkout" component={LegacyRemovedContentScreen} options={{ headerShown: true, title: 'Checkout' }} />
+    {/* Kill List (Master Plan §2.4): in-app checkout is a legal firewall issue (affiliate out, never checkout in-app) and shipped as mock commerce — routed to RemovedContentScreen. */}
+    <Stack.Screen name="Cart" component={RemovedContentScreen} options={{ headerShown: true, title: 'Cart' }} />
+    <Stack.Screen name="Checkout" component={RemovedContentScreen} options={{ headerShown: true, title: 'Checkout' }} />
     <Stack.Screen name="OrderConfirmation" component={OrderConfirmationScreen} options={{ headerShown: true, title: 'Order Confirmed' }} />
     <Stack.Screen name="OrderHistory" component={OrderHistoryScreen} options={{ headerShown: true, title: 'Order History' }} />
     <Stack.Screen name="AddRecipe" component={AddRecipeScreen} options={{ headerShown: true, title: 'Add Recipe' }} />
@@ -426,8 +421,8 @@ export default function RootNavigator({ initialRouteName = 'Main' }: RootNavigat
     <Stack.Screen name="VoiceRecipe" component={VoiceRecipeScreen} options={{ headerShown: true, title: 'Voice Recipe Input' }} />
     <Stack.Screen name="HomeBar" component={HomeBarScreen} options={{ headerShown: false }} />
     <Stack.Screen name="SpiritRecognition" component={SpiritRecognitionScreen} options={{ headerShown: true, title: 'Scan Spirit' }} />
-    {/* Kill List (Master Plan §2.4): mock shopping cart — routed to the legacy-removed placeholder. */}
-    <Stack.Screen name="ShoppingCart" component={LegacyRemovedContentScreen} options={{ headerShown: false }} />
+    {/* Kill List (Master Plan §2.4): mock shopping cart — routed to RemovedContentScreen. */}
+    <Stack.Screen name="ShoppingCart" component={RemovedContentScreen} options={{ headerShown: false }} />
     <Stack.Screen name="InventoryInsights" component={InventoryInsightsScreen} options={{ headerShown: false, animation: 'slide_from_right' }} />
       <Stack.Screen name="Achievements" component={AchievementsScreen} options={{ headerShown: true, title: 'Achievements' }} />
       <Stack.Screen name="SubscriptionDebug" component={SubscriptionDebugScreen} options={{ headerShown: true, title: 'Subscription Debug' }} />
