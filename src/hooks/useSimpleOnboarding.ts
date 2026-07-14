@@ -119,13 +119,24 @@ export function useSimpleOnboarding() {
     }
   };
 
-  const completeWelcome = () => {
-    // After welcome carousel, show account setup
+  const completeWelcome = async () => {
+    // Master Plan Phase 1.4 onboarding inversion: age gate -> one welcome card -> camera.
+    // The welcome carousel is the single onboarding card. On completion we mark
+    // onboarding done and go straight to the main app, where App.tsx launches the
+    // camera (SmartScan). Sign-in, the questionnaire, and the survey now happen
+    // post-first-value (via the RefineYourTaste screen), not as pre-camera gates.
     trackEvent(ANALYTICS_EVENTS.ONBOARDING_STEP_COMPLETED, {
       [ANALYTICS_PROPS.STEP_NUMBER]: 1,
       [ANALYTICS_PROPS.STEP_NAME]: 'welcome_carousel',
     });
-    setAppState('onboarding');
+    try {
+      await AsyncStorage.setItem(ONBOARDING_COMPLETED_KEY, 'true');
+      trackEvent(ANALYTICS_EVENTS.ONBOARDING_COMPLETED);
+      log.info('useSimpleOnboarding', 'Onboarding completed after welcome card');
+    } catch (error) {
+      log.warn('useSimpleOnboarding', 'Error saving onboarding completion status', { error });
+    }
+    setAppState('main');
   };
 
   const completeAgeGate = async (payload: AgeVerificationPayload) => {

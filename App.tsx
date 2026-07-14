@@ -7,13 +7,8 @@ import MaintenanceScreen from './src/screens/MaintenanceScreen';
 import { useKillSwitch } from './src/hooks/useKillSwitch';
 import { colors } from './src/theme/tokens';
 import SplashScreen from './src/screens/SplashScreen';
-import BartendingWelcomeScreen from './src/screens/BartendingWelcomeScreen';
-import OAuthSignInScreen from './src/screens/OAuthSignInScreen';
-import XPReminderScreen from './src/screens/XPReminderScreen';
 import WelcomeCarouselScreen from './src/screens/WelcomeCarouselScreen';
-import SurveyScreen from './src/screens/onboarding/SurveyScreen';
 import AgeGateScreen from './src/screens/AgeGateScreen';
-import OnboardingQuestionnaireScreen from './src/screens/onboarding/OnboardingQuestionnaireScreen';
 import { useSimpleOnboarding as useOnboarding } from './src/hooks/useSimpleOnboarding';
 import { UserProvider } from './src/contexts/UserContext';
 import { VaultProvider } from './src/contexts/VaultContext';
@@ -133,14 +128,7 @@ export default function App() {
     appState,
     handleSplashFinish,
     completeAgeGate,
-    completeBartendingWelcome,
     completeWelcome,
-    completeOnboarding,
-    completeQuestionnaire,
-    completeSurvey,
-    skipToXPReminder,
-    completeXPReminder,
-    goBackToOnboarding,
   } = useOnboarding();
   const { unlockedAchievement, clearUnlockedAchievement } = useAchievementNotifications();
   const deepLinkCleanupRef = React.useRef<null | (() => void)>(null);
@@ -309,7 +297,7 @@ export default function App() {
     );
   }
 
-  // Show bartending welcome (first step)
+  // Age gate — legal access check, the first and only mandatory gate.
   if (appState === 'age_gate') {
     return (
       <KeyboardAvoidingView
@@ -322,20 +310,11 @@ export default function App() {
     );
   }
 
-  // Show bartending welcome (first step)
-  if (appState === 'bartending_welcome') {
-    return (
-      <KeyboardAvoidingView
-        style={keyboardAvoidingStyle}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
-      >
-        <BartendingWelcomeScreen onComplete={completeBartendingWelcome} />
-      </KeyboardAvoidingView>
-    );
-  }
-
-  // Show welcome carousel
+  // Single welcome card (Master Plan Phase 1.4): age gate -> one card -> camera.
+  // Completing it finishes onboarding and hands off straight to the camera
+  // (SmartScan) via the effect above. Sign-in, questionnaire, and survey are no
+  // longer pre-camera gates — the questionnaire runs post-first-value through the
+  // RefineYourTaste screen, and sign-in moves to the first save/sync moment.
   if (appState === 'welcome') {
     return (
       <KeyboardAvoidingView
@@ -343,66 +322,12 @@ export default function App() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
       >
-        <WelcomeCarouselScreen onComplete={completeWelcome} />
-      </KeyboardAvoidingView>
-    );
-  }
-
-  // Show OAuth sign-in screen after welcome carousel
-  if (appState === 'onboarding') {
-    return (
-      <KeyboardAvoidingView
-        style={keyboardAvoidingStyle}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
-      >
-        <OAuthSignInScreen onComplete={completeOnboarding} onSkip={skipToXPReminder} />
-      </KeyboardAvoidingView>
-    );
-  }
-
-  // Show XP reminder after skipping account setup
-  if (appState === 'xp_reminder') {
-    return (
-      <KeyboardAvoidingView
-        style={keyboardAvoidingStyle}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
-      >
-        <XPReminderScreen onComplete={completeXPReminder} onGoBack={goBackToOnboarding} />
-      </KeyboardAvoidingView>
-    );
-  }
-
-  // Show onboarding questionnaire flow (required + optional + trial + payoff)
-  if (appState === 'questionnaire') {
-    return (
-      <KeyboardAvoidingView
-        style={keyboardAvoidingStyle}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
-      >
-        <OnboardingQuestionnaireScreen
-          onComplete={(action) => {
-            if (action === 'scan') {
-              setLaunchSmartScanAfterOnboarding(true);
-            }
-            completeQuestionnaire();
+        <WelcomeCarouselScreen
+          onComplete={() => {
+            setLaunchSmartScanAfterOnboarding(true);
+            completeWelcome();
           }}
         />
-      </KeyboardAvoidingView>
-    );
-  }
-
-  // Show survey before main app
-  if (appState === 'survey') {
-    return (
-      <KeyboardAvoidingView
-        style={keyboardAvoidingStyle}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
-      >
-        <SurveyScreen onComplete={completeSurvey} />
       </KeyboardAvoidingView>
     );
   }
