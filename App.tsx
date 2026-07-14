@@ -35,6 +35,7 @@ import { notificationService } from './src/services/notificationService';
 import { setupDeepLinking } from './src/lib/deepLinking';
 import { useShareIntent } from 'expo-share-intent';
 import type { AgeVerificationPayload } from './src/services/ageVerificationService';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 // import { StripeProvider } from './src/providers/StripeProvider'; // Disabled until Xcode is installed
 
 // Override native Alert.alert with branded modals
@@ -122,6 +123,17 @@ const navigationRef = createNavigationContainerRef<any>();
 const HTTP_URL_PATTERN = /(https?:\/\/[^\s"'<>]+)/i;
 
 export default function App() {
+  // SafeAreaProvider must wrap every render branch: the pre-main screens
+  // (splash / age gate / welcome) render outside NavigationContainer, and
+  // AgeGateScreen's useSafeAreaInsets throws without a provider above it.
+  return (
+    <SafeAreaProvider>
+      <AppInner />
+    </SafeAreaProvider>
+  );
+}
+
+function AppInner() {
   const { isEnabled: killSwitchEnabled, config: killSwitchConfig } = useKillSwitch();
 
   const {
