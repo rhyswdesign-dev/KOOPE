@@ -35,6 +35,8 @@ import { hasIngredient, parseIngredients } from '../utils/recipeMatching';
 import { getMissingWithSubstitutions, getSubstitutionMessage } from '../utils/spiritSubstitutions';
 import type { UserInventoryItem } from '../types/database';
 import { logRecipeCompletion, updateCompletionRating, syncCompletionToSupabase } from '../services/recipeCompletionService';
+import { logMadeIt } from '../services/makeLogService';
+import MadeItButton from '../components/MadeItButton';
 import { getCompletionPromptConfig } from '../lib/completions/brandCapture';
 import { loadUserProfile, updateUserProfileFields } from '../services/userProfileService';
 import type { RecipeCompletionDetails } from '../types/userProfile';
@@ -1378,6 +1380,8 @@ export default function CocktailDetailScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [groceryListVisible, setGroceryListVisible] = useState(false);
   const [hasMadeIt, setHasMadeIt] = useState(false);
+  // Phase 0.8 scaffold: "made Nx" card data (full card treatment is Phase 3).
+  const [timesMade, setTimesMade] = useState(0);
   const [userInventory, setUserInventory] = useState<UserInventoryItem[]>([]);
   const [missingIngredientNames, setMissingIngredientNames] = useState<string[]>([]);
   const [substituteRows, setSubstituteRows] = useState<SubstituteRow[]>([]);
@@ -1878,6 +1882,20 @@ export default function CocktailDetailScreen() {
         [ANALYTICS_PROPS.RECIPE_NAME]: cocktail.title,
         [ANALYTICS_PROPS.RECIPE_CATEGORY]: cocktail.subtitle,
       });
+
+      // North Star sensor (Phase 0.8) — one durable, queryable "made it"
+      // event. Additive to the analytics event above and the brand
+      // completion log below, not a replacement for either.
+      if (user?.id) {
+        logMadeIt({
+          userId: user.id,
+          recipeId: cocktail.id,
+          recipeName: cocktail.title,
+          source: 'recipe_detail',
+          substitutionsUsed: substitutions.trim() ? { notes: substitutions.trim() } : null,
+        }).then((result) => setTimesMade(result.timesMade))
+          .catch((error) => log.warn('CocktailDetailScreen', 'logMadeIt failed (non-blocking)', { error }));
+      }
 
       await achievementService.trackAction('cocktailsMade', 1);
       earnCocktailLoggedXP(isDetailed, cocktail.title);
@@ -2415,30 +2433,27 @@ export default function CocktailDetailScreen() {
                 </Text>
               </TouchableOpacity>
             ) : (
-              <TouchableOpacity
-                style={[styles.primaryButton, useRecipeCardLayout && styles.referencePrimaryButton]}
+              <MadeItButton
+                hasMadeIt={hasMadeIt}
                 onPress={handleMadeIt}
-                disabled={hasMadeIt}
-              >
-                <Text style={[styles.primaryButtonText, useRecipeCardLayout && styles.referencePrimaryButtonText]}>
-                  {hasMadeIt ? "You Made It!" : "I made this drink"}
-                </Text>
-              </TouchableOpacity>
+                style={[styles.primaryButton, useRecipeCardLayout && styles.referencePrimaryButton]}
+                textStyle={[styles.primaryButtonText, useRecipeCardLayout && styles.referencePrimaryButtonText]}
+                label="I made this drink"
+                madeLabel={timesMade > 1 ? `Made ${timesMade}×` : 'You Made It!'}
+              />
             )}
 
             {cocktail.kitAvailable && (
-              <TouchableOpacity
-                style={[styles.secondaryButton, useRecipeCardLayout && styles.referenceSecondaryButton]}
+              <MadeItButton
+                hasMadeIt={hasMadeIt}
                 onPress={handleMadeIt}
-                disabled={hasMadeIt}
-              >
-                <Text style={[styles.secondaryButtonText, useRecipeCardLayout && styles.referenceSecondaryButtonText]}>
-                  {hasMadeIt ? "You Made It!" : "How did you make it?"}
-                </Text>
-                {!hasMadeIt ? (
-                  <Text style={[styles.secondaryButtonXP, useRecipeCardLayout && styles.referenceSecondaryButtonXP]}>+50 XP</Text>
-                ) : null}
-              </TouchableOpacity>
+                madeLabel={timesMade > 1 ? `Made ${timesMade}×` : 'You Made It!'}
+                style={[styles.secondaryButton, useRecipeCardLayout && styles.referenceSecondaryButton]}
+                textStyle={[styles.secondaryButtonText, useRecipeCardLayout && styles.referenceSecondaryButtonText]}
+                label="How did you make it?"
+                xpLabel="+50 XP"
+                xpLabelStyle={[styles.secondaryButtonXP, useRecipeCardLayout && styles.referenceSecondaryButtonXP]}
+              />
             )}
 
             <TouchableOpacity

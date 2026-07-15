@@ -31,6 +31,8 @@ import type { FlavorProfile } from '../types/userProfile';
 import { useAuth } from '../contexts/AuthContext';
 import { InventoryService } from '../services/inventoryService';
 import { logRecipeCompletion, updateCompletionRating, syncCompletionToSupabase } from '../services/recipeCompletionService';
+import { logMadeIt } from '../services/makeLogService';
+import MadeItButton from '../components/MadeItButton';
 import { getCompletionPromptConfig, tierToCompletionPlan } from '../lib/completions/brandCapture';
 import { loadUserProfile, updateUserProfileFields } from '../services/userProfileService';
 import type { RecipeCompletionDetails } from '../types/userProfile';
@@ -129,6 +131,9 @@ export default function RecipeDetailScreen() {
   const [ratingFlowVisible, setRatingFlowVisible] = useState(false);
   const [inventoryLoading, setInventoryLoading] = useState(false);
   const [isSavingCompletion, setIsSavingCompletion] = useState(false);
+  const [hasMadeIt, setHasMadeIt] = useState(false);
+  // Phase 0.8 scaffold: "made Nx" card data (full card treatment is Phase 3).
+  const [timesMade, setTimesMade] = useState(0);
   const [isSavingRatios, setIsSavingRatios] = useState(false);
   const [inventoryOptions, setInventoryOptions] = useState<string[]>([]);
   const [brandSelections, setBrandSelections] = useState<Record<string, string>>({});
@@ -442,12 +447,28 @@ export default function RecipeDetailScreen() {
       };
 
       setLastCompletionId(completion.id);
+      setHasMadeIt(true);
 
       const isDetailed =
         ingredientBrands.some((item) => item.brandUsed !== 'Not specified') ||
         Boolean(substitutions.trim()) ||
         Boolean(techniqueVariations.trim()) ||
         Boolean(personalModifications.trim());
+
+      // North Star sensor (Phase 0.8) — one durable, queryable "made it"
+      // event. Additive to the brand completion log above, not a
+      // replacement for it.
+      if (user?.id) {
+        logMadeIt({
+          userId: user.id,
+          recipeId: recipe.id,
+          recipeName: recipe.name || recipe.title || 'Recipe',
+          source: 'recipe_detail',
+          flavorProfiles: recipe.flavorProfiles || recipe.flavorTags || [],
+          substitutionsUsed: substitutions.trim() ? { notes: substitutions.trim() } : null,
+        }).then((result) => setTimesMade(result.timesMade))
+          .catch((error) => log.warn('RecipeDetailScreen', 'logMadeIt failed (non-blocking)', { error }));
+      }
 
       earnCocktailLoggedXP(isDetailed, recipe.name || recipe.title || 'Recipe');
       await syncRecipeCompletionToProfile(undefined, false, completionDetails, completion.id);
@@ -557,9 +578,14 @@ export default function RecipeDetailScreen() {
 
         {/* --- Action Buttons --- */}
         <View style={styles.actionButtonsContainer}>
-          <TouchableOpacity style={styles.primaryButton} onPress={openMakeFlow}>
-            <Text style={styles.primaryButtonText}>I Made This</Text>
-          </TouchableOpacity>
+          <MadeItButton
+            hasMadeIt={hasMadeIt}
+            onPress={openMakeFlow}
+            style={styles.primaryButton}
+            textStyle={styles.primaryButtonText}
+            label="I Made This"
+            madeLabel={timesMade > 1 ? `Made ${timesMade}×` : 'You Made It!'}
+          />
           {ratioProfile ? (
             <TouchableOpacity
               style={styles.secondaryButton}
