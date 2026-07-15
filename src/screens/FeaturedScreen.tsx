@@ -10,7 +10,7 @@ import type { RootStackParamList } from '../navigation/RootNavigator';
 import { FilterOptions } from '../services/searchService';
 import SearchModal from '../components/SearchModal';
 import FilterDrawer from '../components/FilterDrawer';
-import { useScreenTracking } from '../context/AnalyticsContext';
+import { useScreenTracking } from '../lib/analytics';
 import { log } from '../lib/logger';
 import { useFeatureAccess } from '../hooks/useFeatureAccess';
 import { getFeaturedVaultItems } from '../data/vaultData';

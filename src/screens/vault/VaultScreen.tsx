@@ -38,7 +38,7 @@ import {
   VARIATION_BENEFITS,
 } from '../../config/vaultBenefits';
 import { calculateTasteMatchPercent } from '../../services/tasteMatchService';
-import { useScreenTracking, useAnalyticsContext } from '../../context/AnalyticsContext';
+import { useScreenTracking, trackEvent, ANALYTICS_EVENTS, ANALYTICS_PROPS } from '../../lib/analytics';
 import { VaultCategory } from '../../config/vaultTypes';
 import {
   vaultCategories,
@@ -80,7 +80,6 @@ export default function VaultScreen() {
   const { tier, setTier } = useUserTier();
   const { profile: personalizationProfile } = usePersonalization();
   const { gateWithTrigger: vaultProGate } = useFeatureAccess('vault_pro_drops');
-  const analytics = useAnalyticsContext();
   const { balance: xpBalance, spendXP, unlockVaultItem, isVaultItemUnlocked } = useXPSystem();
   const { savedItems, toggleSavedCocktail, isCocktailSaved, toggleSavedVaultItem } = useSavedItems();
   const [selectedTab, setSelectedTab] = useState<string>('variations');
@@ -259,8 +258,12 @@ export default function VaultScreen() {
       userProfile={state.userProfile}
       onPress={() => {
         // Track vault item view
-        analytics.trackVaultView(item.id, item.category, item.rarity);
-        
+        trackEvent(ANALYTICS_EVENTS.VAULT_ITEM_OPENED, {
+          [ANALYTICS_PROPS.VAULT_ITEM_ID]: item.id,
+          [ANALYTICS_PROPS.VAULT_ITEM_CATEGORY]: item.category,
+          rarity: item.rarity,
+        });
+
         dispatch({ type: 'SET_SELECTED_ITEM', payload: item });
         dispatch({ type: 'SHOW_UNLOCK_MODAL', payload: true });
       }}
@@ -740,7 +743,10 @@ export default function VaultScreen() {
 
             if (success) {
               // Track analytics
-              analytics.trackVaultView(previewItem.title, previewItem.category, 'unlocked');
+              trackEvent(ANALYTICS_EVENTS.VAULT_ITEM_UNLOCKED, {
+                [ANALYTICS_PROPS.VAULT_ITEM_TITLE]: previewItem.title,
+                [ANALYTICS_PROPS.VAULT_ITEM_CATEGORY]: previewItem.category,
+              });
 
               // Close preview modal
               setPreviewModalVisible(false);

@@ -12,22 +12,39 @@
  * 3. Add MIXPANEL_TOKEN to your environment configuration
  */
 
+import React from 'react';
 import { Mixpanel } from 'mixpanel-react-native';
 import { log } from './logger';
 
 /**
  * Mixpanel instance
- * Initialize once at app startup
+ * Initialize once at app startup — but ONLY after analytics consent is
+ * confirmed. Calling Mixpanel.init() is itself a tracking action (it
+ * generates/reads a device ID), so it must never run before consent is
+ * known, not just before the first tracked event.
  */
 let mixpanel: Mixpanel | null = null;
 
 /**
- * Initialize analytics SDK
- * Call this once in App.tsx before rendering
- *
- * @param token - Mixpanel project token
+ * Consent-gated startup state.
+ * - 'unknown': no consent decision stored yet (first run, prompt not
+ *   yet answered). Events are buffered, NOT sent, until this resolves.
+ * - 'granted': Mixpanel is (or will be) initialized; queued events flush.
+ * - 'declined': Mixpanel is never initialized; queued events are dropped.
  */
-export async function initAnalytics(token: string): Promise<void> {
+type ConsentState = 'unknown' | 'granted' | 'declined';
+let consentState: ConsentState = 'unknown';
+let pendingToken: string | null = null;
+
+const MAX_QUEUED_EVENTS = 100;
+let eventQueue: Array<{ name: string; props?: Record<string, any> }> = [];
+
+/**
+ * Raw Mixpanel init — never call directly from app code. Only reached
+ * via initAnalyticsWithConsent (consent already confirmed granted) or
+ * notifyAnalyticsConsent (consent just changed to granted).
+ */
+async function initMixpanelSdk(token: string): Promise<void> {
   try {
     mixpanel = await Mixpanel.init(token);
     log.info('Analytics', 'Mixpanel initialized successfully');
@@ -37,7 +54,89 @@ export async function initAnalytics(token: string): Promise<void> {
 }
 
 /**
- * Track an event with optional properties
+ * Consent-aware analytics bootstrap. Call this once in App.tsx at
+ * startup instead of initializing Mixpanel directly.
+ *
+ * Checks the stored consent choice (via consentStore, the same store
+ * ConsentCenterScreen and useConsent read/write):
+ *  - No choice stored yet -> stays 'unknown'; every trackEvent() call
+ *    until the user answers is buffered in memory, never sent.
+ *  - Choice stored + analytics granted -> initializes Mixpanel now.
+ *  - Choice stored + analytics declined -> never initializes Mixpanel;
+ *    buffered events (if any) are dropped.
+ *
+ * @param token - Mixpanel project token
+ */
+export async function initAnalyticsWithConsent(token: string): Promise<void> {
+  pendingToken = token;
+  try {
+    // Local import to avoid a hard circular import at module-load time
+    // (consentStore also calls back into this file on save).
+    const { hasStoredConsentChoices, getConsentChoices } = await import('./consentStore');
+    const hasChoice = await hasStoredConsentChoices();
+
+    if (!hasChoice) {
+      consentState = 'unknown';
+      log.info('Analytics', 'No consent decision stored yet — Mixpanel init deferred');
+      return;
+    }
+
+    const choices = await getConsentChoices();
+    if (choices.analytics) {
+      consentState = 'granted';
+      await initMixpanelSdk(token);
+    } else {
+      consentState = 'declined';
+      log.info('Analytics', 'Analytics consent previously declined — Mixpanel not initialized');
+    }
+  } catch (error) {
+    log.error('Analytics', 'Failed to resolve consent state at startup', error);
+    // Fail closed: stay 'unknown' rather than silently tracking.
+  }
+}
+
+/**
+ * Called by consentStore.saveConsentChoices() whenever the user's
+ * analytics consent choice changes (initial answer, or a later change
+ * via ConsentCenterScreen). This is the single notification point for
+ * every consent-saving code path (updateConsent / saveAllConsent /
+ * acceptAllConsent / rejectAllConsent all funnel through it).
+ */
+export function notifyAnalyticsConsent(granted: boolean): void {
+  if (granted) {
+    consentState = 'granted';
+    if (!mixpanel && pendingToken) {
+      initMixpanelSdk(pendingToken).then(() => flushQueue());
+    } else {
+      flushQueue();
+    }
+  } else {
+    consentState = 'declined';
+    // Drop anything buffered pre-consent — never send it.
+    eventQueue = [];
+    log.info('Analytics', 'Analytics consent declined — buffered events dropped');
+  }
+}
+
+function flushQueue(): void {
+  if (!mixpanel || eventQueue.length === 0) return;
+  const queued = eventQueue;
+  eventQueue = [];
+  for (const { name, props } of queued) {
+    try {
+      mixpanel.track(name, props);
+    } catch (error) {
+      log.error('Analytics', 'Error flushing queued event', error, { name });
+    }
+  }
+  log.info('Analytics', 'Flushed queued pre-consent events', { count: queued.length });
+}
+
+/**
+ * Track an event with optional properties. Consent-gated:
+ *  - consent unknown -> buffered (capped), not sent, until resolved.
+ *  - consent declined -> dropped immediately, never sent.
+ *  - consent granted -> sent to Mixpanel now.
  *
  * @example
  * ```typescript
@@ -45,17 +144,47 @@ export async function initAnalytics(token: string): Promise<void> {
  * ```
  */
 export function trackEvent(name: string, props?: Record<string, any>): void {
-  try {
-    if (!mixpanel) {
-      log.warn('Analytics', 'Mixpanel not initialized, event not tracked', { name });
-      return;
-    }
+  if (consentState === 'declined') {
+    return;
+  }
 
+  if (consentState === 'unknown' || !mixpanel) {
+    if (consentState === 'unknown') {
+      if (eventQueue.length >= MAX_QUEUED_EVENTS) {
+        eventQueue.shift();
+      }
+      eventQueue.push({ name, props });
+    } else {
+      log.warn('Analytics', 'Mixpanel not initialized, event not tracked', { name });
+    }
+    return;
+  }
+
+  try {
     mixpanel.track(name, props);
     log.info('Analytics', 'Event tracked', { name, props });
   } catch (error) {
     log.error('Analytics', 'Error tracking event', error, { name });
   }
+}
+
+/**
+ * Screen view convenience wrapper (kept for parity with the old
+ * services/analytics.ts facade that this file replaces).
+ */
+export function trackScreen(screenName: string, properties?: Record<string, any>): void {
+  trackEvent('Screen Viewed', { screen_name: screenName, ...properties });
+}
+
+/**
+ * Screen-view tracking hook (replaces the old useScreenTracking from
+ * the deleted src/context/AnalyticsContext.tsx — same call signature).
+ */
+export function useScreenTracking(screenName: string, properties?: Record<string, any>): void {
+  React.useEffect(() => {
+    trackScreen(screenName, properties);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [screenName]);
 }
 
 /**
@@ -175,9 +304,12 @@ export const ANALYTICS_EVENTS = {
   // Lessons
   LESSON_STARTED: 'Lesson Started',
   LESSON_COMPLETED: 'Lesson Completed',
+  LESSON_ITEM_ATTEMPTED: 'Lesson Item Attempted',
+  XP_AWARDED: 'XP Awarded',
 
   // Vault
   VAULT_ITEM_OPENED: 'Vault Item Opened',
+  VAULT_ITEM_UNLOCKED: 'Vault Item Unlocked',
 
   // Recipe Saves
   RECIPE_SAVED: 'Recipe Saved',

@@ -36,7 +36,7 @@ import { Ionicons } from '@expo/vector-icons';
 // import { QuickFeedbackAnimation } from '../animations/QuickFeedbackAnimation';
 // import { useCompletionAnimation } from '../../hooks/useCompletionAnimation';
 import { useAudio } from '../../hooks/useAudio';
-import { useAnalyticsContext } from '../../context/AnalyticsContext';
+import { trackEvent, ANALYTICS_EVENTS } from '../../lib/analytics';
 import { useAuth } from '../../contexts/AuthContext';
 import { useChallengeProgress } from '../../hooks/useChallengeProgress';
 import { log } from '../../lib/logger';
@@ -66,7 +66,6 @@ export const LessonEngine: React.FC<LessonEngineProps> = ({ lessonId, onComplete
   const [quickFeedbackType, setQuickFeedbackType] = useState<'correct' | 'incorrect' | 'streak'>('correct');
   // const completionAnimation = useCompletionAnimation();
   const audio = useAudio();
-  const analytics = useAnalyticsContext();
   const { user } = useAuth();
   const { trackLessonComplete, trackXPEarned, trackQuizPerfect } = useChallengeProgress();
   const userStore = useUser();
@@ -198,10 +197,7 @@ export const LessonEngine: React.FC<LessonEngineProps> = ({ lessonId, onComplete
       startSession(lessonId, lessonItems);
 
       // Track lesson start
-      analytics.track({
-        type: 'lesson.start',
-        lessonId
-      });
+      trackEvent(ANALYTICS_EVENTS.LESSON_STARTED, { lessonId });
     } catch (err) {
       setError('Failed to load lesson');
       log.error('LessonEngine', 'Lesson loading error', err);
@@ -287,8 +283,7 @@ export const LessonEngine: React.FC<LessonEngineProps> = ({ lessonId, onComplete
     }
 
     // Track item attempt
-    analytics.track({
-      type: 'item.attempted',
+    trackEvent(ANALYTICS_EVENTS.LESSON_ITEM_ATTEMPTED, {
       itemId: currentItem.id,
       result: result.correct ? 'correct' : 'incorrect',
       msToAnswer: result.msToAnswer,
@@ -383,8 +378,7 @@ export const LessonEngine: React.FC<LessonEngineProps> = ({ lessonId, onComplete
     }
 
     // Track lesson completion
-    analytics.track({
-      type: 'lesson.complete',
+    trackEvent(ANALYTICS_EVENTS.LESSON_COMPLETED, {
       lessonId,
       durationMs: sessionResults.totalTime || 0,
       itemsAttempted: totalCount,
@@ -393,10 +387,7 @@ export const LessonEngine: React.FC<LessonEngineProps> = ({ lessonId, onComplete
 
     // Track XP awarded
     if (xpAwarded > 0) {
-      analytics.track({
-        type: 'progress.xpAwarded',
-        amount: xpAwarded
-      });
+      trackEvent(ANALYTICS_EVENTS.XP_AWARDED, { amount: xpAwarded, source: 'lesson' });
     }
 
     // Track lesson progress in Supabase

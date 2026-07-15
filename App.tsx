@@ -16,7 +16,6 @@ import { PostsProvider } from './src/contexts/PostsContext';
 import { AuthProvider } from './src/contexts/AuthContext';
 import { ChallengeProvider } from './src/contexts/ChallengeContext';
 import { FirebaseProvider } from './src/context/FirebaseContext';
-import { AnalyticsProvider } from './src/context/AnalyticsContext';
 import { SubscriptionProvider } from './src/contexts/SubscriptionContext';
 import { isNetworkError } from './src/config/firebase';
 import { initializeUserRecipes } from './src/store/useUserRecipes';
@@ -24,8 +23,7 @@ import { streakService } from './src/services/streakService';
 import { useXPSystem } from './src/store/useXPSystem';
 import { useAchievementNotifications } from './src/hooks/useAchievementNotifications';
 import AchievementUnlockModal from './src/components/AchievementUnlockModal';
-import { initAnalytics } from './src/services/analytics';
-import { initAnalytics as initMixpanel } from './src/lib/analytics';
+import { initAnalyticsWithConsent } from './src/lib/analytics';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
 import { OfflineBanner } from './src/components/OfflineBanner';
 import KeyboardDismissBar from './src/components/KeyboardDismissBar';
@@ -242,13 +240,12 @@ function AppInner() {
 
   // Initialize user recipes store and record daily streak on app startup
   React.useEffect(() => {
-    // Initialize analytics with memory sink for development
-    initAnalytics({ provider: 'memory' });
-
-    // Initialize Mixpanel for funnel analytics when token is configured
+    // Consent-gated Mixpanel bootstrap: does NOT initialize the SDK (no
+    // device ID, no events) until an explicit analytics consent choice
+    // is stored. See src/lib/analytics.ts initAnalyticsWithConsent.
     const mixpanelToken = process.env.EXPO_PUBLIC_MIXPANEL_TOKEN;
     if (mixpanelToken) {
-      initMixpanel(mixpanelToken).catch(() => {});
+      initAnalyticsWithConsent(mixpanelToken).catch(() => {});
     }
     notificationService.initialize().catch((error) => {
       console.warn('Notification service initialization failed', error);
@@ -406,52 +403,50 @@ function AppInner() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
       >
-        <AnalyticsProvider>
-          <AuthProvider>
-            <ChallengeProvider>
-              <FirebaseProvider>
-                <SubscriptionProvider>
-                  <UserProvider>
-                    <VaultProvider>
-                      <PostsProvider>
-                        <NavigationContainer
-                          ref={navigationRef}
-                          theme={KOOPETheme}
-                          onReady={() => {
-                            if (!navigationRef.isReady()) return;
+        <AuthProvider>
+          <ChallengeProvider>
+            <FirebaseProvider>
+              <SubscriptionProvider>
+                <UserProvider>
+                  <VaultProvider>
+                    <PostsProvider>
+                      <NavigationContainer
+                        ref={navigationRef}
+                        theme={KOOPETheme}
+                        onReady={() => {
+                          if (!navigationRef.isReady()) return;
 
-                            deepLinkCleanupRef.current?.();
-                            deepLinkCleanupRef.current = setupDeepLinking({
-                              navigate: (...args: any[]) => navigationRef.navigate(...args as any),
-                            });
-                          }}
-                        >
-                          <RootNavigator />
-                        </NavigationContainer>
+                          deepLinkCleanupRef.current?.();
+                          deepLinkCleanupRef.current = setupDeepLinking({
+                            navigate: (...args: any[]) => navigationRef.navigate(...args as any),
+                          });
+                        }}
+                      >
+                        <RootNavigator />
+                      </NavigationContainer>
 
-                        {/* Global Achievement Unlock Modal */}
-                        <AchievementUnlockModal
-                          visible={!!unlockedAchievement}
-                          achievement={unlockedAchievement}
-                          onClose={clearUnlockedAchievement}
-                        />
+                      {/* Global Achievement Unlock Modal */}
+                      <AchievementUnlockModal
+                        visible={!!unlockedAchievement}
+                        achievement={unlockedAchievement}
+                        onClose={clearUnlockedAchievement}
+                      />
 
-                        {/* Offline Indicator */}
-                        <OfflineBanner />
+                      {/* Offline Indicator */}
+                      <OfflineBanner />
 
-                        {/* Global Keyboard Dismiss Bar */}
-                        <KeyboardDismissBar />
+                      {/* Global Keyboard Dismiss Bar */}
+                      <KeyboardDismissBar />
 
-                        {/* Global Branded Alert Renderer */}
-                        <AppAlertRenderer />
-                      </PostsProvider>
-                    </VaultProvider>
-                  </UserProvider>
-                </SubscriptionProvider>
-              </FirebaseProvider>
-            </ChallengeProvider>
-          </AuthProvider>
-        </AnalyticsProvider>
+                      {/* Global Branded Alert Renderer */}
+                      <AppAlertRenderer />
+                    </PostsProvider>
+                  </VaultProvider>
+                </UserProvider>
+              </SubscriptionProvider>
+            </FirebaseProvider>
+          </ChallengeProvider>
+        </AuthProvider>
       </KeyboardAvoidingView>
     </ErrorBoundary>
   );
