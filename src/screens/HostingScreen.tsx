@@ -24,7 +24,6 @@ import { InventoryService } from '../services/inventoryService';
 import { type BarIngredient, type HomeBar, HomeBarService } from '../services/homeBarService';
 import { useFeatureAccess } from '../hooks/useFeatureAccess';
 import { ShoppingListStore } from '../services/shoppingListStore';
-import { useShoppingCart } from '../store/useShoppingCart';
 import { useUserTier } from '../store/useUserTier';
 import { isCocktailAccessible } from '../config/tierAccess';
 import { trackEvent, ANALYTICS_EVENTS } from '../lib/analytics';
@@ -310,7 +309,6 @@ export default function HostingScreen() {
 
   const { hasAccess: hasAdvancedHosting, gateWithTrigger: advancedHostingGate } = useFeatureAccess('hosting_advanced');
   const { hasAccess: hasGuestMenu, gate: guestMenuGate } = useFeatureAccess('guest_menu_generator');
-  const { addItem: addToCart } = useShoppingCart();
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

@@ -17,16 +17,11 @@
     "docs",
     "scripts",
     "supabase/functions",
-    "MixMind",
     "src/tests",
     "src/components/__tests__",
-    "src/**/*OLD*",
     "**/*.test.ts",
     "**/*.test.tsx",
     "**/*.spec.ts",
-    "**/*.spec.tsx",
-    "App.test-backup.tsx",
-    "EXAMPLE_WHAT_CAN_I_MAKE_BUTTON.tsx",
-    "VAULT_EXAMPLE_USAGE.tsx"
+    "**/*.spec.tsx"
   ]
 }

@@ -55,7 +55,6 @@ import AddRecipeScreen from '../screens/AddRecipeScreen';
 
 import AIRecipeFormatScreen from '../screens/AIRecipeFormatScreen';
 import OCRCaptureScreen from '../screens/OCRCaptureScreen';
-import URLRecipeInputScreen from '../screens/URLRecipeInputScreen';
 import VoiceRecipeScreen from '../screens/VoiceRecipeScreen';
 import HomeBarScreen from '../screens/HomeBarScreen';
 import RecipesScreen from '../screens/RecipesScreen';
@@ -80,7 +79,6 @@ import CellarRegisterScreen from '../screens/CellarRegisterScreen';
 import CellarWatchlistScreen from '../screens/CellarWatchlistScreen';
 import CellarAnalyticsScreen from '../screens/CellarAnalyticsScreen';
 import GuestMenuScreen from '../screens/GuestMenuScreen';
-import { useCartSync } from '../hooks/useCartSync';
 import TutorialIconButton from '../components/tour/TutorialIconButton';
 import type { ScreenTourId } from '../config/screenTours';
 import { useTutorialPreferences } from '../store/useTutorialPreferences';
@@ -177,7 +175,6 @@ export type RootStackParamList = {
   AIRecipeGenerator: { userInventory: any[]; selectedItems: Set<string> };
   AIRecipeFormat: { recipe?: any; recipeUrl?: string; startWithManual?: boolean };
   OCRCapture: undefined;
-  URLRecipeInput: undefined;
   VoiceRecipe: undefined;
   HomeBar: undefined;
   SpiritRecognition: undefined;
@@ -210,7 +207,6 @@ interface RootNavigatorProps {
 }
 
 export default function RootNavigator({ initialRouteName = 'Main' }: RootNavigatorProps = {}) {
-  useCartSync();
   const showTutorialIcons = useTutorialPreferences((state) => state.showTutorialIcons);
   const LegacyRemovedContentScreen = RecipesScreen;
 
@@ -417,7 +413,6 @@ export default function RootNavigator({ initialRouteName = 'Main' }: RootNavigat
     <Stack.Screen name="AIRecipeGenerator" component={AIRecipeGeneratorScreen} options={{ headerShown: false }} />
     <Stack.Screen name="AIRecipeFormat" component={AIRecipeFormatScreen} options={{ headerShown: true, title: 'Format Recipe' }} />
     <Stack.Screen name="OCRCapture" component={OCRCaptureScreen} options={{ headerShown: true, title: 'Scan Recipe' }} />
-    <Stack.Screen name="URLRecipeInput" component={URLRecipeInputScreen} options={{ headerShown: true, title: 'Add from URL' }} />
     <Stack.Screen name="VoiceRecipe" component={VoiceRecipeScreen} options={{ headerShown: true, title: 'Voice Recipe Input' }} />
     <Stack.Screen name="HomeBar" component={HomeBarScreen} options={{ headerShown: false }} />
     <Stack.Screen name="SpiritRecognition" component={SpiritRecognitionScreen} options={{ headerShown: true, title: 'Scan Spirit' }} />
