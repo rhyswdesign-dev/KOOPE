@@ -269,7 +269,6 @@ export async function logVaultTransaction(params: {
   cycleId?: string;
   xpCost?: number;
   cashCost?: number;
-  stripePaymentIntentId?: string;
   shippingAddress?: any;
 }): Promise<string> {
   try {
@@ -283,7 +282,8 @@ export async function logVaultTransaction(params: {
         cycle_id: params.cycleId || null,
         xp_spent: params.xpCost || 0,
         cash_spent: params.cashCost || 0,
-        stripe_payment_intent_id: params.stripePaymentIntentId || null,
+        // stripe_payment_intent_id column retained in the DB schema for
+        // historical rows; no longer written — Stripe was removed in 0.2.
         shipping_address: params.shippingAddress || null,
         fulfillment_status: params.shippingAddress ? 'pending' : null,
       })

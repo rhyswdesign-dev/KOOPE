@@ -17,7 +17,6 @@ import { AuthProvider } from './src/contexts/AuthContext';
 import { ChallengeProvider } from './src/contexts/ChallengeContext';
 import { FirebaseProvider } from './src/context/FirebaseContext';
 import { AnalyticsProvider } from './src/context/AnalyticsContext';
-import { MonetizationProvider } from './src/context/MonetizationContext';
 import { SubscriptionProvider } from './src/contexts/SubscriptionContext';
 import { isNetworkError } from './src/config/firebase';
 import { initializeUserRecipes } from './src/store/useUserRecipes';
@@ -36,7 +35,6 @@ import { setupDeepLinking } from './src/lib/deepLinking';
 import { useShareIntent } from 'expo-share-intent';
 import type { AgeVerificationPayload } from './src/services/ageVerificationService';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-// import { StripeProvider } from './src/providers/StripeProvider'; // Disabled until Xcode is installed
 
 // Override native Alert.alert with branded modals
 installAppAlert();
@@ -408,56 +406,52 @@ function AppInner() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
       >
-      {/* <StripeProvider> Disabled until Xcode is installed */}
         <AnalyticsProvider>
           <AuthProvider>
             <ChallengeProvider>
               <FirebaseProvider>
                 <SubscriptionProvider>
-                  <MonetizationProvider>
-                    <UserProvider>
-                      <VaultProvider>
-                        <PostsProvider>
-                          <NavigationContainer
-                            ref={navigationRef}
-                            theme={KOOPETheme}
-                            onReady={() => {
-                              if (!navigationRef.isReady()) return;
+                  <UserProvider>
+                    <VaultProvider>
+                      <PostsProvider>
+                        <NavigationContainer
+                          ref={navigationRef}
+                          theme={KOOPETheme}
+                          onReady={() => {
+                            if (!navigationRef.isReady()) return;
 
-                              deepLinkCleanupRef.current?.();
-                              deepLinkCleanupRef.current = setupDeepLinking({
-                                navigate: (...args: any[]) => navigationRef.navigate(...args as any),
-                              });
-                            }}
-                          >
-                            <RootNavigator />
-                          </NavigationContainer>
+                            deepLinkCleanupRef.current?.();
+                            deepLinkCleanupRef.current = setupDeepLinking({
+                              navigate: (...args: any[]) => navigationRef.navigate(...args as any),
+                            });
+                          }}
+                        >
+                          <RootNavigator />
+                        </NavigationContainer>
 
-                          {/* Global Achievement Unlock Modal */}
-                          <AchievementUnlockModal
-                            visible={!!unlockedAchievement}
-                            achievement={unlockedAchievement}
-                            onClose={clearUnlockedAchievement}
-                          />
+                        {/* Global Achievement Unlock Modal */}
+                        <AchievementUnlockModal
+                          visible={!!unlockedAchievement}
+                          achievement={unlockedAchievement}
+                          onClose={clearUnlockedAchievement}
+                        />
 
-                          {/* Offline Indicator */}
-                          <OfflineBanner />
+                        {/* Offline Indicator */}
+                        <OfflineBanner />
 
-                          {/* Global Keyboard Dismiss Bar */}
-                          <KeyboardDismissBar />
+                        {/* Global Keyboard Dismiss Bar */}
+                        <KeyboardDismissBar />
 
-                          {/* Global Branded Alert Renderer */}
-                          <AppAlertRenderer />
-                        </PostsProvider>
-                      </VaultProvider>
-                    </UserProvider>
-                  </MonetizationProvider>
+                        {/* Global Branded Alert Renderer */}
+                        <AppAlertRenderer />
+                      </PostsProvider>
+                    </VaultProvider>
+                  </UserProvider>
                 </SubscriptionProvider>
               </FirebaseProvider>
             </ChallengeProvider>
           </AuthProvider>
         </AnalyticsProvider>
-      {/* </StripeProvider> */}
       </KeyboardAvoidingView>
     </ErrorBoundary>
   );

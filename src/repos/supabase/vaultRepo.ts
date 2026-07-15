@@ -240,8 +240,8 @@ export class VaultRepository {
       bundleItems: data.bundle_items ? JSON.parse(data.bundle_items) : undefined,
       inStock: data.in_stock,
       stockLimit: data.stock_limit,
-      stripePriceId: data.stripe_price_id,
-      stripeProductId: data.stripe_product_id,
+      priceId: data.stripe_price_id,
+      productId: data.stripe_product_id,
       createdAt: data.created_at,
       updatedAt: data.updated_at
     };

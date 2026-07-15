@@ -42,7 +42,6 @@
     },
     "plugins": [
       "expo-web-browser",
-      "react-native-iap",
       "expo-video",
       "expo-apple-authentication",
       [

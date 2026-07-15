@@ -133,9 +133,10 @@ export interface MonetizationItem {
   inStock: boolean;
   stockLimit?: number;               // Limited quantity items
 
-  // Stripe integration
-  stripePriceId: string;
-  stripeProductId: string;
+  // Payment processor product identifiers (unused — no cash purchase
+  // flow is wired up; RevenueCat is the only live payment system)
+  priceId: string;
+  productId: string;
 
   createdAt: string;
   updatedAt: string;
@@ -258,7 +259,7 @@ export interface FirestoreVaultSchema {
     monetizationItemId: string;
     quantity: number;
     totalPaid: number;
-    stripePaymentIntentId: string;
+    paymentIntentId: string;
     purchasedAt: string;
   }[];
   

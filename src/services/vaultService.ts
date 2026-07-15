@@ -1,6 +1,11 @@
 /**
  * VAULT SERVICE
- * Handles all XP economy transactions and Stripe integration
+ * Handles all XP economy transactions.
+ *
+ * Cash/discount unlocks (formerly powered by Stripe) were removed in
+ * Phase 0.2 — RevenueCat is the only payment system now. XP-only
+ * unlocks remain the sole path; the discountOption cash branch always
+ * fails until 0.6 redesigns vault items as level-gated (no currency).
  */
 
 import {
@@ -12,15 +17,10 @@ import {
   MonetizationItem,
   UnlockedVaultItem
 } from '../types/vault';
-import { Platform } from 'react-native';
-
 // Supabase repository imports
 import { VaultRepository } from '../repos/supabase/vaultRepo';
 import * as vaultTransactionRepo from '../repos/supabase/vaultTransactionRepo';
 import { log } from '../lib/logger';
-
-// Stripe imports
-import { createPaymentIntent } from '../lib/stripeApi';
 
 class VaultService {
   
@@ -32,8 +32,12 @@ class VaultService {
    */
   async unlockVaultItem(request: VaultUnlockRequest): Promise<VaultUnlockResponse> {
     try {
-      if (Platform.OS === 'ios' && request.useDiscountOption) {
-        log.warn('VaultService', 'Blocked cash discount unlock on iOS for App Store compliance', {
+      if (request.useDiscountOption) {
+        // Cash/discount unlocks required Stripe, which was removed in
+        // Phase 0.2 (RevenueCat is the only payment system). This path
+        // always fails until 0.6 replaces vault currency with
+        // level-gated unlocks.
+        log.warn('VaultService', 'Blocked cash discount unlock — no payment processor available', {
           itemId: request.itemId,
           userId: request.userId,
         });
@@ -70,36 +74,22 @@ class VaultService {
         };
       }
 
-      // 4. Calculate costs based on discount option
+      // 4. Calculate costs (XP-only — cash/discount path is dead, see above)
       const costs = this.calculateUnlockCosts(item, request.useDiscountOption);
 
-      // 5. Process Stripe payment if using discount option
-      let stripePaymentIntentId: string | undefined;
-      if (request.useDiscountOption && costs.cashCost > 0) {
-        const paymentResult = await this.processStripePayment(costs.cashCost, request.userId);
-        if (!paymentResult.success) {
-          return {
-            success: false,
-            error: 'payment_failed'
-          };
-        }
-        stripePaymentIntentId = paymentResult.paymentIntentId;
-      }
-
-      // 6. Execute the unlock transaction (atomic in real implementation)
+      // 5. Execute the unlock transaction (atomic in real implementation)
       const transactionId = await this.executeUnlockTransaction({
         userId: request.userId,
         itemId: request.itemId,
         xpCost: costs.xpCost,
         cashCost: costs.cashCost,
-        stripePaymentIntentId,
         shippingAddress: request.shippingAddress
       });
 
-      // 7. Update item stock
+      // 6. Update item stock
       await this.decrementItemStock(request.itemId);
 
-      // 8. Return success response
+      // 7. Return success response
       const updatedProfile = await this.getUserVaultProfile(request.userId);
       return {
         success: true,
@@ -192,7 +182,6 @@ class VaultService {
     itemId: string;
     xpCost: number;
     cashCost: number;
-    stripePaymentIntentId?: string;
     shippingAddress?: any;
   }): Promise<string> {
 
@@ -224,87 +213,10 @@ class VaultService {
       itemId: params.itemId,
       xpCost: params.xpCost,
       cashCost: params.cashCost,
-      stripePaymentIntentId: params.stripePaymentIntentId,
       shippingAddress: params.shippingAddress
     });
 
     return transactionId;
-  }
-
-  // ================== STRIPE INTEGRATION ==================
-
-  /**
-   * Processes Stripe payment for real money transactions
-   * Note: This returns the payment intent details for client-side confirmation
-   * The actual confirmation should be done in the UI component using useStripe() hook
-   */
-  async createStripePayment(
-    amountInCents: number,
-    userId: string,
-    metadata?: Record<string, string>
-  ): Promise<{
-    success: boolean;
-    clientSecret?: string;
-    paymentIntentId?: string;
-    error?: string;
-  }> {
-
-    try {
-      // Call backend API to create payment intent
-      const paymentIntent = await createPaymentIntent({
-        amount: amountInCents,
-        userId,
-        metadata,
-      });
-
-      if (!paymentIntent) {
-        return {
-          success: false,
-          error: 'Failed to create payment intent'
-        };
-      }
-
-      log.info('VaultService', 'Payment intent created', {
-        paymentIntentId: paymentIntent.paymentIntentId,
-        amount: amountInCents,
-      });
-
-      return {
-        success: true,
-        clientSecret: paymentIntent.clientSecret,
-        paymentIntentId: paymentIntent.paymentIntentId,
-      };
-
-    } catch (error) {
-      log.error('VaultService', 'Stripe payment failed', error, { amountInCents, userId });
-      return {
-        success: false,
-        error: 'Payment processing failed'
-      };
-    }
-  }
-
-  /**
-   * Legacy method for backward compatibility
-   * @deprecated Use createStripePayment instead and confirm in UI with useStripe() hook
-   */
-  private async processStripePayment(
-    amountInCents: number,
-    userId: string,
-    paymentMethodId?: string
-  ): Promise<{
-    success: boolean;
-    paymentIntentId?: string;
-    error?: string;
-  }> {
-    // Mock successful payment for backward compatibility
-    // This should be removed once all code uses createStripePayment
-    log.warn('VaultService', 'Using deprecated processStripePayment - use createStripePayment instead');
-
-    return {
-      success: true,
-      paymentIntentId: `pi_mock_${Date.now()}`
-    };
   }
 
   // ================== DATA ACCESS METHODS ==================

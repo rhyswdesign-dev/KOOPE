@@ -15,7 +15,6 @@ import {
   Alert,
   Image,
   Animated,
-  Platform,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { colors, spacing, radii } from '../../../theme/tokens';
@@ -37,7 +36,11 @@ export default function VaultUnlockModal({
   onClose
 }: VaultUnlockModalProps) {
   const { unlockVaultItem } = useVault();
-  const cashDiscountEnabled = Platform.OS !== 'ios';
+  // Cash/discount unlocks required Stripe, removed in Phase 0.2 —
+  // RevenueCat is the only payment system now. Disabled on all
+  // platforms until 0.6 replaces vault currency with level-gated
+  // unlocks (no cash purchase at all).
+  const cashDiscountEnabled = false;
   const [useDiscountOption, setUseDiscountOption] = useState(false);
   const [isUnlocking, setIsUnlocking] = useState(false);
   const [unlockSuccess, setUnlockSuccess] = useState(false);
