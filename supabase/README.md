@@ -4,8 +4,10 @@ Database setup and migrations for KŌOPE app.
 
 ## 📚 Documentation
 
-- **[⚡ QUICKSTART.md](QUICKSTART.md)** - 5-minute setup checklist
 - **[📖 SUPABASE_SETUP.md](../SUPABASE_SETUP.md)** - Complete setup guide with troubleshooting
+- **`migrations/`** is the single source of truth for schema/RLS. Do not add new ad-hoc `.sql` files at the `supabase/` root — add a numbered migration instead (standing rule, see `docs/KOOPE-ENGINEERING-WORKPLAN.md` §"Cross-cutting standing rules").
+- **`archive/`** holds ~35 historical one-off `.sql`/`.md` files that were run by hand against production before the migrations directory existed. They are NOT tracked as applied migrations and should not be re-run as-is; kept for historical reference only. Where their content was still live, it has been re-expressed as a numbered migration (see `migrations/029_fix_rls_recipes_and_vault.sql` for the RLS fixes).
+- **`__tests__/`** holds SQL verification scripts to run manually against a database after applying migrations (e.g. RLS isolation checks).
 
 ## 📁 Directory Structure
 
