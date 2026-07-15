@@ -16,7 +16,7 @@ export const APP_CONFIG = {
   VERSION: '1.0.0',
 } as const;
 
-// Firebase Collection Names
+// Legacy collection/table name constants (unused; kept for reference)
 export const COLLECTIONS = {
   USERS: 'users',
   LESSONS: 'lessons', 

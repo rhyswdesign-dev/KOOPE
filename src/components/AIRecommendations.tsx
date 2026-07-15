@@ -81,7 +81,7 @@ export default function AIRecommendations({
         };
         setHomeBar(defaultBar);
       } catch (error: any) {
-        // Handle offline Firebase errors and profile loading errors gracefully
+        // Handle offline/network errors and profile loading errors gracefully
         if (error?.message?.includes('offline') ||
             error?.message?.includes('Failed to get document') ||
             error?.message?.includes('Failed to load user profile') ||

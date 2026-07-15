@@ -15,9 +15,8 @@ import { VaultProvider } from './src/contexts/VaultContext';
 import { PostsProvider } from './src/contexts/PostsContext';
 import { AuthProvider } from './src/contexts/AuthContext';
 import { ChallengeProvider } from './src/contexts/ChallengeContext';
-import { FirebaseProvider } from './src/context/FirebaseContext';
 import { SubscriptionProvider } from './src/contexts/SubscriptionContext';
-import { isNetworkError } from './src/config/firebase';
+import { isNetworkError } from './src/lib/networkErrors';
 import { initializeUserRecipes } from './src/store/useUserRecipes';
 import { streakService } from './src/services/streakService';
 import { useXPSystem } from './src/store/useXPSystem';
@@ -37,22 +36,11 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 // Override native Alert.alert with branded modals
 installAppAlert();
 
-// Override console.error to filter out Firebase offline errors and RevenueCat analytics bugs
+// Override console.error to filter out noisy/expected errors (RevenueCat
+// dev-mode warnings, transient Supabase offline errors, etc.)
 const originalConsoleError = console.error;
 console.error = (...args: any[]) => {
   const message = args[0];
-
-  // Filter out Firebase offline/network related errors
-  if (
-    typeof message === 'string' && (
-      message.includes('Failed to get document because the client is offline') ||
-      message.includes('Firebase connection failed') ||
-      message.includes('FirebaseError: Failed to get document because the client is offline')
-    )
-  ) {
-    // Silently ignore offline errors
-    return;
-  }
 
   // Filter out RevenueCat errors (expected in Expo Go - requires dev build for native IAP)
   if (
@@ -111,7 +99,7 @@ console.error = (...args: any[]) => {
     return;
   }
 
-  // Check if it's a Firebase error object
+  // Check if it's a generic network error object
   if (args.length > 0 && isNetworkError(args[0])) {
     return;
   }
@@ -405,46 +393,44 @@ function AppInner() {
       >
         <AuthProvider>
           <ChallengeProvider>
-            <FirebaseProvider>
-              <SubscriptionProvider>
-                <UserProvider>
-                  <VaultProvider>
-                    <PostsProvider>
-                      <NavigationContainer
-                        ref={navigationRef}
-                        theme={KOOPETheme}
-                        onReady={() => {
-                          if (!navigationRef.isReady()) return;
+            <SubscriptionProvider>
+              <UserProvider>
+                <VaultProvider>
+                  <PostsProvider>
+                    <NavigationContainer
+                      ref={navigationRef}
+                      theme={KOOPETheme}
+                      onReady={() => {
+                        if (!navigationRef.isReady()) return;
 
-                          deepLinkCleanupRef.current?.();
-                          deepLinkCleanupRef.current = setupDeepLinking({
-                            navigate: (...args: any[]) => navigationRef.navigate(...args as any),
-                          });
-                        }}
-                      >
-                        <RootNavigator />
-                      </NavigationContainer>
+                        deepLinkCleanupRef.current?.();
+                        deepLinkCleanupRef.current = setupDeepLinking({
+                          navigate: (...args: any[]) => navigationRef.navigate(...args as any),
+                        });
+                      }}
+                    >
+                      <RootNavigator />
+                    </NavigationContainer>
 
-                      {/* Global Achievement Unlock Modal */}
-                      <AchievementUnlockModal
-                        visible={!!unlockedAchievement}
-                        achievement={unlockedAchievement}
-                        onClose={clearUnlockedAchievement}
-                      />
+                    {/* Global Achievement Unlock Modal */}
+                    <AchievementUnlockModal
+                      visible={!!unlockedAchievement}
+                      achievement={unlockedAchievement}
+                      onClose={clearUnlockedAchievement}
+                    />
 
-                      {/* Offline Indicator */}
-                      <OfflineBanner />
+                    {/* Offline Indicator */}
+                    <OfflineBanner />
 
-                      {/* Global Keyboard Dismiss Bar */}
-                      <KeyboardDismissBar />
+                    {/* Global Keyboard Dismiss Bar */}
+                    <KeyboardDismissBar />
 
-                      {/* Global Branded Alert Renderer */}
-                      <AppAlertRenderer />
-                    </PostsProvider>
-                  </VaultProvider>
-                </UserProvider>
-              </SubscriptionProvider>
-            </FirebaseProvider>
+                    {/* Global Branded Alert Renderer */}
+                    <AppAlertRenderer />
+                  </PostsProvider>
+                </VaultProvider>
+              </UserProvider>
+            </SubscriptionProvider>
           </ChallengeProvider>
         </AuthProvider>
       </KeyboardAvoidingView>

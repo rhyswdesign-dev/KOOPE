@@ -5,6 +5,25 @@
 
 ---
 
+> **Correction (Phase 0.4, engineering workplan, 2026-07):** this document's
+> "100% code complete" claim was premature. As of Phase 0 of
+> `docs/KOOPE-ENGINEERING-WORKPLAN.md`, live Firebase-shaped code still
+> existed in the tree: `src/context/FirebaseContext.tsx`, `useFirestore.ts`,
+> `src/repos/firestore/firestoreRepositories.ts`, and `src/lib/storage.ts`
+> imported `firebase/firestore` and `firebase/storage` — packages that were
+> never installed (absent from `package.json` and `node_modules`), and
+> `recommendationTrackingService.ts` / `behavioralLearning.ts` imported
+> `@firebase/firestore` and called `getFirestore()` at module load. Any of
+> these being reached at runtime would have thrown or failed to bundle.
+> `FirebaseProvider` was still mounted in `App.tsx`, so this was a live
+> landmine, not a hypothetical one. All of it has now been deleted or ported
+> to Supabase/Mixpanel — see the `chore(phase-0): 0.4 firebase excision`
+> commit. `grep -rn "firebase\|firestore" src/ App.tsx` now returns 0 hits.
+> Leaving this note rather than rewriting the doc below, so the discrepancy
+> isn't silently lost.
+
+---
+
 ## What Was Accomplished
 
 ### Phase 1: Authentication & User Management

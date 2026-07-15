@@ -132,7 +132,7 @@ class Logger {
 
     // In production, send to crash reporting service
     if (!__DEV__ && error) {
-      // TODO: Send to Sentry, Firebase Crashlytics, etc.
+      // TODO: Send to a crash reporting SDK (Sentry, etc.) once one is chosen
       // crashlytics().recordError(error);
     }
   }

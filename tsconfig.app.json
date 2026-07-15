@@ -17,8 +17,6 @@
     "docs",
     "scripts",
     "supabase/functions",
-    "firebase",
-    "@firebase",
     "MixMind",
     "src/tests",
     "src/components/__tests__",

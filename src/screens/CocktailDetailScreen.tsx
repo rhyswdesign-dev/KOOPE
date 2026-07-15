@@ -1373,7 +1373,7 @@ export default function CocktailDetailScreen() {
   const getUserRecipeById = useUserRecipes((state) => state.getRecipeById);
   const serifFont = Platform.select({ ios: 'Georgia', android: 'serif', default: 'serif' });
 
-  const [firebaseRecipe, setFirebaseRecipe] = useState<Recipe | null>(null);
+  const [remoteRecipe, setRemoteRecipe] = useState<Recipe | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [groceryListVisible, setGroceryListVisible] = useState(false);
@@ -1421,7 +1421,7 @@ export default function CocktailDetailScreen() {
         // Always fetch from Supabase to get complete data
         const recipe = await RecipesRepository.getRecipeById(route.params.cocktailId);
         if (recipe) {
-          setFirebaseRecipe(recipe);
+          setRemoteRecipe(recipe);
         }
 
         // Track recipe view for achievements
@@ -1463,7 +1463,7 @@ export default function CocktailDetailScreen() {
     setRefreshing(true);
     try {
       const recipe = await RecipesRepository.getRecipeById(route.params.cocktailId);
-      setFirebaseRecipe(recipe);
+      setRemoteRecipe(recipe);
       showToast('Recipe refreshed!', 'success');
     } catch (error) {
       log.error('CocktailDetailScreen', 'Error refreshing recipe', error);
@@ -1476,7 +1476,7 @@ export default function CocktailDetailScreen() {
   // Check data sources in priority order:
   // 1. Passed cocktail object (for local recipes like mocktails)
   // 2. Non-alcoholic recipes
-  // 3. Firebase user-created recipes
+  // 3. Remote (Supabase) user-created recipes
   // 4. Hardcoded premium cocktails (original 11)
   // 5. Transformed centralized cocktails (new 81)
 
@@ -1533,41 +1533,41 @@ export default function CocktailDetailScreen() {
   const hardcodedCocktail = cocktailData[route.params.cocktailId as keyof typeof cocktailData];
   const transformedCocktail = getDetailedCocktail(route.params.cocktailId);
 
-  // Convert Supabase/Firebase recipe to cocktail format if available
-  const firebaseCocktail = firebaseRecipe ? (() => {
+  // Convert Supabase recipe to cocktail format if available
+  const remoteCocktail = remoteRecipe ? (() => {
     // Check if it's an AI-formatted recipe first
-    if (firebaseRecipe.aiFormattedData) {
+    if (remoteRecipe.aiFormattedData) {
       return {
-        id: firebaseRecipe.id,
-        title: firebaseRecipe.aiFormattedData.title || firebaseRecipe.title || 'Untitled Recipe',
-        subtitle: `Custom Recipe • ${firebaseRecipe.aiFormattedData.tags?.[0] || 'Mixed'}`,
-        description: firebaseRecipe.aiFormattedData.description || 'Custom recipe created with AI assistance',
-        img: firebaseRecipe.imageUrl || 'https://images.unsplash.com/photo-1536935338788-846bb9981813?auto=format&fit=crop&w=1200&q=60',
-        difficulty: firebaseRecipe.aiFormattedData.difficulty || 'Medium',
-        time: firebaseRecipe.aiFormattedData.time || '5 min',
-        ingredients: firebaseRecipe.aiFormattedData.ingredients?.map((ing: any) => ({
+        id: remoteRecipe.id,
+        title: remoteRecipe.aiFormattedData.title || remoteRecipe.title || 'Untitled Recipe',
+        subtitle: `Custom Recipe • ${remoteRecipe.aiFormattedData.tags?.[0] || 'Mixed'}`,
+        description: remoteRecipe.aiFormattedData.description || 'Custom recipe created with AI assistance',
+        img: remoteRecipe.imageUrl || 'https://images.unsplash.com/photo-1536935338788-846bb9981813?auto=format&fit=crop&w=1200&q=60',
+        difficulty: remoteRecipe.aiFormattedData.difficulty || 'Medium',
+        time: remoteRecipe.aiFormattedData.time || '5 min',
+        ingredients: remoteRecipe.aiFormattedData.ingredients?.map((ing: any) => ({
           name: `${ing.amount || ''} ${ing.name || ''}`.trim(),
           note: ing.notes || ''
         })) || [],
-        instructions: firebaseRecipe.aiFormattedData.instructions || [],
-        tips: firebaseRecipe.aiFormattedData.tags?.map((tag: string) => `Tagged as: ${tag}`) || [],
-        glassware: firebaseRecipe.aiFormattedData.glassware,
+        instructions: remoteRecipe.aiFormattedData.instructions || [],
+        tips: remoteRecipe.aiFormattedData.tags?.map((tag: string) => `Tagged as: ${tag}`) || [],
+        glassware: remoteRecipe.aiFormattedData.glassware,
         kitAvailable: false,
         kitPrice: 0,
-        isFirebaseRecipe: true
+        isRemoteRecipe: true
       };
     }
 
     // Otherwise, it's a Supabase recipe - convert it to display format
     return {
-      id: firebaseRecipe.id,
-      title: firebaseRecipe.title || 'Untitled Recipe',
-      subtitle: `${firebaseRecipe.category || 'Classic'} • ${firebaseRecipe.baseSpirit || 'Mixed'}-based`,
-      description: firebaseRecipe.description && firebaseRecipe.description.length > 50 ? firebaseRecipe.description : `A classic ${firebaseRecipe.baseSpirit || 'cocktail'} recipe.`,
-      img: firebaseRecipe.image || firebaseRecipe.imageUrl || 'https://images.unsplash.com/photo-1536935338788-846bb9981813?auto=format&fit=crop&w=1200&q=60',
-      difficulty: firebaseRecipe.difficulty === 'beginner' ? 'Easy' : firebaseRecipe.difficulty === 'intermediate' ? 'Medium' : firebaseRecipe.difficulty === 'advanced' ? 'Hard' : 'Medium',
-      time: firebaseRecipe.time || `${firebaseRecipe.preparationTime || 5} min`,
-      ingredients: firebaseRecipe.ingredients?.map((ing: any) => {
+      id: remoteRecipe.id,
+      title: remoteRecipe.title || 'Untitled Recipe',
+      subtitle: `${remoteRecipe.category || 'Classic'} • ${remoteRecipe.baseSpirit || 'Mixed'}-based`,
+      description: remoteRecipe.description && remoteRecipe.description.length > 50 ? remoteRecipe.description : `A classic ${remoteRecipe.baseSpirit || 'cocktail'} recipe.`,
+      img: remoteRecipe.image || remoteRecipe.imageUrl || 'https://images.unsplash.com/photo-1536935338788-846bb9981813?auto=format&fit=crop&w=1200&q=60',
+      difficulty: remoteRecipe.difficulty === 'beginner' ? 'Easy' : remoteRecipe.difficulty === 'intermediate' ? 'Medium' : remoteRecipe.difficulty === 'advanced' ? 'Hard' : 'Medium',
+      time: remoteRecipe.time || `${remoteRecipe.preparationTime || 5} min`,
+      ingredients: remoteRecipe.ingredients?.map((ing: any) => {
         // Handle different ingredient formats
         if (typeof ing === 'string') {
           return { name: ing, note: undefined };
@@ -1599,9 +1599,9 @@ export default function CocktailDetailScreen() {
         }
         return { name: String(ing), note: undefined };
       }) || [],
-      instructions: firebaseRecipe.instructions || [],
-      tips: firebaseRecipe.tags?.slice(0, 3) || [],
-      glassware: firebaseRecipe.glassware,
+      instructions: remoteRecipe.instructions || [],
+      tips: remoteRecipe.tags?.slice(0, 3) || [],
+      glassware: remoteRecipe.glassware,
       kitAvailable: true,
       kitPrice: undefined,
       isSupabaseRecipe: true
@@ -1610,7 +1610,7 @@ export default function CocktailDetailScreen() {
 
   // Priority order: Prefer complete data sources (with ingredients)
   // 1. Non-alcoholic recipes (local, always complete)
-  // 2. Firebase/Supabase data (if it has ingredients)
+  // 2. Supabase data (if it has ingredients)
   // 3. Passed cocktail (only if it has ingredients)
   // 4. Hardcoded cocktails
   // 5. Transformed centralized cocktails
@@ -1619,25 +1619,25 @@ export default function CocktailDetailScreen() {
     // Non-alcoholic recipes are always complete
     if (nonAlcoholicRecipe) return nonAlcoholicRecipe;
 
-    // Check if firebase data is complete (has ingredients)
-    if (firebaseCocktail) {
-      const hasValidIngredients = firebaseCocktail.ingredients && firebaseCocktail.ingredients.length > 0;
-      const hasValidInstructions = firebaseCocktail.instructions && firebaseCocktail.instructions.length > 0;
+    // Check if remote data is complete (has ingredients)
+    if (remoteCocktail) {
+      const hasValidIngredients = remoteCocktail.ingredients && remoteCocktail.ingredients.length > 0;
+      const hasValidInstructions = remoteCocktail.instructions && remoteCocktail.instructions.length > 0;
 
-      // If firebase data is complete, use it (this is the primary source of truth)
+      // If remote data is complete, use it (this is the primary source of truth)
       if (hasValidIngredients && hasValidInstructions) {
-        return firebaseCocktail;
+        return remoteCocktail;
       }
 
-      // If firebase data is incomplete, try to merge with transformed data
+      // If remote data is incomplete, try to merge with transformed data
       if (transformedCocktail) {
         return {
-          ...firebaseCocktail,
-          // Use firebase data for basic info, but get ingredients/instructions from local if missing
-          ingredients: hasValidIngredients ? firebaseCocktail.ingredients : transformedCocktail.ingredients,
-          instructions: hasValidInstructions ? firebaseCocktail.instructions : transformedCocktail.instructions,
-          tips: firebaseCocktail.tips?.length > 0 ? firebaseCocktail.tips : transformedCocktail.tips,
-          glassware: firebaseCocktail.glassware || transformedCocktail.glassware,
+          ...remoteCocktail,
+          // Use remote data for basic info, but get ingredients/instructions from local if missing
+          ingredients: hasValidIngredients ? remoteCocktail.ingredients : transformedCocktail.ingredients,
+          instructions: hasValidInstructions ? remoteCocktail.instructions : transformedCocktail.instructions,
+          tips: remoteCocktail.tips?.length > 0 ? remoteCocktail.tips : transformedCocktail.tips,
+          glassware: remoteCocktail.glassware || transformedCocktail.glassware,
         };
       }
     }
@@ -1651,8 +1651,8 @@ export default function CocktailDetailScreen() {
     if (hardcodedCocktail) return hardcodedCocktail;
     if (transformedCocktail) return transformedCocktail;
 
-    // Last resort: return firebase data even if incomplete, or passed cocktail
-    return firebaseCocktail || passedCocktail || localUserRecipeCocktail || null;
+    // Last resort: return remote data even if incomplete, or passed cocktail
+    return remoteCocktail || passedCocktail || localUserRecipeCocktail || null;
   })();
 
   // Parse ingredients into consistent format for rendering
@@ -1940,7 +1940,7 @@ export default function CocktailDetailScreen() {
         });
       return steps.map((step) => normalizeMethodStep(step)).filter(Boolean);
     } else if (Array.isArray(cocktail.instructions)) {
-      // Firebase format: already an array
+      // Remote format: already an array
       return cocktail.instructions.map((step) => normalizeMethodStep(String(step || ''))).filter(Boolean);
     }
 
@@ -1974,7 +1974,7 @@ export default function CocktailDetailScreen() {
         ingredientsLength: cocktail.ingredients?.length || 0,
         ingredientsType: typeof cocktail.ingredients,
         firstIngredient: cocktail.ingredients?.[0],
-        source: passedCocktail ? 'passed' : nonAlcoholicRecipe ? 'nonAlcoholic' : firebaseCocktail ? 'firebase' : hardcodedCocktail ? 'hardcoded' : 'transformed'
+        source: passedCocktail ? 'passed' : nonAlcoholicRecipe ? 'nonAlcoholic' : remoteCocktail ? 'remote' : hardcodedCocktail ? 'hardcoded' : 'transformed'
       });
     }
   }, [cocktail]);

@@ -241,28 +241,3 @@ export interface VaultAnalytics {
   updatedAt: string;
 }
 
-// ================== FIRESTORE COLLECTION STRUCTURE ==================
-
-export interface FirestoreVaultSchema {
-  // Core collections
-  vaultItems: VaultItem[];
-  vaultCycles: VaultCycle[];
-  userVaultProfiles: UserVaultProfile[];
-  monetizationItems: MonetizationItem[];
-  vaultAddresses: VaultAddress[];
-  
-  // Transaction logs
-  vaultUnlocks: UnlockedVaultItem[];
-  vaultPurchases: {
-    id: string;
-    userId: string;
-    monetizationItemId: string;
-    quantity: number;
-    totalPaid: number;
-    paymentIntentId: string;
-    purchasedAt: string;
-  }[];
-  
-  // Analytics
-  vaultAnalytics: VaultAnalytics[];
-}

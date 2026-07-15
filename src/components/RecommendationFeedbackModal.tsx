@@ -130,7 +130,7 @@ export default function RecommendationFeedbackModal({
         log.info('RecommendationFeedbackModal', 'Taste profile updated successfully');
       }
 
-      // Track the feedback in Firebase
+      // Track the feedback (Mixpanel via recommendationTrackingService)
       await trackRecommendationRating(
         userId,
         recommendation,
