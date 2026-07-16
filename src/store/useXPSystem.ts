@@ -68,8 +68,11 @@ export const DEFAULT_COCKTAIL_COSTS: { [tier: string]: number } = {
   signature: 400,
 };
 
-// Daily XP cap for free users — prevents farming while allowing 3-4 meaningful actions/day
-export const FREE_DAILY_XP_CAP = 300;
+// Phase 0.6 (gamification spine): daily XP caps are removed (this constant
+// and its enforcement in earnXP() are gone — the only remaining consumer,
+// ProfileScreen's "Today: X / 300 XP" progress bar, was removed too). XP ->
+// Level -> Unlocks is the only progression math left; a cap punished the
+// exact "do things" behavior the spine is supposed to reward.
 
 // XP earning rates — aligned with monetization spec
 export const XP_EARNING_RATES = {
@@ -197,20 +200,16 @@ export const useXPSystem = create<XPSystemState>()(
       earnXP: (amount: number, source: XPSource, description: string) => {
         const state = get();
 
-        // Resolve earnedToday, auto-resetting if the calendar day has rolled over
+        // earnedToday is kept (not removed) for the Profile XP-today
+        // display and analytics — it just no longer caps anything.
         const today = new Date().toISOString().split('T')[0];
         const lastReset = state.lastResetDate?.split('T')[0];
         const isNewDay = lastReset !== today;
         const earnedToday = isNewDay ? 0 : state.earnedToday;
 
-        // Enforce daily cap for FREE tier users
+        // No daily cap (Phase 0.6) — PRO tier still gets its multiplier.
         const { tier } = useUserTier.getState();
         let effectiveAmount = amount;
-        if (tier === 'FREE') {
-          const remaining = FREE_DAILY_XP_CAP - earnedToday;
-          effectiveAmount = Math.min(amount, Math.max(0, remaining));
-          if (effectiveAmount <= 0) return; // Cap already reached for today
-        }
         if (tier === 'PRO') {
           effectiveAmount = Math.round(effectiveAmount * PRO_XP_MULTIPLIER);
         }

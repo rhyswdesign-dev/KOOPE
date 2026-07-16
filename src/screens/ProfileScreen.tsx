@@ -28,7 +28,7 @@ import { useUserRecipes } from '../store/useUserRecipes';
 import RecipePreferencesModal from '../components/RecipePreferencesModal';
 import { achievementService, Achievement } from '../services/achievementService';
 import { streakService, StreakData } from '../services/streakService';
-import { useXPSystem, FREE_DAILY_XP_CAP } from '../store/useXPSystem';
+import { useXPSystem } from '../store/useXPSystem';
 import { useUser } from '../store/useUser';
 import { useUserTier } from '../store/useUserTier';
 import {
@@ -53,7 +53,7 @@ export default function ProfileScreen() {
   const [preferencesModalVisible, setPreferencesModalVisible] = useState(false);
   const { savedItems } = useSavedItems();
   const { recipes } = useUserRecipes();
-  const { balance: totalXP, earnedToday } = useXPSystem();
+  const { balance: totalXP } = useXPSystem();
   const { tier } = useUserTier();
   const { completedLessons } = useUser();
   const [achievements, setAchievements] = useState<Achievement[]>([]);
@@ -393,13 +393,11 @@ export default function ProfileScreen() {
                   </View>
                 )}
 
-                {/* Daily cap progress for free users */}
-                <View style={styles.xpDailyCapRow}>
-                  <Text style={styles.xpDailyCapLabel}>Today: {earnedToday} / {FREE_DAILY_XP_CAP} XP</Text>
-                  <View style={styles.xpDailyCapBar}>
-                    <View style={[styles.xpDailyCapFill, { width: `${Math.min((earnedToday / FREE_DAILY_XP_CAP) * 100, 100)}%` as any }]} />
-                  </View>
-                </View>
+                {/* Phase 0.6 (gamification spine): daily XP caps are gone —
+                    XP -> Level -> Unlocks is the only progression math left,
+                    so the "Today: X / 300 XP" cap-progress bar that lived
+                    here was removed rather than shown against an infinite
+                    cap. */}
 
                 <TouchableOpacity
                   style={styles.viewVaultButton}
@@ -1264,26 +1262,6 @@ const styles = StyleSheet.create({
   xpCurrencyXP: {
     color: colors.subtext,
     fontSize: 13,
-  },
-  xpDailyCapRow: {
-    marginTop: spacing(0.5),
-    gap: spacing(0.75),
-  },
-  xpDailyCapLabel: {
-    fontSize: 11,
-    color: colors.subtext,
-  },
-  xpDailyCapBar: {
-    height: 4,
-    backgroundColor: colors.line,
-    borderRadius: 2,
-    overflow: 'hidden',
-  },
-  xpDailyCapFill: {
-    height: '100%',
-    backgroundColor: colors.accent,
-    borderRadius: 2,
-    opacity: 0.6,
   },
   viewVaultButton: {
     flexDirection: 'row',

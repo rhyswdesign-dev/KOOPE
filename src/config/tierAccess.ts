@@ -41,8 +41,9 @@ export const DEV_PREVIEW_UNLOCK_COCKTAILS = [
 export const TIER_LIMITS = {
   FREE: {
     maxBottles: 10,
-    // Scans are unlimited in count — XP diminishing returns + 300 XP/day cap is the gate.
-    // First scan: 50 XP. Repeat: 5 XP × max 3. After ~6 new bottles the daily cap is hit.
+    // Scans are unlimited in count — per-bottle XP diminishing returns are the gate.
+    // First scan: 50 XP. Repeat: 5 XP × max 3, then 0 for that bottle. No daily
+    // cap (Phase 0.6 removed it) — XP -> Level -> Unlocks is uncapped by design.
     maxScansPerMonth: Infinity,
     maxSavedCocktails: 0,
     maxBarProfiles: Infinity, // Multi-bar no longer gated
