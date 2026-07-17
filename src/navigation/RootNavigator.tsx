@@ -173,7 +173,7 @@ export type RootStackParamList = {
   RecipeDetail: { recipe: any };
   RecipeEditor: { recipe: any };
   AIRecipeGenerator: { userInventory: any[]; selectedItems: Set<string> };
-  AIRecipeFormat: { recipe?: any; recipeUrl?: string; startWithManual?: boolean };
+  AIRecipeFormat: { recipe?: any; startWithManual?: boolean };
   OCRCapture: undefined;
   VoiceRecipe: undefined;
   HomeBar: undefined;
