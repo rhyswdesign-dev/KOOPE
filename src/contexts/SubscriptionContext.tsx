@@ -19,7 +19,6 @@ import React, {
 import { Platform } from 'react-native';
 import Purchases, {
   CustomerInfo,
-  PurchasesEntitlementInfo,
   PurchasesOfferings,
   PurchasesPackage,
   LOG_LEVEL,
@@ -37,6 +36,7 @@ import { useUserTier } from '../store/useUserTier';
 import type { UserTier } from '../store/useUserTier';
 import { log } from '../lib/logger';
 import { supabase } from '../lib/supabase';
+import { deriveEntitlementState, isEntitlementActive } from './entitlementMapping';
 
 /**
  * MANUAL TESTING GUIDE
@@ -170,15 +170,6 @@ const defaultState: SubscriptionState = {
 const SubscriptionContext = createContext<SubscriptionState>(defaultState);
 
 /**
- * Check if an entitlement is active. Pure function of its argument, no
- * component state — lives at module scope so it isn't recreated every
- * SubscriptionProvider render (Phase 0.9 guardrail).
- */
-function isEntitlementActive(entitlement: PurchasesEntitlementInfo | undefined): boolean {
-  return entitlement?.isActive === true;
-}
-
-/**
  * Hook to access subscription state
  *
  * @example
@@ -236,35 +227,18 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
    * - This ensures paid users don't see paywall on reload while server check completes
    */
   const updateSubscriptionState = useCallback((info: CustomerInfo) => {
-    const entitlements = info.entitlements.active;
+    const derived = deriveEntitlementState(info.entitlements.active);
 
-    const koopePlus = isEntitlementActive(entitlements[SUBSCRIPTION_ENTITLEMENTS.KOOPE_PLUS]);
-    const koopePro = isEntitlementActive(entitlements[SUBSCRIPTION_ENTITLEMENTS.KOOPE_PRO]);
-    const koopeProAlt = isEntitlementActive(entitlements[SUBSCRIPTION_ENTITLEMENTS.KOOPE_PRO_ALT]);
-    const prestigeActive = isEntitlementActive(entitlements[SUBSCRIPTION_ENTITLEMENTS.PRESTIGE]);
-
-    const hasProEntitlement = koopePro || koopeProAlt;
-
-    setIsKoopePro(koopePlus || hasProEntitlement); // Either KOOPE+ or KOOPE PRO grants koopePro status
-    setIsPro(hasProEntitlement); // Only KOOPE PRO grants pro status
-    setIsPrestige(prestigeActive);
-    setIsSubscriber(koopePlus || hasProEntitlement || prestigeActive);
+    setIsKoopePro(derived.isKoopePro); // Either KOOPE+ or KOOPE PRO grants koopePro status
+    setIsPro(derived.hasProEntitlement); // Only KOOPE PRO grants pro status
+    setIsPrestige(derived.prestigeActive);
+    setIsSubscriber(derived.isSubscriber);
     setCustomerInfo(info);
 
     // Update analytics user properties
-    const subscriptionTier = prestigeActive
-      ? 'prestige'
-      : hasProEntitlement
-        ? 'pro'
-        : koopePlus
-          ? 'plus'
-          : 'free';
-    const subscriptionStatus =
-      koopePlus || hasProEntitlement || prestigeActive ? 'active' : 'inactive';
-
     setUserProperties({
-      subscription_tier: subscriptionTier,
-      subscription_status: subscriptionStatus,
+      subscription_tier: derived.subscriptionTier,
+      subscription_status: derived.subscriptionStatus,
       customer_id: info.originalAppUserId,
     });
 
@@ -273,22 +247,23 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
       setUserId(info.originalAppUserId);
     }
 
-    // Update UserTier store to sync with subscription status
-    const newTier: UserTier = hasProEntitlement ? 'PRO' : koopePlus ? 'PLUS' : 'FREE';
+    // Update UserTier store to sync with subscription status. setTier()
+    // normalizes 'PRO' -> 'PLUS' on write (Phase 0.7) — gating is
+    // identical for both.
     const tierStore = useUserTier.getState();
-    tierStore.setTier(newTier);
+    tierStore.setTier(derived.tier);
 
     // Update subscription status in tier store
-    if (koopePlus || hasProEntitlement || prestigeActive) {
+    if (derived.isSubscriber) {
       tierStore.setSubscriptionStatus('active');
     }
 
     log.state('SubscriptionContext', 'updateSubscriptionState', {
-      tier: newTier,
-      status: subscriptionStatus,
-      koopePlus,
-      koopePro: hasProEntitlement,
-      prestige: prestigeActive,
+      tier: derived.tier,
+      status: derived.subscriptionStatus,
+      koopePlus: derived.koopePlus,
+      koopePro: derived.hasProEntitlement,
+      prestige: derived.prestigeActive,
     });
   }, []);
 
