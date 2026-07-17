@@ -6,7 +6,6 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { log } from '../lib/logger';
-import { achievementService } from './achievementService';
 import { challengeProgressService } from './challengeProgressService';
 
 export interface StreakData {
@@ -54,7 +53,7 @@ class StreakService {
       sunday: 0,
     },
   };
-  private listeners: Array<(streak: number) => void> = [];
+  private listeners: ((streak: number) => void)[] = [];
 
   private constructor() {
     this.initialize();
@@ -79,7 +78,10 @@ class StreakService {
   /**
    * Record activity for today
    */
-  public async recordActivity(activity: string = 'app_open', userId?: string): Promise<{
+  public async recordActivity(
+    activity: string = 'app_open',
+    userId?: string,
+  ): Promise<{
     streakIncreased: boolean;
     currentStreak: number;
     isNewRecord: boolean;
@@ -131,17 +133,16 @@ class StreakService {
       // Update weekly activity
       this.updateWeeklyActivity();
 
-      // Set streak in achievement service (set absolute value, not increment)
-      await achievementService.setStat('currentStreak', this.streakData.currentStreak);
-      await achievementService.setStat('longestStreak', this.streakData.longestStreak);
-
       // Track challenge progress if userId provided
       if (userId && streakIncreased) {
         try {
-          await challengeProgressService.trackStreakMaintained(userId, this.streakData.currentStreak);
+          await challengeProgressService.trackStreakMaintained(
+            userId,
+            this.streakData.currentStreak,
+          );
           log.debug('StreakService', 'Challenge progress updated for streak', {
             userId,
-            currentStreak: this.streakData.currentStreak
+            currentStreak: this.streakData.currentStreak,
           });
         } catch (error) {
           log.error('StreakService', 'Error tracking challenge progress', error);
@@ -249,7 +250,7 @@ class StreakService {
   public addStreakListener(listener: (streak: number) => void): () => void {
     this.listeners.push(listener);
     return () => {
-      this.listeners = this.listeners.filter(l => l !== listener);
+      this.listeners = this.listeners.filter((l) => l !== listener);
     };
   }
 
@@ -257,7 +258,7 @@ class StreakService {
    * Notify listeners of streak change
    */
   private notifyListeners(): void {
-    this.listeners.forEach(listener => listener(this.streakData.currentStreak));
+    this.listeners.forEach((listener) => listener(this.streakData.currentStreak));
   }
 
   /**
@@ -265,7 +266,7 @@ class StreakService {
    */
   private updateWeeklyActivity(): void {
     const dayOfWeek = new Date().getDay(); // 0 = Sunday, 6 = Saturday
-    const dayNames: Array<keyof WeeklyActivity> = [
+    const dayNames: (keyof WeeklyActivity)[] = [
       'sunday',
       'monday',
       'tuesday',
@@ -282,7 +283,7 @@ class StreakService {
    * Add activity to history
    */
   private addActivityToHistory(date: string, activity: string): void {
-    const existingEntry = this.streakData.streakHistory.find(e => e.date === date);
+    const existingEntry = this.streakData.streakHistory.find((e) => e.date === date);
     if (existingEntry) {
       if (!existingEntry.activities.includes(activity)) {
         existingEntry.activities.push(activity);
@@ -345,7 +346,9 @@ class StreakService {
       const data = await AsyncStorage.getItem(STORAGE_KEY);
       if (data) {
         this.streakData = JSON.parse(data);
-        log.debug('StreakService', 'Loaded streak data', { currentStreak: this.streakData.currentStreak });
+        log.debug('StreakService', 'Loaded streak data', {
+          currentStreak: this.streakData.currentStreak,
+        });
       }
     } catch (error) {
       log.error('StreakService', 'Failed to load streak data', error);
@@ -390,8 +393,10 @@ class StreakService {
    * Get streak calendar data (for visualization)
    * Returns activity status for each day in the last N days
    */
-  public getStreakCalendar(days: number = 30): Array<{ date: string; hasActivity: boolean; activities: string[] }> {
-    const calendar: Array<{ date: string; hasActivity: boolean; activities: string[] }> = [];
+  public getStreakCalendar(
+    days: number = 30,
+  ): { date: string; hasActivity: boolean; activities: string[] }[] {
+    const calendar: { date: string; hasActivity: boolean; activities: string[] }[] = [];
     const today = new Date();
 
     for (let i = days - 1; i >= 0; i--) {
@@ -399,7 +404,7 @@ class StreakService {
       date.setDate(date.getDate() - i);
       const dateString = this.toLocalDateString(date);
 
-      const historyEntry = this.streakData.streakHistory.find(e => e.date === dateString);
+      const historyEntry = this.streakData.streakHistory.find((e) => e.date === dateString);
       calendar.push({
         date: dateString,
         hasActivity: !!historyEntry,

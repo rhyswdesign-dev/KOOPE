@@ -14,7 +14,7 @@ import {
   StatusBar,
   Platform,
   Pressable,
-  TouchableOpacity
+  TouchableOpacity,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -41,7 +41,6 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useChallengeProgress } from '../../hooks/useChallengeProgress';
 import { log } from '../../lib/logger';
 import { lessonProgressService } from '../../services/lessonProgressService';
-import { achievementService } from '../../services/achievementService';
 import { normalizeOrderTarget, normalizeShortAnswer } from '../../utils/exerciseValidation';
 import type { RootStackParamList } from '../../navigation/RootNavigator';
 
@@ -59,17 +58,26 @@ export const LessonEngine: React.FC<LessonEngineProps> = ({ lessonId, onComplete
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showFeedback, setShowFeedback] = useState(false);
-  const [lastResult, setLastResult] = useState<{ correct: boolean; msToAnswer: number } | null>(null);
+  const [lastResult, setLastResult] = useState<{ correct: boolean; msToAnswer: number } | null>(
+    null,
+  );
   const [feedbackInsight, setFeedbackInsight] = useState<string | null>(null);
   const [feedbackHeadline, setFeedbackHeadline] = useState<string>('Nice work');
   const [isAdvancing, setIsAdvancing] = useState(false);
-  const [quickFeedbackType, setQuickFeedbackType] = useState<'correct' | 'incorrect' | 'streak'>('correct');
+  const [quickFeedbackType, setQuickFeedbackType] = useState<'correct' | 'incorrect' | 'streak'>(
+    'correct',
+  );
   // const completionAnimation = useCompletionAnimation();
   const audio = useAudio();
   const { user } = useAuth();
   const { trackLessonComplete, trackXPEarned, trackQuizPerfect } = useChallengeProgress();
   const userStore = useUser();
-  const { lives = 3, loseLife: loseUserLife, completeLesson: completeUserLesson, completedLessons = [] } = userStore || {};
+  const {
+    lives = 3,
+    loseLife: loseUserLife,
+    completeLesson: completeUserLesson,
+    completedLessons = [],
+  } = userStore || {};
 
   // Animation values
   const fadeAnim = useRef(new Animated.Value(1)).current;
@@ -84,26 +92,17 @@ export const LessonEngine: React.FC<LessonEngineProps> = ({ lessonId, onComplete
   const feedbackIconOpacity = useRef(new Animated.Value(0)).current;
   const feedbackTypeRef = useRef<'correct' | 'incorrect'>('correct');
 
-  const {
-    items,
-    currentItemIndex,
-    startSession,
-    submitAnswer,
-    nextItem,
-    endSession,
-    reset
-  } = useSession();
+  const { items, currentItemIndex, startSession, submitAnswer, nextItem, endSession, reset } =
+    useSession();
 
   const currentItem = items[currentItemIndex];
   const isLastItem = currentItemIndex >= items.length - 1;
-
 
   useEffect(() => {
     StatusBar.setBarStyle('light-content', true);
     loadLesson();
     return () => reset(); // Cleanup on unmount
   }, [lessonId]);
-
 
   // Animate progress bar when currentItemIndex changes (ultra-fast)
   useEffect(() => {
@@ -213,7 +212,8 @@ export const LessonEngine: React.FC<LessonEngineProps> = ({ lessonId, onComplete
         return `Correct answer: ${item.options[item.answerIndex]}`;
       }
       if (item.answerText) return `Correct answer: ${item.answerText}`;
-      if (Array.isArray(item.correct) && item.correct.length > 0) return `Correct answer: ${item.correct.join(', ')}`;
+      if (Array.isArray(item.correct) && item.correct.length > 0)
+        return `Correct answer: ${item.correct.join(', ')}`;
       if (Array.isArray(item.orderTarget) && item.orderTarget.length > 0) {
         return `Correct order: ${item.orderTarget.join(' -> ')}`;
       }
@@ -222,16 +222,19 @@ export const LessonEngine: React.FC<LessonEngineProps> = ({ lessonId, onComplete
 
     const whyItMattersByType: Record<string, string> = {
       mcq: 'Why it matters: fast recognition helps you make clean decisions under service pressure.',
-      checkbox: 'Why it matters: bartending often requires checking multiple correct signals at once.',
+      checkbox:
+        'Why it matters: bartending often requires checking multiple correct signals at once.',
       order: 'Why it matters: sequence changes texture, dilution, and final balance in the glass.',
-      match: 'Why it matters: connecting concepts quickly improves recall during real guest interactions.',
+      match:
+        'Why it matters: connecting concepts quickly improves recall during real guest interactions.',
       short: 'Why it matters: naming the concept in your own words locks in long-term memory.',
     };
 
     const ruleOfThumbByType: Record<string, string> = {
       mcq: 'Rule of thumb: remove clearly wrong options first, then choose the best fit.',
       checkbox: 'Rule of thumb: select only what must be true, not what feels somewhat true.',
-      order: 'Rule of thumb: prep first, then build, then finish; avoid steps that cause early dilution.',
+      order:
+        'Rule of thumb: prep first, then build, then finish; avoid steps that cause early dilution.',
       match: 'Rule of thumb: match by function and intent, not by wording similarity.',
       short: 'Rule of thumb: keep the answer short, specific, and technically precise.',
     };
@@ -256,14 +259,14 @@ export const LessonEngine: React.FC<LessonEngineProps> = ({ lessonId, onComplete
       correct: result.correct,
       msToAnswer: result.msToAnswer,
       timestamp: Date.now(),
-      exerciseType: currentItem.type
+      exerciseType: currentItem.type,
     };
 
     setLastResult(result);
     setFeedbackHeadline(
       result.correct
         ? ['Perfect!', 'Excellent!', 'Nailed it!'][Math.floor(Math.random() * 3)]
-        : ['Not quite', 'Try again', 'Almost!'][Math.floor(Math.random() * 3)]
+        : ['Not quite', 'Try again', 'Almost!'][Math.floor(Math.random() * 3)],
     );
     setFeedbackInsight(buildFeedbackInsight(currentItem, result.correct));
     setShowFeedback(true);
@@ -287,7 +290,8 @@ export const LessonEngine: React.FC<LessonEngineProps> = ({ lessonId, onComplete
       itemId: currentItem.id,
       result: result.correct ? 'correct' : 'incorrect',
       msToAnswer: result.msToAnswer,
-      exerciseType: currentItem.type === 'checkbox' || currentItem.type === 'match' ? 'mcq' : currentItem.type
+      exerciseType:
+        currentItem.type === 'checkbox' || currentItem.type === 'match' ? 'mcq' : currentItem.type,
     });
 
     // Play appropriate audio feedback
@@ -306,8 +310,17 @@ export const LessonEngine: React.FC<LessonEngineProps> = ({ lessonId, onComplete
 
     Animated.sequence([
       Animated.parallel([
-        Animated.timing(feedbackFlashOpacity, { toValue: 0.12, duration: 80, useNativeDriver: true }),
-        Animated.spring(feedbackIconScale, { toValue: 1, tension: 180, friction: 8, useNativeDriver: true }),
+        Animated.timing(feedbackFlashOpacity, {
+          toValue: 0.12,
+          duration: 80,
+          useNativeDriver: true,
+        }),
+        Animated.spring(feedbackIconScale, {
+          toValue: 1,
+          tension: 180,
+          friction: 8,
+          useNativeDriver: true,
+        }),
         Animated.timing(feedbackIconOpacity, { toValue: 1, duration: 100, useNativeDriver: true }),
       ]),
       Animated.delay(200),
@@ -360,7 +373,7 @@ export const LessonEngine: React.FC<LessonEngineProps> = ({ lessonId, onComplete
       correctCount,
       totalCount,
       xpAwarded,
-      masteryDelta
+      masteryDelta,
     });
 
     // Update user store with lesson completion
@@ -368,13 +381,6 @@ export const LessonEngine: React.FC<LessonEngineProps> = ({ lessonId, onComplete
       completeUserLesson(lessonId, xpAwarded);
     } else {
       log.warn('LessonEngine', 'completeUserLesson function not available');
-    }
-
-    // Track lesson completion for achievements (bridges to achievementService)
-    try {
-      await achievementService.trackAction('lessonsCompleted', 1);
-    } catch (err) {
-      log.error('LessonEngine', 'Error tracking achievement', err);
     }
 
     // Track lesson completion
@@ -406,7 +412,7 @@ export const LessonEngine: React.FC<LessonEngineProps> = ({ lessonId, onComplete
             lessonId,
             isNewCompletion: progressResult.isNewCompletion,
             isNewBestScore: progressResult.isNewBestScore,
-            accuracy
+            accuracy,
           });
         }
       } catch (error) {
@@ -447,7 +453,6 @@ export const LessonEngine: React.FC<LessonEngineProps> = ({ lessonId, onComplete
       navigation.goBack();
     }
   };
-
 
   if (loading) {
     return (
@@ -498,9 +503,7 @@ export const LessonEngine: React.FC<LessonEngineProps> = ({ lessonId, onComplete
       <View style={styles.errorContainer}>
         <Text style={styles.errorText}>{title}</Text>
         <Text style={styles.errorSubtext}>{detail}</Text>
-        <Text style={styles.errorDebugText}>
-          {`Item ${currentItem.id} • ${currentItem.type}`}
-        </Text>
+        <Text style={styles.errorDebugText}>{`Item ${currentItem.id} • ${currentItem.type}`}</Text>
         <Pressable style={styles.skipButton} onPress={skipMalformedItem}>
           <Text style={styles.skipButtonText}>Skip Question</Text>
         </Pressable>
@@ -519,16 +522,26 @@ export const LessonEngine: React.FC<LessonEngineProps> = ({ lessonId, onComplete
     const normalizedMcqItem: Item = {
       ...currentItem,
       answerIndex: normalizedAnswerIndex,
-      roleplay: currentItem.roleplay || (String((currentItem as any).type || '').toLowerCase() === 'roleplay' ? { mode: 'scenario' } : undefined),
+      roleplay:
+        currentItem.roleplay ||
+        (String((currentItem as any).type || '').toLowerCase() === 'roleplay'
+          ? { mode: 'scenario' }
+          : undefined),
     };
 
     switch (exerciseType) {
       case 'mcq':
         if (!normalizedMcqItem.options || normalizedMcqItem.options.length < 2) {
-          return renderMalformedItem('Question is missing options', 'MCQ and roleplay items need at least two choices.');
+          return renderMalformedItem(
+            'Question is missing options',
+            'MCQ and roleplay items need at least two choices.',
+          );
         }
         if (typeof normalizedMcqItem.answerIndex !== 'number') {
-          return renderMalformedItem('Question is missing the correct answer', 'MCQ and roleplay items need one numeric correct option.');
+          return renderMalformedItem(
+            'Question is missing the correct answer',
+            'MCQ and roleplay items need one numeric correct option.',
+          );
         }
         return (
           <MCQExercise
@@ -539,18 +552,28 @@ export const LessonEngine: React.FC<LessonEngineProps> = ({ lessonId, onComplete
         );
       case 'order':
         if (!normalizedOrderTarget.length) {
-          return renderMalformedItem('Order question is still being formatted', 'Order items need a visible sequence in `options` or `order_target`.');
+          return renderMalformedItem(
+            'Order question is still being formatted',
+            'Order items need a visible sequence in `options` or `order_target`.',
+          );
         }
         return (
           <OrderExercise
-            item={{ ...currentItem, orderTarget: normalizedOrderTarget, options: currentItem.options || normalizedOrderTarget }}
+            item={{
+              ...currentItem,
+              orderTarget: normalizedOrderTarget,
+              options: currentItem.options || normalizedOrderTarget,
+            }}
             onResult={handleAnswer}
             disabled={false}
           />
         );
       case 'short':
         if (!normalizedShort.answerText) {
-          return renderMalformedItem('Short answer question missing answer', 'Short answer items need `answerText` or an equivalent expected answer field.');
+          return renderMalformedItem(
+            'Short answer question missing answer',
+            'Short answer items need `answerText` or an equivalent expected answer field.',
+          );
         }
         return (
           <ShortAnswerExercise
@@ -567,26 +590,25 @@ export const LessonEngine: React.FC<LessonEngineProps> = ({ lessonId, onComplete
         );
       case 'checkbox':
         if (!currentItem.options || !currentItem.correct) {
-          return renderMalformedItem('Checkbox question is incomplete', 'Checkbox items need options and at least one correct value.');
+          return renderMalformedItem(
+            'Checkbox question is incomplete',
+            'Checkbox items need options and at least one correct value.',
+          );
         }
-        return (
-          <CheckboxExercise
-            item={currentItem}
-            onResult={handleAnswer}
-          />
-        );
+        return <CheckboxExercise item={currentItem} onResult={handleAnswer} />;
       case 'match':
         if (!currentItem.pairs || !currentItem.pairs.length) {
-          return renderMalformedItem('Match question is missing pairs', 'Match items need at least one left/right pair.');
+          return renderMalformedItem(
+            'Match question is missing pairs',
+            'Match items need at least one left/right pair.',
+          );
         }
-        return (
-          <MatchExercise
-            item={currentItem}
-            onResult={handleAnswer}
-          />
-        );
+        return <MatchExercise item={currentItem} onResult={handleAnswer} />;
       default:
-        return renderMalformedItem(`Unsupported question type: ${exerciseType}`, 'Supported types: mcq, order, short, checkbox, match.');
+        return renderMalformedItem(
+          `Unsupported question type: ${exerciseType}`,
+          'Supported types: mcq, order, short, checkbox, match.',
+        );
     }
   };
 
@@ -667,7 +689,7 @@ export const LessonEngine: React.FC<LessonEngineProps> = ({ lessonId, onComplete
               [
                 { text: 'Continue', style: 'cancel' },
                 { text: 'Exit', style: 'destructive', onPress: () => onExit?.() },
-              ]
+              ],
             );
           }}
         >
@@ -736,9 +758,7 @@ export const LessonEngine: React.FC<LessonEngineProps> = ({ lessonId, onComplete
           },
         ]}
       >
-        <View style={styles.exerciseCard}>
-          {renderExercise()}
-        </View>
+        <View style={styles.exerciseCard}>{renderExercise()}</View>
       </Animated.View>
 
       {/* Quick Answer Flash Overlay */}
@@ -796,14 +816,18 @@ export const LessonEngine: React.FC<LessonEngineProps> = ({ lessonId, onComplete
                 },
               ]}
             >
-              <View style={[
-                styles.iconMiddleRing,
-                { backgroundColor: lastResult.correct ? '#2E7D32' : '#C62828' }
-              ]}>
-                <View style={[
-                  styles.iconInnerCircle,
-                  { backgroundColor: lastResult.correct ? colors.success : colors.error }
-                ]}>
+              <View
+                style={[
+                  styles.iconMiddleRing,
+                  { backgroundColor: lastResult.correct ? '#2E7D32' : '#C62828' },
+                ]}
+              >
+                <View
+                  style={[
+                    styles.iconInnerCircle,
+                    { backgroundColor: lastResult.correct ? colors.success : colors.error },
+                  ]}
+                >
                   <Ionicons
                     name={lastResult.correct ? 'checkmark' : 'close'}
                     size={48}

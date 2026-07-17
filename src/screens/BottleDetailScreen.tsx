@@ -34,17 +34,27 @@ import type { RootStackParamList } from '../navigation/RootNavigator';
 import { getPriceTierDisplay } from '../data/spiritsDatabase';
 import { useXPSystem } from '../store/useXPSystem';
 import * as Localization from 'expo-localization';
-import { useCurrencyPreference, convertFromUSD, formatPriceRange, CURRENCY_META, type SupportedCurrency } from '../store/useCurrencyPreference';
+import {
+  useCurrencyPreference,
+  convertFromUSD,
+  formatPriceRange,
+  CURRENCY_META,
+  type SupportedCurrency,
+} from '../store/useCurrencyPreference';
 import { supabase } from '../lib/supabase';
 import { InventoryService } from '../services/inventoryService';
 import { challengeProgressService } from '../services/challengeProgressService';
-import { achievementService } from '../services/achievementService';
 import { useAuth } from '../contexts/AuthContext';
 import { sortByMatch, getMatchMessage } from '../utils/recipeMatching';
 import type { RecipeMatch } from '../utils/recipeMatching';
 import { RecipesRepository } from '../repos/supabase';
 import { useUserTier } from '../store/useUserTier';
-import { isCocktailAccessible, TIER_LIMITS, SPIRIT_STARTER_MAP, ANSWER_CARD_FREE_RECIPE_COUNT } from '../config/tierAccess';
+import {
+  isCocktailAccessible,
+  TIER_LIMITS,
+  SPIRIT_STARTER_MAP,
+  ANSWER_CARD_FREE_RECIPE_COUNT,
+} from '../config/tierAccess';
 import { useFeatureAccess } from '../hooks/useFeatureAccess';
 import type { UserInventoryItem } from '../types/database';
 import { BottleServeService } from '../services/bottleServeService';
@@ -74,7 +84,8 @@ const SPIRIT_ALIAS_MAP: Record<string, string> = {
   cognac: 'brandy',
 };
 
-const DOCUMENT_DIRECTORY = (FileSystem as unknown as { documentDirectory?: string }).documentDirectory ?? '';
+const DOCUMENT_DIRECTORY =
+  (FileSystem as unknown as { documentDirectory?: string }).documentDirectory ?? '';
 
 // ─── Spirit-category fallbacks ────────────────────────────────────────────────
 // Used when a specific bottle lacks flavor profile or tasting notes data.
@@ -89,47 +100,56 @@ interface SpiritCategoryDefaults {
 const SPIRIT_CATEGORY_DEFAULTS: Record<string, SpiritCategoryDefaults> = {
   gin: {
     flavorProfile: ['Juniper', 'Citrus', 'Botanical'],
-    tastingNotes: 'A London Dry-style gin with classic juniper at the fore, bright citrus notes, and a layered botanical finish. Crisp and dry.',
+    tastingNotes:
+      'A London Dry-style gin with classic juniper at the fore, bright citrus notes, and a layered botanical finish. Crisp and dry.',
     origin: 'United Kingdom',
   },
   vodka: {
     flavorProfile: ['Clean', 'Smooth', 'Neutral'],
-    tastingNotes: 'A clean, neutral spirit with a smooth palate and a crisp finish. Subtle grain sweetness makes it exceptionally versatile.',
+    tastingNotes:
+      'A clean, neutral spirit with a smooth palate and a crisp finish. Subtle grain sweetness makes it exceptionally versatile.',
     origin: 'Europe',
   },
   whiskey: {
     flavorProfile: ['Caramel', 'Vanilla', 'Oak'],
-    tastingNotes: 'Rich caramel and vanilla upfront, underpinned by toasted oak and a hint of dried fruit. Warm, rounded finish.',
+    tastingNotes:
+      'Rich caramel and vanilla upfront, underpinned by toasted oak and a hint of dried fruit. Warm, rounded finish.',
     origin: 'United States',
   },
   rum: {
     flavorProfile: ['Vanilla', 'Tropical Fruit', 'Caramel'],
-    tastingNotes: 'Sweet vanilla and tropical fruit on the nose, with warm caramel and a touch of molasses on the palate. Smooth finish.',
+    tastingNotes:
+      'Sweet vanilla and tropical fruit on the nose, with warm caramel and a touch of molasses on the palate. Smooth finish.',
     origin: 'Caribbean',
   },
   tequila: {
     flavorProfile: ['Agave', 'Citrus', 'Pepper'],
-    tastingNotes: '100% agave character — fresh vegetal notes, bright citrus, and white pepper. Clean, smooth, and true to the plant.',
+    tastingNotes:
+      '100% agave character — fresh vegetal notes, bright citrus, and white pepper. Clean, smooth, and true to the plant.',
     origin: 'Mexico',
   },
   mezcal: {
     flavorProfile: ['Smoke', 'Agave', 'Earthy'],
-    tastingNotes: 'Artisanal smoke from slow-roasted agave hearts, with earthy mineral notes and a long, complex finish.',
+    tastingNotes:
+      'Artisanal smoke from slow-roasted agave hearts, with earthy mineral notes and a long, complex finish.',
     origin: 'Mexico',
   },
   brandy: {
     flavorProfile: ['Dried Fruit', 'Oak', 'Vanilla'],
-    tastingNotes: 'Warm dried fruit and toasted oak with vanilla undertones. Smooth and balanced with a gentle warming finish.',
+    tastingNotes:
+      'Warm dried fruit and toasted oak with vanilla undertones. Smooth and balanced with a gentle warming finish.',
     origin: 'France',
   },
   liqueur: {
     flavorProfile: ['Sweet', 'Fruit', 'Herbal'],
-    tastingNotes: 'A sweet, approachable liqueur with fruit and herbal character. Versatile as a modifier in cocktails or over ice.',
+    tastingNotes:
+      'A sweet, approachable liqueur with fruit and herbal character. Versatile as a modifier in cocktails or over ice.',
     origin: 'Europe',
   },
   other: {
     flavorProfile: ['Complex', 'Aromatic', 'Distinct'],
-    tastingNotes: 'A distinctive spirit with its own character. Explore neat first to understand its personality before building cocktails.',
+    tastingNotes:
+      'A distinctive spirit with its own character. Explore neat first to understand its personality before building cocktails.',
     origin: 'International',
   },
 };
@@ -149,9 +169,11 @@ function getRespectThisBottleScore(
   recipe: any,
   spiritName: string,
   bottle: any,
-  serveRecommendation: ReturnType<typeof BottleServeService.getRecommendation>
+  serveRecommendation: ReturnType<typeof BottleServeService.getRecommendation>,
 ): number {
-  const tags = Array.isArray(recipe.tags) ? recipe.tags.map((tag: string) => String(tag).toLowerCase()) : [];
+  const tags = Array.isArray(recipe.tags)
+    ? recipe.tags.map((tag: string) => String(tag).toLowerCase())
+    : [];
   const category = String(recipe.category || '').toLowerCase();
   const name = String(recipe.name || '').toLowerCase();
   const description = String(recipe.description || '').toLowerCase();
@@ -169,8 +191,12 @@ function getRespectThisBottleScore(
   if (tags.includes('spirit-forward')) score += 18;
   if (tags.includes('smoky') && serveRecommendation.spiritFamily === 'scotch') score += 10;
   if (tags.includes('agave') && serveRecommendation.spiritFamily === 'tequila') score += 10;
-  if (['old fashioned', 'manhattan', 'sazerac'].some((needle) => name.includes(needle))) score += 18;
-  if (['boozy', 'spirit-forward', 'minimal dilution'].some((needle) => description.includes(needle))) score += 10;
+  if (['old fashioned', 'manhattan', 'sazerac'].some((needle) => name.includes(needle)))
+    score += 18;
+  if (
+    ['boozy', 'spirit-forward', 'minimal dilution'].some((needle) => description.includes(needle))
+  )
+    score += 10;
   if (category.includes('old fashioned') || category.includes('martini')) score += 8;
   if (difficulty === 'easy') score += 4;
   if (ingredientsCount > 0 && ingredientsCount <= 4) score += 10;
@@ -189,7 +215,13 @@ function getRespectThisBottleScore(
   if (spiritName === 'tequila' && tags.includes('tequila')) score += 6;
   if (spiritName === 'mezcal' && tags.includes('mezcal')) score += 8;
   if (spiritName === 'brandy' && (tags.includes('cognac') || tags.includes('brandy'))) score += 8;
-  if (String(bottle.name || '').toLowerCase().includes('scotch') && tags.includes('scotch')) score += 10;
+  if (
+    String(bottle.name || '')
+      .toLowerCase()
+      .includes('scotch') &&
+    tags.includes('scotch')
+  )
+    score += 10;
 
   return score;
 }
@@ -211,46 +243,63 @@ export default function BottleDetailScreen() {
   const { tier } = useUserTier();
   const { gateWithTrigger: inventoryGate } = useFeatureAccess('inventory_unlimited');
   const { hasAccess: hasPremiumServeEducation } = useFeatureAccess('premium_serve_education');
-  const { hasAccess: hasPremiumServePersonalization } = useFeatureAccess('premium_serve_personalization');
+  const { hasAccess: hasPremiumServePersonalization } = useFeatureAccess(
+    'premium_serve_personalization',
+  );
   const { bottle, imageUri, scanConfidence, scannedBarcode } = route.params;
-  const isLowConfidence = imageUri != null && typeof scanConfidence === 'number' && scanConfidence < 0.8;
+  const isLowConfidence =
+    imageUri != null && typeof scanConfidence === 'number' && scanConfidence < 0.8;
   const { currency: userCurrency, setCurrency } = useCurrencyPreference();
   const [userRegion, setUserRegion] = useState<string>('');
-  const [suggestedCocktails, setSuggestedCocktails] = useState<Array<any & { match: RecipeMatch }>>([]);
+  const [suggestedCocktails, setSuggestedCocktails] = useState<(any & { match: RecipeMatch })[]>(
+    [],
+  );
   const [lockedCocktailCount, setLockedCocktailCount] = useState(0);
-  const [lockedCocktailTeaser, setLockedCocktailTeaser] = useState<(any & { match?: RecipeMatch }) | null>(null);
+  const [lockedCocktailTeaser, setLockedCocktailTeaser] = useState<
+    (any & { match?: RecipeMatch }) | null
+  >(null);
   const [loadingCocktails, setLoadingCocktails] = useState(true);
   const [inventoryItem, setInventoryItem] = useState<UserInventoryItem | null>(null);
   const [persistedImageUri, setPersistedImageUri] = useState<string | undefined>(undefined);
   const [giftMode, setGiftMode] = useState(false);
   const [expanded, setExpanded] = useState(false);
   // Stage 10 — scan feedback
-  const [feedbackState, setFeedbackState] = useState<'pending' | 'confirmed' | 'correcting' | 'typing' | 'dismissed'>('pending');
+  const [feedbackState, setFeedbackState] = useState<
+    'pending' | 'confirmed' | 'correcting' | 'typing' | 'dismissed'
+  >('pending');
   const [correctionName, setCorrectionName] = useState('');
   const [correctionBrand, setCorrectionBrand] = useState('');
   const [submittingCorrection, setSubmittingCorrection] = useState(false);
 
   // Taste model
-  const { recordScan, recordThumbsUp, recordThumbsDown, totalScans, dominantCluster, profileVisible } = useTasteModel();
+  const {
+    recordScan,
+    recordThumbsUp,
+    recordThumbsDown,
+    totalScans,
+    dominantCluster,
+    profileVisible,
+  } = useTasteModel();
   const [thumbsState, setThumbsState] = useState<'idle' | 'up' | 'down'>('idle');
   const [showCorrectionPills, setShowCorrectionPills] = useState(false);
   const [showCurrencyPicker, setShowCurrencyPicker] = useState(false);
 
   // Wishlist
   const { saveToWishlist, isWishlisted, removeFromWishlist, addPriceEntry } = useWishlist();
-  const bottleWishlistId = bottle.id || `${bottle.name}_${bottle.brand}`.toLowerCase().replace(/\s+/g, '_');
+  const bottleWishlistId =
+    bottle.id || `${bottle.name}_${bottle.brand}`.toLowerCase().replace(/\s+/g, '_');
   const [wishlisted, setWishlisted] = useState(() => isWishlisted(bottleWishlistId));
   const [showPricePrompt, setShowPricePrompt] = useState(false);
   const [priceInput, setPriceInput] = useState('');
   const [locationInput, setLocationInput] = useState('');
   const serveRecommendation = useMemo(
     () => BottleServeService.getRecommendation(bottle, tier),
-    [bottle, tier]
+    [bottle, tier],
   );
 
   // Value line — range-only fair-price estimate (no seen-price comparison yet)
   const priceRangeEstimate = useMemo(() => {
-    const nativeCurrencies: Array<SupportedCurrency> = ['USD', 'CAD', 'GBP'];
+    const nativeCurrencies: SupportedCurrency[] = ['USD', 'CAD', 'GBP'];
     if (nativeCurrencies.includes(userCurrency)) {
       return bottle.priceEstimate?.[userCurrency as 'USD' | 'CAD' | 'GBP'] ?? null;
     }
@@ -266,7 +315,8 @@ export default function BottleDetailScreen() {
   const bottleProfile = useMemo(() => {
     const defaults = getSpiritCategoryDefaults(bottle);
     return {
-      flavorProfile: bottle.flavorProfile?.length > 0 ? bottle.flavorProfile : defaults.flavorProfile,
+      flavorProfile:
+        bottle.flavorProfile?.length > 0 ? bottle.flavorProfile : defaults.flavorProfile,
       tastingNotes: bottle.tastingNotes?.trim() ? bottle.tastingNotes : defaults.tastingNotes,
       origin: bottle.origin?.trim() ? bottle.origin : defaults.origin,
       isFlavorFallback: !(bottle.flavorProfile?.length > 0),
@@ -329,9 +379,11 @@ export default function BottleDetailScreen() {
       try {
         // 1. Fetch user's inventory
         const userInventory = user ? await InventoryService.getUserInventory(user.id) : [];
-        const matchedInventoryItem = userInventory.find((item) =>
-          normalizeInventoryName(item.item_name) === normalizeInventoryName(bottle.name)
-        ) || null;
+        const matchedInventoryItem =
+          userInventory.find(
+            (item) =>
+              normalizeInventoryName(item.item_name) === normalizeInventoryName(bottle.name),
+          ) || null;
         setInventoryItem(matchedInventoryItem);
 
         // 1.5. Create combined inventory including the scanned bottle
@@ -362,12 +414,27 @@ export default function BottleDetailScreen() {
         // Fallback: Extract spirit type from bottle name if category is missing
         if (!spiritName && bottle.name) {
           const bottleName = bottle.name.toLowerCase();
-          const spiritTypes = ['vodka', 'gin', 'rum', 'tequila', 'whiskey', 'whisky', 'bourbon', 'scotch', 'brandy', 'cognac', 'mezcal', 'rye'];
+          const spiritTypes = [
+            'vodka',
+            'gin',
+            'rum',
+            'tequila',
+            'whiskey',
+            'whisky',
+            'bourbon',
+            'scotch',
+            'brandy',
+            'cognac',
+            'mezcal',
+            'rye',
+          ];
 
           for (const spirit of spiritTypes) {
             if (bottleName.includes(spirit)) {
               spiritName = normalizeSpiritToken(spirit);
-              console.log(`BottleDetailScreen: Extracted spirit "${spiritName}" from bottle name "${bottle.name}"`);
+              console.log(
+                `BottleDetailScreen: Extracted spirit "${spiritName}" from bottle name "${bottle.name}"`,
+              );
               break;
             }
           }
@@ -393,7 +460,7 @@ export default function BottleDetailScreen() {
             name: recipesData[0].name,
             baseSpirit: recipesData[0].baseSpirit,
             category: recipesData[0].category,
-            tags: recipesData[0].tags
+            tags: recipesData[0].tags,
           });
         }
 
@@ -416,7 +483,7 @@ export default function BottleDetailScreen() {
           if (spiritsUsed.length === 0 && bottleNameToken) {
             const ingredientNames = Array.isArray(recipe.ingredients)
               ? recipe.ingredients.map((ing: any) =>
-                  typeof ing === 'string' ? ing : (ing?.name || ing?.ingredient || '')
+                  typeof ing === 'string' ? ing : ing?.name || ing?.ingredient || '',
                 )
               : [];
             if (ingredientNames.some((n: string) => n.toLowerCase().includes(bottleNameToken))) {
@@ -439,9 +506,14 @@ export default function BottleDetailScreen() {
           return false;
         });
 
-        console.log(`BottleDetailScreen: Found ${matchedData.length} recipes matching "${spiritName}"`);
+        console.log(
+          `BottleDetailScreen: Found ${matchedData.length} recipes matching "${spiritName}"`,
+        );
         if (matchedData.length > 0 && matchedData.length <= 3) {
-          console.log('Sample matched recipes:', matchedData.slice(0, 3).map(r => ({ name: r.name, baseSpirit: r.baseSpirit })));
+          console.log(
+            'Sample matched recipes:',
+            matchedData.slice(0, 3).map((r) => ({ name: r.name, baseSpirit: r.baseSpirit })),
+          );
         }
 
         // 3.5. For Free tier: split into accessible and locked pools so we can
@@ -464,26 +536,29 @@ export default function BottleDetailScreen() {
 
         if (tier === 'FREE') {
           // Accessible: free 9 + any XP/engagement unlocks
-          const accessibleData = matchedData.filter(recipe =>
-            isCocktailAccessible(recipe.id, tier) ||
-            isCocktailUnlockedWithXP(recipe.id) ||
-            isRecipeUnlockedWithEngagement(recipe.id)
+          const accessibleData = matchedData.filter(
+            (recipe) =>
+              isCocktailAccessible(recipe.id, tier) ||
+              isCocktailUnlockedWithXP(recipe.id) ||
+              isRecipeUnlockedWithEngagement(recipe.id),
           );
           // Boost starter recipes for this spirit to the front of accessible results
-          const starterIds = SPIRIT_STARTER_MAP[spiritName] || SPIRIT_STARTER_MAP[bottleNameToken] || [];
+          const starterIds =
+            SPIRIT_STARTER_MAP[spiritName] || SPIRIT_STARTER_MAP[bottleNameToken] || [];
           const starterFirst = [
-            ...accessibleData.filter(r => starterIds.includes(r.id)),
-            ...accessibleData.filter(r => !starterIds.includes(r.id)),
+            ...accessibleData.filter((r) => starterIds.includes(r.id)),
+            ...accessibleData.filter((r) => !starterIds.includes(r.id)),
           ];
           const ranked = rankRecipes(starterFirst);
           const topMatches = ranked.slice(0, ANSWER_CARD_FREE_RECIPE_COUNT);
           setSuggestedCocktails(topMatches);
 
           // Locked: everything else that matched the spirit but isn't accessible
-          const lockedData = matchedData.filter(recipe =>
-            !isCocktailAccessible(recipe.id, tier) &&
-            !isCocktailUnlockedWithXP(recipe.id) &&
-            !isRecipeUnlockedWithEngagement(recipe.id)
+          const lockedData = matchedData.filter(
+            (recipe) =>
+              !isCocktailAccessible(recipe.id, tier) &&
+              !isCocktailUnlockedWithXP(recipe.id) &&
+              !isRecipeUnlockedWithEngagement(recipe.id),
           );
           const rankedLocked = rankRecipes(lockedData);
           setLockedCocktailCount(lockedData.length);
@@ -508,18 +583,23 @@ export default function BottleDetailScreen() {
     };
 
     fetchCocktails();
-  }, [bottle, bottle.type, bottle.name, user, tier, isCocktailUnlockedWithXP, isRecipeUnlockedWithEngagement, serveRecommendation]);
+  }, [
+    bottle,
+    bottle.type,
+    bottle.name,
+    user,
+    tier,
+    isCocktailUnlockedWithXP,
+    isRecipeUnlockedWithEngagement,
+    serveRecommendation,
+  ]);
 
   const handleAddToShelf = async () => {
     if (!user) {
-      Alert.alert(
-        'Sign In Required',
-        'Please sign in to add bottles to your shelf.',
-        [
-          { text: 'Sign In', onPress: () => navigation.navigate('Settings') },
-          { text: 'Cancel', style: 'cancel' },
-        ]
-      );
+      Alert.alert('Sign In Required', 'Please sign in to add bottles to your shelf.', [
+        { text: 'Sign In', onPress: () => navigation.navigate('Settings') },
+        { text: 'Cancel', style: 'cancel' },
+      ]);
       return;
     }
 
@@ -544,7 +624,8 @@ export default function BottleDetailScreen() {
       region: bottleProfile.origin,
       flavorTags: bottleProfile.flavorProfile,
       tastingNotes: bottleProfile.tastingNotes,
-      serveGuidance: `${serveRecommendation.heroTitle}. ${serveRecommendation.why} ${serveRecommendation.cocktailUse}`.trim(),
+      serveGuidance:
+        `${serveRecommendation.heroTitle}. ${serveRecommendation.why} ${serveRecommendation.cocktailUse}`.trim(),
     });
 
     if (result.duplicate) {
@@ -561,7 +642,6 @@ export default function BottleDetailScreen() {
     // Silently update shelf state — no modal, no XP celebration
     setInventoryItem({ id: 'added', item_name: bottle.name } as any);
     challengeProgressService.trackAddToInventory(user.id, bottle.id || bottle.name);
-    achievementService.trackAction('homeBarIngredients');
     earnScanXP(bottle.id);
     // Boost taste model with shelf signal
     recordScan(bottle, true);
@@ -571,25 +651,33 @@ export default function BottleDetailScreen() {
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, ' ')
         .trim();
-      await supabase.from('spirits_cache').upsert(
-        { lookup_key: lookupKey, confidence: 1.0 },
-        { onConflict: 'lookup_key' }
-      );
-    } catch { /* silent — shelf add already succeeded */ }
+      await supabase
+        .from('spirits_cache')
+        .upsert({ lookup_key: lookupKey, confidence: 1.0 }, { onConflict: 'lookup_key' });
+    } catch {
+      /* silent — shelf add already succeeded */
+    }
   };
 
   const handleSaveToWishlist = () => {
-    const result = saveToWishlist(
-      { id: bottle.id, name: bottle.name, brand: bottle.brand, type: bottle.type, imageUri: persistedImageUri || imageUri },
-    );
+    const result = saveToWishlist({
+      id: bottle.id,
+      name: bottle.name,
+      brand: bottle.brand,
+      type: bottle.type,
+      imageUri: persistedImageUri || imageUri,
+    });
     if (result === 'cap_reached') {
       Alert.alert(
         'Wishlist Full',
         `You can save up to ${WISHLIST_FREE_CAP} bottles on the free plan. Upgrade for unlimited.`,
         [
-          { text: 'Upgrade', onPress: () => (navigation as any).navigate('Paywall', { triggerId: 'T1' }) },
+          {
+            text: 'Upgrade',
+            onPress: () => (navigation as any).navigate('Paywall', { triggerId: 'T1' }),
+          },
           { text: 'Cancel', style: 'cancel' },
-        ]
+        ],
       );
       return;
     }
@@ -663,8 +751,14 @@ export default function BottleDetailScreen() {
 
   const handleShareFind = async () => {
     const topRecipe = suggestedCocktails[0];
-    const nativePriceEstimate = bottle.priceEstimate?.[userCurrency as 'USD' | 'CAD' | 'GBP']
-      ?? (bottle.priceEstimate?.USD ? { min: convertFromUSD(bottle.priceEstimate.USD.min, userCurrency), max: convertFromUSD(bottle.priceEstimate.USD.max, userCurrency) } : null);
+    const nativePriceEstimate =
+      bottle.priceEstimate?.[userCurrency as 'USD' | 'CAD' | 'GBP'] ??
+      (bottle.priceEstimate?.USD
+        ? {
+            min: convertFromUSD(bottle.priceEstimate.USD.min, userCurrency),
+            max: convertFromUSD(bottle.priceEstimate.USD.max, userCurrency),
+          }
+        : null);
     const priceLine = nativePriceEstimate
       ? ` · ${formatPriceRange(nativePriceEstimate.min, nativePriceEstimate.max, userCurrency)}`
       : '';
@@ -675,7 +769,6 @@ export default function BottleDetailScreen() {
       if (user?.id) {
         challengeProgressService.trackShareMoment(user.id, bottle.id);
       }
-      achievementService.trackAction('recipesShared');
     } catch {
       // Share dismissed — no-op
     }
@@ -699,24 +792,19 @@ export default function BottleDetailScreen() {
               const lookupKey = (bottle.id || bottle.name)
                 .toLowerCase()
                 .replace(/[^a-z0-9]+/g, ' ')
-                .trim()
-              await supabase
-                .from('spirits_cache')
-                .delete()
-                .eq('lookup_key', lookupKey)
-              Alert.alert(
-                'Cache Cleared',
-                'Scan the bottle again for a fresh identification.',
-                [{ text: 'Scan Again', onPress: () => navigation.navigate('SmartScan') }]
-              )
+                .trim();
+              await supabase.from('spirits_cache').delete().eq('lookup_key', lookupKey);
+              Alert.alert('Cache Cleared', 'Scan the bottle again for a fresh identification.', [
+                { text: 'Scan Again', onPress: () => navigation.navigate('SmartScan') },
+              ]);
             } catch {
-              Alert.alert('Error', 'Could not clear cache. Please try again.')
+              Alert.alert('Error', 'Could not clear cache. Please try again.');
             }
           },
         },
         { text: 'Cancel', style: 'cancel' },
-      ]
-    )
+      ],
+    );
   };
 
   const handleFeedbackYes = async () => {
@@ -750,7 +838,7 @@ export default function BottleDetailScreen() {
           confidence: 1.0,
           source: 'user_confirmed',
         },
-        { onConflict: 'lookup_key' }
+        { onConflict: 'lookup_key' },
       );
     } catch {
       // Feedback failure is silent — result is still shown
@@ -764,7 +852,9 @@ export default function BottleDetailScreen() {
         .replace(/[^a-z0-9]+/g, ' ')
         .trim();
       await supabase.from('spirits_cache').delete().eq('lookup_key', lookupKey);
-    } catch { /* silent */ }
+    } catch {
+      /* silent */
+    }
   };
 
   const handleFeedbackNo = () => {
@@ -805,7 +895,7 @@ export default function BottleDetailScreen() {
       // 3. Update the local scan history record with the corrected name
       await ScanHistoryService.recordScan(
         { id: bottle.id, name, brand: correctionBrand.trim() || bottle.brand, type: bottle.type },
-        imageUri
+        imageUri,
       );
 
       // 4. Feed the weighted anti-fraud correction pipeline so the community
@@ -823,7 +913,9 @@ export default function BottleDetailScreen() {
           },
         });
       }
-    } catch { /* silent — correction is best-effort */ }
+    } catch {
+      /* silent — correction is best-effort */
+    }
 
     setSubmittingCorrection(false);
     setFeedbackState('dismissed');
@@ -861,13 +953,21 @@ export default function BottleDetailScreen() {
           </TouchableOpacity>
 
           {/* Identified / Low-confidence badge */}
-          <View style={[styles.heroBadge, isLowConfidence && styles.heroBadgeLowConfidence, { top: insets.top + spacing(1) }]}>
+          <View
+            style={[
+              styles.heroBadge,
+              isLowConfidence && styles.heroBadgeLowConfidence,
+              { top: insets.top + spacing(1) },
+            ]}
+          >
             <Ionicons
               name={isLowConfidence ? 'help-circle' : 'checkmark-circle'}
               size={16}
               color={isLowConfidence ? colors.warning : colors.gold}
             />
-            <Text style={[styles.heroBadgeText, isLowConfidence && styles.heroBadgeTextLowConfidence]}>
+            <Text
+              style={[styles.heroBadgeText, isLowConfidence && styles.heroBadgeTextLowConfidence]}
+            >
               {isLowConfidence ? 'Best match' : 'Identified'}
             </Text>
           </View>
@@ -879,7 +979,9 @@ export default function BottleDetailScreen() {
                 <Ionicons name="wine" size={48} color={colors.gold} />
               </View>
             )}
-            <Text style={styles.heroBottleName} numberOfLines={2}>{bottle.name}</Text>
+            <Text style={styles.heroBottleName} numberOfLines={2}>
+              {bottle.name}
+            </Text>
             <Text style={styles.heroBottleBrand}>{bottle.brand}</Text>
 
             {/* Inline stat pills */}
@@ -900,425 +1002,500 @@ export default function BottleDetailScreen() {
               </View>
             </View>
 
-            <Text style={styles.heroStoryLine} numberOfLines={2}>{storyLine}</Text>
+            <Text style={styles.heroStoryLine} numberOfLines={2}>
+              {storyLine}
+            </Text>
           </View>
         </View>
 
         {/* Body content — padded */}
         <View style={styles.bodyContent}>
-
-        {/* Stage 10 — Is this correct? feedback strip (only shown for scanned bottles) */}
-        {imageUri && feedbackState !== 'dismissed' && (
-          <View style={[styles.feedbackStrip, isLowConfidence && styles.feedbackStripProminent, (feedbackState === 'correcting' || feedbackState === 'typing') && styles.feedbackStripCorrection]}>
-            {feedbackState === 'confirmed' ? (
-              <>
-                <Ionicons name="checkmark-circle" size={18} color={colors.gold} />
-                <Text style={styles.feedbackConfirmedText}>Thanks — noted!</Text>
-              </>
-            ) : feedbackState === 'correcting' ? (
-              <>
-                <Text style={styles.correctionLabel}>Help us get it right</Text>
-                <TouchableOpacity style={styles.correctionOption} onPress={handleCorrectionBarcode}>
-                  <View style={styles.correctionOptionIcon}>
-                    <Ionicons name="barcode-outline" size={20} color={colors.gold} />
-                  </View>
-                  <View style={styles.correctionOptionBody}>
-                    <Text style={styles.correctionOptionTitle}>Scan the barcode</Text>
-                    <Text style={styles.correctionOptionSub}>Fastest — point at the barcode on the bottle</Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={16} color={colors.subtext} />
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.correctionOption} onPress={handleCorrectionSearchLibrary}>
-                  <View style={styles.correctionOptionIcon}>
-                    <Ionicons name="search-outline" size={20} color={colors.accent} />
-                  </View>
-                  <View style={styles.correctionOptionBody}>
-                    <Text style={styles.correctionOptionTitle}>Search the library</Text>
-                    <Text style={styles.correctionOptionSub}>Find it by name from our database</Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={16} color={colors.subtext} />
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.correctionOption} onPress={() => setFeedbackState('typing')}>
-                  <View style={styles.correctionOptionIcon}>
-                    <Ionicons name="create-outline" size={20} color={colors.subtext} />
-                  </View>
-                  <View style={styles.correctionOptionBody}>
-                    <Text style={styles.correctionOptionTitle}>Type it in</Text>
-                    <Text style={styles.correctionOptionSub}>Enter the name manually</Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={16} color={colors.subtext} />
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.correctionCancel} onPress={() => setFeedbackState('dismissed')}>
-                  <Text style={styles.correctionCancelText}>Skip</Text>
-                </TouchableOpacity>
-              </>
-            ) : feedbackState === 'typing' ? (
-              <>
-                <Text style={styles.correctionLabel}>What's the right bottle?</Text>
-                <TextInput
-                  style={styles.correctionInput}
-                  placeholder="Bottle name"
-                  placeholderTextColor={colors.subtext}
-                  value={correctionName}
-                  onChangeText={setCorrectionName}
-                  autoFocus
-                  returnKeyType="next"
-                />
-                <TextInput
-                  style={styles.correctionInput}
-                  placeholder="Brand (optional)"
-                  placeholderTextColor={colors.subtext}
-                  value={correctionBrand}
-                  onChangeText={setCorrectionBrand}
-                  returnKeyType="done"
-                  onSubmitEditing={handleCorrectionSubmit}
-                />
-                <View style={styles.correctionActions}>
+          {/* Stage 10 — Is this correct? feedback strip (only shown for scanned bottles) */}
+          {imageUri && feedbackState !== 'dismissed' && (
+            <View
+              style={[
+                styles.feedbackStrip,
+                isLowConfidence && styles.feedbackStripProminent,
+                (feedbackState === 'correcting' || feedbackState === 'typing') &&
+                  styles.feedbackStripCorrection,
+              ]}
+            >
+              {feedbackState === 'confirmed' ? (
+                <>
+                  <Ionicons name="checkmark-circle" size={18} color={colors.gold} />
+                  <Text style={styles.feedbackConfirmedText}>Thanks — noted!</Text>
+                </>
+              ) : feedbackState === 'correcting' ? (
+                <>
+                  <Text style={styles.correctionLabel}>Help us get it right</Text>
                   <TouchableOpacity
-                    style={[styles.correctionSubmit, !correctionName.trim() && { opacity: 0.5 }]}
-                    onPress={handleCorrectionSubmit}
-                    disabled={!correctionName.trim() || submittingCorrection}
+                    style={styles.correctionOption}
+                    onPress={handleCorrectionBarcode}
                   >
-                    {submittingCorrection
-                      ? <ActivityIndicator size="small" color="#1A120D" />
-                      : <Text style={styles.correctionSubmitText}>Submit</Text>
-                    }
+                    <View style={styles.correctionOptionIcon}>
+                      <Ionicons name="barcode-outline" size={20} color={colors.gold} />
+                    </View>
+                    <View style={styles.correctionOptionBody}>
+                      <Text style={styles.correctionOptionTitle}>Scan the barcode</Text>
+                      <Text style={styles.correctionOptionSub}>
+                        Fastest — point at the barcode on the bottle
+                      </Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={16} color={colors.subtext} />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.correctionOption}
+                    onPress={handleCorrectionSearchLibrary}
+                  >
+                    <View style={styles.correctionOptionIcon}>
+                      <Ionicons name="search-outline" size={20} color={colors.accent} />
+                    </View>
+                    <View style={styles.correctionOptionBody}>
+                      <Text style={styles.correctionOptionTitle}>Search the library</Text>
+                      <Text style={styles.correctionOptionSub}>
+                        Find it by name from our database
+                      </Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={16} color={colors.subtext} />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.correctionOption}
+                    onPress={() => setFeedbackState('typing')}
+                  >
+                    <View style={styles.correctionOptionIcon}>
+                      <Ionicons name="create-outline" size={20} color={colors.subtext} />
+                    </View>
+                    <View style={styles.correctionOptionBody}>
+                      <Text style={styles.correctionOptionTitle}>Type it in</Text>
+                      <Text style={styles.correctionOptionSub}>Enter the name manually</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={16} color={colors.subtext} />
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={styles.correctionCancel}
-                    onPress={() => setFeedbackState('correcting')}
+                    onPress={() => setFeedbackState('dismissed')}
                   >
-                    <Text style={styles.correctionCancelText}>Back</Text>
+                    <Text style={styles.correctionCancelText}>Skip</Text>
                   </TouchableOpacity>
-                </View>
-              </>
-            ) : (
-              <>
-                <Text style={[styles.feedbackQuestion, isLowConfidence && styles.feedbackQuestionProminent]}>
-                  Is this the right bottle?
-                </Text>
-                <View style={styles.feedbackButtons}>
-                  <TouchableOpacity style={styles.feedbackYes} onPress={handleFeedbackYes}>
-                    <Ionicons name="thumbs-up-outline" size={15} color={colors.gold} />
-                    <Text style={styles.feedbackYesText}>Yes</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.feedbackNo} onPress={handleFeedbackNo}>
-                    <Ionicons name="thumbs-down-outline" size={15} color={colors.subtext} />
-                    <Text style={styles.feedbackNoText}>No</Text>
-                  </TouchableOpacity>
-                </View>
-              </>
-            )}
-          </View>
-        )}
-
-        {/* Identity — Flavor Profile (quick glance; full tasting notes live below the fold) */}
-        <View style={styles.infoCard}>
-          <View style={styles.infoCardHeaderRow}>
-            <Text style={styles.infoCardTitle}>Flavor Profile</Text>
-            {bottleProfile.isFlavorFallback && (
-              <Text style={styles.categoryDefaultBadge}>{bottle.type} profile</Text>
-            )}
-          </View>
-          <View style={styles.flavorGrid}>
-            {bottleProfile.flavorProfile.map((flavor, index) => (
-              <View key={index} style={styles.flavorIconCell}>
-                <View style={styles.flavorIconCircle}>
-                  <FlavorIcon flavor={flavor} size={26} color={colors.goldText} />
-                </View>
-                <Text style={styles.flavorIconLabel} numberOfLines={2}>{flavor}</Text>
-              </View>
-            ))}
-          </View>
-        </View>
-
-        {/* Value line — range only; no seen-price comparison yet */}
-        {priceRangeEstimate && (
-          <TouchableOpacity
-            style={styles.valueLine}
-            onPress={() => setShowCurrencyPicker(true)}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="cash-outline" size={16} color={colors.accent} />
-            <Text style={styles.valueLineText} numberOfLines={1}>
-              {giftMode ? 'A great gift at ' : 'Fair price: '}
-              {formatPriceRange(priceRangeEstimate.min, priceRangeEstimate.max, userCurrency)}
-            </Text>
-            <View style={styles.valueLineCurrencyBadge}>
-              <Text style={styles.valueLineCurrencyText}>{CURRENCY_META[userCurrency].flag} {userCurrency}</Text>
-              <Ionicons name="chevron-down" size={11} color={colors.accent} />
-            </View>
-          </TouchableOpacity>
-        )}
-
-        {/* Currency picker modal */}
-        <Modal
-          visible={showCurrencyPicker}
-          transparent
-          animationType="slide"
-          onRequestClose={() => setShowCurrencyPicker(false)}
-        >
-          <TouchableOpacity
-            style={styles.currencyModalOverlay}
-            activeOpacity={1}
-            onPress={() => setShowCurrencyPicker(false)}
-          >
-            <View style={styles.currencyModalSheet}>
-              <View style={styles.currencyModalHandle} />
-              <Text style={styles.currencyModalTitle}>Price Currency</Text>
-              {(Object.keys(CURRENCY_META) as SupportedCurrency[]).map((c) => (
-                <TouchableOpacity
-                  key={c}
-                  style={[styles.currencyOption, c === userCurrency && styles.currencyOptionActive]}
-                  onPress={() => { setCurrency(c); setShowCurrencyPicker(false); }}
-                >
-                  <Text style={styles.currencyOptionFlag}>{CURRENCY_META[c].flag}</Text>
-                  <View style={styles.currencyOptionLabels}>
-                    <Text style={[styles.currencyOptionCode, c === userCurrency && styles.currencyOptionCodeActive]}>{c}</Text>
-                    <Text style={styles.currencyOptionName}>{CURRENCY_META[c].label}</Text>
+                </>
+              ) : feedbackState === 'typing' ? (
+                <>
+                  <Text style={styles.correctionLabel}>What's the right bottle?</Text>
+                  <TextInput
+                    style={styles.correctionInput}
+                    placeholder="Bottle name"
+                    placeholderTextColor={colors.subtext}
+                    value={correctionName}
+                    onChangeText={setCorrectionName}
+                    autoFocus
+                    returnKeyType="next"
+                  />
+                  <TextInput
+                    style={styles.correctionInput}
+                    placeholder="Brand (optional)"
+                    placeholderTextColor={colors.subtext}
+                    value={correctionBrand}
+                    onChangeText={setCorrectionBrand}
+                    returnKeyType="done"
+                    onSubmitEditing={handleCorrectionSubmit}
+                  />
+                  <View style={styles.correctionActions}>
+                    <TouchableOpacity
+                      style={[styles.correctionSubmit, !correctionName.trim() && { opacity: 0.5 }]}
+                      onPress={handleCorrectionSubmit}
+                      disabled={!correctionName.trim() || submittingCorrection}
+                    >
+                      {submittingCorrection ? (
+                        <ActivityIndicator size="small" color="#1A120D" />
+                      ) : (
+                        <Text style={styles.correctionSubmitText}>Submit</Text>
+                      )}
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.correctionCancel}
+                      onPress={() => setFeedbackState('correcting')}
+                    >
+                      <Text style={styles.correctionCancelText}>Back</Text>
+                    </TouchableOpacity>
                   </View>
-                  {c === userCurrency && (
-                    <Ionicons name="checkmark" size={18} color={colors.gold} />
-                  )}
-                </TouchableOpacity>
+                </>
+              ) : (
+                <>
+                  <Text
+                    style={[
+                      styles.feedbackQuestion,
+                      isLowConfidence && styles.feedbackQuestionProminent,
+                    ]}
+                  >
+                    Is this the right bottle?
+                  </Text>
+                  <View style={styles.feedbackButtons}>
+                    <TouchableOpacity style={styles.feedbackYes} onPress={handleFeedbackYes}>
+                      <Ionicons name="thumbs-up-outline" size={15} color={colors.gold} />
+                      <Text style={styles.feedbackYesText}>Yes</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.feedbackNo} onPress={handleFeedbackNo}>
+                      <Ionicons name="thumbs-down-outline" size={15} color={colors.subtext} />
+                      <Text style={styles.feedbackNoText}>No</Text>
+                    </TouchableOpacity>
+                  </View>
+                </>
+              )}
+            </View>
+          )}
+
+          {/* Identity — Flavor Profile (quick glance; full tasting notes live below the fold) */}
+          <View style={styles.infoCard}>
+            <View style={styles.infoCardHeaderRow}>
+              <Text style={styles.infoCardTitle}>Flavor Profile</Text>
+              {bottleProfile.isFlavorFallback && (
+                <Text style={styles.categoryDefaultBadge}>{bottle.type} profile</Text>
+              )}
+            </View>
+            <View style={styles.flavorGrid}>
+              {bottleProfile.flavorProfile.map((flavor, index) => (
+                <View key={index} style={styles.flavorIconCell}>
+                  <View style={styles.flavorIconCircle}>
+                    <FlavorIcon flavor={flavor} size={26} color={colors.goldText} />
+                  </View>
+                  <Text style={styles.flavorIconLabel} numberOfLines={2}>
+                    {flavor}
+                  </Text>
+                </View>
               ))}
             </View>
-          </TouchableOpacity>
-        </Modal>
-
-        {/* The Hook — recipe unlock, promoted above serve guidance / full tasting notes */}
-        {!loadingCocktails && suggestedCocktails.length > 0 && (
-          <View style={styles.section}>
-            <View style={styles.cocktailsHeader}>
-              <Ionicons name="sparkles" size={24} color={colors.gold} />
-              <View style={styles.cocktailsHeaderCopy}>
-                <Text style={styles.cocktailsTitle}>
-                  {tier === 'FREE' && lockedCocktailCount > 0
-                    ? `Owning this unlocks ${suggestedCocktails.length + lockedCocktailCount} cocktails with your shelf`
-                    : serveRecommendation.cocktailPlacement === 'secondary'
-                      ? 'Cocktails That Respect This Bottle'
-                      : 'Cocktails You Can Make'}
-                </Text>
-                <Text style={styles.cocktailsSubtitle}>
-                  {tier === 'FREE'
-                    ? (lockedCocktailCount > 0
-                        ? `${ANSWER_CARD_FREE_RECIPE_COUNT} free now — the rest with KŌOPE+`
-                        : 'From your free and unlocked recipe pool.')
-                    : 'Best matches from your current recipe access.'}
-                </Text>
-              </View>
-            </View>
-            <FlatList
-              horizontal
-              data={suggestedCocktails}
-              keyExtractor={(cocktail) => cocktail.id}
-              renderItem={({ item: cocktail }) => {
-                const displayRecipe = {
-                  ...cocktail,
-                  image: getCocktailImage(cocktail.id, cocktail.image),
-                  subtitle: cocktail.match?.canMake
-                    ? 'You can make this'
-                    : cocktail.match?.almostCanMake
-                      ? getMatchMessage(cocktail.match)
-                      : cocktail.subtitle || 'Worth a closer look',
-                };
-
-                return (
-                  <RecipeCard
-                    recipe={displayRecipe}
-                    onPress={() => navigation.navigate('CocktailDetail', { cocktailId: cocktail.id })}
-                    showSaveButton={false}
-                    showCartButton={false}
-                    showDeleteButton={false}
-                    style={styles.discoveryRecipeCard}
-                  />
-                );
-              }}
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.cocktailsRail}
-              ItemSeparatorComponent={() => <View style={styles.cocktailRailSeparator} />}
-              ListFooterComponent={
-                tier === 'FREE' && lockedCocktailCount > 0 && lockedCocktailTeaser ? (
-                  <LockedRecipeCard
-                    image={getCocktailImage(lockedCocktailTeaser.id, lockedCocktailTeaser.image)}
-                    title={lockedCocktailTeaser.name}
-                    subtitle={
-                      lockedCocktailCount > 1
-                        ? `+${lockedCocktailCount - 1} more with KŌOPE+`
-                        : 'Unlock with KŌOPE+'
-                    }
-                    onPress={() => inventoryGate('T15')}
-                    style={styles.lockedRecipeCardInRail}
-                  />
-                ) : null
-              }
-              nestedScrollEnabled
-              removeClippedSubviews={false}
-            />
           </View>
-        )}
 
-        {/* Actions row — three peers */}
-        <View style={[styles.secondaryActions, { marginTop: spacing(2) }]}>
-          <TouchableOpacity
-            style={[styles.secondaryButton, !!inventoryItem && styles.secondaryButtonActive]}
-            onPress={handleAddToShelf}
-            disabled={!!inventoryItem}
-          >
-            <Ionicons name={inventoryItem ? 'checkmark-circle' : 'add-circle-outline'} size={20} color={inventoryItem ? colors.gold : colors.accent} />
-            <Text style={styles.secondaryButtonText}>{inventoryItem ? 'In Bar' : 'Add to Bar'}</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.secondaryButton, wishlisted && styles.secondaryButtonActive]}
-            onPress={wishlisted ? handleRemoveFromWishlist : handleSaveToWishlist}
-          >
-            <Ionicons name={wishlisted ? 'bookmark' : 'bookmark-outline'} size={20} color={wishlisted ? colors.gold : colors.accent} />
-            <Text style={styles.secondaryButtonText}>{wishlisted ? 'Wanted' : 'Want it'}</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.secondaryButton, giftMode && styles.secondaryButtonActive]}
-            onPress={() => setGiftMode((value) => !value)}
-          >
-            <Ionicons name={giftMode ? 'gift' : 'gift-outline'} size={20} color={giftMode ? colors.gold : colors.accent} />
-            <Text style={styles.secondaryButtonText}>Gift</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* See more — everything else lives below this fold */}
-        <TouchableOpacity
-          style={styles.seeMoreToggle}
-          onPress={() => setExpanded((value) => !value)}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.seeMoreToggleText}>{expanded ? 'See less' : 'See more'}</Text>
-          <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={16} color={colors.accent} />
-        </TouchableOpacity>
-
-        {expanded && (
-          <>
-            {/* Tasting Notes */}
-            <View style={styles.infoCard}>
-              <View style={styles.infoCardHeaderRow}>
-                <Text style={styles.infoCardTitle}>Tasting Notes</Text>
-                {bottleProfile.isTastingFallback && (
-                  <Text style={styles.categoryDefaultBadge}>{bottle.type} profile</Text>
-                )}
+          {/* Value line — range only; no seen-price comparison yet */}
+          {priceRangeEstimate && (
+            <TouchableOpacity
+              style={styles.valueLine}
+              onPress={() => setShowCurrencyPicker(true)}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="cash-outline" size={16} color={colors.accent} />
+              <Text style={styles.valueLineText} numberOfLines={1}>
+                {giftMode ? 'A great gift at ' : 'Fair price: '}
+                {formatPriceRange(priceRangeEstimate.min, priceRangeEstimate.max, userCurrency)}
+              </Text>
+              <View style={styles.valueLineCurrencyBadge}>
+                <Text style={styles.valueLineCurrencyText}>
+                  {CURRENCY_META[userCurrency].flag} {userCurrency}
+                </Text>
+                <Ionicons name="chevron-down" size={11} color={colors.accent} />
               </View>
-              <Text style={styles.tastingNotes}>{bottleProfile.tastingNotes}</Text>
-            </View>
+            </TouchableOpacity>
+          )}
 
-            {/* Serve Guidance */}
-            <View style={[styles.serveCard, serveRecommendation.isPremiumExperience && styles.serveCardPremium, styles.infoCard]}>
-              <View style={styles.serveHeader}>
-                <View style={styles.serveHeaderCopy}>
-                  <Text style={styles.serveEyebrow}>
-                    {serveRecommendation.isPremiumExperience ? 'Premium Bottle Guidance' : 'Serve Guidance'}
-                  </Text>
-                  <Text style={styles.serveTitle}>{serveRecommendation.heroTitle}</Text>
-                  <Text style={styles.serveSubtitle}>{serveRecommendation.heroSubtitle}</Text>
-                </View>
-                <View style={styles.firstPourBadge}>
-                  <Text style={styles.firstPourLabel}>Start With</Text>
-                  <Text style={styles.firstPourValue}>
-                    {serveRecommendation.serveModes.find((mode) => mode.mode === serveRecommendation.firstPour)?.label || 'Neat'}
-                  </Text>
-                </View>
-              </View>
-
-              <Text style={styles.serveWhy}>{serveRecommendation.why}</Text>
-
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                style={styles.serveModesRail}
-                contentContainerStyle={styles.serveModesRailContent}
-              >
-                {serveRecommendation.serveModes.map((mode, index) => (
-                  <React.Fragment key={mode.mode}>
-                    {index > 0 && <View style={styles.serveModeSeparator} />}
-                    <View style={styles.serveModeCard}>
-                      <View style={styles.serveModeIcon}>
-                        <Ionicons
-                          name={
-                            mode.mode === 'neat'
-                              ? 'wine-outline'
-                              : mode.mode === 'water-drops'
-                                ? 'water-outline'
-                                : mode.mode === 'large-rock'
-                                  ? 'cube-outline'
-                                  : 'sparkles-outline'
-                          }
-                          size={18}
-                          color={colors.gold}
-                        />
-                      </View>
-                      <Text style={styles.serveModeLabel}>{mode.label}</Text>
-                      <Text style={styles.serveModeDescription}>{mode.description}</Text>
+          {/* Currency picker modal */}
+          <Modal
+            visible={showCurrencyPicker}
+            transparent
+            animationType="slide"
+            onRequestClose={() => setShowCurrencyPicker(false)}
+          >
+            <TouchableOpacity
+              style={styles.currencyModalOverlay}
+              activeOpacity={1}
+              onPress={() => setShowCurrencyPicker(false)}
+            >
+              <View style={styles.currencyModalSheet}>
+                <View style={styles.currencyModalHandle} />
+                <Text style={styles.currencyModalTitle}>Price Currency</Text>
+                {(Object.keys(CURRENCY_META) as SupportedCurrency[]).map((c) => (
+                  <TouchableOpacity
+                    key={c}
+                    style={[
+                      styles.currencyOption,
+                      c === userCurrency && styles.currencyOptionActive,
+                    ]}
+                    onPress={() => {
+                      setCurrency(c);
+                      setShowCurrencyPicker(false);
+                    }}
+                  >
+                    <Text style={styles.currencyOptionFlag}>{CURRENCY_META[c].flag}</Text>
+                    <View style={styles.currencyOptionLabels}>
+                      <Text
+                        style={[
+                          styles.currencyOptionCode,
+                          c === userCurrency && styles.currencyOptionCodeActive,
+                        ]}
+                      >
+                        {c}
+                      </Text>
+                      <Text style={styles.currencyOptionName}>{CURRENCY_META[c].label}</Text>
                     </View>
-                  </React.Fragment>
+                    {c === userCurrency && (
+                      <Ionicons name="checkmark" size={18} color={colors.gold} />
+                    )}
+                  </TouchableOpacity>
                 ))}
-              </ScrollView>
-
-              <View style={styles.serveFootnote}>
-                <Ionicons name="information-circle-outline" size={16} color={colors.accent} />
-                <Text style={styles.serveFootnoteText}>{serveRecommendation.cocktailUse}</Text>
               </View>
-            </View>
+            </TouchableOpacity>
+          </Modal>
 
-            {/* About This Spirit */}
-            <View style={[styles.infoCard, { marginBottom: spacing(3) }]}>
-              <SpiritEducationPanel
-                bottle={bottle}
-                serveRecommendation={serveRecommendation}
-                alwaysExpanded={true}
-                inCard
+          {/* The Hook — recipe unlock, promoted above serve guidance / full tasting notes */}
+          {!loadingCocktails && suggestedCocktails.length > 0 && (
+            <View style={styles.section}>
+              <View style={styles.cocktailsHeader}>
+                <Ionicons name="sparkles" size={24} color={colors.gold} />
+                <View style={styles.cocktailsHeaderCopy}>
+                  <Text style={styles.cocktailsTitle}>
+                    {tier === 'FREE' && lockedCocktailCount > 0
+                      ? `Owning this unlocks ${suggestedCocktails.length + lockedCocktailCount} cocktails with your shelf`
+                      : serveRecommendation.cocktailPlacement === 'secondary'
+                        ? 'Cocktails That Respect This Bottle'
+                        : 'Cocktails You Can Make'}
+                  </Text>
+                  <Text style={styles.cocktailsSubtitle}>
+                    {tier === 'FREE'
+                      ? lockedCocktailCount > 0
+                        ? `${ANSWER_CARD_FREE_RECIPE_COUNT} free now — the rest with KŌOPE+`
+                        : 'From your free and unlocked recipe pool.'
+                      : 'Best matches from your current recipe access.'}
+                  </Text>
+                </View>
+              </View>
+              <FlatList
+                horizontal
+                data={suggestedCocktails}
+                keyExtractor={(cocktail) => cocktail.id}
+                renderItem={({ item: cocktail }) => {
+                  const displayRecipe = {
+                    ...cocktail,
+                    image: getCocktailImage(cocktail.id, cocktail.image),
+                    subtitle: cocktail.match?.canMake
+                      ? 'You can make this'
+                      : cocktail.match?.almostCanMake
+                        ? getMatchMessage(cocktail.match)
+                        : cocktail.subtitle || 'Worth a closer look',
+                  };
+
+                  return (
+                    <RecipeCard
+                      recipe={displayRecipe}
+                      onPress={() =>
+                        navigation.navigate('CocktailDetail', { cocktailId: cocktail.id })
+                      }
+                      showSaveButton={false}
+                      showCartButton={false}
+                      showDeleteButton={false}
+                      style={styles.discoveryRecipeCard}
+                    />
+                  );
+                }}
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.cocktailsRail}
+                ItemSeparatorComponent={() => <View style={styles.cocktailRailSeparator} />}
+                ListFooterComponent={
+                  tier === 'FREE' && lockedCocktailCount > 0 && lockedCocktailTeaser ? (
+                    <LockedRecipeCard
+                      image={getCocktailImage(lockedCocktailTeaser.id, lockedCocktailTeaser.image)}
+                      title={lockedCocktailTeaser.name}
+                      subtitle={
+                        lockedCocktailCount > 1
+                          ? `+${lockedCocktailCount - 1} more with KŌOPE+`
+                          : 'Unlock with KŌOPE+'
+                      }
+                      onPress={() => inventoryGate('T15')}
+                      style={styles.lockedRecipeCardInRail}
+                    />
+                  ) : null
+                }
+                nestedScrollEnabled
+                removeClippedSubviews={false}
               />
             </View>
+          )}
 
-            {/* Secondary actions row */}
-            <View style={[styles.secondaryActions, { marginTop: spacing(1), marginBottom: spacing(1) }]}>
-              <TouchableOpacity
-                style={styles.secondaryButton}
-                onPress={handleTryAnother}
-              >
-                <Ionicons name="camera-outline" size={20} color={colors.accent} />
-                <Text style={styles.secondaryButtonText}>Scan Again</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.secondaryButton}
-                onPress={handleFindNearby}
-              >
-                <Ionicons name="location-outline" size={20} color={colors.accent} />
-                <Text style={styles.secondaryButtonText}>Find Nearby</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.secondaryButton}
-                onPress={handleShareFind}
-              >
-                <Ionicons name="share-outline" size={20} color={colors.accent} />
-                <Text style={styles.secondaryButtonText}>Share</Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Wrong Result — small text link */}
-            <TouchableOpacity style={styles.wrongResultLink} onPress={handleWrongResult}>
-              <Text style={styles.wrongResultLinkText}>Wrong bottle? Clear result</Text>
+          {/* Actions row — three peers */}
+          <View style={[styles.secondaryActions, { marginTop: spacing(2) }]}>
+            <TouchableOpacity
+              style={[styles.secondaryButton, !!inventoryItem && styles.secondaryButtonActive]}
+              onPress={handleAddToShelf}
+              disabled={!!inventoryItem}
+            >
+              <Ionicons
+                name={inventoryItem ? 'checkmark-circle' : 'add-circle-outline'}
+                size={20}
+                color={inventoryItem ? colors.gold : colors.accent}
+              />
+              <Text style={styles.secondaryButtonText}>
+                {inventoryItem ? 'In Bar' : 'Add to Bar'}
+              </Text>
             </TouchableOpacity>
-          </>
-        )}
 
-        {/* end bodyContent */}
+            <TouchableOpacity
+              style={[styles.secondaryButton, wishlisted && styles.secondaryButtonActive]}
+              onPress={wishlisted ? handleRemoveFromWishlist : handleSaveToWishlist}
+            >
+              <Ionicons
+                name={wishlisted ? 'bookmark' : 'bookmark-outline'}
+                size={20}
+                color={wishlisted ? colors.gold : colors.accent}
+              />
+              <Text style={styles.secondaryButtonText}>{wishlisted ? 'Wanted' : 'Want it'}</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.secondaryButton, giftMode && styles.secondaryButtonActive]}
+              onPress={() => setGiftMode((value) => !value)}
+            >
+              <Ionicons
+                name={giftMode ? 'gift' : 'gift-outline'}
+                size={20}
+                color={giftMode ? colors.gold : colors.accent}
+              />
+              <Text style={styles.secondaryButtonText}>Gift</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* See more — everything else lives below this fold */}
+          <TouchableOpacity
+            style={styles.seeMoreToggle}
+            onPress={() => setExpanded((value) => !value)}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.seeMoreToggleText}>{expanded ? 'See less' : 'See more'}</Text>
+            <Ionicons
+              name={expanded ? 'chevron-up' : 'chevron-down'}
+              size={16}
+              color={colors.accent}
+            />
+          </TouchableOpacity>
+
+          {expanded && (
+            <>
+              {/* Tasting Notes */}
+              <View style={styles.infoCard}>
+                <View style={styles.infoCardHeaderRow}>
+                  <Text style={styles.infoCardTitle}>Tasting Notes</Text>
+                  {bottleProfile.isTastingFallback && (
+                    <Text style={styles.categoryDefaultBadge}>{bottle.type} profile</Text>
+                  )}
+                </View>
+                <Text style={styles.tastingNotes}>{bottleProfile.tastingNotes}</Text>
+              </View>
+
+              {/* Serve Guidance */}
+              <View
+                style={[
+                  styles.serveCard,
+                  serveRecommendation.isPremiumExperience && styles.serveCardPremium,
+                  styles.infoCard,
+                ]}
+              >
+                <View style={styles.serveHeader}>
+                  <View style={styles.serveHeaderCopy}>
+                    <Text style={styles.serveEyebrow}>
+                      {serveRecommendation.isPremiumExperience
+                        ? 'Premium Bottle Guidance'
+                        : 'Serve Guidance'}
+                    </Text>
+                    <Text style={styles.serveTitle}>{serveRecommendation.heroTitle}</Text>
+                    <Text style={styles.serveSubtitle}>{serveRecommendation.heroSubtitle}</Text>
+                  </View>
+                  <View style={styles.firstPourBadge}>
+                    <Text style={styles.firstPourLabel}>Start With</Text>
+                    <Text style={styles.firstPourValue}>
+                      {serveRecommendation.serveModes.find(
+                        (mode) => mode.mode === serveRecommendation.firstPour,
+                      )?.label || 'Neat'}
+                    </Text>
+                  </View>
+                </View>
+
+                <Text style={styles.serveWhy}>{serveRecommendation.why}</Text>
+
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  style={styles.serveModesRail}
+                  contentContainerStyle={styles.serveModesRailContent}
+                >
+                  {serveRecommendation.serveModes.map((mode, index) => (
+                    <React.Fragment key={mode.mode}>
+                      {index > 0 && <View style={styles.serveModeSeparator} />}
+                      <View style={styles.serveModeCard}>
+                        <View style={styles.serveModeIcon}>
+                          <Ionicons
+                            name={
+                              mode.mode === 'neat'
+                                ? 'wine-outline'
+                                : mode.mode === 'water-drops'
+                                  ? 'water-outline'
+                                  : mode.mode === 'large-rock'
+                                    ? 'cube-outline'
+                                    : 'sparkles-outline'
+                            }
+                            size={18}
+                            color={colors.gold}
+                          />
+                        </View>
+                        <Text style={styles.serveModeLabel}>{mode.label}</Text>
+                        <Text style={styles.serveModeDescription}>{mode.description}</Text>
+                      </View>
+                    </React.Fragment>
+                  ))}
+                </ScrollView>
+
+                <View style={styles.serveFootnote}>
+                  <Ionicons name="information-circle-outline" size={16} color={colors.accent} />
+                  <Text style={styles.serveFootnoteText}>{serveRecommendation.cocktailUse}</Text>
+                </View>
+              </View>
+
+              {/* About This Spirit */}
+              <View style={[styles.infoCard, { marginBottom: spacing(3) }]}>
+                <SpiritEducationPanel
+                  bottle={bottle}
+                  serveRecommendation={serveRecommendation}
+                  alwaysExpanded={true}
+                  inCard
+                />
+              </View>
+
+              {/* Secondary actions row */}
+              <View
+                style={[
+                  styles.secondaryActions,
+                  { marginTop: spacing(1), marginBottom: spacing(1) },
+                ]}
+              >
+                <TouchableOpacity style={styles.secondaryButton} onPress={handleTryAnother}>
+                  <Ionicons name="camera-outline" size={20} color={colors.accent} />
+                  <Text style={styles.secondaryButtonText}>Scan Again</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity style={styles.secondaryButton} onPress={handleFindNearby}>
+                  <Ionicons name="location-outline" size={20} color={colors.accent} />
+                  <Text style={styles.secondaryButtonText}>Find Nearby</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity style={styles.secondaryButton} onPress={handleShareFind}>
+                  <Ionicons name="share-outline" size={20} color={colors.accent} />
+                  <Text style={styles.secondaryButtonText}>Share</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Wrong Result — small text link */}
+              <TouchableOpacity style={styles.wrongResultLink} onPress={handleWrongResult}>
+                <Text style={styles.wrongResultLinkText}>Wrong bottle? Clear result</Text>
+              </TouchableOpacity>
+            </>
+          )}
+
+          {/* end bodyContent */}
         </View>
       </ScrollView>
 
       {/* Sticky shelf confirmation bar — only shown once added; the primary
           "Add to Bar" action now lives in the in-screen actions row */}
       {inventoryItem && (
-        <View style={[styles.stickyShelfBar, { paddingBottom: Math.max(insets.bottom, spacing(2)) }]}>
+        <View
+          style={[styles.stickyShelfBar, { paddingBottom: Math.max(insets.bottom, spacing(2)) }]}
+        >
           <View style={styles.stickyShelfConfirmed}>
             <Ionicons name="checkmark-circle" size={18} color={colors.gold} />
             <Text style={styles.stickyShelfConfirmedText}>In your shelf</Text>
@@ -1372,10 +1549,7 @@ export default function BottleDetailScreen() {
               >
                 <Text style={styles.pricePromptSkipText}>Skip</Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.pricePromptSave}
-                onPress={handleSavePriceEntry}
-              >
+              <TouchableOpacity style={styles.pricePromptSave} onPress={handleSavePriceEntry}>
                 <Text style={styles.pricePromptSaveText}>Save</Text>
               </TouchableOpacity>
             </View>

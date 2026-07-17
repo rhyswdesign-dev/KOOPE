@@ -42,9 +42,7 @@ export default function AchievementCard({ achievement, style }: AchievementCardP
             <Heading level={3} style={styles.title}>
               {achievement.title}
             </Heading>
-            {isUnlocked && (
-              <Ionicons name="checkmark-circle" size={20} color={colors.accent} />
-            )}
+            {isUnlocked && <Ionicons name="checkmark-circle" size={20} color={colors.accent} />}
           </View>
 
           <Text style={styles.description} numberOfLines={2}>
@@ -75,14 +73,14 @@ export default function AchievementCard({ achievement, style }: AchievementCardP
             </Text>
           )}
 
-          {/* XP Reward */}
+          {/* Rarity + Level */}
           <View style={styles.footer}>
             <View style={styles.rarityBadge}>
               <Text style={styles.rarityText}>{achievement.rarity.toUpperCase()}</Text>
             </View>
             <View style={styles.xpBadge}>
               <Ionicons name="star" size={14} color={colors.gold} />
-              <Text style={styles.xpText}>+{achievement.xpReward} XP</Text>
+              <Text style={styles.xpText}>LEVEL {achievement.level}</Text>
             </View>
           </View>
         </View>

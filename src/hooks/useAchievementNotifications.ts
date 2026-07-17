@@ -30,7 +30,7 @@ export function useAchievementNotifications() {
     // Subscribe to achievement unlocks
     const unsubscribe = achievementService.addAchievementListener((achievement) => {
       // Show toast notification
-      showToast(`🏆 ${achievement.title} unlocked! +${achievement.xpReward} XP`, 'success');
+      showToast(`🏆 Level ${achievement.level} — ${achievement.title}`, 'success');
 
       // Set for modal display
       setUnlockedAchievement(achievement);

@@ -1,834 +1,267 @@
 /**
- * ACHIEVEMENT SERVICE
- * Manages user achievements, badges, and milestones
- * Tracks progress and unlocks rewards
+ * MILESTONE SERVICE
+ *
+ * Phase 0.6 (gamification spine): achievements-as-separate-track are
+ * folded into XP-level milestones, per KOOPE-MASTER-PLAN.md — "Gamification
+ * collapses to one spine: XP -> Level -> Unlocks... achievements-as-
+ * separate-track (fold into XP milestones)."
+ *
+ * What changed from the old AchievementService:
+ * - No more 42-badge, 8-stat, 5-category tracking system fed by trackAction()
+ *   calls scattered across a dozen screens. A milestone is reached purely by
+ *   crossing an XP-level threshold — the same balance shown everywhere else
+ *   in the app (useXPSystem.balance).
+ * - No more parallel XP/level bookkeeping. The old service maintained its
+ *   own `userStats.totalXP`, incremented by `achievement.xpReward` on
+ *   unlock — a second, disconnected ledger that `syncXP()` only ever pulled
+ *   FROM the real balance, never reconciled back INTO it. A user could
+ *   unlock an achievement, see "+50 XP" in a toast, and that XP would never
+ *   appear in the real balance or the level bar on the same screen. Fixed:
+ *   milestones are recognition only now, no bonus XP of their own.
+ *
+ * The exported member name `achievementService` and type alias `Achievement`
+ * are kept so existing imports (AchievementCard, AchievementUnlockModal)
+ * don't need renaming — only their field usage changed (see those files).
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { log } from '../lib/logger';
 import { trackEvent, ANALYTICS_EVENTS, ANALYTICS_PROPS } from '../lib/analytics';
 
-export interface Achievement {
+export type MilestoneRarity = 'common' | 'rare' | 'epic' | 'legendary';
+
+export interface Milestone {
   id: string;
+  level: number;
   title: string;
   description: string;
   icon: string;
-  category: 'recipe' | 'social' | 'knowledge' | 'collection' | 'streak';
-  requirement: number;
+  rarity: MilestoneRarity;
+  /** Current total XP (hydrated at read time, not persisted here). */
   progress: number;
+  /** Total XP required to reach `level` — (level - 1) * 100. */
+  requirement: number;
   unlocked: boolean;
   unlockedAt?: number;
-  xpReward: number;
-  rarity: 'common' | 'rare' | 'epic' | 'legendary';
 }
 
-export interface UserStats {
-  recipesViewed: number;
-  recipesMade: number;
-  recipesCreated: number;
-  recipesShared: number;
-  cocktailsMade: number;
-  favoriteCount: number;
-  homeBarIngredients: number;
-  bottlesScanned: number;
-  lessonsCompleted: number;
-  currentStreak: number;
-  longestStreak: number;
-  totalXP: number;
-  level: number;
-  barsVisited: number;
-  gamesPlayed: number;
+// Back-compat alias: callers (AchievementCard, AchievementUnlockModal,
+// AchievementsScreen) import `Achievement` — the shape is now a level
+// milestone rather than a stat-tracked badge.
+export type Achievement = Milestone;
+
+const STORAGE_KEY = '@milestones_unlocked_at';
+
+/** XP required for a given level. Level 1 is the floor (0 XP). */
+export function xpForLevel(level: number): number {
+  return Math.max(0, level - 1) * 100;
 }
 
-// Storage keys
-const STORAGE_KEYS = {
-  ACHIEVEMENTS: '@achievements',
-  USER_STATS: '@user_stats',
-  STREAK_DATA: '@streak_data',
-} as const;
+/**
+ * Level for a given total XP. Matches the formula already live elsewhere
+ * in the app (AchievementsScreen's hero display, the old
+ * AchievementService.syncXP) — kept identical so nothing about how a
+ * "level" is computed changes, only what happens at each one.
+ */
+export function levelForXP(totalXP: number): number {
+  return Math.floor(totalXP / 100) + 1;
+}
 
-// Achievement definitions
-const ACHIEVEMENT_DEFINITIONS: Omit<Achievement, 'progress' | 'unlocked' | 'unlockedAt'>[] = [
-  // Recipe Achievements
-  {
-    id: 'first_recipe',
-    title: 'First Cocktail',
-    description: 'View your first recipe',
-    icon: 'book-outline',
-    category: 'recipe',
-    requirement: 1,
-    xpReward: 10,
-    rarity: 'common',
-  },
-  {
-    id: 'recipe_explorer',
-    title: 'Recipe Explorer',
-    description: 'View 10 different recipes',
-    icon: 'compass-outline',
-    category: 'recipe',
-    requirement: 10,
-    xpReward: 25,
-    rarity: 'common',
-  },
-  {
-    id: 'recipe_enthusiast',
-    title: 'Recipe Enthusiast',
-    description: 'View 50 different recipes',
-    icon: 'telescope-outline',
-    category: 'recipe',
-    requirement: 50,
-    xpReward: 100,
-    rarity: 'rare',
-  },
-  {
-    id: 'recipe_master',
-    title: 'Recipe Master',
-    description: 'View 100 different recipes',
-    icon: 'trophy-outline',
-    category: 'recipe',
-    requirement: 100,
-    xpReward: 250,
-    rarity: 'epic',
-  },
-  {
-    id: 'first_creation',
-    title: 'Creative Mind',
-    description: 'Create your first recipe',
-    icon: 'create-outline',
-    category: 'recipe',
-    requirement: 1,
-    xpReward: 50,
-    rarity: 'rare',
-  },
-  {
-    id: 'recipe_creator',
-    title: 'Recipe Creator',
-    description: 'Create 5 recipes',
-    icon: 'bulb-outline',
-    category: 'recipe',
-    requirement: 5,
-    xpReward: 150,
-    rarity: 'epic',
-  },
+type MilestoneDef = Omit<Milestone, 'progress' | 'requirement' | 'unlocked' | 'unlockedAt'>;
 
-  // Collection Achievements
+const MILESTONE_DEFINITIONS: MilestoneDef[] = [
   {
-    id: 'favorite_collector',
-    title: 'Favorite Collector',
-    description: 'Add 10 recipes to favorites',
-    icon: 'heart-outline',
-    category: 'collection',
-    requirement: 10,
-    xpReward: 25,
+    id: 'level_2',
+    level: 2,
+    title: 'First Pour',
+    description: "You've started building your bar.",
+    icon: 'wine-outline',
     rarity: 'common',
   },
   {
-    id: 'home_bar_starter',
-    title: 'Home Bar Starter',
-    description: 'Add 5 ingredients to your home bar',
-    icon: 'home-outline',
-    category: 'collection',
-    requirement: 5,
-    xpReward: 30,
-    rarity: 'common',
-  },
-  {
-    id: 'home_bar_pro',
-    title: 'Home Bar Pro',
-    description: 'Add 20 ingredients to your home bar',
-    icon: 'medal-outline',
-    category: 'collection',
-    requirement: 20,
-    xpReward: 100,
-    rarity: 'rare',
-  },
-  {
-    id: 'full_bar',
-    title: 'Fully Stocked Bar',
-    description: 'Add 50 ingredients to your home bar',
-    icon: 'ribbon-outline',
-    category: 'collection',
-    requirement: 50,
-    xpReward: 300,
-    rarity: 'epic',
-  },
-
-  // Knowledge Achievements
-  {
-    id: 'first_lesson',
-    title: 'Student of Mixology',
-    description: 'Complete your first lesson',
-    icon: 'school-outline',
-    category: 'knowledge',
-    requirement: 1,
-    xpReward: 25,
-    rarity: 'common',
-  },
-  {
-    id: 'dedicated_student',
-    title: 'Dedicated Student',
-    description: 'Complete 5 lessons',
-    icon: 'library-outline',
-    category: 'knowledge',
-    requirement: 5,
-    xpReward: 75,
-    rarity: 'rare',
-  },
-  {
-    id: 'master_mixologist',
-    title: 'Master Mixologist',
-    description: 'Complete 20 lessons',
-    icon: 'flask-outline',
-    category: 'knowledge',
-    requirement: 20,
-    xpReward: 500,
-    rarity: 'legendary',
-  },
-
-  // Streak Achievements
-  {
-    id: 'consistent_3',
+    id: 'level_5',
+    level: 5,
     title: 'Building Habits',
-    description: 'Maintain a 3-day streak',
+    description: 'This is becoming a ritual, not a one-off.',
     icon: 'flame-outline',
-    category: 'streak',
-    requirement: 3,
-    xpReward: 30,
     rarity: 'common',
   },
   {
-    id: 'consistent_7',
-    title: 'Week Warrior',
-    description: 'Maintain a 7-day streak',
-    icon: 'flame',
-    category: 'streak',
-    requirement: 7,
-    xpReward: 75,
-    rarity: 'rare',
-  },
-  {
-    id: 'consistent_30',
-    title: 'Monthly Master',
-    description: 'Maintain a 30-day streak',
-    icon: 'bonfire-outline',
-    category: 'streak',
-    requirement: 30,
-    xpReward: 300,
-    rarity: 'epic',
-  },
-  {
-    id: 'consistent_100',
-    title: 'Century Club',
-    description: 'Maintain a 100-day streak',
-    icon: 'bonfire',
-    category: 'streak',
-    requirement: 100,
-    xpReward: 1000,
-    rarity: 'legendary',
-  },
-
-  // Advanced Recipe Achievements (for users who max out basics)
-  {
-    id: 'recipe_legend',
-    title: 'Recipe Legend',
-    description: 'View 250 different recipes',
-    icon: 'star',
-    category: 'recipe',
-    requirement: 250,
-    xpReward: 500,
-    rarity: 'legendary',
-  },
-  {
-    id: 'master_creator',
-    title: 'Master Creator',
-    description: 'Create 25 original recipes',
-    icon: 'sparkles',
-    category: 'recipe',
-    requirement: 25,
-    xpReward: 750,
-    rarity: 'legendary',
-  },
-
-  // Cocktails Made Achievements
-  {
-    id: 'first_cocktail_made',
-    title: 'First Mix',
-    description: 'Make your first cocktail',
-    icon: 'wine-outline',
-    category: 'recipe',
-    requirement: 1,
-    xpReward: 20,
-    rarity: 'common',
-  },
-  {
-    id: 'home_bartender',
+    id: 'level_10',
+    level: 10,
     title: 'Home Bartender',
-    description: 'Make 10 cocktails',
+    description: 'Real practice, real range behind the bar.',
     icon: 'wine',
-    category: 'recipe',
-    requirement: 10,
-    xpReward: 100,
     rarity: 'rare',
   },
   {
-    id: 'seasoned_mixologist',
+    id: 'level_15',
+    level: 15,
+    title: 'Recipe Explorer',
+    description: "You've gone deep into the library.",
+    icon: 'compass-outline',
+    rarity: 'rare',
+  },
+  {
+    id: 'level_20',
+    level: 20,
     title: 'Seasoned Mixologist',
-    description: 'Make 50 cocktails',
-    icon: 'flask',
-    category: 'recipe',
-    requirement: 50,
-    xpReward: 300,
+    description: 'Your shelf and your skill are catching up to each other.',
+    icon: 'flask-outline',
     rarity: 'epic',
   },
-
-  // Recipes Shared Achievements
   {
-    id: 'first_share',
-    title: 'Social Butterfly',
-    description: 'Share your first recipe',
-    icon: 'share-social-outline',
-    category: 'social',
-    requirement: 1,
-    xpReward: 15,
-    rarity: 'common',
-  },
-  {
-    id: 'influencer',
-    title: 'Influencer',
-    description: 'Share 10 recipes',
-    icon: 'megaphone-outline',
-    category: 'social',
-    requirement: 10,
-    xpReward: 80,
-    rarity: 'rare',
-  },
-  {
-    id: 'viral_sensation',
-    title: 'Viral Sensation',
-    description: 'Share 25 recipes',
-    icon: 'rocket-outline',
-    category: 'social',
-    requirement: 25,
-    xpReward: 200,
-    rarity: 'epic',
-  },
-
-  // Advanced Collection Achievements
-  {
-    id: 'ultimate_collector',
-    title: 'Ultimate Collector',
-    description: 'Add 100 ingredients to your home bar',
-    icon: 'diamond',
-    category: 'collection',
-    requirement: 100,
-    xpReward: 1000,
-    rarity: 'legendary',
-  },
-  {
-    id: 'favorites_master',
-    title: 'Favorites Master',
-    description: 'Add 50 recipes to favorites',
-    icon: 'heart',
-    category: 'collection',
-    requirement: 50,
-    xpReward: 200,
-    rarity: 'epic',
-  },
-
-  // Advanced Knowledge Achievements
-  {
-    id: 'knowledge_completionist',
-    title: 'Completionist',
-    description: 'Complete ALL available lessons',
-    icon: 'shield-checkmark',
-    category: 'knowledge',
-    requirement: 50, // Update based on total lessons
-    xpReward: 2000,
-    rarity: 'legendary',
-  },
-  {
-    id: 'perfect_student',
-    title: 'Perfect Student',
-    description: 'Complete 10 lessons with 100% accuracy',
-    icon: 'ribbon',
-    category: 'knowledge',
-    requirement: 10,
-    xpReward: 500,
-    rarity: 'epic',
-  },
-
-  // Advanced Streak Achievements
-  {
-    id: 'consistent_365',
-    title: 'Year-Long Legend',
-    description: 'Maintain a 365-day streak',
-    icon: 'trophy',
-    category: 'streak',
-    requirement: 365,
-    xpReward: 5000,
-    rarity: 'legendary',
-  },
-  {
-    id: 'streak_comeback',
-    title: 'Comeback Kid',
-    description: 'Rebuild a 30-day streak after breaking one',
-    icon: 'refresh',
-    category: 'streak',
-    requirement: 30,
-    xpReward: 250,
-    rarity: 'epic',
-  },
-
-  // Social Achievements
-  {
-    id: 'bar_explorer',
-    title: 'Bar Explorer',
-    description: 'Visit 5 different bars',
-    icon: 'location-outline',
-    category: 'social',
-    requirement: 5,
-    xpReward: 50,
-    rarity: 'common',
-  },
-  {
-    id: 'bar_master',
-    title: 'Bar Master',
-    description: 'Visit all 15 bars in the app',
-    icon: 'map',
-    category: 'social',
-    requirement: 15,
-    xpReward: 300,
-    rarity: 'legendary',
-  },
-  {
-    id: 'game_player',
-    title: 'Game Player',
-    description: 'Play 5 drinking games',
-    icon: 'game-controller-outline',
-    category: 'social',
-    requirement: 5,
-    xpReward: 40,
-    rarity: 'common',
-  },
-
-  // Scan / Collection Achievements
-  {
-    id: 'first_scan',
-    title: 'First Scan',
-    description: 'Scan your first bottle',
-    icon: 'scan-outline',
-    category: 'collection',
-    requirement: 1,
-    xpReward: 25,
-    rarity: 'common',
-  },
-  {
-    id: 'scanner',
-    title: 'Scanner',
-    description: 'Scan 5 different bottles',
-    icon: 'barcode-outline',
-    category: 'collection',
-    requirement: 5,
-    xpReward: 75,
-    rarity: 'common',
-  },
-  {
-    id: 'bottle_collector',
-    title: 'Bottle Collector',
-    description: 'Scan 25 different bottles',
-    icon: 'wine-outline',
-    category: 'collection',
-    requirement: 25,
-    xpReward: 250,
-    rarity: 'rare',
-  },
-  {
-    id: 'spirit_archivist',
+    id: 'level_25',
+    level: 25,
     title: 'Spirit Archivist',
-    description: 'Scan 100 bottles',
+    description: 'Deep, deliberate knowledge of what you own.',
     icon: 'archive-outline',
-    category: 'collection',
-    requirement: 100,
-    xpReward: 750,
     rarity: 'epic',
+  },
+  {
+    id: 'level_30',
+    level: 30,
+    title: 'Master Mixologist',
+    description: 'Craft as identity, not just a hobby.',
+    icon: 'trophy-outline',
+    rarity: 'legendary',
+  },
+  {
+    id: 'level_40',
+    level: 40,
+    title: 'Century Club',
+    description: 'Consistency most people never reach.',
+    icon: 'bonfire-outline',
+    rarity: 'legendary',
+  },
+  {
+    id: 'level_50',
+    level: 50,
+    title: 'Recipe Legend',
+    description: 'The top of the KŌOPE ladder — for now.',
+    icon: 'star',
+    rarity: 'legendary',
   },
 ];
 
-class AchievementService {
-  private static instance: AchievementService;
-  private achievements: Achievement[] = [];
-  private userStats: UserStats = {
-    recipesViewed: 0,
-    recipesMade: 0,
-    recipesCreated: 0,
-    recipesShared: 0,
-    cocktailsMade: 0,
-    favoriteCount: 0,
-    homeBarIngredients: 0,
-    bottlesScanned: 0,
-    lessonsCompleted: 0,
-    currentStreak: 0,
-    longestStreak: 0,
-    totalXP: 0,
-    level: 1,
-    barsVisited: 0,
-    gamesPlayed: 0,
-  };
-  private listeners: Array<(achievement: Achievement) => void> = [];
+class MilestoneService {
+  private static instance: MilestoneService;
+  // level -> unix ms timestamp the milestone was first crossed.
+  private unlockedAt: Record<number, number> = {};
+  private listeners: ((milestone: Milestone) => void)[] = [];
+  private lastCheckedLevel = 1;
+  private hydrated = false;
 
   private constructor() {
     this.initialize();
   }
 
-  public static getInstance(): AchievementService {
-    if (!AchievementService.instance) {
-      AchievementService.instance = new AchievementService();
+  public static getInstance(): MilestoneService {
+    if (!MilestoneService.instance) {
+      MilestoneService.instance = new MilestoneService();
     }
-    return AchievementService.instance;
+    return MilestoneService.instance;
   }
 
-  /**
-   * Initialize achievements and load from storage
-   */
   private async initialize(): Promise<void> {
-    await Promise.all([this.loadAchievements(), this.loadUserStats()]);
-  }
-
-  /**
-   * Track an action and check for achievement unlocks
-   * Increments the stat by the given value
-   */
-  public async trackAction(
-    action: keyof UserStats,
-    value: number = 1
-  ): Promise<Achievement[]> {
-    // Update user stats (increment)
-    this.userStats[action] = (this.userStats[action] as number) + value;
-    await this.saveUserStats();
-
-    // Check and unlock achievements
-    const unlockedAchievements = await this.checkAchievements();
-
-    return unlockedAchievements;
-  }
-
-  /**
-   * Set a stat to an absolute value (used for streaks which should be set, not incremented)
-   */
-  public async setStat(
-    action: keyof UserStats,
-    value: number
-  ): Promise<Achievement[]> {
-    this.userStats[action] = value;
-    await this.saveUserStats();
-
-    const unlockedAchievements = await this.checkAchievements();
-    return unlockedAchievements;
-  }
-
-  /**
-   * Check if any achievements should be unlocked
-   */
-  private async checkAchievements(): Promise<Achievement[]> {
-    const newlyUnlocked: Achievement[] = [];
-
-    for (const achievement of this.achievements) {
-      if (!achievement.unlocked) {
-        // Get current progress based on achievement category
-        const progress = this.getProgressForAchievement(achievement);
-        achievement.progress = progress;
-
-        // Check if achievement is completed
-        if (progress >= achievement.requirement) {
-          achievement.unlocked = true;
-          achievement.unlockedAt = Date.now();
-
-          // Award XP
-          this.userStats.totalXP += achievement.xpReward;
-          this.updateLevel();
-
-          newlyUnlocked.push(achievement);
-
-          // Notify listeners
-          this.listeners.forEach(listener => listener(achievement));
-
-          // Track achievement unlock in Mixpanel
-          trackEvent(ANALYTICS_EVENTS.ACHIEVEMENT_UNLOCKED, {
-            [ANALYTICS_PROPS.ACHIEVEMENT_ID]: achievement.id,
-            [ANALYTICS_PROPS.ACHIEVEMENT_TITLE]: achievement.title,
-            [ANALYTICS_PROPS.ACHIEVEMENT_CATEGORY]: achievement.category,
-            [ANALYTICS_PROPS.ACHIEVEMENT_RARITY]: achievement.rarity,
-            [ANALYTICS_PROPS.XP_REWARD]: achievement.xpReward,
-            total_xp: this.userStats.totalXP,
-            user_level: this.userStats.level,
-          });
-
-          log.info('AchievementService', 'Achievement unlocked', {
-            title: achievement.title,
-            xpReward: achievement.xpReward
-          });
-        }
+    try {
+      const data = await AsyncStorage.getItem(STORAGE_KEY);
+      if (data) {
+        this.unlockedAt = JSON.parse(data);
       }
-    }
-
-    if (newlyUnlocked.length > 0) {
-      await Promise.all([this.saveAchievements(), this.saveUserStats()]);
-    }
-
-    return newlyUnlocked;
-  }
-
-  /**
-   * Get progress for a specific achievement
-   */
-  private getProgressForAchievement(achievement: Achievement): number {
-    switch (achievement.id) {
-      // Recipe achievements
-      case 'first_recipe':
-      case 'recipe_explorer':
-      case 'recipe_enthusiast':
-      case 'recipe_master':
-      case 'recipe_legend':
-        return this.userStats.recipesViewed;
-
-      case 'first_creation':
-      case 'recipe_creator':
-      case 'master_creator':
-        return this.userStats.recipesCreated;
-
-      // Cocktails made achievements
-      case 'first_cocktail_made':
-      case 'home_bartender':
-      case 'seasoned_mixologist':
-        return this.userStats.cocktailsMade;
-
-      // Recipes shared achievements
-      case 'first_share':
-      case 'influencer':
-      case 'viral_sensation':
-        return this.userStats.recipesShared;
-
-      // Collection achievements
-      case 'favorite_collector':
-      case 'favorites_master':
-        return this.userStats.favoriteCount;
-
-      case 'home_bar_starter':
-      case 'home_bar_pro':
-      case 'full_bar':
-      case 'ultimate_collector':
-        return this.userStats.homeBarIngredients;
-
-      // Knowledge achievements
-      case 'first_lesson':
-      case 'dedicated_student':
-      case 'master_mixologist':
-      case 'knowledge_completionist':
-      case 'perfect_student':
-        return this.userStats.lessonsCompleted;
-
-      // Streak achievements
-      case 'consistent_3':
-      case 'consistent_7':
-      case 'consistent_30':
-      case 'consistent_100':
-      case 'consistent_365':
-      case 'streak_comeback':
-        return this.userStats.currentStreak;
-
-      // Social achievements
-      case 'bar_explorer':
-      case 'bar_master':
-        return this.userStats.barsVisited;
-
-      case 'game_player':
-        return this.userStats.gamesPlayed;
-
-      // Scan achievements
-      case 'first_scan':
-      case 'scanner':
-      case 'bottle_collector':
-      case 'spirit_archivist':
-        return this.userStats.bottlesScanned;
-
-      default:
-        return 0;
+    } catch (error) {
+      log.error('MilestoneService', 'Failed to load milestone unlock history', error);
+    } finally {
+      this.hydrated = true;
     }
   }
 
   /**
-   * Update user level based on XP
-   */
-  private updateLevel(): void {
-    // XP required for each level: level * 100
-    const newLevel = Math.floor(this.userStats.totalXP / 100) + 1;
-    if (newLevel > this.userStats.level) {
-      this.userStats.level = newLevel;
-      log.info('AchievementService', 'Level up!', { newLevel });
-    }
-  }
-
-  /**
-   * Get all achievements
-   */
-  public getAchievements(): Achievement[] {
-    return [...this.achievements];
-  }
-
-  /**
-   * Get unlocked achievements
-   */
-  public getUnlockedAchievements(): Achievement[] {
-    return this.achievements.filter(a => a.unlocked);
-  }
-
-  /**
-   * Get achievements by category
-   */
-  public getAchievementsByCategory(category: Achievement['category']): Achievement[] {
-    return this.achievements.filter(a => a.category === category);
-  }
-
-  /**
-   * Get user stats
-   */
-  public getUserStats(): UserStats {
-    return { ...this.userStats };
-  }
-
-  /**
-   * Get next level XP requirement
-   */
-  public getNextLevelXP(): number {
-    return this.userStats.level * 100;
-  }
-
-  /**
-   * Get progress to next level (0-1)
-   */
-  public getLevelProgress(): number {
-    const currentLevelXP = (this.userStats.level - 1) * 100;
-    const xpIntoCurrentLevel = this.userStats.totalXP - currentLevelXP;
-    const xpNeededForNextLevel = 100;
-    return xpIntoCurrentLevel / xpNeededForNextLevel;
-  }
-
-  /**
-   * Sync XP/level from the global XP system (useXPSystem)
-   * This ensures achievements screen shows the same XP as the rest of the app
+   * Called from useXPSystem.earnXP() with the new real balance — the only
+   * place milestone-crossing is evaluated. Fire-and-forget by design (the
+   * call site doesn't await it), matching the previous syncXP's contract.
    */
   public syncXP(totalXP: number): void {
-    this.userStats.totalXP = totalXP;
-    this.userStats.level = Math.floor(totalXP / 100) + 1;
-    this.saveUserStats();
+    const currentLevel = levelForXP(totalXP);
+    if (currentLevel <= this.lastCheckedLevel) {
+      this.lastCheckedLevel = currentLevel;
+      return;
+    }
+
+    const previousLevel = this.lastCheckedLevel;
+    this.lastCheckedLevel = currentLevel;
+
+    // Storage hasn't loaded yet (cold start racing the first earnXP call) —
+    // skip firing unlock listeners this time rather than risk re-firing
+    // already-seen milestones once `unlockedAt` loads.
+    if (!this.hydrated) return;
+
+    const newlyCrossed = MILESTONE_DEFINITIONS.filter(
+      (m) => m.level > previousLevel && m.level <= currentLevel && !this.unlockedAt[m.level],
+    );
+    if (newlyCrossed.length === 0) return;
+
+    const now = Date.now();
+    for (const def of newlyCrossed) {
+      this.unlockedAt[def.level] = now;
+      const milestone = this.hydrate(def, totalXP);
+
+      trackEvent(ANALYTICS_EVENTS.ACHIEVEMENT_UNLOCKED, {
+        [ANALYTICS_PROPS.ACHIEVEMENT_ID]: milestone.id,
+        [ANALYTICS_PROPS.ACHIEVEMENT_TITLE]: milestone.title,
+        [ANALYTICS_PROPS.ACHIEVEMENT_RARITY]: milestone.rarity,
+        level: milestone.level,
+        total_xp: totalXP,
+      });
+
+      log.info('MilestoneService', 'Milestone reached', {
+        level: milestone.level,
+        title: milestone.title,
+      });
+
+      this.listeners.forEach((listener) => listener(milestone));
+    }
+
+    this.save();
   }
 
-  /**
-   * Subscribe to achievement unlocks
-   */
-  public addAchievementListener(listener: (achievement: Achievement) => void): () => void {
+  private hydrate(def: MilestoneDef, totalXP: number): Milestone {
+    const requirement = xpForLevel(def.level);
+    return {
+      ...def,
+      requirement,
+      progress: Math.min(totalXP, requirement),
+      unlocked: totalXP >= requirement,
+      unlockedAt: this.unlockedAt[def.level],
+    };
+  }
+
+  /** All milestones, hydrated against the given XP balance. */
+  public getMilestones(totalXP: number): Milestone[] {
+    return MILESTONE_DEFINITIONS.map((def) => this.hydrate(def, totalXP));
+  }
+
+  public addAchievementListener(listener: (milestone: Milestone) => void): () => void {
     this.listeners.push(listener);
     return () => {
-      this.listeners = this.listeners.filter(l => l !== listener);
+      this.listeners = this.listeners.filter((l) => l !== listener);
     };
   }
 
-  /**
-   * Load achievements from storage
-   */
-  private async loadAchievements(): Promise<void> {
+  private async save(): Promise<void> {
     try {
-      const achievementsData = await AsyncStorage.getItem(STORAGE_KEYS.ACHIEVEMENTS);
-
-      if (achievementsData) {
-        this.achievements = JSON.parse(achievementsData);
-      } else {
-        // Initialize with defaults
-        this.achievements = ACHIEVEMENT_DEFINITIONS.map(def => ({
-          ...def,
-          progress: 0,
-          unlocked: false,
-        }));
-        await this.saveAchievements();
-      }
+      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(this.unlockedAt));
     } catch (error) {
-      log.error('AchievementService', 'Failed to load achievements', error);
-      // Fallback to defaults
-      this.achievements = ACHIEVEMENT_DEFINITIONS.map(def => ({
-        ...def,
-        progress: 0,
-        unlocked: false,
-      }));
+      log.error('MilestoneService', 'Failed to save milestone unlock history', error);
     }
   }
 
-  /**
-   * Save achievements to storage
-   */
-  private async saveAchievements(): Promise<void> {
-    try {
-      await AsyncStorage.setItem(STORAGE_KEYS.ACHIEVEMENTS, JSON.stringify(this.achievements));
-    } catch (error) {
-      log.error('AchievementService', 'Failed to save achievements', error);
-    }
-  }
-
-  /**
-   * Load user stats from storage
-   */
-  private async loadUserStats(): Promise<void> {
-    try {
-      const statsData = await AsyncStorage.getItem(STORAGE_KEYS.USER_STATS);
-      if (statsData) {
-        const parsed = JSON.parse(statsData);
-        // Merge with defaults to handle missing fields from older versions
-        this.userStats = { ...this.userStats, ...parsed };
-      }
-    } catch (error) {
-      log.error('AchievementService', 'Failed to load user stats', error);
-    }
-  }
-
-  /**
-   * Save user stats to storage
-   */
-  private async saveUserStats(): Promise<void> {
-    try {
-      await AsyncStorage.setItem(STORAGE_KEYS.USER_STATS, JSON.stringify(this.userStats));
-    } catch (error) {
-      log.error('AchievementService', 'Failed to save user stats', error);
-    }
-  }
-
-  /**
-   * Reset all achievements (for testing)
-   */
+  /** Reset (for testing). */
   public async resetAll(): Promise<void> {
-    this.achievements = ACHIEVEMENT_DEFINITIONS.map(def => ({
-      ...def,
-      progress: 0,
-      unlocked: false,
-    }));
-    this.userStats = {
-      recipesViewed: 0,
-      recipesMade: 0,
-      recipesCreated: 0,
-      recipesShared: 0,
-      cocktailsMade: 0,
-      favoriteCount: 0,
-      homeBarIngredients: 0,
-      bottlesScanned: 0,
-      lessonsCompleted: 0,
-      currentStreak: 0,
-      longestStreak: 0,
-      totalXP: 0,
-      level: 1,
-      barsVisited: 0,
-      gamesPlayed: 0,
-    };
-    await Promise.all([this.saveAchievements(), this.saveUserStats()]);
+    this.unlockedAt = {};
+    this.lastCheckedLevel = 1;
+    await this.save();
   }
 }
 
-// Export singleton instance
-export const achievementService = AchievementService.getInstance();
+export const achievementService = MilestoneService.getInstance();
