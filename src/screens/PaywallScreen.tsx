@@ -1,11 +1,18 @@
 /**
- * KOOPE PREMIUM PAYWALL
+ * KOOPE+ PAYWALL
  *
- * Psychology-driven layout:
+ * Phase 0.7 (tier collapse): single-tier, annual-first. There is one
+ * paywall product now — KŌOPE+ — not a koope_plus/koope_pro tab switch.
+ * Plans come from RevenueCat offering metadata when available
+ * (plansFromOffering), falling back to the hardcoded FALLBACK_PLANS only
+ * if the live offering hasn't loaded (e.g. dev/offline) — activation
+ * itself (making sure the RevenueCat offering is actually configured) is
+ * Phase 2 work, not this screen's job.
+ *
+ * Psychology-driven layout carried over from the two-tier screen:
  *   - Annual plan is visually dominant (large card, "Best Value" badge, pre-selected)
- *   - Monthly plan is visually secondary (smaller, muted, for testers)
+ *   - Monthly plan is visually secondary
  *   - Founders pricing locked via backend (never shown in-app)
- *   - Feature benefits are tier-specific and benefit-focused
  */
 
 import React, { useMemo, useState, useEffect } from 'react';
@@ -30,7 +37,7 @@ import { log } from '../lib/logger';
 import { PRICING_DISPLAY, SUBSCRIPTION_PRODUCTS } from '../constants/subscriptions';
 import { PAYWALL_TRIGGERS } from '../config/paywallTriggers';
 
-const getSafeAreaTop = () => Platform.OS === 'ios' ? 50 : (StatusBar.currentHeight || 24);
+const getSafeAreaTop = () => (Platform.OS === 'ios' ? 50 : StatusBar.currentHeight || 24);
 const HERO_IMAGE = require('../../assets/images/branding/MMS Backsplash.png');
 
 const formatCurrency = (amount: number, currencyCode?: string): string => {
@@ -50,7 +57,7 @@ const buildPerMonthLabel = (
   price: number | undefined,
   currencyCode: string | undefined,
   billingPeriod: BillingPeriod,
-  fallback: string
+  fallback: string,
 ): string => {
   if (!Number.isFinite(price)) return fallback;
   if (billingPeriod === 'monthly') return `${formatCurrency(price as number, currencyCode)}/mo`;
@@ -61,7 +68,6 @@ const buildPerMonthLabel = (
 interface PaywallScreenProps {
   route?: {
     params?: {
-      offering?: string | null;
       displayCloseButton?: boolean;
       source?: string;
       triggerId?: string;
@@ -69,7 +75,6 @@ interface PaywallScreenProps {
   };
 }
 
-type TierTab = 'koope_plus' | 'koope_pro';
 type BillingPeriod = 'yearly' | 'monthly';
 
 interface PlanOption {
@@ -90,18 +95,11 @@ interface FeatureBenefit {
   description: string;
 }
 
-interface TierNarrative {
-  tierLabel: string;
-  roleLabel: string;
-  headline: string;
-  subtitle: string;
-}
-
 // ============================================================================
-// PLAN OPTIONS — Annual dominant, quarterly secondary
+// FALLBACK PLANS — only used if the live RevenueCat offering hasn't loaded
 // ============================================================================
 
-const PLUS_PLANS: PlanOption[] = [
+const FALLBACK_PLANS: PlanOption[] = [
   {
     id: 'plus_yearly',
     billingPeriod: 'yearly',
@@ -121,31 +119,11 @@ const PLUS_PLANS: PlanOption[] = [
   },
 ];
 
-const PRO_PLANS: PlanOption[] = [
-  {
-    id: 'pro_yearly',
-    billingPeriod: 'yearly',
-    price: '$99',
-    perMonth: '$8.25/mo',
-    badge: 'Best Value',
-    badgeColor: '#CD7F32',
-    savings: 'Save $57 vs monthly',
-    isRecommended: true,
-  },
-  {
-    id: 'pro_monthly',
-    billingPeriod: 'monthly',
-    price: '$12.99',
-    perMonth: '$12.99/mo',
-    isRecommended: false,
-  },
-];
-
 // ============================================================================
 // FEATURE BENEFITS
 // ============================================================================
 
-const PLUS_FEATURES: FeatureBenefit[] = [
+const FEATURES: FeatureBenefit[] = [
   {
     icon: 'wine-outline',
     title: 'Unlimited inventory & advanced filters',
@@ -171,19 +149,6 @@ const PLUS_FEATURES: FeatureBenefit[] = [
     title: 'Smart inventory tracking',
     description: 'Bar health score, expiry alerts, bottle level tracking.',
   },
-];
-
-const PRO_FEATURES: FeatureBenefit[] = [
-  {
-    icon: 'flash-outline',
-    title: 'Vault weekly drops',
-    description: 'A new featured cocktail every week — full story, technique, and sourcing context.',
-  },
-  {
-    icon: 'construct-outline',
-    title: 'Pro Recipe Builder',
-    description: 'Build from ratios. Remix classics. Save your own versions.',
-  },
   {
     icon: 'restaurant-outline',
     title: 'Full hosting tools',
@@ -191,32 +156,11 @@ const PRO_FEATURES: FeatureBenefit[] = [
   },
 ];
 
-const PLUS_COMING_SOON: string[] = [
+const COMING_SOON: string[] = [
   'Taste Match % — cocktail scores matched to your palate',
   'Mood suggestions — cocktails based on how you feel',
   'Enhanced AI bartender with memory',
 ];
-
-const PRO_COMING_SOON: string[] = [
-  'Mastery lessons & technique guides',
-  'Predictive engine & taste graph',
-  'Flavor sliders & brand capture',
-];
-
-const TIER_NARRATIVES: Record<TierTab, TierNarrative> = {
-  koope_plus: {
-    tierLabel: 'KŌOPE+',
-    roleLabel: 'Bartender',
-    headline: 'Build the bar you actually use',
-    subtitle: 'Unlimited bottles, the full recipe catalog, smart inventory tools, and a party scaling calculator — everything to run your home bar properly.',
-  },
-  koope_pro: {
-    tierLabel: 'KŌOPE PRO',
-    roleLabel: 'Mixologist',
-    headline: 'Go deeper with every pour',
-    subtitle: 'Weekly vault drops, a pro recipe builder, and full hosting tools that take you from guest count to prep timeline.',
-  },
-};
 
 const getAnnualSavingsPercent = (plans: PlanOption[]): number | null => {
   const annual = plans.find((p) => p.billingPeriod === 'yearly');
@@ -224,8 +168,9 @@ const getAnnualSavingsPercent = (plans: PlanOption[]): number | null => {
   if (!annual || !monthly) return null;
   const annualValue = Number(String(annual.price).replace(/[^\d.]/g, ''));
   const monthlyValue = Number(String(monthly.price).replace(/[^\d.]/g, ''));
-  if (!Number.isFinite(annualValue) || !Number.isFinite(monthlyValue) || monthlyValue <= 0) return null;
-  const savings = 1 - (annualValue / (monthlyValue * 12));
+  if (!Number.isFinite(annualValue) || !Number.isFinite(monthlyValue) || monthlyValue <= 0)
+    return null;
+  const savings = 1 - annualValue / (monthlyValue * 12);
   const pct = Math.round(savings * 100);
   return pct > 0 ? pct : null;
 };
@@ -245,136 +190,83 @@ export default function PaywallScreen({ route }: PaywallScreenProps) {
     founderCount,
   } = useSubscription();
   const [isPurchasing, setIsPurchasing] = useState(false);
-  const [selectedTier, setSelectedTier] = useState<TierTab>(
-    route?.params?.offering === 'pro' ? 'koope_pro' : 'koope_plus'
-  );
-  const [selectedPlan, setSelectedPlan] = useState<PlanOption>(PLUS_PLANS[0]);
+  const [selectedPlan, setSelectedPlan] = useState<PlanOption>(FALLBACK_PLANS[0]);
 
   const displayCloseButton = route?.params?.displayCloseButton !== false;
   const source = route?.params?.source || 'unknown';
   const trigger = route?.params?.triggerId ? PAYWALL_TRIGGERS[route.params.triggerId] : undefined;
 
-  const plansFromOfferings = useMemo(() => {
+  const plansFromOffering = useMemo(() => {
     const packages = offerings?.current?.availablePackages || [];
     const findPackage = (productId: string) =>
       packages.find(
         (pkg) =>
           pkg.product?.identifier === productId ||
           pkg.identifier === productId ||
-          pkg.identifier?.toLowerCase?.().includes(productId.toLowerCase())
+          pkg.identifier?.toLowerCase?.().includes(productId.toLowerCase()),
       );
 
     const plusYearly = findPackage(SUBSCRIPTION_PRODUCTS.PLUS_YEARLY);
     const plusMonthly = findPackage(SUBSCRIPTION_PRODUCTS.PLUS_MONTHLY);
-    const proYearly = findPackage(SUBSCRIPTION_PRODUCTS.PRO_YEARLY);
-    const proMonthly = findPackage(SUBSCRIPTION_PRODUCTS.PRO_MONTHLY);
 
-    const plusPlans: PlanOption[] =
-      plusYearly && plusMonthly
-        ? [
-            {
-              id: SUBSCRIPTION_PRODUCTS.PLUS_YEARLY,
-              billingPeriod: 'yearly',
-              price: plusYearly.product.priceString || PRICING_DISPLAY.PLUS.yearly,
-              perMonth: buildPerMonthLabel(
-                plusYearly.product.price,
-                plusYearly.product.currencyCode,
-                'yearly',
-                PRICING_DISPLAY.PLUS.yearlyPerMonth
-              ),
-              packageCode: plusYearly.identifier || plusYearly.product.identifier,
-              badge: 'Best Value',
-              badgeColor: '#D4AF37',
-              savings: 'Annual plan',
-              isRecommended: true,
-            },
-            {
-              id: SUBSCRIPTION_PRODUCTS.PLUS_MONTHLY,
-              billingPeriod: 'monthly',
-              price: plusMonthly.product.priceString || PRICING_DISPLAY.PLUS.monthly,
-              perMonth: buildPerMonthLabel(
-                plusMonthly.product.price,
-                plusMonthly.product.currencyCode,
-                'monthly',
-                PRICING_DISPLAY.PLUS.monthlyPerMonth
-              ),
-              packageCode: plusMonthly.identifier || plusMonthly.product.identifier,
-              isRecommended: false,
-            },
-          ]
-        : PLUS_PLANS;
+    if (!plusYearly || !plusMonthly) return FALLBACK_PLANS;
 
-    const proPlans: PlanOption[] =
-      proYearly && proMonthly
-        ? [
-            {
-              id: SUBSCRIPTION_PRODUCTS.PRO_YEARLY,
-              billingPeriod: 'yearly',
-              price: proYearly.product.priceString || PRICING_DISPLAY.PRO.yearly,
-              perMonth: buildPerMonthLabel(
-                proYearly.product.price,
-                proYearly.product.currencyCode,
-                'yearly',
-                PRICING_DISPLAY.PRO.yearlyPerMonth
-              ),
-              packageCode: proYearly.identifier || proYearly.product.identifier,
-              badge: 'Best Value',
-              badgeColor: '#CD7F32',
-              savings: 'Annual plan',
-              isRecommended: true,
-            },
-            {
-              id: SUBSCRIPTION_PRODUCTS.PRO_MONTHLY,
-              billingPeriod: 'monthly',
-              price: proMonthly.product.priceString || PRICING_DISPLAY.PRO.monthly,
-              perMonth: buildPerMonthLabel(
-                proMonthly.product.price,
-                proMonthly.product.currencyCode,
-                'monthly',
-                PRICING_DISPLAY.PRO.monthlyPerMonth
-              ),
-              packageCode: proMonthly.identifier || proMonthly.product.identifier,
-              isRecommended: false,
-            },
-          ]
-        : PRO_PLANS;
-
-    return { plusPlans, proPlans };
+    return [
+      {
+        id: SUBSCRIPTION_PRODUCTS.PLUS_YEARLY,
+        billingPeriod: 'yearly' as const,
+        price: plusYearly.product.priceString || PRICING_DISPLAY.PLUS.yearly,
+        perMonth: buildPerMonthLabel(
+          plusYearly.product.price,
+          plusYearly.product.currencyCode,
+          'yearly',
+          PRICING_DISPLAY.PLUS.yearlyPerMonth,
+        ),
+        packageCode: plusYearly.identifier || plusYearly.product.identifier,
+        badge: 'Best Value',
+        badgeColor: '#D4AF37',
+        savings: 'Annual plan',
+        isRecommended: true,
+      },
+      {
+        id: SUBSCRIPTION_PRODUCTS.PLUS_MONTHLY,
+        billingPeriod: 'monthly' as const,
+        price: plusMonthly.product.priceString || PRICING_DISPLAY.PLUS.monthly,
+        perMonth: buildPerMonthLabel(
+          plusMonthly.product.price,
+          plusMonthly.product.currencyCode,
+          'monthly',
+          PRICING_DISPLAY.PLUS.monthlyPerMonth,
+        ),
+        packageCode: plusMonthly.identifier || plusMonthly.product.identifier,
+        isRecommended: false,
+      },
+    ];
   }, [offerings]);
 
-  const plans = selectedTier === 'koope_plus' ? plansFromOfferings.plusPlans : plansFromOfferings.proPlans;
-  const features = selectedTier === 'koope_plus' ? PLUS_FEATURES : PRO_FEATURES;
-  const comingSoon = selectedTier === 'koope_plus' ? PLUS_COMING_SOON : PRO_COMING_SOON;
+  const plans = plansFromOffering;
   const tierColor = colors.gold;
-  const narrative = TIER_NARRATIVES[selectedTier];
-  const tierName = narrative.tierLabel;
   const isLoading = subscriptionLoading && !offerings;
   const annualSavingsPercent = useMemo(() => getAnnualSavingsPercent(plans), [plans]);
-  const usingLivePlans = useMemo(
-    () =>
-      plansFromOfferings.plusPlans.some((plan) => Boolean(plan.packageCode)) &&
-      plansFromOfferings.proPlans.some((plan) => Boolean(plan.packageCode)),
-    [plansFromOfferings.plusPlans, plansFromOfferings.proPlans]
+  const usingLivePlan = useMemo(
+    () => plansFromOffering.some((plan) => Boolean(plan.packageCode)),
+    [plansFromOffering],
   );
 
   // Detect if the annual plan has a RevenueCat introductory offer (7-day trial)
   const hasTrialAvailable = useMemo(() => {
     if (!offerings?.current) return false;
     const packages = offerings.current.availablePackages || [];
-    const productId =
-      selectedTier === 'koope_plus'
-        ? SUBSCRIPTION_PRODUCTS.PLUS_YEARLY
-        : SUBSCRIPTION_PRODUCTS.PRO_YEARLY;
     const yearlyPkg = packages.find(
       (pkg) =>
-        pkg.product?.identifier === productId ||
-        pkg.identifier === productId ||
-        pkg.identifier?.toLowerCase?.().includes(productId.toLowerCase())
+        pkg.product?.identifier === SUBSCRIPTION_PRODUCTS.PLUS_YEARLY ||
+        pkg.identifier === SUBSCRIPTION_PRODUCTS.PLUS_YEARLY ||
+        pkg.identifier?.toLowerCase?.().includes(SUBSCRIPTION_PRODUCTS.PLUS_YEARLY.toLowerCase()),
     );
     return Boolean(
-      (yearlyPkg?.product as { introductoryPrice?: unknown } | undefined)?.introductoryPrice
+      (yearlyPkg?.product as { introductoryPrice?: unknown } | undefined)?.introductoryPrice,
     );
-  }, [offerings, selectedTier]);
+  }, [offerings]);
 
   const isTrialEligible = hasTrialAvailable && selectedPlan.billingPeriod === 'yearly';
 
@@ -387,18 +279,16 @@ export default function PaywallScreen({ route }: PaywallScreenProps) {
 
   useEffect(() => {
     log.info('PaywallScreen', 'Plan source resolved', {
-      usingLivePlans,
+      usingLivePlan,
       hasCurrentOffering: Boolean(offerings?.current),
-      plusPlanIds: plansFromOfferings.plusPlans.map((plan) => plan.id),
-      proPlanIds: plansFromOfferings.proPlans.map((plan) => plan.id),
+      planIds: plansFromOffering.map((plan) => plan.id),
     });
-  }, [usingLivePlans, offerings, plansFromOfferings.plusPlans, plansFromOfferings.proPlans]);
+  }, [usingLivePlan, offerings, plansFromOffering]);
 
-  // Reset to annual/recommended plan when tier changes or offerings update
+  // Reset to annual/recommended plan when offerings update
   useEffect(() => {
-    const newPlans = selectedTier === 'koope_plus' ? plansFromOfferings.plusPlans : plansFromOfferings.proPlans;
-    setSelectedPlan(newPlans[0]);
-  }, [selectedTier, plansFromOfferings.plusPlans, plansFromOfferings.proPlans]);
+    setSelectedPlan(plansFromOffering[0]);
+  }, [plansFromOffering]);
 
   // ========================================================================
   // HANDLERS
@@ -409,25 +299,24 @@ export default function PaywallScreen({ route }: PaywallScreenProps) {
       setIsPurchasing(true);
 
       trackEvent(ANALYTICS_EVENTS.PAYWALL_CTA_CLICKED, {
-        [ANALYTICS_PROPS.TIER]: selectedTier,
+        [ANALYTICS_PROPS.TIER]: 'koope_plus',
         [ANALYTICS_PROPS.BILLING_MODE]: selectedPlan.billingPeriod,
         [ANALYTICS_PROPS.SOURCE]: source,
       });
 
       trackEvent(ANALYTICS_EVENTS.PURCHASE_STARTED, {
-        [ANALYTICS_PROPS.TIER]: selectedTier,
+        [ANALYTICS_PROPS.TIER]: 'koope_plus',
         [ANALYTICS_PROPS.BILLING_MODE]: selectedPlan.billingPeriod,
       });
 
-      const tier: 'plus' | 'pro' = selectedTier === 'koope_plus' ? 'plus' : 'pro';
       const billingMode = selectedPlan.billingPeriod;
       const result = isTrialEligible
-        ? await startFreeTrial(tier)
-        : await purchaseTier(tier, billingMode);
+        ? await startFreeTrial('plus')
+        : await purchaseTier('plus', billingMode);
 
       if (result.success) {
         trackEvent(ANALYTICS_EVENTS.PURCHASE_COMPLETED, {
-          [ANALYTICS_PROPS.TIER]: selectedTier,
+          [ANALYTICS_PROPS.TIER]: 'koope_plus',
           [ANALYTICS_PROPS.BILLING_MODE]: selectedPlan.billingPeriod,
           [ANALYTICS_PROPS.SOURCE]: source,
           is_trial: isTrialEligible,
@@ -435,18 +324,18 @@ export default function PaywallScreen({ route }: PaywallScreenProps) {
         Alert.alert(
           isTrialEligible ? 'Trial Started!' : 'Welcome!',
           isTrialEligible
-            ? `Your 7-day free trial of ${tierName} has started!`
-            : `You're now a ${tierName} member!`,
-          [{ text: 'Continue', onPress: () => navigation.goBack() }]
+            ? 'Your 7-day free trial of KŌOPE+ has started!'
+            : "You're now a KŌOPE+ member!",
+          [{ text: 'Continue', onPress: () => navigation.goBack() }],
         );
       } else if (result.userCancelled) {
         trackEvent(ANALYTICS_EVENTS.PURCHASE_CANCELLED, {
-          [ANALYTICS_PROPS.TIER]: selectedTier,
+          [ANALYTICS_PROPS.TIER]: 'koope_plus',
           [ANALYTICS_PROPS.BILLING_MODE]: selectedPlan.billingPeriod,
         });
       } else {
         trackEvent(ANALYTICS_EVENTS.PURCHASE_FAILED, {
-          [ANALYTICS_PROPS.TIER]: selectedTier,
+          [ANALYTICS_PROPS.TIER]: 'koope_plus',
           [ANALYTICS_PROPS.BILLING_MODE]: selectedPlan.billingPeriod,
           error: result.error || 'Unknown error',
         });
@@ -455,7 +344,7 @@ export default function PaywallScreen({ route }: PaywallScreenProps) {
     } catch (error: any) {
       log.error('PaywallScreen', 'Purchase error', error);
       trackEvent(ANALYTICS_EVENTS.PURCHASE_FAILED, {
-        [ANALYTICS_PROPS.TIER]: selectedTier,
+        [ANALYTICS_PROPS.TIER]: 'koope_plus',
         [ANALYTICS_PROPS.BILLING_MODE]: selectedPlan.billingPeriod,
         error: error.message || 'Unknown error',
       });
@@ -474,18 +363,24 @@ export default function PaywallScreen({ route }: PaywallScreenProps) {
       const hasActive = Object.keys(result.customerInfo?.entitlements.active || {}).length > 0;
 
       if (result.success) {
-        trackEvent(ANALYTICS_EVENTS.RESTORE_PURCHASES_SUCCESS, { had_active_entitlements: hasActive });
+        trackEvent(ANALYTICS_EVENTS.RESTORE_PURCHASES_SUCCESS, {
+          had_active_entitlements: hasActive,
+        });
         Alert.alert(
           hasActive ? 'Success!' : 'No Purchases Found',
           hasActive ? 'Your purchases have been restored.' : 'No previous purchases found.',
-          [{ text: 'OK' }]
+          [{ text: 'OK' }],
         );
       } else {
-        trackEvent(ANALYTICS_EVENTS.RESTORE_PURCHASES_FAILED, { error: result.error || 'Unknown error' });
+        trackEvent(ANALYTICS_EVENTS.RESTORE_PURCHASES_FAILED, {
+          error: result.error || 'Unknown error',
+        });
         Alert.alert('Restore Error', result.error || 'Failed to restore purchases');
       }
     } catch (error: any) {
-      trackEvent(ANALYTICS_EVENTS.RESTORE_PURCHASES_FAILED, { error: error.message || 'Unknown error' });
+      trackEvent(ANALYTICS_EVENTS.RESTORE_PURCHASES_FAILED, {
+        error: error.message || 'Unknown error',
+      });
       Alert.alert('Restore Error', error.message);
     } finally {
       setIsPurchasing(false);
@@ -499,37 +394,45 @@ export default function PaywallScreen({ route }: PaywallScreenProps) {
   const renderPlanCard = (plan: PlanOption) => {
     const isSelected = selectedPlan.id === plan.id;
     const isAnnual = plan.billingPeriod === 'yearly';
-    const headerLabel = isAnnual && annualSavingsPercent
-      ? `Save ${annualSavingsPercent}%`
-      : isAnnual
-        ? 'Best Value'
-        : 'Monthly';
+    const headerLabel =
+      isAnnual && annualSavingsPercent
+        ? `Save ${annualSavingsPercent}%`
+        : isAnnual
+          ? 'Best Value'
+          : 'Monthly';
     const durationLabel = isAnnual ? '12 months' : '1 month';
     const chargeLabel = isAnnual ? `${plan.price}/year` : `${plan.price}/month`;
 
     return (
       <TouchableOpacity
         key={plan.id}
-        style={[
-          styles.planCard,
-          isSelected && { borderColor: tierColor, borderWidth: 2 },
-        ]}
+        style={[styles.planCard, isSelected && { borderColor: tierColor, borderWidth: 2 }]}
         onPress={() => setSelectedPlan(plan)}
         activeOpacity={0.7}
       >
         <View style={[styles.planHeader, isSelected && { backgroundColor: tierColor }]}>
-          <Text style={[styles.planHeaderText, isSelected && { color: colors.bg }]}>{headerLabel}</Text>
+          <Text style={[styles.planHeaderText, isSelected && { color: colors.bg }]}>
+            {headerLabel}
+          </Text>
         </View>
 
         <View style={styles.planBody}>
-          <Text style={[styles.planDuration, isSelected && { color: colors.text }]}>{durationLabel}</Text>
+          <Text style={[styles.planDuration, isSelected && { color: colors.text }]}>
+            {durationLabel}
+          </Text>
           {isAnnual ? (
             <>
-              <Text style={[styles.planPerMonth, isSelected && { color: colors.white }]}>{chargeLabel}</Text>
-              <Text style={[styles.planCharge, isSelected && { color: colors.text }]}>{plan.perMonth}</Text>
+              <Text style={[styles.planPerMonth, isSelected && { color: colors.white }]}>
+                {chargeLabel}
+              </Text>
+              <Text style={[styles.planCharge, isSelected && { color: colors.text }]}>
+                {plan.perMonth}
+              </Text>
             </>
           ) : (
-            <Text style={[styles.planPerMonth, isSelected && { color: colors.white }]}>{plan.perMonth}</Text>
+            <Text style={[styles.planPerMonth, isSelected && { color: colors.white }]}>
+              {plan.perMonth}
+            </Text>
           )}
         </View>
       </TouchableOpacity>
@@ -573,48 +476,27 @@ export default function PaywallScreen({ route }: PaywallScreenProps) {
         </TouchableOpacity>
       )}
 
-      {/* Tier Tabs */}
-      <View style={[styles.tierTabs, { paddingTop: getSafeAreaTop() }]}>
-        <TouchableOpacity
-          style={[styles.tierTab, selectedTier === 'koope_plus' && styles.tierTabActive]}
-          onPress={() => setSelectedTier('koope_plus')}
-        >
-          <Text style={[
-            styles.tierTabText,
-            selectedTier === 'koope_plus' && { color: colors.gold },
-          ]}>
-            Home Bar → Bartender
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tierTab, selectedTier === 'koope_pro' && [styles.tierTabActive, { borderBottomColor: colors.gold }]]}
-          onPress={() => setSelectedTier('koope_pro')}
-        >
-          <Text style={[
-            styles.tierTabText,
-            selectedTier === 'koope_pro' && { color: colors.gold },
-          ]}>
-            Bartender → Mixologist
-          </Text>
-        </TouchableOpacity>
-      </View>
-
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingTop: getSafeAreaTop() + 12 }]}
         showsVerticalScrollIndicator={false}
       >
         {/* Hero */}
         <View style={styles.heroSection}>
-          <ImageBackground source={HERO_IMAGE} style={styles.heroImageCard} imageStyle={styles.heroImage}>
+          <ImageBackground
+            source={HERO_IMAGE}
+            style={styles.heroImageCard}
+            imageStyle={styles.heroImage}
+          >
             <View style={styles.heroOverlay} />
             <View style={styles.heroPill}>
-              <Text style={styles.heroPillText}>{narrative.roleLabel}</Text>
+              <Text style={styles.heroPillText}>KŌOPE+</Text>
             </View>
-            <Text style={styles.heroTitle}>
-              {narrative.headline}
+            <Text style={styles.heroTitle}>Build the bar you actually use</Text>
+            <Text style={styles.heroSubtitle}>
+              Unlimited bottles, the full recipe catalog, smart inventory tools, and hosting tools
+              that take you from guest count to prep timeline.
             </Text>
-            <Text style={styles.heroSubtitle}>{narrative.subtitle}</Text>
           </ImageBackground>
         </View>
 
@@ -639,23 +521,34 @@ export default function PaywallScreen({ route }: PaywallScreenProps) {
           </View>
         )}
 
-        {/* Plan Cards — Annual first (dominant), quarterly below (secondary) */}
-        <View style={styles.plansContainer}>
-          {plans.map(renderPlanCard)}
-        </View>
+        {/* Plan Cards — Annual first (dominant), monthly below (secondary) */}
+        <View style={styles.plansContainer}>{plans.map(renderPlanCard)}</View>
 
         {/* Feature Benefits */}
         <View style={styles.featuresSection}>
           <Text style={styles.featuresSectionTitle}>What you get</Text>
-          {features.map(renderFeature)}
+          {FEATURES.map(renderFeature)}
+        </View>
+
+        {/* Coming Soon */}
+        <View style={styles.comingSoonSection}>
+          <View style={styles.comingSoonHeader}>
+            <Ionicons name="time-outline" size={14} color={colors.subtext} />
+            <Text style={styles.comingSoonTitle}>Coming Soon</Text>
+          </View>
+          {COMING_SOON.map((item, index) => (
+            <View key={index} style={styles.comingSoonRow}>
+              <View style={styles.comingSoonDot} />
+              <Text style={styles.comingSoonText}>{item}</Text>
+            </View>
+          ))}
         </View>
 
         {/* Legal — scrollable copy, reinforces the sticky footer disclosure */}
         <Text style={styles.legalText}>
-          Payment will be charged to your Apple ID account at confirmation. Subscription
-          auto-renews unless cancelled at least 24 hours before the end of the current period.
-          Manage or cancel anytime in App Store Settings.{' '}
-          <Text style={styles.legalLink}>Terms</Text> &{' '}
+          Payment will be charged to your Apple ID account at confirmation. Subscription auto-renews
+          unless cancelled at least 24 hours before the end of the current period. Manage or cancel
+          anytime in App Store Settings. <Text style={styles.legalLink}>Terms</Text> &{' '}
           <Text style={styles.legalLink}>Privacy</Text>.
         </Text>
 
@@ -686,10 +579,10 @@ export default function PaywallScreen({ route }: PaywallScreenProps) {
           ) : (
             <Text style={styles.ctaText}>
               {isTrialEligible
-                ? `Start 7-Day Free Trial — ${tierName}`
+                ? 'Start 7-Day Free Trial — KŌOPE+'
                 : selectedPlan.billingPeriod === 'yearly'
-                  ? `Get ${tierName} — ${selectedPlan.price}/year`
-                  : `Get ${tierName} — ${selectedPlan.price}/month`}
+                  ? `Get KŌOPE+ — ${selectedPlan.price}/year`
+                  : `Get KŌOPE+ — ${selectedPlan.price}/month`}
             </Text>
           )}
         </TouchableOpacity>
@@ -739,30 +632,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
-  // Tier Tabs
-  tierTabs: {
-    flexDirection: 'row',
-    paddingHorizontal: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(242,229,213,0.12)',
-  },
-  tierTab: {
-    flex: 1,
-    paddingVertical: 16,
-    alignItems: 'center',
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
-  },
-  tierTabActive: {
-    borderBottomColor: colors.gold,
-  },
-  tierTabText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: 'rgba(242,229,213,0.55)',
-    letterSpacing: 0.5,
-  },
-
   // Scroll
   scrollView: { flex: 1 },
   scrollContent: { paddingBottom: 120 },
@@ -770,7 +639,6 @@ const styles = StyleSheet.create({
   // Hero
   heroSection: {
     paddingHorizontal: 20,
-    paddingTop: 20,
     paddingBottom: 4,
   },
   heroImageCard: {
