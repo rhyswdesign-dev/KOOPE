@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { log } from '../lib/logger';
 
@@ -28,12 +28,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     badges: 4,
   });
 
-  // Load user data from storage on mount
-  useEffect(() => {
-    loadUserData();
-  }, []);
-
-  const loadUserData = async () => {
+  const loadUserData = useCallback(async () => {
     try {
       const stored = await AsyncStorage.getItem(STORAGE_KEY);
       if (stored) {
@@ -43,50 +38,64 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       log.error('UserContext', 'Error loading user data', error);
     }
-  };
+  }, []);
 
-  const saveUserData = async (newUserData: UserState) => {
+  // Load user data from storage on mount
+  useEffect(() => {
+    loadUserData();
+  }, [loadUserData]);
+
+  const saveUserData = useCallback(async (newUserData: UserState) => {
     try {
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(newUserData));
     } catch (error) {
       log.error('UserContext', 'Error saving user data', error);
     }
-  };
+  }, []);
 
-  const addXP = (amount: number) => {
-    setUser(prev => {
-      const newXP = prev.xp + amount;
-      const newLevel = getUserLevel(newXP);
-      const updated = { ...prev, xp: newXP, level: newLevel };
-      saveUserData(updated);
-      return updated;
-    });
-  };
+  const getUserLevel = useCallback(
+    (xp?: number) => {
+      const currentXP = xp || user.xp;
+      // Simple level calculation: every 500 XP = 1 level
+      return Math.floor(currentXP / 500) + 1;
+    },
+    [user.xp],
+  );
 
-  const updateStreak = () => {
-    setUser(prev => {
+  const addXP = useCallback(
+    (amount: number) => {
+      setUser((prev) => {
+        const newXP = prev.xp + amount;
+        const newLevel = getUserLevel(newXP);
+        const updated = { ...prev, xp: newXP, level: newLevel };
+        saveUserData(updated);
+        return updated;
+      });
+    },
+    [getUserLevel, saveUserData],
+  );
+
+  const updateStreak = useCallback(() => {
+    setUser((prev) => {
       const updated = { ...prev, streak: prev.streak + 1 };
       saveUserData(updated);
       return updated;
     });
-  };
+  }, [saveUserData]);
 
-  const getUserLevel = (xp?: number) => {
-    const currentXP = xp || user.xp;
-    // Simple level calculation: every 500 XP = 1 level
-    return Math.floor(currentXP / 500) + 1;
-  };
-
-  return (
-    <UserContext.Provider value={{
+  // Phase 0.9 guardrail: memoize the context value so consumers don't
+  // re-render on every UserProvider render when nothing they read changed.
+  const value = useMemo(
+    () => ({
       user,
       addXP,
       updateStreak,
       getUserLevel,
-    }}>
-      {children}
-    </UserContext.Provider>
+    }),
+    [user, addXP, updateStreak, getUserLevel],
   );
+
+  return <UserContext.Provider value={value}>{children}</UserContext.Provider>;
 }
 
 export function useUser() {

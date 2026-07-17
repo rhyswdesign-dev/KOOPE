@@ -1,5 +1,9 @@
 import * as React from 'react';
-import { NavigationContainer, DefaultTheme, createNavigationContainerRef } from '@react-navigation/native';
+import {
+  NavigationContainer,
+  DefaultTheme,
+  createNavigationContainerRef,
+} from '@react-navigation/native';
 import { KeyboardAvoidingView, Platform, Keyboard, LayoutAnimation, UIManager } from 'react-native';
 import Constants from 'expo-constants';
 import RootNavigator from './src/navigation/RootNavigator';
@@ -12,7 +16,6 @@ import AgeGateScreen from './src/screens/AgeGateScreen';
 import { useSimpleOnboarding as useOnboarding } from './src/hooks/useSimpleOnboarding';
 import { UserProvider } from './src/contexts/UserContext';
 import { VaultProvider } from './src/contexts/VaultContext';
-import { PostsProvider } from './src/contexts/PostsContext';
 import { AuthProvider } from './src/contexts/AuthContext';
 import { ChallengeProvider } from './src/contexts/ChallengeContext';
 import { SubscriptionProvider } from './src/contexts/SubscriptionContext';
@@ -44,13 +47,12 @@ console.error = (...args: any[]) => {
 
   // Filter out RevenueCat errors (expected in Expo Go - requires dev build for native IAP)
   if (
-    typeof message === 'string' && (
-      message.includes('[RevenueCat]') ||
+    typeof message === 'string' &&
+    (message.includes('[RevenueCat]') ||
       message.includes('Error configuring Purchases') ||
       message.includes('Invalid API key') ||
       message.includes('native store is not available') ||
-      message.includes("Cannot read property 'search' of undefined")
-    )
+      message.includes("Cannot read property 'search' of undefined"))
   ) {
     // Silently ignore RevenueCat errors in development
     return;
@@ -58,11 +60,10 @@ console.error = (...args: any[]) => {
 
   // Filter out tasteProfile errors (handled gracefully in code)
   if (
-    typeof message === 'string' && (
-      message.includes("Cannot read property 'tequila' of undefined") ||
+    typeof message === 'string' &&
+    (message.includes("Cannot read property 'tequila' of undefined") ||
       message.includes("Cannot read property 'spiritWeights' of undefined") ||
-      message.includes("Cannot read property 'flavorWeights' of undefined")
-    )
+      message.includes("Cannot read property 'flavorWeights' of undefined"))
   ) {
     console.log('[Handled] tasteProfile initialization error - using defaults');
     return;
@@ -70,11 +71,10 @@ console.error = (...args: any[]) => {
 
   // Filter out Expo auto-refresh / disk-space transient errors
   if (
-    typeof message === 'string' && (
-      message.includes('Auto refresh tick failed') ||
+    typeof message === 'string' &&
+    (message.includes('Auto refresh tick failed') ||
       message.includes('out of space') ||
-      message.includes('Failed to write value')
-    )
+      message.includes('Failed to write value'))
   ) {
     return;
   }
@@ -87,9 +87,7 @@ console.error = (...args: any[]) => {
   // each one paints a red LogBox error over the app, which reads as a crash.
   // Downgrade to a quiet log so genuine errors stay visible.
   const errorText =
-    typeof message === 'string'
-      ? message
-      : `${message?.name ?? ''} ${message?.message ?? ''}`;
+    typeof message === 'string' ? message : `${message?.name ?? ''} ${message?.message ?? ''}`;
   if (
     errorText.includes('AuthRetryableFetchError') ||
     errorText.includes('Network request failed') ||
@@ -145,12 +143,12 @@ const KOOPETheme = {
   dark: true,
   colors: {
     ...DefaultTheme.colors,
-    primary: colors.accent,        // Amber gold for interactive elements
-    background: colors.bg,          // Espresso brown background
-    card: colors.card,              // Darker brown for cards/headers
-    text: colors.text,              // Soft cream text
-    border: colors.line,            // Subtle borders
-    notification: colors.accent,    // Amber for notifications
+    primary: colors.accent, // Amber gold for interactive elements
+    background: colors.bg, // Espresso brown background
+    card: colors.card, // Darker brown for cards/headers
+    text: colors.text, // Soft cream text
+    border: colors.line, // Subtle borders
+    notification: colors.accent, // Amber for notifications
   },
 };
 
@@ -171,21 +169,13 @@ export default function App() {
 function AppInner() {
   const { isEnabled: killSwitchEnabled, config: killSwitchConfig } = useKillSwitch();
 
-  const {
-    appState,
-    handleSplashFinish,
-    completeAgeGate,
-    completeWelcome,
-  } = useOnboarding();
+  const { appState, handleSplashFinish, completeAgeGate, completeWelcome } = useOnboarding();
   const { unlockedAchievement, clearUnlockedAchievement } = useAchievementNotifications();
   const deepLinkCleanupRef = React.useRef<null | (() => void)>(null);
   const lastHandledSharedUrlRef = React.useRef<string | null>(null);
   const [pendingSharedRecipeUrl, setPendingSharedRecipeUrl] = React.useState<string | null>(null);
   const [launchSmartScanAfterOnboarding, setLaunchSmartScanAfterOnboarding] = React.useState(false);
-  const keyboardAvoidingStyle = React.useMemo(
-    () => ({ flex: 1, backgroundColor: colors.bg }),
-    []
-  );
+  const keyboardAvoidingStyle = React.useMemo(() => ({ flex: 1, backgroundColor: colors.bg }), []);
   const {
     isReady: isShareIntentReady,
     hasShareIntent,
@@ -203,7 +193,11 @@ function AppInner() {
       UIManager.setLayoutAnimationEnabledExperimental(true);
     }
 
-    const ease = LayoutAnimation.create(200, LayoutAnimation.Types.easeInEaseOut, LayoutAnimation.Properties.opacity);
+    const ease = LayoutAnimation.create(
+      200,
+      LayoutAnimation.Types.easeInEaseOut,
+      LayoutAnimation.Properties.opacity,
+    );
     const onShow = () => LayoutAnimation.configureNext(ease);
     const onHide = () => LayoutAnimation.configureNext(ease);
 
@@ -245,18 +239,21 @@ function AppInner() {
     // .catch() required (audit/sprint-1 device-test fix): this chain runs at
     // startup and previously had no rejection handler — any failure became an
     // unhandled promise rejection instead of a skipped streak tick.
-    streakService.recordActivity('app_open').then((result) => {
-      if (result.streakIncreased) {
-        // First app open of the day — award 10 XP daily login bonus
-        useXPSystem.getState().earnXP(10, 'daily-login', 'Daily login bonus');
-        console.log(`🔥 Streak increased to ${result.currentStreak} days!`);
-        if (result.isNewRecord) {
-          console.log(`🎉 New record streak!`);
+    streakService
+      .recordActivity('app_open')
+      .then((result) => {
+        if (result.streakIncreased) {
+          // First app open of the day — award 10 XP daily login bonus
+          useXPSystem.getState().earnXP(10, 'daily-login', 'Daily login bonus');
+          console.log(`🔥 Streak increased to ${result.currentStreak} days!`);
+          if (result.isNewRecord) {
+            console.log(`🎉 New record streak!`);
+          }
         }
-      }
-    }).catch((error) => {
-      console.warn('Streak tracking failed at startup (non-fatal)', error?.message ?? error);
-    });
+      })
+      .catch((error) => {
+        console.warn('Streak tracking failed at startup (non-fatal)', error?.message ?? error);
+      });
   }, []);
 
   React.useEffect(() => {
@@ -275,17 +272,16 @@ function AppInner() {
   React.useEffect(() => {
     if (!isShareIntentReady || !hasShareIntent) return;
 
-    const incomingUrl =
-      shareIntent?.webUrl ||
-      extractSharedUrl(shareIntent?.text) ||
-      null;
+    const incomingUrl = shareIntent?.webUrl || extractSharedUrl(shareIntent?.text) || null;
 
     if (incomingUrl) {
       if (incomingUrl !== lastHandledSharedUrlRef.current) {
         setPendingSharedRecipeUrl(incomingUrl);
       }
     } else {
-      console.log('[ShareIntent] Shared payload received without URL. Media-only handling is pending.');
+      console.log(
+        '[ShareIntent] Shared payload received without URL. Media-only handling is pending.',
+      );
     }
 
     resetShareIntent();
@@ -396,7 +392,7 @@ function AppInner() {
             <SubscriptionProvider>
               <UserProvider>
                 <VaultProvider>
-                  <PostsProvider>
+                  <>
                     <NavigationContainer
                       ref={navigationRef}
                       theme={KOOPETheme}
@@ -405,7 +401,7 @@ function AppInner() {
 
                         deepLinkCleanupRef.current?.();
                         deepLinkCleanupRef.current = setupDeepLinking({
-                          navigate: (...args: any[]) => navigationRef.navigate(...args as any),
+                          navigate: (...args: any[]) => navigationRef.navigate(...(args as any)),
                         });
                       }}
                     >
@@ -427,7 +423,7 @@ function AppInner() {
 
                     {/* Global Branded Alert Renderer */}
                     <AppAlertRenderer />
-                  </PostsProvider>
+                  </>
                 </VaultProvider>
               </UserProvider>
             </SubscriptionProvider>
