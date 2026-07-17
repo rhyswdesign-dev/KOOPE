@@ -6,6 +6,15 @@
  * screens with a declarative registry.
  *
  * Every gated feature in the app should be registered here.
+ *
+ * Phase 0.7 (tier collapse): every `minTier: 'PRO'` / `paywallTarget: 'pro'`
+ * in this file was mechanically flipped to 'PLUS' / 'plus' — there are two
+ * tiers now, FREE and KŌOPE+ (persisted/type-level as 'PLUS'; 'PRO' still
+ * exists as a UserTier value only for backward compatibility, see
+ * tierAccess.ts's UserTier comment). No feature that required PLUS or PRO
+ * before this pass requires more than PLUS now. Do not reintroduce 'PRO' as
+ * a minTier/paywallTarget here — there's no product tier left for it to
+ * mean.
  */
 
 import { UserTier } from './tierAccess';
@@ -151,10 +160,10 @@ export const FEATURE_REGISTRY: Record<FeatureKey, FeatureDefinition> = {
     category: 'inventory',
   },
   multi_bar_unlimited: {
-    minTier: 'PRO',
+    minTier: 'PLUS',
     displayName: 'Unlimited Bar Profiles',
     description: 'Create unlimited bar profiles for every occasion.',
-    paywallTarget: 'pro',
+    paywallTarget: 'plus',
     category: 'inventory',
   },
 
@@ -167,10 +176,10 @@ export const FEATURE_REGISTRY: Record<FeatureKey, FeatureDefinition> = {
     category: 'discovery',
   },
   predictive_filters: {
-    minTier: 'PRO',
+    minTier: 'PLUS',
     displayName: 'Predictive Filters',
     description: 'AI-powered filters that learn what you like.',
-    paywallTarget: 'pro',
+    paywallTarget: 'plus',
     category: 'discovery',
   },
   taste_match: {
@@ -181,10 +190,10 @@ export const FEATURE_REGISTRY: Record<FeatureKey, FeatureDefinition> = {
     category: 'discovery',
   },
   taste_match_full_graph: {
-    minTier: 'PRO',
+    minTier: 'PLUS',
     displayName: 'Full Taste Graph',
     description: 'Deep taste intelligence with decay, memory, and manual controls.',
-    paywallTarget: 'pro',
+    paywallTarget: 'plus',
     category: 'discovery',
   },
   flavor_tags_visible: {
@@ -218,17 +227,17 @@ export const FEATURE_REGISTRY: Record<FeatureKey, FeatureDefinition> = {
     category: 'ai',
   },
   ai_long_memory: {
-    minTier: 'PRO',
+    minTier: 'PLUS',
     displayName: 'AI Long Memory',
     description: 'Your bartender remembers your full history.',
-    paywallTarget: 'pro',
+    paywallTarget: 'plus',
     category: 'ai',
   },
   predictive_engine: {
-    minTier: 'PRO',
+    minTier: 'PLUS',
     displayName: 'Predictive Engine',
     description: 'Multi-signal fusion recommendations that get smarter over time.',
-    paywallTarget: 'pro',
+    paywallTarget: 'plus',
     category: 'ai',
   },
 
@@ -264,45 +273,45 @@ export const FEATURE_REGISTRY: Record<FeatureKey, FeatureDefinition> = {
 
   // --- Smart Inventory (PRO) ---
   dead_bottle_detection: {
-    minTier: 'PRO',
+    minTier: 'PLUS',
     displayName: 'Dead Bottle Detection',
     description: 'Identify bottles you never use and get swap suggestions.',
-    paywallTarget: 'pro',
+    paywallTarget: 'plus',
     category: 'smart_inventory',
   },
   usage_frequency: {
-    minTier: 'PRO',
+    minTier: 'PLUS',
     displayName: 'Usage Frequency',
     description: 'See how often each bottle is used in your cocktails.',
-    paywallTarget: 'pro',
+    paywallTarget: 'plus',
     category: 'smart_inventory',
   },
   cost_tracking: {
-    minTier: 'PRO',
+    minTier: 'PLUS',
     displayName: 'Cost Tracking',
     description: 'Track spend per bottle and per cocktail.',
-    paywallTarget: 'pro',
+    paywallTarget: 'plus',
     category: 'smart_inventory',
   },
   bar_value_calculator: {
-    minTier: 'PRO',
+    minTier: 'PLUS',
     displayName: 'Bar Value Calculator',
     description: 'See the total value and cost-per-serve of your bar.',
-    paywallTarget: 'pro',
+    paywallTarget: 'plus',
     category: 'smart_inventory',
   },
   seasonal_alerts: {
-    minTier: 'PRO',
+    minTier: 'PLUS',
     displayName: 'Seasonal Alerts',
     description: 'Get notified about seasonal ingredients and trending spirits.',
-    paywallTarget: 'pro',
+    paywallTarget: 'plus',
     category: 'smart_inventory',
   },
   predictive_restock: {
-    minTier: 'PRO',
+    minTier: 'PLUS',
     displayName: 'Predictive Restock',
     description: 'AI predicts when you need to restock based on usage patterns.',
-    paywallTarget: 'pro',
+    paywallTarget: 'plus',
     category: 'smart_inventory',
   },
 
@@ -329,59 +338,59 @@ export const FEATURE_REGISTRY: Record<FeatureKey, FeatureDefinition> = {
     category: 'hosting',
   },
   hosting_advanced: {
-    minTier: 'PRO',
+    minTier: 'PLUS',
     displayName: 'Advanced Hosting',
     description: 'Full hosting suite for larger parties (5+ guests).',
-    paywallTarget: 'pro',
+    paywallTarget: 'plus',
     category: 'hosting',
   },
   hosting_planner: {
-    minTier: 'PRO',
+    minTier: 'PLUS',
     displayName: 'Hosting Planner',
     description: 'Full party planning with prep timelines and guest menus.',
-    paywallTarget: 'pro',
+    paywallTarget: 'plus',
     category: 'hosting',
   },
   batch_optimizer: {
     minTier: 'FREE',
     displayName: 'Batch Optimizer',
     description: 'Smart batch calculations for large parties.',
-    paywallTarget: 'pro',
+    paywallTarget: 'plus',
     category: 'hosting',
   },
   guest_menu_generator: {
     minTier: 'FREE',
     displayName: 'Guest Menu Generator',
     description: 'Auto-generate crowd-pleasing menus for your guest count.',
-    paywallTarget: 'pro',
+    paywallTarget: 'plus',
     category: 'hosting',
   },
   prep_timeline: {
-    minTier: 'PRO',
+    minTier: 'PLUS',
     displayName: 'Prep Timeline',
     description: 'Step-by-step prep schedule for stress-free hosting.',
-    paywallTarget: 'pro',
+    paywallTarget: 'plus',
     category: 'hosting',
   },
   bring_to_party: {
-    minTier: 'PRO',
+    minTier: 'PLUS',
     displayName: 'Bring to Party',
-    description: 'Get smart suggestions for what to bring to someone else\'s party.',
-    paywallTarget: 'pro',
+    description: "Get smart suggestions for what to bring to someone else's party.",
+    paywallTarget: 'plus',
     category: 'hosting',
   },
   guest_preference_matching: {
-    minTier: 'PRO',
+    minTier: 'PLUS',
     displayName: 'Guest Preference Matching',
     description: 'Match your menu to guest taste preferences.',
-    paywallTarget: 'pro',
+    paywallTarget: 'plus',
     category: 'hosting',
   },
   hosting_budget_optimizer: {
-    minTier: 'PRO',
+    minTier: 'PLUS',
     displayName: 'Hosting Budget Optimizer',
     description: 'Optimize your party menu for budget and taste.',
-    paywallTarget: 'pro',
+    paywallTarget: 'plus',
     category: 'hosting',
   },
 
@@ -408,33 +417,33 @@ export const FEATURE_REGISTRY: Record<FeatureKey, FeatureDefinition> = {
     category: 'commerce',
   },
   smart_cart: {
-    minTier: 'PRO',
+    minTier: 'PLUS',
     displayName: 'Smart Cart',
     description: 'Intelligent shopping with retailer links and price estimates.',
-    paywallTarget: 'pro',
+    paywallTarget: 'plus',
     category: 'commerce',
   },
 
   // --- Pro Builder ---
   remix_engine: {
-    minTier: 'PRO',
+    minTier: 'PLUS',
     displayName: 'Remix Engine',
     description: 'Swap spirits, adjust ratios, and create variations.',
-    paywallTarget: 'pro',
+    paywallTarget: 'plus',
     category: 'pro_builder',
   },
   ratio_balancing: {
-    minTier: 'PRO',
+    minTier: 'PLUS',
     displayName: 'Ratio Balancing',
     description: 'Fine-tune sweetness, sourness, and strength.',
-    paywallTarget: 'pro',
+    paywallTarget: 'plus',
     category: 'pro_builder',
   },
   flavor_correction_ai: {
-    minTier: 'PRO',
+    minTier: 'PLUS',
     displayName: 'Flavor Correction AI',
     description: 'AI-assisted flavor balancing suggestions.',
-    paywallTarget: 'pro',
+    paywallTarget: 'plus',
     category: 'pro_builder',
   },
   optimize_my_bar: {
@@ -445,24 +454,24 @@ export const FEATURE_REGISTRY: Record<FeatureKey, FeatureDefinition> = {
     category: 'inventory',
   },
   flavor_profile_dashboard: {
-    minTier: 'PRO',
+    minTier: 'PLUS',
     displayName: 'Flavor Dashboard',
     description: 'Interactive radar chart of your taste profile.',
-    paywallTarget: 'pro',
+    paywallTarget: 'plus',
     category: 'pro_builder',
   },
   adjustable_flavor_controls: {
-    minTier: 'PRO',
+    minTier: 'PLUS',
     displayName: 'Flavor Controls',
     description: 'Manually tune your taste preferences with sliders.',
-    paywallTarget: 'pro',
+    paywallTarget: 'plus',
     category: 'pro_builder',
   },
   brand_capture: {
-    minTier: 'PRO',
+    minTier: 'PLUS',
     displayName: 'Brand Capture',
     description: 'Capture and track specific brands in your inventory.',
-    paywallTarget: 'pro',
+    paywallTarget: 'plus',
     category: 'pro_builder',
   },
 
@@ -482,10 +491,10 @@ export const FEATURE_REGISTRY: Record<FeatureKey, FeatureDefinition> = {
     category: 'xp',
   },
   xp_levels: {
-    minTier: 'PRO',
+    minTier: 'PLUS',
     displayName: 'XP Levels & Dashboard',
     description: 'Track your level progression and see your mastery dashboard.',
-    paywallTarget: 'pro',
+    paywallTarget: 'plus',
     category: 'xp',
   },
   challenges: {
@@ -498,54 +507,54 @@ export const FEATURE_REGISTRY: Record<FeatureKey, FeatureDefinition> = {
 
   // --- Mastery ---
   mastery_lessons: {
-    minTier: 'PRO',
+    minTier: 'PLUS',
     displayName: 'Mastery Lessons',
     description: 'Deep-dive technique lessons for serious home bartenders.',
-    paywallTarget: 'pro',
+    paywallTarget: 'plus',
     category: 'mastery',
   },
   practice_mode: {
-    minTier: 'PRO',
+    minTier: 'PLUS',
     displayName: 'Practice Mode',
     description: 'Step-by-step guided practice for cocktail techniques.',
-    paywallTarget: 'pro',
+    paywallTarget: 'plus',
     category: 'mastery',
   },
   vault_pro_drops: {
-    minTier: 'PRO',
+    minTier: 'PLUS',
     displayName: 'Vault Pro Drops',
     description: 'Exclusive vault content for PRO members.',
-    paywallTarget: 'pro',
+    paywallTarget: 'plus',
     category: 'mastery',
   },
   certifications: {
-    minTier: 'PRO',
+    minTier: 'PLUS',
     displayName: 'Certifications',
     description: 'Earn certifications to showcase your bartending skills.',
-    paywallTarget: 'pro',
+    paywallTarget: 'plus',
     category: 'mastery',
   },
   cellar_mode: {
-    minTier: 'PRO',
+    minTier: 'PLUS',
     displayName: 'Cellar Mode',
     description: 'Track collector bottles with value, drinking windows, and personal cellar notes.',
-    paywallTarget: 'pro',
+    paywallTarget: 'plus',
     category: 'mastery',
   },
 
   // --- Education ---
   education_full: {
-    minTier: 'PRO',
+    minTier: 'PLUS',
     displayName: 'Full Education',
     description: 'Guides, techniques, and video content.',
-    paywallTarget: 'pro',
+    paywallTarget: 'plus',
     category: 'education',
   },
   lessons_unlimited: {
-    minTier: 'PRO',
+    minTier: 'PLUS',
     displayName: 'Unlimited Lessons',
     description: 'Access all cocktail lessons and masterclasses. Coming soon.',
-    paywallTarget: 'pro',
+    paywallTarget: 'plus',
     category: 'education',
   },
   premium_serve_guidance: {
@@ -563,17 +572,18 @@ export const FEATURE_REGISTRY: Record<FeatureKey, FeatureDefinition> = {
     category: 'education',
   },
   premium_serve_personalization: {
-    minTier: 'PRO',
+    minTier: 'PLUS',
     displayName: 'Personalized Serve Intelligence',
     description: 'Get premium bottle guidance tailored to your preferences and palate.',
-    paywallTarget: 'pro',
+    paywallTarget: 'plus',
     category: 'education',
   },
   weekly_drops: {
-    minTier: 'PRO',
+    minTier: 'PLUS',
     displayName: 'Vault Weekly Drops',
-    description: 'A curated featured cocktail drops every week — full story, technique, and sourcing context.',
-    paywallTarget: 'pro',
+    description:
+      'A curated featured cocktail drops every week — full story, technique, and sourcing context.',
+    paywallTarget: 'plus',
     category: 'discovery',
   },
 };
@@ -607,8 +617,10 @@ export function getFeatureDefinition(featureKey: FeatureKey): FeatureDefinition 
 /**
  * Get all features for a specific category.
  */
-export function getFeaturesByCategory(category: FeatureCategory): Array<{ key: FeatureKey; definition: FeatureDefinition }> {
-  return (Object.entries(FEATURE_REGISTRY) as Array<[FeatureKey, FeatureDefinition]>)
+export function getFeaturesByCategory(
+  category: FeatureCategory,
+): { key: FeatureKey; definition: FeatureDefinition }[] {
+  return (Object.entries(FEATURE_REGISTRY) as [FeatureKey, FeatureDefinition][])
     .filter(([, def]) => def.category === category)
     .map(([key, definition]) => ({ key, definition }));
 }
@@ -616,8 +628,10 @@ export function getFeaturesByCategory(category: FeatureCategory): Array<{ key: F
 /**
  * Get all features that a tier unlocks (not available at the tier below).
  */
-export function getFeaturesUnlockedByTier(tier: UserTier): Array<{ key: FeatureKey; definition: FeatureDefinition }> {
-  return (Object.entries(FEATURE_REGISTRY) as Array<[FeatureKey, FeatureDefinition]>)
+export function getFeaturesUnlockedByTier(
+  tier: UserTier,
+): { key: FeatureKey; definition: FeatureDefinition }[] {
+  return (Object.entries(FEATURE_REGISTRY) as [FeatureKey, FeatureDefinition][])
     .filter(([, def]) => def.minTier === tier)
     .map(([key, definition]) => ({ key, definition }));
 }
