@@ -579,14 +579,17 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
           return { success: false, error: errorMsg };
         }
 
-        // RevenueCat automatically applies the introductory price/trial when purchasing
+        // RevenueCat automatically applies the introductory price/trial when purchasing.
+        // updateSubscriptionState (above) already sets `tier` from the entitlement
+        // RevenueCat actually granted — mark the trial metadata only (Phase 0.9/0.7
+        // fix for useUserTier's duplicate-tier-write: the old code called
+        // tierStore.startTrial(userTier, 7) here, which re-set `tier` a second time
+        // from the *requested* tier, not what RevenueCat actually confirmed).
         const { customerInfo: updatedInfo } = await Purchases.purchasePackage(pkg);
         updateSubscriptionState(updatedInfo);
 
-        // Persist trial state locally so gating works immediately
         const tierStore = useUserTier.getState();
-        const userTier: UserTier = tier === 'pro' ? 'PRO' : 'PLUS';
-        tierStore.startTrial(userTier, 7);
+        tierStore.markTrialStarted(7);
 
         log.info('SubscriptionContext', 'Trial started', { tier });
         return { success: true, customerInfo: updatedInfo };
