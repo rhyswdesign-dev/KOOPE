@@ -25,14 +25,8 @@ interface XPBalanceModalProps {
 }
 
 export default function XPBalanceModal({ visible, onClose }: XPBalanceModalProps) {
-  const {
-    balance,
-    getRecentTransactions,
-    getTotalEarned,
-    getTotalSpent,
-    streaks,
-    unlockedCocktails,
-  } = useXPSystem();
+  const { balance, getRecentTransactions, getTotalEarned, getTotalSpent, unlockedCocktails } =
+    useXPSystem();
 
   const [activeTab, setActiveTab] = useState<'overview' | 'history' | 'earn'>('overview');
 
@@ -42,16 +36,66 @@ export default function XPBalanceModal({ visible, onClose }: XPBalanceModalProps
 
   // Ways to earn XP
   const earningMethods = [
-    { icon: 'calendar-outline', label: 'Daily Login', amount: XP_EARNING_RATES.dailyLogin, frequency: 'Once per day' },
-    { icon: 'school-outline', label: 'Complete a Lesson', amount: XP_EARNING_RATES.lessonComplete, frequency: 'Per lesson' },
-    { icon: 'beer-outline', label: 'Make a Cocktail', amount: XP_EARNING_RATES.makeCocktail, frequency: 'Once per day per recipe' },
-    { icon: 'heart-outline', label: 'Save a Recipe', amount: XP_EARNING_RATES.saveRecipe, frequency: 'Per save' },
-    { icon: 'cart-outline', label: 'Add to Shopping Cart', amount: XP_EARNING_RATES.addToCart, frequency: 'Per item' },
-    { icon: 'share-outline', label: 'Share a Cocktail', amount: XP_EARNING_RATES.shareCocktail, frequency: 'Per share' },
-    { icon: 'gift-outline', label: 'Open Vault Daily Drop', amount: XP_EARNING_RATES.vaultDailyDrop, frequency: 'Once per day' },
-    { icon: 'star-outline', label: 'Earn Seasonal Item', amount: XP_EARNING_RATES.vaultSeasonalItem, frequency: 'Per item' },
-    { icon: 'person-outline', label: 'Complete Profile', amount: XP_EARNING_RATES.tasteProfileCompleted, frequency: 'One-time' },
-    { icon: 'people-outline', label: 'Invite a Friend', amount: XP_EARNING_RATES.inviteFriend, frequency: 'Per friend signup' },
+    {
+      icon: 'calendar-outline',
+      label: 'Daily Login',
+      amount: XP_EARNING_RATES.dailyLogin,
+      frequency: 'Once per day',
+    },
+    {
+      icon: 'school-outline',
+      label: 'Complete a Lesson',
+      amount: XP_EARNING_RATES.lessonComplete,
+      frequency: 'Per lesson',
+    },
+    {
+      icon: 'beer-outline',
+      label: 'Make a Cocktail',
+      amount: XP_EARNING_RATES.makeCocktail,
+      frequency: 'Once per day per recipe',
+    },
+    {
+      icon: 'heart-outline',
+      label: 'Save a Recipe',
+      amount: XP_EARNING_RATES.saveRecipe,
+      frequency: 'Per save',
+    },
+    {
+      icon: 'cart-outline',
+      label: 'Add to Shopping Cart',
+      amount: XP_EARNING_RATES.addToCart,
+      frequency: 'Per item',
+    },
+    {
+      icon: 'share-outline',
+      label: 'Share a Cocktail',
+      amount: XP_EARNING_RATES.shareCocktail,
+      frequency: 'Per share',
+    },
+    {
+      icon: 'gift-outline',
+      label: 'Open Vault Daily Drop',
+      amount: XP_EARNING_RATES.vaultDailyDrop,
+      frequency: 'Once per day',
+    },
+    {
+      icon: 'star-outline',
+      label: 'Earn Seasonal Item',
+      amount: XP_EARNING_RATES.vaultSeasonalItem,
+      frequency: 'Per item',
+    },
+    {
+      icon: 'person-outline',
+      label: 'Complete Profile',
+      amount: XP_EARNING_RATES.tasteProfileCompleted,
+      frequency: 'One-time',
+    },
+    {
+      icon: 'people-outline',
+      label: 'Invite a Friend',
+      amount: XP_EARNING_RATES.inviteFriend,
+      frequency: 'Per friend signup',
+    },
   ];
 
   const formatDate = (isoString: string) => {
@@ -113,24 +157,6 @@ export default function XPBalanceModal({ visible, onClose }: XPBalanceModalProps
                 <Text style={styles.statLabel}>Unlocked</Text>
               </View>
             </View>
-
-            {/* Streaks */}
-            {(streaks.dailyLogin > 1 || streaks.unlockStreak > 0) && (
-              <View style={styles.streaksContainer}>
-                {streaks.dailyLogin > 1 && (
-                  <View style={styles.streakBadge}>
-                    <Ionicons name="flame" size={16} color={colors.accent} />
-                    <Text style={styles.streakText}>{streaks.dailyLogin} day streak</Text>
-                  </View>
-                )}
-                {streaks.unlockStreak > 0 && (
-                  <View style={styles.streakBadge}>
-                    <Ionicons name="trophy" size={16} color={colors.gold} />
-                    <Text style={styles.streakText}>{streaks.unlockStreak} unlocks this week</Text>
-                  </View>
-                )}
-              </View>
-            )}
           </View>
 
           {/* Tabs */}
@@ -152,12 +178,16 @@ export default function XPBalanceModal({ visible, onClose }: XPBalanceModalProps
             {activeTab === 'overview' && (
               <View>
                 <Text style={styles.sectionTitle}>Recent Activity</Text>
-                {recentTransactions.slice(0, 5).map(transaction => (
+                {recentTransactions.slice(0, 5).map((transaction) => (
                   <View key={transaction.id} style={styles.transactionItem}>
-                    <View style={[
-                      styles.transactionIcon,
-                      transaction.type === 'earn' ? styles.transactionIconEarn : styles.transactionIconSpend
-                    ]}>
+                    <View
+                      style={[
+                        styles.transactionIcon,
+                        transaction.type === 'earn'
+                          ? styles.transactionIconEarn
+                          : styles.transactionIconSpend,
+                      ]}
+                    >
                       <Ionicons
                         name={transaction.type === 'earn' ? 'arrow-down' : 'arrow-up'}
                         size={16}
@@ -166,13 +196,20 @@ export default function XPBalanceModal({ visible, onClose }: XPBalanceModalProps
                     </View>
                     <View style={styles.transactionContent}>
                       <Text style={styles.transactionDescription}>{transaction.description}</Text>
-                      <Text style={styles.transactionTime}>{formatDate(transaction.timestamp)}</Text>
+                      <Text style={styles.transactionTime}>
+                        {formatDate(transaction.timestamp)}
+                      </Text>
                     </View>
-                    <Text style={[
-                      styles.transactionAmount,
-                      transaction.type === 'earn' ? styles.transactionAmountEarn : styles.transactionAmountSpend
-                    ]}>
-                      {transaction.type === 'earn' ? '+' : '-'}{transaction.amount}
+                    <Text
+                      style={[
+                        styles.transactionAmount,
+                        transaction.type === 'earn'
+                          ? styles.transactionAmountEarn
+                          : styles.transactionAmountSpend,
+                      ]}
+                    >
+                      {transaction.type === 'earn' ? '+' : '-'}
+                      {transaction.amount}
                     </Text>
                   </View>
                 ))}
@@ -180,7 +217,9 @@ export default function XPBalanceModal({ visible, onClose }: XPBalanceModalProps
                   <View style={styles.emptyState}>
                     <Ionicons name="hourglass-outline" size={48} color={colors.textMuted} />
                     <Text style={styles.emptyStateText}>No transactions yet</Text>
-                    <Text style={styles.emptyStateSubtext}>Start earning XP to see your activity here</Text>
+                    <Text style={styles.emptyStateSubtext}>
+                      Start earning XP to see your activity here
+                    </Text>
                   </View>
                 )}
               </View>
@@ -189,12 +228,16 @@ export default function XPBalanceModal({ visible, onClose }: XPBalanceModalProps
             {/* History Tab */}
             {activeTab === 'history' && (
               <View>
-                {recentTransactions.map(transaction => (
+                {recentTransactions.map((transaction) => (
                   <View key={transaction.id} style={styles.transactionItem}>
-                    <View style={[
-                      styles.transactionIcon,
-                      transaction.type === 'earn' ? styles.transactionIconEarn : styles.transactionIconSpend
-                    ]}>
+                    <View
+                      style={[
+                        styles.transactionIcon,
+                        transaction.type === 'earn'
+                          ? styles.transactionIconEarn
+                          : styles.transactionIconSpend,
+                      ]}
+                    >
                       <Ionicons
                         name={transaction.type === 'earn' ? 'arrow-down' : 'arrow-up'}
                         size={16}
@@ -203,13 +246,20 @@ export default function XPBalanceModal({ visible, onClose }: XPBalanceModalProps
                     </View>
                     <View style={styles.transactionContent}>
                       <Text style={styles.transactionDescription}>{transaction.description}</Text>
-                      <Text style={styles.transactionTime}>{formatDate(transaction.timestamp)}</Text>
+                      <Text style={styles.transactionTime}>
+                        {formatDate(transaction.timestamp)}
+                      </Text>
                     </View>
-                    <Text style={[
-                      styles.transactionAmount,
-                      transaction.type === 'earn' ? styles.transactionAmountEarn : styles.transactionAmountSpend
-                    ]}>
-                      {transaction.type === 'earn' ? '+' : '-'}{transaction.amount}
+                    <Text
+                      style={[
+                        styles.transactionAmount,
+                        transaction.type === 'earn'
+                          ? styles.transactionAmountEarn
+                          : styles.transactionAmountSpend,
+                      ]}
+                    >
+                      {transaction.type === 'earn' ? '+' : '-'}
+                      {transaction.amount}
                     </Text>
                   </View>
                 ))}
@@ -338,24 +388,6 @@ const styles = StyleSheet.create({
     width: 1,
     backgroundColor: colors.line,
     marginHorizontal: spacing(1),
-  },
-  streaksContainer: {
-    flexDirection: 'row',
-    gap: spacing(1.5),
-  },
-  streakBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.card,
-    paddingHorizontal: spacing(1.5),
-    paddingVertical: spacing(1),
-    borderRadius: radii.full,
-    gap: spacing(0.75),
-  },
-  streakText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.text,
   },
   tabs: {
     flexDirection: 'row',

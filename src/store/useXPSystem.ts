@@ -25,18 +25,17 @@ export type XPSource =
   | 'cocktail-unlock'
   | 'recipe-made'
   | 'recipe-rating'
-  | 'streak-bonus'
   // Scan & inventory (matches monetization spec)
-  | 'bottle-scanned-first'   // First time scanning a specific bottle — 50 XP
-  | 'bottle-scanned-repeat'  // Repeat scan of same bottle — 5 XP, max 3×/bottle
-  | 'bottle-submitted'       // User adds a NEW bottle to the global DB — 150 XP
-  | 'scan-corrected'         // User corrects a wrong scan result — 75 XP
+  | 'bottle-scanned-first' // First time scanning a specific bottle — 50 XP
+  | 'bottle-scanned-repeat' // Repeat scan of same bottle — 5 XP, max 3×/bottle
+  | 'bottle-submitted' // User adds a NEW bottle to the global DB — 150 XP
+  | 'scan-corrected' // User corrects a wrong scan result — 75 XP
   // Discovery
-  | 'recipe-viewed'          // Browsing recipes — 10 XP, capped at 5 views/day
+  | 'recipe-viewed' // Browsing recipes — 10 XP, capped at 5 views/day
   | 'taste-profile-completed' // One-time: filling out taste preferences — 100 XP
   // Challenges & logging
-  | 'challenge-completed'    // Completing a challenge — 200–500 XP (set per challenge)
-  | 'cocktail-logged-quick'  // "I made it" quick log — 50 XP
+  | 'challenge-completed' // Completing a challenge — 200–500 XP (set per challenge)
+  | 'cocktail-logged-quick' // "I made it" quick log — 50 XP
   | 'cocktail-logged-detailed' // Log with rating/notes — 75 XP
   | 'other';
 
@@ -48,13 +47,6 @@ export interface XPTransaction {
   description: string;
   cocktailId?: string;
   timestamp: string;
-}
-
-export interface XPStreaks {
-  dailyLogin: number;
-  lastLoginDate: string | null;
-  unlockStreak: number;
-  lastUnlockDate: string | null;
 }
 
 export interface CocktailUnlockCost {
@@ -73,6 +65,14 @@ export const DEFAULT_COCKTAIL_COSTS: { [tier: string]: number } = {
 // ProfileScreen's "Today: X / 300 XP" progress bar, was removed too). XP ->
 // Level -> Unlocks is the only progression math left; a cap punished the
 // exact "do things" behavior the spine is supposed to reward.
+//
+// Same pass: dailyLogin/unlockStreak day-counters and their escalating
+// bonuses (3/7/30-day, 3-unlocks-in-a-week) are gone too, per
+// KOOPE-MASTER-PLAN.md's "Kill: ...daily streaks (daily mechanics on an
+// alcohol app are an ethical and App Store error — weekly rituals only)."
+// `checkDailyLogin` still grants a flat one-time-per-day bonus (below) —
+// that's not a streak, there's no counter, no pressure to not break a
+// chain, and no escalating reward for consecutive days.
 
 // XP earning rates — aligned with monetization spec
 export const XP_EARNING_RATES = {
@@ -87,23 +87,22 @@ export const XP_EARNING_RATES = {
   vaultSeasonalItem: 30,
   inviteFriend: 100,
   recipeRating: 5,
-  streakBonus: 25,
 
   // Scanning & inventory (from monetization spec)
-  bottleScannedFirst: 50,     // First time scanning any bottle
-  bottleScannedRepeat: 5,     // Diminishing returns — max 3× per bottle
-  bottleSubmitted: 150,       // Adding a new bottle to the shared database
-  scanCorrected: 75,          // Correcting a wrong scan result
+  bottleScannedFirst: 50, // First time scanning any bottle
+  bottleScannedRepeat: 5, // Diminishing returns — max 3× per bottle
+  bottleSubmitted: 150, // Adding a new bottle to the shared database
+  scanCorrected: 75, // Correcting a wrong scan result
 
   // Discovery
-  recipeViewed: 10,           // Browsing recipes — capped at 5 views/day (50 XP/day max)
+  recipeViewed: 10, // Browsing recipes — capped at 5 views/day (50 XP/day max)
   tasteProfileCompleted: 100, // One-time: filling out taste preferences
 
   // Challenges
-  challengeMin: 200,          // Minimum per challenge (set individually up to 500)
+  challengeMin: 200, // Minimum per challenge (set individually up to 500)
 
   // Cocktail logging
-  cocktailLoggedQuick: 50,    // "I made it" quick log
+  cocktailLoggedQuick: 50, // "I made it" quick log
   cocktailLoggedDetailed: 75, // With rating/notes
 };
 
@@ -121,7 +120,13 @@ interface XPSystemState {
   unlockedCocktails: string[];
   unlockedVaultItems: string[];
   transactions: XPTransaction[];
-  streaks: XPStreaks;
+  // Phase 0.6 (gamification spine): daily/unlock streak counters and their
+  // escalating bonuses are gone — per KOOPE-MASTER-PLAN.md, "daily mechanics
+  // on an alcohol app are an ethical and App Store error, weekly rituals
+  // only." lastLoginDate survives only to dedupe the flat daily-login XP
+  // grant to once per calendar day (no counting, no streak, no bonus for
+  // consecutive days).
+  lastLoginDate: string | null;
   cocktailCosts: CocktailUnlockCost;
 
   // Scan tracking — maps bottleId → number of times scanned (for repeat XP logic)
@@ -185,12 +190,7 @@ export const useXPSystem = create<XPSystemState>()(
       unlockedCocktails: [],
       unlockedVaultItems: [],
       transactions: [],
-      streaks: {
-        dailyLogin: 0,
-        lastLoginDate: null,
-        unlockStreak: 0,
-        lastUnlockDate: null,
-      },
+      lastLoginDate: null,
       cocktailCosts: {},
       scannedBottles: {},
       recipesViewedToday: 0,
@@ -277,33 +277,6 @@ export const useXPSystem = create<XPSystemState>()(
           set({
             unlockedCocktails: [...state.unlockedCocktails, cocktailId],
           });
-
-          // Update unlock streak
-          const now = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-          const lastUnlock = state.streaks.lastUnlockDate?.split('T')[0];
-
-          let newStreak = 1;
-          if (lastUnlock) {
-            const daysDiff = Math.floor(
-              (new Date(now).getTime() - new Date(lastUnlock).getTime()) / (1000 * 60 * 60 * 24)
-            );
-            if (daysDiff <= 7) {
-              newStreak = state.streaks.unlockStreak + 1;
-            }
-          }
-
-          set({
-            streaks: {
-              ...state.streaks,
-              unlockStreak: newStreak,
-              lastUnlockDate: new Date().toISOString(),
-            },
-          });
-
-          // Check for streak bonus (unlock 3 in a week)
-          if (newStreak === 3) {
-            get().earnXP(50, 'other', 'Streak Bonus: Unlocked 3 cocktails in a week!');
-          }
         }
 
         return success;
@@ -356,44 +329,17 @@ export const useXPSystem = create<XPSystemState>()(
         return state.unlockedVaultItems.includes(itemId);
       },
 
-      // Check daily login
+      // Flat once-per-calendar-day login bonus. No counting, no streak, no
+      // escalating reward for consecutive days — see the `lastLoginDate`
+      // comment above.
       checkDailyLogin: () => {
         const state = get();
         const now = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-        const lastLogin = state.streaks.lastLoginDate?.split('T')[0];
+        const lastLogin = state.lastLoginDate?.split('T')[0];
 
         if (lastLogin !== now) {
-          // New day - award login XP
           get().earnXP(XP_EARNING_RATES.dailyLogin, 'daily-login', 'Daily login bonus');
-
-          // Update streak
-          let newStreak = 1;
-          if (lastLogin) {
-            const yesterday = new Date();
-            yesterday.setDate(yesterday.getDate() - 1);
-            const yesterdayStr = yesterday.toISOString().split('T')[0];
-
-            if (lastLogin === yesterdayStr) {
-              newStreak = state.streaks.dailyLogin + 1;
-            }
-          }
-
-          set({
-            streaks: {
-              ...state.streaks,
-              dailyLogin: newStreak,
-              lastLoginDate: new Date().toISOString(),
-            },
-          });
-
-          // Award streak bonuses
-          if (newStreak === 3) {
-            get().earnXP(XP_EARNING_RATES.streakBonus, 'streak-bonus', '3-day login streak!');
-          } else if (newStreak === 7) {
-            get().earnXP(XP_EARNING_RATES.streakBonus * 2, 'streak-bonus', '7-day login streak!');
-          } else if (newStreak === 30) {
-            get().earnXP(XP_EARNING_RATES.streakBonus * 4, 'streak-bonus', '30-day login streak!');
-          }
+          set({ lastLoginDate: new Date().toISOString() });
         }
       },
 
@@ -422,7 +368,7 @@ export const useXPSystem = create<XPSystemState>()(
       getTotalEarned: () => {
         const state = get();
         return state.transactions
-          .filter(t => t.type === 'earn')
+          .filter((t) => t.type === 'earn')
           .reduce((sum, t) => sum + t.amount, 0);
       },
 
@@ -430,7 +376,7 @@ export const useXPSystem = create<XPSystemState>()(
       getTotalSpent: () => {
         const state = get();
         return state.transactions
-          .filter(t => t.type === 'spend')
+          .filter((t) => t.type === 'spend')
           .reduce((sum, t) => sum + t.amount, 0);
       },
 
@@ -438,7 +384,11 @@ export const useXPSystem = create<XPSystemState>()(
       markProfileComplete: () => {
         const state = get();
         if (!state.hasCompletedProfile) {
-          get().earnXP(XP_EARNING_RATES.tasteProfileCompleted, 'taste-profile-completed', 'Taste profile completed!');
+          get().earnXP(
+            XP_EARNING_RATES.tasteProfileCompleted,
+            'taste-profile-completed',
+            'Taste profile completed!',
+          );
           set({ hasCompletedProfile: true });
         }
       },
@@ -466,13 +416,21 @@ export const useXPSystem = create<XPSystemState>()(
         }
 
         set({ scannedBottles: { ...state.scannedBottles, [bottleId]: scanCount + 1 } });
-        get().earnXP(xpEarned, scanCount === 0 ? 'bottle-scanned-first' : 'bottle-scanned-repeat', reason);
+        get().earnXP(
+          xpEarned,
+          scanCount === 0 ? 'bottle-scanned-first' : 'bottle-scanned-repeat',
+          reason,
+        );
         return { xpEarned, reason };
       },
 
       // User submits a bottle not yet in the shared database
       earnBottleSubmittedXP: () => {
-        get().earnXP(XP_EARNING_RATES.bottleSubmitted, 'bottle-submitted', 'New bottle added to database');
+        get().earnXP(
+          XP_EARNING_RATES.bottleSubmitted,
+          'bottle-submitted',
+          'New bottle added to database',
+        );
       },
 
       // User corrects a wrong scan result
@@ -526,12 +484,7 @@ export const useXPSystem = create<XPSystemState>()(
           unlockedCocktails: [],
           unlockedVaultItems: [],
           transactions: [],
-          streaks: {
-            dailyLogin: 0,
-            lastLoginDate: null,
-            unlockStreak: 0,
-            lastUnlockDate: null,
-          },
+          lastLoginDate: null,
           cocktailCosts: {},
           scannedBottles: {},
           recipesViewedToday: 0,
@@ -542,6 +495,6 @@ export const useXPSystem = create<XPSystemState>()(
     {
       name: 'xp-system-storage',
       storage: createJSONStorage(() => AsyncStorage),
-    }
-  )
+    },
+  ),
 );
