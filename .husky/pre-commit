@@ -1,0 +1,10 @@
+# Phase 0.9 guardrail — lint + typecheck before every commit.
+#
+# lint-staged only touches files actually being committed (see the
+# "lint-staged" key in package.json) so it never blocks on the ~300
+# pre-existing warnings elsewhere in the repo — only on new/edited code.
+#
+# Typecheck runs project-wide (not staged-file-scoped): TypeScript errors
+# are frequently cross-file, so a per-file check would miss real breakage.
+npx lint-staged
+npm run typecheck
