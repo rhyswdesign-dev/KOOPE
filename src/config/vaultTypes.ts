@@ -12,44 +12,34 @@
 // USER TIER
 // ============================================================================
 
-export type UserTier = "FREE" | "PLUS" | "PRO";
+export type UserTier = 'FREE' | 'PLUS' | 'PRO';
 
 // ============================================================================
 // VAULT CATEGORY
 // ============================================================================
 
 export type VaultCategory =
-  | "COCKTAIL_VARIATION"
-  | "TECHNIQUE_PLAYBOOK"
-  | "BAR_FEATURE"
-  | "SEASONAL_DROP"
-  | "DRINKING_GAME";
-
-// ============================================================================
-// UNLOCK METHOD
-// ============================================================================
-
-export type UnlockMethod =
-  | "XP_ONLY"           // Can only be unlocked with XP
-  | "XP_OR_MONEY";      // Can be unlocked with XP or purchased
+  'COCKTAIL_VARIATION' | 'TECHNIQUE_PLAYBOOK' | 'BAR_FEATURE' | 'SEASONAL_DROP' | 'DRINKING_GAME';
 
 // ============================================================================
 // VAULT ITEM BASE INTERFACE
 // ============================================================================
 
 export interface VaultItemBase {
-  id: string;                    // unique slug
+  id: string; // unique slug
   title: string;
   description: string;
   category: VaultCategory;
-  xpCost?: number;               // if unlockable via XP
-  moneyPriceCents?: number;      // if unlockable via money (e.g., 399 = $3.99)
-  unlockMethod: UnlockMethod;
-  requiresTier?: UserTier;       // minimum tier required ("PLUS" or "PRO")
-  isLimitedTime?: boolean;       // true if seasonal/time-limited
-  availableFrom?: string;        // ISO date string
-  availableUntil?: string;       // ISO date string
-  imageUrl?: string;             // optional image for the card
+  // Phase 0.6 (gamification spine): vault items are level-gated, not a
+  // spend-XP purchase — this auto-unlocks once the user's real XP balance
+  // (useXPSystem.balance) crosses the level threshold. No cash purchase
+  // path exists (Stripe/vault-cash removed in Phase 0.2).
+  requiredLevel: number;
+  requiresTier?: UserTier; // minimum tier required ("PLUS" or "PRO")
+  isLimitedTime?: boolean; // true if seasonal/time-limited
+  availableFrom?: string; // ISO date string
+  availableUntil?: string; // ISO date string
+  imageUrl?: string; // optional image for the card
 }
 
 // ============================================================================
@@ -57,26 +47,22 @@ export interface VaultItemBase {
 // ============================================================================
 
 export interface CocktailVariationItem extends VaultItemBase {
-  category: "COCKTAIL_VARIATION";
-  baseClassicId: string;         // references Classic Pool ID (e.g., "old_fashioned")
-  difficulty: "simple" | "seasonal" | "pro";
-  tags: string[];                // e.g., ["smoked", "spicy", "clarified"]
+  category: 'COCKTAIL_VARIATION';
+  baseClassicId: string; // references Classic Pool ID (e.g., "old_fashioned")
+  difficulty: 'simple' | 'seasonal' | 'pro';
+  tags: string[]; // e.g., ["smoked", "spicy", "clarified"]
 }
 
 // ============================================================================
 // TECHNIQUE PLAYBOOK ITEM
 // ============================================================================
 
-export type TechniquePlaybookType =
-  | "ICE_STRATEGY"
-  | "ACID_CONTROL"
-  | "BATCH_MATH"
-  | "SPEED_SYSTEM";
+export type TechniquePlaybookType = 'ICE_STRATEGY' | 'ACID_CONTROL' | 'BATCH_MATH' | 'SPEED_SYSTEM';
 
 export interface TechniquePlaybookItem extends VaultItemBase {
-  category: "TECHNIQUE_PLAYBOOK";
+  category: 'TECHNIQUE_PLAYBOOK';
   playbookType: TechniquePlaybookType;
-  keyOutcomes: string[];         // bullet points describing what you'll learn
+  keyOutcomes: string[]; // bullet points describing what you'll learn
 }
 
 // ============================================================================
@@ -84,13 +70,13 @@ export interface TechniquePlaybookItem extends VaultItemBase {
 // ============================================================================
 
 export interface BarFeatureItem extends VaultItemBase {
-  category: "BAR_FEATURE";
+  category: 'BAR_FEATURE';
   barName: string;
   city: string;
   vibeDescription: string;
   signatureCocktailName: string;
-  thumbnailKey?: string;         // Key to look up thumbnail image
-  hasProEarlyAccess?: boolean;   // PRO tier gets early access
+  thumbnailKey?: string; // Key to look up thumbnail image
+  hasProEarlyAccess?: boolean; // PRO tier gets early access
 }
 
 // ============================================================================
@@ -98,9 +84,9 @@ export interface BarFeatureItem extends VaultItemBase {
 // ============================================================================
 
 export interface SeasonalDropItem extends VaultItemBase {
-  category: "SEASONAL_DROP";
-  seasonName: string;            // e.g., "Winter Techniques"
-  includedItemIds: string[];     // references other Vault item IDs
+  category: 'SEASONAL_DROP';
+  seasonName: string; // e.g., "Winter Techniques"
+  includedItemIds: string[]; // references other Vault item IDs
 }
 
 // ============================================================================
@@ -108,9 +94,9 @@ export interface SeasonalDropItem extends VaultItemBase {
 // ============================================================================
 
 export interface DrinkingGameItem extends VaultItemBase {
-  category: "DRINKING_GAME";
+  category: 'DRINKING_GAME';
   players: string;
-  gameDifficulty: "Easy" | "Medium" | "Hard";
+  gameDifficulty: 'Easy' | 'Medium' | 'Hard';
   origin: string;
 }
 
@@ -133,7 +119,7 @@ export interface UserVaultState {
   userId: string;
   tier: UserTier;
   xp: number;
-  ownedItemIds: string[];        // IDs of items user has unlocked
+  ownedItemIds: string[]; // IDs of items user has unlocked
 }
 
 // ============================================================================
@@ -144,5 +130,5 @@ export interface VaultCategoryMeta {
   category: VaultCategory;
   displayName: string;
   description: string;
-  icon: string;                  // emoji or icon name
+  icon: string; // emoji or icon name
 }

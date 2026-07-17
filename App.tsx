@@ -15,7 +15,6 @@ import WelcomeCarouselScreen from './src/screens/WelcomeCarouselScreen';
 import AgeGateScreen from './src/screens/AgeGateScreen';
 import { useSimpleOnboarding as useOnboarding } from './src/hooks/useSimpleOnboarding';
 import { UserProvider } from './src/contexts/UserContext';
-import { VaultProvider } from './src/contexts/VaultContext';
 import { AuthProvider } from './src/contexts/AuthContext';
 import { ChallengeProvider } from './src/contexts/ChallengeContext';
 import { SubscriptionProvider } from './src/contexts/SubscriptionContext';
@@ -391,40 +390,38 @@ function AppInner() {
           <ChallengeProvider>
             <SubscriptionProvider>
               <UserProvider>
-                <VaultProvider>
-                  <>
-                    <NavigationContainer
-                      ref={navigationRef}
-                      theme={KOOPETheme}
-                      onReady={() => {
-                        if (!navigationRef.isReady()) return;
+                <>
+                  <NavigationContainer
+                    ref={navigationRef}
+                    theme={KOOPETheme}
+                    onReady={() => {
+                      if (!navigationRef.isReady()) return;
 
-                        deepLinkCleanupRef.current?.();
-                        deepLinkCleanupRef.current = setupDeepLinking({
-                          navigate: (...args: any[]) => navigationRef.navigate(...(args as any)),
-                        });
-                      }}
-                    >
-                      <RootNavigator />
-                    </NavigationContainer>
+                      deepLinkCleanupRef.current?.();
+                      deepLinkCleanupRef.current = setupDeepLinking({
+                        navigate: (...args: any[]) => navigationRef.navigate(...(args as any)),
+                      });
+                    }}
+                  >
+                    <RootNavigator />
+                  </NavigationContainer>
 
-                    {/* Global Achievement Unlock Modal */}
-                    <AchievementUnlockModal
-                      visible={!!unlockedAchievement}
-                      achievement={unlockedAchievement}
-                      onClose={clearUnlockedAchievement}
-                    />
+                  {/* Global Achievement Unlock Modal */}
+                  <AchievementUnlockModal
+                    visible={!!unlockedAchievement}
+                    achievement={unlockedAchievement}
+                    onClose={clearUnlockedAchievement}
+                  />
 
-                    {/* Offline Indicator */}
-                    <OfflineBanner />
+                  {/* Offline Indicator */}
+                  <OfflineBanner />
 
-                    {/* Global Keyboard Dismiss Bar */}
-                    <KeyboardDismissBar />
+                  {/* Global Keyboard Dismiss Bar */}
+                  <KeyboardDismissBar />
 
-                    {/* Global Branded Alert Renderer */}
-                    <AppAlertRenderer />
-                  </>
-                </VaultProvider>
+                  {/* Global Branded Alert Renderer */}
+                  <AppAlertRenderer />
+                </>
               </UserProvider>
             </SubscriptionProvider>
           </ChallengeProvider>

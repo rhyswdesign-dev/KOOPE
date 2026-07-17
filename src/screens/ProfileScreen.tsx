@@ -19,23 +19,23 @@ import { colors, spacing, radii, serif } from '../theme/tokens';
 import { Heading } from '../components/ui';
 import MainPageHeader from '../components/ui/MainPageHeader';
 import { useAuth } from '../contexts/AuthContext';
-import { useNavigation } from '@react-navigation/native';
-import { useFocusEffect } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { useSavedItems } from '../hooks/useSavedItems';
 import { useUserRecipes } from '../store/useUserRecipes';
 import RecipePreferencesModal from '../components/RecipePreferencesModal';
-import { achievementService, Achievement } from '../services/achievementService';
+import {
+  achievementService,
+  Achievement,
+  levelForXP,
+  xpForLevel,
+} from '../services/achievementService';
 import { streakService, StreakData } from '../services/streakService';
 import { useXPSystem } from '../store/useXPSystem';
 import { useUser } from '../store/useUser';
 import { useUserTier } from '../store/useUserTier';
-import {
-  cocktailVariations,
-  techniquePlaybooks,
-  drinkingGames,
-} from '../config/vaultContent';
+import { cocktailVariations, techniquePlaybooks, drinkingGames } from '../config/vaultContent';
 import { getProIdentityProgress, PRO_XP_MULTIPLIER } from '../config/proIdentity';
 import { WEEKLY_FOR_YOU_DROP_RECIPES } from '../data/weeklyForYouDropRecipes';
 import { notificationService } from '../services/notificationService';
@@ -59,7 +59,9 @@ export default function ProfileScreen() {
   const [achievements, setAchievements] = useState<Achievement[]>([]);
   const [streakData, setStreakData] = useState<StreakData>(streakService.getStreakData());
   const [certUnlockModalVisible, setCertUnlockModalVisible] = useState(false);
-  const [newlyEarnedCert, setNewlyEarnedCert] = useState<{ title: string; body: string } | null>(null);
+  const [newlyEarnedCert, setNewlyEarnedCert] = useState<{ title: string; body: string } | null>(
+    null,
+  );
   const [scanHistory, setScanHistory] = useState<ScanRecord[]>([]);
   const certModalScale = useRef(new Animated.Value(0.7)).current;
   const certModalOpacity = useRef(new Animated.Value(0)).current;
@@ -67,22 +69,28 @@ export default function ProfileScreen() {
   const currentLevel = Math.floor(totalXP / 100) + 1;
   const xpInLevel = totalXP % 100;
   const xpForNextLevel = 100;
-  const unlockedAchievementCount = achievements.filter(a => a.unlocked).length;
+  const unlockedAchievementCount = achievements.filter((a) => a.unlocked).length;
   const savedCocktailCount = savedItems.savedCocktails?.length || 0;
   const savedDrinkCount = savedItems.savedDrinks?.length || 0;
   const savedRecipeCardCount = savedItems.savedRecipeCards?.length || 0;
   const savedTotalCount = savedCocktailCount + savedDrinkCount + savedRecipeCardCount;
-  const createdRecipeCount = recipes.filter(r => r.type === 'created' || r.type === 'ai_generated').length;
-  const importedRecipeCount = recipes.filter(r => (r.type as string) === 'imported').length;
+  const createdRecipeCount = recipes.filter(
+    (r) => r.type === 'created' || r.type === 'ai_generated',
+  ).length;
+  const importedRecipeCount = recipes.filter((r) => (r.type as string) === 'imported').length;
   const claimedDropCount = useMemo(() => {
     const weeklyDropIds = new Set<string>(WEEKLY_FOR_YOU_DROP_RECIPES.map((recipe) => recipe.id));
     return (savedItems.savedCocktails || []).filter((item) => weeklyDropIds.has(item.id)).length;
   }, [savedItems.savedCocktails]);
-  const proIdentity = useMemo(() => getProIdentityProgress({
-    lessonsCompleted: completedLessons?.length || 0,
-    achievementsUnlocked: unlockedAchievementCount,
-    claimedDrops: claimedDropCount,
-  }), [completedLessons?.length, unlockedAchievementCount, claimedDropCount]);
+  const proIdentity = useMemo(
+    () =>
+      getProIdentityProgress({
+        lessonsCompleted: completedLessons?.length || 0,
+        achievementsUnlocked: unlockedAchievementCount,
+        claimedDrops: claimedDropCount,
+      }),
+    [completedLessons?.length, unlockedAchievementCount, claimedDropCount],
+  );
 
   // Detect newly earned certifications and show the unlock modal
   useEffect(() => {
@@ -96,7 +104,12 @@ export default function ProfileScreen() {
       setNewlyEarnedCert({ title: proIdentity.current!.title, body: proIdentity.current!.body });
       setCertUnlockModalVisible(true);
       Animated.parallel([
-        Animated.spring(certModalScale, { toValue: 1, useNativeDriver: true, tension: 65, friction: 8 }),
+        Animated.spring(certModalScale, {
+          toValue: 1,
+          useNativeDriver: true,
+          tension: 65,
+          friction: 8,
+        }),
         Animated.timing(certModalOpacity, { toValue: 1, duration: 250, useNativeDriver: true }),
       ]).start();
 
@@ -122,65 +135,72 @@ export default function ProfileScreen() {
     });
   }, [newlyEarnedCert]);
 
-  const handleAddFromHistory = useCallback((record: ScanRecord) => {
-    if (!user) {
-      Alert.alert('Sign In Required', 'Please sign in to add bottles to your inventory.');
-      return;
-    }
-    Alert.alert(
-      `Add to Bar?`,
-      `Add ${record.bottleName}${record.bottleBrand ? ` by ${record.bottleBrand}` : ''} to your inventory.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Add',
-          onPress: async () => {
-            const result = await InventoryService.addToInventory({
-              userId: user.id,
-              itemType: 'spirit',
-              itemName: record.bottleName,
-              category: 'spirit',
-              subcategory: record.bottleType,
-              brand: record.bottleBrand || undefined,
-              imageUrl: record.imageUri,
-            });
-            if (result.duplicate) {
-              Alert.alert('Already in Bar', `${record.bottleName} is already in your inventory.`);
-            } else if (result.success) {
-              Alert.alert('Added!', `${record.bottleName} has been added to your bar.`);
-            } else {
-              Alert.alert('Error', 'Unable to add to inventory right now.');
-            }
+  const handleAddFromHistory = useCallback(
+    (record: ScanRecord) => {
+      if (!user) {
+        Alert.alert('Sign In Required', 'Please sign in to add bottles to your inventory.');
+        return;
+      }
+      Alert.alert(
+        `Add to Bar?`,
+        `Add ${record.bottleName}${record.bottleBrand ? ` by ${record.bottleBrand}` : ''} to your inventory.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Add',
+            onPress: async () => {
+              const result = await InventoryService.addToInventory({
+                userId: user.id,
+                itemType: 'spirit',
+                itemName: record.bottleName,
+                category: 'spirit',
+                subcategory: record.bottleType,
+                brand: record.bottleBrand || undefined,
+                imageUrl: record.imageUri,
+              });
+              if (result.duplicate) {
+                Alert.alert('Already in Bar', `${record.bottleName} is already in your inventory.`);
+              } else if (result.success) {
+                Alert.alert('Added!', `${record.bottleName} has been added to your bar.`);
+              } else {
+                Alert.alert('Error', 'Unable to add to inventory right now.');
+              }
+            },
           },
-        },
-      ]
-    );
-  }, [user]);
+        ],
+      );
+    },
+    [user],
+  );
 
-  // Compute what vault content the user can currently afford with their XP.
+  // Compute what vault content the user has reached with their XP level.
   // Only used in the free-user affordability card; shows XP as currency, not just a score.
+  // Phase 0.6: vault items are level-gated, not spend-XP-to-unlock.
   const vaultAffordability = useMemo(() => {
+    const currentLevel = levelForXP(totalXP);
     const safeVariations = cocktailVariations || [];
     const safePlaybooks = techniquePlaybooks || [];
     const safeGames = drinkingGames || [];
-    const freeVariations = safeVariations.filter(v => !v.requiredTier);
-    const freePlaybooks = safePlaybooks.filter(p => !p.requiredTier);
-    const freeGames = safeGames.filter(g => !g.requiredTier);
+    const freeVariations = safeVariations.filter((v) => !v.requiredTier);
+    const freePlaybooks = safePlaybooks.filter((p) => !p.requiredTier);
+    const freeGames = safeGames.filter((g) => !g.requiredTier);
 
-    const affordableVariations = freeVariations.filter(v => v.xpCost <= totalXP).length;
-    const affordablePlaybooks = freePlaybooks.filter(p => p.xpCost <= totalXP).length;
-    const affordableGames = freeGames.filter(g => g.xpCost <= totalXP).length;
+    const affordableVariations = freeVariations.filter(
+      (v) => v.requiredLevel <= currentLevel,
+    ).length;
+    const affordablePlaybooks = freePlaybooks.filter((p) => p.requiredLevel <= currentLevel).length;
+    const affordableGames = freeGames.filter((g) => g.requiredLevel <= currentLevel).length;
 
     const plusGatedCount = [
-      ...safeVariations.filter(v => v.requiredTier === 'PLUS'),
-      ...safePlaybooks.filter(p => p.requiredTier === 'PLUS'),
-      ...safeGames.filter(g => g.requiredTier === 'PLUS'),
+      ...safeVariations.filter((v) => v.requiredTier === 'PLUS'),
+      ...safePlaybooks.filter((p) => p.requiredTier === 'PLUS'),
+      ...safeGames.filter((g) => g.requiredTier === 'PLUS'),
     ].length;
 
-    const cheapestFreeItem = Math.min(
-      ...freeVariations.map(v => v.xpCost),
-      ...freePlaybooks.map(p => p.xpCost),
-      ...freeGames.map(g => g.xpCost),
+    const cheapestFreeLevel = Math.min(
+      ...freeVariations.map((v) => v.requiredLevel),
+      ...freePlaybooks.map((p) => p.requiredLevel),
+      ...freeGames.map((g) => g.requiredLevel),
     );
 
     return {
@@ -189,7 +209,10 @@ export default function ProfileScreen() {
       affordableGames,
       plusGatedCount,
       totalAffordable: affordableVariations + affordablePlaybooks + affordableGames,
-      cheapestFreeItem: isFinite(cheapestFreeItem) ? cheapestFreeItem : 200,
+      xpToFirstItem: Math.max(
+        0,
+        xpForLevel(isFinite(cheapestFreeLevel) ? cheapestFreeLevel : 2) - totalXP,
+      ),
     };
   }, [totalXP]);
 
@@ -200,18 +223,14 @@ export default function ProfileScreen() {
       hasUser: !!user,
       userId: user?.id,
       userEmail: user?.email,
-      isLoading
+      isLoading,
     });
   }, [isAuthenticated, user, isLoading]);
 
   const showAuthenticatedView = isAuthenticated;
 
   useEffect(() => {
-    const loadStats = () => {
-      setStreakData(streakService.getStreakData());
-      setAchievements(achievementService.getAchievements());
-    };
-    loadStats();
+    setStreakData(streakService.getStreakData());
 
     const unsubscribe = streakService.addStreakListener(() => {
       setStreakData(streakService.getStreakData());
@@ -222,12 +241,19 @@ export default function ProfileScreen() {
     };
   }, []);
 
+  // Milestones are a pure function of the real XP balance now (Phase 0.6) —
+  // recompute whenever it changes rather than re-fetching from a service.
+  useEffect(() => {
+    setAchievements(achievementService.getMilestones(totalXP));
+  }, [totalXP]);
+
   useFocusEffect(
     React.useCallback(() => {
       setStreakData(streakService.getStreakData());
-      setAchievements(achievementService.getAchievements());
-      ScanHistoryService.getScanHistory().then(setScanHistory).catch(() => {});
-    }, [])
+      ScanHistoryService.getScanHistory()
+        .then(setScanHistory)
+        .catch(() => {});
+    }, []),
   );
 
   const handleSignIn = () => {
@@ -253,7 +279,6 @@ export default function ProfileScreen() {
     return (
       <LinearGradient colors={['rgba(0,0,0,0)', '#1A120D']} style={styles.container}>
         <SafeAreaView style={styles.safeArea}>
-
           {/* Certification Unlock Modal */}
           <Modal
             visible={certUnlockModalVisible}
@@ -316,11 +341,18 @@ export default function ProfileScreen() {
               <View style={styles.avatarLarge}>
                 <MaterialCommunityIcons name="glass-cocktail" size={48} color={colors.accent} />
               </View>
-              <Heading level={2} style={styles.userHandle}>{user?.email?.split('@')[0] || 'Bartender'}</Heading>
-              <Text style={styles.userTitle}>Level {currentLevel} | {totalXP.toLocaleString()} XP</Text>
+              <Heading level={2} style={styles.userHandle}>
+                {user?.email?.split('@')[0] || 'Bartender'}
+              </Heading>
+              <Text style={styles.userTitle}>
+                Level {currentLevel} | {totalXP.toLocaleString()} XP
+              </Text>
               <View style={styles.streakBadge}>
                 <Ionicons name="flame" size={14} color={colors.accent} />
-                <Text style={styles.streakText}>{streakData.currentStreak} Day Streak{streakData.currentStreak > 0 ? ' — Keep it Going!' : ''}</Text>
+                <Text style={styles.streakText}>
+                  {streakData.currentStreak} Day Streak
+                  {streakData.currentStreak > 0 ? ' — Keep it Going!' : ''}
+                </Text>
               </View>
             </View>
 
@@ -328,10 +360,17 @@ export default function ProfileScreen() {
             <View style={styles.levelSection}>
               <View style={styles.levelHeader}>
                 <Text style={styles.levelText}>Level {currentLevel}</Text>
-                <Text style={styles.levelXP}>{xpInLevel} / {xpForNextLevel} XP</Text>
+                <Text style={styles.levelXP}>
+                  {xpInLevel} / {xpForNextLevel} XP
+                </Text>
               </View>
               <View style={styles.progressBarContainer}>
-                <View style={[styles.progressBarFill, { width: `${(xpInLevel / xpForNextLevel) * 100}%` }]} />
+                <View
+                  style={[
+                    styles.progressBarFill,
+                    { width: `${(xpInLevel / xpForNextLevel) * 100}%` },
+                  ]}
+                />
               </View>
             </View>
 
@@ -352,7 +391,8 @@ export default function ProfileScreen() {
                       <View style={styles.xpCurrencyRow}>
                         <Ionicons name="checkmark-circle" size={16} color={colors.accent} />
                         <Text style={styles.xpCurrencyItem}>
-                          {vaultAffordability.affordableVariations} Cocktail Variation{vaultAffordability.affordableVariations !== 1 ? 's' : ''}{' '}
+                          {vaultAffordability.affordableVariations} Cocktail Variation
+                          {vaultAffordability.affordableVariations !== 1 ? 's' : ''}{' '}
                           <Text style={styles.xpCurrencyXP}>(300–950 XP)</Text>
                         </Text>
                       </View>
@@ -361,7 +401,8 @@ export default function ProfileScreen() {
                       <View style={styles.xpCurrencyRow}>
                         <Ionicons name="checkmark-circle" size={16} color={colors.accent} />
                         <Text style={styles.xpCurrencyItem}>
-                          {vaultAffordability.affordablePlaybooks} Technique Playbook{vaultAffordability.affordablePlaybooks !== 1 ? 's' : ''}{' '}
+                          {vaultAffordability.affordablePlaybooks} Technique Playbook
+                          {vaultAffordability.affordablePlaybooks !== 1 ? 's' : ''}{' '}
                           <Text style={styles.xpCurrencyXP}>(400–550 XP)</Text>
                         </Text>
                       </View>
@@ -370,7 +411,8 @@ export default function ProfileScreen() {
                       <View style={styles.xpCurrencyRow}>
                         <Ionicons name="checkmark-circle" size={16} color={colors.accent} />
                         <Text style={styles.xpCurrencyItem}>
-                          {vaultAffordability.affordableGames} Party Game{vaultAffordability.affordableGames !== 1 ? 's' : ''}{' '}
+                          {vaultAffordability.affordableGames} Party Game
+                          {vaultAffordability.affordableGames !== 1 ? 's' : ''}{' '}
                           <Text style={styles.xpCurrencyXP}>(200–250 XP)</Text>
                         </Text>
                       </View>
@@ -388,7 +430,7 @@ export default function ProfileScreen() {
                   <View style={styles.xpCurrencyRow}>
                     <Ionicons name="time-outline" size={16} color={colors.subtext} />
                     <Text style={[styles.xpCurrencyItem, { color: colors.subtext }]}>
-                      Earn {vaultAffordability.cheapestFreeItem - totalXP} more XP to unlock your first item
+                      Earn {vaultAffordability.xpToFirstItem} more XP to unlock your first item
                     </Text>
                   </View>
                 )}
@@ -411,7 +453,9 @@ export default function ProfileScreen() {
 
             {/* Stats Overview */}
             <View style={styles.section}>
-              <Heading level={2} style={styles.sectionTitle}>Stats Overview</Heading>
+              <Heading level={2} style={styles.sectionTitle}>
+                Stats Overview
+              </Heading>
               <View style={styles.statsGrid}>
                 <View style={styles.statBox}>
                   <Text style={styles.statBoxLabel}>Bottles{'\n'}Scanned</Text>
@@ -427,7 +471,9 @@ export default function ProfileScreen() {
                 </View>
                 <View style={styles.statBox}>
                   <Text style={styles.statBoxLabel}>Achievements</Text>
-                  <Text style={styles.statValue}>{achievements.filter(a => a.unlocked).length}/{achievements.length}</Text>
+                  <Text style={styles.statValue}>
+                    {achievements.filter((a) => a.unlocked).length}/{achievements.length}
+                  </Text>
                 </View>
               </View>
             </View>
@@ -435,23 +481,45 @@ export default function ProfileScreen() {
             {/* Badges & Achievements */}
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
-                <Heading level={2} style={styles.sectionTitle}>Badges & Achievements</Heading>
+                <Heading level={2} style={styles.sectionTitle}>
+                  Badges & Achievements
+                </Heading>
                 <TouchableOpacity onPress={() => nav.navigate('Achievements')}>
                   <Text style={styles.seeAllText}>See All</Text>
                 </TouchableOpacity>
               </View>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.badgesScroll}>
-                {achievements.filter(a => a.unlocked).length > 0 ? (
-                  achievements.filter(a => a.unlocked).slice(0, 5).map(achievement => (
-                    <TouchableOpacity key={achievement.id} style={styles.badgeItem} onPress={() => nav.navigate('Achievements')}>
-                      <View style={styles.badgeIcon}>
-                        <Ionicons name={(achievement.icon || 'trophy') as any} size={32} color={colors.gold} />
-                      </View>
-                      <Text style={styles.badgeName} numberOfLines={2}>{achievement.title}</Text>
-                    </TouchableOpacity>
-                  ))
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.badgesScroll}
+              >
+                {achievements.filter((a) => a.unlocked).length > 0 ? (
+                  achievements
+                    .filter((a) => a.unlocked)
+                    .slice(0, 5)
+                    .map((achievement) => (
+                      <TouchableOpacity
+                        key={achievement.id}
+                        style={styles.badgeItem}
+                        onPress={() => nav.navigate('Achievements')}
+                      >
+                        <View style={styles.badgeIcon}>
+                          <Ionicons
+                            name={(achievement.icon || 'trophy') as any}
+                            size={32}
+                            color={colors.gold}
+                          />
+                        </View>
+                        <Text style={styles.badgeName} numberOfLines={2}>
+                          {achievement.title}
+                        </Text>
+                      </TouchableOpacity>
+                    ))
                 ) : (
-                  <TouchableOpacity style={styles.badgeItem} onPress={() => nav.navigate('Achievements')}>
+                  <TouchableOpacity
+                    style={styles.badgeItem}
+                    onPress={() => nav.navigate('Achievements')}
+                  >
                     <View style={[styles.badgeIcon, { opacity: 0.4 }]}>
                       <Ionicons name="trophy-outline" size={32} color={colors.subtext} />
                     </View>
@@ -464,7 +532,9 @@ export default function ProfileScreen() {
             {/* My Collection */}
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
-                <Heading level={2} style={styles.sectionTitle}>My Collection</Heading>
+                <Heading level={2} style={styles.sectionTitle}>
+                  My Collection
+                </Heading>
                 <TouchableOpacity onPress={() => nav.navigate('ProfileSavedItems')}>
                   <Text style={styles.seeAllText}>See All</Text>
                 </TouchableOpacity>
@@ -494,7 +564,9 @@ export default function ProfileScreen() {
                   <View style={styles.collectionDivider} />
                   <View style={styles.collectionStatItem}>
                     <Ionicons name="diamond" size={18} color={colors.accent} />
-                    <Text style={styles.collectionStatValue}>{savedItems.savedVaultItems?.length || 0}</Text>
+                    <Text style={styles.collectionStatValue}>
+                      {savedItems.savedVaultItems?.length || 0}
+                    </Text>
                     <Text style={styles.collectionStatLabel}>Vault</Text>
                   </View>
                 </View>
@@ -508,8 +580,12 @@ export default function ProfileScreen() {
             {scanHistory.length > 0 && (
               <View style={styles.section}>
                 <View style={styles.sectionHeader}>
-                  <Heading level={2} style={styles.sectionTitle}>Bottle Journal</Heading>
-                  <Text style={styles.scanHistoryCount}>{scanHistory.length} bottle{scanHistory.length !== 1 ? 's' : ''}</Text>
+                  <Heading level={2} style={styles.sectionTitle}>
+                    Bottle Journal
+                  </Heading>
+                  <Text style={styles.scanHistoryCount}>
+                    {scanHistory.length} bottle{scanHistory.length !== 1 ? 's' : ''}
+                  </Text>
                 </View>
                 {scanHistory.slice(0, 5).map((record) => (
                   <View key={record.bottleId} style={styles.scanHistoryRow}>
@@ -525,7 +601,9 @@ export default function ProfileScreen() {
                       </View>
                     )}
                     <View style={styles.scanHistoryInfo}>
-                      <Text style={styles.scanHistoryName} numberOfLines={1}>{record.bottleName}</Text>
+                      <Text style={styles.scanHistoryName} numberOfLines={1}>
+                        {record.bottleName}
+                      </Text>
                       <Text style={styles.scanHistoryMeta}>
                         {record.bottleBrand ? `${record.bottleBrand} · ` : ''}
                         {record.bottleType}
@@ -533,7 +611,10 @@ export default function ProfileScreen() {
                       </Text>
                     </View>
                     <Text style={styles.scanHistoryDate}>
-                      {new Date(record.lastScannedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                      {new Date(record.lastScannedAt).toLocaleDateString(undefined, {
+                        month: 'short',
+                        day: 'numeric',
+                      })}
                     </Text>
                     <TouchableOpacity
                       style={styles.scanHistoryAddButton}
@@ -545,21 +626,31 @@ export default function ProfileScreen() {
                   </View>
                 ))}
                 {scanHistory.length > 5 && (
-                  <Text style={styles.scanHistoryMore}>+{scanHistory.length - 5} more in history</Text>
+                  <Text style={styles.scanHistoryMore}>
+                    +{scanHistory.length - 5} more in history
+                  </Text>
                 )}
               </View>
             )}
 
             {/* Quick Summary — only shown once there's something to report */}
-            {(completedLessons.length > 0 || savedTotalCount > 0 || unlockedAchievementCount > 0) && (
+            {(completedLessons.length > 0 ||
+              savedTotalCount > 0 ||
+              unlockedAchievementCount > 0) && (
               <View style={styles.section}>
-                <Heading level={2} style={styles.sectionTitle}>Your Journey</Heading>
+                <Heading level={2} style={styles.sectionTitle}>
+                  Your Journey
+                </Heading>
                 <View style={styles.insightCard}>
                   <View style={styles.insightContent}>
                     <Heading level={3} style={styles.insightSubtitle}>
                       {completedLessons.length > 0
-                        ? completedLessons.length < 10 ? 'Great start!' : 'Making great progress!'
-                        : savedTotalCount > 0 ? 'Building your collection' : 'Getting started!'}
+                        ? completedLessons.length < 10
+                          ? 'Great start!'
+                          : 'Making great progress!'
+                        : savedTotalCount > 0
+                          ? 'Building your collection'
+                          : 'Getting started!'}
                     </Heading>
                     <Text style={styles.insightDescription}>
                       {completedLessons.length > 0
@@ -611,9 +702,7 @@ export default function ProfileScreen() {
               onPress={handleSignIn}
               disabled={loading}
             >
-              <Text style={styles.signInButtonText}>
-                {loading ? 'Signing in...' : 'Sign In'}
-              </Text>
+              <Text style={styles.signInButtonText}>{loading ? 'Signing in...' : 'Sign In'}</Text>
             </TouchableOpacity>
           </View>
 
@@ -627,7 +716,9 @@ export default function ProfileScreen() {
 
           {/* Quick Actions for Non-Authenticated */}
           <View style={styles.section}>
-            <Heading level={2} style={styles.sectionTitle}>Quick Access</Heading>
+            <Heading level={2} style={styles.sectionTitle}>
+              Quick Access
+            </Heading>
 
             <View style={styles.quickActionsGrid}>
               <TouchableOpacity
@@ -645,7 +736,7 @@ export default function ProfileScreen() {
           </View>
         </ScrollView>
       </SafeAreaView>
-    </LinearGradient >
+    </LinearGradient>
   );
 }
 

@@ -1,7 +1,12 @@
 /**
  * Vault Item Preview Modal
- * Shows detailed preview of vault items before unlocking
- * Includes images, descriptions, benefits, and unlock requirements
+ *
+ * Phase 0.6: vault content is level-gated, not spend-XP-to-unlock — an
+ * item unlocks automatically once the user's real XP balance crosses its
+ * required level (see achievementService's level formula, reused here so
+ * there's one definition of what a "level" is). This modal is
+ * informational only now: it shows whether an item is unlocked and, if
+ * not, what level unlocks it. There is no purchase action.
  */
 
 import React from 'react';
@@ -20,6 +25,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { colors, spacing, radii } from '../../../theme/tokens';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeIn } from 'react-native-reanimated';
+import { levelForXP } from '../../../services/achievementService';
 
 const { width, height } = Dimensions.get('window');
 
@@ -32,67 +38,46 @@ interface PreviewBenefit {
 interface VaultItemPreviewModalProps {
   visible: boolean;
   onDismiss: () => void;
-  onUnlock: () => void;
   item: {
     title: string;
     description: string;
     imageSource: ImageSourcePropType;
     category: string;
-    xpCost?: number;
+    /** A level number, or a display string like 'Limited Time' for seasonal drops. */
+    requiredLevel?: number | string;
     requiredTier?: 'FREE' | 'PLUS' | 'PRO';
     benefits?: PreviewBenefit[];
     isUnlocked?: boolean;
   } | null;
   userXP: number;
-  userKeys?: number;
   userTier: 'FREE' | 'PLUS' | 'PRO';
 }
 
 export default function VaultItemPreviewModal({
   visible,
   onDismiss,
-  onUnlock,
   item,
   userXP,
   userTier,
 }: VaultItemPreviewModalProps) {
   if (!item) return null;
 
-  // Debug log
-  console.log('VaultItemPreviewModal rendering with item:', {
-    title: item.title,
-    description: item.description,
-    benefits: item.benefits?.length,
-    imageSource: item.imageSource,
-  });
+  const userLevel = levelForXP(userXP);
+  const meetsLevel =
+    typeof item.requiredLevel === 'number' ? userLevel >= item.requiredLevel : true;
 
-  const canAfford = item.xpCost ? userXP >= item.xpCost : true;
-
-  const tierAccess = !item.requiredTier ||
-                     (item.requiredTier === 'FREE') ||
-                     (item.requiredTier === 'PLUS' && (userTier === 'PLUS' || userTier === 'PRO')) ||
-                     (item.requiredTier === 'PRO' && userTier === 'PRO');
-
-  const canUnlock = canAfford && tierAccess && !item.isUnlocked;
+  const tierAccess =
+    !item.requiredTier ||
+    item.requiredTier === 'FREE' ||
+    (item.requiredTier === 'PLUS' && (userTier === 'PLUS' || userTier === 'PRO')) ||
+    (item.requiredTier === 'PRO' && userTier === 'PRO');
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="fade"
-      onRequestClose={onDismiss}
-    >
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onDismiss}>
       <View style={styles.overlay}>
-        <TouchableOpacity
-          style={styles.backdrop}
-          activeOpacity={1}
-          onPress={onDismiss}
-        />
+        <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={onDismiss} />
 
-        <Animated.View
-          entering={FadeIn.duration(300)}
-          style={styles.modalContainer}
-        >
+        <Animated.View entering={FadeIn.duration(300)} style={styles.modalContainer}>
           <ScrollView
             style={styles.scrollView}
             showsVerticalScrollIndicator={false}
@@ -100,15 +85,8 @@ export default function VaultItemPreviewModal({
           >
             {/* Hero Image */}
             <View style={styles.heroContainer}>
-              <Image
-                source={item.imageSource}
-                style={styles.heroImage}
-                resizeMode="cover"
-              />
-              <LinearGradient
-                colors={['transparent', colors.bg]}
-                style={styles.heroGradient}
-              />
+              <Image source={item.imageSource} style={styles.heroImage} resizeMode="cover" />
+              <LinearGradient colors={['transparent', colors.bg]} style={styles.heroGradient} />
 
               {/* Close Button */}
               <TouchableOpacity
@@ -159,27 +137,25 @@ export default function VaultItemPreviewModal({
               <View style={styles.requirementsSection}>
                 <Text style={styles.sectionTitle}>Unlock Requirements</Text>
 
-                {/* XP Cost */}
-                {item.xpCost && (
+                {/* Level requirement */}
+                {item.requiredLevel != null && (
                   <View style={styles.requirementRow}>
                     <View style={styles.requirementLeft}>
                       <Ionicons name="star" size={20} color={colors.gold} />
-                      <Text style={styles.requirementLabel}>XP Cost</Text>
+                      <Text style={styles.requirementLabel}>
+                        {typeof item.requiredLevel === 'number' ? 'Level' : 'Availability'}
+                      </Text>
                     </View>
                     <View style={styles.requirementRight}>
-                      <Text style={[
-                        styles.requirementValue,
-                        userXP >= item.xpCost && styles.requirementMet
-                      ]}>
-                        {item.xpCost.toLocaleString()}
+                      <Text style={[styles.requirementValue, meetsLevel && styles.requirementMet]}>
+                        {item.requiredLevel}
                       </Text>
-                      {userXP >= item.xpCost ? (
-                        <Ionicons name="checkmark-circle" size={20} color={colors.accent} />
-                      ) : (
-                        <Text style={styles.requirementBalance}>
-                          (You have: {userXP.toLocaleString()})
-                        </Text>
-                      )}
+                      {typeof item.requiredLevel === 'number' &&
+                        (meetsLevel ? (
+                          <Ionicons name="checkmark-circle" size={20} color={colors.accent} />
+                        ) : (
+                          <Text style={styles.requirementBalance}>(You're Level {userLevel})</Text>
+                        ))}
                     </View>
                   </View>
                 )}
@@ -192,18 +168,13 @@ export default function VaultItemPreviewModal({
                       <Text style={styles.requirementLabel}>Required Tier</Text>
                     </View>
                     <View style={styles.requirementRight}>
-                      <Text style={[
-                        styles.requirementValue,
-                        tierAccess && styles.requirementMet
-                      ]}>
+                      <Text style={[styles.requirementValue, tierAccess && styles.requirementMet]}>
                         {item.requiredTier}+
                       </Text>
                       {tierAccess ? (
                         <Ionicons name="checkmark-circle" size={20} color={colors.accent} />
                       ) : (
-                        <Text style={styles.requirementBalance}>
-                          (You have: {userTier})
-                        </Text>
+                        <Text style={styles.requirementBalance}>(You have: {userTier})</Text>
                       )}
                     </View>
                   </View>
@@ -218,12 +189,12 @@ export default function VaultItemPreviewModal({
                 </View>
               )}
 
-              {/* Insufficient Funds Warning */}
-              {!canAfford && !item.isUnlocked && (
+              {/* Below Level Notice */}
+              {!meetsLevel && !item.isUnlocked && (
                 <View style={styles.warningBanner}>
-                  <Ionicons name="warning" size={24} color="#FF6B6B" />
+                  <Ionicons name="star-outline" size={24} color={colors.gold} />
                   <Text style={styles.warningText}>
-                    Insufficient XP
+                    Unlocks automatically at Level {item.requiredLevel}
                   </Text>
                 </View>
               )}
@@ -232,45 +203,20 @@ export default function VaultItemPreviewModal({
               {!tierAccess && !item.isUnlocked && (
                 <View style={styles.warningBanner}>
                   <MaterialCommunityIcons name="crown" size={24} color={colors.gold} />
-                  <Text style={styles.warningText}>
-                    Requires {item.requiredTier}+ Subscription
-                  </Text>
+                  <Text style={styles.warningText}>Requires {item.requiredTier}+ Subscription</Text>
                 </View>
               )}
             </View>
           </ScrollView>
 
-          {/* Action Buttons */}
+          {/* Action */}
           <View style={styles.actionsContainer}>
             <TouchableOpacity
               style={[styles.button, styles.cancelButton]}
               onPress={onDismiss}
               activeOpacity={0.8}
             >
-              <Text style={styles.cancelButtonText}>Cancel</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.button,
-                styles.unlockButton,
-                (!canUnlock || item.isUnlocked) && styles.buttonDisabled
-              ]}
-              onPress={canUnlock ? onUnlock : undefined}
-              activeOpacity={0.8}
-              disabled={!canUnlock || item.isUnlocked}
-            >
-              <MaterialCommunityIcons
-                name={item.isUnlocked ? "check" : "lock-open-variant"}
-                size={20}
-                color={canUnlock && !item.isUnlocked ? colors.bg : colors.subtext}
-              />
-              <Text style={[
-                styles.unlockButtonText,
-                (!canUnlock || item.isUnlocked) && styles.buttonTextDisabled
-              ]}>
-                {item.isUnlocked ? 'Unlocked' : 'Unlock Now'}
-              </Text>
+              <Text style={styles.cancelButtonText}>Close</Text>
             </TouchableOpacity>
           </View>
         </Animated.View>
@@ -499,20 +445,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: colors.text,
-  },
-  unlockButton: {
-    backgroundColor: colors.accent,
-  },
-  unlockButtonText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.bg,
-  },
-  buttonDisabled: {
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    opacity: 0.5,
-  },
-  buttonTextDisabled: {
-    color: colors.subtext,
   },
 });
