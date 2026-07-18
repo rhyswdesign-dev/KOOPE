@@ -70,6 +70,12 @@ import { useTasteModel } from '../store/useTasteModel';
 import type { FlavourTag } from '../store/useTasteModel';
 import { getTasteSignalLine } from '../utils/tasteSignal';
 import SpiritEducationPanel from '../components/SpiritEducationPanel';
+import GiftModePanel from '../components/bottle/GiftModePanel';
+import {
+  computeGiftVerdict,
+  filterRecipesForGift,
+  type GiftPreference,
+} from '../services/giftVerdictService';
 
 type BottleDetailScreenNavigationProp = CompositeNavigationProp<
   NativeStackNavigationProp<CameraStackParamList, 'BottleDetail'>,
@@ -262,6 +268,7 @@ export default function BottleDetailScreen() {
   const [inventoryItem, setInventoryItem] = useState<UserInventoryItem | null>(null);
   const [persistedImageUri, setPersistedImageUri] = useState<string | undefined>(undefined);
   const [giftMode, setGiftMode] = useState(false);
+  const [giftPreference, setGiftPreference] = useState<GiftPreference>({});
   const [expanded, setExpanded] = useState(false);
   // Stage 10 — scan feedback
   const [feedbackState, setFeedbackState] = useState<
@@ -329,6 +336,13 @@ export default function BottleDetailScreen() {
     const firstSentence = notes.split(/(?<=[.!?])\s+/)[0] || notes;
     return giftMode ? `A crowd-pleasing choice — ${firstSentence}` : firstSentence;
   }, [bottleProfile.tastingNotes, giftMode]);
+
+  // Gift mode: re-rank the already-fetched, already-tier-gated Hook data by
+  // the recipient's flavor hint rather than fetching/ranking anything new.
+  const giftFilteredCocktails = useMemo(
+    () => filterRecipesForGift(suggestedCocktails, giftPreference),
+    [suggestedCocktails, giftPreference],
+  );
 
   useEffect(() => {
     // Record this bottle to the user's scan history journal.
@@ -1242,24 +1256,28 @@ export default function BottleDetailScreen() {
                 <Ionicons name="sparkles" size={24} color={colors.gold} />
                 <View style={styles.cocktailsHeaderCopy}>
                   <Text style={styles.cocktailsTitle}>
-                    {tier === 'FREE' && lockedCocktailCount > 0
-                      ? `Owning this unlocks ${suggestedCocktails.length + lockedCocktailCount} cocktails with your shelf`
-                      : serveRecommendation.cocktailPlacement === 'secondary'
-                        ? 'Cocktails That Respect This Bottle'
-                        : 'Cocktails You Can Make'}
+                    {giftMode && giftPreference.flavorHint
+                      ? `They could make ${giftFilteredCocktails.length} cocktails with this bottle`
+                      : tier === 'FREE' && lockedCocktailCount > 0
+                        ? `Owning this unlocks ${suggestedCocktails.length + lockedCocktailCount} cocktails with your shelf`
+                        : serveRecommendation.cocktailPlacement === 'secondary'
+                          ? 'Cocktails That Respect This Bottle'
+                          : 'Cocktails You Can Make'}
                   </Text>
                   <Text style={styles.cocktailsSubtitle}>
-                    {tier === 'FREE'
-                      ? lockedCocktailCount > 0
-                        ? `${ANSWER_CARD_FREE_RECIPE_COUNT} free now — the rest with KŌOPE+`
-                        : 'From your free and unlocked recipe pool.'
-                      : 'Best matches from your current recipe access.'}
+                    {giftMode && giftPreference.flavorHint
+                      ? 'Matched to how they like it'
+                      : tier === 'FREE'
+                        ? lockedCocktailCount > 0
+                          ? `${ANSWER_CARD_FREE_RECIPE_COUNT} free now — the rest with KŌOPE+`
+                          : 'From your free and unlocked recipe pool.'
+                        : 'Best matches from your current recipe access.'}
                   </Text>
                 </View>
               </View>
               <FlatList
                 horizontal
-                data={suggestedCocktails}
+                data={giftMode ? giftFilteredCocktails : suggestedCocktails}
                 keyExtractor={(cocktail) => cocktail.id}
                 renderItem={({ item: cocktail }) => {
                   const displayRecipe = {
@@ -1340,7 +1358,13 @@ export default function BottleDetailScreen() {
 
             <TouchableOpacity
               style={[styles.secondaryButton, giftMode && styles.secondaryButtonActive]}
-              onPress={() => setGiftMode((value) => !value)}
+              onPress={() => {
+                setGiftMode((value) => {
+                  const next = !value;
+                  if (!next) setGiftPreference({});
+                  return next;
+                });
+              }}
             >
               <Ionicons
                 name={giftMode ? 'gift' : 'gift-outline'}
@@ -1350,6 +1374,24 @@ export default function BottleDetailScreen() {
               <Text style={styles.secondaryButtonText}>Gift</Text>
             </TouchableOpacity>
           </View>
+
+          {/* Gift mode — 2-tap "who's this for" + verdict (Phase 1.1) */}
+          {giftMode && (
+            <GiftModePanel
+              preference={giftPreference}
+              onPreferenceChange={setGiftPreference}
+              verdict={
+                giftPreference.spiritHint || giftPreference.flavorHint
+                  ? computeGiftVerdict({
+                      spiritToken: normalizeSpiritToken(bottle.type || (bottle as any).category),
+                      flavorWords: bottleProfile.flavorProfile,
+                      priceRange: priceRangeEstimate,
+                      preference: giftPreference,
+                    })
+                  : null
+              }
+            />
+          )}
 
           {/* See more — everything else lives below this fold */}
           <TouchableOpacity
