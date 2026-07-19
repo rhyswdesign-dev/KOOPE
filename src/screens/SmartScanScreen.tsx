@@ -360,7 +360,12 @@ export default function SmartScanScreen() {
               bottle.type,
             );
           }
-          navigation.replace('BottleDetail', { bottle, imageUri: uri, scanConfidence });
+          navigation.replace('BottleDetail', {
+            bottle,
+            imageUri: uri,
+            scanConfidence,
+            scanSource: source,
+          });
         } else {
           // ── Stage 7: Barcode fallback ─────────────────────────────────────
           // Vision couldn't identify the bottle — offer barcode scan as a

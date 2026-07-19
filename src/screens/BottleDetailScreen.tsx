@@ -76,6 +76,10 @@ import {
   filterRecipesForGift,
   type GiftPreference,
 } from '../services/giftVerdictService';
+import ValueLine from '../components/bottle/ValueLine';
+import { useSpottedPrices } from '../store/useSpottedPrices';
+import { logSpottedPrice } from '../services/spottedPriceService';
+import { computeValueVerdict } from '../services/valueVerdictService';
 
 type BottleDetailScreenNavigationProp = CompositeNavigationProp<
   NativeStackNavigationProp<CameraStackParamList, 'BottleDetail'>,
@@ -252,7 +256,7 @@ export default function BottleDetailScreen() {
   const { hasAccess: hasPremiumServePersonalization } = useFeatureAccess(
     'premium_serve_personalization',
   );
-  const { bottle, imageUri, scanConfidence, scannedBarcode } = route.params;
+  const { bottle, imageUri, scanConfidence, scannedBarcode, scanSource } = route.params;
   const isLowConfidence =
     imageUri != null && typeof scanConfidence === 'number' && scanConfidence < 0.8;
   const { currency: userCurrency, setCurrency } = useCurrencyPreference();
@@ -304,7 +308,8 @@ export default function BottleDetailScreen() {
     [bottle, tier],
   );
 
-  // Value line — range-only fair-price estimate (no seen-price comparison yet)
+  // Value line — fair-price range estimate (Phase 1.2 adds the source
+  // label, the spotted-price verdict, and at-scan capture via ValueLine).
   const priceRangeEstimate = useMemo(() => {
     const nativeCurrencies: SupportedCurrency[] = ['USD', 'CAD', 'GBP'];
     if (nativeCurrencies.includes(userCurrency)) {
@@ -316,6 +321,28 @@ export default function BottleDetailScreen() {
       max: convertFromUSD(bottle.priceEstimate.USD.max, userCurrency),
     };
   }, [bottle.priceEstimate, userCurrency]);
+
+  // Every value names its source (Phase 1.2 acceptance rule). scanSource
+  // comes from bottle-recognize via route params; absent = barcode/library
+  // paths, whose bottles come from the bundled catalog.
+  const valueSourceLabel = useMemo(() => {
+    switch (scanSource) {
+      case 'cache':
+        return 'Community-verified estimate';
+      case 'claude-vision':
+        return 'AI estimate';
+      case 'catalog':
+      default:
+        return 'KŌOPE catalog estimate';
+    }
+  }, [scanSource]);
+
+  // The user's price journal entry for this bottle — drives the verdict.
+  const spottedEntries = useSpottedPrices((s) => s.entries);
+  const spottedForBottle = useMemo(
+    () => spottedEntries.find((e) => e.bottleId === bottleWishlistId),
+    [spottedEntries, bottleWishlistId],
+  );
 
   // Merge bottle-specific data with spirit-category defaults so every scan
   // shows a complete profile — even if individual bottle data is sparse.
@@ -378,6 +405,27 @@ export default function BottleDetailScreen() {
       [ANALYTICS_PROPS.SCAN_TYPE]: 'bottle',
       spirit_type: bottle.type || 'unknown',
     });
+
+    // Value-on-scan acceptance metric (Phase 1.2): VALUE_LINE_SHOWN /
+    // SCAN_SUCCESS is the "% of scans that show a value line" ratio.
+    if (priceRangeEstimate) {
+      trackEvent(ANALYTICS_EVENTS.VALUE_LINE_SHOWN, {
+        [ANALYTICS_PROPS.VALUE_SOURCE]: scanSource ?? 'catalog',
+        [ANALYTICS_PROPS.CURRENCY]: userCurrency,
+      });
+      if (spottedForBottle) {
+        const verdict = computeValueVerdict(
+          { price: spottedForBottle.price, currency: spottedForBottle.currency },
+          { ...priceRangeEstimate, currency: userCurrency },
+        );
+        if (verdict) {
+          trackEvent(ANALYTICS_EVENTS.VALUE_VERDICT_SHOWN, {
+            [ANALYTICS_PROPS.VERDICT]: verdict.verdict,
+            [ANALYTICS_PROPS.VALUE_SOURCE]: scanSource ?? 'catalog',
+          });
+        }
+      }
+    }
   }, [bottle.id]);
 
   useEffect(() => {
@@ -711,6 +759,15 @@ export default function BottleDetailScreen() {
         price,
         currency: userCurrency,
         locationLabel: locationInput.trim(),
+      });
+      // Phase 1.2: also feed the journal + community sync (one write path).
+      logSpottedPrice({
+        bottleId: bottleWishlistId,
+        price,
+        currency: userCurrency,
+        locationLabel: locationInput.trim(),
+        capturePoint: 'post_wishlist',
+        userId: user?.id,
       });
     }
     setPriceInput('');
@@ -1180,26 +1237,24 @@ export default function BottleDetailScreen() {
             </View>
           </View>
 
-          {/* Value line — range only; no seen-price comparison yet */}
-          {priceRangeEstimate && (
-            <TouchableOpacity
-              style={styles.valueLine}
-              onPress={() => setShowCurrencyPicker(true)}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="cash-outline" size={16} color={colors.accent} />
-              <Text style={styles.valueLineText} numberOfLines={1}>
-                {giftMode ? 'A great gift at ' : 'Fair price: '}
-                {formatPriceRange(priceRangeEstimate.min, priceRangeEstimate.max, userCurrency)}
-              </Text>
-              <View style={styles.valueLineCurrencyBadge}>
-                <Text style={styles.valueLineCurrencyText}>
-                  {CURRENCY_META[userCurrency].flag} {userCurrency}
-                </Text>
-                <Ionicons name="chevron-down" size={11} color={colors.accent} />
-              </View>
-            </TouchableOpacity>
-          )}
+          {/* Value line — sourced range + spotted-price verdict + at-scan capture (Phase 1.2) */}
+          <ValueLine
+            range={priceRangeEstimate}
+            currency={userCurrency}
+            sourceLabel={valueSourceLabel}
+            spotted={spottedForBottle}
+            giftMode={giftMode}
+            onOpenCurrencyPicker={() => setShowCurrencyPicker(true)}
+            onLogPrice={(price) =>
+              logSpottedPrice({
+                bottleId: bottleWishlistId,
+                price,
+                currency: userCurrency,
+                capturePoint: 'at_scan',
+                userId: user?.id,
+              })
+            }
+          />
 
           {/* Currency picker modal */}
           <Modal
@@ -1748,34 +1803,6 @@ const styles = StyleSheet.create({
     marginBottom: spacing(3),
     borderWidth: 1,
     borderColor: `${colors.accent}30`,
-  },
-  valueLine: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing(1),
-    backgroundColor: `${colors.accent}10`,
-    borderRadius: radii.lg,
-    paddingVertical: spacing(1.5),
-    paddingHorizontal: spacing(2),
-    marginBottom: spacing(2),
-    borderWidth: 1,
-    borderColor: `${colors.accent}30`,
-  },
-  valueLineText: {
-    flex: 1,
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  valueLineCurrencyBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-  },
-  valueLineCurrencyText: {
-    fontSize: 12,
-    color: colors.accent,
-    fontWeight: '600',
   },
   priceHeader: {
     flexDirection: 'row',

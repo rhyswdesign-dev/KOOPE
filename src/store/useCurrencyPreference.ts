@@ -3,9 +3,15 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Localization from 'expo-localization';
 
-export type SupportedCurrency = 'USD' | 'GBP' | 'CAD' | 'AUD' | 'EUR' | 'NZD';
+import { USD_MULTIPLIERS, convertBetween, type SupportedCurrency } from '../config/currencyRates';
 
-export const CURRENCY_META: Record<SupportedCurrency, { symbol: string; label: string; flag: string }> = {
+export type { SupportedCurrency };
+export { convertBetween };
+
+export const CURRENCY_META: Record<
+  SupportedCurrency,
+  { symbol: string; label: string; flag: string }
+> = {
   USD: { symbol: '$', label: 'US Dollar', flag: '🇺🇸' },
   GBP: { symbol: '£', label: 'British Pound', flag: '🇬🇧' },
   CAD: { symbol: 'CA$', label: 'Canadian Dollar', flag: '🇨🇦' },
@@ -14,15 +20,8 @@ export const CURRENCY_META: Record<SupportedCurrency, { symbol: string; label: s
   NZD: { symbol: 'NZ$', label: 'New Zealand Dollar', flag: '🇳🇿' },
 };
 
-// Static approximate multipliers from USD (no network required)
-const USD_MULTIPLIERS: Record<SupportedCurrency, number> = {
-  USD: 1.00,
-  GBP: 0.79,
-  CAD: 1.37,
-  AUD: 1.55,
-  EUR: 0.93,
-  NZD: 1.68,
-};
+// Rates live in config/currencyRates.ts (pure module, unit-testable
+// without expo imports); this store re-exports for existing consumers.
 
 /**
  * Convert a USD price to the target currency using static multipliers.
@@ -35,11 +34,7 @@ export function convertFromUSD(usdAmount: number, currency: SupportedCurrency): 
 /**
  * Format a price range for display (e.g. "£22–£28" or "A$34–A$43")
  */
-export function formatPriceRange(
-  min: number,
-  max: number,
-  currency: SupportedCurrency
-): string {
+export function formatPriceRange(min: number, max: number, currency: SupportedCurrency): string {
   const { symbol } = CURRENCY_META[currency];
   return `${symbol}${min}–${symbol}${max}`;
 }
@@ -52,13 +47,27 @@ function detectCurrencyFromLocale(): SupportedCurrency {
     const locale = Localization.getLocales()[0];
     const region = locale?.regionCode || '';
     switch (region) {
-      case 'GB': return 'GBP';
-      case 'CA': return 'CAD';
-      case 'AU': return 'AUD';
-      case 'NZ': return 'NZD';
-      case 'DE': case 'FR': case 'IT': case 'ES': case 'NL':
-      case 'BE': case 'AT': case 'PT': case 'IE': case 'FI': return 'EUR';
-      default: return 'USD';
+      case 'GB':
+        return 'GBP';
+      case 'CA':
+        return 'CAD';
+      case 'AU':
+        return 'AUD';
+      case 'NZ':
+        return 'NZD';
+      case 'DE':
+      case 'FR':
+      case 'IT':
+      case 'ES':
+      case 'NL':
+      case 'BE':
+      case 'AT':
+      case 'PT':
+      case 'IE':
+      case 'FI':
+        return 'EUR';
+      default:
+        return 'USD';
     }
   } catch {
     return 'USD';
@@ -84,6 +93,6 @@ export const useCurrencyPreference = create<CurrencyPreferenceState>()(
     {
       name: '@KOOPE:currency_preference_v1',
       storage: createJSONStorage(() => AsyncStorage),
-    }
-  )
+    },
+  ),
 );

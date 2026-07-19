@@ -37,7 +37,7 @@ let consentState: ConsentState = 'unknown';
 let pendingToken: string | null = null;
 
 const MAX_QUEUED_EVENTS = 100;
-let eventQueue: Array<{ name: string; props?: Record<string, any> }> = [];
+let eventQueue: { name: string; props?: Record<string, any> }[] = [];
 
 /**
  * Raw Mixpanel init — never call directly from app code. Only reached
@@ -296,6 +296,12 @@ export const ANALYTICS_EVENTS = {
   SCAN_FAILED: 'Scan Failed',
   SCAN_LIMIT_REACHED: 'Scan Limit Reached',
 
+  // Value-on-scan (Phase 1.2). Acceptance metric "≥60% of scans show a
+  // value line" = VALUE_LINE_SHOWN / SCAN_SUCCESS as a Mixpanel ratio.
+  VALUE_LINE_SHOWN: 'Value Line Shown',
+  SPOTTED_PRICE_LOGGED: 'Spotted Price Logged',
+  VALUE_VERDICT_SHOWN: 'Value Verdict Shown',
+
   // Inventory
   INVENTORY_ITEM_ADDED: 'Inventory Item Added',
   INVENTORY_ITEM_REMOVED: 'Inventory Item Removed',
@@ -380,6 +386,11 @@ export const ANALYTICS_PROPS = {
   PRODUCT_ID: 'product_id',
   PRICE: 'price',
   CURRENCY: 'currency',
+
+  // Value-on-scan (Phase 1.2)
+  VALUE_SOURCE: 'value_source',
+  VERDICT: 'verdict',
+  CAPTURE_POINT: 'capture_point',
   PREVIOUS_TIER: 'previous_tier',
   NEW_TIER: 'new_tier',
 
