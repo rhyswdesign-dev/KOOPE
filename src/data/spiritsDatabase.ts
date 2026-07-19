@@ -6,7 +6,8 @@
 import { SPIRITS_DATABASE_EXTRA } from './spiritsDatabaseExtra';
 
 export type PriceTier = 'budget' | 'mid-range' | 'premium' | 'ultra-premium';
-export type SpiritType = 'gin' | 'vodka' | 'rum' | 'whiskey' | 'tequila' | 'mezcal' | 'brandy' | 'liqueur' | 'other';
+export type SpiritType =
+  'gin' | 'vodka' | 'rum' | 'whiskey' | 'tequila' | 'mezcal' | 'brandy' | 'liqueur' | 'other';
 export type ServeMode = 'neat' | 'water-drops' | 'large-rock' | 'cocktail';
 export type ServePriority = 'cocktail-first' | 'balanced' | 'serve-first';
 export type ServeSpiritFamily =
@@ -67,7 +68,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 18, max: 24 },
     },
     flavorProfile: ['Juniper', 'Citrus', 'Spice'],
-    tastingNotes: 'Classic London Dry with bold juniper, bright citrus peel, and subtle spice. Crisp and dry finish perfect for gin & tonics and martinis.',
+    tastingNotes:
+      'Classic London Dry with bold juniper, bright citrus peel, and subtle spice. Crisp and dry finish perfect for gin & tonics and martinis.',
     origin: 'United Kingdom',
     searchTerms: ['tanqueray london dry', 'tanq london dry', 'tanqueray original'],
   },
@@ -84,7 +86,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 17, max: 23 },
     },
     flavorProfile: ['Juniper', 'Lemon', 'Coriander'],
-    tastingNotes: 'Smooth and balanced with 10 botanicals. Light juniper with lemon peel, angelica, and coriander. Elegant and versatile.',
+    tastingNotes:
+      'Smooth and balanced with 10 botanicals. Light juniper with lemon peel, angelica, and coriander. Elegant and versatile.',
     origin: 'United Kingdom',
     searchTerms: ['bombay', 'sapphire', 'bombay sapphire'],
   },
@@ -101,7 +104,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 28, max: 34 },
     },
     flavorProfile: ['Cucumber', 'Rose', 'Juniper'],
-    tastingNotes: 'Uniquely infused with cucumber and rose petals. Floral, refreshing, and distinctly different from traditional London Dry gins.',
+    tastingNotes:
+      'Uniquely infused with cucumber and rose petals. Floral, refreshing, and distinctly different from traditional London Dry gins.',
     origin: 'Scotland',
     searchTerms: ['hendricks', 'hendrick', 'ndricks', 'cucumber gin'],
   },
@@ -118,7 +122,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 30, max: 37 },
     },
     flavorProfile: ['Herbal', 'Floral', 'Citrus'],
-    tastingNotes: '22 hand-foraged Islay botanicals create complex layers of herbs, flowers, and gentle citrus. Smooth and sophisticated.',
+    tastingNotes:
+      '22 hand-foraged Islay botanicals create complex layers of herbs, flowers, and gentle citrus. Smooth and sophisticated.',
     origin: 'Scotland',
     searchTerms: ['botanist', 'islay gin'],
   },
@@ -137,7 +142,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 22, max: 27 },
     },
     flavorProfile: ['Clean', 'Smooth', 'Neutral'],
-    tastingNotes: 'Six-times distilled from corn. Exceptionally smooth with subtle sweetness. Gluten-free and perfect for vodka sodas.',
+    tastingNotes:
+      'Six-times distilled from corn. Exceptionally smooth with subtle sweetness. Gluten-free and perfect for vodka sodas.',
     origin: 'United States',
     searchTerms: ['titos', 'tito', 'handmade vodka'],
   },
@@ -154,7 +160,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 28, max: 35 },
     },
     flavorProfile: ['Clean', 'Citrus', 'Almond'],
-    tastingNotes: 'French wheat vodka with soft, smooth character. Hints of almond and fresh bread with a clean, crisp finish.',
+    tastingNotes:
+      'French wheat vodka with soft, smooth character. Hints of almond and fresh bread with a clean, crisp finish.',
     origin: 'France',
     searchTerms: ['grey goose', 'greygoose', 'french vodka'],
   },
@@ -171,7 +178,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 20, max: 26 },
     },
     flavorProfile: ['Clean', 'Crisp', 'Citrus'],
-    tastingNotes: 'Made in copper pot stills. Crisp with subtle citrus and honey notes. Smooth and sophisticated.',
+    tastingNotes:
+      'Made in copper pot stills. Crisp with subtle citrus and honey notes. Smooth and sophisticated.',
     origin: 'Netherlands',
     searchTerms: ['ketel one', 'ketel 1', 'dutch vodka'],
   },
@@ -188,7 +196,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 14, max: 18 },
     },
     flavorProfile: ['Clean', 'Grain', 'Smooth'],
-    tastingNotes: 'Swedish wheat vodka. Rich, full-bodied with notes of dried fruit and subtle grain sweetness. A classic mixer.',
+    tastingNotes:
+      'Swedish wheat vodka. Rich, full-bodied with notes of dried fruit and subtle grain sweetness. A classic mixer.',
     origin: 'Sweden',
     searchTerms: ['absolut', 'swedish vodka'],
   },
@@ -207,7 +216,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 12, max: 16 },
     },
     flavorProfile: ['Light', 'Vanilla', 'Almond'],
-    tastingNotes: 'Light, crisp white rum with notes of vanilla and almond. Perfect for mojitos and daiquiris.',
+    tastingNotes:
+      'Light, crisp white rum with notes of vanilla and almond. Perfect for mojitos and daiquiris.',
     origin: 'Puerto Rico',
     searchTerms: ['bacardi', 'white rum', 'superior'],
   },
@@ -224,7 +234,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 13, max: 18 },
     },
     flavorProfile: ['Vanilla', 'Spice', 'Caramel'],
-    tastingNotes: 'Smooth spiced rum with vanilla, caramel, and warming spices. Great with cola or in tropical cocktails.',
+    tastingNotes:
+      'Smooth spiced rum with vanilla, caramel, and warming spices. Great with cola or in tropical cocktails.',
     origin: 'Jamaica',
     searchTerms: ['captain morgan', 'captain', 'spiced rum'],
   },
@@ -241,7 +252,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 18, max: 24 },
     },
     flavorProfile: ['Banana', 'Vanilla', 'Spice'],
-    tastingNotes: 'Golden rum with tropical fruit, banana, vanilla, and toasted almond notes. Smooth and well-balanced.',
+    tastingNotes:
+      'Golden rum with tropical fruit, banana, vanilla, and toasted almond notes. Smooth and well-balanced.',
     origin: 'Barbados',
     searchTerms: ['mount gay', 'barbados rum', 'eclipse'],
   },
@@ -258,7 +270,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 22, max: 28 },
     },
     flavorProfile: ['Vanilla', 'Tobacco', 'Oak'],
-    tastingNotes: 'Aged Cuban rum with rich vanilla, cocoa, tobacco, and oak. Perfect for sipping or in aged rum cocktails.',
+    tastingNotes:
+      'Aged Cuban rum with rich vanilla, cocoa, tobacco, and oak. Perfect for sipping or in aged rum cocktails.',
     origin: 'Cuba',
     searchTerms: ['havana club', 'cuban rum', '7 year'],
     serveGuidance: {
@@ -288,26 +301,10 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 20, max: 25 },
     },
     flavorProfile: ['Vanilla', 'Honey', 'Smooth'],
-    tastingNotes: 'Triple-distilled Irish whiskey. Smooth with notes of vanilla, honey, and toasted wood. Perfect for whiskey sodas or neat.',
+    tastingNotes:
+      'Triple-distilled Irish whiskey. Smooth with notes of vanilla, honey, and toasted wood. Perfect for whiskey sodas or neat.',
     origin: 'Ireland',
     searchTerms: ['jameson', 'irish whiskey'],
-  },
-  {
-    id: 'jack-daniels',
-    name: "Jack Daniel's Old No. 7",
-    brand: "Jack Daniel's",
-    type: 'whiskey',
-    abv: 40,
-    priceTier: 'budget',
-    priceEstimate: {
-      USD: { min: 20, max: 26 },
-      CAD: { min: 28, max: 34 },
-      GBP: { min: 18, max: 24 },
-    },
-    flavorProfile: ['Caramel', 'Vanilla', 'Oak'],
-    tastingNotes: 'Tennessee whiskey with charcoal mellowing. Sweet caramel, vanilla, and toasted oak. Smooth and iconic.',
-    origin: 'United States',
-    searchTerms: ['jack daniels', 'jack', 'tennessee whiskey', 'old no 7'],
   },
   {
     id: 'bulleit-bourbon',
@@ -322,26 +319,10 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 24, max: 30 },
     },
     flavorProfile: ['Rye Spice', 'Vanilla', 'Oak'],
-    tastingNotes: 'High-rye bourbon with bold spice, vanilla, and dried fruit. Smooth with a long, dry finish.',
+    tastingNotes:
+      'High-rye bourbon with bold spice, vanilla, and dried fruit. Smooth with a long, dry finish.',
     origin: 'United States',
     searchTerms: ['bulleit', 'bourbon', 'high rye'],
-  },
-  {
-    id: 'makers-mark',
-    name: "Maker's Mark Bourbon",
-    brand: "Maker's Mark",
-    type: 'whiskey',
-    abv: 45,
-    priceTier: 'mid-range',
-    priceEstimate: {
-      USD: { min: 26, max: 33 },
-      CAD: { min: 34, max: 41 },
-      GBP: { min: 24, max: 30 },
-    },
-    flavorProfile: ['Caramel', 'Vanilla', 'Wheat'],
-    tastingNotes: 'Wheated bourbon with soft caramel, vanilla, and fruity notes. Smooth and sweet with a gentle finish.',
-    origin: 'United States',
-    searchTerms: ['makers mark', 'makers', 'red wax', 'wheated bourbon'],
   },
   {
     id: 'woodford-reserve',
@@ -356,7 +337,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 28, max: 35 },
     },
     flavorProfile: ['Spice', 'Fruit', 'Oak'],
-    tastingNotes: 'Small-batch bourbon with rich dried fruit, mint, cocoa, and spice. Complex and full-bodied.',
+    tastingNotes:
+      'Small-batch bourbon with rich dried fruit, mint, cocoa, and spice. Complex and full-bodied.',
     origin: 'United States',
     searchTerms: ['woodford reserve', 'woodford', 'small batch bourbon'],
     serveGuidance: {
@@ -384,7 +366,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 25, max: 32 },
     },
     flavorProfile: ['Smoke', 'Vanilla', 'Fruit'],
-    tastingNotes: '12-year blended Scotch with layers of smoke, vanilla, dried fruit, and sweet spice. Complex and smooth.',
+    tastingNotes:
+      '12-year blended Scotch with layers of smoke, vanilla, dried fruit, and sweet spice. Complex and smooth.',
     origin: 'Scotland',
     searchTerms: ['johnnie walker black', 'black label scotch', 'jw black'],
     serveGuidance: {
@@ -414,7 +397,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 38, max: 48 },
     },
     flavorProfile: ['Agave', 'Citrus', 'Pepper'],
-    tastingNotes: '100% blue agave. Fresh agave, citrus, and white pepper. Smooth and clean, perfect for margaritas or sipping.',
+    tastingNotes:
+      '100% blue agave. Fresh agave, citrus, and white pepper. Smooth and clean, perfect for margaritas or sipping.',
     origin: 'Mexico',
     searchTerms: ['patron silver', 'patrón silver', 'patron blanco', 'silver tequila'],
     serveGuidance: {
@@ -442,7 +426,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 40, max: 50 },
     },
     flavorProfile: ['Agave', 'Citrus', 'Lime'],
-    tastingNotes: 'Crisp agave flavor with hints of citrus and lime. Clean, smooth, and perfect for premium margaritas.',
+    tastingNotes:
+      'Crisp agave flavor with hints of citrus and lime. Clean, smooth, and perfect for premium margaritas.',
     origin: 'Mexico',
     searchTerms: ['don julio blanco', 'don julio silver', 'dj blanco'],
     serveGuidance: {
@@ -470,7 +455,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 18, max: 24 },
     },
     flavorProfile: ['Agave', 'Pepper', 'Tropical Fruit'],
-    tastingNotes: 'Bright agave with tropical fruit, black pepper, and light spice. Great value for cocktails.',
+    tastingNotes:
+      'Bright agave with tropical fruit, black pepper, and light spice. Great value for cocktails.',
     origin: 'Mexico',
     searchTerms: ['espolon', 'espolòn', 'budget tequila'],
   },
@@ -487,7 +473,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 36, max: 46 },
     },
     flavorProfile: ['Agave', 'Vanilla', 'Coconut'],
-    tastingNotes: 'Ultra-smooth with sweet agave, vanilla, and hints of coconut. Crisp and clean finish.',
+    tastingNotes:
+      'Ultra-smooth with sweet agave, vanilla, and hints of coconut. Crisp and clean finish.',
     origin: 'Mexico',
     searchTerms: ['casamigos blanco', 'casa amigos blanco', 'george clooney tequila'],
     serveGuidance: {
@@ -517,7 +504,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 28, max: 35 },
     },
     flavorProfile: ['Smoke', 'Agave', 'Citrus'],
-    tastingNotes: 'Artisanal mezcal with balanced smoke, roasted agave, and citrus. Versatile for cocktails or sipping.',
+    tastingNotes:
+      'Artisanal mezcal with balanced smoke, roasted agave, and citrus. Versatile for cocktails or sipping.',
     origin: 'Mexico',
     searchTerms: ['del maguey', 'vida', 'mezcal'],
     serveGuidance: {
@@ -545,7 +533,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 30, max: 38 },
     },
     flavorProfile: ['Smoke', 'Herbal', 'Pepper'],
-    tastingNotes: 'Organic mezcal with gentle smoke, herbal notes, and white pepper. Smooth and complex.',
+    tastingNotes:
+      'Organic mezcal with gentle smoke, herbal notes, and white pepper. Smooth and complex.',
     origin: 'Mexico',
     searchTerms: ['montelobos', 'joven', 'organic mezcal'],
   },
@@ -611,7 +600,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 26, max: 33 },
     },
     flavorProfile: ['Orange', 'Citrus', 'Sweet'],
-    tastingNotes: 'Premium triple sec with intense orange flavor, balanced sweetness, and citrus brightness. Essential for margaritas.',
+    tastingNotes:
+      'Premium triple sec with intense orange flavor, balanced sweetness, and citrus brightness. Essential for margaritas.',
     origin: 'France',
     searchTerms: ['cointreau', 'triple sec', 'orange liqueur'],
   },
@@ -628,7 +618,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 30, max: 38 },
     },
     flavorProfile: ['Elderflower', 'Peach', 'Citrus'],
-    tastingNotes: 'Delicate elderflower with hints of peach, pear, and citrus. Floral, sweet, and versatile.',
+    tastingNotes:
+      'Delicate elderflower with hints of peach, pear, and citrus. Floral, sweet, and versatile.',
     origin: 'France',
     searchTerms: ['st germain', 'elderflower', 'st-germain'],
   },
@@ -662,7 +653,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 22, max: 28 },
     },
     flavorProfile: ['Bitter', 'Orange', 'Herbal'],
-    tastingNotes: 'Bold bitter with orange peel, cherry, and herb notes. Essential for Negronis and Americanos.',
+    tastingNotes:
+      'Bold bitter with orange peel, cherry, and herb notes. Essential for Negronis and Americanos.',
     origin: 'Italy',
     searchTerms: ['campari', 'bitter', 'negroni'],
   },
@@ -679,13 +671,14 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 16, max: 22 },
     },
     flavorProfile: ['Coffee', 'Vanilla', 'Caramel'],
-    tastingNotes: 'Rich coffee liqueur with vanilla and caramel. Sweet and smooth, perfect for White Russians and espresso martinis.',
+    tastingNotes:
+      'Rich coffee liqueur with vanilla and caramel. Sweet and smooth, perfect for White Russians and espresso martinis.',
     origin: 'Mexico',
     searchTerms: ['kahlua', 'kahlúa', 'coffee liqueur'],
   },
   {
     id: 'baileys',
-    name: "Baileys Irish Cream",
+    name: 'Baileys Irish Cream',
     brand: 'Baileys',
     type: 'liqueur',
     abv: 17,
@@ -715,7 +708,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 38, max: 48 },
     },
     flavorProfile: ['Pine', 'Cranberry', 'Spice'],
-    tastingNotes: '47 botanicals from the Black Forest. Intensely complex with pine, tart cranberry, and a peppery finish. One of the world\'s great gins.',
+    tastingNotes:
+      "47 botanicals from the Black Forest. Intensely complex with pine, tart cranberry, and a peppery finish. One of the world's great gins.",
     origin: 'Germany',
     searchTerms: ['monkey 47', 'monkey47', 'schwarzwald', 'black forest gin'],
   },
@@ -732,7 +726,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 14, max: 20 },
     },
     flavorProfile: ['Juniper', 'Citrus', 'Angelica'],
-    tastingNotes: 'Classic London Dry with bold juniper, orange and lemon peel, and a clean dry finish. Affordable and reliable.',
+    tastingNotes:
+      'Classic London Dry with bold juniper, orange and lemon peel, and a clean dry finish. Affordable and reliable.',
     origin: 'United Kingdom',
     searchTerms: ['beefeater', 'beefeater gin', 'london dry'],
   },
@@ -749,7 +744,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 22, max: 28 },
     },
     flavorProfile: ['Lavender', 'Cardamom', 'Citrus'],
-    tastingNotes: 'New Western style with lavender, cardamom, and sarsaparilla. Juniper plays a supporting role behind floral and spice notes.',
+    tastingNotes:
+      'New Western style with lavender, cardamom, and sarsaparilla. Juniper plays a supporting role behind floral and spice notes.',
     origin: 'United States',
     searchTerms: ['aviation', 'aviation gin', 'ryan reynolds gin'],
   },
@@ -766,7 +762,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 26, max: 34 },
     },
     flavorProfile: ['Juniper', 'Lemon', 'Honey'],
-    tastingNotes: 'Handcrafted in copper pot stills. Bright juniper up front, with zesty lemon tart and a hint of honey. Smooth and expressive.',
+    tastingNotes:
+      'Handcrafted in copper pot stills. Bright juniper up front, with zesty lemon tart and a hint of honey. Smooth and expressive.',
     origin: 'United Kingdom',
     searchTerms: ['sipsmith', 'sipsmith gin'],
   },
@@ -783,7 +780,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 24, max: 30 },
     },
     flavorProfile: ['Lemon', 'Juniper', 'Coastal'],
-    tastingNotes: 'Italian gin infused with Amalfi Coast lemons. Vibrant citrus burst with juniper backbone and a bright, refreshing finish.',
+    tastingNotes:
+      'Italian gin infused with Amalfi Coast lemons. Vibrant citrus burst with juniper backbone and a bright, refreshing finish.',
     origin: 'Italy',
     searchTerms: ['malfy', 'malfy gin', 'malfy limone', 'con limone', 'italian gin'],
   },
@@ -802,7 +800,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 26, max: 34 },
     },
     flavorProfile: ['Vanilla', 'Almond', 'Cream'],
-    tastingNotes: 'Polish rye vodka with creamy vanilla, subtle almond, and a satiny smooth finish. Elegant and refined.',
+    tastingNotes:
+      'Polish rye vodka with creamy vanilla, subtle almond, and a satiny smooth finish. Elegant and refined.',
     origin: 'Poland',
     searchTerms: ['belvedere', 'belvedere vodka', 'polish vodka'],
   },
@@ -819,7 +818,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 22, max: 28 },
     },
     flavorProfile: ['Clean', 'Corn', 'Smooth'],
-    tastingNotes: 'Texas corn vodka with a clean, slightly sweet profile. Smooth enough to sip neat, versatile in cocktails.',
+    tastingNotes:
+      'Texas corn vodka with a clean, slightly sweet profile. Smooth enough to sip neat, versatile in cocktails.',
     origin: 'United States',
     searchTerms: ['titos', "tito's", 'tito', 'handmade vodka', 'texas vodka'],
   },
@@ -836,7 +836,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 16, max: 22 },
     },
     flavorProfile: ['Grain', 'Citrus', 'Clean'],
-    tastingNotes: 'Classic wheat and rye vodka with subtle grain sweetness, light citrus, and a clean crisp finish.',
+    tastingNotes:
+      'Classic wheat and rye vodka with subtle grain sweetness, light citrus, and a clean crisp finish.',
     origin: 'Latvia',
     searchTerms: ['stolichnaya', 'stoli', 'stoli vodka'],
   },
@@ -853,7 +854,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 28, max: 34 },
     },
     flavorProfile: ['Grape', 'Citrus', 'Floral'],
-    tastingNotes: 'Made from French grapes, giving a distinct fruity freshness. Citrus-forward with a smooth, clean finish.',
+    tastingNotes:
+      'Made from French grapes, giving a distinct fruity freshness. Citrus-forward with a smooth, clean finish.',
     origin: 'France',
     searchTerms: ['ciroc', 'cîroc', 'grape vodka', 'french vodka'],
   },
@@ -870,7 +872,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 10, max: 16 },
     },
     flavorProfile: ['Neutral', 'Clean', 'Grain'],
-    tastingNotes: 'The world\'s bestselling vodka. Triple distilled, clean and neutral with a dry finish. The benchmark mixer.',
+    tastingNotes:
+      "The world's bestselling vodka. Triple distilled, clean and neutral with a dry finish. The benchmark mixer.",
     origin: 'United States',
     searchTerms: ['smirnoff', 'smirnoff no 21', 'smirnoff vodka'],
   },
@@ -889,7 +892,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 32, max: 40 },
     },
     flavorProfile: ['Dried Fruit', 'Chocolate', 'Caramel'],
-    tastingNotes: 'Venezuelan rum aged up to 12 years. Rich dried fruit, dark chocolate, orange peel, and warm toffee. Exceptional neat.',
+    tastingNotes:
+      'Venezuelan rum aged up to 12 years. Rich dried fruit, dark chocolate, orange peel, and warm toffee. Exceptional neat.',
     origin: 'Venezuela',
     searchTerms: ['diplomatico', 'diplomático', 'reserva exclusiva', 'venezuelan rum'],
   },
@@ -906,7 +910,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 38, max: 48 },
     },
     flavorProfile: ['Vanilla', 'Honey', 'Spice'],
-    tastingNotes: 'Guatemalan solera rum aged in a mountain house above the clouds. Honeyed vanilla, soft spice, and oak. Remarkable complexity.',
+    tastingNotes:
+      'Guatemalan solera rum aged in a mountain house above the clouds. Honeyed vanilla, soft spice, and oak. Remarkable complexity.',
     origin: 'Guatemala',
     searchTerms: ['zacapa', 'ron zacapa', 'zacapa 23', 'guatemalan rum'],
   },
@@ -923,7 +928,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 18, max: 24 },
     },
     flavorProfile: ['Spice', 'Black Pepper', 'Molasses'],
-    tastingNotes: 'Bold black spiced rum with cinnamon, clove, ginger, and rich molasses. Deep and punchy, great in dark & stormies.',
+    tastingNotes:
+      'Bold black spiced rum with cinnamon, clove, ginger, and rich molasses. Deep and punchy, great in dark & stormies.',
     origin: 'Trinidad',
     searchTerms: ['kraken', 'kraken rum', 'black spiced rum'],
   },
@@ -940,9 +946,18 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 24, max: 34 },
     },
     flavorProfile: ['Overproof Heat', 'Raw Cane', 'Tropical Fruit', 'Funky Pot Still'],
-    tastingNotes: 'A genuine Jamaican pot-still overproof rum distilled at Worthy Park Estate. Intense raw cane and funky Jamaican character with ripe tropical fruit. A true sipping or mixing overproof with real depth.',
+    tastingNotes:
+      'A genuine Jamaican pot-still overproof rum distilled at Worthy Park Estate. Intense raw cane and funky Jamaican character with ripe tropical fruit. A true sipping or mixing overproof with real depth.',
     origin: 'Jamaica',
-    searchTerms: ['rum bar white', 'rum-bar white', 'worthy park white rum', 'jamaica overproof', 'pot still rum', 'white overproof rum', 'guaranteed strength rum'],
+    searchTerms: [
+      'rum bar white',
+      'rum-bar white',
+      'worthy park white rum',
+      'jamaica overproof',
+      'pot still rum',
+      'white overproof rum',
+      'guaranteed strength rum',
+    ],
   },
   {
     id: 'rum-bar-gold',
@@ -957,7 +972,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 22, max: 30 },
     },
     flavorProfile: ['Toffee', 'Vanilla', 'Banana', 'Oak'],
-    tastingNotes: 'Worthy Park Estate gold rum aged in ex-bourbon barrels. Smooth toffee and vanilla with tropical banana notes and a gentle oak finish. Classic Jamaican gold rum character.',
+    tastingNotes:
+      'Worthy Park Estate gold rum aged in ex-bourbon barrels. Smooth toffee and vanilla with tropical banana notes and a gentle oak finish. Classic Jamaican gold rum character.',
     origin: 'Jamaica',
     searchTerms: ['rum bar gold', 'rum-bar gold', 'worthy park gold', 'jamaica gold rum bar'],
   },
@@ -974,9 +990,19 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 22, max: 30 },
     },
     flavorProfile: ['Molasses', 'Tropical Fruit', 'Vanilla', 'Light Spice'],
-    tastingNotes: 'Jamaican gold rum with rich molasses character, ripe tropical fruit, and a touch of vanilla spice. The distinctive dark green bottle with the lion crest and K62 emblem is immediately recognisable.',
+    tastingNotes:
+      'Jamaican gold rum with rich molasses character, ripe tropical fruit, and a touch of vanilla spice. The distinctive dark green bottle with the lion crest and K62 emblem is immediately recognisable.',
     origin: 'Jamaica',
-    searchTerms: ['kingston 62', 'kingston62', 'k62', 'jamaica gold rum', 'kingston rum', 'lion rum', 'k62 rum', 'kingston 62 gold'],
+    searchTerms: [
+      'kingston 62',
+      'kingston62',
+      'k62',
+      'jamaica gold rum',
+      'kingston rum',
+      'lion rum',
+      'k62 rum',
+      'kingston 62 gold',
+    ],
   },
 
   // ===== WHISKEY — BOURBON (expanded) =====
@@ -993,7 +1019,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 22, max: 28 },
     },
     flavorProfile: ['Caramel', 'Vanilla', 'Wheat'],
-    tastingNotes: 'Wheated bourbon with soft caramel and vanilla upfront. No rye bite — smooth and sweet with a long warm finish. The approachable classic.',
+    tastingNotes:
+      'Wheated bourbon with soft caramel and vanilla upfront. No rye bite — smooth and sweet with a long warm finish. The approachable classic.',
     origin: 'United States',
     searchTerms: ["maker's mark", 'makers mark', 'makers', 'wheated bourbon'],
     serveGuidance: {
@@ -1019,7 +1046,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 20, max: 26 },
     },
     flavorProfile: ['Vanilla', 'Toffee', 'Anise'],
-    tastingNotes: 'Well-balanced with vanilla, toffee, anise, and dark fruit. A benchmark bourbon that punches well above its price.',
+    tastingNotes:
+      'Well-balanced with vanilla, toffee, anise, and dark fruit. A benchmark bourbon that punches well above its price.',
     origin: 'United States',
     searchTerms: ['buffalo trace', 'buffalo trace bourbon'],
     serveGuidance: {
@@ -1045,7 +1073,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 12, max: 18 },
     },
     flavorProfile: ['Corn', 'Oak', 'Vanilla'],
-    tastingNotes: 'The world\'s bestselling bourbon. Light corn sweetness, vanilla, and oak. An honest, no-frills mixer.',
+    tastingNotes:
+      "The world's bestselling bourbon. Light corn sweetness, vanilla, and oak. An honest, no-frills mixer.",
     origin: 'United States',
     searchTerms: ['jim beam', 'jim beam white', 'beam bourbon'],
   },
@@ -1062,7 +1091,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 20, max: 26 },
     },
     flavorProfile: ['Bold Spice', 'Caramel', 'Oak'],
-    tastingNotes: 'High-proof, high-rye bourbon with bold spice, rich caramel, and vanilla. Full-bodied and assertive.',
+    tastingNotes:
+      'High-proof, high-rye bourbon with bold spice, rich caramel, and vanilla. Full-bodied and assertive.',
     origin: 'United States',
     searchTerms: ['wild turkey', 'wild turkey 101', 'wt101'],
   },
@@ -1079,7 +1109,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 20, max: 26 },
     },
     flavorProfile: ['Floral', 'Fruit', 'Spice'],
-    tastingNotes: 'Unusually floral for a bourbon, with red berry, light spice, and gentle oak. Delicate and complex.',
+    tastingNotes:
+      'Unusually floral for a bourbon, with red berry, light spice, and gentle oak. Delicate and complex.',
     origin: 'United States',
     searchTerms: ['four roses', 'four roses bourbon'],
   },
@@ -1098,7 +1129,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 28, max: 36 },
     },
     flavorProfile: ['Pear', 'Oak', 'Malt'],
-    tastingNotes: 'The world\'s most awarded single malt. Fresh pear, sweet oak, and a hint of malt. Smooth and approachable.',
+    tastingNotes:
+      "The world's most awarded single malt. Fresh pear, sweet oak, and a hint of malt. Smooth and approachable.",
     origin: 'Scotland',
     searchTerms: ['glenfiddich 12', 'glenfiddich twelve', 'glen fiddich 12'],
     serveGuidance: {
@@ -1124,7 +1156,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 28, max: 36 },
     },
     flavorProfile: ['Vanilla', 'Fruit', 'Floral'],
-    tastingNotes: 'The original Speyside single malt. Soft vanilla, summer fruit, and floral notes. Light and elegant.',
+    tastingNotes:
+      'The original Speyside single malt. Soft vanilla, summer fruit, and floral notes. Light and elegant.',
     origin: 'Scotland',
     searchTerms: ['glenlivet', 'the glenlivet', 'glenlivet 12'],
     serveGuidance: {
@@ -1150,7 +1183,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 36, max: 46 },
     },
     flavorProfile: ['Peat', 'Smoke', 'Medicinal'],
-    tastingNotes: 'The most polarizing whisky on earth. Intense bonfire smoke, iodine, seaweed, and a surprisingly sweet vanilla finish. An acquired taste that rewards.',
+    tastingNotes:
+      'The most polarizing whisky on earth. Intense bonfire smoke, iodine, seaweed, and a surprisingly sweet vanilla finish. An acquired taste that rewards.',
     origin: 'Scotland',
     searchTerms: ['laphroaig', 'laphroaig 10', 'islay whisky', 'peated whisky'],
     serveGuidance: {
@@ -1160,7 +1194,7 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       recommendedModes: ['neat', 'water-drops'],
       firstPour: 'neat',
       shouldDeprioritizeCocktails: true,
-      why: 'Peat this intense is a full sensory experience. Neat first — water softens the smoke if it\'s too fierce.',
+      why: "Peat this intense is a full sensory experience. Neat first — water softens the smoke if it's too fierce.",
       cocktailUse: 'best-neat',
     },
   },
@@ -1177,7 +1211,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 48, max: 60 },
     },
     flavorProfile: ['Sherry', 'Dried Fruit', 'Spice'],
-    tastingNotes: 'Sherry-cask Speyside. Rich dried fruit, Christmas spice, and warming oak. One of the most recognisable whiskies in the world.',
+    tastingNotes:
+      'Sherry-cask Speyside. Rich dried fruit, Christmas spice, and warming oak. One of the most recognisable whiskies in the world.',
     origin: 'Scotland',
     searchTerms: ['macallan 12', 'the macallan 12', 'macallan twelve'],
     serveGuidance: {
@@ -1204,7 +1239,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 24, max: 32 },
     },
     flavorProfile: ['Vanilla', 'Spice', 'Malt'],
-    tastingNotes: 'Three Speyside malts blended for cocktail use. Smooth vanilla and honey with a gentle spice kick. Designed for mixing.',
+    tastingNotes:
+      'Three Speyside malts blended for cocktail use. Smooth vanilla and honey with a gentle spice kick. Designed for mixing.',
     origin: 'Scotland',
     searchTerms: ['monkey shoulder', 'monkey shoulder whisky', 'blended malt'],
   },
@@ -1221,7 +1257,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 18, max: 24 },
     },
     flavorProfile: ['Charcoal', 'Caramel', 'Vanilla'],
-    tastingNotes: 'Tennessee whiskey mellowed through 10 feet of sugar-maple charcoal. Distinctive smoky sweetness, caramel, and vanilla.',
+    tastingNotes:
+      'Tennessee whiskey mellowed through 10 feet of sugar-maple charcoal. Distinctive smoky sweetness, caramel, and vanilla.',
     origin: 'United States',
     searchTerms: ['jack daniels', "jack daniel's", 'jack', 'jd', 'tennessee whiskey', 'old no 7'],
   },
@@ -1238,7 +1275,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 18, max: 26 },
     },
     flavorProfile: ['Honey', 'Malt', 'Vanilla'],
-    tastingNotes: 'Triple distilled Irish whiskey. Gentle honey, soft malt, and vanilla with a light floral finish. Approachable and mixable.',
+    tastingNotes:
+      'Triple distilled Irish whiskey. Gentle honey, soft malt, and vanilla with a light floral finish. Approachable and mixable.',
     origin: 'Ireland',
     searchTerms: ['tullamore', 'tullamore dew', 'tullamore d.e.w.', 'irish whiskey'],
   },
@@ -1255,7 +1293,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 48, max: 60 },
     },
     flavorProfile: ['Sherry', 'Dried Fruit', 'Toasted Wood'],
-    tastingNotes: 'Ireland\'s finest single pot still whiskey. Rich dried fruit, sherry sweetness, toasted wood, and a long warming finish.',
+    tastingNotes:
+      "Ireland's finest single pot still whiskey. Rich dried fruit, sherry sweetness, toasted wood, and a long warming finish.",
     origin: 'Ireland',
     searchTerms: ['redbreast', 'redbreast 12', 'pot still whiskey'],
     serveGuidance: {
@@ -1265,7 +1304,7 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       recommendedModes: ['neat', 'water-drops'],
       firstPour: 'neat',
       shouldDeprioritizeCocktails: true,
-      why: 'Ireland\'s benchmark sipping whiskey. Treat it like a premium Scotch — neat, maybe a drop of water.',
+      why: "Ireland's benchmark sipping whiskey. Treat it like a premium Scotch — neat, maybe a drop of water.",
       cocktailUse: 'best-neat',
     },
   },
@@ -1282,7 +1321,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 30, max: 38 },
     },
     flavorProfile: ['Honey', 'Citrus', 'Subtle Smoke'],
-    tastingNotes: 'Light and elegant Japanese blend. Honey, citrus zest, and a whisper of smoke. Perfect in a highball over plenty of ice.',
+    tastingNotes:
+      'Light and elegant Japanese blend. Honey, citrus zest, and a whisper of smoke. Perfect in a highball over plenty of ice.',
     origin: 'Japan',
     searchTerms: ['toki', 'suntory toki', 'japanese whisky', 'suntory whisky'],
     serveGuidance: {
@@ -1308,7 +1348,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 56, max: 70 },
     },
     flavorProfile: ['Rose', 'Honey', 'White Oak'],
-    tastingNotes: 'A masterpiece of blending. Rose, honey, white chocolate, and subtle oak. Every sip is seamlessly balanced.',
+    tastingNotes:
+      'A masterpiece of blending. Rose, honey, white chocolate, and subtle oak. Every sip is seamlessly balanced.',
     origin: 'Japan',
     searchTerms: ['hibiki', 'hibiki harmony', 'japanese harmony'],
     serveGuidance: {
@@ -1337,7 +1378,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 16, max: 22 },
     },
     flavorProfile: ['Agave', 'Citrus', 'Mild'],
-    tastingNotes: 'Light and clean mixto tequila. Mild agave, citrus, and a gentle finish. The party staple.',
+    tastingNotes:
+      'Light and clean mixto tequila. Mild agave, citrus, and a gentle finish. The party staple.',
     origin: 'Mexico',
     searchTerms: ['jose cuervo', 'cuervo', 'cuervo silver', 'cuervo especial'],
   },
@@ -1354,7 +1396,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 20, max: 26 },
     },
     flavorProfile: ['Agave', 'Citrus', 'Pepper'],
-    tastingNotes: '100% agave highland tequila. Bright citrus, fresh agave, and a white pepper kick. Great value for cocktails.',
+    tastingNotes:
+      '100% agave highland tequila. Bright citrus, fresh agave, and a white pepper kick. Great value for cocktails.',
     origin: 'Mexico',
     searchTerms: ['olmeca', 'altos', 'olmeca altos', 'altos plata'],
   },
@@ -1372,7 +1415,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 24, max: 32 },
     },
     flavorProfile: ['Oak', 'Dried Fruit', 'Spice'],
-    tastingNotes: 'Light and fruity VS cognac. Apple, oak, and subtle spice. The Napoleon connection. Good in cognac-based cocktails.',
+    tastingNotes:
+      'Light and fruity VS cognac. Apple, oak, and subtle spice. The Napoleon connection. Good in cognac-based cocktails.',
     origin: 'France',
     searchTerms: ['courvoisier', 'courvoisier vs', 'napoleon cognac'],
   },
@@ -1389,7 +1433,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 22, max: 30 },
     },
     flavorProfile: ['Plum', 'Pear', 'Oak'],
-    tastingNotes: 'The oldest of the great cognac houses. Light plum and pear on the nose, warm oak on the palate.',
+    tastingNotes:
+      'The oldest of the great cognac houses. Light plum and pear on the nose, warm oak on the palate.',
     origin: 'France',
     searchTerms: ['martell vs', 'martell very special', 'martell cognac vs'],
   },
@@ -1408,7 +1453,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 18, max: 26 },
     },
     flavorProfile: ['Almond', 'Cherry', 'Marzipan'],
-    tastingNotes: 'The iconic Italian amaretto. Sweet almond and marzipan with cherry and apricot pit. Rich and warming.',
+    tastingNotes:
+      'The iconic Italian amaretto. Sweet almond and marzipan with cherry and apricot pit. Rich and warming.',
     origin: 'Italy',
     searchTerms: ['disaronno', 'amaretto', 'amaretto disaronno', 'almond liqueur'],
   },
@@ -1425,7 +1471,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 18, max: 24 },
     },
     flavorProfile: ['Hazelnut', 'Cocoa', 'Vanilla'],
-    tastingNotes: 'Wild Piedmont hazelnuts with cocoa, vanilla, and a hint of coffee. Rich, sweet, and nutty.',
+    tastingNotes:
+      'Wild Piedmont hazelnuts with cocoa, vanilla, and a hint of coffee. Rich, sweet, and nutty.',
     origin: 'Italy',
     searchTerms: ['frangelico', 'hazelnut liqueur', 'frangelico hazelnut'],
   },
@@ -1442,7 +1489,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 28, max: 38 },
     },
     flavorProfile: ['Orange', 'Cognac', 'Vanilla'],
-    tastingNotes: 'Cognac-based orange liqueur. Bitter orange peel, vanilla, and warm cognac notes. More complex and drier than Cointreau.',
+    tastingNotes:
+      'Cognac-based orange liqueur. Bitter orange peel, vanilla, and warm cognac notes. More complex and drier than Cointreau.',
     origin: 'France',
     searchTerms: ['grand marnier', 'grand marnier cordon rouge', 'gm'],
   },
@@ -1459,7 +1507,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 8, max: 14 },
     },
     flavorProfile: ['Orange', 'Sweet', 'Citrus'],
-    tastingNotes: 'Sweet orange liqueur used as a Cointreau substitute. Bright orange, candy-sweet, and versatile in Margaritas and Cosmos.',
+    tastingNotes:
+      'Sweet orange liqueur used as a Cointreau substitute. Bright orange, candy-sweet, and versatile in Margaritas and Cosmos.',
     origin: 'France',
     searchTerms: ['triple sec', 'orange liqueur', 'orange curacao'],
   },
@@ -1476,7 +1525,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 18, max: 26 },
     },
     flavorProfile: ['Black Raspberry', 'Vanilla', 'Honey'],
-    tastingNotes: 'Rich French black raspberry liqueur with vanilla and honey. Deeply fruity and sweet. Iconic in French Martinis.',
+    tastingNotes:
+      'Rich French black raspberry liqueur with vanilla and honey. Deeply fruity and sweet. Iconic in French Martinis.',
     origin: 'France',
     searchTerms: ['chambord', 'black raspberry liqueur', 'chambord liqueur'],
   },
@@ -1493,9 +1543,16 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 48, max: 60 },
     },
     flavorProfile: ['Herbal', 'Mint', 'Spice'],
-    tastingNotes: '130 herbs and plants, made by monks since 1737. Intensely herbal with mint, pine, and warming spice. Utterly unique.',
+    tastingNotes:
+      '130 herbs and plants, made by monks since 1737. Intensely herbal with mint, pine, and warming spice. Utterly unique.',
     origin: 'France',
-    searchTerms: ['green chartreuse', 'chartreuse verte', 'verte', 'chartreuse green', 'vep chartreuse'],
+    searchTerms: [
+      'green chartreuse',
+      'chartreuse verte',
+      'verte',
+      'chartreuse green',
+      'vep chartreuse',
+    ],
   },
   {
     id: 'jagermeister',
@@ -1510,7 +1567,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 16, max: 22 },
     },
     flavorProfile: ['Herbal', 'Anise', 'Bitter'],
-    tastingNotes: '56 herbs, roots, and spices. Anise, citrus peel, licorice, and bitter herbs. Best served ice cold.',
+    tastingNotes:
+      '56 herbs, roots, and spices. Anise, citrus peel, licorice, and bitter herbs. Best served ice cold.',
     origin: 'Germany',
     searchTerms: ['jagermeister', 'jägermeister', 'jager', 'jäger'],
   },
@@ -1527,7 +1585,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 22, max: 30 },
     },
     flavorProfile: ['Bitter', 'Menthol', 'Herbal'],
-    tastingNotes: 'The bartender\'s handshake. 27 herbs including myrrh, saffron, and gentian. Intensely bitter, medicinal, and menthol-forward.',
+    tastingNotes:
+      "The bartender's handshake. 27 herbs including myrrh, saffron, and gentian. Intensely bitter, medicinal, and menthol-forward.",
     origin: 'Italy',
     searchTerms: ['fernet', 'fernet branca', 'fernet-branca'],
   },
@@ -1544,7 +1603,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 14, max: 20 },
     },
     flavorProfile: ['Melon', 'Sweet', 'Tropical'],
-    tastingNotes: 'Vivid green Japanese melon liqueur. Honeydew and cantaloupe sweetness, tropical and bright.',
+    tastingNotes:
+      'Vivid green Japanese melon liqueur. Honeydew and cantaloupe sweetness, tropical and bright.',
     origin: 'Japan',
     searchTerms: ['midori', 'melon liqueur', 'midori melon'],
   },
@@ -1561,7 +1621,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 18, max: 24 },
     },
     flavorProfile: ['Almond', 'Vanilla', 'Light'],
-    tastingNotes: 'Dairy-free almond milk liqueur from Baileys. Light vanilla and almond with a silky smooth finish.',
+    tastingNotes:
+      'Dairy-free almond milk liqueur from Baileys. Light vanilla and almond with a silky smooth finish.',
     origin: 'Ireland',
     searchTerms: ['baileys almande', 'almond baileys', 'dairy free baileys'],
   },
@@ -1585,9 +1646,17 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 38, max: 52 },
     },
     flavorProfile: ['Clean', 'Smooth', 'Neutral', 'Subtle Vanilla'],
-    tastingNotes: 'Ultra-clean Canadian vodka distilled four times and filtered through Herkimer diamonds. Exceptionally smooth with a neutral, slightly sweet finish.',
+    tastingNotes:
+      'Ultra-clean Canadian vodka distilled four times and filtered through Herkimer diamonds. Exceptionally smooth with a neutral, slightly sweet finish.',
     origin: 'Canada',
-    searchTerms: ['crystal head original', 'skull vodka', 'dan aykroyd vodka', 'skull bottle vodka', 'crystal skull vodka', 'herkimer diamond vodka'],
+    searchTerms: [
+      'crystal head original',
+      'skull vodka',
+      'dan aykroyd vodka',
+      'skull bottle vodka',
+      'crystal skull vodka',
+      'herkimer diamond vodka',
+    ],
   },
   {
     id: 'crystal-head-aurora',
@@ -1602,9 +1671,18 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 45, max: 60 },
     },
     flavorProfile: ['Clean', 'Smooth', 'Grain', 'Subtle Sweetness'],
-    tastingNotes: 'Made from English wheat, Crystal Head Aurora has a slightly softer, rounder palate than the original. The iridescent skull bottle glows with aurora-like colour shifts.',
+    tastingNotes:
+      'Made from English wheat, Crystal Head Aurora has a slightly softer, rounder palate than the original. The iridescent skull bottle glows with aurora-like colour shifts.',
     origin: 'Canada',
-    searchTerms: ['crystal head aurora', 'aurora vodka', 'iridescent skull', 'rainbow skull vodka', 'purple skull vodka', 'blue skull bottle', 'crystal head wheat'],
+    searchTerms: [
+      'crystal head aurora',
+      'aurora vodka',
+      'iridescent skull',
+      'rainbow skull vodka',
+      'purple skull vodka',
+      'blue skull bottle',
+      'crystal head wheat',
+    ],
   },
   {
     id: 'crystal-head-onyx',
@@ -1619,9 +1697,17 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 45, max: 60 },
     },
     flavorProfile: ['Agave', 'Earthy', 'Smoke', 'Pepper'],
-    tastingNotes: 'Spirit-of-agave based vodka with a distinctive earthy, peppery character. The matte black skull bottle is unmistakable.',
+    tastingNotes:
+      'Spirit-of-agave based vodka with a distinctive earthy, peppery character. The matte black skull bottle is unmistakable.',
     origin: 'Canada',
-    searchTerms: ['crystal head onyx', 'black skull vodka', 'black crystal head', 'onyx vodka', 'agave vodka skull', 'dark skull bottle'],
+    searchTerms: [
+      'crystal head onyx',
+      'black skull vodka',
+      'black crystal head',
+      'onyx vodka',
+      'agave vodka skull',
+      'dark skull bottle',
+    ],
   },
   {
     id: 'crystal-head-bone',
@@ -1636,9 +1722,16 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 45, max: 60 },
     },
     flavorProfile: ['Clean', 'Soft', 'Mineral', 'Neutral'],
-    tastingNotes: 'Single-grain spirit with a bone-dry, mineral character. The pale cream-coloured skull bottle is a collector\'s piece.',
+    tastingNotes:
+      "Single-grain spirit with a bone-dry, mineral character. The pale cream-coloured skull bottle is a collector's piece.",
     origin: 'Canada',
-    searchTerms: ['crystal head bone', 'bone vodka', 'cream skull vodka', 'white skull bottle', 'crystal head pale'],
+    searchTerms: [
+      'crystal head bone',
+      'bone vodka',
+      'cream skull vodka',
+      'white skull bottle',
+      'crystal head pale',
+    ],
   },
 
   // -- Clase Azul series (hand-painted ceramic decanter, no flat label) --
@@ -1655,9 +1748,18 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 85, max: 105 },
     },
     flavorProfile: ['Agave', 'Vanilla', 'Tropical Fruit'],
-    tastingNotes: 'Ultra-premium unaged tequila. Pure agave sweetness, tropical fruit, and silky smooth texture. The ceramic bottle is iconic.',
+    tastingNotes:
+      'Ultra-premium unaged tequila. Pure agave sweetness, tropical fruit, and silky smooth texture. The ceramic bottle is iconic.',
     origin: 'Mexico',
-    searchTerms: ['clase azul plata', 'clase azul silver', 'clase azul blanco', 'clase azul tequila', 'ceramic tequila', 'hand painted decanter', 'talavera tequila'],
+    searchTerms: [
+      'clase azul plata',
+      'clase azul silver',
+      'clase azul blanco',
+      'clase azul tequila',
+      'ceramic tequila',
+      'hand painted decanter',
+      'talavera tequila',
+    ],
     serveGuidance: {
       priority: 'serve-first',
       spiritFamily: 'tequila',
@@ -1682,9 +1784,15 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 140, max: 165 },
     },
     flavorProfile: ['Agave', 'Vanilla', 'Caramel', 'Oak', 'Spice'],
-    tastingNotes: 'Aged 8 months in American oak barrels. Rich agave with vanilla, caramel, and a warm spiced finish. Comes in a hand-painted ceramic decanter.',
+    tastingNotes:
+      'Aged 8 months in American oak barrels. Rich agave with vanilla, caramel, and a warm spiced finish. Comes in a hand-painted ceramic decanter.',
     origin: 'Mexico',
-    searchTerms: ['clase azul reposado', 'clase azul rested', 'hand painted tequila', 'blue white ceramic bottle'],
+    searchTerms: [
+      'clase azul reposado',
+      'clase azul rested',
+      'hand painted tequila',
+      'blue white ceramic bottle',
+    ],
   },
   {
     id: 'clase-azul-anejo',
@@ -1699,9 +1807,16 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 255, max: 285 },
     },
     flavorProfile: ['Agave', 'Dark Chocolate', 'Dried Fruit', 'Oak', 'Spice'],
-    tastingNotes: 'Aged 25 months in American whiskey barrels. Deep and complex with dark chocolate, dried fruit, and a long warming finish. The gold-trimmed ceramic decanter is extraordinary.',
+    tastingNotes:
+      'Aged 25 months in American whiskey barrels. Deep and complex with dark chocolate, dried fruit, and a long warming finish. The gold-trimmed ceramic decanter is extraordinary.',
     origin: 'Mexico',
-    searchTerms: ['clase azul anejo', 'clase azul añejo', 'clase azul gold ceramic', 'clase azul aged', 'clase azul 25 months'],
+    searchTerms: [
+      'clase azul anejo',
+      'clase azul añejo',
+      'clase azul gold ceramic',
+      'clase azul aged',
+      'clase azul 25 months',
+    ],
   },
   {
     id: 'clase-azul-ultra',
@@ -1716,9 +1831,16 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 1400, max: 1600 },
     },
     flavorProfile: ['Agave', 'Cognac', 'Sherry', 'Vanilla', 'Dried Fruit'],
-    tastingNotes: 'A blend of the finest añejo tequilas aged in sherry, cognac, and whiskey casks. Incredibly complex and rare. The black and gold ceramic decanter is adorned with platinum and is itself a collectible.',
+    tastingNotes:
+      'A blend of the finest añejo tequilas aged in sherry, cognac, and whiskey casks. Incredibly complex and rare. The black and gold ceramic decanter is adorned with platinum and is itself a collectible.',
     origin: 'Mexico',
-    searchTerms: ['clase azul ultra', 'clase azul ultra anejo', 'black gold ceramic tequila', 'clase azul platinum', 'ultra anejo tequila'],
+    searchTerms: [
+      'clase azul ultra',
+      'clase azul ultra anejo',
+      'black gold ceramic tequila',
+      'clase azul platinum',
+      'ultra anejo tequila',
+    ],
   },
   {
     id: 'clase-azul-gold',
@@ -1733,9 +1855,15 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 360, max: 400 },
     },
     flavorProfile: ['Agave', 'Honey', 'Toffee', 'Oak', 'Citrus'],
-    tastingNotes: 'A blend of extra añejo, añejo, and reposado. Honey, toffee, and citrus blossom lead to a rich, warm finish. The all-gold ceramic decanter is among the most recognisable in the world.',
+    tastingNotes:
+      'A blend of extra añejo, añejo, and reposado. Honey, toffee, and citrus blossom lead to a rich, warm finish. The all-gold ceramic decanter is among the most recognisable in the world.',
     origin: 'Mexico',
-    searchTerms: ['clase azul gold', 'gold ceramic tequila', 'clase azul dorado', 'clase azul gold edition'],
+    searchTerms: [
+      'clase azul gold',
+      'gold ceramic tequila',
+      'clase azul dorado',
+      'clase azul gold edition',
+    ],
   },
   {
     id: 'clase-azul-mezcal-guerrero',
@@ -1750,9 +1878,17 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 255, max: 295 },
     },
     flavorProfile: ['Smoke', 'Grapefruit', 'Rosemary', 'Sea Salt', 'Tobacco'],
-    tastingNotes: 'Made from wild Papalote agave from the mountain range of Guerrero. Grapefruit skin, fresh rosemary, and sea salt lead to a lightly smoky, herbal finish. The distinctive hand-painted teal ceramic bottle is unlike any other mezcal.',
+    tastingNotes:
+      'Made from wild Papalote agave from the mountain range of Guerrero. Grapefruit skin, fresh rosemary, and sea salt lead to a lightly smoky, herbal finish. The distinctive hand-painted teal ceramic bottle is unlike any other mezcal.',
     origin: 'Mexico',
-    searchTerms: ['clase azul mezcal guerrero', 'clase azul guerrero', 'clase azul mezcal', 'papalote agave mezcal', 'black teal ceramic mezcal', 'guerrero mezcal'],
+    searchTerms: [
+      'clase azul mezcal guerrero',
+      'clase azul guerrero',
+      'clase azul mezcal',
+      'papalote agave mezcal',
+      'black teal ceramic mezcal',
+      'guerrero mezcal',
+    ],
   },
   {
     id: 'clase-azul-mezcal-durango',
@@ -1767,9 +1903,16 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 255, max: 295 },
     },
     flavorProfile: ['Cenizo Agave', 'Mineral', 'Dried Herbs', 'Earthiness', 'Light Smoke'],
-    tastingNotes: 'Made from wild Cenizo agave unique to the state of Durango. Extreme highland climate lends intense mineral character, dried herbs, and a complex earthy smokiness distinct from Oaxacan mezcals.',
+    tastingNotes:
+      'Made from wild Cenizo agave unique to the state of Durango. Extreme highland climate lends intense mineral character, dried herbs, and a complex earthy smokiness distinct from Oaxacan mezcals.',
     origin: 'Mexico',
-    searchTerms: ['clase azul durango', 'clase azul mezcal durango', 'cenizo agave mezcal', 'durango mezcal', 'clase azul durango mezcal'],
+    searchTerms: [
+      'clase azul durango',
+      'clase azul mezcal durango',
+      'cenizo agave mezcal',
+      'durango mezcal',
+      'clase azul durango mezcal',
+    ],
   },
   {
     id: 'clase-azul-mezcal-san-luis-potosi',
@@ -1784,9 +1927,16 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 255, max: 295 },
     },
     flavorProfile: ['Salmiana Agave', 'Desert Florals', 'Citrus', 'Herbs', 'Mineral'],
-    tastingNotes: 'Made from Agave salmiana grown in the desert slopes of San Luis Potosí. Desert florals, citrus, and herbs with a distinctive mineral finish inspired by the region\'s legendary landscape. The hand-painted ceramic decanter celebrates the area\'s artistic heritage.',
+    tastingNotes:
+      "Made from Agave salmiana grown in the desert slopes of San Luis Potosí. Desert florals, citrus, and herbs with a distinctive mineral finish inspired by the region's legendary landscape. The hand-painted ceramic decanter celebrates the area's artistic heritage.",
     origin: 'Mexico',
-    searchTerms: ['clase azul san luis potosi', 'clase azul san luis', 'salmiana agave mezcal', 'clase azul mezcal slp', 'san luis potosi mezcal'],
+    searchTerms: [
+      'clase azul san luis potosi',
+      'clase azul san luis',
+      'salmiana agave mezcal',
+      'clase azul mezcal slp',
+      'san luis potosi mezcal',
+    ],
   },
 
   // -- Clase Azul Limited Editions --
@@ -1803,9 +1953,17 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 1050, max: 1600 },
     },
     flavorProfile: ['Agave', 'Vanilla', 'Caramel', 'Light Oak'],
-    tastingNotes: 'The inaugural Día de Muertos edition. A joven blend combining the best of Plata and Reposado, released in only 1,800 hand-painted ceramic bottles. Now highly sought after by collectors.',
+    tastingNotes:
+      'The inaugural Día de Muertos edition. A joven blend combining the best of Plata and Reposado, released in only 1,800 hand-painted ceramic bottles. Now highly sought after by collectors.',
     origin: 'Mexico',
-    searchTerms: ['clase azul dia de muertos', 'clase azul dia de los muertos', 'clase azul day of dead', 'clase azul muertos 2019', 'clase azul skull design', 'clase azul collector edition'],
+    searchTerms: [
+      'clase azul dia de muertos',
+      'clase azul dia de los muertos',
+      'clase azul day of dead',
+      'clase azul muertos 2019',
+      'clase azul skull design',
+      'clase azul collector edition',
+    ],
   },
   {
     id: 'clase-azul-dia-de-muertos-2021',
@@ -1820,9 +1978,16 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 700, max: 970 },
     },
     flavorProfile: ['Agave', 'Dark Chocolate', 'Dried Fruit', 'Warming Spice', 'Oak'],
-    tastingNotes: 'First release of the Nuestros Recuerdos series. An añejo tequila in a ceramic decanter inspired by the traditional foods and sweets of Día de Muertos. Rich, complex, and deeply evocative.',
+    tastingNotes:
+      'First release of the Nuestros Recuerdos series. An añejo tequila in a ceramic decanter inspired by the traditional foods and sweets of Día de Muertos. Rich, complex, and deeply evocative.',
     origin: 'Mexico',
-    searchTerms: ['clase azul sabores', 'clase azul dia de muertos 2021', 'clase azul nuestros recuerdos', 'clase azul anejo limited', 'clase azul muertos sabores'],
+    searchTerms: [
+      'clase azul sabores',
+      'clase azul dia de muertos 2021',
+      'clase azul nuestros recuerdos',
+      'clase azul anejo limited',
+      'clase azul muertos sabores',
+    ],
   },
   {
     id: 'clase-azul-dia-de-muertos-2022',
@@ -1837,9 +2002,16 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 615, max: 840 },
     },
     flavorProfile: ['Agave', 'Dark Fruit', 'Vanilla', 'Caramel', 'Oak'],
-    tastingNotes: 'Second release of the Nuestros Recuerdos series. Añejo tequila in a vibrant, multi-coloured ceramic decanter inspired by the Calaveritas de Azúcar (sugar skulls) of Día de Muertos.',
+    tastingNotes:
+      'Second release of the Nuestros Recuerdos series. Añejo tequila in a vibrant, multi-coloured ceramic decanter inspired by the Calaveritas de Azúcar (sugar skulls) of Día de Muertos.',
     origin: 'Mexico',
-    searchTerms: ['clase azul colores', 'clase azul dia de muertos 2022', 'clase azul sugar skull bottle', 'clase azul colourful bottle', 'clase azul muertos colores'],
+    searchTerms: [
+      'clase azul colores',
+      'clase azul dia de muertos 2022',
+      'clase azul sugar skull bottle',
+      'clase azul colourful bottle',
+      'clase azul muertos colores',
+    ],
   },
   {
     id: 'clase-azul-dia-de-muertos-2023',
@@ -1854,9 +2026,17 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 615, max: 840 },
     },
     flavorProfile: ['Agave', 'Marigold', 'Floral', 'Vanilla', 'Dried Fruit'],
-    tastingNotes: 'Third Nuestros Recuerdos release. Only 2,000 bottles made. The decanter is covered in a marigold glaze with a 24-karat gold ornament — the most ornate in the series. Añejo liquid inside.',
+    tastingNotes:
+      'Third Nuestros Recuerdos release. Only 2,000 bottles made. The decanter is covered in a marigold glaze with a 24-karat gold ornament — the most ornate in the series. Añejo liquid inside.',
     origin: 'Mexico',
-    searchTerms: ['clase azul aromas', 'clase azul dia de muertos 2023', 'clase azul marigold bottle', 'clase azul 24k gold bottle', 'clase azul gold ornament', 'clase azul muertos aromas'],
+    searchTerms: [
+      'clase azul aromas',
+      'clase azul dia de muertos 2023',
+      'clase azul marigold bottle',
+      'clase azul 24k gold bottle',
+      'clase azul gold ornament',
+      'clase azul muertos aromas',
+    ],
   },
   {
     id: 'clase-azul-dia-de-muertos-2024',
@@ -1871,9 +2051,17 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 528, max: 750 },
     },
     flavorProfile: ['Agave', 'Plum', 'Vanilla', 'Lilac', 'Oak'],
-    tastingNotes: 'Fourth Nuestros Recuerdos release. Deep plum ceramic decanter with gold and lilac illustrations of a musical ensemble. The añejo tequila echoes the soft, calming cadence of Día de Muertos melodies.',
+    tastingNotes:
+      'Fourth Nuestros Recuerdos release. Deep plum ceramic decanter with gold and lilac illustrations of a musical ensemble. The añejo tequila echoes the soft, calming cadence of Día de Muertos melodies.',
     origin: 'Mexico',
-    searchTerms: ['clase azul musica', 'clase azul dia de muertos 2024', 'clase azul plum bottle', 'clase azul purple bottle', 'clase azul music edition', 'clase azul muertos musica'],
+    searchTerms: [
+      'clase azul musica',
+      'clase azul dia de muertos 2024',
+      'clase azul plum bottle',
+      'clase azul purple bottle',
+      'clase azul music edition',
+      'clase azul muertos musica',
+    ],
   },
   {
     id: 'clase-azul-dia-de-muertos-2025',
@@ -1888,9 +2076,16 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 528, max: 750 },
     },
     flavorProfile: ['Agave', 'Vanilla', 'Dark Fruit', 'Cinnamon', 'Oak'],
-    tastingNotes: 'The fifth and final release of the Nuestros Recuerdos series, dedicated to remembrance. Limited to 10,000 one-litre ceramic decanters. Closes the chapter on one of tequila\'s most celebrated annual collector series.',
+    tastingNotes:
+      "The fifth and final release of the Nuestros Recuerdos series, dedicated to remembrance. Limited to 10,000 one-litre ceramic decanters. Closes the chapter on one of tequila's most celebrated annual collector series.",
     origin: 'Mexico',
-    searchTerms: ['clase azul recuerdos', 'clase azul dia de muertos 2025', 'clase azul final edition', 'clase azul nuestros recuerdos final', 'clase azul muertos recuerdos'],
+    searchTerms: [
+      'clase azul recuerdos',
+      'clase azul dia de muertos 2025',
+      'clase azul final edition',
+      'clase azul nuestros recuerdos final',
+      'clase azul muertos recuerdos',
+    ],
   },
   {
     id: 'clase-azul-20th-anniversary',
@@ -1905,9 +2100,16 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 3950, max: 4850 },
     },
     flavorProfile: ['Agave', 'Vanilla', 'Caramel', 'Oak', 'Warm Spice'],
-    tastingNotes: 'A milestone collector\'s release marking 20 years of Clase Azul. 100% Blue Weber agave, slow-cooked and aged 8 months in American oak. The hand-painted decanter is among the most elaborate ever produced by the brand.',
+    tastingNotes:
+      "A milestone collector's release marking 20 years of Clase Azul. 100% Blue Weber agave, slow-cooked and aged 8 months in American oak. The hand-painted decanter is among the most elaborate ever produced by the brand.",
     origin: 'Mexico',
-    searchTerms: ['clase azul 20th anniversary', 'clase azul 20 aniversario', 'clase azul veinte', 'clase azul anniversary reposado', 'clase azul aniversario'],
+    searchTerms: [
+      'clase azul 20th anniversary',
+      'clase azul 20 aniversario',
+      'clase azul veinte',
+      'clase azul anniversary reposado',
+      'clase azul aniversario',
+    ],
   },
   {
     id: 'clase-azul-25th-anniversary',
@@ -1922,9 +2124,16 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 705, max: 970 },
     },
     flavorProfile: ['Agave', 'Vanilla', 'Caramel', 'Light Oak', 'Citrus'],
-    tastingNotes: 'Pays homage to the signature Reposado aged 8 months in two different first-use American whiskey casks. Released as a 1-litre decanter to mark 25 years of Clase Azul.',
+    tastingNotes:
+      'Pays homage to the signature Reposado aged 8 months in two different first-use American whiskey casks. Released as a 1-litre decanter to mark 25 years of Clase Azul.',
     origin: 'Mexico',
-    searchTerms: ['clase azul 25th anniversary', 'clase azul 25 aniversario', 'clase azul veinticinco', 'clase azul 25 year', 'clase azul 25'],
+    searchTerms: [
+      'clase azul 25th anniversary',
+      'clase azul 25 aniversario',
+      'clase azul veinticinco',
+      'clase azul 25 year',
+      'clase azul 25',
+    ],
   },
   {
     id: 'clase-azul-pink-2023',
@@ -1939,9 +2148,18 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 705, max: 880 },
     },
     flavorProfile: ['Agave', 'Port Wine', 'Dark Fruit', 'Vanilla', 'Caramel'],
-    tastingNotes: 'A joven blend of añejo aged in port wine casks, añejo aged in American whiskey casks, and Clase Azul Plata. The iconic pink ceramic decanter comes with matching sipping cups. Proceeds support breast cancer awareness.',
+    tastingNotes:
+      'A joven blend of añejo aged in port wine casks, añejo aged in American whiskey casks, and Clase Azul Plata. The iconic pink ceramic decanter comes with matching sipping cups. Proceeds support breast cancer awareness.',
     origin: 'Mexico',
-    searchTerms: ['clase azul pink', 'clase azul rosa', 'pink tequila bottle', 'clase azul breast cancer', 'clase azul pink 2023', 'clase azul pink ceramic', 'pink ceramic tequila'],
+    searchTerms: [
+      'clase azul pink',
+      'clase azul rosa',
+      'pink tequila bottle',
+      'clase azul breast cancer',
+      'clase azul pink 2023',
+      'clase azul pink ceramic',
+      'pink ceramic tequila',
+    ],
   },
   {
     id: 'clase-azul-pink-2024',
@@ -1956,9 +2174,16 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 705, max: 880 },
     },
     flavorProfile: ['Agave', 'Port Wine', 'Dark Fruit', 'Vanilla', 'Caramel'],
-    tastingNotes: 'The 2024 annual pink charity release. Joven blend with port wine and whiskey cask añejo components. The updated hand-painted pink ceramic decanter raises funds for RETO breast cancer awareness.',
+    tastingNotes:
+      'The 2024 annual pink charity release. Joven blend with port wine and whiskey cask añejo components. The updated hand-painted pink ceramic decanter raises funds for RETO breast cancer awareness.',
     origin: 'Mexico',
-    searchTerms: ['clase azul pink 2024', 'clase azul rosa 2024', 'clase azul breast cancer 2024', 'clase azul pink joven', 'clase azul charity edition'],
+    searchTerms: [
+      'clase azul pink 2024',
+      'clase azul rosa 2024',
+      'clase azul breast cancer 2024',
+      'clase azul pink joven',
+      'clase azul charity edition',
+    ],
   },
   {
     id: 'clase-azul-spirit-of-champions',
@@ -1973,9 +2198,18 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 1580, max: 1940 },
     },
     flavorProfile: ['Agave', 'Vanilla', 'Caramel', 'Oak', 'French Wood'],
-    tastingNotes: 'Aged 28 months in French wooden vats from the Forest of Tronçais, then blended with a dash of unaged Plata. Rich caramel, vanilla, and subtle French oak. Limited to 10,000 one-litre decanters, certified Kosher. The trophy-shaped decanter celebrates the spirit of championship.',
+    tastingNotes:
+      'Aged 28 months in French wooden vats from the Forest of Tronçais, then blended with a dash of unaged Plata. Rich caramel, vanilla, and subtle French oak. Limited to 10,000 one-litre decanters, certified Kosher. The trophy-shaped decanter celebrates the spirit of championship.',
     origin: 'Mexico',
-    searchTerms: ['clase azul spirit of champions', 'clase azul campeones', 'clase azul world cup', 'clase azul trophy bottle', 'clase azul 2026', 'clase azul french oak', 'clase azul champions'],
+    searchTerms: [
+      'clase azul spirit of champions',
+      'clase azul campeones',
+      'clase azul world cup',
+      'clase azul trophy bottle',
+      'clase azul 2026',
+      'clase azul french oak',
+      'clase azul champions',
+    ],
   },
 
   // -- Don Julio series (tall narrow bottle, distinctive blue label) -- (tall narrow bottle, distinctive blue label) --
@@ -1992,7 +2226,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 45, max: 55 },
     },
     flavorProfile: ['Agave', 'Vanilla', 'Caramel', 'Light Oak'],
-    tastingNotes: 'Aged 8 months in American white oak barrels. Smooth vanilla and caramel notes complement the clean agave backbone. The squat square bottle with blue label is iconic.',
+    tastingNotes:
+      'Aged 8 months in American white oak barrels. Smooth vanilla and caramel notes complement the clean agave backbone. The squat square bottle with blue label is iconic.',
     origin: 'Mexico',
     searchTerms: ['don julio reposado', 'dj reposado', 'don julio rested'],
   },
@@ -2009,7 +2244,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 52, max: 62 },
     },
     flavorProfile: ['Agave', 'Chocolate', 'Vanilla', 'Oak', 'Dried Fruit'],
-    tastingNotes: 'Aged 18 months in American white oak. Rich chocolate, dried fruit, and vanilla with a smooth, warming finish. Sip neat.',
+    tastingNotes:
+      'Aged 18 months in American white oak. Rich chocolate, dried fruit, and vanilla with a smooth, warming finish. Sip neat.',
     origin: 'Mexico',
     searchTerms: ['don julio anejo', 'don julio añejo', 'don julio aged', 'dj anejo'],
   },
@@ -2026,7 +2262,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 135, max: 158 },
     },
     flavorProfile: ['Agave', 'Vanilla', 'Caramel', 'Oak', 'Honey'],
-    tastingNotes: 'Aged a minimum of two and a half years. Rich and smooth with roasted agave, vanilla, caramel, and toasted oak. One of the world\'s most recognised premium tequilas. The very tall, narrow bottle is immediately distinctive.',
+    tastingNotes:
+      "Aged a minimum of two and a half years. Rich and smooth with roasted agave, vanilla, caramel, and toasted oak. One of the world's most recognised premium tequilas. The very tall, narrow bottle is immediately distinctive.",
     origin: 'Mexico',
     serveGuidance: {
       priority: 'serve-first',
@@ -2038,7 +2275,14 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       why: 'A sipping tequila first — the price and quality demand you taste it neat before mixing.',
       cocktailUse: 'best-neat',
     },
-    searchTerms: ['don julio 1942', 'dj 1942', '1942 tequila', 'tall tequila bottle', 'don julio nineteen forty two', '1942'],
+    searchTerms: [
+      'don julio 1942',
+      'dj 1942',
+      '1942 tequila',
+      'tall tequila bottle',
+      'don julio nineteen forty two',
+      '1942',
+    ],
   },
   {
     id: 'don-julio-real',
@@ -2053,9 +2297,16 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 360, max: 410 },
     },
     flavorProfile: ['Agave', 'Dark Chocolate', 'Vanilla', 'Dried Fruit', 'Cinnamon'],
-    tastingNotes: 'Aged three to five years in American white oak barrels. Luxuriously smooth with dark chocolate, dried fruit, and a warm cinnamon finish. The crystal-clear decanter with agave-leaf stopper is unmistakable.',
+    tastingNotes:
+      'Aged three to five years in American white oak barrels. Luxuriously smooth with dark chocolate, dried fruit, and a warm cinnamon finish. The crystal-clear decanter with agave-leaf stopper is unmistakable.',
     origin: 'Mexico',
-    searchTerms: ['don julio real', 'dj real', 'don julio extra anejo', 'don julio crystal decanter', 'don julio agave stopper'],
+    searchTerms: [
+      'don julio real',
+      'dj real',
+      'don julio extra anejo',
+      'don julio crystal decanter',
+      'don julio agave stopper',
+    ],
   },
   {
     id: 'don-julio-70',
@@ -2070,9 +2321,17 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 65, max: 80 },
     },
     flavorProfile: ['Agave', 'Vanilla', 'Light Oak', 'Citrus'],
-    tastingNotes: 'Añejo charcoal-filtered to crystal clarity. The agave, vanilla, and oak character of an añejo with the visual lightness of a blanco. Created for the 70th anniversary of the brand.',
+    tastingNotes:
+      'Añejo charcoal-filtered to crystal clarity. The agave, vanilla, and oak character of an añejo with the visual lightness of a blanco. Created for the 70th anniversary of the brand.',
     origin: 'Mexico',
-    searchTerms: ['don julio 70', 'dj 70', 'don julio cristalino', 'cristalino tequila', 'don julio seventy', 'clear anejo'],
+    searchTerms: [
+      'don julio 70',
+      'dj 70',
+      'don julio cristalino',
+      'cristalino tequila',
+      'don julio seventy',
+      'clear anejo',
+    ],
   },
 
   // -- Patrón series (short squat bottle, natural raffia/cork top) --
@@ -2089,7 +2348,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 42, max: 52 },
     },
     flavorProfile: ['Agave', 'Oak', 'Vanilla', 'Caramel', 'Citrus'],
-    tastingNotes: 'Aged a minimum of two months in oak barrels. Smooth agave with vanilla, caramel, and a subtle oak finish. The hand-blown glass bottle with cork and raffia tie is iconic.',
+    tastingNotes:
+      'Aged a minimum of two months in oak barrels. Smooth agave with vanilla, caramel, and a subtle oak finish. The hand-blown glass bottle with cork and raffia tie is iconic.',
     origin: 'Mexico',
     searchTerms: ['patron reposado', 'patrón reposado', 'patron rested', 'patron cork bottle'],
   },
@@ -2106,7 +2366,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 48, max: 58 },
     },
     flavorProfile: ['Agave', 'Vanilla', 'Dark Fruit', 'Oak', 'Honey'],
-    tastingNotes: 'Aged at least 12 months in a combination of French oak, Hungarian oak, and used American whiskey barrels. Rich and complex with vanilla, dark fruit, and warm oak.',
+    tastingNotes:
+      'Aged at least 12 months in a combination of French oak, Hungarian oak, and used American whiskey barrels. Rich and complex with vanilla, dark fruit, and warm oak.',
     origin: 'Mexico',
     searchTerms: ['patron anejo', 'patrón añejo', 'patron aged', 'patron anejo tequila'],
   },
@@ -2123,9 +2384,16 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 195, max: 225 },
     },
     flavorProfile: ['Agave', 'White Pepper', 'Citrus', 'Smooth', 'Mineral'],
-    tastingNotes: 'Triple-distilled, rested briefly in platinum stainless tanks. Silky smooth with fresh agave, citrus blossom, and white pepper. The frosted square decanter bottle is one of the most distinctive in ultra-premium tequila.',
+    tastingNotes:
+      'Triple-distilled, rested briefly in platinum stainless tanks. Silky smooth with fresh agave, citrus blossom, and white pepper. The frosted square decanter bottle is one of the most distinctive in ultra-premium tequila.',
     origin: 'Mexico',
-    searchTerms: ['gran patron platinum', 'gran patrón platinum', 'patron platinum', 'frosted square tequila bottle', 'gran patron silver'],
+    searchTerms: [
+      'gran patron platinum',
+      'gran patrón platinum',
+      'patron platinum',
+      'frosted square tequila bottle',
+      'gran patron silver',
+    ],
   },
   {
     id: 'gran-patron-burdeos',
@@ -2140,9 +2408,16 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 400, max: 450 },
     },
     flavorProfile: ['Agave', 'Bordeaux', 'Dark Fruit', 'Oak', 'Chocolate'],
-    tastingNotes: 'Distilled and initially aged, then finished in single-vintage Bordeaux wine barrels. Incredibly complex — agave, dark Bordeaux fruit, and chocolate lead to an extraordinarily long finish.',
+    tastingNotes:
+      'Distilled and initially aged, then finished in single-vintage Bordeaux wine barrels. Incredibly complex — agave, dark Bordeaux fruit, and chocolate lead to an extraordinarily long finish.',
     origin: 'Mexico',
-    searchTerms: ['gran patron burdeos', 'gran patrón burdeos', 'patron burdeos', 'bordeaux tequila', 'gran patron anejo'],
+    searchTerms: [
+      'gran patron burdeos',
+      'gran patrón burdeos',
+      'patron burdeos',
+      'bordeaux tequila',
+      'gran patron anejo',
+    ],
   },
 
   // -- Casamigos full range --
@@ -2159,7 +2434,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 42, max: 52 },
     },
     flavorProfile: ['Agave', 'Caramel', 'Cocoa', 'Vanilla'],
-    tastingNotes: 'Aged 7 months in American white oak barrels. Smooth caramel, cocoa, and vanilla with a clean agave backbone. Founded by George Clooney, it remains one of the most popular premium tequilas.',
+    tastingNotes:
+      'Aged 7 months in American white oak barrels. Smooth caramel, cocoa, and vanilla with a clean agave backbone. Founded by George Clooney, it remains one of the most popular premium tequilas.',
     origin: 'Mexico',
     searchTerms: ['casamigos reposado', 'casa amigos reposado', 'clooney tequila reposado'],
   },
@@ -2176,9 +2452,15 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 48, max: 58 },
     },
     flavorProfile: ['Agave', 'Vanilla', 'Dark Caramel', 'Dried Fruit', 'Spice'],
-    tastingNotes: 'Aged 14 months in American white oak. Deep caramel, vanilla, and dried fruit with a warm, lingering spice finish.',
+    tastingNotes:
+      'Aged 14 months in American white oak. Deep caramel, vanilla, and dried fruit with a warm, lingering spice finish.',
     origin: 'Mexico',
-    searchTerms: ['casamigos anejo', 'casamigos añejo', 'casa amigos anejo', 'clooney tequila anejo'],
+    searchTerms: [
+      'casamigos anejo',
+      'casamigos añejo',
+      'casa amigos anejo',
+      'clooney tequila anejo',
+    ],
   },
   {
     id: 'casamigos-mezcal',
@@ -2193,7 +2475,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 48, max: 58 },
     },
     flavorProfile: ['Smoke', 'Agave', 'Citrus', 'Earthy'],
-    tastingNotes: 'Made from Espadin agave in Oaxaca. Smooth smoke with citrus, fresh agave, and an earthy, slightly sweet finish. Approachable for mezcal newcomers.',
+    tastingNotes:
+      'Made from Espadin agave in Oaxaca. Smooth smoke with citrus, fresh agave, and an earthy, slightly sweet finish. Approachable for mezcal newcomers.',
     origin: 'Mexico',
     searchTerms: ['casamigos mezcal', 'casa amigos mezcal', 'casamigos oaxaca mezcal'],
   },
@@ -2212,7 +2495,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 35, max: 45 },
     },
     flavorProfile: ['Agave', 'Citrus', 'Light Pepper', 'Floral'],
-    tastingNotes: 'Rested 45 days — the industry minimum for blanco is zero days, making Herradura Silver unusually complex. Fresh agave, citrus blossom, and a slight pepper finish.',
+    tastingNotes:
+      'Rested 45 days — the industry minimum for blanco is zero days, making Herradura Silver unusually complex. Fresh agave, citrus blossom, and a slight pepper finish.',
     origin: 'Mexico',
     searchTerms: ['herradura silver', 'herradura blanco', 'herradura tequila silver'],
   },
@@ -2229,7 +2513,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 39, max: 48 },
     },
     flavorProfile: ['Agave', 'Oak', 'Vanilla', 'Caramel'],
-    tastingNotes: 'Aged 11 months — far longer than the 2-month legal minimum. Rich agave, vanilla, and caramel with significant oak influence for its age.',
+    tastingNotes:
+      'Aged 11 months — far longer than the 2-month legal minimum. Rich agave, vanilla, and caramel with significant oak influence for its age.',
     origin: 'Mexico',
     searchTerms: ['herradura reposado', 'herradura rested'],
   },
@@ -2246,7 +2531,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 48, max: 58 },
     },
     flavorProfile: ['Agave', 'Dark Fruit', 'Chocolate', 'Oak', 'Spice'],
-    tastingNotes: 'Aged 25 months in American white oak. Deep and complex with dark fruit, chocolate, and warm oak spice. One of the most traditionally crafted añejos available.',
+    tastingNotes:
+      'Aged 25 months in American white oak. Deep and complex with dark fruit, chocolate, and warm oak spice. One of the most traditionally crafted añejos available.',
     origin: 'Mexico',
     searchTerms: ['herradura anejo', 'herradura añejo', 'herradura aged'],
   },
@@ -2263,9 +2549,15 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 80, max: 98 },
     },
     flavorProfile: ['Agave', 'Vanilla', 'Butterscotch', 'Oak', 'Cinnamon'],
-    tastingNotes: 'Extra añejo charcoal-filtered to near-perfect clarity. All the complexity of 49 months in oak with the visual brightness of a blanco. Butterscotch, vanilla, and warm cinnamon.',
+    tastingNotes:
+      'Extra añejo charcoal-filtered to near-perfect clarity. All the complexity of 49 months in oak with the visual brightness of a blanco. Butterscotch, vanilla, and warm cinnamon.',
     origin: 'Mexico',
-    searchTerms: ['herradura ultra', 'herradura ultra anejo', 'herradura cristalino', 'clear herradura'],
+    searchTerms: [
+      'herradura ultra',
+      'herradura ultra anejo',
+      'herradura cristalino',
+      'clear herradura',
+    ],
   },
 
   // -- Other premium / distinctive tequilas --
@@ -2282,9 +2574,16 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 250, max: 285 },
     },
     flavorProfile: ['Agave', 'Pear', 'Vanilla', 'Almond', 'Light Oak'],
-    tastingNotes: 'A joven blend of silver and extra-aged tequila. Pear, almond, and vanilla with a silky finish. The tall, frosted glass bottle with a curved neck is among the most elegant in ultra-premium spirits.',
+    tastingNotes:
+      'A joven blend of silver and extra-aged tequila. Pear, almond, and vanilla with a silky finish. The tall, frosted glass bottle with a curved neck is among the most elegant in ultra-premium spirits.',
     origin: 'Mexico',
-    searchTerms: ['casa dragones', 'casa dragones joven', 'frosted tequila bottle', 'tall frosted tequila', 'dragones tequila'],
+    searchTerms: [
+      'casa dragones',
+      'casa dragones joven',
+      'frosted tequila bottle',
+      'tall frosted tequila',
+      'dragones tequila',
+    ],
   },
   {
     id: 'cincoro-anejo',
@@ -2299,9 +2598,15 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 178, max: 205 },
     },
     flavorProfile: ['Agave', 'Vanilla', 'Dark Caramel', 'Toasted Oak', 'Cacao'],
-    tastingNotes: 'Aged 24-28 months in American oak. Rich caramel, toasted oak, and cacao with a long, warm finish. The oval egg-shaped bottle is one of the most distinctive in modern tequila.',
+    tastingNotes:
+      'Aged 24-28 months in American oak. Rich caramel, toasted oak, and cacao with a long, warm finish. The oval egg-shaped bottle is one of the most distinctive in modern tequila.',
     origin: 'Mexico',
-    searchTerms: ['cincoro anejo', 'cincoro añejo', 'oval tequila bottle', 'egg shaped tequila bottle'],
+    searchTerms: [
+      'cincoro anejo',
+      'cincoro añejo',
+      'oval tequila bottle',
+      'egg shaped tequila bottle',
+    ],
   },
   {
     id: 'lobos-1707-reposado',
@@ -2316,9 +2621,16 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 42, max: 52 },
     },
     flavorProfile: ['Agave', 'Pedro Ximénez', 'Vanilla', 'Dark Fruit'],
-    tastingNotes: 'Finished in Pedro Ximénez sherry casks, a technique borrowed from winemaking. Sweet dark fruit and sherry notes enrich the agave and vanilla base. LeBron James co-owns the brand.',
+    tastingNotes:
+      'Finished in Pedro Ximénez sherry casks, a technique borrowed from winemaking. Sweet dark fruit and sherry notes enrich the agave and vanilla base. LeBron James co-owns the brand.',
     origin: 'Mexico',
-    searchTerms: ['lobos 1707', 'lobos tequila', 'lobos reposado', 'lobos 1707 tequila', 'lebron tequila'],
+    searchTerms: [
+      'lobos 1707',
+      'lobos tequila',
+      'lobos reposado',
+      'lobos 1707 tequila',
+      'lebron tequila',
+    ],
   },
   {
     id: '818-reposado',
@@ -2333,7 +2645,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 37, max: 47 },
     },
     flavorProfile: ['Agave', 'Vanilla', 'Butter', 'Caramel'],
-    tastingNotes: 'Aged 6 months in American white oak. Buttery vanilla and caramel with clean agave. Kendall Jenner\'s brand, now widely distributed.',
+    tastingNotes:
+      "Aged 6 months in American white oak. Buttery vanilla and caramel with clean agave. Kendall Jenner's brand, now widely distributed.",
     origin: 'Mexico',
     searchTerms: ['818 reposado', 'eight one eight reposado', 'kendall jenner tequila reposado'],
   },
@@ -2350,9 +2663,17 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 48, max: 58 },
     },
     flavorProfile: ['Agave', 'Rose', 'Strawberry', 'Light Oak'],
-    tastingNotes: 'Rested 30 days in uncharred Napa Cabernet Sauvignon barrels. The pink blush colour and strawberry/rose notes are completely natural. One of the most distinctive looking tequilas on the bar.',
+    tastingNotes:
+      'Rested 30 days in uncharred Napa Cabernet Sauvignon barrels. The pink blush colour and strawberry/rose notes are completely natural. One of the most distinctive looking tequilas on the bar.',
     origin: 'Mexico',
-    searchTerms: ['codigo 1530', 'codigo rosa', 'pink tequila', 'rose tequila', 'codigo 1530 rosa', 'pink bottle tequila'],
+    searchTerms: [
+      'codigo 1530',
+      'codigo rosa',
+      'pink tequila',
+      'rose tequila',
+      'codigo 1530 rosa',
+      'pink bottle tequila',
+    ],
   },
   {
     id: 'fortaleza-blanco',
@@ -2367,9 +2688,16 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 48, max: 58 },
     },
     flavorProfile: ['Agave', 'Citrus', 'Pepper', 'Mineral', 'Floral'],
-    tastingNotes: 'Traditional tahona stone-wheel distilled tequila. Intense, raw agave character with bright citrus and pepper. A cult favourite among tequila purists.',
+    tastingNotes:
+      'Traditional tahona stone-wheel distilled tequila. Intense, raw agave character with bright citrus and pepper. A cult favourite among tequila purists.',
     origin: 'Mexico',
-    searchTerms: ['fortaleza', 'fortaleza blanco', 'fortaleza tequila', 'tahona tequila', 'stone wheel tequila'],
+    searchTerms: [
+      'fortaleza',
+      'fortaleza blanco',
+      'fortaleza tequila',
+      'tahona tequila',
+      'stone wheel tequila',
+    ],
   },
 
   // -- Distinctive Scotch & Whisky --
@@ -2386,9 +2714,16 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 70, max: 88 },
     },
     flavorProfile: ['Dried Fruit', 'Oak', 'Dark Chocolate', 'Warming Spice'],
-    tastingNotes: 'Matured in Oloroso sherry and American bourbon casks. Rich dried fruit, dark chocolate, and warming spice with an oak backbone. The triangular bottle is a Glenfiddich hallmark.',
+    tastingNotes:
+      'Matured in Oloroso sherry and American bourbon casks. Rich dried fruit, dark chocolate, and warming spice with an oak backbone. The triangular bottle is a Glenfiddich hallmark.',
     origin: 'Scotland',
-    searchTerms: ['glenfiddich 18', 'glenfiddich eighteen', 'glenfiddich 18 year', 'fiddich 18', 'glenfiddich small batch'],
+    searchTerms: [
+      'glenfiddich 18',
+      'glenfiddich eighteen',
+      'glenfiddich 18 year',
+      'fiddich 18',
+      'glenfiddich small batch',
+    ],
   },
   {
     id: 'glenfiddich-21',
@@ -2403,9 +2738,16 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 158, max: 185 },
     },
     flavorProfile: ['Tropical Fruit', 'Toffee', 'Oak', 'Rum Finish'],
-    tastingNotes: 'Finished in Caribbean rum casks for up to four months after 21 years in American bourbon and Spanish sherry wood. Tropical fruit, toffee, and a distinctly silky rum-influenced finish.',
+    tastingNotes:
+      'Finished in Caribbean rum casks for up to four months after 21 years in American bourbon and Spanish sherry wood. Tropical fruit, toffee, and a distinctly silky rum-influenced finish.',
     origin: 'Scotland',
-    searchTerms: ['glenfiddich 21', 'glenfiddich twenty one', 'glenfiddich gran reserva', 'fiddich 21', 'rum cask scotch'],
+    searchTerms: [
+      'glenfiddich 21',
+      'glenfiddich twenty one',
+      'glenfiddich gran reserva',
+      'fiddich 21',
+      'rum cask scotch',
+    ],
   },
   {
     id: 'macallan-18',
@@ -2420,9 +2762,16 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 280, max: 335 },
     },
     flavorProfile: ['Sherry', 'Dark Fruit', 'Chocolate', 'Oak', 'Spice'],
-    tastingNotes: 'Matured in a combination of European and American sherry seasoned oak casks. Intensely fruity with dark chocolate, Christmas cake, and warming spice. One of the most coveted aged Scotches in the world.',
+    tastingNotes:
+      'Matured in a combination of European and American sherry seasoned oak casks. Intensely fruity with dark chocolate, Christmas cake, and warming spice. One of the most coveted aged Scotches in the world.',
     origin: 'Scotland',
-    searchTerms: ['macallan 18', 'macallan eighteen', 'macallan 18 double cask', 'macallan 18 year', 'the macallan 18'],
+    searchTerms: [
+      'macallan 18',
+      'macallan eighteen',
+      'macallan 18 double cask',
+      'macallan 18 year',
+      'the macallan 18',
+    ],
   },
   {
     id: 'dalmore-12',
@@ -2437,9 +2786,17 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 48, max: 60 },
     },
     flavorProfile: ['Orange', 'Chocolate', 'Vanilla', 'Sherry', 'Spice'],
-    tastingNotes: 'Matured in American white oak before finishing in hand-selected Oloroso sherry casks. Rich orange, chocolate, and vanilla with a warming sherry spice. The stag-emblem bottle is among the most recognisable in Scotch.',
+    tastingNotes:
+      'Matured in American white oak before finishing in hand-selected Oloroso sherry casks. Rich orange, chocolate, and vanilla with a warming sherry spice. The stag-emblem bottle is among the most recognisable in Scotch.',
     origin: 'Scotland',
-    searchTerms: ['dalmore 12', 'dalmore twelve', 'dalmore', 'stag bottle scotch', 'deer bottle whisky', 'the dalmore'],
+    searchTerms: [
+      'dalmore 12',
+      'dalmore twelve',
+      'dalmore',
+      'stag bottle scotch',
+      'deer bottle whisky',
+      'the dalmore',
+    ],
   },
   {
     id: 'balvenie-12-doublewood',
@@ -2454,9 +2811,16 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 48, max: 60 },
     },
     flavorProfile: ['Honey', 'Vanilla', 'Fruit', 'Cinnamon', 'Sherry'],
-    tastingNotes: 'Matured in traditional oak whisky casks then transferred to first-fill European oak sherry barrels. Honey, fruit, and vanilla from the first cask, spice and sherry sweetness from the second.',
+    tastingNotes:
+      'Matured in traditional oak whisky casks then transferred to first-fill European oak sherry barrels. Honey, fruit, and vanilla from the first cask, spice and sherry sweetness from the second.',
     origin: 'Scotland',
-    searchTerms: ['balvenie 12', 'balvenie doublewood', 'the balvenie', 'balvenie double wood', 'balvenie twelve'],
+    searchTerms: [
+      'balvenie 12',
+      'balvenie doublewood',
+      'the balvenie',
+      'balvenie double wood',
+      'balvenie twelve',
+    ],
   },
   {
     id: 'yamazaki-12',
@@ -2471,9 +2835,17 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 140, max: 178 },
     },
     flavorProfile: ['Peach', 'Plum', 'Coconut', 'Vanilla', 'Light Smoke'],
-    tastingNotes: 'Japan\'s most awarded single malt. Layered with peach, plum, and coconut from Mizunara oak casks, with a delicate vanilla and light smoke. The tall, slender bottle with Japanese script is iconic.',
+    tastingNotes:
+      "Japan's most awarded single malt. Layered with peach, plum, and coconut from Mizunara oak casks, with a delicate vanilla and light smoke. The tall, slender bottle with Japanese script is iconic.",
     origin: 'Japan',
-    searchTerms: ['yamazaki 12', 'yamazaki twelve', 'yamazaki single malt', 'yamazaki japanese whisky', 'suntory yamazaki', '山崎'],
+    searchTerms: [
+      'yamazaki 12',
+      'yamazaki twelve',
+      'yamazaki single malt',
+      'yamazaki japanese whisky',
+      'suntory yamazaki',
+      '山崎',
+    ],
   },
   {
     id: 'nikka-from-the-barrel',
@@ -2488,9 +2860,17 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 57, max: 70 },
     },
     flavorProfile: ['Dried Fruit', 'Spice', 'Vanilla', 'Smoke', 'Chocolate'],
-    tastingNotes: 'Bottled at cask strength (51.4%) without chill-filtration. Dense and complex — dried fruit, chocolate, and warm spice. The distinctive squat rectangular bottle is unlike any other whisky on the shelf.',
+    tastingNotes:
+      'Bottled at cask strength (51.4%) without chill-filtration. Dense and complex — dried fruit, chocolate, and warm spice. The distinctive squat rectangular bottle is unlike any other whisky on the shelf.',
     origin: 'Japan',
-    searchTerms: ['nikka from the barrel', 'nikka ftb', 'nikka barrel', 'nikka japanese whisky', 'rectangular whisky bottle', 'nikka'],
+    searchTerms: [
+      'nikka from the barrel',
+      'nikka ftb',
+      'nikka barrel',
+      'nikka japanese whisky',
+      'rectangular whisky bottle',
+      'nikka',
+    ],
   },
 
   // -- Distinctive cognac --
@@ -2507,9 +2887,17 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 178, max: 215 },
     },
     flavorProfile: ['Dark Chocolate', 'Dried Fruit', 'Leather', 'Oak', 'Spice'],
-    tastingNotes: 'A blend of over 100 eaux-de-vie, the oldest dating back to 1971. Dark chocolate, leather, and dried fruit with a long, warming spice finish. The decanter bottle with its distinctive stopper has been iconic since 1870.',
+    tastingNotes:
+      'A blend of over 100 eaux-de-vie, the oldest dating back to 1971. Dark chocolate, leather, and dried fruit with a long, warming spice finish. The decanter bottle with its distinctive stopper has been iconic since 1870.',
     origin: 'France',
-    searchTerms: ['hennessy xo', 'hennessy x.o', 'hennessy extra old', 'henny xo', 'cognac xo', 'hennessy decanter'],
+    searchTerms: [
+      'hennessy xo',
+      'hennessy x.o',
+      'hennessy extra old',
+      'henny xo',
+      'cognac xo',
+      'hennessy decanter',
+    ],
   },
   {
     id: 'remy-martin-xo',
@@ -2524,9 +2912,16 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 195, max: 230 },
     },
     flavorProfile: ['Plum', 'Dark Chocolate', 'Hazelnut', 'Oak', 'Dried Fruit'],
-    tastingNotes: 'An assembly of up to 400 eaux-de-vie from Grande and Petite Champagne. Plum, hazelnut, and dark chocolate with a remarkable silky finish. The distinctive curved, organic-shaped bottle is instantly recognisable.',
+    tastingNotes:
+      'An assembly of up to 400 eaux-de-vie from Grande and Petite Champagne. Plum, hazelnut, and dark chocolate with a remarkable silky finish. The distinctive curved, organic-shaped bottle is instantly recognisable.',
     origin: 'France',
-    searchTerms: ['remy martin xo', 'rémy martin xo', 'remy xo', 'remy martin extra old', 'remy cognac xo'],
+    searchTerms: [
+      'remy martin xo',
+      'rémy martin xo',
+      'remy xo',
+      'remy martin extra old',
+      'remy cognac xo',
+    ],
   },
   {
     id: 'louis-xiii',
@@ -2541,9 +2936,17 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 3100, max: 3700 },
     },
     flavorProfile: ['Dried Rose', 'Myrrh', 'Honey', 'Dark Fruit', 'Spice'],
-    tastingNotes: 'Made from up to 1,200 eaux-de-vie aged 40-100 years. Extraordinarily complex — dried rose petals, myrrh, honey, and dark fruit. Housed in a hand-crafted Baccarat crystal decanter, it is one of the most prestigious spirits in existence.',
+    tastingNotes:
+      'Made from up to 1,200 eaux-de-vie aged 40-100 years. Extraordinarily complex — dried rose petals, myrrh, honey, and dark fruit. Housed in a hand-crafted Baccarat crystal decanter, it is one of the most prestigious spirits in existence.',
     origin: 'France',
-    searchTerms: ['louis xiii', 'louis 13', 'louis xiii cognac', 'baccarat decanter cognac', 'remy louis xiii', 'most expensive cognac'],
+    searchTerms: [
+      'louis xiii',
+      'louis 13',
+      'louis xiii cognac',
+      'baccarat decanter cognac',
+      'remy louis xiii',
+      'most expensive cognac',
+    ],
   },
 
   // -- Other distinctive/notable additions --
@@ -2560,7 +2963,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 33, max: 42 },
     },
     flavorProfile: ['Silky', 'Wheat', 'Toffee', 'Cream'],
-    tastingNotes: 'Single-estate Swedish wheat vodka distilled in a vintage copper column still from 1921. Silky, rich mouthfeel with toffee, cream, and a long clean finish. The copper-coloured bottle mimics the still it\'s made in.',
+    tastingNotes:
+      "Single-estate Swedish wheat vodka distilled in a vintage copper column still from 1921. Silky, rich mouthfeel with toffee, cream, and a long clean finish. The copper-coloured bottle mimics the still it's made in.",
     origin: 'Sweden',
     searchTerms: ['absolut elyx', 'elyx vodka', 'copper vodka bottle', 'absolut copper', 'elyx'],
   },
@@ -2577,9 +2981,17 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 26, max: 33 },
     },
     flavorProfile: ['Rice', 'Floral', 'Subtle Sweetness', 'Smooth'],
-    tastingNotes: 'Made from 100% Japanese white rice. Delicate, slightly sweet, and floral — a world away from grain vodkas. The frosted bottle with Japanese script is distinctive in any bar.',
+    tastingNotes:
+      'Made from 100% Japanese white rice. Delicate, slightly sweet, and floral — a world away from grain vodkas. The frosted bottle with Japanese script is distinctive in any bar.',
     origin: 'Japan',
-    searchTerms: ['haku vodka', 'haku japanese vodka', 'haku', 'japanese rice vodka', 'suntory haku', '白'],
+    searchTerms: [
+      'haku vodka',
+      'haku japanese vodka',
+      'haku',
+      'japanese rice vodka',
+      'suntory haku',
+      '白',
+    ],
   },
 
   // -- Olmeca entries --
@@ -2596,7 +3008,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 18, max: 25 },
     },
     flavorProfile: ['Agave', 'Light Oak', 'Citrus', 'Vanilla'],
-    tastingNotes: 'Rested tequila with light oak and vanilla notes from barrel ageing. Clean agave backbone with a gentle citrus finish.',
+    tastingNotes:
+      'Rested tequila with light oak and vanilla notes from barrel ageing. Clean agave backbone with a gentle citrus finish.',
     origin: 'Mexico',
     searchTerms: ['olmeca', 'olmeca reposado', 'olmeca tequila', 'olmeca gold'],
   },
@@ -2619,9 +3032,15 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 24, max: 32 },
     },
     flavorProfile: ['Vanilla', 'Oak', 'Caramel', 'Fruit'],
-    tastingNotes: 'Canada\'s best-selling whisky. Smooth and approachable with vanilla, caramel, and light fruit. The iconic purple velvet bag makes it one of the most recognisable bottles in the world.',
+    tastingNotes:
+      "Canada's best-selling whisky. Smooth and approachable with vanilla, caramel, and light fruit. The iconic purple velvet bag makes it one of the most recognisable bottles in the world.",
     origin: 'Canada',
-    searchTerms: ['crown royal deluxe', 'crown royal original', 'purple bag whisky', 'canadian crown whisky'],
+    searchTerms: [
+      'crown royal deluxe',
+      'crown royal original',
+      'purple bag whisky',
+      'canadian crown whisky',
+    ],
   },
   {
     id: 'crown-royal-apple',
@@ -2636,14 +3055,15 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 24, max: 32 },
     },
     flavorProfile: ['Apple', 'Vanilla', 'Caramel', 'Crisp'],
-    tastingNotes: 'Crown Royal blended with Regal Gala apple flavour. Crisp green apple and caramel with a smooth whisky finish. One of the most popular flavoured whiskies in North America.',
+    tastingNotes:
+      'Crown Royal blended with Regal Gala apple flavour. Crisp green apple and caramel with a smooth whisky finish. One of the most popular flavoured whiskies in North America.',
     origin: 'Canada',
     searchTerms: ['crown royal apple', 'crown apple', 'cr apple', 'regal apple whisky'],
   },
   {
     id: 'jp-wisers',
-    name: 'J.P. Wiser\'s Deluxe Canadian Whisky',
-    brand: 'J.P. Wiser\'s',
+    name: "J.P. Wiser's Deluxe Canadian Whisky",
+    brand: "J.P. Wiser's",
     type: 'whiskey',
     abv: 40,
     priceTier: 'budget',
@@ -2653,7 +3073,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 16, max: 22 },
     },
     flavorProfile: ['Grain', 'Vanilla', 'Light Oak', 'Mild Spice'],
-    tastingNotes: 'One of Canada\'s oldest whisky brands. Light grain, vanilla, and mild spice with a clean, easy finish. A staple of Canadian bars.',
+    tastingNotes:
+      "One of Canada's oldest whisky brands. Light grain, vanilla, and mild spice with a clean, easy finish. A staple of Canadian bars.",
     origin: 'Canada',
     searchTerms: ['jp wisers', 'j.p. wiser', 'wisers deluxe', 'wisers canadian whisky', 'wisers'],
   },
@@ -2670,7 +3091,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 15, max: 20 },
     },
     flavorProfile: ['Rye', 'Vanilla', 'Oak', 'Mild Spice'],
-    tastingNotes: 'Aged 12 years in white oak barrels. Light rye spice, vanilla, and oak with a clean, smooth finish. A true Canadian classic.',
+    tastingNotes:
+      'Aged 12 years in white oak barrels. Light rye spice, vanilla, and oak with a clean, smooth finish. A true Canadian classic.',
     origin: 'Canada',
     searchTerms: ['canadian club', 'cc', 'cc whisky', 'canadian club classic', 'canadian club 12'],
   },
@@ -2687,7 +3109,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 20, max: 27 },
     },
     flavorProfile: ['Rye', 'Corn', 'Barley', 'Fruit', 'Honey'],
-    tastingNotes: 'Distilled in three separate batches from rye, corn, and barley before blending. Fruit, honey, and gentle spice. One of Canada\'s most awarded whiskies.',
+    tastingNotes:
+      "Distilled in three separate batches from rye, corn, and barley before blending. Fruit, honey, and gentle spice. One of Canada's most awarded whiskies.",
     origin: 'Canada',
     searchTerms: ['forty creek', '40 creek', 'forty creek whisky', 'copper pot whisky'],
   },
@@ -2704,7 +3127,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 11, max: 16 },
     },
     flavorProfile: ['Grain', 'Light Vanilla', 'Mild', 'Smooth'],
-    tastingNotes: 'Ultra-smooth budget Canadian blend. Light grain and vanilla with a very clean finish. One of the best-selling value whiskies in North America.',
+    tastingNotes:
+      'Ultra-smooth budget Canadian blend. Light grain and vanilla with a very clean finish. One of the best-selling value whiskies in North America.',
     origin: 'Canada',
     searchTerms: ['black velvet', 'black velvet whisky', 'bv canadian whisky'],
   },
@@ -2723,14 +3147,15 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 18, max: 25 },
     },
     flavorProfile: ['Dried Fruit', 'Sherry', 'Oak', 'Spice'],
-    tastingNotes: 'Scotland\'s best-selling whisky. Balanced sherry notes, dried fruit, and warm oak spice. The red grouse label is iconic in British pubs.',
+    tastingNotes:
+      "Scotland's best-selling whisky. Balanced sherry notes, dried fruit, and warm oak spice. The red grouse label is iconic in British pubs.",
     origin: 'Scotland',
     searchTerms: ['famous grouse', 'the famous grouse', 'grouse whisky', 'red grouse scotch'],
   },
   {
     id: 'bells-scotch',
-    name: 'Bell\'s Original Blended Scotch Whisky',
-    brand: 'Bell\'s',
+    name: "Bell's Original Blended Scotch Whisky",
+    brand: "Bell's",
     type: 'whiskey',
     abv: 40,
     priceTier: 'budget',
@@ -2740,14 +3165,15 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 14, max: 20 },
     },
     flavorProfile: ['Heather', 'Honey', 'Vanilla', 'Light Peat'],
-    tastingNotes: 'One of the UK\'s best-selling Scotch blends. Honey, heather, and a touch of peat smoke with a light, easy finish.',
+    tastingNotes:
+      "One of the UK's best-selling Scotch blends. Honey, heather, and a touch of peat smoke with a light, easy finish.",
     origin: 'Scotland',
     searchTerms: ['bells scotch', "bell's whisky", 'bells original', 'bells blended'],
   },
   {
     id: 'teachers-scotch',
-    name: 'Teacher\'s Highland Cream Blended Scotch',
-    brand: 'Teacher\'s',
+    name: "Teacher's Highland Cream Blended Scotch",
+    brand: "Teacher's",
     type: 'whiskey',
     abv: 40,
     priceTier: 'budget',
@@ -2757,9 +3183,15 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 13, max: 18 },
     },
     flavorProfile: ['Peat', 'Malt', 'Honey', 'Oak'],
-    tastingNotes: 'Contains a higher malt content than most blends, with notable Highland peat character, honey, and malt. Long a staple of UK pubs.',
+    tastingNotes:
+      'Contains a higher malt content than most blends, with notable Highland peat character, honey, and malt. Long a staple of UK pubs.',
     origin: 'Scotland',
-    searchTerms: ["teacher's", 'teachers highland cream', 'teachers scotch', 'highland cream whisky'],
+    searchTerms: [
+      "teacher's",
+      'teachers highland cream',
+      'teachers scotch',
+      'highland cream whisky',
+    ],
   },
   {
     id: 'chivas-regal-12',
@@ -2774,14 +3206,15 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 26, max: 34 },
     },
     flavorProfile: ['Honey', 'Vanilla', 'Apple', 'Hazelnut'],
-    tastingNotes: 'One of the world\'s most recognisable blended Scotches. Rich honey, vanilla, and hazelnut with a smooth, creamy finish. The gold and green bottle is iconic.',
+    tastingNotes:
+      "One of the world's most recognisable blended Scotches. Rich honey, vanilla, and hazelnut with a smooth, creamy finish. The gold and green bottle is iconic.",
     origin: 'Scotland',
     searchTerms: ['chivas regal', 'chivas 12', 'chivas regal 12', 'chivas blended'],
   },
   {
     id: 'dewars-white-label',
-    name: 'Dewar\'s White Label Blended Scotch',
-    brand: 'Dewar\'s',
+    name: "Dewar's White Label Blended Scotch",
+    brand: "Dewar's",
     type: 'whiskey',
     abv: 40,
     priceTier: 'mid-range',
@@ -2791,14 +3224,15 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 20, max: 28 },
     },
     flavorProfile: ['Light Fruit', 'Honey', 'Vanilla', 'Crisp'],
-    tastingNotes: 'Double-aged Scotch blend — aged in oak, then returned to cask for additional smoothing. Light fruit, honey, and vanilla with a clean, crisp finish.',
+    tastingNotes:
+      'Double-aged Scotch blend — aged in oak, then returned to cask for additional smoothing. Light fruit, honey, and vanilla with a clean, crisp finish.',
     origin: 'Scotland',
     searchTerms: ["dewar's", 'dewars', 'dewars white label', 'dewar scotch'],
   },
   {
     id: 'grants-family-reserve',
-    name: 'Grant\'s Family Reserve Blended Scotch',
-    brand: 'Grant\'s',
+    name: "Grant's Family Reserve Blended Scotch",
+    brand: "Grant's",
     type: 'whiskey',
     abv: 40,
     priceTier: 'budget',
@@ -2808,7 +3242,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 13, max: 18 },
     },
     flavorProfile: ['Vanilla', 'Fruit', 'Honey', 'Light Oak'],
-    tastingNotes: 'Light and accessible blended Scotch. Vanilla, fruit, and honey with a smooth, easy finish. One of the best-selling Scotches globally.',
+    tastingNotes:
+      'Light and accessible blended Scotch. Vanilla, fruit, and honey with a smooth, easy finish. One of the best-selling Scotches globally.',
     origin: 'Scotland',
     searchTerms: ["grant's", 'grants scotch', 'grants family reserve', 'william grants'],
   },
@@ -2825,7 +3260,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 18, max: 25 },
     },
     flavorProfile: ['Smoke', 'Vanilla', 'Spice', 'Citrus'],
-    tastingNotes: 'The world\'s best-selling Scotch by volume. Bold smoke, vanilla, and citrus with a warm spiced finish. The square bottle and red label are globally recognised.',
+    tastingNotes:
+      "The world's best-selling Scotch by volume. Bold smoke, vanilla, and citrus with a warm spiced finish. The square bottle and red label are globally recognised.",
     origin: 'Scotland',
     searchTerms: ['johnnie walker red', 'jw red', 'johnnie walker red label', 'red label scotch'],
   },
@@ -2842,9 +3278,15 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 48, max: 60 },
     },
     flavorProfile: ['Honey', 'Vanilla', 'Cream', 'Dried Fruit'],
-    tastingNotes: 'Created to celebrate Johnnie Walker\'s 200th anniversary. Rich and creamy with honey, vanilla pod, and dried fruit. Smooth and indulgent.',
+    tastingNotes:
+      "Created to celebrate Johnnie Walker's 200th anniversary. Rich and creamy with honey, vanilla pod, and dried fruit. Smooth and indulgent.",
     origin: 'Scotland',
-    searchTerms: ['johnnie walker gold', 'jw gold', 'gold label reserve', 'johnnie walker gold label'],
+    searchTerms: [
+      'johnnie walker gold',
+      'jw gold',
+      'gold label reserve',
+      'johnnie walker gold label',
+    ],
   },
   {
     id: 'johnnie-walker-blue',
@@ -2859,7 +3301,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 155, max: 195 },
     },
     flavorProfile: ['Dark Fruit', 'Smoke', 'Spice', 'Honey', 'Velvet'],
-    tastingNotes: 'Blended from rare casks, some over 60 years old. Extraordinarily smooth and complex — dark fruit, gentle smoke, and warm honey spice. The blue bottle is among the most gifted spirits in the world.',
+    tastingNotes:
+      'Blended from rare casks, some over 60 years old. Extraordinarily smooth and complex — dark fruit, gentle smoke, and warm honey spice. The blue bottle is among the most gifted spirits in the world.',
     origin: 'Scotland',
     serveGuidance: {
       priority: 'serve-first',
@@ -2868,10 +3311,15 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       recommendedModes: ['neat', 'large-rock'],
       firstPour: 'neat',
       shouldDeprioritizeCocktails: true,
-      why: 'At this price point, drink it neat. Adding mixers would mask the complexity you\'ve paid for.',
+      why: "At this price point, drink it neat. Adding mixers would mask the complexity you've paid for.",
       cocktailUse: 'best-neat',
     },
-    searchTerms: ['johnnie walker blue', 'jw blue', 'blue label scotch', 'johnnie walker blue label'],
+    searchTerms: [
+      'johnnie walker blue',
+      'jw blue',
+      'blue label scotch',
+      'johnnie walker blue label',
+    ],
   },
 
   // -- Single Malts (popular additions) --
@@ -2888,7 +3336,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 33, max: 42 },
     },
     flavorProfile: ['Citrus', 'Peach', 'Vanilla', 'Floral'],
-    tastingNotes: 'Aged in ex-bourbon casks, tall stills produce a light, floral spirit. Citrus blossom, fresh peach, and creamy vanilla. One of Scotland\'s most approachable single malts.',
+    tastingNotes:
+      "Aged in ex-bourbon casks, tall stills produce a light, floral spirit. Citrus blossom, fresh peach, and creamy vanilla. One of Scotland's most approachable single malts.",
     origin: 'Scotland',
     searchTerms: ['glenmorangie', 'glenmorangie original', 'glenmorangie 10', 'glen morangie'],
   },
@@ -2905,9 +3354,16 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 36, max: 46 },
     },
     flavorProfile: ['Heather Honey', 'Peat Smoke', 'Dried Fruit', 'Vanilla'],
-    tastingNotes: 'From Orkney, Scotland\'s northernmost distillery. A perfect balance of Highland sweetness and Island smoke. Heather honey, dried fruit, and a whisper of peat. The Viking warrior bottle art is distinctive.',
+    tastingNotes:
+      "From Orkney, Scotland's northernmost distillery. A perfect balance of Highland sweetness and Island smoke. Heather honey, dried fruit, and a whisper of peat. The Viking warrior bottle art is distinctive.",
     origin: 'Scotland',
-    searchTerms: ['highland park', 'highland park 12', 'viking honour', 'orkney whisky', 'highland park viking'],
+    searchTerms: [
+      'highland park',
+      'highland park 12',
+      'viking honour',
+      'orkney whisky',
+      'highland park viking',
+    ],
   },
   {
     id: 'oban-14',
@@ -2922,7 +3378,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 56, max: 70 },
     },
     flavorProfile: ['Sea Salt', 'Heather', 'Dried Fruit', 'Light Peat'],
-    tastingNotes: 'Classic West Highland whisky, uniquely placed between the Highland and Island styles. Sea salt, heather, dried fruit, and a subtle coastal peat. Incredibly balanced and complex.',
+    tastingNotes:
+      'Classic West Highland whisky, uniquely placed between the Highland and Island styles. Sea salt, heather, dried fruit, and a subtle coastal peat. Incredibly balanced and complex.',
     origin: 'Scotland',
     searchTerms: ['oban', 'oban 14', 'oban fourteen', 'west highland malt'],
   },
@@ -2939,7 +3396,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 78, max: 100 },
     },
     flavorProfile: ['Intense Peat', 'Smoke', 'Seaweed', 'Dried Fruit', 'Oak'],
-    tastingNotes: 'The ultimate Islay experience. Intense bonfire smoke and iodine with a deep sweetness underneath — dried fruit, sherry, and dark chocolate. Long, warm, extraordinary finish.',
+    tastingNotes:
+      'The ultimate Islay experience. Intense bonfire smoke and iodine with a deep sweetness underneath — dried fruit, sherry, and dark chocolate. Long, warm, extraordinary finish.',
     origin: 'Scotland',
     serveGuidance: {
       priority: 'serve-first',
@@ -2951,7 +3409,13 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       why: 'Lagavulin is a meditating whisky. A few drops of water opens it up beautifully. Never dilute with ice.',
       cocktailUse: 'best-neat',
     },
-    searchTerms: ['lagavulin 16', 'lagavulin', 'lagavulin sixteen', 'islay peat whisky', 'peated scotch'],
+    searchTerms: [
+      'lagavulin 16',
+      'lagavulin',
+      'lagavulin sixteen',
+      'islay peat whisky',
+      'peated scotch',
+    ],
   },
   {
     id: 'ardbeg-10',
@@ -2966,7 +3430,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 42, max: 52 },
     },
     flavorProfile: ['Peat', 'Smoke', 'Lemon', 'Vanilla', 'Dark Chocolate'],
-    tastingNotes: 'Non-chill filtered at 46% ABV. The peat smoke is intense but balanced by lemon curd, vanilla, and dark chocolate. The distinctive dark green bottle with Ardbeg\'s logo is immediately recognisable.',
+    tastingNotes:
+      "Non-chill filtered at 46% ABV. The peat smoke is intense but balanced by lemon curd, vanilla, and dark chocolate. The distinctive dark green bottle with Ardbeg's logo is immediately recognisable.",
     origin: 'Scotland',
     searchTerms: ['ardbeg', 'ardbeg 10', 'ardbeg ten', 'ardbeg islay', 'peated islay'],
   },
@@ -2983,7 +3448,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 42, max: 52 },
     },
     flavorProfile: ['Smoke', 'Pepper', 'Sea Salt', 'Dried Fruit', 'Peat'],
-    tastingNotes: 'Skye\'s only distillery. Intense maritime character — sea spray, peat smoke, and a famous fierce peppery finish. A benchmark Island malt.',
+    tastingNotes:
+      "Skye's only distillery. Intense maritime character — sea spray, peat smoke, and a famous fierce peppery finish. A benchmark Island malt.",
     origin: 'Scotland',
     searchTerms: ['talisker', 'talisker 10', 'talisker ten', 'skye whisky', 'isle of skye malt'],
   },
@@ -3002,9 +3468,15 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 12, max: 18 },
     },
     flavorProfile: ['Caramel', 'Oak', 'Vanilla', 'Corn'],
-    tastingNotes: 'The best-selling bourbon for the money. Caramel, vanilla, and corn with a clean oak finish. Made by Heaven Hill, aged longer than comparable budget bourbons.',
+    tastingNotes:
+      'The best-selling bourbon for the money. Caramel, vanilla, and corn with a clean oak finish. Made by Heaven Hill, aged longer than comparable budget bourbons.',
     origin: 'United States',
-    searchTerms: ['evan williams', 'evan williams black', 'evan williams bourbon', 'heaven hill bourbon'],
+    searchTerms: [
+      'evan williams',
+      'evan williams black',
+      'evan williams bourbon',
+      'heaven hill bourbon',
+    ],
   },
   {
     id: 'old-forester-86',
@@ -3019,9 +3491,15 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 19, max: 25 },
     },
     flavorProfile: ['Banana', 'Caramel', 'Spice', 'Oak'],
-    tastingNotes: 'America\'s first bottled bourbon, continuously produced since 1870. Banana, caramel, and a spicy rye finish. Excellent value for mixing and sipping.',
+    tastingNotes:
+      "America's first bottled bourbon, continuously produced since 1870. Banana, caramel, and a spicy rye finish. Excellent value for mixing and sipping.",
     origin: 'United States',
-    searchTerms: ['old forester', 'old forester 86', 'brown forman bourbon', 'old forester bourbon'],
+    searchTerms: [
+      'old forester',
+      'old forester 86',
+      'brown forman bourbon',
+      'old forester bourbon',
+    ],
   },
   {
     id: 'knob-creek-9',
@@ -3036,7 +3514,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 33, max: 42 },
     },
     flavorProfile: ['Oak', 'Vanilla', 'Caramel', 'Rich Grain'],
-    tastingNotes: 'Aged 9 years and bottled at 100 proof. Big and bold — heavy oak, rich caramel, and vanilla with a long, warm finish. Jim Beam\'s Small Batch premium offering.',
+    tastingNotes:
+      "Aged 9 years and bottled at 100 proof. Big and bold — heavy oak, rich caramel, and vanilla with a long, warm finish. Jim Beam's Small Batch premium offering.",
     origin: 'United States',
     searchTerms: ['knob creek', 'knob creek 9', 'knob creek bourbon', 'small batch bourbon'],
   },
@@ -3053,14 +3532,21 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 26, max: 34 },
     },
     flavorProfile: ['Vanilla', 'Oak', 'Caramel', 'Mint', 'Toffee'],
-    tastingNotes: 'Named after the Baptist minister credited with inventing bourbon. Rich toffee, vanilla, and mint with a long oak finish. One of the best value-to-quality bourbons available.',
+    tastingNotes:
+      'Named after the Baptist minister credited with inventing bourbon. Rich toffee, vanilla, and mint with a long oak finish. One of the best value-to-quality bourbons available.',
     origin: 'United States',
-    searchTerms: ['elijah craig', 'elijah craig small batch', 'ec small batch', 'heaven hill bourbon', 'elijah craig bourbon'],
+    searchTerms: [
+      'elijah craig',
+      'elijah craig small batch',
+      'ec small batch',
+      'heaven hill bourbon',
+      'elijah craig bourbon',
+    ],
   },
   {
     id: 'angels-envy',
-    name: 'Angel\'s Envy Kentucky Straight Bourbon',
-    brand: 'Angel\'s Envy',
+    name: "Angel's Envy Kentucky Straight Bourbon",
+    brand: "Angel's Envy",
     type: 'whiskey',
     abv: 43.3,
     priceTier: 'premium',
@@ -3070,7 +3556,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 39, max: 49 },
     },
     flavorProfile: ['Port Wine', 'Vanilla', 'Dark Fruit', 'Maple'],
-    tastingNotes: 'Finished in ruby port wine barrels after traditional bourbon ageing. The port finish adds dark fruit and maple notes to the vanilla and caramel base. The distinctive angel wings label is recognisable.',
+    tastingNotes:
+      'Finished in ruby port wine barrels after traditional bourbon ageing. The port finish adds dark fruit and maple notes to the vanilla and caramel base. The distinctive angel wings label is recognisable.',
     origin: 'United States',
     searchTerms: ["angel's envy", 'angels envy', 'port finish bourbon', 'angels envy bourbon'],
   },
@@ -3087,7 +3574,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 19, max: 26 },
     },
     flavorProfile: ['Corn', 'Vanilla', 'Caramel', 'Smooth'],
-    tastingNotes: 'Tennessee whisky charcoal mellowed through the Lincoln County Process, like Jack Daniel\'s but with a smoother, slightly sweeter character. Consistently underrated.',
+    tastingNotes:
+      "Tennessee whisky charcoal mellowed through the Lincoln County Process, like Jack Daniel's but with a smoother, slightly sweeter character. Consistently underrated.",
     origin: 'United States',
     searchTerms: ['george dickel', 'george dickel 12', 'dickel tennessee', 'tennessee whisky'],
   },
@@ -3104,7 +3592,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 12, max: 17 },
     },
     flavorProfile: ['Cinnamon', 'Red Hot', 'Sweet', 'Whisky'],
-    tastingNotes: 'A Canadian whisky base flavoured with natural cinnamon and sweeteners. Fiery cinnamon heat with a sweet finish. One of the best-selling flavoured spirits in North America.',
+    tastingNotes:
+      'A Canadian whisky base flavoured with natural cinnamon and sweeteners. Fiery cinnamon heat with a sweet finish. One of the best-selling flavoured spirits in North America.',
     origin: 'Canada',
     searchTerms: ['fireball', 'fireball whisky', 'cinnamon whisky', 'fireball cinnamon'],
   },
@@ -3112,8 +3601,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
   // -- Gin additions --
   {
     id: 'gordons-gin',
-    name: 'Gordon\'s Special Dry London Gin',
-    brand: 'Gordon\'s',
+    name: "Gordon's Special Dry London Gin",
+    brand: "Gordon's",
     type: 'gin',
     abv: 37.5,
     priceTier: 'budget',
@@ -3123,9 +3612,16 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 12, max: 17 },
     },
     flavorProfile: ['Juniper', 'Coriander', 'Angelica', 'Citrus'],
-    tastingNotes: 'The world\'s best-selling gin. Classic London Dry style with bold juniper, citrus, and herbal notes. Dry and clean finish. The green triangular bottle is iconic.',
+    tastingNotes:
+      "The world's best-selling gin. Classic London Dry style with bold juniper, citrus, and herbal notes. Dry and clean finish. The green triangular bottle is iconic.",
     origin: 'United Kingdom',
-    searchTerms: ["gordon's gin", 'gordons gin', 'gordons london dry', 'gordons special dry', 'green gin bottle'],
+    searchTerms: [
+      "gordon's gin",
+      'gordons gin',
+      'gordons london dry',
+      'gordons special dry',
+      'green gin bottle',
+    ],
   },
   {
     id: 'whitley-neill-original',
@@ -3140,7 +3636,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 24, max: 32 },
     },
     flavorProfile: ['Juniper', 'Citrus', 'Baobab', 'Cape Gooseberry'],
-    tastingNotes: 'Inspired by the African landscape. Juniper and citrus upfront with unusual botanicals — baobab fruit and Cape gooseberry — lending a distinctly fruity, exotic character.',
+    tastingNotes:
+      'Inspired by the African landscape. Juniper and citrus upfront with unusual botanicals — baobab fruit and Cape gooseberry — lending a distinctly fruity, exotic character.',
     origin: 'United Kingdom',
     searchTerms: ['whitley neill', 'whitley neill original', 'whitley neill gin', 'baobab gin'],
   },
@@ -3157,9 +3654,17 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 26, max: 33 },
     },
     flavorProfile: ['Sakura', 'Yuzu', 'Sencha Tea', 'Juniper', 'Floral'],
-    tastingNotes: 'Made with six unique Japanese botanicals including sakura flower, yuzu peel, and sencha tea. Delicate, floral, and layered in a way no Western gin can replicate. The hexagonal bottle with Japanese script is beautiful.',
+    tastingNotes:
+      'Made with six unique Japanese botanicals including sakura flower, yuzu peel, and sencha tea. Delicate, floral, and layered in a way no Western gin can replicate. The hexagonal bottle with Japanese script is beautiful.',
     origin: 'Japan',
-    searchTerms: ['roku gin', 'roku japanese gin', 'roku', 'japanese craft gin', 'suntory roku', '六'],
+    searchTerms: [
+      'roku gin',
+      'roku japanese gin',
+      'roku',
+      'japanese craft gin',
+      'suntory roku',
+      '六',
+    ],
   },
   {
     id: 'tanqueray-sevilla',
@@ -3174,9 +3679,15 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 20, max: 27 },
     },
     flavorProfile: ['Seville Orange', 'Juniper', 'Citrus Blossom', 'Bittersweet'],
-    tastingNotes: 'Distilled with Seville orange botanicals. Bittersweet orange, juniper, and citrus blossom. Makes a beautiful gin and tonic with orange garnish. The orange-labelled Tanqueray bottle is widely recognised.',
+    tastingNotes:
+      'Distilled with Seville orange botanicals. Bittersweet orange, juniper, and citrus blossom. Makes a beautiful gin and tonic with orange garnish. The orange-labelled Tanqueray bottle is widely recognised.',
     origin: 'United Kingdom',
-    searchTerms: ['tanqueray sevilla', 'tanqueray flor de sevilla', 'orange tanqueray', 'sevilla gin'],
+    searchTerms: [
+      'tanqueray sevilla',
+      'tanqueray flor de sevilla',
+      'orange tanqueray',
+      'sevilla gin',
+    ],
   },
 
   // -- Vodka additions --
@@ -3193,7 +3704,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 11, max: 16 },
     },
     flavorProfile: ['Clean', 'Grain', 'Neutral', 'Smooth'],
-    tastingNotes: 'Swedish grain vodka, one of the best-selling budget vodkas in North America. Clean and neutral with a smooth finish. Consistent and reliable.',
+    tastingNotes:
+      'Swedish grain vodka, one of the best-selling budget vodkas in North America. Clean and neutral with a smooth finish. Consistent and reliable.',
     origin: 'Sweden',
     searchTerms: ['svedka', 'svedka vodka', 'swedish vodka'],
   },
@@ -3210,7 +3722,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 11, max: 16 },
     },
     flavorProfile: ['Clean', 'Smooth', 'Light Grain', 'Neutral'],
-    tastingNotes: 'Five times distilled, three times filtered. Exceptionally smooth for a budget vodka. One of the fastest-growing spirits brands in the US.',
+    tastingNotes:
+      'Five times distilled, three times filtered. Exceptionally smooth for a budget vodka. One of the fastest-growing spirits brands in the US.',
     origin: 'United States',
     searchTerms: ['new amsterdam', 'new amsterdam vodka', 'new amsterdam spirits'],
   },
@@ -3227,7 +3740,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 11, max: 16 },
     },
     flavorProfile: ['Clean', 'Smooth', 'Wheat', 'Neutral'],
-    tastingNotes: 'French wheat vodka at a budget price point. Soft and clean with a smooth finish. One of the most popular value vodkas in the US.',
+    tastingNotes:
+      'French wheat vodka at a budget price point. Soft and clean with a smooth finish. One of the most popular value vodkas in the US.',
     origin: 'France',
     searchTerms: ['pinnacle', 'pinnacle vodka', 'pinnacle french vodka'],
   },
@@ -3244,7 +3758,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 16, max: 22 },
     },
     flavorProfile: ['Clean', 'Slightly Sweet', 'Grain', 'Smooth'],
-    tastingNotes: 'English grain vodka, quadruple-distilled. Slightly sweeter profile than most vodkas, very smooth. Popular in flavoured variants.',
+    tastingNotes:
+      'English grain vodka, quadruple-distilled. Slightly sweeter profile than most vodkas, very smooth. Popular in flavoured variants.',
     origin: 'United Kingdom',
     searchTerms: ['three olives', 'three olives vodka', '3 olives vodka'],
   },
@@ -3261,7 +3776,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 18, max: 24 },
     },
     flavorProfile: ['Wheat', 'Clean', 'Light Citrus', 'Smooth'],
-    tastingNotes: 'Made at Buffalo Trace Distillery using 10 different recipes with various yeasts and distillation techniques. Wheat-forward, clean, with a faint citrus note. Exceptional quality for the price.',
+    tastingNotes:
+      'Made at Buffalo Trace Distillery using 10 different recipes with various yeasts and distillation techniques. Wheat-forward, clean, with a faint citrus note. Exceptional quality for the price.',
     origin: 'United States',
     searchTerms: ['wheatley', 'wheatley vodka', 'buffalo trace vodka', 'wheatley craft'],
   },
@@ -3280,7 +3796,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 16, max: 22 },
     },
     flavorProfile: ['Coconut', 'Sweet', 'Vanilla', 'Light Rum'],
-    tastingNotes: 'Caribbean rum with natural coconut flavour. Iconic sweet, creamy coconut taste. The white bottle with the beach scene is one of the most recognisable in bars worldwide.',
+    tastingNotes:
+      'Caribbean rum with natural coconut flavour. Iconic sweet, creamy coconut taste. The white bottle with the beach scene is one of the most recognisable in bars worldwide.',
     origin: 'Caribbean',
     searchTerms: ['malibu', 'malibu rum', 'malibu coconut', 'coconut rum', 'malibu caribbean'],
   },
@@ -3297,14 +3814,21 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 16, max: 22 },
     },
     flavorProfile: ['Vanilla', 'Cinnamon', 'Nutmeg', 'Caramel', 'Spice'],
-    tastingNotes: 'Named after legendary tattoo artist Norman Collins. Bold vanilla, cinnamon, and warm spice with a rich caramel base. Higher ABV than most spiced rums. The tattoo art label is iconic.',
+    tastingNotes:
+      'Named after legendary tattoo artist Norman Collins. Bold vanilla, cinnamon, and warm spice with a rich caramel base. Higher ABV than most spiced rums. The tattoo art label is iconic.',
     origin: 'Caribbean',
-    searchTerms: ['sailor jerry', 'sailor jerry rum', 'sailor jerry spiced', 'spiced rum sailor', 'tattoo rum'],
+    searchTerms: [
+      'sailor jerry',
+      'sailor jerry rum',
+      'sailor jerry spiced',
+      'spiced rum sailor',
+      'tattoo rum',
+    ],
   },
   {
     id: 'goslings-black-seal',
-    name: 'Gosling\'s Black Seal Dark Rum',
-    brand: 'Gosling\'s',
+    name: "Gosling's Black Seal Dark Rum",
+    brand: "Gosling's",
     type: 'rum',
     abv: 40,
     priceTier: 'mid-range',
@@ -3314,14 +3838,21 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 18, max: 24 },
     },
     flavorProfile: ['Molasses', 'Dark Fruit', 'Vanilla', 'Toffee'],
-    tastingNotes: 'Bermuda\'s most famous rum. Rich, dark molasses and dried fruit with toffee and vanilla. The essential ingredient in a Dark \'N\' Stormy cocktail.',
+    tastingNotes:
+      "Bermuda's most famous rum. Rich, dark molasses and dried fruit with toffee and vanilla. The essential ingredient in a Dark 'N' Stormy cocktail.",
     origin: 'Bermuda',
-    searchTerms: ["gosling's", 'goslings black seal', 'goslings dark rum', 'bermuda rum', 'dark n stormy rum'],
+    searchTerms: [
+      "gosling's",
+      'goslings black seal',
+      'goslings dark rum',
+      'bermuda rum',
+      'dark n stormy rum',
+    ],
   },
   {
     id: 'myers-dark-rum',
-    name: 'Myers\'s Original Dark Rum',
-    brand: 'Myers\'s',
+    name: "Myers's Original Dark Rum",
+    brand: "Myers's",
     type: 'rum',
     abv: 40,
     priceTier: 'mid-range',
@@ -3331,7 +3862,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 18, max: 24 },
     },
     flavorProfile: ['Dark Fruit', 'Molasses', 'Caramel', 'Spice'],
-    tastingNotes: 'Blended from nine rums aged up to four years. Rich and full-bodied with dark fruit, molasses, and warm spice. A classic dark rum for tiki cocktails and mixing.',
+    tastingNotes:
+      'Blended from nine rums aged up to four years. Rich and full-bodied with dark fruit, molasses, and warm spice. A classic dark rum for tiki cocktails and mixing.',
     origin: 'Jamaica',
     searchTerms: ["myers's rum", 'myers dark rum', 'myers original rum', 'jamaican dark rum'],
   },
@@ -3348,7 +3880,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 19, max: 26 },
     },
     flavorProfile: ['Orange Peel', 'Vanilla', 'Molasses', 'Warm Spice'],
-    tastingNotes: 'Jamaica\'s oldest sugar estate. A blend of pot still and column still rums. Orange peel, vanilla, and warm spice with a smooth, lingering finish.',
+    tastingNotes:
+      "Jamaica's oldest sugar estate. A blend of pot still and column still rums. Orange peel, vanilla, and warm spice with a smooth, lingering finish.",
     origin: 'Jamaica',
     searchTerms: ['appleton estate', 'appleton rum', 'appleton signature', 'jamaican rum estate'],
   },
@@ -3365,7 +3898,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 19, max: 26 },
     },
     flavorProfile: ['Vanilla', 'Caramel', 'Oak', 'Dark Fruit'],
-    tastingNotes: 'Aged 6-10 years in American white oak. Vanilla, caramel, and toasted oak with a smooth, medium finish. The best-selling rum in the Dominican Republic and growing globally.',
+    tastingNotes:
+      'Aged 6-10 years in American white oak. Vanilla, caramel, and toasted oak with a smooth, medium finish. The best-selling rum in the Dominican Republic and growing globally.',
     origin: 'Dominican Republic',
     searchTerms: ['ron barcelo', 'barcelo imperial', 'barcelo rum', 'dominican rum'],
   },
@@ -3384,7 +3918,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 16, max: 22 },
     },
     flavorProfile: ['Agave', 'Citrus', 'Pepper', 'Herbal'],
-    tastingNotes: 'Mexico\'s best-selling tequila domestically. 100% blue agave at a budget price. Bright agave, citrus, and a peppery finish. Excellent value.',
+    tastingNotes:
+      "Mexico's best-selling tequila domestically. 100% blue agave at a budget price. Bright agave, citrus, and a peppery finish. Excellent value.",
     origin: 'Mexico',
     searchTerms: ['el jimador', 'el jimador blanco', 'jimador tequila', 'el jimador tequila'],
   },
@@ -3401,7 +3936,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 19, max: 26 },
     },
     flavorProfile: ['Agave', 'Citrus', 'Light Pepper', 'Herbal'],
-    tastingNotes: '100% blue agave tequila. Fresh agave, citrus, and a clean herbal finish. Consistently good quality for its price point. Part of the Sauza/Beam Suntory family.',
+    tastingNotes:
+      '100% blue agave tequila. Fresh agave, citrus, and a clean herbal finish. Consistently good quality for its price point. Part of the Sauza/Beam Suntory family.',
     origin: 'Mexico',
     searchTerms: ['hornitos', 'hornitos plata', 'hornitos tequila', 'hornitos blanco'],
   },
@@ -3418,7 +3954,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 19, max: 26 },
     },
     flavorProfile: ['Agave', 'Citrus', 'Vanilla', 'Light Pepper'],
-    tastingNotes: '100% blue agave, double distilled and briefly rested in French oak. Fresh agave and citrus with a vanilla-forward finish from the oak rest. The trapezoidal bottle is distinctive.',
+    tastingNotes:
+      '100% blue agave, double distilled and briefly rested in French oak. Fresh agave and citrus with a vanilla-forward finish from the oak rest. The trapezoidal bottle is distinctive.',
     origin: 'Mexico',
     searchTerms: ['1800 tequila', '1800 silver', '1800 blanco', 'eighteen hundred tequila'],
   },
@@ -3435,7 +3972,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 21, max: 28 },
     },
     flavorProfile: ['Agave', 'Vanilla', 'Oak', 'Caramel'],
-    tastingNotes: 'Aged in new American oak barrels for a minimum of 8 months. Smooth agave with vanilla and caramel from the oak. The folk art sugar skull label is widely recognised.',
+    tastingNotes:
+      'Aged in new American oak barrels for a minimum of 8 months. Smooth agave with vanilla and caramel from the oak. The folk art sugar skull label is widely recognised.',
     origin: 'Mexico',
     searchTerms: ['espolon reposado', 'espolon tequila reposado', 'espolon repo'],
   },
@@ -3454,9 +3992,16 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 16, max: 22 },
     },
     flavorProfile: ['Peach', 'Vanilla', 'Whisky', 'Orange', 'Cinnamon'],
-    tastingNotes: 'Whisky-based liqueur with fruit and spice flavours. Sweet peach and vanilla with a warm whisky backbone. A New Orleans classic.',
+    tastingNotes:
+      'Whisky-based liqueur with fruit and spice flavours. Sweet peach and vanilla with a warm whisky backbone. A New Orleans classic.',
     origin: 'United States',
-    searchTerms: ['southern comfort', 'soco', 'southern comfort original', 'socom', 'southern comfort whiskey'],
+    searchTerms: [
+      'southern comfort',
+      'soco',
+      'southern comfort original',
+      'socom',
+      'southern comfort whiskey',
+    ],
   },
   {
     id: 'midori-melon',
@@ -3471,7 +4016,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 16, max: 22 },
     },
     flavorProfile: ['Honeydew Melon', 'Sweet', 'Fruity', 'Muskmelon'],
-    tastingNotes: 'Vivid green Japanese melon liqueur made from premium Japanese muskmelons. Intensely sweet honeydew and muskmelon. The bright green bottle is unmistakable.',
+    tastingNotes:
+      'Vivid green Japanese melon liqueur made from premium Japanese muskmelons. Intensely sweet honeydew and muskmelon. The bright green bottle is unmistakable.',
     origin: 'Japan',
     searchTerms: ['midori', 'midori melon', 'midori liqueur', 'green melon liqueur'],
   },
@@ -3488,14 +4034,21 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 12, max: 17 },
     },
     flavorProfile: ['Peach', 'Sweet', 'Fruity', 'Light'],
-    tastingNotes: 'The original peach schnapps. Sweet, peachy, and light. A British pub staple and essential ingredient in a Sex on the Beach.',
+    tastingNotes:
+      'The original peach schnapps. Sweet, peachy, and light. A British pub staple and essential ingredient in a Sex on the Beach.',
     origin: 'United Kingdom',
-    searchTerms: ['archers', 'archers peach', 'peach schnapps', 'archers schnapps', 'peach liqueur'],
+    searchTerms: [
+      'archers',
+      'archers peach',
+      'peach schnapps',
+      'archers schnapps',
+      'peach liqueur',
+    ],
   },
   {
     id: 'pimms-no1',
-    name: 'Pimm\'s No.1 Cup',
-    brand: 'Pimm\'s',
+    name: "Pimm's No.1 Cup",
+    brand: "Pimm's",
     type: 'liqueur',
     abv: 25,
     priceTier: 'mid-range',
@@ -3505,9 +4058,17 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 14, max: 20 },
     },
     flavorProfile: ['Citrus', 'Herbs', 'Spice', 'Bitter Orange'],
-    tastingNotes: 'A gin-based fruit cup liqueur with a blend of herbs, spices, and citrus. Light, refreshing, and herbal. The foundation of a Pimm\'s Cup — Britain\'s quintessential summer drink.',
+    tastingNotes:
+      "A gin-based fruit cup liqueur with a blend of herbs, spices, and citrus. Light, refreshing, and herbal. The foundation of a Pimm's Cup — Britain's quintessential summer drink.",
     origin: 'United Kingdom',
-    searchTerms: ["pimm's", 'pimms', 'pimms no1', "pimm's no 1", 'pimms cup', 'british summer drink'],
+    searchTerms: [
+      "pimm's",
+      'pimms',
+      'pimms no1',
+      "pimm's no 1",
+      'pimms cup',
+      'british summer drink',
+    ],
   },
   {
     id: 'sambuca-molinari',
@@ -3522,9 +4083,16 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 19, max: 26 },
     },
     flavorProfile: ['Anise', 'Liquorice', 'Sweet', 'Elderflower'],
-    tastingNotes: 'The world\'s best-selling sambuca. Intense star anise and elderflower with a sweet, warming finish. Traditionally served with three coffee beans (con la mosca).',
+    tastingNotes:
+      "The world's best-selling sambuca. Intense star anise and elderflower with a sweet, warming finish. Traditionally served with three coffee beans (con la mosca).",
     origin: 'Italy',
-    searchTerms: ['sambuca', 'molinari sambuca', 'molinari extra', 'italian sambuca', 'anise liqueur'],
+    searchTerms: [
+      'sambuca',
+      'molinari sambuca',
+      'molinari extra',
+      'italian sambuca',
+      'anise liqueur',
+    ],
   },
   {
     id: 'limoncello-pallini',
@@ -3539,7 +4107,8 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 18, max: 24 },
     },
     flavorProfile: ['Lemon Zest', 'Sweet', 'Citrus', 'Creamy'],
-    tastingNotes: 'Made from Sfusato Amalfitano lemons. Bright, intensely lemony with a natural sweetness and creamy body. One of the most recognised limoncello brands internationally.',
+    tastingNotes:
+      'Made from Sfusato Amalfitano lemons. Bright, intensely lemony with a natural sweetness and creamy body. One of the most recognised limoncello brands internationally.',
     origin: 'Italy',
     searchTerms: ['limoncello', 'pallini limoncello', 'lemon liqueur', 'italian limoncello'],
   },
@@ -3556,9 +4125,16 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 19, max: 26 },
     },
     flavorProfile: ['Cream', 'Cinnamon', 'Vanilla', 'Rice'],
-    tastingNotes: 'Caribbean rum with real dairy cream and a blend of cinnamon, vanilla, and sugar. Inspired by horchata. Rich and spiced, perfect in cocktails and coffee.',
+    tastingNotes:
+      'Caribbean rum with real dairy cream and a blend of cinnamon, vanilla, and sugar. Inspired by horchata. Rich and spiced, perfect in cocktails and coffee.',
     origin: 'United States',
-    searchTerms: ['rumchata', 'rum chata', 'horchata rum', 'cinnamon cream liqueur', 'rumchata cream'],
+    searchTerms: [
+      'rumchata',
+      'rum chata',
+      'horchata rum',
+      'cinnamon cream liqueur',
+      'rumchata cream',
+    ],
   },
   {
     id: 'licor-43',
@@ -3573,12 +4149,18 @@ const SPIRITS_DATABASE_CORE: Spirit[] = [
       GBP: { min: 18, max: 24 },
     },
     flavorProfile: ['Vanilla', 'Citrus', 'Herbs', 'Spice'],
-    tastingNotes: 'Made from 43 different ingredients including citrus fruits and select herbs and spices. Sweet vanilla and citrus with a warm herbal complexity. A Spanish classic used in the carajillo.',
+    tastingNotes:
+      'Made from 43 different ingredients including citrus fruits and select herbs and spices. Sweet vanilla and citrus with a warm herbal complexity. A Spanish classic used in the carajillo.',
     origin: 'Spain',
-    searchTerms: ['licor 43', 'cuarenta y tres', '43 liqueur', 'spanish liqueur', 'licor cuarenta tres'],
+    searchTerms: [
+      'licor 43',
+      'cuarenta y tres',
+      '43 liqueur',
+      'spanish liqueur',
+      'licor cuarenta tres',
+    ],
   },
 ];
-
 
 /**
  * Search for a spirit by name
@@ -3589,21 +4171,23 @@ export function findSpirit(query: string): Spirit | null {
 
   // Exact match on ID or name
   let match = SPIRITS_DATABASE.find(
-    spirit => spirit.id === lowerQuery || spirit.name.toLowerCase() === lowerQuery
+    (spirit) => spirit.id === lowerQuery || spirit.name.toLowerCase() === lowerQuery,
   );
 
   if (match) return match;
 
   // Search in search terms
-  match = SPIRITS_DATABASE.find(spirit =>
-    spirit.searchTerms.some(term => term.includes(lowerQuery) || lowerQuery.includes(term))
+  match = SPIRITS_DATABASE.find((spirit) =>
+    spirit.searchTerms.some((term) => term.includes(lowerQuery) || lowerQuery.includes(term)),
   );
 
   if (match) return match;
 
   // Partial brand match
-  match = SPIRITS_DATABASE.find(spirit =>
-    spirit.brand.toLowerCase().includes(lowerQuery) || lowerQuery.includes(spirit.brand.toLowerCase())
+  match = SPIRITS_DATABASE.find(
+    (spirit) =>
+      spirit.brand.toLowerCase().includes(lowerQuery) ||
+      lowerQuery.includes(spirit.brand.toLowerCase()),
   );
 
   return match || null;
@@ -3613,14 +4197,14 @@ export function findSpirit(query: string): Spirit | null {
  * Get all spirits of a specific type
  */
 export function getSpiritsByType(type: SpiritType): Spirit[] {
-  return SPIRITS_DATABASE.filter(spirit => spirit.type === type);
+  return SPIRITS_DATABASE.filter((spirit) => spirit.type === type);
 }
 
 /**
  * Get spirits by price tier
  */
 export function getSpiritsByPriceTier(tier: PriceTier): Spirit[] {
-  return SPIRITS_DATABASE.filter(spirit => spirit.priceTier === tier);
+  return SPIRITS_DATABASE.filter((spirit) => spirit.priceTier === tier);
 }
 
 /**
@@ -3628,15 +4212,12 @@ export function getSpiritsByPriceTier(tier: PriceTier): Spirit[] {
  */
 export function getPriceTierDisplay(tier: PriceTier): string {
   const tiers: Record<PriceTier, string> = {
-    'budget': 'Budget',
+    budget: 'Budget',
     'mid-range': 'Mid-Range',
-    'premium': 'Premium',
+    premium: 'Premium',
     'ultra-premium': 'Ultra-Premium',
   };
   return tiers[tier];
 }
 
-export const SPIRITS_DATABASE: Spirit[] = [
-  ...SPIRITS_DATABASE_CORE,
-  ...SPIRITS_DATABASE_EXTRA,
-];
+export const SPIRITS_DATABASE: Spirit[] = [...SPIRITS_DATABASE_CORE, ...SPIRITS_DATABASE_EXTRA];
