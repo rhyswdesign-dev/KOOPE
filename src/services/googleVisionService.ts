@@ -9,6 +9,23 @@ import * as ImageManipulator from 'expo-image-manipulator';
 import { log } from '../lib/logger';
 import { findSpirit, SPIRITS_DATABASE, type Spirit } from '../data/spiritsDatabase';
 import { supabase } from '../lib/supabase';
+import type { ScanServerTimings } from './scanTelemetry';
+
+/** Parses the optional `timings` field bottle-recognize returns into the
+ *  camelCase shape scanTelemetry expects. Absent/malformed data returns
+ *  undefined rather than a partial object — telemetry treats "no server
+ *  timings" as a clean omission, not zeros. */
+function parseServerTimings(data: any): ScanServerTimings | undefined {
+  const t = data?.timings;
+  if (!t || typeof t !== 'object') return undefined;
+  return {
+    totalMs: typeof t.total_ms === 'number' ? t.total_ms : undefined,
+    visionMs: typeof t.vision_ms === 'number' ? t.vision_ms : undefined,
+    catalogMs: typeof t.catalog_ms === 'number' ? t.catalog_ms : undefined,
+    cacheMs: typeof t.cache_ms === 'number' ? t.cache_ms : undefined,
+    claudeMs: typeof t.claude_ms === 'number' ? t.claude_ms : undefined,
+  };
+}
 
 /**
  * True when an error means "the backend could not be reached at all" —
@@ -252,20 +269,30 @@ export class GoogleVisionService {
    * lookupBottleProfile() across two separate edge function calls.
    * Bottle scan type only — recipe/ingredient scans still use analyzeImage().
    */
-  static async recognizeBottle(
-    imageUri: string,
-  ): Promise<{
+  static async recognizeBottle(imageUri: string): Promise<{
     spirit: Spirit | null;
     confidence: number;
     source: string;
     isSpiritImage: boolean;
+    /** Phase 1.3 telemetry — client convert/network split + server per-layer
+     *  breakdown passed through from bottle-recognize's `timings` field. */
+    timings?: {
+      convertMs: number;
+      networkMs: number;
+      server?: ScanServerTimings;
+    };
   }> {
     try {
+      const convertStartedAt = Date.now();
       const base64Image = await this.convertImageToBase64(imageUri);
+      const convertMs = Date.now() - convertStartedAt;
 
+      const networkStartedAt = Date.now();
       const { data, error } = await supabase.functions.invoke('bottle-recognize', {
         body: { imageBase64: base64Image },
       });
+      const networkMs = Date.now() - networkStartedAt;
+      const timings = { convertMs, networkMs, server: parseServerTimings(data) };
 
       if (error) {
         log.warn('GoogleVisionService', 'bottle-recognize call failed', error);
@@ -276,18 +303,24 @@ export class GoogleVisionService {
         // source:'error' -> spirit:null, which the scan screen presented as
         // "Bottle Not Found" — a lie when the real problem is connectivity.
         if (isConnectivityError(error)) {
-          return { spirit: null, confidence: 0, source: 'network_error', isSpiritImage: true };
+          return {
+            spirit: null,
+            confidence: 0,
+            source: 'network_error',
+            isSpiritImage: true,
+            timings,
+          };
         }
-        return { spirit: null, confidence: 0, source: 'error', isSpiritImage: true };
+        return { spirit: null, confidence: 0, source: 'error', isSpiritImage: true, timings };
       }
 
       if (data?.isSpiritImage === false) {
-        return { spirit: null, confidence: 0, source: 'none', isSpiritImage: false };
+        return { spirit: null, confidence: 0, source: 'none', isSpiritImage: false, timings };
       }
 
       if (!data?.profile) {
         log.warn('GoogleVisionService', 'bottle-recognize returned no profile', error);
-        return { spirit: null, confidence: 0, source: 'error', isSpiritImage: true };
+        return { spirit: null, confidence: 0, source: 'error', isSpiritImage: true, timings };
       }
 
       const p = data.profile;
@@ -316,7 +349,13 @@ export class GoogleVisionService {
         searchTerms: p.searchTerms ?? [],
       };
 
-      return { spirit, confidence, source: data.source ?? 'bottle-recognize', isSpiritImage: true };
+      return {
+        spirit,
+        confidence,
+        source: data.source ?? 'bottle-recognize',
+        isSpiritImage: true,
+        timings,
+      };
     } catch (err) {
       log.error('GoogleVisionService', 'recognizeBottle error', err);
       if (isConnectivityError(err)) {

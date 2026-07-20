@@ -138,15 +138,23 @@ serve(async (req) => {
       labelAnnotations.length > 0
         ? labelAnnotations.reduce((sum, l) => sum + l.score, 0) / labelAnnotations.length
         : 0;
-    console.log(`bottle-recognize: Vision call took ${Date.now() - visionStartedAt}ms`);
+    const visionMs = Date.now() - visionStartedAt;
+    console.log(`bottle-recognize: Vision call took ${visionMs}ms`);
 
     // ── Spirit-image gate — reject non-bottle photos before spending a
     // catalog/Claude call (ported from GoogleVisionService.isSpiritImage) ────
 
     if (!isSpiritImage(labels, ocrText)) {
-      console.log(`bottle-recognize: spirit-image gate failed — total ${Date.now() - startedAt}ms`);
+      const totalMs = Date.now() - startedAt;
+      console.log(`bottle-recognize: spirit-image gate failed — total ${totalMs}ms`);
       return new Response(
-        JSON.stringify({ isSpiritImage: false, profile: null, source: 'none', confidence: 0 }),
+        JSON.stringify({
+          isSpiritImage: false,
+          profile: null,
+          source: 'none',
+          confidence: 0,
+          timings: { total_ms: totalMs, vision_ms: visionMs },
+        }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
@@ -161,8 +169,9 @@ serve(async (req) => {
     if (catalogError) {
       console.error('spirits_catalog fetch failed:', catalogError.message);
     }
+    const catalogMs = Date.now() - catalogStartedAt;
     console.log(
-      `bottle-recognize: catalog query took ${Date.now() - catalogStartedAt}ms (${catalogRows?.length ?? 0} rows)`,
+      `bottle-recognize: catalog query took ${catalogMs}ms (${catalogRows?.length ?? 0} rows)`,
     );
 
     const catalogMatch = catalogRows
@@ -170,8 +179,9 @@ serve(async (req) => {
       : null;
 
     if (catalogMatch) {
+      const catalogHitTotalMs = Date.now() - startedAt;
       console.log(
-        `bottle-recognize: catalog hit "${catalogMatch.name}" — total ${Date.now() - startedAt}ms, no Claude call`,
+        `bottle-recognize: catalog hit "${catalogMatch.name}" — total ${catalogHitTotalMs}ms, no Claude call`,
       );
 
       // Upsert to spirits_cache (source: 'catalog', confidence 1.0) so
@@ -198,6 +208,7 @@ serve(async (req) => {
           profile: catalogRowToProfile(catalogMatch),
           source: 'catalog',
           confidence: 1.0,
+          timings: { total_ms: catalogHitTotalMs, vision_ms: visionMs, catalog_ms: catalogMs },
         }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
@@ -224,9 +235,8 @@ serve(async (req) => {
     if (cacheReadError) {
       console.error('spirits_cache fetch failed:', cacheReadError.message);
     }
-    console.log(
-      `bottle-recognize: cache query took ${Date.now() - cacheStartedAt}ms (${cacheRows?.length ?? 0} rows)`,
-    );
+    const cacheMs = Date.now() - cacheStartedAt;
+    console.log(`bottle-recognize: cache query took ${cacheMs}ms (${cacheRows?.length ?? 0} rows)`);
 
     const cacheMatch =
       cacheRows && cacheRows.length > 0
@@ -244,8 +254,9 @@ serve(async (req) => {
         confidence: number | null;
         hit_count: number | null;
       };
+      const cacheHitTotalMs = Date.now() - startedAt;
       console.log(
-        `bottle-recognize: cache hit "${cacheMatch.name}" — total ${Date.now() - startedAt}ms, no Claude call`,
+        `bottle-recognize: cache hit "${cacheMatch.name}" — total ${cacheHitTotalMs}ms, no Claude call`,
       );
 
       // Telemetry: bump hit stats, fire-and-forget.
@@ -266,6 +277,12 @@ serve(async (req) => {
           profile: cacheRowToProfile(cacheMatch),
           source: 'cache',
           confidence: cacheMeta.confidence ?? 0.8,
+          timings: {
+            total_ms: cacheHitTotalMs,
+            vision_ms: visionMs,
+            catalog_ms: catalogMs,
+            cache_ms: cacheMs,
+          },
         }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
@@ -283,9 +300,9 @@ serve(async (req) => {
       ocrText,
       labels,
     );
-    console.log(
-      `bottle-recognize: Claude call took ${Date.now() - claudeStartedAt}ms — total ${Date.now() - startedAt}ms`,
-    );
+    const claudeMs = Date.now() - claudeStartedAt;
+    const claudeTotalMs = Date.now() - startedAt;
+    console.log(`bottle-recognize: Claude call took ${claudeMs}ms — total ${claudeTotalMs}ms`);
 
     // Cache if confident enough — same threshold spirit-lookup uses for its vision path.
     const lookupKey = profile.name.toLowerCase().replace(/\s+/g, ' ').trim();
@@ -298,7 +315,19 @@ serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ isSpiritImage: true, profile, source: 'claude-vision', confidence }),
+      JSON.stringify({
+        isSpiritImage: true,
+        profile,
+        source: 'claude-vision',
+        confidence,
+        timings: {
+          total_ms: claudeTotalMs,
+          vision_ms: visionMs,
+          catalog_ms: catalogMs,
+          cache_ms: cacheMs,
+          claude_ms: claudeMs,
+        },
+      }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
   } catch (error) {

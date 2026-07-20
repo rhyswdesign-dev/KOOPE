@@ -293,6 +293,10 @@ export const ANALYTICS_EVENTS = {
   // Scanning
   SCAN_ATTEMPT: 'Scan Attempt',
   SCAN_SUCCESS: 'Scan Success',
+  SCAN_RESOLVED: 'Scan Resolved', // Phase 1.3 telemetry: fires on every successful
+  // scan resolution (photo or barcode) with the full per-layer timing breakdown.
+  // Distinct from SCAN_SUCCESS (BottleDetailScreen, anchors the 1.2 value-line
+  // acceptance ratio) — do not repurpose that event for latency.
   SCAN_FAILED: 'Scan Failed',
   SCAN_LIMIT_REACHED: 'Scan Limit Reached',
 
@@ -404,6 +408,18 @@ export const ANALYTICS_PROPS = {
   ITEM_NAME: 'item_name',
   DETECTION_CONFIDENCE: 'detection_confidence',
   MONTHLY_SCAN_COUNT: 'monthly_scan_count',
+
+  // Scan telemetry (Phase 1.3) — p50/p95 time-to-answer + success rate
+  SCAN_PATH: 'scan_path', // 'photo' | 'barcode'
+  FAILURE_REASON: 'failure_reason',
+  RESOLUTION_SOURCE: 'resolution_source', // 'catalog' | 'cache' | 'claude-vision' | 'barcode'
+  CONVERT_MS: 'convert_ms', // client-side image crop/downscale/base64
+  NETWORK_MS: 'network_ms', // client-perceived round trip to the edge function
+  SERVER_TOTAL_MS: 'server_total_ms',
+  SERVER_VISION_MS: 'server_vision_ms',
+  SERVER_CATALOG_MS: 'server_catalog_ms',
+  SERVER_CACHE_MS: 'server_cache_ms',
+  SERVER_CLAUDE_MS: 'server_claude_ms',
 
   // Inventory
   INVENTORY_COUNT: 'inventory_count',
