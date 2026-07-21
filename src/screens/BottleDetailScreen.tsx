@@ -69,13 +69,18 @@ import { notificationService } from '../services/notificationService';
 import { useTasteModel } from '../store/useTasteModel';
 import type { FlavourTag } from '../store/useTasteModel';
 import { getTasteSignalLine } from '../utils/tasteSignal';
+import { logScanEvent, updateScanOutcome } from '../services/scanContextService';
 import SpiritEducationPanel from '../components/SpiritEducationPanel';
 import GiftModePanel from '../components/bottle/GiftModePanel';
+import TastePromptPanel from '../components/bottle/TastePromptPanel';
 import {
   computeGiftVerdict,
   filterRecipesForGift,
   type GiftPreference,
 } from '../services/giftVerdictService';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { usePersonalization } from '../store/usePersonalization';
+import type { FlavorProfile } from '../types/userProfile';
 import ValueLine from '../components/bottle/ValueLine';
 import { useSpottedPrices } from '../store/useSpottedPrices';
 import { logSpottedPrice } from '../services/spottedPriceService';
@@ -243,6 +248,12 @@ function normalizeInventoryName(value: string): string {
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const HERO_HEIGHT = SCREEN_HEIGHT * 0.42;
 
+// Phase 1.6 onboarding inversion: one-time, free "what do you like" prompt
+// shown after a new user's first suggested-recipes moment. Distinct from
+// AGE_VERIFIED_KEY/ONBOARDING_COMPLETED_KEY in useSimpleOnboarding.ts —
+// this fires later, inside the app, not during the pre-main-app flow.
+const TASTE_PROMPT_SHOWN_KEY = '@KOOPE:taste_prompt_shown';
+
 export default function BottleDetailScreen() {
   const navigation = useNavigation<BottleDetailScreenNavigationProp>();
   const route = useRoute<RouteProp<CameraStackParamList, 'BottleDetail'>>();
@@ -250,6 +261,8 @@ export default function BottleDetailScreen() {
   const { earnScanXP, isCocktailUnlockedWithXP } = useXPSystem();
   const { isRecipeUnlocked: isRecipeUnlockedWithEngagement } = useEngagement();
   const { user } = useAuth();
+  const { profile: personalizationProfile, updateProfile: updatePersonalizationProfile } =
+    usePersonalization();
   const { tier } = useUserTier();
   const { gateWithTrigger: inventoryGate } = useFeatureAccess('inventory_unlimited');
   const { hasAccess: hasPremiumServeEducation } = useFeatureAccess('premium_serve_education');
@@ -273,6 +286,16 @@ export default function BottleDetailScreen() {
   const [persistedImageUri, setPersistedImageUri] = useState<string | undefined>(undefined);
   const [giftMode, setGiftMode] = useState(false);
   const [giftPreference, setGiftPreference] = useState<GiftPreference>({});
+  // Phase 1.5 scan-context: one scan_events row per Answer Card visit,
+  // created here and updated by the 3 actions below (or 'passed' on exit
+  // via the beforeRemove listener further down).
+  const [scanEventId, setScanEventId] = useState<string | null>(null);
+  const scanOutcomeRecordedRef = useRef(false);
+  // Phase 1.6: free, one-time "what do you like" prompt (see
+  // TastePromptPanel) — mutually exclusive with Gift mode's own panel.
+  const [showTastePrompt, setShowTastePrompt] = useState(false);
+  const [tasteSpiritHint, setTasteSpiritHint] = useState<string | undefined>(undefined);
+  const [tasteFlavorHint, setTasteFlavorHint] = useState<FlavorProfile | undefined>(undefined);
   const [expanded, setExpanded] = useState(false);
   // Stage 10 — scan feedback
   const [feedbackState, setFeedbackState] = useState<
@@ -281,6 +304,76 @@ export default function BottleDetailScreen() {
   const [correctionName, setCorrectionName] = useState('');
   const [correctionBrand, setCorrectionBrand] = useState('');
   const [submittingCorrection, setSubmittingCorrection] = useState(false);
+
+  // Phase 1.5: log the scan_events row once, on mount. Fire-and-forget —
+  // doesn't block render, and no-ops if there's no signed-in user or
+  // analytics consent isn't granted (see scanContextService.ts).
+  useEffect(() => {
+    let cancelled = false;
+    logScanEvent({
+      userId: user?.id,
+      bottleId: bottle.id,
+      bottleName: bottle.name,
+      brandName: bottle.brand,
+      scanSource,
+    }).then((id) => {
+      if (!cancelled) setScanEventId(id);
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // If the user leaves the Answer Card without Add-to-Bar/Want-it ever
+  // firing, the scan resolves to 'passed' — every scan eventually gets
+  // exactly one of owned/wanted/passed.
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('beforeRemove', () => {
+      if (scanEventId && !scanOutcomeRecordedRef.current) {
+        updateScanOutcome({ scanEventId, outcome: 'passed' });
+      }
+    });
+    return unsubscribe;
+  }, [navigation, scanEventId]);
+
+  // Phase 1.6: offer the free taste prompt once, right after the first
+  // suggested-recipes moment — only for users with no taste signal yet
+  // (so it doesn't re-nag someone who's already done onboarding/
+  // RefineYourTaste), and never alongside Gift mode's own panel.
+  useEffect(() => {
+    if (loadingCocktails || suggestedCocktails.length === 0 || giftMode) return;
+    if (!personalizationProfile) return;
+    const hasTasteSignal =
+      (personalizationProfile.favoriteSpirits?.length ?? 0) > 0 ||
+      (personalizationProfile.flavorPreferences?.length ?? 0) > 0;
+    if (hasTasteSignal) return;
+
+    let cancelled = false;
+    AsyncStorage.getItem(TASTE_PROMPT_SHOWN_KEY).then((shown) => {
+      if (!cancelled && !shown) setShowTastePrompt(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [loadingCocktails, suggestedCocktails.length, giftMode, personalizationProfile]);
+
+  const dismissTastePrompt = () => {
+    setShowTastePrompt(false);
+    AsyncStorage.setItem(TASTE_PROMPT_SHOWN_KEY, 'true');
+  };
+
+  const handleTasteSpiritSelect = (value: string | undefined) => {
+    setTasteSpiritHint(value);
+    updatePersonalizationProfile({ favoriteSpirits: value ? [value] : [] });
+    AsyncStorage.setItem(TASTE_PROMPT_SHOWN_KEY, 'true');
+  };
+
+  const handleTasteFlavorSelect = (value: FlavorProfile | undefined) => {
+    setTasteFlavorHint(value);
+    updatePersonalizationProfile({ flavorPreferences: value ? [value] : [] });
+    AsyncStorage.setItem(TASTE_PROMPT_SHOWN_KEY, 'true');
+  };
 
   // Taste model
   const {
@@ -693,6 +786,10 @@ export default function BottleDetailScreen() {
     if (result.duplicate) {
       // Already there — just reflect that in state silently
       setInventoryItem({ id: 'existing', item_name: bottle.name } as any);
+      if (scanEventId) {
+        scanOutcomeRecordedRef.current = true;
+        updateScanOutcome({ scanEventId, outcome: 'owned', context: 'home' });
+      }
       return;
     }
 
@@ -705,6 +802,10 @@ export default function BottleDetailScreen() {
     setInventoryItem({ id: 'added', item_name: bottle.name } as any);
     challengeProgressService.trackAddToInventory(user.id, bottle.id || bottle.name);
     earnScanXP(bottle.id);
+    if (scanEventId) {
+      scanOutcomeRecordedRef.current = true;
+      updateScanOutcome({ scanEventId, outcome: 'owned', context: 'home' });
+    }
     // Boost taste model with shelf signal
     recordScan(bottle, true);
     // Strengthen cache — adding to shelf is the strongest confirmation signal
@@ -769,6 +870,11 @@ export default function BottleDetailScreen() {
         capturePoint: 'post_wishlist',
         userId: user?.id,
       });
+      // Phase 1.5: price-capture present -> store context, wanted outcome.
+      if (scanEventId) {
+        scanOutcomeRecordedRef.current = true;
+        updateScanOutcome({ scanEventId, outcome: 'wanted', context: 'store', priceSeen: price });
+      }
     }
     setPriceInput('');
     setLocationInput('');
@@ -1417,6 +1523,11 @@ export default function BottleDetailScreen() {
                 setGiftMode((value) => {
                   const next = !value;
                   if (!next) setGiftPreference({});
+                  // Phase 1.5: gift mode is a context modifier, not an
+                  // outcome — only write when turning it ON.
+                  if (next && scanEventId) {
+                    updateScanOutcome({ scanEventId, context: 'gift' });
+                  }
                   return next;
                 });
               }}
@@ -1445,6 +1556,17 @@ export default function BottleDetailScreen() {
                     })
                   : null
               }
+            />
+          )}
+
+          {/* Free "what do you like" prompt (Phase 1.6) — one-time, never alongside Gift mode */}
+          {!giftMode && showTastePrompt && (
+            <TastePromptPanel
+              spiritHint={tasteSpiritHint}
+              flavorHint={tasteFlavorHint}
+              onSpiritSelect={handleTasteSpiritSelect}
+              onFlavorSelect={handleTasteFlavorSelect}
+              onDismiss={dismissTastePrompt}
             />
           )}
 

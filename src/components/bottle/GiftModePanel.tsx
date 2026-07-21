@@ -16,27 +16,11 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, radii } from '../../theme/tokens';
-import type { FlavorProfile } from '../../types/userProfile';
 import type { GiftPreference, GiftVerdict } from '../../services/giftVerdictService';
-
-const SPIRIT_OPTIONS: { label: string; value: string }[] = [
-  { label: 'Whiskey', value: 'whiskey' },
-  { label: 'Gin', value: 'gin' },
-  { label: 'Rum', value: 'rum' },
-  { label: 'Tequila', value: 'tequila' },
-  { label: 'Vodka', value: 'vodka' },
-  { label: 'Not sure', value: '' },
-];
-
-const FLAVOR_OPTIONS: { label: string; value: FlavorProfile }[] = [
-  { label: 'Citrus & Fresh', value: 'citrus' },
-  { label: 'Herbal & Green', value: 'herbal' },
-  { label: 'Bitter & Complex', value: 'bitter' },
-  { label: 'Sweet & Fruity', value: 'sweet' },
-  { label: 'Smoky & Bold', value: 'smoky' },
-  { label: 'Floral & Light', value: 'floral' },
-  { label: 'Spiced & Warm', value: 'spiced' },
-];
+import {
+  SPIRIT_CHIP_OPTIONS as SPIRIT_OPTIONS,
+  FLAVOR_CHIP_OPTIONS as FLAVOR_OPTIONS,
+} from '../../config/spiritFlavorChipOptions';
 
 interface GiftModePanelProps {
   preference: GiftPreference;
