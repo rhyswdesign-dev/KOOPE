@@ -274,8 +274,9 @@ export default function PaywallScreen({ route }: PaywallScreenProps) {
   useEffect(() => {
     trackEvent(ANALYTICS_EVENTS.PAYWALL_VIEWED, {
       [ANALYTICS_PROPS.SOURCE]: source,
+      [ANALYTICS_PROPS.TRIGGER_ID]: trigger?.id,
     });
-  }, [source]);
+  }, [source, trigger?.id]);
 
   useEffect(() => {
     log.info('PaywallScreen', 'Plan source resolved', {
@@ -302,11 +303,13 @@ export default function PaywallScreen({ route }: PaywallScreenProps) {
         [ANALYTICS_PROPS.TIER]: 'koope_plus',
         [ANALYTICS_PROPS.BILLING_MODE]: selectedPlan.billingPeriod,
         [ANALYTICS_PROPS.SOURCE]: source,
+        [ANALYTICS_PROPS.TRIGGER_ID]: trigger?.id,
       });
 
       trackEvent(ANALYTICS_EVENTS.PURCHASE_STARTED, {
         [ANALYTICS_PROPS.TIER]: 'koope_plus',
         [ANALYTICS_PROPS.BILLING_MODE]: selectedPlan.billingPeriod,
+        [ANALYTICS_PROPS.TRIGGER_ID]: trigger?.id,
       });
 
       const billingMode = selectedPlan.billingPeriod;
@@ -319,6 +322,7 @@ export default function PaywallScreen({ route }: PaywallScreenProps) {
           [ANALYTICS_PROPS.TIER]: 'koope_plus',
           [ANALYTICS_PROPS.BILLING_MODE]: selectedPlan.billingPeriod,
           [ANALYTICS_PROPS.SOURCE]: source,
+          [ANALYTICS_PROPS.TRIGGER_ID]: trigger?.id,
           is_trial: isTrialEligible,
         });
         Alert.alert(
@@ -332,11 +336,13 @@ export default function PaywallScreen({ route }: PaywallScreenProps) {
         trackEvent(ANALYTICS_EVENTS.PURCHASE_CANCELLED, {
           [ANALYTICS_PROPS.TIER]: 'koope_plus',
           [ANALYTICS_PROPS.BILLING_MODE]: selectedPlan.billingPeriod,
+          [ANALYTICS_PROPS.TRIGGER_ID]: trigger?.id,
         });
       } else {
         trackEvent(ANALYTICS_EVENTS.PURCHASE_FAILED, {
           [ANALYTICS_PROPS.TIER]: 'koope_plus',
           [ANALYTICS_PROPS.BILLING_MODE]: selectedPlan.billingPeriod,
+          [ANALYTICS_PROPS.TRIGGER_ID]: trigger?.id,
           error: result.error || 'Unknown error',
         });
         Alert.alert('Purchase Error', result.error || 'Something went wrong');
@@ -346,6 +352,7 @@ export default function PaywallScreen({ route }: PaywallScreenProps) {
       trackEvent(ANALYTICS_EVENTS.PURCHASE_FAILED, {
         [ANALYTICS_PROPS.TIER]: 'koope_plus',
         [ANALYTICS_PROPS.BILLING_MODE]: selectedPlan.billingPeriod,
+        [ANALYTICS_PROPS.TRIGGER_ID]: trigger?.id,
         error: error.message || 'Unknown error',
       });
       Alert.alert('Purchase Error', error.message || 'Something went wrong');

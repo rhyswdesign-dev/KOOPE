@@ -379,6 +379,14 @@ export const ANALYTICS_EVENTS = {
 export const ANALYTICS_PROPS = {
   // General
   SOURCE: 'source', // Where the event originated (e.g., 'home_bar', 'cocktail_detail', 'lessons')
+  // Phase 2.4: which PAYWALL_TRIGGERS entry (T1/T6/T15/T_ALMOST_MAKEABLE/
+  // T_SUBSTITUTIONS/etc.) caused this paywall to show, if any — undefined
+  // for a generic, un-bannered paywall visit. Without this on every event
+  // in the view->CTA->purchase funnel, "conversion by trigger" can't be
+  // computed at all; it was defined per-trigger in paywallTriggers.ts
+  // (the `analyticsEvent` field) but never actually attached to a
+  // trackEvent call anywhere.
+  TRIGGER_ID: 'trigger_id',
 
   // Onboarding
   STEP_NUMBER: 'step_number',
