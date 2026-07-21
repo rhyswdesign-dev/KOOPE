@@ -97,6 +97,23 @@ export const PAYWALL_TRIGGERS: Record<string, PaywallTrigger> = {
     analyticsEvent: 'paywall_trigger_almost_makeable',
   },
 
+  // What Can I Make — smart substitution swap ideas on an almost-makeable
+  // card (distinct from T_ALMOST_MAKEABLE, which is specifically the
+  // shopping-list-export upsell). Phase 2.2: kept the existing free
+  // substitution feature on CocktailDetailScreen untouched — this only
+  // gates the NEW inventory-planning surface, per the founder's call that
+  // "plan your whole bar" (what this screen sells) is the KŌOPE+ wedge,
+  // not the reactive single-recipe swap already shipped free elsewhere.
+  T_SUBSTITUTIONS: {
+    id: 'T_SUBSTITUTIONS',
+    featureKey: 'smart_substitutions',
+    requiredPlan: 'plus',
+    mode: 'hard',
+    message: 'KŌOPE+ shows swap ideas ranked by what you already own.',
+    ctaText: 'Unlock KŌOPE+',
+    analyticsEvent: 'paywall_trigger_substitutions',
+  },
+
   // Post-scan Answer Card recipe hook — tap on the locked 4th recipe card.
   T15: {
     id: 'T15',

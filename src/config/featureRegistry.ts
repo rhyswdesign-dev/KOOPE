@@ -55,6 +55,7 @@ export type FeatureKey =
   | 'bar_value_calculator'
   | 'seasonal_alerts'
   | 'predictive_restock'
+  | 'smart_substitutions'
 
   // Hosting
   | 'party_scaling'
@@ -253,6 +254,13 @@ export const FEATURE_REGISTRY: Record<FeatureKey, FeatureDefinition> = {
     minTier: 'PLUS',
     displayName: 'Expiry Alerts',
     description: 'Get notified when bottles are nearing expiry.',
+    paywallTarget: 'plus',
+    category: 'smart_inventory',
+  },
+  smart_substitutions: {
+    minTier: 'PLUS',
+    displayName: 'Smart Substitutions',
+    description: 'See swap ideas for what to use instead, ranked by what you already own.',
     paywallTarget: 'plus',
     category: 'smart_inventory',
   },
