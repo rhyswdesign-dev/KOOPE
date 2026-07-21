@@ -25,22 +25,59 @@ type Nav = NativeStackNavigationProp<RootStackParamList>;
 const TOUR_STORAGE_PREFIX = '@KOOPE:screen_tour_seen_';
 
 const TOUR_META: Record<ScreenTourId, { title: string; subtitle: string }> = {
-  tab_lessons: { title: 'Lessons Tab Tour', subtitle: 'Learn lessons, challenges, and progression' },
+  tab_lessons: {
+    title: 'Lessons Tab Tour',
+    subtitle: 'Learn lessons, challenges, and progression',
+  },
+  tab_drinks: {
+    title: 'Drinks Tab Tour',
+    subtitle: 'Saved cocktails, made-it history, and recipe import',
+  },
   tab_discover: { title: 'Discover Tab Tour', subtitle: 'Explore recipes and recommendations' },
   tab_camera: { title: 'Camera Tab Tour', subtitle: 'Understand scan flows and capture options' },
   tab_inventory: { title: 'Inventory Tab Tour', subtitle: 'Manage your bar and restock workflow' },
   tab_profile: { title: 'Profile Tab Tour', subtitle: 'Review progress, stats, and settings' },
-  feature_lesson_engine: { title: 'Lesson Engine Tour', subtitle: 'How lessons and summaries work' },
-  feature_smart_scan: { title: 'Smart Scan Tour', subtitle: 'Barcode + AI tier behavior explained' },
-  feature_recipe_detail: { title: 'Recipe Detail Tour', subtitle: 'Log brands, changes, and rating flow' },
+  feature_lesson_engine: {
+    title: 'Lesson Engine Tour',
+    subtitle: 'How lessons and summaries work',
+  },
+  feature_smart_scan: {
+    title: 'Smart Scan Tour',
+    subtitle: 'Barcode + AI tier behavior explained',
+  },
+  feature_recipe_detail: {
+    title: 'Recipe Detail Tour',
+    subtitle: 'Log brands, changes, and rating flow',
+  },
   // Cellar
-  cellar_home: { title: 'Cellar — Dashboard', subtitle: 'Portfolio value, ready-to-open cards, and top movers' },
-  cellar_market: { title: 'Cellar — Market', subtitle: 'Portfolio analytics, category split, and holdings list' },
-  cellar_register: { title: 'Cellar — Register', subtitle: 'Log a new acquisition with condition and strategy' },
-  cellar_watch: { title: 'Cellar — Watchlist', subtitle: 'Track bottles you want to buy in the future' },
-  cellar_vault: { title: 'Cellar — Vault', subtitle: 'Browse your lots and get deep collector reads' },
-  cellar_bottle_detail: { title: 'Cellar — Bottle Detail', subtitle: 'Price history, directive, and edit flow' },
-  trial_pro_unlock: { title: 'PRO Features Tour', subtitle: 'Vault drops, recipe builder, and hosting tools' },
+  cellar_home: {
+    title: 'Cellar — Dashboard',
+    subtitle: 'Portfolio value, ready-to-open cards, and top movers',
+  },
+  cellar_market: {
+    title: 'Cellar — Market',
+    subtitle: 'Portfolio analytics, category split, and holdings list',
+  },
+  cellar_register: {
+    title: 'Cellar — Register',
+    subtitle: 'Log a new acquisition with condition and strategy',
+  },
+  cellar_watch: {
+    title: 'Cellar — Watchlist',
+    subtitle: 'Track bottles you want to buy in the future',
+  },
+  cellar_vault: {
+    title: 'Cellar — Vault',
+    subtitle: 'Browse your lots and get deep collector reads',
+  },
+  cellar_bottle_detail: {
+    title: 'Cellar — Bottle Detail',
+    subtitle: 'Price history, directive, and edit flow',
+  },
+  trial_pro_unlock: {
+    title: 'PRO Features Tour',
+    subtitle: 'Vault drops, recipe builder, and hosting tools',
+  },
 };
 
 interface ActiveTourState {
@@ -73,6 +110,7 @@ export default function TutorialsScreen() {
 
     const contextMap: Record<ScreenTourId, ScreenTourId[]> = {
       tab_lessons: ['tab_lessons', 'feature_lesson_engine'],
+      tab_drinks: ['tab_drinks'],
       tab_discover: ['tab_discover', 'feature_recipe_detail'],
       tab_camera: ['tab_camera', 'feature_smart_scan'],
       tab_inventory: ['tab_inventory'],
@@ -81,12 +119,54 @@ export default function TutorialsScreen() {
       feature_smart_scan: ['feature_smart_scan', 'tab_camera'],
       feature_recipe_detail: ['feature_recipe_detail', 'tab_discover'],
       // Cellar — all cellar tours cluster together
-      cellar_home: ['cellar_home', 'cellar_market', 'cellar_register', 'cellar_watch', 'cellar_vault', 'cellar_bottle_detail'],
-      cellar_market: ['cellar_home', 'cellar_market', 'cellar_register', 'cellar_watch', 'cellar_vault', 'cellar_bottle_detail'],
-      cellar_register: ['cellar_home', 'cellar_market', 'cellar_register', 'cellar_watch', 'cellar_vault', 'cellar_bottle_detail'],
-      cellar_watch: ['cellar_home', 'cellar_market', 'cellar_register', 'cellar_watch', 'cellar_vault', 'cellar_bottle_detail'],
-      cellar_vault: ['cellar_home', 'cellar_market', 'cellar_register', 'cellar_watch', 'cellar_vault', 'cellar_bottle_detail'],
-      cellar_bottle_detail: ['cellar_home', 'cellar_market', 'cellar_register', 'cellar_watch', 'cellar_vault', 'cellar_bottle_detail'],
+      cellar_home: [
+        'cellar_home',
+        'cellar_market',
+        'cellar_register',
+        'cellar_watch',
+        'cellar_vault',
+        'cellar_bottle_detail',
+      ],
+      cellar_market: [
+        'cellar_home',
+        'cellar_market',
+        'cellar_register',
+        'cellar_watch',
+        'cellar_vault',
+        'cellar_bottle_detail',
+      ],
+      cellar_register: [
+        'cellar_home',
+        'cellar_market',
+        'cellar_register',
+        'cellar_watch',
+        'cellar_vault',
+        'cellar_bottle_detail',
+      ],
+      cellar_watch: [
+        'cellar_home',
+        'cellar_market',
+        'cellar_register',
+        'cellar_watch',
+        'cellar_vault',
+        'cellar_bottle_detail',
+      ],
+      cellar_vault: [
+        'cellar_home',
+        'cellar_market',
+        'cellar_register',
+        'cellar_watch',
+        'cellar_vault',
+        'cellar_bottle_detail',
+      ],
+      cellar_bottle_detail: [
+        'cellar_home',
+        'cellar_market',
+        'cellar_register',
+        'cellar_watch',
+        'cellar_vault',
+        'cellar_bottle_detail',
+      ],
       trial_pro_unlock: ['trial_pro_unlock'],
     };
 
@@ -144,7 +224,7 @@ export default function TutorialsScreen() {
             }
           },
         },
-      ]
+      ],
     );
   };
 
@@ -161,7 +241,9 @@ export default function TutorialsScreen() {
           <View style={styles.toggleRow}>
             <View>
               <Text style={styles.toggleTitle}>Show tutorial icon</Text>
-              <Text style={styles.toggleBody}>Display the floating ? quick-access button in the app.</Text>
+              <Text style={styles.toggleBody}>
+                Display the floating ? quick-access button in the app.
+              </Text>
             </View>
             <Switch
               value={showTutorialIcons}

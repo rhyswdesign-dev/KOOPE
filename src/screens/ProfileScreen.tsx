@@ -77,7 +77,6 @@ export default function ProfileScreen() {
   const createdRecipeCount = recipes.filter(
     (r) => r.type === 'created' || r.type === 'ai_generated',
   ).length;
-  const importedRecipeCount = recipes.filter((r) => (r.type as string) === 'imported').length;
   const claimedDropCount = useMemo(() => {
     const weeklyDropIds = new Set<string>(WEEKLY_FOR_YOU_DROP_RECIPES.map((recipe) => recipe.id));
     return (savedItems.savedCocktails || []).filter((item) => weeklyDropIds.has(item.id)).length;
@@ -545,21 +544,9 @@ export default function ProfileScreen() {
               >
                 <View style={styles.collectionStats}>
                   <View style={styles.collectionStatItem}>
-                    <Ionicons name="bookmark" size={18} color={colors.accent} />
-                    <Text style={styles.collectionStatValue}>{savedTotalCount}</Text>
-                    <Text style={styles.collectionStatLabel}>Saved</Text>
-                  </View>
-                  <View style={styles.collectionDivider} />
-                  <View style={styles.collectionStatItem}>
                     <Ionicons name="create" size={18} color={colors.accent} />
                     <Text style={styles.collectionStatValue}>{createdRecipeCount}</Text>
                     <Text style={styles.collectionStatLabel}>Created</Text>
-                  </View>
-                  <View style={styles.collectionDivider} />
-                  <View style={styles.collectionStatItem}>
-                    <Ionicons name="download" size={18} color={colors.accent} />
-                    <Text style={styles.collectionStatValue}>{importedRecipeCount}</Text>
-                    <Text style={styles.collectionStatLabel}>Imported</Text>
                   </View>
                   <View style={styles.collectionDivider} />
                   <View style={styles.collectionStatItem}>
@@ -568,6 +555,30 @@ export default function ProfileScreen() {
                       {savedItems.savedVaultItems?.length || 0}
                     </Text>
                     <Text style={styles.collectionStatLabel}>Vault</Text>
+                  </View>
+                </View>
+                <View style={styles.collectionArrow}>
+                  <Ionicons name="chevron-forward" size={20} color={colors.subtext} />
+                </View>
+              </TouchableOpacity>
+            </View>
+
+            {/* Lessons — relocated here from the retired Lessons tab (1.4d) */}
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <Heading level={2} style={styles.sectionTitle}>
+                  Lessons
+                </Heading>
+              </View>
+              <TouchableOpacity
+                style={styles.collectionCard}
+                onPress={() => (nav as any).navigate('Lessons')}
+              >
+                <View style={styles.collectionStats}>
+                  <View style={styles.collectionStatItem}>
+                    <Ionicons name="school" size={18} color={colors.accent} />
+                    <Text style={styles.collectionStatValue}>{completedLessons.length}</Text>
+                    <Text style={styles.collectionStatLabel}>Completed</Text>
                   </View>
                 </View>
                 <View style={styles.collectionArrow}>

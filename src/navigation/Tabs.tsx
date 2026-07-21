@@ -3,7 +3,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import type { BottomTabBarButtonProps } from '@react-navigation/bottom-tabs';
 import { View, TouchableOpacity, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import LessonsStack from './LessonsStack';
+import DrinksStack from './DrinksStack';
 import RecipesStack from './RecipesStack';
 import CameraStack from './CameraStack';
 import InventoryStack from './ShelfStack';
@@ -67,7 +67,7 @@ const scanFabStyles = StyleSheet.create({
 });
 
 type TabsParamList = {
-  Lessons: undefined;
+  Drinks: undefined;
   Recipes: undefined;
   Camera: undefined;
   Shelf: undefined;
@@ -91,7 +91,7 @@ export default function Tabs() {
   const hasAutoLaunchedCameraRef = useRef(false);
 
   const tabToTour: Record<keyof TabsParamList, ScreenTourId> = {
-    Lessons: 'tab_lessons',
+    Drinks: 'tab_drinks',
     Recipes: 'tab_discover',
     Camera: 'tab_camera',
     Shelf: 'tab_inventory',
@@ -109,7 +109,7 @@ export default function Tabs() {
           tabBarInactiveTintColor: colors.muted,
           tabBarIcon: ({ color, size }) => {
             const map: Record<string, keyof typeof Ionicons.glyphMap> = {
-              Lessons: 'school-outline',
+              Drinks: 'heart-outline',
               Recipes: 'restaurant-outline',
               Camera: 'camera-outline',
               Shelf: 'wine-outline',
@@ -158,8 +158,8 @@ export default function Tabs() {
             },
           })}
         />
-        <Tab.Screen name="Lessons" component={LessonsStack} />
-        <Tab.Screen name="Profile" component={ProfileStack} />
+        <Tab.Screen name="Drinks" component={DrinksStack} />
+        <Tab.Screen name="Profile" component={ProfileStack} options={{ tabBarLabel: 'You' }} />
       </Tab.Navigator>
       {showTutorialIcons && (
         <SafeAreaView

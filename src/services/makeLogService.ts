@@ -22,6 +22,7 @@ import { supabase } from '../lib/supabase';
 import { log } from '../lib/logger';
 import { trackEvent } from '../lib/analytics';
 import { useTasteModel } from '../store/useTasteModel';
+import { RecipesRepository } from '../repos/supabase';
 
 export type MadeEventSource = 'recipe_detail' | 'tonights_pick' | 'hosting' | 'whatcanimake';
 
@@ -48,7 +49,14 @@ export interface LogMadeItResult {
  * won't exist until migration 030 is applied — see this file's header).
  */
 export async function logMadeIt(params: LogMadeItParams): Promise<LogMadeItResult> {
-  const { userId, recipeId, source, flavorProfiles, substitutionsUsed = null, rating = null } = params;
+  const {
+    userId,
+    recipeId,
+    source,
+    flavorProfiles,
+    substitutionsUsed = null,
+    rating = null,
+  } = params;
 
   try {
     const { error: insertError } = await supabase.from('made_events').insert({
@@ -60,7 +68,9 @@ export async function logMadeIt(params: LogMadeItParams): Promise<LogMadeItResul
     });
 
     if (insertError) {
-      log.warn('MakeLogService', 'Failed to insert made_events row (migration 030 applied?)', { error: insertError });
+      log.warn('MakeLogService', 'Failed to insert made_events row (migration 030 applied?)', {
+        error: insertError,
+      });
     }
   } catch (error) {
     log.error('MakeLogService', 'made_events insert threw', error, { recipeId, source });
@@ -109,6 +119,71 @@ export async function getTimesMade(userId: string, recipeId: string): Promise<nu
   } catch (error) {
     log.warn('MakeLogService', 'Failed to read times-made count', { error });
     return 0;
+  }
+}
+
+export interface MadeHistoryEntry {
+  id: string;
+  recipeId: string;
+  recipeName: string;
+  recipeImage?: string;
+  madeAt: string;
+  source: MadeEventSource;
+  rating: number | null;
+}
+
+/**
+ * Recent "made it" history for the Drinks tab's Made-It History list, most
+ * recent first. `made_events` only stores recipe_id + timestamp + source
+ * (no name/image), so this resolves each *distinct* recipe_id once via
+ * RecipesRepository (a repeat-made cocktail collapses N rows to 1 lookup)
+ * rather than one lookup per row. Uses allSettled so one missing/failed
+ * recipe lookup doesn't take down the rest of the history — the made-it
+ * event itself is still real history even if its recipe was later removed.
+ */
+export async function getMadeHistory(
+  userId: string,
+  limit: number = 20,
+): Promise<MadeHistoryEntry[]> {
+  try {
+    const { data, error } = await supabase
+      .from('made_events')
+      .select('id, recipe_id, made_at, source, rating')
+      .eq('user_id', userId)
+      .order('made_at', { ascending: false })
+      .limit(limit);
+
+    if (error || !data) return [];
+
+    const distinctRecipeIds = Array.from(new Set(data.map((row: any) => row.recipe_id)));
+    const settled = await Promise.allSettled(
+      distinctRecipeIds.map((id) => RecipesRepository.getRecipeById(id)),
+    );
+    const recipeById = new Map<
+      string,
+      { title?: string; name?: string; image?: string; imageUrl?: string } | null
+    >(
+      distinctRecipeIds.map((id, index) => {
+        const result = settled[index];
+        return [id, result.status === 'fulfilled' ? result.value : null];
+      }),
+    );
+
+    return data.map((row: any) => {
+      const recipe = recipeById.get(row.recipe_id);
+      return {
+        id: row.id,
+        recipeId: row.recipe_id,
+        recipeName: recipe?.name || recipe?.title || 'Recipe',
+        recipeImage: recipe?.image || recipe?.imageUrl,
+        madeAt: row.made_at,
+        source: row.source,
+        rating: row.rating,
+      };
+    });
+  } catch (error) {
+    log.warn('MakeLogService', 'Failed to read made-it history', { error });
+    return [];
   }
 }
 

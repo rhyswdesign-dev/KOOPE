@@ -7,7 +7,12 @@
  * everywhere downstream, not just in one screen.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { logMadeIt, getTimesMade, hasMadeSomethingThisWeek } from '../makeLogService';
+import {
+  logMadeIt,
+  getTimesMade,
+  hasMadeSomethingThisWeek,
+  getMadeHistory,
+} from '../makeLogService';
 
 const insertMock = vi.fn();
 const selectHeadCountMock = vi.fn();
@@ -39,14 +44,23 @@ vi.mock('../../store/useTasteModel', () => ({
 
 // Chainable query-builder stub: every filter method returns `this`, and the
 // object is directly awaitable (mirrors Supabase's thenable PostgrestFilterBuilder).
-function chainableResult(result: { count: number | null; error: unknown }) {
+function chainableResult(result: Record<string, unknown>) {
   const builder: any = {
     eq: () => builder,
     gte: () => builder,
+    order: () => builder,
+    limit: () => builder,
     then: (resolve: (value: typeof result) => void) => resolve(result),
   };
   return builder;
 }
+
+const getRecipeByIdMock = vi.fn();
+vi.mock('../../repos/supabase', () => ({
+  RecipesRepository: {
+    getRecipeById: (...args: any[]) => getRecipeByIdMock(...args),
+  },
+}));
 
 describe('makeLogService.logMadeIt', () => {
   beforeEach(() => {
@@ -157,6 +171,144 @@ describe('makeLogService.getTimesMade', () => {
       chainableResult({ count: null, error: { message: 'boom' } }),
     );
     await expect(getTimesMade('user-1', 'recipe-1')).resolves.toBe(0);
+  });
+});
+
+describe('makeLogService.getMadeHistory — Drinks tab Made-It History (1.4d)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('returns resolved entries in made_at-desc order with recipe name/image filled in', async () => {
+    selectHeadCountMock.mockReturnValue(
+      chainableResult({
+        data: [
+          {
+            id: 'ev-2',
+            recipe_id: 'negroni',
+            made_at: '2026-07-20T00:00:00Z',
+            source: 'recipe_detail',
+            rating: 5,
+          },
+          {
+            id: 'ev-1',
+            recipe_id: 'daiquiri',
+            made_at: '2026-07-19T00:00:00Z',
+            source: 'tonights_pick',
+            rating: null,
+          },
+        ],
+        error: null,
+      }),
+    );
+    getRecipeByIdMock.mockImplementation(async (id: string) =>
+      id === 'negroni'
+        ? { name: 'Negroni', image: 'negroni.png' }
+        : { title: 'Daiquiri', imageUrl: 'daiquiri.png' },
+    );
+
+    const result = await getMadeHistory('user-1', 20);
+
+    expect(result).toEqual([
+      {
+        id: 'ev-2',
+        recipeId: 'negroni',
+        recipeName: 'Negroni',
+        recipeImage: 'negroni.png',
+        madeAt: '2026-07-20T00:00:00Z',
+        source: 'recipe_detail',
+        rating: 5,
+      },
+      {
+        id: 'ev-1',
+        recipeId: 'daiquiri',
+        recipeName: 'Daiquiri',
+        recipeImage: 'daiquiri.png',
+        madeAt: '2026-07-19T00:00:00Z',
+        source: 'tonights_pick',
+        rating: null,
+      },
+    ]);
+  });
+
+  it('dedupes repo lookups: calls getRecipeById once per distinct recipe_id, not once per row', async () => {
+    selectHeadCountMock.mockReturnValue(
+      chainableResult({
+        data: [
+          {
+            id: 'ev-3',
+            recipe_id: 'negroni',
+            made_at: '2026-07-20T00:00:00Z',
+            source: 'recipe_detail',
+            rating: null,
+          },
+          {
+            id: 'ev-2',
+            recipe_id: 'negroni',
+            made_at: '2026-07-19T00:00:00Z',
+            source: 'recipe_detail',
+            rating: null,
+          },
+          {
+            id: 'ev-1',
+            recipe_id: 'negroni',
+            made_at: '2026-07-18T00:00:00Z',
+            source: 'recipe_detail',
+            rating: null,
+          },
+        ],
+        error: null,
+      }),
+    );
+    getRecipeByIdMock.mockResolvedValue({ name: 'Negroni', image: 'negroni.png' });
+
+    const result = await getMadeHistory('user-1', 20);
+
+    expect(getRecipeByIdMock).toHaveBeenCalledTimes(1);
+    expect(result).toHaveLength(3);
+    expect(result.every((r) => r.recipeName === 'Negroni')).toBe(true);
+  });
+
+  it('falls back to a generic label and keeps the row when a recipe lookup fails or returns null', async () => {
+    selectHeadCountMock.mockReturnValue(
+      chainableResult({
+        data: [
+          {
+            id: 'ev-2',
+            recipe_id: 'deleted-recipe',
+            made_at: '2026-07-20T00:00:00Z',
+            source: 'hosting',
+            rating: null,
+          },
+          {
+            id: 'ev-1',
+            recipe_id: 'rejects',
+            made_at: '2026-07-19T00:00:00Z',
+            source: 'hosting',
+            rating: null,
+          },
+        ],
+        error: null,
+      }),
+    );
+    getRecipeByIdMock.mockImplementation(async (id: string) => {
+      if (id === 'rejects') throw new Error('network down');
+      return null;
+    });
+
+    const result = await getMadeHistory('user-1', 20);
+
+    expect(result).toHaveLength(2);
+    expect(result.every((r) => r.recipeName === 'Recipe')).toBe(true);
+  });
+
+  it('resolves to an empty array (never throws) when the made_events query errors', async () => {
+    selectHeadCountMock.mockReturnValue(
+      chainableResult({ data: null, error: { message: 'boom' } }),
+    );
+
+    await expect(getMadeHistory('user-1', 20)).resolves.toEqual([]);
+    expect(getRecipeByIdMock).not.toHaveBeenCalled();
   });
 });
 

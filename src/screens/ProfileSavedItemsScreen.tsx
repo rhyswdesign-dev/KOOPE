@@ -38,7 +38,11 @@ import {
   getAllPlaybookTypes,
 } from '../config/vaultContent';
 
-type TabType = 'saved' | 'recipe_cards' | 'created' | 'imported' | 'variations' | 'playbooks' | 'hacks';
+// 'saved' and 'imported' moved to the Drinks tab (1.4d/consolidation) —
+// saved cocktails and recipe imports now live there exclusively, so this
+// screen no longer duplicates them. What's left here is vault-unlocked
+// collectible content plus recipes you've actually created.
+type TabType = 'recipe_cards' | 'created' | 'variations' | 'playbooks' | 'hacks';
 
 interface TabConfig {
   key: TabType;
@@ -47,10 +51,8 @@ interface TabConfig {
 }
 
 const TABS: TabConfig[] = [
-  { key: 'saved', label: 'Saved', icon: 'bookmark-outline' },
-  { key: 'recipe_cards', label: 'Recipe Cards', icon: 'albums-outline' },
   { key: 'created', label: 'Created', icon: 'create-outline' },
-  { key: 'imported', label: 'Imported', icon: 'download-outline' },
+  { key: 'recipe_cards', label: 'Recipe Cards', icon: 'albums-outline' },
   { key: 'variations', label: 'Variations', icon: 'wine-outline' },
   { key: 'playbooks', label: 'Playbooks', icon: 'book-outline' },
   { key: 'hacks', label: 'Hacks', icon: 'bulb-outline' },
@@ -58,11 +60,11 @@ const TABS: TabConfig[] = [
 
 export default function ProfileSavedItemsScreen() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { savedItems, toggleSavedCocktail, isCocktailSaved } = useSavedItems();
+  const { savedItems } = useSavedItems();
   const { recipes: userRecipes, loadRecipes, deleteRecipe } = useUserRecipes();
   const isVaultItemUnlocked = useXPSystem((state) => state.isVaultItemUnlocked);
 
-  const [activeTab, setActiveTab] = useState<TabType>('saved');
+  const [activeTab, setActiveTab] = useState<TabType>('created');
   const [refreshing, setRefreshing] = useState(false);
   const [vaultDetailItem, setVaultDetailItem] = useState<any>(null);
   const onScrollHaptic = useScrollHaptic('selection', 800);
@@ -88,10 +90,6 @@ export default function ProfileSavedItemsScreen() {
   };
 
   // Get data for each tab
-  const getSavedRecipes = () => {
-    return savedItems.savedCocktails || [];
-  };
-
   const getCreatedRecipes = (): UserRecipe[] => {
     return userRecipes.filter((r) => r.type === 'created' || r.type === 'ai_generated');
   };
@@ -107,10 +105,6 @@ export default function ProfileSavedItemsScreen() {
     return savedCards.length > 0 ? savedCards : COLLECTIBLE_RECIPE_CARDS;
   };
 
-  const getImportedRecipes = (): UserRecipe[] => {
-    return userRecipes.filter((r) => (r.type as string) === 'imported');
-  };
-
   const getVariationItems = () =>
     getVariationsForDisplay().filter((v) => isVaultItemUnlocked(v.id));
 
@@ -119,54 +113,40 @@ export default function ProfileSavedItemsScreen() {
       .flatMap((type) => getTechniquePlaybooksByType(type))
       .filter((p) => isVaultItemUnlocked(p.id));
 
-  const getHackItems = () =>
-    getBartenderHacksForDisplay().filter((h) => isVaultItemUnlocked(h.id));
+  const getHackItems = () => getBartenderHacksForDisplay().filter((h) => isVaultItemUnlocked(h.id));
 
   const getActiveData = () => {
     switch (activeTab) {
-      case 'saved': return getSavedRecipes();
-      case 'recipe_cards': return getRecipeCardLibrary();
-      case 'created': return getCreatedRecipes();
-      case 'imported': return getImportedRecipes();
-      case 'variations': return getVariationItems();
-      case 'playbooks': return getPlaybookItems();
-      case 'hacks': return getHackItems();
-      default: return [];
+      case 'recipe_cards':
+        return getRecipeCardLibrary();
+      case 'created':
+        return getCreatedRecipes();
+      case 'variations':
+        return getVariationItems();
+      case 'playbooks':
+        return getPlaybookItems();
+      case 'hacks':
+        return getHackItems();
+      default:
+        return [];
     }
   };
 
   const getTabCount = (tab: TabType): number => {
     switch (tab) {
-      case 'saved': return getSavedRecipes().length;
-      case 'recipe_cards': return getRecipeCardLibrary().length;
-      case 'created': return getCreatedRecipes().length;
-      case 'imported': return getImportedRecipes().length;
-      case 'variations': return getVariationItems().length;
-      case 'playbooks': return getPlaybookItems().length;
-      case 'hacks': return getHackItems().length;
-      default: return 0;
+      case 'recipe_cards':
+        return getRecipeCardLibrary().length;
+      case 'created':
+        return getCreatedRecipes().length;
+      case 'variations':
+        return getVariationItems().length;
+      case 'playbooks':
+        return getPlaybookItems().length;
+      case 'hacks':
+        return getHackItems().length;
+      default:
+        return 0;
     }
-  };
-
-  const renderSavedItem = ({ item }: { item: any }) => {
-    // Saved items from useSavedItems
-    return (
-      <RecipeCard
-        recipe={{
-          id: item.id,
-          name: item.name,
-          title: item.name,
-          description: item.subtitle || '',
-          image: item.image,
-          difficulty: 'Medium',
-          time: '5 min',
-        }}
-        onPress={() => handleRecipeView(item, nav)}
-        onSave={() => toggleSavedCocktail(item)}
-        isSaved={isCocktailSaved(item.id)}
-        showSaveButton={true}
-      />
-    );
   };
 
   const renderUserRecipe = ({ item }: { item: UserRecipe }) => {
@@ -185,8 +165,14 @@ export default function ProfileSavedItemsScreen() {
             id: item.id,
             name: item.name,
             title: item.name,
-            description: amountLabel ? `${amountLabel} • ${item.description || ''}` : item.description || '',
-            image: item.thumbnailImage || item.headerImage || item.image || 'https://images.unsplash.com/photo-1514362545857-3f16c0c5604c?q=80&w=1200',
+            description: amountLabel
+              ? `${amountLabel} • ${item.description || ''}`
+              : item.description || '',
+            image:
+              item.thumbnailImage ||
+              item.headerImage ||
+              item.image ||
+              'https://images.unsplash.com/photo-1514362545857-3f16c0c5604c?q=80&w=1200',
             difficulty: (item.difficulty as any) || 'Medium',
             time: item.prepTime ? `${item.prepTime} min` : '5 min',
           }}
@@ -196,12 +182,7 @@ export default function ProfileSavedItemsScreen() {
           showSaveButton={false}
         />
         {/* Type Badge */}
-        <View
-          style={[
-            styles.typeBadge,
-            isImported ? styles.importedBadge : styles.createdBadge,
-          ]}
-        >
+        <View style={[styles.typeBadge, isImported ? styles.importedBadge : styles.createdBadge]}>
           <Ionicons
             name={isImported ? 'download-outline' : 'create-outline'}
             size={12}
@@ -229,19 +210,34 @@ export default function ProfileSavedItemsScreen() {
     log.info('ProfileSavedItems', 'Recipe deleted', { id: recipe.id });
   };
 
-  const renderVaultCard = (item: any, opts: {
-    category: string;
-    color: string;
-    icon: React.ComponentProps<typeof Ionicons>['name'];
-    descKey: 'shortDescription' | 'teaser';
-  }) => (
+  const renderVaultCard = (
+    item: any,
+    opts: {
+      category: string;
+      color: string;
+      icon: React.ComponentProps<typeof Ionicons>['name'];
+      descKey: 'shortDescription' | 'teaser';
+    },
+  ) => (
     <TouchableOpacity
       style={styles.vaultItemCard}
-      onPress={() => setVaultDetailItem({ ...item, _category: opts.category, _color: opts.color, _icon: opts.icon })}
+      onPress={() =>
+        setVaultDetailItem({
+          ...item,
+          _category: opts.category,
+          _color: opts.color,
+          _icon: opts.icon,
+        })
+      }
       activeOpacity={0.78}
     >
       <View style={[styles.vaultItemStripe, { backgroundColor: opts.color }]} />
-      <View style={[styles.vaultItemIconWrap, { backgroundColor: opts.color + '18', borderColor: opts.color + '33' }]}>
+      <View
+        style={[
+          styles.vaultItemIconWrap,
+          { backgroundColor: opts.color + '18', borderColor: opts.color + '33' },
+        ]}
+      >
         <Ionicons name={opts.icon} size={20} color={opts.color} />
       </View>
       <View style={styles.vaultItemBody}>
@@ -254,37 +250,53 @@ export default function ProfileSavedItemsScreen() {
         </View>
         <Text style={styles.vaultItemTitle}>{item.title}</Text>
         {item[opts.descKey] ? (
-          <Text style={styles.vaultItemDesc} numberOfLines={2}>{item[opts.descKey]}</Text>
+          <Text style={styles.vaultItemDesc} numberOfLines={2}>
+            {item[opts.descKey]}
+          </Text>
         ) : null}
       </View>
-      <Ionicons name="chevron-forward" size={14} color={colors.subtext} style={styles.vaultItemChevron} />
+      <Ionicons
+        name="chevron-forward"
+        size={14}
+        color={colors.subtext}
+        style={styles.vaultItemChevron}
+      />
     </TouchableOpacity>
   );
 
   const renderVariationItem = ({ item }: { item: any }) =>
-    renderVaultCard(item, { category: 'VARIATION', color: '#D6B06E', icon: 'wine-outline', descKey: 'shortDescription' });
+    renderVaultCard(item, {
+      category: 'VARIATION',
+      color: '#D6B06E',
+      icon: 'wine-outline',
+      descKey: 'shortDescription',
+    });
 
   const renderPlaybookItem = ({ item }: { item: any }) =>
-    renderVaultCard(item, { category: 'PLAYBOOK', color: colors.accent, icon: 'book-outline', descKey: 'shortDescription' });
+    renderVaultCard(item, {
+      category: 'PLAYBOOK',
+      color: colors.accent,
+      icon: 'book-outline',
+      descKey: 'shortDescription',
+    });
 
   const renderHackItem = ({ item }: { item: any }) =>
-    renderVaultCard(item, { category: 'HACK', color: '#E89C40', icon: 'bulb-outline', descKey: 'teaser' });
+    renderVaultCard(item, {
+      category: 'HACK',
+      color: '#E89C40',
+      icon: 'bulb-outline',
+      descKey: 'teaser',
+    });
 
   const renderEmptyState = () => {
     const emptyConfig = {
-      saved: {
-        icon: 'bookmark-outline',
-        title: 'No saved recipes yet',
-        subtitle: 'Browse recipes and tap the bookmark icon to save them here',
-        action: 'Browse Recipes',
-        onAction: () => (nav as any).navigate('Main', { screen: 'Recipes' }),
-      },
       recipe_cards: {
         icon: 'albums-outline',
         title: 'No collectible recipe cards yet',
         subtitle: 'Premium and mixology cards will live here once unlocked and saved',
         action: 'Browse Cards',
-        onAction: () => nav.navigate('RecipeCardDetail', { cardId: COLLECTIBLE_RECIPE_CARDS[0].id }),
+        onAction: () =>
+          nav.navigate('RecipeCardDetail', { cardId: COLLECTIBLE_RECIPE_CARDS[0].id }),
       },
       created: {
         icon: 'create-outline',
@@ -292,13 +304,6 @@ export default function ProfileSavedItemsScreen() {
         subtitle: 'Create your own cocktail recipes or generate one with AI',
         action: 'Create Recipe',
         onAction: () => nav.navigate('AddRecipe'),
-      },
-      imported: {
-        icon: 'download-outline',
-        title: 'No imported recipes yet',
-        subtitle: 'Go to Camera tab and tap "Import from URL" to import recipes',
-        action: 'Go to Camera',
-        onAction: () => (nav as any).navigate('Main', { screen: 'Camera', params: { screen: 'RecipeURLImport' } }),
       },
       variations: {
         icon: 'wine-outline',
@@ -330,7 +335,9 @@ export default function ProfileSavedItemsScreen() {
         <View style={styles.emptyIconContainer}>
           <Ionicons name={config.icon as any} size={48} color={colors.muted} />
         </View>
-        <Heading level={2} style={styles.emptyTitle}>{config.title}</Heading>
+        <Heading level={2} style={styles.emptyTitle}>
+          {config.title}
+        </Heading>
         <Text style={styles.emptySubtitle}>{config.subtitle}</Text>
         <TouchableOpacity style={styles.emptyAction} onPress={withHaptic(config.onAction)}>
           <Text style={styles.emptyActionText}>{config.action}</Text>
@@ -341,15 +348,6 @@ export default function ProfileSavedItemsScreen() {
   };
 
   const activeData = getActiveData();
-  const totalCount =
-    getSavedRecipes().length +
-    getRecipeCardLibrary().length +
-    getCreatedRecipes().length +
-    getImportedRecipes().length +
-    getVariationItems().length +
-    getPlaybookItems().length +
-    getHackItems().length;
-
   const vaultTotal = getVariationItems().length + getPlaybookItems().length + getHackItems().length;
 
   return (
@@ -357,8 +355,8 @@ export default function ProfileSavedItemsScreen() {
       {/* Summary Header — horizontal stat strip */}
       <View style={styles.summaryHeader}>
         <View style={styles.summaryStatGroup}>
-          <Text style={styles.summaryStatValue}>{getSavedRecipes().length + getCreatedRecipes().length + getImportedRecipes().length}</Text>
-          <Text style={styles.summaryStatLabel}>Recipes</Text>
+          <Text style={styles.summaryStatValue}>{getCreatedRecipes().length}</Text>
+          <Text style={styles.summaryStatLabel}>Created</Text>
         </View>
         <View style={styles.summaryDivider} />
         <View style={styles.summaryStatGroup}>
@@ -367,7 +365,9 @@ export default function ProfileSavedItemsScreen() {
         </View>
         <View style={styles.summaryDivider} />
         <View style={styles.summaryStatGroup}>
-          <Text style={[styles.summaryStatValue, vaultTotal > 0 && styles.summaryStatValueGold]}>{vaultTotal}</Text>
+          <Text style={[styles.summaryStatValue, vaultTotal > 0 && styles.summaryStatValueGold]}>
+            {vaultTotal}
+          </Text>
           <Text style={styles.summaryStatLabel}>Vault</Text>
         </View>
       </View>
@@ -392,12 +392,15 @@ export default function ProfileSavedItemsScreen() {
         <FlatList
           data={activeData as any[]}
           renderItem={
-            activeTab === 'saved' ? renderSavedItem
-            : activeTab === 'recipe_cards' ? renderRecipeCard
-            : activeTab === 'variations' ? renderVariationItem
-            : activeTab === 'playbooks' ? renderPlaybookItem
-            : activeTab === 'hacks' ? renderHackItem
-            : renderUserRecipe
+            activeTab === 'recipe_cards'
+              ? renderRecipeCard
+              : activeTab === 'variations'
+                ? renderVariationItem
+                : activeTab === 'playbooks'
+                  ? renderPlaybookItem
+                  : activeTab === 'hacks'
+                    ? renderHackItem
+                    : renderUserRecipe
           }
           keyExtractor={(item) => item.id}
           onScrollBeginDrag={onScrollHaptic}
@@ -421,21 +424,39 @@ export default function ProfileSavedItemsScreen() {
         onRequestClose={() => setVaultDetailItem(null)}
       >
         <View style={styles.vaultModalOverlay}>
-          <TouchableOpacity style={StyleSheet.absoluteFillObject} onPress={() => setVaultDetailItem(null)} />
+          <TouchableOpacity
+            style={StyleSheet.absoluteFillObject}
+            onPress={() => setVaultDetailItem(null)}
+          />
           <View style={styles.vaultModalSheet}>
             {/* Handle */}
             <View style={styles.vaultModalHandle} />
 
             {/* Header */}
             <View style={styles.vaultModalHeader}>
-              <View style={[styles.vaultModalIconWrap, { backgroundColor: (vaultDetailItem?._color || colors.accent) + '18', borderColor: (vaultDetailItem?._color || colors.accent) + '33' }]}>
-                <Ionicons name={vaultDetailItem?._icon || 'star-outline'} size={22} color={vaultDetailItem?._color || colors.accent} />
+              <View
+                style={[
+                  styles.vaultModalIconWrap,
+                  {
+                    backgroundColor: (vaultDetailItem?._color || colors.accent) + '18',
+                    borderColor: (vaultDetailItem?._color || colors.accent) + '33',
+                  },
+                ]}
+              >
+                <Ionicons
+                  name={vaultDetailItem?._icon || 'star-outline'}
+                  size={22}
+                  color={vaultDetailItem?._color || colors.accent}
+                />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.vaultModalCategory}>{vaultDetailItem?._category}</Text>
                 <Text style={styles.vaultModalTitle}>{vaultDetailItem?.title}</Text>
               </View>
-              <TouchableOpacity onPress={() => setVaultDetailItem(null)} style={styles.vaultModalClose}>
+              <TouchableOpacity
+                onPress={() => setVaultDetailItem(null)}
+                style={styles.vaultModalClose}
+              >
                 <Ionicons name="close" size={20} color={colors.subtext} />
               </TouchableOpacity>
             </View>
@@ -460,18 +481,24 @@ export default function ProfileSavedItemsScreen() {
               {vaultDetailItem?._category === 'PLAYBOOK' && (
                 <>
                   <Text style={styles.vaultModalTeaser}>{vaultDetailItem.shortDescription}</Text>
-                  {Array.isArray(vaultDetailItem.keyOutcomes) && vaultDetailItem.keyOutcomes.length > 0 && (
-                    <>
-                      <View style={styles.vaultModalDivider} />
-                      <Text style={styles.vaultModalSectionLabel}>WHAT YOU'LL LEARN</Text>
-                      {vaultDetailItem.keyOutcomes.map((outcome: string, i: number) => (
-                        <View key={i} style={styles.vaultModalOutcomeRow}>
-                          <View style={[styles.vaultModalOutcomeDot, { backgroundColor: vaultDetailItem._color }]} />
-                          <Text style={styles.vaultModalOutcomeText}>{outcome}</Text>
-                        </View>
-                      ))}
-                    </>
-                  )}
+                  {Array.isArray(vaultDetailItem.keyOutcomes) &&
+                    vaultDetailItem.keyOutcomes.length > 0 && (
+                      <>
+                        <View style={styles.vaultModalDivider} />
+                        <Text style={styles.vaultModalSectionLabel}>WHAT YOU'LL LEARN</Text>
+                        {vaultDetailItem.keyOutcomes.map((outcome: string, i: number) => (
+                          <View key={i} style={styles.vaultModalOutcomeRow}>
+                            <View
+                              style={[
+                                styles.vaultModalOutcomeDot,
+                                { backgroundColor: vaultDetailItem._color },
+                              ]}
+                            />
+                            <Text style={styles.vaultModalOutcomeText}>{outcome}</Text>
+                          </View>
+                        ))}
+                      </>
+                    )}
                 </>
               )}
 
@@ -496,7 +523,6 @@ export default function ProfileSavedItemsScreen() {
           </View>
         </View>
       </Modal>
-
     </SafeAreaView>
   );
 }
@@ -909,5 +935,4 @@ const styles = StyleSheet.create({
     color: colors.gold,
     textTransform: 'capitalize',
   },
-
 });

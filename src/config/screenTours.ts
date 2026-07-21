@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 export type ScreenTourId =
   | 'tab_lessons'
+  | 'tab_drinks'
   | 'tab_discover'
   | 'tab_camera'
   | 'tab_inventory'
@@ -39,6 +40,23 @@ export const SCREEN_TOURS: Record<ScreenTourId, ScreenTourSlide[]> = {
       title: 'Level Up',
       body: 'Use this tab to build your skills before jumping into advanced recipes.',
       icon: 'bar-chart-outline',
+    },
+  ],
+  tab_drinks: [
+    {
+      title: 'Drinks Tab',
+      body: "Everything you've saved and made lives here.",
+      icon: 'wine-outline',
+    },
+    {
+      title: 'Made-It History',
+      body: 'Every cocktail you log as made shows up here — your personal drink journal.',
+      icon: 'time-outline',
+    },
+    {
+      title: 'Import Anything',
+      body: 'Paste a link and turn any online recipe into a saved cocktail.',
+      icon: 'link-outline',
     },
   ],
   tab_discover: [

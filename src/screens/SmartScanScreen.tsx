@@ -573,11 +573,6 @@ export default function SmartScanScreen() {
     navigation.goBack();
   };
 
-  const handleImportFromURL = () => {
-    setCameraVisible(false);
-    navigation.navigate('RecipeURLImport');
-  };
-
   const analyzingTitle = scanMode === 'barcode' ? 'Looking up barcode...' : 'Identifying bottle...';
   const analyzingSubtitle = scanMode === 'barcode' ? 'Searching spirits database' : 'Reading label';
   return (
@@ -627,15 +622,6 @@ export default function SmartScanScreen() {
         isGuest={!user}
       />
 
-      {/* URL import remains a paid convenience surface */}
-      {cameraVisible && isSubscriber && (
-        <View style={styles.urlButtonContainer}>
-          <TouchableOpacity style={styles.urlButton} onPress={handleImportFromURL}>
-            <Ionicons name="link" size={24} color={colors.white} />
-            <Text style={styles.urlButtonText}>URL</Text>
-          </TouchableOpacity>
-        </View>
-      )}
       {analyzing && (
         <View style={styles.analyzingOverlay}>
           <ActivityIndicator size="large" color={colors.accent} />
