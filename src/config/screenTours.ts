@@ -43,7 +43,7 @@ export const SCREEN_TOURS: Record<ScreenTourId, ScreenTourSlide[]> = {
   ],
   tab_discover: [
     {
-      title: 'Discover Tab',
+      title: 'Tonight Tab',
       body: 'Browse recipes, moods, and personalized recommendations from your activity.',
       icon: 'compass-outline',
     },
@@ -60,7 +60,7 @@ export const SCREEN_TOURS: Record<ScreenTourId, ScreenTourSlide[]> = {
   ],
   tab_camera: [
     {
-      title: 'Camera Tab',
+      title: 'Scan Tab',
       body: 'Scan bottles, labels, and recipe clues to add items faster to your bar.',
       icon: 'camera-outline',
     },
@@ -77,7 +77,7 @@ export const SCREEN_TOURS: Record<ScreenTourId, ScreenTourSlide[]> = {
   ],
   tab_inventory: [
     {
-      title: 'Inventory Tab',
+      title: 'Bar Tab',
       body: 'Manage bottles and ingredients in your home bar with searchable categories.',
       icon: 'wine-outline',
     },
@@ -166,7 +166,7 @@ export const SCREEN_TOURS: Record<ScreenTourId, ScreenTourSlide[]> = {
     },
     {
       title: 'Top Movers',
-      body: 'Bottles where your estimated value is furthest above your purchase price — a quick read on what\'s appreciating in your collection.',
+      body: "Bottles where your estimated value is furthest above your purchase price — a quick read on what's appreciating in your collection.",
       icon: 'trending-up-outline',
     },
     {
@@ -184,7 +184,7 @@ export const SCREEN_TOURS: Record<ScreenTourId, ScreenTourSlide[]> = {
   cellar_market: [
     {
       title: 'Market Overview',
-      body: 'Your total portfolio value, calculated from all bottles where you\'ve logged a valuation estimate. Tap 1Y / 5Y / ALL to see simulated performance curves.',
+      body: "Your total portfolio value, calculated from all bottles where you've logged a valuation estimate. Tap 1Y / 5Y / ALL to see simulated performance curves.",
       icon: 'bar-chart-outline',
     },
     {
@@ -194,7 +194,7 @@ export const SCREEN_TOURS: Record<ScreenTourId, ScreenTourSlide[]> = {
     },
     {
       title: 'Portfolio Holdings',
-      body: 'Every bottle you\'ve added, listed by estimated value. This is your full inventory view. Tap REGISTER NEW ASSET to log an acquisition directly from here.',
+      body: "Every bottle you've added, listed by estimated value. This is your full inventory view. Tap REGISTER NEW ASSET to log an acquisition directly from here.",
       icon: 'list-outline',
     },
   ],
@@ -217,7 +217,7 @@ export const SCREEN_TOURS: Record<ScreenTourId, ScreenTourSlide[]> = {
     },
     {
       title: 'Strategy',
-      body: 'Tag your intent — DRINK, HOLD, or RESELL. This shapes the recommendations you\'ll see on the bottle detail and in your VAULT view.',
+      body: "Tag your intent — DRINK, HOLD, or RESELL. This shapes the recommendations you'll see on the bottle detail and in your VAULT view.",
       icon: 'flag-outline',
     },
     {
@@ -230,7 +230,7 @@ export const SCREEN_TOURS: Record<ScreenTourId, ScreenTourSlide[]> = {
   cellar_watch: [
     {
       title: 'Your Watchlist',
-      body: 'Bottles you\'re tracking but haven\'t bought yet. Watch cards show market pricing signals and rarity indicators to help you time future acquisitions.',
+      body: "Bottles you're tracking but haven't bought yet. Watch cards show market pricing signals and rarity indicators to help you time future acquisitions.",
       icon: 'eye-outline',
     },
     {
@@ -240,7 +240,7 @@ export const SCREEN_TOURS: Record<ScreenTourId, ScreenTourSlide[]> = {
     },
     {
       title: 'Category Filter',
-      body: 'Tap a category chip at the top to filter your watchlist by spirit type. Useful when you\'re focused on a specific area of the market.',
+      body: "Tap a category chip at the top to filter your watchlist by spirit type. Useful when you're focused on a specific area of the market.",
       icon: 'filter-outline',
     },
   ],
@@ -248,7 +248,7 @@ export const SCREEN_TOURS: Record<ScreenTourId, ScreenTourSlide[]> = {
   cellar_vault: [
     {
       title: 'Featured Lot',
-      body: 'The VAULT shows your highest-rated bottle in full collector detail. It\'s a deep read on a single bottle — valuation, condition, metrics, and a curated recommendation.',
+      body: "The VAULT shows your highest-rated bottle in full collector detail. It's a deep read on a single bottle — valuation, condition, metrics, and a curated recommendation.",
       icon: 'shield-outline',
     },
     {
@@ -263,7 +263,7 @@ export const SCREEN_TOURS: Record<ScreenTourId, ScreenTourSlide[]> = {
     },
     {
       title: 'Hold / Open / Review',
-      body: 'This directive is generated from your price data and drinking window. HOLD means it\'s appreciating. OPEN SOON means the window is live. REVIEW means more data needed.',
+      body: "This directive is generated from your price data and drinking window. HOLD means it's appreciating. OPEN SOON means the window is live. REVIEW means more data needed.",
       icon: 'compass-outline',
     },
     {
@@ -291,7 +291,7 @@ export const SCREEN_TOURS: Record<ScreenTourId, ScreenTourSlide[]> = {
     },
     {
       title: 'Collector Directive',
-      body: 'HOLD, OPEN SOON, or REVIEW — generated from your price and window data. The Curator\'s Rationale below it explains the logic in plain language.',
+      body: "HOLD, OPEN SOON, or REVIEW — generated from your price and window data. The Curator's Rationale below it explains the logic in plain language.",
       icon: 'shield-checkmark-outline',
     },
   ],
@@ -306,7 +306,7 @@ export const SCREEN_TOURS: Record<ScreenTourId, ScreenTourSlide[]> = {
     },
     {
       title: 'Vault Weekly Drops',
-      body: 'A new featured cocktail drops every week — full editorial story, technique notes, and sourcing context. Find it in the Vault tab. This week\'s drop is already live.',
+      body: "A new featured cocktail drops every week — full editorial story, technique notes, and sourcing context. Find it in the Vault tab. This week's drop is already live.",
       icon: 'shield-outline',
     },
     {
@@ -321,7 +321,7 @@ export const SCREEN_TOURS: Record<ScreenTourId, ScreenTourSlide[]> = {
     },
     {
       title: '48 Hours — Make It Count',
-      body: 'Your trial ends in 2 days. When it does, you\'ll be asked to choose a plan. PLUS keeps your bar running. PRO keeps all of this.',
+      body: "Your trial ends in 2 days. When it does, you'll be asked to choose a plan. PLUS keeps your bar running. PRO keeps all of this.",
       icon: 'timer-outline',
     },
   ],
