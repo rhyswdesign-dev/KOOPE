@@ -24,7 +24,10 @@ import { SafeAreaView as SafeAreaViewContext } from 'react-native-safe-area-cont
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import SectionHeader from '../components/SectionHeader';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
-import type { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
+import type {
+  NativeStackNavigationProp,
+  NativeStackScreenProps,
+} from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { FREE_RECIPE_LIMIT, useSavedItems } from '../hooks/useSavedItems';
 import { recipeService } from '../lib/supabaseData';
@@ -68,12 +71,20 @@ import { ingredientListToSearchText } from '../utils/ingredientFormatting';
 import { curriculumData } from '../utils/curriculumAdapter';
 import { getCurriculumUnlockForRecipeId } from '../config/unlockContent';
 import { loadUserProfile } from '../services/userProfileService';
-import { createDefaultUserProfile, getABVRangeForPreference } from '../types/userProfile';
 import { initializeTasteGraph } from '../services/tasteGraphService';
-import { detectSeason, detectTimeOfDay, getPredictiveRecommendations } from '../services/predictiveEngine';
+import {
+  detectSeason,
+  detectTimeOfDay,
+  getPredictiveRecommendations,
+} from '../services/predictiveEngine';
 import { calculateTasteMatchPercent } from '../services/tasteMatchService';
 import { InventoryService } from '../services/inventoryService';
 import { toBottle } from '../types/database';
+import {
+  buildTasteProfileFromPersonalization,
+  buildEnhancedProfileFallback,
+} from '../services/enhancedProfileFallback';
+import { getTonightsPick } from '../services/tonightsPickService';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 const { width } = Dimensions.get('window');
@@ -99,7 +110,6 @@ const tasteMatchBadgeTextStyle = {
   color: GOLD,
 };
 
-
 /* ------------------------- DATA ------------------------- */
 
 // Get the featured cocktail of the week (first cocktail from weekly rotation)
@@ -111,7 +121,7 @@ const COCKTAIL_OF_THE_WEEK = {
   subtitle: 'Cocktail of the Week',
   image: weeklyCocktails[0].img,
   description: weeklyCocktails[0].description,
-  badge: 'GOLD' as const
+  badge: 'GOLD' as const,
 };
 
 // Mood-based categories with comprehensive cocktail listings
@@ -119,139 +129,166 @@ const COCKTAIL_MOODS = [
   {
     title: 'Bold & Serious',
     subtitle: 'Spirit-forward, strong, timeless',
-    image: 'https://images.unsplash.com/photo-1574096079513-d8259312b785?auto=format&fit=crop&w=800&q=60',
+    image:
+      'https://images.unsplash.com/photo-1574096079513-d8259312b785?auto=format&fit=crop&w=800&q=60',
     category: 'bold_serious',
-    cocktails: ['old-fashioned', 'negroni', 'martinez', 'sazerac', 'manhattan', 'boulevardier', 'vesper-martini', 'rob-roy', 'brooklyn', 'el-presidente']
+    cocktails: [
+      'old-fashioned',
+      'negroni',
+      'martinez',
+      'sazerac',
+      'manhattan',
+      'boulevardier',
+      'vesper-martini',
+      'rob-roy',
+      'brooklyn',
+      'el-presidente',
+    ],
   },
   {
     title: 'Romantic & Elegant',
     subtitle: 'Refined, sparkling, or delicate — ideal for celebrations & dates',
-    image: 'https://images.unsplash.com/photo-1510972527921-ce03766a1cf1?auto=format&fit=crop&w=800&q=60',
+    image:
+      'https://images.unsplash.com/photo-1510972527921-ce03766a1cf1?auto=format&fit=crop&w=800&q=60',
     category: 'romantic_elegant',
-    cocktails: ['french-75', 'bellini', 'aviation', 'kir-royale', 'cosmopolitan', 'champagne-cocktail', 'mimosa']
+    cocktails: [
+      'french-75',
+      'bellini',
+      'aviation',
+      'kir-royale',
+      'cosmopolitan',
+      'champagne-cocktail',
+      'mimosa',
+    ],
   },
   {
     title: 'Playful & Fun',
     subtitle: 'Colorful, lively, perfect for social energy',
-    image: 'https://images.unsplash.com/photo-1551538827-9c037cb4f32a?auto=format&fit=crop&w=800&q=60',
+    image:
+      'https://images.unsplash.com/photo-1551538827-9c037cb4f32a?auto=format&fit=crop&w=800&q=60',
     category: 'playful_fun',
-    cocktails: ['margarita', 'mojito', 'aperol-spritz', 'pornstar-martini', 'bramble', 'lemon-drop', 'woo-woo-shot', 'melon-ball-shot']
+    cocktails: [
+      'margarita',
+      'mojito',
+      'aperol-spritz',
+      'pornstar-martini',
+      'bramble',
+      'lemon-drop',
+      'woo-woo-shot',
+      'melon-ball-shot',
+    ],
   },
   {
     title: 'Tropical Escape',
     subtitle: 'Exotic, fruity, a trip to the islands',
-    image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?auto=format&fit=crop&w=800&q=60',
+    image:
+      'https://images.unsplash.com/photo-1578662996442-48f60103fc96?auto=format&fit=crop&w=800&q=60',
     category: 'tropical_escape',
-    cocktails: ['mai-tai', 'pina-colada', 'zombie', 'painkiller', 'jungle-bird', 'navy-grog', 'fog-cutter', 'blue-hawaii', 'hurricane', 'singapore-sling', 'surfer-on-acid', 'scooby-snack']
+    cocktails: [
+      'mai-tai',
+      'pina-colada',
+      'zombie',
+      'painkiller',
+      'jungle-bird',
+      'navy-grog',
+      'fog-cutter',
+      'blue-hawaii',
+      'hurricane',
+      'singapore-sling',
+      'surfer-on-acid',
+      'scooby-snack',
+    ],
   },
   {
     title: 'Cozy & Comforting',
     subtitle: 'Warm, creamy, nostalgic — feels like home',
-    image: 'https://images.unsplash.com/photo-1578328819058-b69f3a3b0f6b?auto=format&fit=crop&w=800&q=60',
+    image:
+      'https://images.unsplash.com/photo-1578328819058-b69f3a3b0f6b?auto=format&fit=crop&w=800&q=60',
     category: 'cozy_comforting',
-    cocktails: ['irish-coffee', 'white-russian', 'hot-toddy', 'amaretto-sour', 'brandy-alexander', 'cinnamon-toast-crunch-shot', 'apple-pie-shot', 'chocolate-cake-shot']
+    cocktails: [
+      'irish-coffee',
+      'white-russian',
+      'hot-toddy',
+      'amaretto-sour',
+      'brandy-alexander',
+      'cinnamon-toast-crunch-shot',
+      'apple-pie-shot',
+      'chocolate-cake-shot',
+    ],
   },
   {
     title: 'Late-Night Energy',
     subtitle: 'Edgy, caffeinated, or party-fueled',
-    image: 'https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?auto=format&fit=crop&w=800&q=60',
+    image:
+      'https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?auto=format&fit=crop&w=800&q=60',
     category: 'late_night_energy',
-    cocktails: ['espresso-martini', 'paper-plane', 'naked-famous', 'jagerbomb', 'espresso-shot-cocktail']
+    cocktails: [
+      'espresso-martini',
+      'paper-plane',
+      'naked-famous',
+      'jagerbomb',
+      'espresso-shot-cocktail',
+    ],
   },
   {
     title: 'Mystery & Depth',
     subtitle: 'Complex, layered, contemplative',
-    image: 'https://images.unsplash.com/photo-1470337458703-46ad1756a187?auto=format&fit=crop&w=800&q=60',
+    image:
+      'https://images.unsplash.com/photo-1470337458703-46ad1756a187?auto=format&fit=crop&w=800&q=60',
     category: 'mystery_depth',
-    cocktails: ['vieux-carre', 'last-word', 'oaxaca-old-fashioned', 'rusty-nail', 'corpse-reviver-2', 'martinez', 'sidecar', 'between-the-sheets', 'naked-famous', 'mezcal-negroni']
+    cocktails: [
+      'vieux-carre',
+      'last-word',
+      'oaxaca-old-fashioned',
+      'rusty-nail',
+      'corpse-reviver-2',
+      'martinez',
+      'sidecar',
+      'between-the-sheets',
+      'naked-famous',
+      'mezcal-negroni',
+    ],
   },
   {
     title: 'Party Crowd-Pleasers',
     subtitle: 'Refreshing, simple, loved by everyone',
-    image: 'https://images.unsplash.com/photo-1544145945-f90425340c7e?auto=format&fit=crop&w=800&q=60',
+    image:
+      'https://images.unsplash.com/photo-1544145945-f90425340c7e?auto=format&fit=crop&w=800&q=60',
     category: 'party_crowd_pleasers',
-    cocktails: ['moscow-mule', 'cuba-libre', 'paloma', 'spritz-veneziano', 'dark-n-stormy', 'tom-collins', 'gin-tonic', 'highball', 'caipirinha', 'pickleback', 'washington-apple', 'alabama-slammer-shot', 'red-headed-slut']
+    cocktails: [
+      'moscow-mule',
+      'cuba-libre',
+      'paloma',
+      'spritz-veneziano',
+      'dark-n-stormy',
+      'tom-collins',
+      'gin-tonic',
+      'highball',
+      'caipirinha',
+      'pickleback',
+      'washington-apple',
+      'alabama-slammer-shot',
+      'red-headed-slut',
+    ],
   },
   {
     title: 'After-Dinner Indulgence',
     subtitle: 'Dessert-like, rich, and satisfying',
-    image: 'https://images.unsplash.com/photo-1546171753-97d7676e4602?auto=format&fit=crop&w=800&q=60',
+    image:
+      'https://images.unsplash.com/photo-1546171753-97d7676e4602?auto=format&fit=crop&w=800&q=60',
     category: 'after_dinner_indulgence',
-    cocktails: ['grasshopper', 'b-52', 'black-russian', 'baby-guinness', 'slippery-nipple', 'buttery-nipple', 'brain-hemorrhage', 'sambuca-con-la-mosca']
+    cocktails: [
+      'grasshopper',
+      'b-52',
+      'black-russian',
+      'baby-guinness',
+      'slippery-nipple',
+      'buttery-nipple',
+      'brain-hemorrhage',
+      'sambuca-con-la-mosca',
+    ],
   },
 ];
-
-function buildTasteProfileFromPersonalization(personalizationProfile: any) {
-  const flavorWeights = {
-    citrus: 0,
-    herbal: 0,
-    bitter: 0,
-    sweet: 0,
-    smoky: 0,
-    floral: 0,
-    spiced: 0,
-  };
-
-  const spiritWeights = {
-    tequila: 0,
-    whiskey: 0,
-    rum: 0,
-    gin: 0,
-    vodka: 0,
-    brandy: 0,
-    liqueurs: 0,
-    'gin-alternative': 0,
-    'rum-alternative': 0,
-    none: 0,
-  };
-
-  (personalizationProfile?.favoriteSpirits || []).forEach((spirit: string, index: number) => {
-    if (Object.prototype.hasOwnProperty.call(spiritWeights, spirit)) {
-      spiritWeights[spirit as keyof typeof spiritWeights] = Math.max(
-        0.15,
-        ((personalizationProfile?.spiritScores?.[spirit] ?? 90 - index * 10) / 100)
-      );
-    }
-  });
-
-  (personalizationProfile?.flavorPreferences || []).forEach((flavor: string, index: number) => {
-    if (Object.prototype.hasOwnProperty.call(flavorWeights, flavor)) {
-      flavorWeights[flavor as keyof typeof flavorWeights] = Math.max(
-        0.15,
-        ((personalizationProfile?.flavorScores?.[flavor] ?? 85 - index * 5) / 100)
-      );
-    }
-  });
-
-  return {
-    flavorWeights,
-    spiritWeights,
-    preferredABV: getABVRangeForPreference(personalizationProfile?.preferredABV || 'alcoholic'),
-    preferredComplexity: Math.max(0, Math.min(1, (personalizationProfile?.complexityScore ?? 50) / 100)),
-  };
-}
-
-function buildEnhancedProfileFallback(userId: string | undefined, personalizationProfile: any, savedItems: any) {
-  const profile = createDefaultUserProfile(userId || 'guest');
-  const savedRecipeIds = (savedItems?.savedCocktails || []).map((item: any) => item.id).filter(Boolean);
-  const preferredSpirits = (personalizationProfile?.favoriteSpirits || []).filter((spirit: string) =>
-    ['tequila', 'whiskey', 'rum', 'gin', 'vodka', 'brandy', 'liqueurs', 'gin-alternative', 'rum-alternative', 'none'].includes(spirit)
-  );
-  const preferredFlavors = (personalizationProfile?.flavorPreferences || []).filter((flavor: string) =>
-    ['citrus', 'herbal', 'bitter', 'sweet', 'smoky', 'floral', 'spiced'].includes(flavor)
-  );
-
-  profile.savedRecipes = savedRecipeIds;
-  profile.favoriteRecipes = savedRecipeIds;
-  profile.favoriteSpirit = preferredSpirits[0];
-  profile.spiritPreferences = preferredSpirits as any;
-  profile.flavorProfiles = preferredFlavors as any;
-  profile.skillLevel = personalizationProfile?.skillLevel || profile.skillLevel;
-  profile.preferredABVRange = getABVRangeForPreference(personalizationProfile?.preferredABV || 'alcoholic');
-  profile.tasteProfile = buildTasteProfileFromPersonalization(personalizationProfile);
-
-  return profile;
-}
 
 function uniqueById(items: any[]) {
   const seen = new Set<string>();
@@ -270,7 +307,8 @@ const PARTY_SHOTS = [
     title: 'Lemon Drop Shot',
     subtitle: 'Party Shot • Vodka-based',
     category: 'Shots',
-    image: 'https://images.unsplash.com/photo-1541745537411-b8046dc6d66c?q=80&w=1200&auto=format&fit=crop',
+    image:
+      'https://images.unsplash.com/photo-1541745537411-b8046dc6d66c?q=80&w=1200&auto=format&fit=crop',
     difficulty: 'Easy',
     time: '1 min',
     rating: 4.3,
@@ -278,7 +316,7 @@ const PARTY_SHOTS = [
       { name: '1 oz Vodka', note: 'Citrus vodka preferred' },
       { name: '1/2 oz Fresh Lemon Juice', note: 'Fresh only' },
       { name: '1/2 oz Simple Syrup', note: 'To sweeten' },
-      { name: 'Sugar Rim', note: 'For glass' }
+      { name: 'Sugar Rim', note: 'For glass' },
     ],
     description: 'Sweet and sour crowd favorite.',
   },
@@ -288,14 +326,15 @@ const PARTY_SHOTS = [
     title: 'Washington Apple',
     subtitle: 'Party Shot • Whiskey-based',
     category: 'Shots',
-    image: 'https://images.unsplash.com/photo-1580424805313-04ac2b1fef66?q=80&w=1200&auto=format&fit=crop',
+    image:
+      'https://images.unsplash.com/photo-1580424805313-04ac2b1fef66?q=80&w=1200&auto=format&fit=crop',
     difficulty: 'Easy',
     time: '1 min',
     rating: 4.4,
     ingredients: [
       { name: '1/2 oz Canadian Whisky', note: 'Crown Royal' },
       { name: '1/2 oz Apple Schnapps', note: 'Sour Apple Pucker' },
-      { name: 'Splash Cranberry Juice', note: 'For color' }
+      { name: 'Splash Cranberry Juice', note: 'For color' },
     ],
     description: 'Sweet apple-flavored shot.',
   },
@@ -305,13 +344,14 @@ const PARTY_SHOTS = [
     title: 'Buttery Nipple',
     subtitle: 'Party Shot • Layered',
     category: 'Shots',
-    image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?q=80&w=1200&auto=format&fit=crop',
+    image:
+      'https://images.unsplash.com/photo-1578662996442-48f60103fc96?q=80&w=1200&auto=format&fit=crop',
     difficulty: 'Easy',
     time: '1 min',
     rating: 4.1,
     ingredients: [
       { name: '1/2 oz Butterscotch Schnapps', note: 'Bottom layer' },
-      { name: '1/2 oz Irish Cream', note: 'Float on top' }
+      { name: '1/2 oz Irish Cream', note: 'Float on top' },
     ],
     description: 'Sweet layered shot with butterscotch and cream.',
   },
@@ -321,7 +361,8 @@ const PARTY_SHOTS = [
     title: 'Green Tea Shot',
     subtitle: 'Party Shot • Whiskey-based',
     category: 'Shots',
-    image: 'https://images.unsplash.com/photo-1580424805313-04ac2b1fef66?q=80&w=1200&auto=format&fit=crop',
+    image:
+      'https://images.unsplash.com/photo-1580424805313-04ac2b1fef66?q=80&w=1200&auto=format&fit=crop',
     difficulty: 'Easy',
     time: '1 min',
     rating: 4.3,
@@ -329,9 +370,9 @@ const PARTY_SHOTS = [
       { name: '1/2 oz Jameson Irish Whiskey', note: 'Base spirit' },
       { name: '1/2 oz Peach Schnapps', note: 'Sweet element' },
       { name: '1/2 oz Sour Mix', note: 'Tart balance' },
-      { name: 'Splash Sprite', note: 'For fizz' }
+      { name: 'Splash Sprite', note: 'For fizz' },
     ],
-    description: 'Surprisingly doesn\'t taste like tea, but it\'s delicious.',
+    description: "Surprisingly doesn't taste like tea, but it's delicious.",
   },
   {
     id: 'pickleback',
@@ -339,13 +380,14 @@ const PARTY_SHOTS = [
     title: 'Pickleback',
     subtitle: 'Party Shot • Whiskey chase',
     category: 'Shots',
-    image: 'https://images.unsplash.com/photo-1580424805313-04ac2b1fef66?q=80&w=1200&auto=format&fit=crop',
+    image:
+      'https://images.unsplash.com/photo-1580424805313-04ac2b1fef66?q=80&w=1200&auto=format&fit=crop',
     difficulty: 'Easy',
     time: '1 min',
     rating: 3.9,
     ingredients: [
       { name: '1 oz Whiskey', note: 'Any whiskey works' },
-      { name: '1 oz Pickle Juice', note: 'Dill pickle brine chaser' }
+      { name: '1 oz Pickle Juice', note: 'Dill pickle brine chaser' },
     ],
     description: 'Brooklyn bar classic - whiskey followed by pickle juice.',
   },
@@ -355,14 +397,15 @@ const PARTY_SHOTS = [
     title: 'Redheaded Slut',
     subtitle: 'Party Shot • Fruit-forward',
     category: 'Shots',
-    image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?q=80&w=1200&auto=format&fit=crop',
+    image:
+      'https://images.unsplash.com/photo-1578662996442-48f60103fc96?q=80&w=1200&auto=format&fit=crop',
     difficulty: 'Easy',
     time: '1 min',
     rating: 4.0,
     ingredients: [
       { name: '1/2 oz Peach Schnapps', note: 'Sweet base' },
       { name: '1/2 oz Jägermeister', note: 'Herbal complexity' },
-      { name: 'Splash Cranberry Juice', note: 'For color and tartness' }
+      { name: 'Splash Cranberry Juice', note: 'For color and tartness' },
     ],
     description: 'Sweet and herbal party favorite.',
   },
@@ -372,13 +415,14 @@ const PARTY_SHOTS = [
     title: 'Baby Guinness',
     subtitle: 'Party Shot • Layered',
     category: 'Shots',
-    image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?q=80&w=1200&auto=format&fit=crop',
+    image:
+      'https://images.unsplash.com/photo-1578662996442-48f60103fc96?q=80&w=1200&auto=format&fit=crop',
     difficulty: 'Medium',
     time: '2 min',
     rating: 4.2,
     ingredients: [
       { name: '3/4 oz Kahlúa', note: 'Dark bottom layer' },
-      { name: '1/4 oz Irish Cream', note: 'Float to create "foam"' }
+      { name: '1/4 oz Irish Cream', note: 'Float to create "foam"' },
     ],
     description: 'Looks like a tiny pint of Guinness.',
   },
@@ -388,7 +432,8 @@ const PARTY_SHOTS = [
     title: 'Scooby Snack',
     subtitle: 'Party Shot • Tropical',
     category: 'Shots',
-    image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?q=80&w=1200&auto=format&fit=crop',
+    image:
+      'https://images.unsplash.com/photo-1578662996442-48f60103fc96?q=80&w=1200&auto=format&fit=crop',
     difficulty: 'Easy',
     time: '1 min',
     rating: 4.1,
@@ -396,9 +441,9 @@ const PARTY_SHOTS = [
       { name: '1/2 oz Coconut Rum', note: 'Malibu works well' },
       { name: '1/2 oz Banana Liqueur', note: 'Crème de Banane' },
       { name: '1/2 oz Pineapple Juice', note: 'Fresh preferred' },
-      { name: 'Splash Lime Juice', note: 'Just a touch' }
+      { name: 'Splash Lime Juice', note: 'Just a touch' },
     ],
-    description: 'Tropical fruity shot that\'s always a hit.',
+    description: "Tropical fruity shot that's always a hit.",
   },
   {
     id: 'slippery-nipple',
@@ -406,14 +451,15 @@ const PARTY_SHOTS = [
     title: 'Slippery Nipple',
     subtitle: 'Party Shot • Layered',
     category: 'Shots',
-    image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?q=80&w=1200&auto=format&fit=crop',
+    image:
+      'https://images.unsplash.com/photo-1578662996442-48f60103fc96?q=80&w=1200&auto=format&fit=crop',
     difficulty: 'Medium',
     time: '2 min',
     rating: 3.8,
     ingredients: [
       { name: '1/2 oz Sambuca', note: 'Clear anise liqueur' },
       { name: '1/2 oz Irish Cream', note: 'Float on top' },
-      { name: 'Drop Grenadine', note: 'Sink to bottom' }
+      { name: 'Drop Grenadine', note: 'Sink to bottom' },
     ],
     description: 'Three-layer shot with interesting flavor profile.',
   },
@@ -423,7 +469,8 @@ const PARTY_SHOTS = [
     title: 'Birthday Cake Shot',
     subtitle: 'Party Shot • Sweet',
     category: 'Shots',
-    image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?q=80&w=1200&auto=format&fit=crop',
+    image:
+      'https://images.unsplash.com/photo-1578662996442-48f60103fc96?q=80&w=1200&auto=format&fit=crop',
     difficulty: 'Easy',
     time: '1 min',
     rating: 4.4,
@@ -431,7 +478,7 @@ const PARTY_SHOTS = [
       { name: '1/2 oz Vanilla Vodka', note: 'Cake flavor base' },
       { name: '1/2 oz Amaretto', note: 'Almond sweetness' },
       { name: 'Splash Cranberry Juice', note: 'For color' },
-      { name: 'Vanilla Frosting Rim', note: 'With rainbow sprinkles' }
+      { name: 'Vanilla Frosting Rim', note: 'With rainbow sprinkles' },
     ],
     description: 'Tastes like birthday cake in a shot glass.',
   },
@@ -441,14 +488,15 @@ const PARTY_SHOTS = [
     title: 'Duck Fart',
     subtitle: 'Party Shot • Layered',
     category: 'Shots',
-    image: 'https://images.unsplash.com/photo-1580424805313-04ac2b1fef66?q=80&w=1200&auto=format&fit=crop',
+    image:
+      'https://images.unsplash.com/photo-1580424805313-04ac2b1fef66?q=80&w=1200&auto=format&fit=crop',
     difficulty: 'Medium',
     time: '2 min',
     rating: 3.7,
     ingredients: [
       { name: '1/3 oz Kahlúa', note: 'Bottom layer' },
       { name: '1/3 oz Crown Royal', note: 'Middle layer' },
-      { name: '1/3 oz Irish Cream', note: 'Top layer' }
+      { name: '1/3 oz Irish Cream', note: 'Top layer' },
     ],
     description: 'Alaskan favorite with unfortunate name but great taste.',
   },
@@ -458,14 +506,15 @@ const PARTY_SHOTS = [
     title: 'Mind Eraser',
     subtitle: 'Party Shot • Strong',
     category: 'Shots',
-    image: 'https://images.unsplash.com/photo-1541745537411-b8046dc6d66c?q=80&w=1200&auto=format&fit=crop',
+    image:
+      'https://images.unsplash.com/photo-1541745537411-b8046dc6d66c?q=80&w=1200&auto=format&fit=crop',
     difficulty: 'Easy',
     time: '1 min',
     rating: 3.9,
     ingredients: [
       { name: '1/2 oz Vodka', note: 'Quality vodka' },
       { name: '1/2 oz Kahlúa', note: 'Coffee liqueur' },
-      { name: 'Splash Soda Water', note: 'To top' }
+      { name: 'Splash Soda Water', note: 'To top' },
     ],
     description: 'Strong shot meant to be consumed through a straw.',
   },
@@ -475,7 +524,8 @@ const PARTY_SHOTS = [
     title: 'Porn Star Martini Shot',
     subtitle: 'Party Shot • Passion fruit',
     category: 'Shots',
-    image: 'https://images.unsplash.com/photo-1541745537411-b8046dc6d66c?q=80&w=1200&auto=format&fit=crop',
+    image:
+      'https://images.unsplash.com/photo-1541745537411-b8046dc6d66c?q=80&w=1200&auto=format&fit=crop',
     difficulty: 'Medium',
     time: '2 min',
     rating: 4.5,
@@ -483,7 +533,7 @@ const PARTY_SHOTS = [
       { name: '1/2 oz Vanilla Vodka', note: 'Premium preferred' },
       { name: '1/4 oz Passoã', note: 'Passion fruit liqueur' },
       { name: '1/4 oz Lime Juice', note: 'Fresh squeezed' },
-      { name: 'Splash Prosecco', note: 'Side shot glass' }
+      { name: 'Splash Prosecco', note: 'Side shot glass' },
     ],
     description: 'Shot version of the famous cocktail.',
   },
@@ -493,14 +543,15 @@ const PARTY_SHOTS = [
     title: 'Jolly Rancher Shot',
     subtitle: 'Party Shot • Candy-flavored',
     category: 'Shots',
-    image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?q=80&w=1200&auto=format&fit=crop',
+    image:
+      'https://images.unsplash.com/photo-1578662996442-48f60103fc96?q=80&w=1200&auto=format&fit=crop',
     difficulty: 'Easy',
     time: '1 min',
     rating: 4.2,
     ingredients: [
       { name: '1/2 oz Vodka', note: 'Neutral base' },
       { name: '1/2 oz Apple Schnapps', note: 'Green apple flavor' },
-      { name: 'Splash Cranberry Juice', note: 'For color and tartness' }
+      { name: 'Splash Cranberry Juice', note: 'For color and tartness' },
     ],
     description: 'Tastes like the green apple candy.',
   },
@@ -510,7 +561,8 @@ const PARTY_SHOTS = [
     title: 'Alien Brain Hemorrhage',
     subtitle: 'Party Shot • Gross-looking',
     category: 'Shots',
-    image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?q=80&w=1200&auto=format&fit=crop',
+    image:
+      'https://images.unsplash.com/photo-1578662996442-48f60103fc96?q=80&w=1200&auto=format&fit=crop',
     difficulty: 'Hard',
     time: '3 min',
     rating: 3.5,
@@ -518,7 +570,7 @@ const PARTY_SHOTS = [
       { name: '1/2 oz Peach Schnapps', note: 'Base layer' },
       { name: '1/2 oz Irish Cream', note: 'Pour slowly to curdle' },
       { name: 'Drop Grenadine', note: 'For "blood" effect' },
-      { name: 'Drop Blue Curaçao', note: 'For alien color' }
+      { name: 'Drop Blue Curaçao', note: 'For alien color' },
     ],
     description: 'Disgusting looking but surprisingly tasty Halloween shot.',
   },
@@ -528,7 +580,8 @@ const PARTY_SHOTS = [
     title: 'Chocolate Cake Shot',
     subtitle: 'Party Shot • Dessert-like',
     category: 'Shots',
-    image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?q=80&w=1200&auto=format&fit=crop',
+    image:
+      'https://images.unsplash.com/photo-1578662996442-48f60103fc96?q=80&w=1200&auto=format&fit=crop',
     difficulty: 'Easy',
     time: '1 min',
     rating: 4.3,
@@ -536,7 +589,7 @@ const PARTY_SHOTS = [
       { name: '1/2 oz Vanilla Vodka', note: 'Cake base' },
       { name: '1/2 oz Frangelico', note: 'Hazelnut liqueur' },
       { name: 'Sugar Rim', note: 'With cocoa powder' },
-      { name: 'Lemon Wedge', note: 'Bite after shot' }
+      { name: 'Lemon Wedge', note: 'Bite after shot' },
     ],
     description: 'Magically tastes like chocolate cake when done right.',
   },
@@ -546,7 +599,8 @@ const PARTY_SHOTS = [
     title: 'Pineapple Upside Down Cake',
     subtitle: 'Party Shot • Tropical dessert',
     category: 'Shots',
-    image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?q=80&w=1200&auto=format&fit=crop',
+    image:
+      'https://images.unsplash.com/photo-1578662996442-48f60103fc96?q=80&w=1200&auto=format&fit=crop',
     difficulty: 'Easy',
     time: '1 min',
     rating: 4.1,
@@ -554,7 +608,7 @@ const PARTY_SHOTS = [
       { name: '1/2 oz Vanilla Vodka', note: 'Cake element' },
       { name: '1/4 oz Pineapple Juice', note: 'Fruit flavor' },
       { name: '1/4 oz Grenadine', note: 'Cherry topping' },
-      { name: 'Whipped Cream', note: 'Float on top' }
+      { name: 'Whipped Cream', note: 'Float on top' },
     ],
     description: 'Dessert shot that tastes like the classic cake.',
   },
@@ -564,14 +618,15 @@ const PARTY_SHOTS = [
     title: 'Blow Job Shot',
     subtitle: 'Party Shot • No hands',
     category: 'Shots',
-    image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?q=80&w=1200&auto=format&fit=crop',
+    image:
+      'https://images.unsplash.com/photo-1578662996442-48f60103fc96?q=80&w=1200&auto=format&fit=crop',
     difficulty: 'Easy',
     time: '1 min',
     rating: 3.6,
     ingredients: [
       { name: '1/2 oz Kahlúa', note: 'Coffee base' },
       { name: '1/4 oz Vodka', note: 'Middle layer' },
-      { name: '1/4 oz Whipped Cream', note: 'Generous top layer' }
+      { name: '1/4 oz Whipped Cream', note: 'Generous top layer' },
     ],
     description: 'Must be consumed without using hands - party challenge shot.',
   },
@@ -581,14 +636,15 @@ const PARTY_SHOTS = [
     title: 'Fuzzy Navel Shot',
     subtitle: 'Party Shot • Peachy',
     category: 'Shots',
-    image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?q=80&w=1200&auto=format&fit=crop',
+    image:
+      'https://images.unsplash.com/photo-1578662996442-48f60103fc96?q=80&w=1200&auto=format&fit=crop',
     difficulty: 'Easy',
     time: '1 min',
     rating: 4.0,
     ingredients: [
       { name: '1/2 oz Peach Schnapps', note: 'Fuzzy peach flavor' },
       { name: '1/2 oz Orange Juice', note: 'Fresh preferred' },
-      { name: 'Splash Cranberry Juice', note: 'For color' }
+      { name: 'Splash Cranberry Juice', note: 'For color' },
     ],
     description: 'Shot version of the classic fuzzy navel cocktail.',
   },
@@ -598,7 +654,8 @@ const PARTY_SHOTS = [
     title: 'Leg Spreader',
     subtitle: 'Party Shot • Fruity',
     category: 'Shots',
-    image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?q=80&w=1200&auto=format&fit=crop',
+    image:
+      'https://images.unsplash.com/photo-1578662996442-48f60103fc96?q=80&w=1200&auto=format&fit=crop',
     difficulty: 'Easy',
     time: '1 min',
     rating: 3.8,
@@ -606,7 +663,7 @@ const PARTY_SHOTS = [
       { name: '1/3 oz Vodka', note: 'Base spirit' },
       { name: '1/3 oz Peach Schnapps', note: 'Sweet element' },
       { name: '1/3 oz Cranberry Juice', note: 'Tart balance' },
-      { name: 'Splash Lime Juice', note: 'Citrus finish' }
+      { name: 'Splash Lime Juice', note: 'Citrus finish' },
     ],
     description: 'Dangerously smooth and fruity party shot.',
   },
@@ -616,14 +673,15 @@ const PARTY_SHOTS = [
     title: 'Brain Hemorrhage',
     subtitle: 'Party Shot • Halloween favorite',
     category: 'Shots',
-    image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?q=80&w=1200&auto=format&fit=crop',
+    image:
+      'https://images.unsplash.com/photo-1578662996442-48f60103fc96?q=80&w=1200&auto=format&fit=crop',
     difficulty: 'Medium',
     time: '2 min',
     rating: 3.4,
     ingredients: [
       { name: '1/2 oz Peach Schnapps', note: 'Base layer' },
       { name: '1/2 oz Irish Cream', note: 'Pour slowly to create brain effect' },
-      { name: 'Few drops Grenadine', note: 'For hemorrhage effect' }
+      { name: 'Few drops Grenadine', note: 'For hemorrhage effect' },
     ],
     description: 'Looks disturbing but tastes great - perfect for Halloween.',
   },
@@ -633,7 +691,8 @@ const PARTY_SHOTS = [
     title: 'Liquid Cocaine',
     subtitle: 'Party Shot • High energy',
     category: 'Shots',
-    image: 'https://images.unsplash.com/photo-1541745537411-b8046dc6d66c?q=80&w=1200&auto=format&fit=crop',
+    image:
+      'https://images.unsplash.com/photo-1541745537411-b8046dc6d66c?q=80&w=1200&auto=format&fit=crop',
     difficulty: 'Easy',
     time: '1 min',
     rating: 4.0,
@@ -642,7 +701,7 @@ const PARTY_SHOTS = [
       { name: '1/4 oz Rum', note: 'White rum' },
       { name: '1/4 oz Amaretto', note: 'Almond flavor' },
       { name: '1/4 oz Southern Comfort', note: 'Peach liqueur' },
-      { name: 'Splash Pineapple Juice', note: 'Tropical element' }
+      { name: 'Splash Pineapple Juice', note: 'Tropical element' },
     ],
     description: 'High-octane party shot with multiple spirits.',
   },
@@ -652,14 +711,15 @@ const PARTY_SHOTS = [
     title: 'Surfer on Acid',
     subtitle: 'Party Shot • Tropical',
     category: 'Shots',
-    image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?q=80&w=1200&auto=format&fit=crop',
+    image:
+      'https://images.unsplash.com/photo-1578662996442-48f60103fc96?q=80&w=1200&auto=format&fit=crop',
     difficulty: 'Easy',
     time: '1 min',
     rating: 4.2,
     ingredients: [
       { name: '1/3 oz Jägermeister', note: 'Herbal base' },
       { name: '1/3 oz Coconut Rum', note: 'Tropical element' },
-      { name: '1/3 oz Pineapple Juice', note: 'Fresh preferred' }
+      { name: '1/3 oz Pineapple Juice', note: 'Fresh preferred' },
     ],
     description: 'Surprisingly delicious combination of herbal and tropical.',
   },
@@ -832,7 +892,7 @@ const sampleRecipes = [
     ice: 'Large cube',
     method: 'Stir',
     ingredients: [
-      { name: 'Lyre\'s American Malt', note: '2 oz' },
+      { name: "Lyre's American Malt", note: '2 oz' },
       { name: 'Maple Syrup', note: '1/4 oz (or 1 sugar cube)' },
       { name: 'Angostura Bitters', note: '2 dashes' },
       { name: 'Orange Bitters', note: '1 dash' },
@@ -841,7 +901,7 @@ const sampleRecipes = [
     ],
     garnish: 'Orange peel + Luxardo cherry',
     instructions: [
-      'In a mixing glass, combine Lyre\'s American Malt, maple syrup, and bitters',
+      "In a mixing glass, combine Lyre's American Malt, maple syrup, and bitters",
       'Add ice and stir for 20-30 seconds',
       'Strain into a rocks glass over a large ice cube',
       'Express orange peel oils over the drink',
@@ -869,14 +929,14 @@ const sampleRecipes = [
     ice: 'Stirred',
     method: 'Stir',
     ingredients: [
-      { name: 'Lyre\'s American Malt', note: '2 oz' },
-      { name: 'Lyre\'s Aperitif Rosso', note: '1 oz (sweet vermouth alternative)' },
+      { name: "Lyre's American Malt", note: '2 oz' },
+      { name: "Lyre's Aperitif Rosso", note: '1 oz (sweet vermouth alternative)' },
       { name: 'Angostura Bitters', note: '2 dashes' },
       { name: 'Luxardo Cherry', note: 'for garnish' },
     ],
     garnish: 'Luxardo cherry',
     instructions: [
-      'Add Lyre\'s American Malt, Aperitif Rosso, and bitters to a mixing glass',
+      "Add Lyre's American Malt, Aperitif Rosso, and bitters to a mixing glass",
       'Fill with ice and stir for 20-30 seconds',
       'Strain into a chilled coupe glass',
       'Garnish with a Luxardo cherry',
@@ -894,7 +954,8 @@ const sampleRecipes = [
     title: 'Maple Whiskey Sour',
     subtitle: 'Zero-Proof • Sour & Sweet',
     category: 'Mocktails',
-    image: 'https://images.unsplash.com/photo-1569529465841-dfecdab7503b?q=80&w=1200&auto=format&fit=crop',
+    image:
+      'https://images.unsplash.com/photo-1569529465841-dfecdab7503b?q=80&w=1200&auto=format&fit=crop',
     img: 'https://images.unsplash.com/photo-1569529465841-dfecdab7503b?q=80&w=1200&auto=format&fit=crop',
     difficulty: 'Medium',
     time: '4 min',
@@ -903,7 +964,7 @@ const sampleRecipes = [
     ice: 'Cubed',
     method: 'Shake',
     ingredients: [
-      { name: 'Lyre\'s American Malt', note: '2 oz' },
+      { name: "Lyre's American Malt", note: '2 oz' },
       { name: 'Fresh Lemon Juice', note: '3/4 oz' },
       { name: 'Maple Syrup', note: '1/2 oz' },
       { name: 'Egg White', note: '1 (or 1/2 oz aquafaba for vegan)' },
@@ -930,7 +991,8 @@ const sampleRecipes = [
     title: 'Zero Proof Gin & Tonic',
     subtitle: 'Zero-Proof • Juniper Forward',
     category: 'Mocktails',
-    image: 'https://images.unsplash.com/photo-1551538827-9c037cb4f32a?q=80&w=1200&auto=format&fit=crop',
+    image:
+      'https://images.unsplash.com/photo-1551538827-9c037cb4f32a?q=80&w=1200&auto=format&fit=crop',
     img: 'https://images.unsplash.com/photo-1551538827-9c037cb4f32a?q=80&w=1200&auto=format&fit=crop',
     difficulty: 'Easy',
     time: '2 min',
@@ -965,7 +1027,8 @@ const sampleRecipes = [
     title: 'Ghia Spritz',
     subtitle: 'Zero-Proof • Mediterranean Botanicals',
     category: 'Mocktails',
-    image: 'https://images.unsplash.com/photo-1574671928146-5c89a22b2e85?q=80&w=1200&auto=format&fit=crop',
+    image:
+      'https://images.unsplash.com/photo-1574671928146-5c89a22b2e85?q=80&w=1200&auto=format&fit=crop',
     img: 'https://images.unsplash.com/photo-1574671928146-5c89a22b2e85?q=80&w=1200&auto=format&fit=crop',
     difficulty: 'Easy',
     time: '2 min',
@@ -1009,7 +1072,7 @@ const sampleRecipes = [
     ice: 'Cubed',
     method: 'Build',
     ingredients: [
-      { name: 'GT\'s Gingerade Kombucha', note: '6 oz' },
+      { name: "GT's Gingerade Kombucha", note: '6 oz' },
       { name: 'Fresh Lime Juice', note: '1/2 oz' },
       { name: 'Agave Syrup', note: '1/4 oz (optional, to taste)' },
       { name: 'Fresh Mint Sprig', note: 'for garnish' },
@@ -1020,7 +1083,7 @@ const sampleRecipes = [
     instructions: [
       'Fill a copper mug with cubed ice',
       'Add lime juice and optional agave syrup',
-      'Top with GT\'s Gingerade Kombucha',
+      "Top with GT's Gingerade Kombucha",
       'Stir gently to combine',
       'Garnish with mint sprig, candied ginger, and lime wheel',
     ],
@@ -1108,7 +1171,8 @@ const sampleRecipes = [
     title: 'Zero Proof Negroni',
     subtitle: 'Zero-Proof • Botanical Excellence',
     category: 'Mocktails',
-    image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?q=80&w=1200&auto=format&fit=crop',
+    image:
+      'https://images.unsplash.com/photo-1578662996442-48f60103fc96?q=80&w=1200&auto=format&fit=crop',
     img: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?q=80&w=1200&auto=format&fit=crop',
     difficulty: 'Easy',
     time: '3 min',
@@ -1118,8 +1182,8 @@ const sampleRecipes = [
     method: 'Stir',
     ingredients: [
       { name: 'Ritual Gin Alternative', note: '1 oz' },
-      { name: 'Lyre\'s Aperitif Rosso', note: '1 oz (sweet vermouth alternative)' },
-      { name: 'Lyre\'s Aperitif Dry', note: '1 oz (Campari alternative)' },
+      { name: "Lyre's Aperitif Rosso", note: '1 oz (sweet vermouth alternative)' },
+      { name: "Lyre's Aperitif Dry", note: '1 oz (Campari alternative)' },
       { name: 'Orange Peel', note: 'for garnish' },
     ],
     garnish: 'Orange peel',
@@ -1143,7 +1207,8 @@ const sampleRecipes = [
     title: 'Garden Martini',
     subtitle: 'Zero-Proof • Classic Style',
     category: 'Mocktails',
-    image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?q=80&w=1200&auto=format&fit=crop',
+    image:
+      'https://images.unsplash.com/photo-1578662996442-48f60103fc96?q=80&w=1200&auto=format&fit=crop',
     img: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?q=80&w=1200&auto=format&fit=crop',
     difficulty: 'Easy',
     time: '3 min',
@@ -1179,7 +1244,8 @@ const sampleRecipes = [
     title: 'Forest Floor',
     subtitle: 'Zero-Proof • Earthy Botanicals',
     category: 'Mocktails',
-    image: 'https://images.unsplash.com/photo-1541745537411-b8046dc6d66c?q=80&w=1200&auto=format&fit=crop',
+    image:
+      'https://images.unsplash.com/photo-1541745537411-b8046dc6d66c?q=80&w=1200&auto=format&fit=crop',
     img: 'https://images.unsplash.com/photo-1541745537411-b8046dc6d66c?q=80&w=1200&auto=format&fit=crop',
     difficulty: 'Easy',
     time: '3 min',
@@ -1215,7 +1281,8 @@ const sampleRecipes = [
     title: 'Coffee Spritz',
     subtitle: 'Wellness • Performance & Flavor',
     category: 'Mocktails',
-    image: 'https://images.unsplash.com/photo-1609951651556-5334e2706168?q=80&w=1200&auto=format&fit=crop',
+    image:
+      'https://images.unsplash.com/photo-1609951651556-5334e2706168?q=80&w=1200&auto=format&fit=crop',
     img: 'https://images.unsplash.com/photo-1609951651556-5334e2706168?q=80&w=1200&auto=format&fit=crop',
     difficulty: 'Easy',
     time: '2 min',
@@ -1251,7 +1318,8 @@ const sampleRecipes = [
     title: 'Espresso Martini Zero',
     subtitle: 'Wellness • Coffee Cocktail',
     category: 'Mocktails',
-    image: 'https://images.unsplash.com/photo-1609951651556-5334e2706168?q=80&w=1200&auto=format&fit=crop',
+    image:
+      'https://images.unsplash.com/photo-1609951651556-5334e2706168?q=80&w=1200&auto=format&fit=crop',
     img: 'https://images.unsplash.com/photo-1609951651556-5334e2706168?q=80&w=1200&auto=format&fit=crop',
     difficulty: 'Medium',
     time: '4 min',
@@ -1320,7 +1388,8 @@ const sampleRecipes = [
     title: 'Spiced Mule',
     subtitle: 'Zero-Proof • Warm & Spiced',
     category: 'Mocktails',
-    image: 'https://images.unsplash.com/photo-1574671928146-5c89a22b2e85?q=80&w=1200&auto=format&fit=crop',
+    image:
+      'https://images.unsplash.com/photo-1574671928146-5c89a22b2e85?q=80&w=1200&auto=format&fit=crop',
     img: 'https://images.unsplash.com/photo-1574671928146-5c89a22b2e85?q=80&w=1200&auto=format&fit=crop',
     difficulty: 'Easy',
     time: '2 min',
@@ -1356,7 +1425,8 @@ const sampleRecipes = [
     title: 'Spice Route',
     subtitle: 'Zero-Proof • Aromatic Spice',
     category: 'Mocktails',
-    image: 'https://images.unsplash.com/photo-1574671928146-5c89a22b2e85?q=80&w=1200&auto=format&fit=crop',
+    image:
+      'https://images.unsplash.com/photo-1574671928146-5c89a22b2e85?q=80&w=1200&auto=format&fit=crop',
     img: 'https://images.unsplash.com/photo-1574671928146-5c89a22b2e85?q=80&w=1200&auto=format&fit=crop',
     difficulty: 'Easy',
     time: '3 min',
@@ -1391,7 +1461,8 @@ const sampleRecipes = [
     title: 'Aperitivo Spritz',
     subtitle: 'Zero-Proof • Italian Aperitivo',
     category: 'Mocktails',
-    image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?q=80&w=1200&auto=format&fit=crop',
+    image:
+      'https://images.unsplash.com/photo-1578662996442-48f60103fc96?q=80&w=1200&auto=format&fit=crop',
     img: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?q=80&w=1200&auto=format&fit=crop',
     difficulty: 'Easy',
     time: '2 min',
@@ -1400,7 +1471,7 @@ const sampleRecipes = [
     ice: 'Cubed',
     method: 'Build',
     ingredients: [
-      { name: 'Lyre\'s Italian Orange', note: '3 oz' },
+      { name: "Lyre's Italian Orange", note: '3 oz' },
       { name: 'Sparkling Wine or Prosecco (NA)', note: '2 oz' },
       { name: 'Soda Water', note: 'splash' },
       { name: 'Orange Slice', note: 'for garnish' },
@@ -1408,7 +1479,7 @@ const sampleRecipes = [
     garnish: 'Orange slice',
     instructions: [
       'Fill a wine glass with cubed ice',
-      'Add Lyre\'s Italian Orange',
+      "Add Lyre's Italian Orange",
       'Top with non-alcoholic sparkling wine and a splash of soda water',
       'Stir gently to combine',
       'Garnish with an orange slice',
@@ -1435,7 +1506,7 @@ const sampleRecipes = [
     ice: 'Cubed',
     method: 'Build',
     ingredients: [
-      { name: 'Lyre\'s Italian Orange', note: '2 oz' },
+      { name: "Lyre's Italian Orange", note: '2 oz' },
       { name: 'Fresh Grapefruit Juice', note: '1 oz' },
       { name: 'Honey Syrup', note: '1/2 oz' },
       { name: 'Sparkling Water', note: 'top' },
@@ -1444,7 +1515,7 @@ const sampleRecipes = [
     garnish: 'Grapefruit twist',
     instructions: [
       'Fill a wine glass with cubed ice',
-      'Add Lyre\'s Italian Orange, grapefruit juice, and honey syrup',
+      "Add Lyre's Italian Orange, grapefruit juice, and honey syrup",
       'Stir gently to combine',
       'Top with sparkling water',
       'Express grapefruit twist over the drink',
@@ -1497,7 +1568,8 @@ const sampleRecipes = [
     title: 'Ginger Lemon Mule',
     subtitle: 'Wellness • Probiotic Power',
     category: 'Mocktails',
-    image: 'https://images.unsplash.com/photo-1559181567-c3190ca9959b?q=80&w=1200&auto=format&fit=crop',
+    image:
+      'https://images.unsplash.com/photo-1559181567-c3190ca9959b?q=80&w=1200&auto=format&fit=crop',
     img: 'https://images.unsplash.com/photo-1559181567-c3190ca9959b?q=80&w=1200&auto=format&fit=crop',
     difficulty: 'Easy',
     time: '3 min',
@@ -1532,7 +1604,8 @@ const sampleRecipes = [
     title: 'Wellness Spritzer',
     subtitle: 'Wellness • Probiotic',
     category: 'Mocktails',
-    image: 'https://images.unsplash.com/photo-1559181567-c3190ca9959b?q=80&w=1200&auto=format&fit=crop',
+    image:
+      'https://images.unsplash.com/photo-1559181567-c3190ca9959b?q=80&w=1200&auto=format&fit=crop',
     img: 'https://images.unsplash.com/photo-1559181567-c3190ca9959b?q=80&w=1200&auto=format&fit=crop',
     difficulty: 'Easy',
     time: '3 min',
@@ -1567,7 +1640,8 @@ const sampleRecipes = [
     title: 'Golden Hour Latte',
     subtitle: 'Wellness • Adaptogenic Blend',
     category: 'Mocktails',
-    image: 'https://images.unsplash.com/photo-1574671928146-5c89a22b2e85?q=80&w=1200&auto=format&fit=crop',
+    image:
+      'https://images.unsplash.com/photo-1574671928146-5c89a22b2e85?q=80&w=1200&auto=format&fit=crop',
     img: 'https://images.unsplash.com/photo-1574671928146-5c89a22b2e85?q=80&w=1200&auto=format&fit=crop',
     difficulty: 'Easy',
     time: '4 min',
@@ -1601,7 +1675,8 @@ const sampleRecipes = [
     title: 'Spiced Chai Fizz',
     subtitle: 'Wellness • Adaptogenic',
     category: 'Mocktails',
-    image: 'https://images.unsplash.com/photo-1574671928146-5c89a22b2e85?q=80&w=1200&auto=format&fit=crop',
+    image:
+      'https://images.unsplash.com/photo-1574671928146-5c89a22b2e85?q=80&w=1200&auto=format&fit=crop',
     img: 'https://images.unsplash.com/photo-1574671928146-5c89a22b2e85?q=80&w=1200&auto=format&fit=crop',
     difficulty: 'Easy',
     time: '3 min',
@@ -1633,16 +1708,39 @@ const sampleRecipes = [
 
 /* ------------------------- UI PIECES ------------------------- */
 
-function MoodCard({ title, image, subtitle, onPress, index = 0 }: { title: string; image: string; subtitle?: string; onPress?: () => void; index?: number }) {
+function MoodCard({
+  title,
+  image,
+  subtitle,
+  onPress,
+  index = 0,
+}: {
+  title: string;
+  image: string;
+  subtitle?: string;
+  onPress?: () => void;
+  index?: number;
+}) {
   const w = Math.min(0.78 * width, 300);
   const h = Math.round(w * 0.66);
   return (
     <Animated.View entering={FadeInRight.delay(index * 100).duration(500)}>
-      <Pressable onPress={onPress ? withHaptic(onPress) : undefined} style={{ width: w, marginRight: spacing(1.25) }}>
-        <Image source={{ uri: image }} style={{ width: '100%', height: h, borderRadius: radii.lg }} />
+      <Pressable
+        onPress={onPress ? withHaptic(onPress) : undefined}
+        style={{ width: w, marginRight: spacing(1.25) }}
+      >
+        <Image
+          source={{ uri: image }}
+          style={{ width: '100%', height: h, borderRadius: radii.lg }}
+        />
         <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
           <Text style={{ color: colors.text, fontWeight: '900', fontSize: 18 }}>{title}</Text>
-          <Ionicons name="chevron-forward" size={16} color={colors.accent} style={{ marginLeft: 4 }} />
+          <Ionicons
+            name="chevron-forward"
+            size={16}
+            color={colors.accent}
+            style={{ marginLeft: 4 }}
+          />
         </View>
         {subtitle ? <Text style={{ color: colors.muted }}>{subtitle}</Text> : null}
       </Pressable>
@@ -1650,16 +1748,32 @@ function MoodCard({ title, image, subtitle, onPress, index = 0 }: { title: strin
   );
 }
 
-function HeroCard({ cocktail, onPress }: { cocktail: typeof COCKTAIL_OF_THE_WEEK; onPress: () => void }) {
+function HeroCard({
+  cocktail,
+  onPress,
+}: {
+  cocktail: typeof COCKTAIL_OF_THE_WEEK;
+  onPress: () => void;
+}) {
   const cardW = width - spacing(2) * 2;
   const cardH = Math.round(cardW * 0.56);
 
-  const resolvedImage = typeof cocktail.image === 'string' 
-    ? getCocktailImage(cocktail.id, cocktail.image) 
-    : cocktail.image;
+  const resolvedImage =
+    typeof cocktail.image === 'string'
+      ? getCocktailImage(cocktail.id, cocktail.image)
+      : cocktail.image;
 
   return (
-    <Animated.View entering={FadeIn.duration(600)} style={{ marginHorizontal: spacing(2), borderRadius: radii.xl, overflow: 'hidden', backgroundColor: colors.card, marginBottom: spacing(1.5) }}>
+    <Animated.View
+      entering={FadeIn.duration(600)}
+      style={{
+        marginHorizontal: spacing(2),
+        borderRadius: radii.xl,
+        overflow: 'hidden',
+        backgroundColor: colors.card,
+        marginBottom: spacing(1.5),
+      }}
+    >
       <Pressable onPress={withHaptic(onPress)} style={{ width: cardW, height: cardH }}>
         <Image
           source={typeof resolvedImage === 'string' ? { uri: resolvedImage } : resolvedImage}
@@ -1668,13 +1782,25 @@ function HeroCard({ cocktail, onPress }: { cocktail: typeof COCKTAIL_OF_THE_WEEK
       </Pressable>
 
       {/* gold label */}
-      <View style={{ position: 'absolute', top: 10, left: 10, backgroundColor: GOLD, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999 }}>
+      <View
+        style={{
+          position: 'absolute',
+          top: 10,
+          left: 10,
+          backgroundColor: GOLD,
+          paddingHorizontal: 10,
+          paddingVertical: 6,
+          borderRadius: 999,
+        }}
+      >
         <Text style={{ color: '#120D07', fontWeight: '900' }}>COCKTAIL OF THE WEEK</Text>
       </View>
 
       <View style={{ padding: spacing(2) }}>
         <Text style={{ color: colors.text, fontSize: 28, fontWeight: '900' }}>{cocktail.name}</Text>
-        <Text style={{ color: colors.muted, fontSize: 18, marginTop: 4 }}>{cocktail.description}</Text>
+        <Text style={{ color: colors.muted, fontSize: 18, marginTop: 4 }}>
+          {cocktail.description}
+        </Text>
       </View>
     </Animated.View>
   );
@@ -1685,8 +1811,20 @@ function HeroCard({ cocktail, onPress }: { cocktail: typeof COCKTAIL_OF_THE_WEEK
 export default function RecipesScreen() {
   const navigation = useNavigation<Nav>();
   const { user } = useAuth();
-  const { savedItems, toggleSavedCocktail, isCocktailSaved, savedCocktailCount, canSaveMoreCocktails } = useSavedItems();
-  const { getPersonalizedMoodOrder, getFeaturedCocktails, scoreMoodCategory, recordInteraction, profile } = usePersonalization();
+  const {
+    savedItems,
+    toggleSavedCocktail,
+    isCocktailSaved,
+    savedCocktailCount,
+    canSaveMoreCocktails,
+  } = useSavedItems();
+  const {
+    getPersonalizedMoodOrder,
+    getFeaturedCocktails,
+    scoreMoodCategory,
+    recordInteraction,
+    profile,
+  } = usePersonalization();
   const { recipes: userRecipes, loadRecipes } = useUserRecipes();
   const { toast, showToast, hideToast } = useToast();
   const onScrollHaptic = useScrollHaptic('selection', 800);
@@ -1736,6 +1874,14 @@ export default function RecipesScreen() {
   const [viewMode, setViewMode] = useState<'browse' | 'personalized'>('browse');
   const [personalizedRecommendations, setPersonalizedRecommendations] = useState<any[]>([]);
 
+  // Tonight's Pick rail (Browse mode, all tiers) — independent of viewMode.
+  // Typed `any[]` to match how every other rail in this file treats cocktail
+  // data (ALL_COCKTAILS itself is `any[]`) rather than fighting PredictedRecipe's
+  // stricter shape against createRecipeCardProps's local, looser Recipe type.
+  const [tonightsPick, setTonightsPick] = useState<any[]>([]);
+  const [tonightsPickHasInventory, setTonightsPickHasInventory] = useState(false);
+  const [tonightsPickLoaded, setTonightsPickLoaded] = useState(false);
+
   // Search and filter states
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
@@ -1758,7 +1904,6 @@ export default function RecipesScreen() {
   // AI-related states
   const [aiRecipeModalVisible, setAiRecipeModalVisible] = useState(false);
   const [currentAiRecipe, setCurrentAiRecipe] = useState<FormattedRecipe | null>(null);
-
 
   // Preferences modal
   const [preferencesModalVisible, setPreferencesModalVisible] = useState(false);
@@ -1815,7 +1960,7 @@ export default function RecipesScreen() {
   }, [showToast]);
 
   // Separate syrups and cocktails
-  const ESSENTIAL_SYRUPS = allRecipes.filter(r => r.category?.toLowerCase() === 'syrups');
+  const ESSENTIAL_SYRUPS = allRecipes.filter((r) => r.category?.toLowerCase() === 'syrups');
 
   const isMocktail = React.useCallback((recipe: any) => {
     const recipeCategory = recipe.category?.toLowerCase();
@@ -1834,7 +1979,7 @@ export default function RecipesScreen() {
     const map = new Map<string, any>();
     // include existing cocktails (non-syrups)
     allRecipes
-      .filter(r => r.category?.toLowerCase() !== 'syrups')
+      .filter((r) => r.category?.toLowerCase() !== 'syrups')
       .forEach((r) => map.set(r.id, r));
     // merge in mocktails if not already present
     sampleRecipes.forEach((mocktail) => {
@@ -1847,7 +1992,7 @@ export default function RecipesScreen() {
 
   const ALL_MOCKTAILS = React.useMemo(
     () => ALL_COCKTAILS.filter(isMocktail),
-    [ALL_COCKTAILS, isMocktail]
+    [ALL_COCKTAILS, isMocktail],
   );
   const VARIATION_BASE_RECIPE_ALIASES: Record<string, string[]> = {
     old_fashioned: ['old-fashioned', 'old-fashioned-classic'],
@@ -1858,61 +2003,182 @@ export default function RecipesScreen() {
     manhattan: ['manhattan'],
     margarita: ['margarita', 'margarita-classic'],
   };
-  const VARIATION_DETAIL_OVERRIDES: Record<string, { time: string; ingredients: string[]; instructions: string[] }> = {
+  const VARIATION_DETAIL_OVERRIDES: Record<
+    string,
+    { time: string; ingredients: string[]; instructions: string[] }
+  > = {
     var_smoked_old_fashioned: {
       time: '6 min',
-      ingredients: ['2 oz bourbon or rye whiskey', '1/4 oz rich simple syrup', '2 dashes Angostura bitters', 'Orange peel', 'Smoking wood chip (cherry or oak)'],
-      instructions: ['Stir whiskey, syrup, and bitters with ice.', 'Strain over a large cube in a rocks glass.', 'Express orange peel over drink.', 'Trap smoke in glass with wood chip and cover for 10-15 seconds, then serve.'],
+      ingredients: [
+        '2 oz bourbon or rye whiskey',
+        '1/4 oz rich simple syrup',
+        '2 dashes Angostura bitters',
+        'Orange peel',
+        'Smoking wood chip (cherry or oak)',
+      ],
+      instructions: [
+        'Stir whiskey, syrup, and bitters with ice.',
+        'Strain over a large cube in a rocks glass.',
+        'Express orange peel over drink.',
+        'Trap smoke in glass with wood chip and cover for 10-15 seconds, then serve.',
+      ],
     },
     var_spicy_margarita: {
       time: '5 min',
-      ingredients: ['2 oz blanco tequila', '3/4 oz fresh lime juice', '1/2 oz orange liqueur', '1/2 oz agave syrup', '2-3 jalapeno slices'],
-      instructions: ['Lightly muddle jalapeno in shaker.', 'Add tequila, lime, orange liqueur, and agave with ice.', 'Shake hard and double strain over fresh ice.', 'Garnish with jalapeno slice or chili salt rim.'],
+      ingredients: [
+        '2 oz blanco tequila',
+        '3/4 oz fresh lime juice',
+        '1/2 oz orange liqueur',
+        '1/2 oz agave syrup',
+        '2-3 jalapeno slices',
+      ],
+      instructions: [
+        'Lightly muddle jalapeno in shaker.',
+        'Add tequila, lime, orange liqueur, and agave with ice.',
+        'Shake hard and double strain over fresh ice.',
+        'Garnish with jalapeno slice or chili salt rim.',
+      ],
     },
     var_brown_butter_old_fashioned: {
       time: '8 min',
-      ingredients: ['2 oz brown-butter-washed bourbon', '1/4 oz demerara syrup', '2 dashes Angostura bitters', 'Orange peel'],
-      instructions: ['Combine all ingredients with ice in a mixing glass.', 'Stir until chilled and properly diluted.', 'Strain over a large cube.', 'Express orange peel and garnish.'],
+      ingredients: [
+        '2 oz brown-butter-washed bourbon',
+        '1/4 oz demerara syrup',
+        '2 dashes Angostura bitters',
+        'Orange peel',
+      ],
+      instructions: [
+        'Combine all ingredients with ice in a mixing glass.',
+        'Stir until chilled and properly diluted.',
+        'Strain over a large cube.',
+        'Express orange peel and garnish.',
+      ],
     },
     var_clarified_whiskey_sour: {
       time: '12 min',
-      ingredients: ['2 oz bourbon', '3/4 oz lemon juice', '1/2 oz simple syrup', '1/2 oz whole milk', 'Optional: 1 egg white (pre-clarification style)'],
-      instructions: ['Build whiskey sour base and add milk for clarification.', 'Let curds form, then fine strain through coffee filter.', 'Serve over ice or up in coupe.', 'Garnish with lemon oil.'],
+      ingredients: [
+        '2 oz bourbon',
+        '3/4 oz lemon juice',
+        '1/2 oz simple syrup',
+        '1/2 oz whole milk',
+        'Optional: 1 egg white (pre-clarification style)',
+      ],
+      instructions: [
+        'Build whiskey sour base and add milk for clarification.',
+        'Let curds form, then fine strain through coffee filter.',
+        'Serve over ice or up in coupe.',
+        'Garnish with lemon oil.',
+      ],
     },
     var_nitro_espresso_martini: {
       time: '7 min',
-      ingredients: ['1 1/2 oz vodka', '1 oz fresh espresso', '3/4 oz coffee liqueur', '1/4 oz simple syrup', 'Nitro charger system'],
-      instructions: ['Shake ingredients hard with ice.', 'Fine strain into nitro vessel and charge.', 'Dispense into chilled coupe.', 'Finish with espresso crema and coffee bean garnish.'],
+      ingredients: [
+        '1 1/2 oz vodka',
+        '1 oz fresh espresso',
+        '3/4 oz coffee liqueur',
+        '1/4 oz simple syrup',
+        'Nitro charger system',
+      ],
+      instructions: [
+        'Shake ingredients hard with ice.',
+        'Fine strain into nitro vessel and charge.',
+        'Dispense into chilled coupe.',
+        'Finish with espresso crema and coffee bean garnish.',
+      ],
     },
     var_oleo_saccharum_daiquiri: {
       time: '8 min',
-      ingredients: ['2 oz white rum', '3/4 oz lime juice', '1/2 oz oleo saccharum syrup', '1/4 oz simple syrup (optional)'],
-      instructions: ['Add all ingredients to shaker with ice.', 'Shake until cold and diluted.', 'Double strain into chilled coupe.', 'Adjust sweetness with simple if needed.'],
+      ingredients: [
+        '2 oz white rum',
+        '3/4 oz lime juice',
+        '1/2 oz oleo saccharum syrup',
+        '1/4 oz simple syrup (optional)',
+      ],
+      instructions: [
+        'Add all ingredients to shaker with ice.',
+        'Shake until cold and diluted.',
+        'Double strain into chilled coupe.',
+        'Adjust sweetness with simple if needed.',
+      ],
     },
     var_split_base_negroni: {
       time: '5 min',
-      ingredients: ['3/4 oz gin', '3/4 oz mezcal or aged rum', '1 oz sweet vermouth', '1 oz Campari', 'Orange peel'],
-      instructions: ['Add all liquid ingredients to mixing glass with ice.', 'Stir until chilled.', 'Strain over large cube in rocks glass.', 'Express orange peel and garnish.'],
+      ingredients: [
+        '3/4 oz gin',
+        '3/4 oz mezcal or aged rum',
+        '1 oz sweet vermouth',
+        '1 oz Campari',
+        'Orange peel',
+      ],
+      instructions: [
+        'Add all liquid ingredients to mixing glass with ice.',
+        'Stir until chilled.',
+        'Strain over large cube in rocks glass.',
+        'Express orange peel and garnish.',
+      ],
     },
     var_aged_manhattan: {
       time: '5 min',
-      ingredients: ['2 oz barrel-aged Manhattan blend', '1 dash Angostura bitters', '1 dash orange bitters', 'Brandied cherry'],
-      instructions: ['Stir blend and bitters with ice.', 'Strain into chilled coupe.', 'Garnish with brandied cherry.', 'If needed, add 1/4 oz water to open aromatics.'],
+      ingredients: [
+        '2 oz barrel-aged Manhattan blend',
+        '1 dash Angostura bitters',
+        '1 dash orange bitters',
+        'Brandied cherry',
+      ],
+      instructions: [
+        'Stir blend and bitters with ice.',
+        'Strain into chilled coupe.',
+        'Garnish with brandied cherry.',
+        'If needed, add 1/4 oz water to open aromatics.',
+      ],
     },
     var_fermented_pineapple_margarita: {
       time: '7 min',
-      ingredients: ['1 1/2 oz tequila', '1/2 oz mezcal', '3/4 oz lime juice', '3/4 oz fermented pineapple syrup', 'Pinch of salt'],
-      instructions: ['Shake all ingredients with ice.', 'Double strain over fresh ice.', 'Add pinch of salt to sharpen fruit.', 'Garnish with pineapple leaf or lime wheel.'],
+      ingredients: [
+        '1 1/2 oz tequila',
+        '1/2 oz mezcal',
+        '3/4 oz lime juice',
+        '3/4 oz fermented pineapple syrup',
+        'Pinch of salt',
+      ],
+      instructions: [
+        'Shake all ingredients with ice.',
+        'Double strain over fresh ice.',
+        'Add pinch of salt to sharpen fruit.',
+        'Garnish with pineapple leaf or lime wheel.',
+      ],
     },
     var_winter_spiced_negroni: {
       time: '5 min',
-      ingredients: ['1 oz gin', '1 oz Campari', '1 oz spiced sweet vermouth', 'Orange peel', 'Optional star anise'],
-      instructions: ['Stir gin, Campari, and spiced vermouth with ice.', 'Strain over large cube.', 'Express orange peel.', 'Optional: torch star anise briefly for aroma.'],
+      ingredients: [
+        '1 oz gin',
+        '1 oz Campari',
+        '1 oz spiced sweet vermouth',
+        'Orange peel',
+        'Optional star anise',
+      ],
+      instructions: [
+        'Stir gin, Campari, and spiced vermouth with ice.',
+        'Strain over large cube.',
+        'Express orange peel.',
+        'Optional: torch star anise briefly for aroma.',
+      ],
     },
     var_summer_berry_daiquiri: {
       time: '5 min',
-      ingredients: ['2 oz white rum', '3/4 oz lime juice', '1/2 oz berry syrup', '1/4 oz simple syrup', 'Fresh berries'],
-      instructions: ['Shake ingredients with ice.', 'Double strain into chilled coupe.', 'Taste and adjust acid-sweet balance.', 'Garnish with fresh berry.'],
+      ingredients: [
+        '2 oz white rum',
+        '3/4 oz lime juice',
+        '1/2 oz berry syrup',
+        '1/4 oz simple syrup',
+        'Fresh berries',
+      ],
+      instructions: [
+        'Shake ingredients with ice.',
+        'Double strain into chilled coupe.',
+        'Taste and adjust acid-sweet balance.',
+        'Garnish with fresh berry.',
+      ],
     },
   };
   const discoverVariationRecipes = useMemo(() => {
@@ -1921,7 +2187,9 @@ export default function RecipesScreen() {
       .filter((variation) => unlockedSet.has(variation.id))
       .map((variation) => {
         const baseRecipeId = variation.baseClassicId.replace(/_/g, '-');
-        const candidateIds = VARIATION_BASE_RECIPE_ALIASES[variation.baseClassicId] || [baseRecipeId];
+        const candidateIds = VARIATION_BASE_RECIPE_ALIASES[variation.baseClassicId] || [
+          baseRecipeId,
+        ];
         const baseRecipe = ALL_COCKTAILS.find((cocktail) => candidateIds.includes(cocktail.id));
         const override = VARIATION_DETAIL_OVERRIDES[variation.id];
         const difficultyLabel =
@@ -1945,10 +2213,10 @@ export default function RecipesScreen() {
           tags: ['variation', ...(variation.tags || [])],
           ingredients: override?.ingredients?.length
             ? override.ingredients
-            : (baseRecipe?.ingredients || []),
+            : baseRecipe?.ingredients || [],
           instructions: override?.instructions?.length
             ? override.instructions
-            : (baseRecipe?.instructions || [variation.shortDescription]),
+            : baseRecipe?.instructions || [variation.shortDescription],
           glassware: baseRecipe?.glassware || 'Coupe',
           sourceRecipeId: baseRecipe?.id || baseRecipeId,
           isVaultVariation: true,
@@ -1958,7 +2226,7 @@ export default function RecipesScreen() {
   }, [unlockedVaultItems, ALL_COCKTAILS]);
   const DISCOVER_COCKTAILS = useMemo(
     () => [...discoverVariationRecipes, ...ALL_COCKTAILS],
-    [discoverVariationRecipes, ALL_COCKTAILS]
+    [discoverVariationRecipes, ALL_COCKTAILS],
   );
 
   // AI recipe handler
@@ -1967,66 +2235,84 @@ export default function RecipesScreen() {
     setAiRecipeModalVisible(true);
   }, []);
 
-  const handleSaveAiRecipe = useCallback(async (recipe: FormattedRecipe) => {
-    try {
-      // Save AI recipe to user's local store
-      const { addRecipe } = useUserRecipes.getState();
+  const handleSaveAiRecipe = useCallback(
+    async (recipe: FormattedRecipe) => {
+      try {
+        // Save AI recipe to user's local store
+        const { addRecipe } = useUserRecipes.getState();
 
-      await addRecipe({
-        name: recipe.title,
-        type: 'ai_generated',
-        description: recipe.description || 'AI-generated cocktail recipe',
-        ingredients: recipe.ingredients || [],
-        instructions: recipe.instructions || [],
-        image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=240&h=160&fit=crop',
-        tags: recipe.tags || [],
-      });
+        await addRecipe({
+          name: recipe.title,
+          type: 'ai_generated',
+          description: recipe.description || 'AI-generated cocktail recipe',
+          ingredients: recipe.ingredients || [],
+          instructions: recipe.instructions || [],
+          image:
+            'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=240&h=160&fit=crop',
+          tags: recipe.tags || [],
+        });
 
-      log.info('RecipesScreen', 'AI recipe saved successfully', { title: recipe.title });
+        log.info('RecipesScreen', 'AI recipe saved successfully', { title: recipe.title });
 
-      // Refresh the recipes list to show the new recipe
-      loadRecipes();
-    } catch (error) {
-      log.error('RecipesScreen', 'Error saving AI recipe', error, { title: recipe.title });
-      showToast('Failed to save AI recipe', 'error');
-    }
-  }, [loadRecipes]);
+        // Refresh the recipes list to show the new recipe
+        loadRecipes();
+      } catch (error) {
+        log.error('RecipesScreen', 'Error saving AI recipe', error, { title: recipe.title });
+        showToast('Failed to save AI recipe', 'error');
+      }
+    },
+    [loadRecipes],
+  );
 
   // Handlers for ForYouFeed component
-  const handleCocktailPress = useCallback((cocktail: any) => {
-    navigation.navigate('CocktailDetail', { cocktailId: cocktail.id });
-  }, [navigation]);
+  const handleCocktailPress = useCallback(
+    (cocktail: any) => {
+      navigation.navigate('CocktailDetail', { cocktailId: cocktail.id });
+    },
+    [navigation],
+  );
 
-  const handleSaveRecipe = useCallback((cocktail: any) => {
-    const wasSaved = isCocktailSaved(cocktail.id);
+  const handleSaveRecipe = useCallback(
+    (cocktail: any) => {
+      const wasSaved = isCocktailSaved(cocktail.id);
 
-    // Soft cap: FREE can save first 5 cocktails, 6th save triggers T3 paywall.
-    if (!wasSaved && !canSaveMoreCocktails) {
-      saveGate('T3');
-      return;
-    }
-
-    const cocktailData = {
-      id: cocktail.id,
-      name: cocktail.name || cocktail.title || 'Untitled Recipe',
-      subtitle: cocktail.description || cocktail.subtitle || '',
-      image: getCocktailImage(cocktail.id, cocktail.image),
-    };
-    const result = toggleSavedCocktail(cocktailData);
-    if (result === 'limit_reached') {
-      saveGate('T3');
-      return;
-    }
-    showToast(wasSaved ? 'Removed from saved' : 'Saved!', 'success');
-
-    // After 5th successful save on FREE tier, soft-nudge toward Plus
-    if (!wasSaved && tier === 'FREE' && result === 'success') {
-      const newCount = (savedCocktailCount || 0) + 1;
-      if (newCount === FREE_RECIPE_LIMIT) {
-        saveGate('T3b');
+      // Soft cap: FREE can save first 5 cocktails, 6th save triggers T3 paywall.
+      if (!wasSaved && !canSaveMoreCocktails) {
+        saveGate('T3');
+        return;
       }
-    }
-  }, [toggleSavedCocktail, isCocktailSaved, showToast, saveGate, canSaveMoreCocktails, tier, savedCocktailCount]);
+
+      const cocktailData = {
+        id: cocktail.id,
+        name: cocktail.name || cocktail.title || 'Untitled Recipe',
+        subtitle: cocktail.description || cocktail.subtitle || '',
+        image: getCocktailImage(cocktail.id, cocktail.image),
+      };
+      const result = toggleSavedCocktail(cocktailData);
+      if (result === 'limit_reached') {
+        saveGate('T3');
+        return;
+      }
+      showToast(wasSaved ? 'Removed from saved' : 'Saved!', 'success');
+
+      // After 5th successful save on FREE tier, soft-nudge toward Plus
+      if (!wasSaved && tier === 'FREE' && result === 'success') {
+        const newCount = (savedCocktailCount || 0) + 1;
+        if (newCount === FREE_RECIPE_LIMIT) {
+          saveGate('T3b');
+        }
+      }
+    },
+    [
+      toggleSavedCocktail,
+      isCocktailSaved,
+      showToast,
+      saveGate,
+      canSaveMoreCocktails,
+      tier,
+      savedCocktailCount,
+    ],
+  );
 
   const handleAddToGroceryList = useCallback((cocktail: any) => {
     setSelectedRecipe(cocktail);
@@ -2037,26 +2323,31 @@ export default function RecipesScreen() {
     return true;
   }, []);
 
-  const getRecipeUnlockHint = useCallback((recipe: any) => {
-    if (!recipe?.id) return 'Unlock to view the full recipe';
+  const getRecipeUnlockHint = useCallback(
+    (recipe: any) => {
+      if (!recipe?.id) return 'Unlock to view the full recipe';
 
-    if (recipe.isVaultVariation) {
-      return 'Unlock in Vault';
-    }
+      if (recipe.isVaultVariation) {
+        return 'Unlock in Vault';
+      }
 
-    const curriculumUnlock = getCurriculumUnlockForRecipeId(recipe.id);
-    if (curriculumUnlock) {
-      const lesson = curriculumData.lessons.find((entry) => entry.id === curriculumUnlock.lessonId);
-      return lesson ? `Unlock in ${lesson.title}` : `Unlock in ${curriculumUnlock.lessonId}`;
-    }
+      const curriculumUnlock = getCurriculumUnlockForRecipeId(recipe.id);
+      if (curriculumUnlock) {
+        const lesson = curriculumData.lessons.find(
+          (entry) => entry.id === curriculumUnlock.lessonId,
+        );
+        return lesson ? `Unlock in ${lesson.title}` : `Unlock in ${curriculumUnlock.lessonId}`;
+      }
 
-    const xpCost = getCocktailCost(recipe.id);
-    if (xpCost > 0) {
-      return `Unlock with ${xpCost} XP or KOOPE+`;
-    }
+      const xpCost = getCocktailCost(recipe.id);
+      if (xpCost > 0) {
+        return `Unlock with ${xpCost} XP or KOOPE+`;
+      }
 
-    return 'Unlock with KOOPE+';
-  }, [getCocktailCost]);
+      return 'Unlock with KOOPE+';
+    },
+    [getCocktailCost],
+  );
 
   // Get saved recipe IDs for ForYouFeed (as a Set for efficient lookup)
   const savedRecipeIds = useMemo(() => {
@@ -2066,64 +2357,70 @@ export default function RecipesScreen() {
 
   // Search functionality with debouncing — searches DISCOVER_COCKTAILS directly
   // so vault variations and all cocktails are always reachable, with no result cap.
-  const handleSearch = useCallback((query: string) => {
-    setSearchQuery(query);
+  const handleSearch = useCallback(
+    (query: string) => {
+      setSearchQuery(query);
 
-    if (searchTimeoutRef.current) {
-      clearTimeout(searchTimeoutRef.current);
-    }
-
-    if (query.trim().length < 2) {
-      setSearchResults([]);
-      setIsSearching(false);
-      return;
-    }
-
-    setIsSearching(true);
-
-    searchTimeoutRef.current = setTimeout(() => {
-      try {
-        const queryLower = query.toLowerCase().trim();
-        const queryTerms = queryLower.split(/\s+/).filter(t => t.length > 0);
-
-        const scored = DISCOVER_COCKTAILS
-          .filter(cocktail => cocktail.category?.toLowerCase() !== 'syrups')
-          .filter(isRecipeVisibleInSearch)
-          .map(cocktail => {
-            const name = (cocktail.name || '').toLowerCase();
-            const description = (cocktail.description || '').toLowerCase();
-            const ingredientText = ingredientListToSearchText(cocktail.ingredients || []).toLowerCase();
-            const tags = (cocktail.tags || []).join(' ').toLowerCase();
-            const searchable = `${name} ${description} ${ingredientText} ${tags}`;
-
-            // Must match at least one term
-            if (!queryTerms.some(term => searchable.includes(term))) return null;
-
-            let score = 0;
-            if (name === queryLower) score += 100;
-            else if (name.startsWith(queryLower)) score += 80;
-            else if (name.includes(queryLower)) score += 60;
-            else if (queryTerms.every(term => name.includes(term))) score += 55;
-            else if (ingredientText.includes(queryLower)) score += 40;
-            else if (tags.includes(queryLower)) score += 30;
-            else if (description.includes(queryLower)) score += 20;
-            else score += 10;
-
-            return { cocktail, score };
-          })
-          .filter((item): item is { cocktail: any; score: number } => item !== null)
-          .sort((a, b) => b.score - a.score)
-          .map(item => item.cocktail);
-
-        setSearchResults(scored);
-      } catch (error) {
-        log.error('RecipesScreen', 'Search error', error, { query });
-        setSearchResults([]);
-      } finally {
-        setIsSearching(false);
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
       }
-    }, 400);
-  }, [DISCOVER_COCKTAILS, isRecipeVisibleInSearch]);
+
+      if (query.trim().length < 2) {
+        setSearchResults([]);
+        setIsSearching(false);
+        return;
+      }
+
+      setIsSearching(true);
+
+      searchTimeoutRef.current = setTimeout(() => {
+        try {
+          const queryLower = query.toLowerCase().trim();
+          const queryTerms = queryLower.split(/\s+/).filter((t) => t.length > 0);
+
+          const scored = DISCOVER_COCKTAILS.filter(
+            (cocktail) => cocktail.category?.toLowerCase() !== 'syrups',
+          )
+            .filter(isRecipeVisibleInSearch)
+            .map((cocktail) => {
+              const name = (cocktail.name || '').toLowerCase();
+              const description = (cocktail.description || '').toLowerCase();
+              const ingredientText = ingredientListToSearchText(
+                cocktail.ingredients || [],
+              ).toLowerCase();
+              const tags = (cocktail.tags || []).join(' ').toLowerCase();
+              const searchable = `${name} ${description} ${ingredientText} ${tags}`;
+
+              // Must match at least one term
+              if (!queryTerms.some((term) => searchable.includes(term))) return null;
+
+              let score = 0;
+              if (name === queryLower) score += 100;
+              else if (name.startsWith(queryLower)) score += 80;
+              else if (name.includes(queryLower)) score += 60;
+              else if (queryTerms.every((term) => name.includes(term))) score += 55;
+              else if (ingredientText.includes(queryLower)) score += 40;
+              else if (tags.includes(queryLower)) score += 30;
+              else if (description.includes(queryLower)) score += 20;
+              else score += 10;
+
+              return { cocktail, score };
+            })
+            .filter((item): item is { cocktail: any; score: number } => item !== null)
+            .sort((a, b) => b.score - a.score)
+            .map((item) => item.cocktail);
+
+          setSearchResults(scored);
+        } catch (error) {
+          log.error('RecipesScreen', 'Search error', error, { query });
+          setSearchResults([]);
+        } finally {
+          setIsSearching(false);
+        }
+      }, 400);
+    },
+    [DISCOVER_COCKTAILS, isRecipeVisibleInSearch],
+  );
 
   // Cleanup search timeout on unmount
   useEffect(() => {
@@ -2153,6 +2450,34 @@ export default function RecipesScreen() {
     }
   }, [showSearchInput]);
 
+  // Tonight's Pick rail — inventory-aware recommendations for Browse mode,
+  // all tiers. Uses useFocusEffect (not a plain mount effect) so the rail
+  // silently refreshes when the user returns to this tab after scanning a
+  // bottle elsewhere. tonightsPickLoaded is only reset by the initial state,
+  // never back to false on refetch, so a returning user doesn't see a flicker.
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      (async () => {
+        const result = await getTonightsPick({
+          userId: user?.id,
+          profile,
+          savedItems,
+          allCocktails: ALL_COCKTAILS,
+          limit: 10,
+        });
+        if (!cancelled) {
+          setTonightsPick(result.recommendations);
+          setTonightsPickHasInventory(result.hasInventory);
+          setTonightsPickLoaded(true);
+        }
+      })();
+      return () => {
+        cancelled = true;
+      };
+    }, [user?.id, profile, savedItems, ALL_COCKTAILS]),
+  );
+
   // Load personalized recommendations when switching to "For You" mode
   useEffect(() => {
     if (viewMode !== 'personalized') {
@@ -2163,16 +2488,18 @@ export default function RecipesScreen() {
 
     const loadPersonalizedRecommendations = async () => {
       try {
-        const formattedSections: Array<{
+        const formattedSections: {
           title: string;
           reason: string;
           cocktails: any[];
-        }> = [];
+        }[] = [];
 
         if (tier === 'PRO') {
           const loadedProfile = user?.id ? await loadUserProfile(user.id).catch(() => null) : null;
-          const enhancedProfile = loadedProfile || buildEnhancedProfileFallback(user?.id, profile, savedItems);
-          enhancedProfile.tasteProfile = enhancedProfile.tasteProfile || buildTasteProfileFromPersonalization(profile);
+          const enhancedProfile =
+            loadedProfile || buildEnhancedProfileFallback(user?.id, profile, savedItems);
+          enhancedProfile.tasteProfile =
+            enhancedProfile.tasteProfile || buildTasteProfileFromPersonalization(profile);
 
           let inventoryBottles: any[] = [];
           if (user?.id) {
@@ -2188,7 +2515,7 @@ export default function RecipesScreen() {
                 notes: item.notes || undefined,
                 expiryDate: item.expiry_date || undefined,
                 scanCount: item.scan_count || 1,
-              })
+              }),
             );
           }
 
@@ -2203,17 +2530,24 @@ export default function RecipesScreen() {
               inventory: inventoryBottles,
               recentScans: inventoryBottles.slice(0, 5),
             },
-            18
+            18,
           );
 
           const topPredictions = uniqueById(predictions.slice(0, 8));
           const makeTonight = uniqueById(
-            predictions.filter((item) => item.signals?.some((signal) => signal.source === 'inventoryMatch')).slice(0, 6)
+            predictions
+              .filter((item) => item.signals?.some((signal) => signal.source === 'inventoryMatch'))
+              .slice(0, 6),
           );
           const useYourBar = uniqueById(
-            predictions.filter((item) =>
-              item.signals?.some((signal) => signal.source === 'recentScans' || signal.source === 'quantityUrgency')
-            ).slice(0, 6)
+            predictions
+              .filter((item) =>
+                item.signals?.some(
+                  (signal) =>
+                    signal.source === 'recentScans' || signal.source === 'quantityUrgency',
+                ),
+              )
+              .slice(0, 6),
           );
 
           if (topPredictions.length > 0) {
@@ -2247,24 +2581,24 @@ export default function RecipesScreen() {
             formattedSections.push({
               title: 'Top Picks For You',
               reason: 'Based on your taste profile and preferences',
-              cocktails: featured.slice(0, 8)
+              cocktails: featured.slice(0, 8),
             });
           }
 
           if (moodOrder && moodOrder.length > 0) {
-            moodOrder.slice(0, 3).forEach(moodTitle => {
-              const mood = COCKTAIL_MOODS.find(m => m.title === moodTitle);
+            moodOrder.slice(0, 3).forEach((moodTitle) => {
+              const mood = COCKTAIL_MOODS.find((m) => m.title === moodTitle);
               if (mood) {
                 const cocktails = mood.cocktails
                   .slice(0, 6)
-                  .map(id => ALL_COCKTAILS.find(c => c.id === id))
+                  .map((id) => ALL_COCKTAILS.find((c) => c.id === id))
                   .filter(Boolean);
 
                 if (cocktails.length > 0) {
                   formattedSections.push({
                     title: `${moodTitle} Favorites`,
                     reason: `Based on your preference for ${moodTitle.toLowerCase()} cocktails`,
-                    cocktails
+                    cocktails,
                   });
                 }
               }
@@ -2281,7 +2615,7 @@ export default function RecipesScreen() {
             formattedSections.push({
               title: 'Popular Picks',
               reason: 'Highly rated cocktails to try',
-              cocktails: topRated
+              cocktails: topRated,
             });
           }
         }
@@ -2302,7 +2636,16 @@ export default function RecipesScreen() {
     return () => {
       cancelled = true;
     };
-  }, [viewMode, tier, user?.id, profile, savedItems, ALL_COCKTAILS, getFeaturedCocktails, getPersonalizedMoodOrder]);
+  }, [
+    viewMode,
+    tier,
+    user?.id,
+    profile,
+    savedItems,
+    ALL_COCKTAILS,
+    getFeaturedCocktails,
+    getPersonalizedMoodOrder,
+  ]);
 
   // Get current displayed recipes
   const getCurrentRecipes = () => {
@@ -2322,33 +2665,36 @@ export default function RecipesScreen() {
     // Filter by ingredients/spirits
     const selectedIngredients = toFilterArray(currentFilters.ingredients);
     if (selectedIngredients.length > 0) {
-      recipes = recipes.filter(recipe => {
-        const recipeText = `${recipe.name} ${recipe.subtitle || ''} ${recipe.description || ''} ${ingredientListToSearchText(recipe.ingredients || [])}`.toLowerCase();
-        return selectedIngredients.some(ingredient =>
-          recipeText.includes(ingredient.toLowerCase())
+      recipes = recipes.filter((recipe) => {
+        const recipeText =
+          `${recipe.name} ${recipe.subtitle || ''} ${recipe.description || ''} ${ingredientListToSearchText(recipe.ingredients || [])}`.toLowerCase();
+        return selectedIngredients.some((ingredient) =>
+          recipeText.includes(ingredient.toLowerCase()),
         );
       });
     }
 
     // Filter by difficulty
-    const selectedDifficulties = toFilterArray(currentFilters.difficulty ?? currentFilters.difficulties);
+    const selectedDifficulties = toFilterArray(
+      currentFilters.difficulty ?? currentFilters.difficulties,
+    );
     if (selectedDifficulties.length > 0) {
-      recipes = recipes.filter(recipe => {
+      recipes = recipes.filter((recipe) => {
         const recipeDifficulty = recipe.difficulty?.toLowerCase();
-        return selectedDifficulties.some(diff => diff === recipeDifficulty);
+        return selectedDifficulties.some((diff) => diff === recipeDifficulty);
       });
     }
 
     // Filter by category (with fuzzy helpers for missing metadata)
     const selectedCategories = toFilterArray(currentFilters.category ?? currentFilters.categories);
     if (selectedCategories.length > 0) {
-      recipes = recipes.filter(recipe => {
+      recipes = recipes.filter((recipe) => {
         const recipeCategory = recipe.category?.toLowerCase();
         const recipeSubtitle = recipe.subtitle?.toLowerCase() || '';
         const recipeDescription = recipe.description?.toLowerCase() || '';
         const ingredientText = ingredientListToSearchText(recipe.ingredients || []).toLowerCase();
 
-        return selectedCategories.some(cat => {
+        return selectedCategories.some((cat) => {
           const categoryLower = cat.toLowerCase();
           if (categoryLower === 'variations') {
             return !!recipe.isVaultVariation || recipeCategory === 'variations';
@@ -2357,40 +2703,54 @@ export default function RecipesScreen() {
             return isMocktail(recipe);
           }
           if (categoryLower === 'fizzy') {
-            const fizzyHits = ['soda', 'sparkling', 'tonic', 'club soda', 'seltzer', 'prosecco', 'champagne', 'cava'];
-            return recipeCategory === 'fizzy' || fizzyHits.some(k => ingredientText.includes(k) || recipeDescription.includes(k));
+            const fizzyHits = [
+              'soda',
+              'sparkling',
+              'tonic',
+              'club soda',
+              'seltzer',
+              'prosecco',
+              'champagne',
+              'cava',
+            ];
+            return (
+              recipeCategory === 'fizzy' ||
+              fizzyHits.some((k) => ingredientText.includes(k) || recipeDescription.includes(k))
+            );
           }
           // Check if category matches the recipe's category field or appears in subtitle/description
-          return recipeCategory === categoryLower ||
+          return (
+            recipeCategory === categoryLower ||
             recipeSubtitle.includes(categoryLower) ||
-            recipeDescription.includes(categoryLower);
+            recipeDescription.includes(categoryLower)
+          );
         });
       });
     }
 
     if (browseQuickFilter === 'variations') {
-      recipes = recipes.filter((recipe) => !!recipe.isVaultVariation || recipe.category?.toLowerCase() === 'variations');
+      recipes = recipes.filter(
+        (recipe) => !!recipe.isVaultVariation || recipe.category?.toLowerCase() === 'variations',
+      );
     }
 
     // Filter by mood
     const selectedMoods = toFilterArray(currentFilters.mood);
     if (selectedMoods.length > 0) {
-      recipes = recipes.filter(recipe => {
+      recipes = recipes.filter((recipe) => {
         // Find which moods this recipe belongs to
-        const recipeMoods = COCKTAIL_MOODS.filter(moodCategory =>
-          moodCategory.cocktails.includes(recipe.id)
-        ).map(m => m.title);
+        const recipeMoods = COCKTAIL_MOODS.filter((moodCategory) =>
+          moodCategory.cocktails.includes(recipe.id),
+        ).map((m) => m.title);
 
         // Check if recipe belongs to any of the selected moods
-        return selectedMoods.some(selectedMood =>
-          recipeMoods.includes(selectedMood)
-        );
+        return selectedMoods.some((selectedMood) => recipeMoods.includes(selectedMood));
       });
     }
 
     // Filter by unlocked status (only applies for FREE tier)
     if (showOnlyUnlocked && tier === 'FREE') {
-      recipes = recipes.filter(recipe => {
+      recipes = recipes.filter((recipe) => {
         const isUnlockedVariation = unlockedVaultItems?.includes(recipe.id);
         if (isUnlockedVariation) return true;
         const isTierAccessible = isCocktailAccessible(recipe.id, tier);
@@ -2402,7 +2762,9 @@ export default function RecipesScreen() {
 
     // Sort recipes
     if ((currentFilters.sortOrder as string | undefined) === 'taste-match' && tier !== 'FREE') {
-      recipes = recipes.sort((a, b) => (tasteMatchScores[b.id] ?? 0) - (tasteMatchScores[a.id] ?? 0));
+      recipes = recipes.sort(
+        (a, b) => (tasteMatchScores[b.id] ?? 0) - (tasteMatchScores[a.id] ?? 0),
+      );
     } else if (currentFilters.sortOrder === 'alphabetical-asc') {
       recipes = recipes.sort((a, b) => a.name.localeCompare(b.name));
     } else if (currentFilters.sortOrder === 'alphabetical-desc') {
@@ -2426,7 +2788,8 @@ export default function RecipesScreen() {
     const isXPUnlocked = isCocktailUnlockedWithXP(item.id);
     const isEngagementUnlocked = isRecipeUnlockedWithEngagement(item.id);
     const isUnlockedVariation = unlockedVaultItems?.includes(item.id);
-    const isAccessible = isUnlockedVariation || isTierAccessible || isXPUnlocked || isEngagementUnlocked;
+    const isAccessible =
+      isUnlockedVariation || isTierAccessible || isXPUnlocked || isEngagementUnlocked;
 
     // If locked, show LockedRecipeCard with unlock context
     if (!isAccessible) {
@@ -2475,7 +2838,10 @@ export default function RecipesScreen() {
     const showTasteMatchBadge = tier !== 'FREE' && matchScore >= 75;
 
     return (
-      <Animated.View entering={FadeInDown.delay((index || 0) * 80).duration(500)} style={{ position: 'relative' }}>
+      <Animated.View
+        entering={FadeInDown.delay((index || 0) * 80).duration(500)}
+        style={{ position: 'relative' }}
+      >
         <RecipeCard
           {...cardProps}
           style={{ width: (width - spacing(2) * 2 - GUTTER) / 2, marginBottom: spacing(2) }}
@@ -2498,7 +2864,8 @@ export default function RecipesScreen() {
       if (typeof value === 'string' && value.trim()) return [value.trim()];
       return [];
     };
-    const hasFilters = toFilterArray(currentFilters.ingredients).length > 0 ||
+    const hasFilters =
+      toFilterArray(currentFilters.ingredients).length > 0 ||
       toFilterArray(currentFilters.difficulty ?? currentFilters.difficulties).length > 0 ||
       toFilterArray(currentFilters.category ?? currentFilters.categories).length > 0 ||
       toFilterArray(currentFilters.mood).length > 0;
@@ -2544,13 +2911,15 @@ export default function RecipesScreen() {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
         <StatusBar style="light" />
-        <View style={{
-          flexDirection: 'row',
-          flexWrap: 'wrap',
-          paddingHorizontal: spacing(2),
-          paddingTop: spacing(2),
-          gap: GUTTER
-        }}>
+        <View
+          style={{
+            flexDirection: 'row',
+            flexWrap: 'wrap',
+            paddingHorizontal: spacing(2),
+            paddingTop: spacing(2),
+            gap: GUTTER,
+          }}
+        >
           {[...Array(8)].map((_, i) => (
             <RecipeCardSkeleton key={i} style={{ width: skeletonCardWidth }} />
           ))}
@@ -2574,7 +2943,7 @@ export default function RecipesScreen() {
         ]}
       />
       <FlatList
-        data={!showSearchInput && viewMode === 'browse' ? (getCurrentRecipes() || []) : []}
+        data={!showSearchInput && viewMode === 'browse' ? getCurrentRecipes() || [] : []}
         keyExtractor={(item) => item.id}
         renderItem={renderRecipeItem}
         numColumns={2}
@@ -2591,197 +2960,251 @@ export default function RecipesScreen() {
         }
         ListHeaderComponent={
           showSearchInput ? null : (
-          <View>
-
-            {/* View Mode Toggle */}
-            {(
-              <Animated.View entering={FadeIn.duration(400)} style={{
-                marginHorizontal: spacing(2),
-                marginTop: spacing(2),
-                marginBottom: spacing(1.5),
-                flexDirection: 'row',
-                backgroundColor: colors.card,
-                borderRadius: radii.lg,
-                padding: 4,
-              }}>
-                <Pressable
-                  onPress={withHaptic(() => setViewMode('browse'), 'selection')}
+            <View>
+              {/* View Mode Toggle */}
+              {
+                <Animated.View
+                  entering={FadeIn.duration(400)}
                   style={{
-                    flex: 1,
-                    paddingVertical: spacing(1),
-                    borderRadius: radii.md,
-                    backgroundColor: viewMode === 'browse' ? colors.accent : 'transparent',
-                    alignItems: 'center',
+                    marginHorizontal: spacing(2),
+                    marginTop: spacing(2),
+                    marginBottom: spacing(1.5),
+                    flexDirection: 'row',
+                    backgroundColor: colors.card,
+                    borderRadius: radii.lg,
+                    padding: 4,
                   }}
                 >
-                  <Text style={{
-                    color: viewMode === 'browse' ? colors.bg : colors.muted,
-                    fontWeight: viewMode === 'browse' ? '700' : '600',
-                    fontSize: 15,
-                  }}>
-                    Browse
-                  </Text>
-                </Pressable>
-                <Pressable
-                  onPress={withHaptic(() => setViewMode('personalized'), 'selection')}
-                  style={{
-                    flex: 1,
-                    paddingVertical: spacing(1),
-                    borderRadius: radii.md,
-                    backgroundColor: viewMode === 'personalized' ? colors.accent : 'transparent',
-                    alignItems: 'center',
-                  }}
-                >
-                  <Text style={{
-                    color: viewMode === 'personalized' ? colors.bg : colors.muted,
-                    fontWeight: viewMode === 'personalized' ? '700' : '600',
-                    fontSize: 15,
-                  }}>
-                    For You
-                  </Text>
-                </Pressable>
-              </Animated.View>
-            )}
-
-            {/* Simplified Search/Filter Row - Hidden by default, accessible via header icons */}
-
-            {/* Browse All Content */}
-            {viewMode === 'browse' && (
-              <>
-                {/* Only show featured content when not searching */}
-                {!searchQuery.trim() && (
-                  <>
-                    {/* Cocktail of the Week */}
-                    <View style={{ marginTop: spacing(1) }}>
-                      <HeroCard
-                        cocktail={COCKTAIL_OF_THE_WEEK}
-                        onPress={withHaptic(() => navigation.navigate('CocktailDetail', { cocktailId: COCKTAIL_OF_THE_WEEK.id }))}
-                      />
-                    </View>
-
-                    {/* Shots */}
-                    <SectionHeader
-                      title="Shots"
-                      onPress={() => {
-                        // Ensure we only pass string IDs
-                        const shotIds = ALL_SHOTS.map(shot => shot.id).filter(id => typeof id === 'string');
-                        bringToPartyGate('T8', () => {
-                          navigation.navigate('CocktailList', {
-                            title: 'Shots',
-                            cocktailIds: shotIds,
-                            category: 'shots'
-                          });
-                        });
+                  <Pressable
+                    onPress={withHaptic(() => setViewMode('browse'), 'selection')}
+                    style={{
+                      flex: 1,
+                      paddingVertical: spacing(1),
+                      borderRadius: radii.md,
+                      backgroundColor: viewMode === 'browse' ? colors.accent : 'transparent',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <Text
+                      style={{
+                        color: viewMode === 'browse' ? colors.bg : colors.muted,
+                        fontWeight: viewMode === 'browse' ? '700' : '600',
+                        fontSize: 15,
                       }}
-                    />
-                    <ScrollView horizontal nestedScrollEnabled showsHorizontalScrollIndicator={false} style={{ paddingLeft: spacing(2), marginBottom: spacing(2) }}>
-                      {PARTY_SHOTS?.slice(0, 5).map((shot, index) => {
-                        const cardProps = createRecipeCardProps(shot, navigation, {
-                          toggleSavedCocktail,
-                          isCocktailSaved,
-                          setSelectedRecipe,
-                          setGroceryListVisible,
-                          showToast,
-                          showSaveButton: false,
-                          showCartButton: false,
-                          showDeleteButton: false,
-                        });
-                        return (
-                          <Animated.View key={shot.id} entering={FadeInRight.delay(index * 100).duration(500)}>
-                            <RecipeCard {...cardProps} style={{ width: 240, marginRight: 16 }} />
-                          </Animated.View>
-                        );
-                      })}
-                    </ScrollView>
-
-                    {/* Mocktails */}
-                    <SectionHeader
-                      title="Mocktails"
-                      onPress={() => {
-                        navigation.navigate('CocktailList', {
-                          title: 'Mocktails',
-                          cocktailIds: ALL_MOCKTAILS.map(recipe => recipe.id),
-                          category: 'mocktails'
-                        });
+                    >
+                      Browse
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={withHaptic(() => setViewMode('personalized'), 'selection')}
+                    style={{
+                      flex: 1,
+                      paddingVertical: spacing(1),
+                      borderRadius: radii.md,
+                      backgroundColor: viewMode === 'personalized' ? colors.accent : 'transparent',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <Text
+                      style={{
+                        color: viewMode === 'personalized' ? colors.bg : colors.muted,
+                        fontWeight: viewMode === 'personalized' ? '700' : '600',
+                        fontSize: 15,
                       }}
-                    />
+                    >
+                      For You
+                    </Text>
+                  </Pressable>
+                </Animated.View>
+              }
 
-                    {/* Mocktails Horizontal Scroll Preview */}
-                    <ScrollView horizontal nestedScrollEnabled showsHorizontalScrollIndicator={false} style={{ paddingLeft: spacing(2), marginBottom: spacing(2) }}>
-                      {ALL_MOCKTAILS.slice(0, 6).map((mocktail, index) => {
-                        const cardProps = createRecipeCardProps(mocktail, navigation, {
-                          toggleSavedCocktail,
-                          isCocktailSaved,
-                          setSelectedRecipe,
-                          setGroceryListVisible,
-                          showToast,
-                          showSaveButton: false,
-                          showCartButton: false,
-                          showDeleteButton: false,
-                        });
-                        return (
-                          <Animated.View key={mocktail.id} entering={FadeInRight.delay(index * 100).duration(500)}>
-                            <RecipeCard {...cardProps} style={{ width: 240, marginRight: 16 }} />
-                          </Animated.View>
-                        );
-                      })}
-                    </ScrollView>
+              {/* Simplified Search/Filter Row - Hidden by default, accessible via header icons */}
 
-                    {/* Essential Syrups */}
-                    <SectionHeader
-                      title="Essential Syrups"
-                    />
-                    <ScrollView horizontal nestedScrollEnabled showsHorizontalScrollIndicator={false} style={{ paddingLeft: spacing(2), marginBottom: spacing(2) }}>
-                      {ESSENTIAL_SYRUPS.map((syrup, index) => {
-                        const cardProps = createRecipeCardProps(syrup, navigation, {
-                          toggleSavedCocktail,
-                          isCocktailSaved,
-                          setSelectedRecipe,
-                          setGroceryListVisible,
-                          showToast,
-                          showSaveButton: true,
-                          showCartButton: false,
-                          showDeleteButton: false,
-                        });
-                        return (
-                          <Animated.View
-                            key={syrup.id}
-                            entering={FadeInRight.delay(index * 100).duration(500)}
-                            style={{ width: (width - spacing(2) * 2 - GUTTER) / 2, marginRight: 16 }}
+              {/* Browse All Content */}
+              {viewMode === 'browse' && (
+                <>
+                  {/* Only show featured content when not searching */}
+                  {!searchQuery.trim() && (
+                    <>
+                      {/* What Can I Make — ported from the retired HomeScreen */}
+                      <TouchableOpacity
+                        style={{
+                          width: '100%',
+                          backgroundColor: colors.card,
+                          borderRadius: radii.lg,
+                          borderWidth: 1,
+                          borderColor: colors.gold,
+                          marginHorizontal: spacing(2),
+                          marginTop: spacing(1),
+                          marginBottom: spacing(3),
+                        }}
+                        onPress={() => navigation.navigate('WhatCanIMake')}
+                        activeOpacity={0.82}
+                      >
+                        <View
+                          style={{
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            paddingHorizontal: spacing(2.5),
+                            paddingVertical: spacing(2),
+                          }}
+                        >
+                          <View>
+                            <Text
+                              style={{
+                                fontSize: 11,
+                                fontWeight: '600',
+                                color: colors.gold,
+                                letterSpacing: 1,
+                                textTransform: 'uppercase',
+                                marginBottom: spacing(0.5),
+                              }}
+                            >
+                              Your Bar
+                            </Text>
+                            <Text
+                              style={{
+                                fontSize: 17,
+                                fontWeight: '700',
+                                color: colors.text,
+                                fontFamily: serif,
+                              }}
+                            >
+                              What can I make tonight?
+                            </Text>
+                          </View>
+                          <Ionicons name="chevron-forward" size={20} color={colors.gold} />
+                        </View>
+                      </TouchableOpacity>
+
+                      {/* Tonight's Pick — inventory-aware, all tiers */}
+                      {!tonightsPickLoaded ? (
+                        <>
+                          <SectionHeader title="Tonight's Pick" />
+                          <ScrollView
+                            horizontal
+                            nestedScrollEnabled
+                            showsHorizontalScrollIndicator={false}
+                            style={{ paddingLeft: spacing(2), marginBottom: spacing(2) }}
                           >
-                            <RecipeCard {...cardProps} />
-                          </Animated.View>
-                        );
-                      })}
-                    </ScrollView>
+                            {[0, 1, 2].map((i) => (
+                              <RecipeCardSkeleton key={i} style={{ width: 240, marginRight: 16 }} />
+                            ))}
+                          </ScrollView>
+                        </>
+                      ) : !tonightsPickHasInventory ? (
+                        <>
+                          <SectionHeader title="Tonight's Pick" />
+                          <TouchableOpacity
+                            style={{
+                              width: '100%',
+                              backgroundColor: colors.card,
+                              borderRadius: radii.lg,
+                              borderWidth: 1,
+                              borderColor: colors.gold,
+                              marginHorizontal: spacing(2),
+                              marginBottom: spacing(3),
+                            }}
+                            onPress={() => navigation.navigate('Camera' as any)}
+                            activeOpacity={0.82}
+                          >
+                            <View
+                              style={{
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                paddingHorizontal: spacing(2.5),
+                                paddingVertical: spacing(2),
+                              }}
+                            >
+                              <Text
+                                style={{
+                                  fontSize: 15,
+                                  fontWeight: '600',
+                                  color: colors.text,
+                                  flex: 1,
+                                }}
+                              >
+                                Scan a bottle to unlock Tonight's Pick
+                              </Text>
+                              <Ionicons name="chevron-forward" size={20} color={colors.gold} />
+                            </View>
+                          </TouchableOpacity>
+                        </>
+                      ) : tonightsPick.length > 0 ? (
+                        <>
+                          <SectionHeader title="Tonight's Pick" />
+                          <ScrollView
+                            horizontal
+                            nestedScrollEnabled
+                            showsHorizontalScrollIndicator={false}
+                            style={{ paddingLeft: spacing(2), marginBottom: spacing(2) }}
+                          >
+                            {tonightsPick.map((cocktail, index) => {
+                              const cardProps = createRecipeCardProps(cocktail, navigation, {
+                                toggleSavedCocktail,
+                                isCocktailSaved,
+                                setSelectedRecipe,
+                                setGroceryListVisible,
+                                showToast,
+                                showSaveButton: false,
+                                showCartButton: false,
+                                showDeleteButton: false,
+                              });
+                              return (
+                                <Animated.View
+                                  key={cocktail.id}
+                                  entering={FadeInRight.delay(index * 100).duration(500)}
+                                >
+                                  <RecipeCard
+                                    {...cardProps}
+                                    style={{ width: 240, marginRight: 16 }}
+                                  />
+                                </Animated.View>
+                              );
+                            })}
+                          </ScrollView>
+                        </>
+                      ) : null}
 
-                    {/* My Recipes */}
-                    <SectionHeader
-                      title="My Recipes"
-                      onPress={() => navigation.navigate('ProfileSavedItems' as any)}
-                    />
-                    <ScrollView horizontal nestedScrollEnabled showsHorizontalScrollIndicator={false} style={{ paddingLeft: spacing(2), marginBottom: spacing(2) }}>
-                      {userRecipes.length > 0 ? (
-                        userRecipes.slice(0, 5).map((recipe, index) => {
-                          const firstAmount = recipe.ingredients?.[0]?.amount?.trim?.() || '';
-                          const amountLabel = firstAmount
-                            ? /\b(oz|ml|dash|dashes|tsp|tbsp|cl|cup|part|parts)\b/i.test(firstAmount)
-                              ? firstAmount
-                              : `${firstAmount} oz`
-                            : '';
-                          // Convert UserRecipe to cocktail format for createRecipeCardProps
-                          const cocktailData = {
-                            id: recipe.id,
-                            name: recipe.name,
-                            subtitle: amountLabel
-                              ? `${amountLabel} • ${recipe.type === 'ai_generated' ? 'AI Generated' : recipe.type === 'modified' ? 'Modified Recipe' : 'My Creation'}`
-                              : recipe.type === 'ai_generated' ? 'AI Generated' : recipe.type === 'modified' ? 'Modified Recipe' : 'My Creation',
-                            description: recipe.description || 'Custom recipe',
-                            image: recipe.thumbnailImage || recipe.headerImage || recipe.image || 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=240&h=160&fit=crop',
-                            tags: recipe.tags || [],
-                          };
+                      {/* Cocktail of the Week */}
+                      <View style={{ marginTop: spacing(1) }}>
+                        <HeroCard
+                          cocktail={COCKTAIL_OF_THE_WEEK}
+                          onPress={withHaptic(() =>
+                            navigation.navigate('CocktailDetail', {
+                              cocktailId: COCKTAIL_OF_THE_WEEK.id,
+                            }),
+                          )}
+                        />
+                      </View>
 
-                          const cardProps = createRecipeCardProps(cocktailData, navigation, {
+                      {/* Shots */}
+                      <SectionHeader
+                        title="Shots"
+                        onPress={() => {
+                          // Ensure we only pass string IDs
+                          const shotIds = ALL_SHOTS.map((shot) => shot.id).filter(
+                            (id) => typeof id === 'string',
+                          );
+                          bringToPartyGate('T8', () => {
+                            navigation.navigate('CocktailList', {
+                              title: 'Shots',
+                              cocktailIds: shotIds,
+                              category: 'shots',
+                            });
+                          });
+                        }}
+                      />
+                      <ScrollView
+                        horizontal
+                        nestedScrollEnabled
+                        showsHorizontalScrollIndicator={false}
+                        style={{ paddingLeft: spacing(2), marginBottom: spacing(2) }}
+                      >
+                        {PARTY_SHOTS?.slice(0, 5).map((shot, index) => {
+                          const cardProps = createRecipeCardProps(shot, navigation, {
                             toggleSavedCocktail,
                             isCocktailSaved,
                             setSelectedRecipe,
@@ -2791,224 +3214,236 @@ export default function RecipesScreen() {
                             showCartButton: false,
                             showDeleteButton: false,
                           });
-
-                          // Keep user-created recipes on the unified CocktailDetail template
-                          cardProps.onPress = () => {
-                            navigation.navigate('CocktailDetail', { cocktailId: recipe.id, cocktail: recipe } as any);
-                          };
-
                           return (
-                            <Animated.View key={recipe.id} entering={FadeInRight.delay(index * 100).duration(500)}>
+                            <Animated.View
+                              key={shot.id}
+                              entering={FadeInRight.delay(index * 100).duration(500)}
+                            >
                               <RecipeCard {...cardProps} style={{ width: 240, marginRight: 16 }} />
                             </Animated.View>
                           );
-                        })
-                      ) : (
-                        <Pressable
-                          style={{
-                            width: 240,
-                            height: 160,
-                            marginRight: 16,
-                            backgroundColor: colors.card,
-                            borderRadius: radii.lg,
-                            justifyContent: 'center',
-                            alignItems: 'center',
-                            borderWidth: 2,
-                            borderColor: colors.border,
-                            borderStyle: 'dashed'
-                          }}
-                          onPress={withHaptic(() => navigation.navigate('AddRecipe'))}
-                        >
-                          <Ionicons name="add-circle-outline" size={32} color={colors.muted} />
-                          <Text style={{ color: colors.muted, marginTop: 8, textAlign: 'center' }}>
-                            Create your first{'\n'}custom recipe
-                          </Text>
-                        </Pressable>
-                      )}
-                    </ScrollView>
+                        })}
+                      </ScrollView>
 
-
-
-
-
-
-
-
-
-
-                  </>
-                )}
-              </>
-            )}
-
-            {/* Personalized Feed - For You View */}
-            {viewMode === 'personalized' && (
-              <ForYouFeed
-                onCocktailPress={handleCocktailPress}
-                onSaveCocktail={handleSaveRecipe}
-                onAddToCart={handleAddToGroceryList}
-                savedRecipeIds={savedRecipeIds}
-                onRefineProfile={() => flavorControlsGate('T12', () => navigation.navigate('RefineYourTaste'))}
-              />
-            )}
-
-            {/* All Cocktails Header - Browse mode only (search has its own full-screen overlay) */}
-            {(!showSearchInput && viewMode === 'browse') && (
-              <View style={{
-                marginHorizontal: spacing(2),
-                marginTop: spacing(2),
-                marginBottom: spacing(1.5)
-              }}>
-                <Text style={{
-                  color: colors.text,
-                  fontSize: 24,
-                  fontWeight: '900',
-                  marginBottom: spacing(1.5)
-                }}>
-                  All Cocktails
-                </Text>
-
-                {/* Horizontal Filter Buttons */}
-                {!searchQuery.trim() && !showSearchInput && (
-                  <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={{ gap: spacing(1) }}
-                  >
-                    <Pressable
-                      onPress={withHaptic(() => setShowSearchInput(true), 'selection')}
-                      style={{
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        backgroundColor: colors.bg,
-                        paddingHorizontal: spacing(2),
-                        paddingVertical: spacing(1),
-                        borderRadius: radii.pill,
-                        borderWidth: 1,
-                        borderColor: colors.line
-                      }}
-                    >
-                      <Ionicons name="search" size={16} color={colors.accent} style={{ marginRight: spacing(0.5) }} />
-                      <Text style={{
-                        color: colors.text,
-                        fontSize: 14,
-                        fontWeight: '600'
-                      }}>
-                        Search
-                      </Text>
-                    </Pressable>
-
-                    <Pressable
-                      onPress={withHaptic(() => setShowBasicFilterModal(true), 'selection')}
-                      style={{
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        backgroundColor: colors.bg,
-                        paddingHorizontal: spacing(2),
-                        paddingVertical: spacing(1),
-                        borderRadius: radii.pill,
-                        borderWidth: 1,
-                        borderColor: colors.line
-                      }}
-                    >
-                      <Ionicons name="filter" size={16} color={colors.accent} style={{ marginRight: spacing(0.5) }} />
-                      <Text style={{
-                        color: colors.text,
-                        fontSize: 14,
-                        fontWeight: '600'
-                      }}>
-                        Basic Filter
-                      </Text>
-                    </Pressable>
-
-                    <Pressable
-                      onPress={withHaptic(() => advancedFilterGate('T2', () => setShowAdvancedFilterModal(true)), 'selection')}
-                      style={{
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        backgroundColor: colors.bg,
-                        paddingHorizontal: spacing(2),
-                        paddingVertical: spacing(1),
-                        borderRadius: radii.pill,
-                        borderWidth: 1,
-                        borderColor: colors.line
-                      }}
-                    >
-                      <Ionicons
-                        name={tier === 'FREE' ? 'lock-closed' : 'options'}
-                        size={16}
-                        color={colors.accent}
-                        style={{ marginRight: spacing(0.5) }}
-                      />
-                      <Text style={{
-                        color: colors.text,
-                        fontSize: 14,
-                        fontWeight: '600'
-                      }}>
-                        Advanced
-                      </Text>
-                    </Pressable>
-
-                    <Pressable
-                      onPress={withHaptic(() => setBrowseQuickFilter(prev => prev === 'variations' ? 'all' : 'variations'), 'selection')}
-                      style={{
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        backgroundColor: browseQuickFilter === 'variations' ? colors.gold : colors.bg,
-                        paddingHorizontal: spacing(2),
-                        paddingVertical: spacing(1),
-                        borderRadius: radii.pill,
-                        borderWidth: 1,
-                        borderColor: browseQuickFilter === 'variations' ? colors.gold : colors.line
-                      }}
-                    >
-                      <Ionicons
-                        name={browseQuickFilter === 'variations' ? 'sparkles' : 'sparkles-outline'}
-                        size={16}
-                        color={browseQuickFilter === 'variations' ? colors.bg : colors.accent}
-                        style={{ marginRight: spacing(0.5) }}
-                      />
-                      <Text style={{
-                        color: browseQuickFilter === 'variations' ? colors.bg : colors.text,
-                        fontSize: 14,
-                        fontWeight: '600'
-                      }}>
-                        Variation{discoverVariationRecipes.length > 0 ? ` (${discoverVariationRecipes.length})` : ''}
-                      </Text>
-                    </Pressable>
-
-                    {tier === 'FREE' && (
-                      <Pressable
-                        onPress={withHaptic(() => setShowOnlyUnlocked(!showOnlyUnlocked), 'selection')}
-                        style={{
-                          flexDirection: 'row',
-                          alignItems: 'center',
-                          backgroundColor: showOnlyUnlocked ? colors.accent : colors.bg,
-                          paddingHorizontal: spacing(2),
-                          paddingVertical: spacing(1),
-                          borderRadius: radii.pill,
-                          borderWidth: 1,
-                          borderColor: showOnlyUnlocked ? colors.accent : colors.line
+                      {/* Mocktails */}
+                      <SectionHeader
+                        title="Mocktails"
+                        onPress={() => {
+                          navigation.navigate('CocktailList', {
+                            title: 'Mocktails',
+                            cocktailIds: ALL_MOCKTAILS.map((recipe) => recipe.id),
+                            category: 'mocktails',
+                          });
                         }}
-                      >
-                        <Ionicons
-                          name={showOnlyUnlocked ? "checkmark-circle" : "lock-open"}
-                          size={16}
-                          color={showOnlyUnlocked ? colors.white : colors.accent}
-                          style={{ marginRight: spacing(0.5) }}
-                        />
-                        <Text style={{
-                          color: showOnlyUnlocked ? colors.white : colors.text,
-                          fontSize: 14,
-                          fontWeight: '600'
-                        }}>
-                          Unlocked
-                        </Text>
-                      </Pressable>
-                    )}
+                      />
 
-                    {tier === 'FREE' && (
-                      <View
+                      {/* Mocktails Horizontal Scroll Preview */}
+                      <ScrollView
+                        horizontal
+                        nestedScrollEnabled
+                        showsHorizontalScrollIndicator={false}
+                        style={{ paddingLeft: spacing(2), marginBottom: spacing(2) }}
+                      >
+                        {ALL_MOCKTAILS.slice(0, 6).map((mocktail, index) => {
+                          const cardProps = createRecipeCardProps(mocktail, navigation, {
+                            toggleSavedCocktail,
+                            isCocktailSaved,
+                            setSelectedRecipe,
+                            setGroceryListVisible,
+                            showToast,
+                            showSaveButton: false,
+                            showCartButton: false,
+                            showDeleteButton: false,
+                          });
+                          return (
+                            <Animated.View
+                              key={mocktail.id}
+                              entering={FadeInRight.delay(index * 100).duration(500)}
+                            >
+                              <RecipeCard {...cardProps} style={{ width: 240, marginRight: 16 }} />
+                            </Animated.View>
+                          );
+                        })}
+                      </ScrollView>
+
+                      {/* Essential Syrups */}
+                      <SectionHeader title="Essential Syrups" />
+                      <ScrollView
+                        horizontal
+                        nestedScrollEnabled
+                        showsHorizontalScrollIndicator={false}
+                        style={{ paddingLeft: spacing(2), marginBottom: spacing(2) }}
+                      >
+                        {ESSENTIAL_SYRUPS.map((syrup, index) => {
+                          const cardProps = createRecipeCardProps(syrup, navigation, {
+                            toggleSavedCocktail,
+                            isCocktailSaved,
+                            setSelectedRecipe,
+                            setGroceryListVisible,
+                            showToast,
+                            showSaveButton: true,
+                            showCartButton: false,
+                            showDeleteButton: false,
+                          });
+                          return (
+                            <Animated.View
+                              key={syrup.id}
+                              entering={FadeInRight.delay(index * 100).duration(500)}
+                              style={{
+                                width: (width - spacing(2) * 2 - GUTTER) / 2,
+                                marginRight: 16,
+                              }}
+                            >
+                              <RecipeCard {...cardProps} />
+                            </Animated.View>
+                          );
+                        })}
+                      </ScrollView>
+
+                      {/* My Recipes */}
+                      <SectionHeader
+                        title="My Recipes"
+                        onPress={() => navigation.navigate('ProfileSavedItems' as any)}
+                      />
+                      <ScrollView
+                        horizontal
+                        nestedScrollEnabled
+                        showsHorizontalScrollIndicator={false}
+                        style={{ paddingLeft: spacing(2), marginBottom: spacing(2) }}
+                      >
+                        {userRecipes.length > 0 ? (
+                          userRecipes.slice(0, 5).map((recipe, index) => {
+                            const firstAmount = recipe.ingredients?.[0]?.amount?.trim?.() || '';
+                            const amountLabel = firstAmount
+                              ? /\b(oz|ml|dash|dashes|tsp|tbsp|cl|cup|part|parts)\b/i.test(
+                                  firstAmount,
+                                )
+                                ? firstAmount
+                                : `${firstAmount} oz`
+                              : '';
+                            // Convert UserRecipe to cocktail format for createRecipeCardProps
+                            const cocktailData = {
+                              id: recipe.id,
+                              name: recipe.name,
+                              subtitle: amountLabel
+                                ? `${amountLabel} • ${recipe.type === 'ai_generated' ? 'AI Generated' : recipe.type === 'modified' ? 'Modified Recipe' : 'My Creation'}`
+                                : recipe.type === 'ai_generated'
+                                  ? 'AI Generated'
+                                  : recipe.type === 'modified'
+                                    ? 'Modified Recipe'
+                                    : 'My Creation',
+                              description: recipe.description || 'Custom recipe',
+                              image:
+                                recipe.thumbnailImage ||
+                                recipe.headerImage ||
+                                recipe.image ||
+                                'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=240&h=160&fit=crop',
+                              tags: recipe.tags || [],
+                            };
+
+                            const cardProps = createRecipeCardProps(cocktailData, navigation, {
+                              toggleSavedCocktail,
+                              isCocktailSaved,
+                              setSelectedRecipe,
+                              setGroceryListVisible,
+                              showToast,
+                              showSaveButton: false,
+                              showCartButton: false,
+                              showDeleteButton: false,
+                            });
+
+                            // Keep user-created recipes on the unified CocktailDetail template
+                            cardProps.onPress = () => {
+                              navigation.navigate('CocktailDetail', {
+                                cocktailId: recipe.id,
+                                cocktail: recipe,
+                              } as any);
+                            };
+
+                            return (
+                              <Animated.View
+                                key={recipe.id}
+                                entering={FadeInRight.delay(index * 100).duration(500)}
+                              >
+                                <RecipeCard
+                                  {...cardProps}
+                                  style={{ width: 240, marginRight: 16 }}
+                                />
+                              </Animated.View>
+                            );
+                          })
+                        ) : (
+                          <Pressable
+                            style={{
+                              width: 240,
+                              height: 160,
+                              marginRight: 16,
+                              backgroundColor: colors.card,
+                              borderRadius: radii.lg,
+                              justifyContent: 'center',
+                              alignItems: 'center',
+                              borderWidth: 2,
+                              borderColor: colors.border,
+                              borderStyle: 'dashed',
+                            }}
+                            onPress={withHaptic(() => navigation.navigate('AddRecipe'))}
+                          >
+                            <Ionicons name="add-circle-outline" size={32} color={colors.muted} />
+                            <Text
+                              style={{ color: colors.muted, marginTop: 8, textAlign: 'center' }}
+                            >
+                              Create your first{'\n'}custom recipe
+                            </Text>
+                          </Pressable>
+                        )}
+                      </ScrollView>
+                    </>
+                  )}
+                </>
+              )}
+
+              {/* Personalized Feed - For You View */}
+              {viewMode === 'personalized' && (
+                <ForYouFeed
+                  onCocktailPress={handleCocktailPress}
+                  onSaveCocktail={handleSaveRecipe}
+                  onAddToCart={handleAddToGroceryList}
+                  savedRecipeIds={savedRecipeIds}
+                  onRefineProfile={() =>
+                    flavorControlsGate('T12', () => navigation.navigate('RefineYourTaste'))
+                  }
+                />
+              )}
+
+              {/* All Cocktails Header - Browse mode only (search has its own full-screen overlay) */}
+              {!showSearchInput && viewMode === 'browse' && (
+                <View
+                  style={{
+                    marginHorizontal: spacing(2),
+                    marginTop: spacing(2),
+                    marginBottom: spacing(1.5),
+                  }}
+                >
+                  <Text
+                    style={{
+                      color: colors.text,
+                      fontSize: 24,
+                      fontWeight: '900',
+                      marginBottom: spacing(1.5),
+                    }}
+                  >
+                    All Cocktails
+                  </Text>
+
+                  {/* Horizontal Filter Buttons */}
+                  {!searchQuery.trim() && !showSearchInput && (
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      contentContainerStyle={{ gap: spacing(1) }}
+                    >
+                      <Pressable
+                        onPress={withHaptic(() => setShowSearchInput(true), 'selection')}
                         style={{
                           flexDirection: 'row',
                           alignItems: 'center',
@@ -3017,233 +3452,535 @@ export default function RecipesScreen() {
                           paddingVertical: spacing(1),
                           borderRadius: radii.pill,
                           borderWidth: 1,
-                          borderColor: colors.line
+                          borderColor: colors.line,
                         }}
                       >
                         <Ionicons
-                          name="bookmark-outline"
+                          name="search"
                           size={16}
                           color={colors.accent}
                           style={{ marginRight: spacing(0.5) }}
                         />
-                        <Text style={{
-                          color: colors.text,
-                          fontSize: 14,
-                          fontWeight: '600'
-                        }}>
-                          Saves {savedCocktailCount}/{FREE_RECIPE_LIMIT}
+                        <Text
+                          style={{
+                            color: colors.text,
+                            fontSize: 14,
+                            fontWeight: '600',
+                          }}
+                        >
+                          Search
                         </Text>
+                      </Pressable>
+
+                      <Pressable
+                        onPress={withHaptic(() => setShowBasicFilterModal(true), 'selection')}
+                        style={{
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          backgroundColor: colors.bg,
+                          paddingHorizontal: spacing(2),
+                          paddingVertical: spacing(1),
+                          borderRadius: radii.pill,
+                          borderWidth: 1,
+                          borderColor: colors.line,
+                        }}
+                      >
+                        <Ionicons
+                          name="filter"
+                          size={16}
+                          color={colors.accent}
+                          style={{ marginRight: spacing(0.5) }}
+                        />
+                        <Text
+                          style={{
+                            color: colors.text,
+                            fontSize: 14,
+                            fontWeight: '600',
+                          }}
+                        >
+                          Basic Filter
+                        </Text>
+                      </Pressable>
+
+                      <Pressable
+                        onPress={withHaptic(
+                          () => advancedFilterGate('T2', () => setShowAdvancedFilterModal(true)),
+                          'selection',
+                        )}
+                        style={{
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          backgroundColor: colors.bg,
+                          paddingHorizontal: spacing(2),
+                          paddingVertical: spacing(1),
+                          borderRadius: radii.pill,
+                          borderWidth: 1,
+                          borderColor: colors.line,
+                        }}
+                      >
+                        <Ionicons
+                          name={tier === 'FREE' ? 'lock-closed' : 'options'}
+                          size={16}
+                          color={colors.accent}
+                          style={{ marginRight: spacing(0.5) }}
+                        />
+                        <Text
+                          style={{
+                            color: colors.text,
+                            fontSize: 14,
+                            fontWeight: '600',
+                          }}
+                        >
+                          Advanced
+                        </Text>
+                      </Pressable>
+
+                      <Pressable
+                        onPress={withHaptic(
+                          () =>
+                            setBrowseQuickFilter((prev) =>
+                              prev === 'variations' ? 'all' : 'variations',
+                            ),
+                          'selection',
+                        )}
+                        style={{
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          backgroundColor:
+                            browseQuickFilter === 'variations' ? colors.gold : colors.bg,
+                          paddingHorizontal: spacing(2),
+                          paddingVertical: spacing(1),
+                          borderRadius: radii.pill,
+                          borderWidth: 1,
+                          borderColor:
+                            browseQuickFilter === 'variations' ? colors.gold : colors.line,
+                        }}
+                      >
+                        <Ionicons
+                          name={
+                            browseQuickFilter === 'variations' ? 'sparkles' : 'sparkles-outline'
+                          }
+                          size={16}
+                          color={browseQuickFilter === 'variations' ? colors.bg : colors.accent}
+                          style={{ marginRight: spacing(0.5) }}
+                        />
+                        <Text
+                          style={{
+                            color: browseQuickFilter === 'variations' ? colors.bg : colors.text,
+                            fontSize: 14,
+                            fontWeight: '600',
+                          }}
+                        >
+                          Variation
+                          {discoverVariationRecipes.length > 0
+                            ? ` (${discoverVariationRecipes.length})`
+                            : ''}
+                        </Text>
+                      </Pressable>
+
+                      {tier === 'FREE' && (
+                        <Pressable
+                          onPress={withHaptic(
+                            () => setShowOnlyUnlocked(!showOnlyUnlocked),
+                            'selection',
+                          )}
+                          style={{
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            backgroundColor: showOnlyUnlocked ? colors.accent : colors.bg,
+                            paddingHorizontal: spacing(2),
+                            paddingVertical: spacing(1),
+                            borderRadius: radii.pill,
+                            borderWidth: 1,
+                            borderColor: showOnlyUnlocked ? colors.accent : colors.line,
+                          }}
+                        >
+                          <Ionicons
+                            name={showOnlyUnlocked ? 'checkmark-circle' : 'lock-open'}
+                            size={16}
+                            color={showOnlyUnlocked ? colors.white : colors.accent}
+                            style={{ marginRight: spacing(0.5) }}
+                          />
+                          <Text
+                            style={{
+                              color: showOnlyUnlocked ? colors.white : colors.text,
+                              fontSize: 14,
+                              fontWeight: '600',
+                            }}
+                          >
+                            Unlocked
+                          </Text>
+                        </Pressable>
+                      )}
+
+                      {tier === 'FREE' && (
+                        <View
+                          style={{
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            backgroundColor: colors.bg,
+                            paddingHorizontal: spacing(2),
+                            paddingVertical: spacing(1),
+                            borderRadius: radii.pill,
+                            borderWidth: 1,
+                            borderColor: colors.line,
+                          }}
+                        >
+                          <Ionicons
+                            name="bookmark-outline"
+                            size={16}
+                            color={colors.accent}
+                            style={{ marginRight: spacing(0.5) }}
+                          />
+                          <Text
+                            style={{
+                              color: colors.text,
+                              fontSize: 14,
+                              fontWeight: '600',
+                            }}
+                          >
+                            Saves {savedCocktailCount}/{FREE_RECIPE_LIMIT}
+                          </Text>
+                        </View>
+                      )}
+                    </ScrollView>
+                  )}
+                </View>
+              )}
+
+              {/* Advanced Filter Modal */}
+              <Modal
+                visible={showAdvancedFilterModal}
+                animationType="slide"
+                transparent
+                onRequestClose={() => setShowAdvancedFilterModal(false)}
+              >
+                <Pressable
+                  style={afStyles.backdrop}
+                  onPress={() => setShowAdvancedFilterModal(false)}
+                />
+                <SafeAreaViewContext style={afStyles.container} edges={['bottom']}>
+                  {/* Drag handle */}
+                  <View style={afStyles.handle} />
+
+                  {/* Header */}
+                  <View style={afStyles.header}>
+                    <Text style={afStyles.headerTitle}>Advanced Filters</Text>
+                    <Pressable
+                      onPress={() => setShowAdvancedFilterModal(false)}
+                      style={afStyles.closeBtn}
+                      hitSlop={8}
+                    >
+                      <Ionicons name="close" size={18} color={colors.text} />
+                    </Pressable>
+                  </View>
+
+                  <ScrollView
+                    style={afStyles.scroll}
+                    showsVerticalScrollIndicator={false}
+                    contentContainerStyle={afStyles.scrollContent}
+                  >
+                    {/* Spirit */}
+                    <View style={afStyles.section}>
+                      <View style={afStyles.sectionHead}>
+                        <Text style={afStyles.sectionLabel}>SPIRIT</Text>
+                        <View style={afStyles.sectionRule} />
                       </View>
-                    )}
+                      <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        contentContainerStyle={afStyles.pillRow}
+                      >
+                        {[
+                          'All',
+                          'Brandy',
+                          'Cognac',
+                          'Gin',
+                          'Mezcal',
+                          'Rum',
+                          'Tequila',
+                          'Vodka',
+                          'Whiskey',
+                        ].map((spirit) => {
+                          const isSelected =
+                            currentFilters.ingredients?.includes(spirit.toLowerCase()) ||
+                            (spirit === 'All' && !currentFilters.ingredients?.length);
+                          return (
+                            <Pressable
+                              key={spirit}
+                              onPress={() => {
+                                if (spirit === 'All') {
+                                  setCurrentFilters({ ...currentFilters, ingredients: [] });
+                                } else {
+                                  const ingredients = currentFilters.ingredients || [];
+                                  const newIngredients = ingredients.includes(spirit.toLowerCase())
+                                    ? ingredients.filter((i) => i !== spirit.toLowerCase())
+                                    : [spirit.toLowerCase()];
+                                  setCurrentFilters({
+                                    ...currentFilters,
+                                    ingredients: newIngredients,
+                                  });
+                                }
+                              }}
+                              style={[afStyles.pill, isSelected && afStyles.pillSelected]}
+                            >
+                              <Text
+                                style={[afStyles.pillText, isSelected && afStyles.pillTextSelected]}
+                              >
+                                {spirit}
+                              </Text>
+                            </Pressable>
+                          );
+                        })}
+                      </ScrollView>
+                    </View>
+
+                    {/* Difficulty */}
+                    <View style={afStyles.section}>
+                      <View style={afStyles.sectionHead}>
+                        <Text style={afStyles.sectionLabel}>DIFFICULTY</Text>
+                        <View style={afStyles.sectionRule} />
+                      </View>
+                      <View style={afStyles.pillWrap}>
+                        {['All', 'Easy', 'Medium', 'Hard'].map((difficulty) => {
+                          const isSelected =
+                            currentFilters.difficulty?.includes(difficulty.toLowerCase()) ||
+                            (difficulty === 'All' && !currentFilters.difficulty?.length);
+                          return (
+                            <Pressable
+                              key={difficulty}
+                              onPress={() => {
+                                if (difficulty === 'All') {
+                                  setCurrentFilters({ ...currentFilters, difficulty: [] });
+                                } else {
+                                  const difficulties = currentFilters.difficulty || [];
+                                  const newDifficulties = difficulties.includes(
+                                    difficulty.toLowerCase(),
+                                  )
+                                    ? difficulties.filter((d) => d !== difficulty.toLowerCase())
+                                    : [difficulty.toLowerCase()];
+                                  setCurrentFilters({
+                                    ...currentFilters,
+                                    difficulty: newDifficulties,
+                                  });
+                                }
+                              }}
+                              style={[afStyles.pill, isSelected && afStyles.pillSelected]}
+                            >
+                              <Text
+                                style={[afStyles.pillText, isSelected && afStyles.pillTextSelected]}
+                              >
+                                {difficulty}
+                              </Text>
+                            </Pressable>
+                          );
+                        })}
+                      </View>
+                    </View>
+
+                    {/* Category */}
+                    <View style={afStyles.section}>
+                      <View style={afStyles.sectionHead}>
+                        <Text style={afStyles.sectionLabel}>CATEGORY</Text>
+                        <View style={afStyles.sectionRule} />
+                      </View>
+                      <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        contentContainerStyle={afStyles.pillRow}
+                      >
+                        {[
+                          'All',
+                          'Variations',
+                          'Bitter',
+                          'Classic',
+                          'Coffee',
+                          'Creamy',
+                          'Fizzy',
+                          'Fruity',
+                          'Herbal',
+                          'Italian',
+                          'Minty',
+                          'Mocktails',
+                          'Modern',
+                          'Refreshing',
+                          'Shots',
+                          'Sour',
+                          'Spicy',
+                          'Sweet',
+                          'Tiki',
+                          'Tropical',
+                        ].map((category) => {
+                          const isSelected =
+                            currentFilters.category?.includes(category.toLowerCase()) ||
+                            (category === 'All' && !currentFilters.category?.length);
+                          return (
+                            <Pressable
+                              key={category}
+                              onPress={() => {
+                                if (category === 'All') {
+                                  setCurrentFilters({ ...currentFilters, category: [] });
+                                } else {
+                                  const categories = currentFilters.category || [];
+                                  const newCategories = categories.includes(category.toLowerCase())
+                                    ? categories.filter((c) => c !== category.toLowerCase())
+                                    : [category.toLowerCase()];
+                                  setCurrentFilters({ ...currentFilters, category: newCategories });
+                                }
+                              }}
+                              style={[afStyles.pill, isSelected && afStyles.pillSelected]}
+                            >
+                              <Text
+                                style={[afStyles.pillText, isSelected && afStyles.pillTextSelected]}
+                              >
+                                {category}
+                              </Text>
+                            </Pressable>
+                          );
+                        })}
+                      </ScrollView>
+                    </View>
+
+                    {/* Moods */}
+                    <View style={afStyles.section}>
+                      <View style={afStyles.sectionHead}>
+                        <Text style={afStyles.sectionLabel}>YOUR MOODS</Text>
+                        <View style={afStyles.sectionRule} />
+                      </View>
+                      <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        contentContainerStyle={afStyles.pillRow}
+                      >
+                        {[
+                          'All',
+                          'Bold & Serious',
+                          'Romantic & Elegant',
+                          'Fun & Playful',
+                          'Adventurous & Exotic',
+                          'Chill & Refreshing',
+                          'Cozy & Warm',
+                        ].map((mood) => {
+                          const isSelected =
+                            currentFilters.mood?.includes(mood) ||
+                            (mood === 'All' && !currentFilters.mood?.length);
+                          return (
+                            <Pressable
+                              key={mood}
+                              onPress={() => {
+                                if (mood === 'All') {
+                                  setCurrentFilters({ ...currentFilters, mood: [] });
+                                } else {
+                                  const moods = currentFilters.mood || [];
+                                  const newMoods = moods.includes(mood)
+                                    ? moods.filter((m) => m !== mood)
+                                    : [mood];
+                                  setCurrentFilters({ ...currentFilters, mood: newMoods });
+                                }
+                              }}
+                              style={[afStyles.pill, isSelected && afStyles.pillSelected]}
+                            >
+                              <Text
+                                style={[afStyles.pillText, isSelected && afStyles.pillTextSelected]}
+                              >
+                                {mood}
+                              </Text>
+                            </Pressable>
+                          );
+                        })}
+                      </ScrollView>
+                    </View>
+
+                    {/* Sort By */}
+                    <View style={afStyles.section}>
+                      <View style={afStyles.sectionHead}>
+                        <Text style={afStyles.sectionLabel}>SORT BY</Text>
+                        <View style={afStyles.sectionRule} />
+                      </View>
+                      <View style={afStyles.pillWrap}>
+                        {[
+                          ...(tier !== 'FREE'
+                            ? [
+                                {
+                                  label: 'Matches Your Taste',
+                                  value: 'taste-match',
+                                  icon: 'star-outline' as const,
+                                },
+                              ]
+                            : []),
+                          {
+                            label: 'A → Z',
+                            value: 'alphabetical-asc',
+                            icon: 'arrow-up-outline' as const,
+                          },
+                          {
+                            label: 'Z → A',
+                            value: 'alphabetical-desc',
+                            icon: 'arrow-down-outline' as const,
+                          },
+                          {
+                            label: 'Rating ↑',
+                            value: 'rating-desc',
+                            icon: 'trending-up-outline' as const,
+                          },
+                          {
+                            label: 'Rating ↓',
+                            value: 'rating-asc',
+                            icon: 'trending-down-outline' as const,
+                          },
+                        ].map((sortOption) => {
+                          const isSelected = currentFilters.sortOrder === sortOption.value;
+                          return (
+                            <Pressable
+                              key={sortOption.value}
+                              onPress={() => {
+                                setCurrentFilters({
+                                  ...currentFilters,
+                                  sortOrder: isSelected
+                                    ? undefined
+                                    : (sortOption.value as FilterOptions['sortOrder']),
+                                });
+                              }}
+                              style={[afStyles.pill, isSelected && afStyles.pillSelected]}
+                            >
+                              <Ionicons
+                                name={sortOption.icon}
+                                size={12}
+                                color={isSelected ? colors.goldText : colors.subtext}
+                                style={{ marginRight: 4 }}
+                              />
+                              <Text
+                                style={[afStyles.pillText, isSelected && afStyles.pillTextSelected]}
+                              >
+                                {sortOption.label}
+                              </Text>
+                            </Pressable>
+                          );
+                        })}
+                      </View>
+                    </View>
+
+                    {/* Clear All */}
+                    <Pressable
+                      style={afStyles.clearBtn}
+                      onPress={() => setCurrentFilters({ sortOrder: 'alphabetical-asc' })}
+                    >
+                      <Text style={afStyles.clearBtnText}>Clear All Filters</Text>
+                    </Pressable>
                   </ScrollView>
-                )}
-              </View>
-            )}
 
-            {/* Advanced Filter Modal */}
-            <Modal
-              visible={showAdvancedFilterModal}
-              animationType="slide"
-              transparent
-              onRequestClose={() => setShowAdvancedFilterModal(false)}
-            >
-              <Pressable style={afStyles.backdrop} onPress={() => setShowAdvancedFilterModal(false)} />
-              <SafeAreaViewContext style={afStyles.container} edges={['bottom']}>
-                {/* Drag handle */}
-                <View style={afStyles.handle} />
-
-                {/* Header */}
-                <View style={afStyles.header}>
-                  <Text style={afStyles.headerTitle}>Advanced Filters</Text>
-                  <Pressable onPress={() => setShowAdvancedFilterModal(false)} style={afStyles.closeBtn} hitSlop={8}>
-                    <Ionicons name="close" size={18} color={colors.text} />
-                  </Pressable>
-                </View>
-
-                <ScrollView style={afStyles.scroll} showsVerticalScrollIndicator={false} contentContainerStyle={afStyles.scrollContent}>
-
-                  {/* Spirit */}
-                  <View style={afStyles.section}>
-                    <View style={afStyles.sectionHead}>
-                      <Text style={afStyles.sectionLabel}>SPIRIT</Text>
-                      <View style={afStyles.sectionRule} />
-                    </View>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={afStyles.pillRow}>
-                      {['All', 'Brandy', 'Cognac', 'Gin', 'Mezcal', 'Rum', 'Tequila', 'Vodka', 'Whiskey'].map((spirit) => {
-                        const isSelected = currentFilters.ingredients?.includes(spirit.toLowerCase()) || (spirit === 'All' && !currentFilters.ingredients?.length);
-                        return (
-                          <Pressable
-                            key={spirit}
-                            onPress={() => {
-                              if (spirit === 'All') {
-                                setCurrentFilters({ ...currentFilters, ingredients: [] });
-                              } else {
-                                const ingredients = currentFilters.ingredients || [];
-                                const newIngredients = ingredients.includes(spirit.toLowerCase())
-                                  ? ingredients.filter(i => i !== spirit.toLowerCase())
-                                  : [spirit.toLowerCase()];
-                                setCurrentFilters({ ...currentFilters, ingredients: newIngredients });
-                              }
-                            }}
-                            style={[afStyles.pill, isSelected && afStyles.pillSelected]}
-                          >
-                            <Text style={[afStyles.pillText, isSelected && afStyles.pillTextSelected]}>{spirit}</Text>
-                          </Pressable>
-                        );
-                      })}
-                    </ScrollView>
+                  {/* Apply */}
+                  <View style={afStyles.footer}>
+                    <Pressable
+                      style={afStyles.applyBtn}
+                      onPress={() => setShowAdvancedFilterModal(false)}
+                    >
+                      <Text style={afStyles.applyBtnText}>Apply Filters</Text>
+                    </Pressable>
                   </View>
-
-                  {/* Difficulty */}
-                  <View style={afStyles.section}>
-                    <View style={afStyles.sectionHead}>
-                      <Text style={afStyles.sectionLabel}>DIFFICULTY</Text>
-                      <View style={afStyles.sectionRule} />
-                    </View>
-                    <View style={afStyles.pillWrap}>
-                      {['All', 'Easy', 'Medium', 'Hard'].map((difficulty) => {
-                        const isSelected = currentFilters.difficulty?.includes(difficulty.toLowerCase()) || (difficulty === 'All' && !currentFilters.difficulty?.length);
-                        return (
-                          <Pressable
-                            key={difficulty}
-                            onPress={() => {
-                              if (difficulty === 'All') {
-                                setCurrentFilters({ ...currentFilters, difficulty: [] });
-                              } else {
-                                const difficulties = currentFilters.difficulty || [];
-                                const newDifficulties = difficulties.includes(difficulty.toLowerCase())
-                                  ? difficulties.filter(d => d !== difficulty.toLowerCase())
-                                  : [difficulty.toLowerCase()];
-                                setCurrentFilters({ ...currentFilters, difficulty: newDifficulties });
-                              }
-                            }}
-                            style={[afStyles.pill, isSelected && afStyles.pillSelected]}
-                          >
-                            <Text style={[afStyles.pillText, isSelected && afStyles.pillTextSelected]}>{difficulty}</Text>
-                          </Pressable>
-                        );
-                      })}
-                    </View>
-                  </View>
-
-                  {/* Category */}
-                  <View style={afStyles.section}>
-                    <View style={afStyles.sectionHead}>
-                      <Text style={afStyles.sectionLabel}>CATEGORY</Text>
-                      <View style={afStyles.sectionRule} />
-                    </View>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={afStyles.pillRow}>
-                      {['All', 'Variations', 'Bitter', 'Classic', 'Coffee', 'Creamy', 'Fizzy', 'Fruity', 'Herbal', 'Italian', 'Minty', 'Mocktails', 'Modern', 'Refreshing', 'Shots', 'Sour', 'Spicy', 'Sweet', 'Tiki', 'Tropical'].map((category) => {
-                        const isSelected = currentFilters.category?.includes(category.toLowerCase()) || (category === 'All' && !currentFilters.category?.length);
-                        return (
-                          <Pressable
-                            key={category}
-                            onPress={() => {
-                              if (category === 'All') {
-                                setCurrentFilters({ ...currentFilters, category: [] });
-                              } else {
-                                const categories = currentFilters.category || [];
-                                const newCategories = categories.includes(category.toLowerCase())
-                                  ? categories.filter(c => c !== category.toLowerCase())
-                                  : [category.toLowerCase()];
-                                setCurrentFilters({ ...currentFilters, category: newCategories });
-                              }
-                            }}
-                            style={[afStyles.pill, isSelected && afStyles.pillSelected]}
-                          >
-                            <Text style={[afStyles.pillText, isSelected && afStyles.pillTextSelected]}>{category}</Text>
-                          </Pressable>
-                        );
-                      })}
-                    </ScrollView>
-                  </View>
-
-                  {/* Moods */}
-                  <View style={afStyles.section}>
-                    <View style={afStyles.sectionHead}>
-                      <Text style={afStyles.sectionLabel}>YOUR MOODS</Text>
-                      <View style={afStyles.sectionRule} />
-                    </View>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={afStyles.pillRow}>
-                      {['All', 'Bold & Serious', 'Romantic & Elegant', 'Fun & Playful', 'Adventurous & Exotic', 'Chill & Refreshing', 'Cozy & Warm'].map((mood) => {
-                        const isSelected = currentFilters.mood?.includes(mood) || (mood === 'All' && !currentFilters.mood?.length);
-                        return (
-                          <Pressable
-                            key={mood}
-                            onPress={() => {
-                              if (mood === 'All') {
-                                setCurrentFilters({ ...currentFilters, mood: [] });
-                              } else {
-                                const moods = currentFilters.mood || [];
-                                const newMoods = moods.includes(mood)
-                                  ? moods.filter(m => m !== mood)
-                                  : [mood];
-                                setCurrentFilters({ ...currentFilters, mood: newMoods });
-                              }
-                            }}
-                            style={[afStyles.pill, isSelected && afStyles.pillSelected]}
-                          >
-                            <Text style={[afStyles.pillText, isSelected && afStyles.pillTextSelected]}>{mood}</Text>
-                          </Pressable>
-                        );
-                      })}
-                    </ScrollView>
-                  </View>
-
-                  {/* Sort By */}
-                  <View style={afStyles.section}>
-                    <View style={afStyles.sectionHead}>
-                      <Text style={afStyles.sectionLabel}>SORT BY</Text>
-                      <View style={afStyles.sectionRule} />
-                    </View>
-                    <View style={afStyles.pillWrap}>
-                      {[
-                        ...(tier !== 'FREE' ? [{ label: 'Matches Your Taste', value: 'taste-match', icon: 'star-outline' as const }] : []),
-                        { label: 'A → Z', value: 'alphabetical-asc', icon: 'arrow-up-outline' as const },
-                        { label: 'Z → A', value: 'alphabetical-desc', icon: 'arrow-down-outline' as const },
-                        { label: 'Rating ↑', value: 'rating-desc', icon: 'trending-up-outline' as const },
-                        { label: 'Rating ↓', value: 'rating-asc', icon: 'trending-down-outline' as const },
-                      ].map((sortOption) => {
-                        const isSelected = currentFilters.sortOrder === sortOption.value;
-                        return (
-                          <Pressable
-                            key={sortOption.value}
-                            onPress={() => {
-                              setCurrentFilters({
-                                ...currentFilters,
-                                sortOrder: isSelected ? undefined : (sortOption.value as FilterOptions['sortOrder'])
-                              });
-                            }}
-                            style={[afStyles.pill, isSelected && afStyles.pillSelected]}
-                          >
-                            <Ionicons
-                              name={sortOption.icon}
-                              size={12}
-                              color={isSelected ? colors.goldText : colors.subtext}
-                              style={{ marginRight: 4 }}
-                            />
-                            <Text style={[afStyles.pillText, isSelected && afStyles.pillTextSelected]}>{sortOption.label}</Text>
-                          </Pressable>
-                        );
-                      })}
-                    </View>
-                  </View>
-
-                  {/* Clear All */}
-                  <Pressable style={afStyles.clearBtn} onPress={() => setCurrentFilters({ sortOrder: 'alphabetical-asc' })}>
-                    <Text style={afStyles.clearBtnText}>Clear All Filters</Text>
-                  </Pressable>
-                </ScrollView>
-
-                {/* Apply */}
-                <View style={afStyles.footer}>
-                  <Pressable style={afStyles.applyBtn} onPress={() => setShowAdvancedFilterModal(false)}>
-                    <Text style={afStyles.applyBtnText}>Apply Filters</Text>
-                  </Pressable>
-                </View>
-              </SafeAreaViewContext>
-            </Modal>
-          </View>
+                </SafeAreaViewContext>
+              </Modal>
+            </View>
           )
         }
         ListEmptyComponent={renderEmptyState}
@@ -3309,26 +4046,30 @@ export default function RecipesScreen() {
           }}
         >
           {/* Search Input */}
-          <View style={{
-            paddingHorizontal: spacing(2),
-            paddingTop: spacing(2),
-            paddingBottom: spacing(1.5),
-            borderBottomWidth: StyleSheet.hairlineWidth,
-            borderBottomColor: searchQuery ? colors.gold + '33' : colors.line,
-          }}>
-            <View style={{
-              backgroundColor: 'rgba(255,255,255,0.06)',
-              borderRadius: 14,
-              flexDirection: 'row',
-              alignItems: 'center',
+          <View
+            style={{
               paddingHorizontal: spacing(2),
-              borderWidth: 1,
-              borderColor: searchQuery ? colors.gold + '55' : 'rgba(255,255,255,0.1)',
-              shadowColor: searchQuery ? colors.gold : 'transparent',
-              shadowOffset: { width: 0, height: 0 },
-              shadowOpacity: 0.2,
-              shadowRadius: 10,
-            }}>
+              paddingTop: spacing(2),
+              paddingBottom: spacing(1.5),
+              borderBottomWidth: StyleSheet.hairlineWidth,
+              borderBottomColor: searchQuery ? colors.gold + '33' : colors.line,
+            }}
+          >
+            <View
+              style={{
+                backgroundColor: 'rgba(255,255,255,0.06)',
+                borderRadius: 14,
+                flexDirection: 'row',
+                alignItems: 'center',
+                paddingHorizontal: spacing(2),
+                borderWidth: 1,
+                borderColor: searchQuery ? colors.gold + '55' : 'rgba(255,255,255,0.1)',
+                shadowColor: searchQuery ? colors.gold : 'transparent',
+                shadowOffset: { width: 0, height: 0 },
+                shadowOpacity: 0.2,
+                shadowRadius: 10,
+              }}
+            >
               <Ionicons
                 name="search"
                 size={17}
@@ -3353,28 +4094,54 @@ export default function RecipesScreen() {
                 keyboardAppearance="dark"
               />
               {searchQuery ? (
-                <Pressable onPress={() => { setSearchQuery(''); setSearchResults([]); }} hitSlop={10}>
+                <Pressable
+                  onPress={() => {
+                    setSearchQuery('');
+                    setSearchResults([]);
+                  }}
+                  hitSlop={10}
+                >
                   <Ionicons name="close-circle" size={18} color={colors.muted} />
                 </Pressable>
               ) : (
-                <Pressable onPress={() => { setShowSearchInput(false); setSearchQuery(''); setSearchResults([]); }} hitSlop={10}>
+                <Pressable
+                  onPress={() => {
+                    setShowSearchInput(false);
+                    setSearchQuery('');
+                    setSearchResults([]);
+                  }}
+                  hitSlop={10}
+                >
                   <Ionicons name="close" size={18} color={colors.muted} />
                 </Pressable>
               )}
             </View>
             {/* Always reserve this space — conditional rendering here causes layout shift that dismisses iOS keyboard */}
-            <View style={{ marginTop: spacing(1), height: 20, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              {searchQuery.trim() && (
-                isSearching ? (
+            <View
+              style={{
+                marginTop: spacing(1),
+                height: 20,
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 6,
+              }}
+            >
+              {searchQuery.trim() &&
+                (isSearching ? (
                   <ActivityIndicator size="small" color={colors.gold} />
                 ) : (
-                  <Text style={{ color: searchResults.length > 0 ? colors.gold : colors.muted, fontSize: 12, fontWeight: '500' }}>
+                  <Text
+                    style={{
+                      color: searchResults.length > 0 ? colors.gold : colors.muted,
+                      fontSize: 12,
+                      fontWeight: '500',
+                    }}
+                  >
                     {searchResults.length > 0
                       ? `${searchResults.length} result${searchResults.length !== 1 ? 's' : ''}`
                       : `No results for "${searchQuery}"`}
                   </Text>
-                )
-              )}
+                ))}
             </View>
           </View>
 
@@ -3394,16 +4161,37 @@ export default function RecipesScreen() {
             }}
             columnWrapperStyle={{ gap: GUTTER }}
             ListEmptyComponent={
-              <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingBottom: spacing(16) }}>
+              <View
+                style={{
+                  flex: 1,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  paddingBottom: spacing(16),
+                }}
+              >
                 {isSearching ? (
                   <ActivityIndicator size="large" color={colors.gold} />
                 ) : searchQuery.trim() ? (
                   <>
                     <Ionicons name="search-outline" size={44} color={colors.muted} />
-                    <Text style={{ color: colors.text, fontSize: 16, fontWeight: '600', marginTop: spacing(2) }}>
+                    <Text
+                      style={{
+                        color: colors.text,
+                        fontSize: 16,
+                        fontWeight: '600',
+                        marginTop: spacing(2),
+                      }}
+                    >
                       No cocktails found
                     </Text>
-                    <Text style={{ color: colors.muted, fontSize: 14, marginTop: spacing(1), textAlign: 'center' }}>
+                    <Text
+                      style={{
+                        color: colors.muted,
+                        fontSize: 14,
+                        marginTop: spacing(1),
+                        textAlign: 'center',
+                      }}
+                    >
                       Try a different name, spirit, or ingredient
                     </Text>
                   </>
@@ -3429,10 +4217,14 @@ export default function RecipesScreen() {
           setSelectedCocktailForUnlock(null);
         }}
         cocktailName={selectedCocktailForUnlock?.name || 'This Cocktail'}
-        unlockHint={selectedCocktailForUnlock ? getRecipeUnlockHint(selectedCocktailForUnlock) : undefined}
+        unlockHint={
+          selectedCocktailForUnlock ? getRecipeUnlockHint(selectedCocktailForUnlock) : undefined
+        }
         xpCost={selectedCocktailForUnlock ? getCocktailCost(selectedCocktailForUnlock.id) : 0}
         currentXP={xpBalance}
-        canAfford={selectedCocktailForUnlock ? canAffordCocktail(selectedCocktailForUnlock.id) : false}
+        canAfford={
+          selectedCocktailForUnlock ? canAffordCocktail(selectedCocktailForUnlock.id) : false
+        }
         onUnlockWithXP={() => {
           if (selectedCocktailForUnlock) {
             const cost = getCocktailCost(selectedCocktailForUnlock.id);
@@ -3460,13 +4252,7 @@ export default function RecipesScreen() {
       />
 
       {/* Toast Notification */}
-      <Toast
-        message={toast.message}
-        type={toast.type}
-        visible={toast.visible}
-        onHide={hideToast}
-      />
-
+      <Toast message={toast.message} type={toast.type} visible={toast.visible} onHide={hideToast} />
     </SafeAreaView>
   );
 }

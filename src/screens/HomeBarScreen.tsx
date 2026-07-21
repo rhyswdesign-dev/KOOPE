@@ -53,15 +53,7 @@ import * as Images from '../../assets/images';
 
 // Category definitions
 type InventoryCategory =
-  | 'spirits'
-  | 'mixers'
-  | 'garnishes'
-  | 'ingredients'
-  | 'liqueur'
-  | 'bitters'
-  | 'syrup'
-  | 'other'
-  | 'saved';
+  'spirits' | 'mixers' | 'garnishes' | 'ingredients' | 'liqueur' | 'bitters' | 'syrup' | 'other';
 
 interface InventoryItem extends BarIngredient {
   purchase_price?: number | null;
@@ -162,6 +154,9 @@ export default function HomeBarScreen() {
   const [searchModalQuery, setSearchModalQuery] = useState('');
   const [searchHistory, setSearchHistory] = useState<string[]>([]);
   const [activeCategory, setActiveCategory] = useState<InventoryCategory | 'all'>('all');
+  // Owned vs Want — top-level view switch (1.4c). Previously this was a
+  // 'saved' sentinel inside activeCategory, one chip among Spirits/Mixers/etc.
+  const [inventoryView, setInventoryView] = useState<'owned' | 'want'>('owned');
   const [homeBar, setHomeBar] = useState<HomeBar>({ ...mockHomeBar, ingredients: [] });
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
   const [itemNoteDraft, setItemNoteDraft] = useState('');
@@ -336,7 +331,6 @@ export default function HomeBarScreen() {
     { key: 'mixers', label: 'Mixers', icon: 'water' },
     { key: 'garnishes', label: 'Garnishes', icon: 'leaf' },
     { key: 'ingredients', label: 'Ingredients', icon: 'nutrition' },
-    { key: 'saved', label: 'Saved', icon: 'bookmark-outline' },
   ];
 
   const getFilteredInventory = () => {
@@ -1032,7 +1026,11 @@ export default function HomeBarScreen() {
     <SafeAreaView style={styles.container}>
       <MainPageHeader
         title="Your Shelf"
-        subtitle={`${all.length} item${all.length !== 1 ? 's' : ''}`}
+        subtitle={
+          inventoryView === 'want'
+            ? `${wishlistItems.length} saved`
+            : `${all.length} item${all.length !== 1 ? 's' : ''}`
+        }
         onTitlePress={withHaptic(handleInventoryHeaderMenu, 'selection')}
         leftContent={
           <TouchableOpacity
@@ -1113,8 +1111,56 @@ export default function HomeBarScreen() {
           onScrollHaptic();
         }}
       >
+        {/* Owned / Want — top-level view switch (1.4c) */}
+        <View
+          style={{
+            flexDirection: 'row',
+            marginHorizontal: spacing(3),
+            marginTop: spacing(2),
+            marginBottom: spacing(1),
+            backgroundColor: colors.card,
+            borderRadius: 999,
+            borderWidth: 1,
+            borderColor: colors.line,
+            padding: 4,
+          }}
+        >
+          <TouchableOpacity
+            style={[
+              { flex: 1, paddingVertical: spacing(1), borderRadius: 999, alignItems: 'center' },
+              inventoryView === 'owned' && styles.activeCategoryChip,
+            ]}
+            onPress={withHaptic(() => setInventoryView('owned'), 'selection')}
+          >
+            <Text
+              style={[
+                styles.categoryChipText,
+                inventoryView === 'owned' && styles.activeCategoryChipText,
+              ]}
+            >
+              Owned
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              { flex: 1, paddingVertical: spacing(1), borderRadius: 999, alignItems: 'center' },
+              inventoryView === 'want' && styles.activeCategoryChip,
+            ]}
+            onPress={withHaptic(() => setInventoryView('want'), 'selection')}
+          >
+            <Text
+              style={[
+                styles.categoryChipText,
+                inventoryView === 'want' && styles.activeCategoryChipText,
+              ]}
+            >
+              Want
+            </Text>
+          </TouchableOpacity>
+        </View>
+
         {/* Feature Cards — horizontal FlatList avoids nested-ScrollView gesture conflicts */}
-        {homeBar.ingredients.length > 0 && (
+        {inventoryView === 'owned' && homeBar.ingredients.length > 0 && (
           <FlatList
             horizontal
             data={FEATURE_CARDS}
@@ -1134,38 +1180,43 @@ export default function HomeBarScreen() {
           />
         )}
 
-        {/* Category Filters — above inventory list */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.categoryFilters}
-          contentContainerStyle={styles.categoryFiltersContent}
-        >
-          {categories.map((cat) => (
-            <TouchableOpacity
-              key={cat.key}
-              style={[styles.categoryChip, activeCategory === cat.key && styles.activeCategoryChip]}
-              onPress={withHaptic(() => setActiveCategory(cat.key), 'selection')}
-            >
-              <Ionicons
-                name={cat.icon}
-                size={16}
-                color={activeCategory === cat.key ? colors.bg : colors.text}
-              />
-              <Text
+        {/* Category Filters — above inventory list, Owned only */}
+        {inventoryView === 'owned' && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.categoryFilters}
+            contentContainerStyle={styles.categoryFiltersContent}
+          >
+            {categories.map((cat) => (
+              <TouchableOpacity
+                key={cat.key}
                 style={[
-                  styles.categoryChipText,
-                  activeCategory === cat.key && styles.activeCategoryChipText,
+                  styles.categoryChip,
+                  activeCategory === cat.key && styles.activeCategoryChip,
                 ]}
+                onPress={withHaptic(() => setActiveCategory(cat.key), 'selection')}
               >
-                {cat.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
+                <Ionicons
+                  name={cat.icon}
+                  size={16}
+                  color={activeCategory === cat.key ? colors.bg : colors.text}
+                />
+                <Text
+                  style={[
+                    styles.categoryChipText,
+                    activeCategory === cat.key && styles.activeCategoryChipText,
+                  ]}
+                >
+                  {cat.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        )}
 
         {/* Your Palate — visible after 5 scans, shelf tabs only */}
-        {profileVisible && activeCategory !== 'saved' && dominantCluster.length > 0 && (
+        {profileVisible && inventoryView === 'owned' && dominantCluster.length > 0 && (
           <TouchableOpacity
             style={styles.palateCard}
             onPress={withHaptic(() => setPalateExpanded((p) => !p), 'selection')}
@@ -1234,7 +1285,7 @@ export default function HomeBarScreen() {
           </TouchableOpacity>
         )}
 
-        {activeCategory === 'saved' ? (
+        {inventoryView === 'want' ? (
           // ── Saved (Wishlist) tab ──────────────────────────────────────────
           wishlistItems.length > 0 ? (
             <View style={styles.section}>
