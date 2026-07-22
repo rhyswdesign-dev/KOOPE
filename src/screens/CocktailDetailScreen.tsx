@@ -1,8 +1,22 @@
 // @ts-nocheck
 import React, { useState, useLayoutEffect, useEffect } from 'react';
 import {
-  View, Text, ScrollView, Image, TouchableOpacity, StyleSheet, Share, Alert, Pressable, RefreshControl,
-  Platform, Dimensions, StatusBar, Modal, TextInput, ActivityIndicator
+  View,
+  Text,
+  ScrollView,
+  Image,
+  TouchableOpacity,
+  StyleSheet,
+  Share,
+  Alert,
+  Pressable,
+  RefreshControl,
+  Platform,
+  Dimensions,
+  StatusBar,
+  Modal,
+  TextInput,
+  ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -22,7 +36,6 @@ import { getCocktailImage } from '../../assets/images/cocktails';
 import Toast from '../components/Toast';
 import { useToast } from '../hooks/useToast';
 import CocktailDetailSkeleton from '../components/CocktailDetailSkeleton';
-import { achievementService } from '../services/achievementService';
 import { useSubscription } from '../contexts/SubscriptionContext';
 import { useFeatureAccess } from '../hooks/useFeatureAccess';
 import { log } from '../lib/logger';
@@ -34,7 +47,19 @@ import { useAuth } from '../contexts/AuthContext';
 import { hasIngredient, parseIngredients } from '../utils/recipeMatching';
 import { getMissingWithSubstitutions, getSubstitutionMessage } from '../utils/spiritSubstitutions';
 import type { UserInventoryItem } from '../types/database';
-import { logRecipeCompletion, updateCompletionRating, syncCompletionToSupabase } from '../services/recipeCompletionService';
+import {
+  logRecipeCompletion,
+  updateCompletionRating,
+  syncCompletionToSupabase,
+} from '../services/recipeCompletionService';
+import { logMadeIt, getTimesMade } from '../services/makeLogService';
+import MadeItButton from '../components/MadeItButton';
+import MethodSection from '../components/recipe/MethodSection';
+import {
+  resolveMethodRenderMode,
+  buildCondensedSteps,
+  buildMethodSpecLine,
+} from '../utils/methodFading';
 import { getCompletionPromptConfig } from '../lib/completions/brandCapture';
 import { loadUserProfile, updateUserProfileFields } from '../services/userProfileService';
 import type { RecipeCompletionDetails } from '../types/userProfile';
@@ -74,7 +99,9 @@ const referenceSerifFont = Platform.select({
 });
 
 function trimSentence(value: string, maxLength: number): string {
-  const normalized = String(value || '').trim().replace(/\s+/g, ' ');
+  const normalized = String(value || '')
+    .trim()
+    .replace(/\s+/g, ' ');
   if (!normalized) return '';
   if (normalized.length <= maxLength) return normalized;
 
@@ -92,7 +119,8 @@ const DETAIL_AMOUNT_PREFIX_REGEX =
   /^\s*((?:\d+\s+)?(?:\d+\/\d+|\d*\.?\d+)\s*(?:oz|ml|dash(?:es)?|drop(?:s)?|tsp|tbsp|cl|cup(?:s)?|part(?:s)?)?)\s+(.+)$/i;
 const DETAIL_AMOUNT_ONLY_REGEX =
   /^\s*((?:\d+\s+)?(?:\d+\/\d+|\d*\.?\d+)\s*(?:oz|ml|dash(?:es)?|drop(?:s)?|tsp|tbsp|cl|cup(?:s)?|part(?:s)?|top)?)\s*$/i;
-const DETAIL_HAS_UNIT_REGEX = /(?:oz|ml|dash(?:es)?|drop(?:s)?|tsp|tbsp|cl|cup(?:s)?|part(?:s)?|top)\b/i;
+const DETAIL_HAS_UNIT_REGEX =
+  /(?:oz|ml|dash(?:es)?|drop(?:s)?|tsp|tbsp|cl|cup(?:s)?|part(?:s)?|top)\b/i;
 
 function slugifyRecipeKey(value: string): string {
   return String(value || '')
@@ -103,7 +131,9 @@ function slugifyRecipeKey(value: string): string {
 }
 
 function splitIngredientAmount(displayName: string): { amount: string; name: string } | null {
-  const match = String(displayName || '').trim().match(DETAIL_AMOUNT_PREFIX_REGEX);
+  const match = String(displayName || '')
+    .trim()
+    .match(DETAIL_AMOUNT_PREFIX_REGEX);
   if (!match) return null;
 
   const rawAmount = String(match[1] || '').trim();
@@ -150,7 +180,9 @@ function normalizeDetailIngredient(item: any) {
 }
 
 function isWeakTastingNote(value: string): boolean {
-  const normalized = String(value || '').trim().toLowerCase();
+  const normalized = String(value || '')
+    .trim()
+    .toLowerCase();
   if (!normalized) return true;
 
   if (/\d/.test(normalized)) return true; // likely a spec or numbered instruction
@@ -214,7 +246,9 @@ function buildHeroKicker(cocktail: any): string {
 }
 
 function ensureSentenceEnding(value: string): string {
-  const trimmed = String(value || '').trim().replace(/\s+/g, ' ');
+  const trimmed = String(value || '')
+    .trim()
+    .replace(/\s+/g, ' ');
   if (!trimmed) return '';
   if (/[.!?]$/.test(trimmed)) return trimmed;
   return `${trimmed}.`;
@@ -227,7 +261,11 @@ function sentenceCase(value: string): string {
 }
 
 function normalizeMethodStep(step: string): string {
-  const cleaned = sentenceCase(String(step || '').replace(/^\d+[\.\)]\s*/, '').trim());
+  const cleaned = sentenceCase(
+    String(step || '')
+      .replace(/^\d+[\.\)]\s*/, '')
+      .trim(),
+  );
   if (!cleaned) return '';
 
   const lower = cleaned.toLowerCase();
@@ -263,7 +301,12 @@ function hasAnyText(haystack: string, needles: string[]): boolean {
   return needles.some((needle) => normalized.includes(needle));
 }
 
-function deriveTastingNote(cocktail: any, parsedIngredients: any[], parsedInstructions: string[], parsedTips: string[]): string {
+function deriveTastingNote(
+  cocktail: any,
+  parsedIngredients: any[],
+  parsedInstructions: string[],
+  parsedTips: string[],
+): string {
   const cocktailId = String(cocktail?.id || '').toLowerCase();
   if (cocktailId === 'caipirinha') {
     return 'Muddled lime oils hit first, cane sweetness rounds the center, and cachaça leaves a grassy, dry finish.';
@@ -273,7 +316,9 @@ function deriveTastingNote(cocktail: any, parsedIngredients: any[], parsedInstru
     cocktail?.title,
     cocktail?.subtitle,
     cocktail?.description,
-    ...(parsedIngredients || []).map((ingredient: any) => `${ingredient.name} ${ingredient.amount} ${ingredient.note}`),
+    ...(parsedIngredients || []).map(
+      (ingredient: any) => `${ingredient.name} ${ingredient.amount} ${ingredient.note}`,
+    ),
     ...(parsedInstructions || []),
     ...(parsedTips || []),
   ]
@@ -283,8 +328,23 @@ function deriveTastingNote(cocktail: any, parsedIngredients: any[], parsedInstru
 
   const isAperitif = hasAnyText(infoText, ['campari', 'aperol', 'vermouth', 'aperitif']);
   const isMintCitrus = hasAnyText(infoText, ['mint', 'lime', 'mojito']);
-  const isCoffeeDessert = hasAnyText(infoText, ['coffee', 'espresso', 'cacao', 'chocolate', 'dairy cream', 'heavy cream', 'half-and-half']);
-  const isTropical = hasAnyText(infoText, ['pineapple', 'coconut', 'tropical', 'orgeat', 'passion fruit', 'falernum']);
+  const isCoffeeDessert = hasAnyText(infoText, [
+    'coffee',
+    'espresso',
+    'cacao',
+    'chocolate',
+    'dairy cream',
+    'heavy cream',
+    'half-and-half',
+  ]);
+  const isTropical = hasAnyText(infoText, [
+    'pineapple',
+    'coconut',
+    'tropical',
+    'orgeat',
+    'passion fruit',
+    'falernum',
+  ]);
   const isGinBotanical = hasAnyText(infoText, ['gin', 'juniper']);
   const isDarkSpirit = hasAnyText(infoText, ['whiskey', 'bourbon', 'rye', 'cognac', 'brandy']);
   const isSparkling = hasAnyText(infoText, ['sparkling', 'soda', 'prosecco', 'tonic']);
@@ -316,9 +376,7 @@ function deriveTastingNote(cocktail: any, parsedIngredients: any[], parsedInstru
 
 function pickVariantById(cocktailId: string, variants: string[]): string {
   if (!variants.length) return '';
-  const seed = cocktailId
-    .split('')
-    .reduce((sum, ch) => sum + ch.charCodeAt(0), 0);
+  const seed = cocktailId.split('').reduce((sum, ch) => sum + ch.charCodeAt(0), 0);
   return variants[seed % variants.length];
 }
 
@@ -326,7 +384,7 @@ function deriveBestFor(
   cocktail: any,
   parsedIngredients: any[],
   parsedInstructions: string[] = [],
-  parsedTips: string[] = []
+  parsedTips: string[] = [],
 ): string {
   const cocktailId = String(cocktail?.id || '').toLowerCase();
   if (cocktailId === 'caipirinha') {
@@ -341,7 +399,9 @@ function deriveBestFor(
     cocktail?.method,
     cocktail?.glassware,
     cocktail?.glass,
-    ...(parsedIngredients || []).map((ingredient: any) => `${ingredient.name} ${ingredient.amount} ${ingredient.note}`),
+    ...(parsedIngredients || []).map(
+      (ingredient: any) => `${ingredient.name} ${ingredient.amount} ${ingredient.note}`,
+    ),
     ...(parsedInstructions || []),
     ...(parsedTips || []),
   ]
@@ -349,25 +409,55 @@ function deriveBestFor(
     .join(' ')
     .toLowerCase();
 
-  const isNonAlcoholic = cocktail?.isNonAlcoholic || hasAnyText(infoText, ['zero-proof', 'non-alcoholic', 'mocktail']);
-  const isAperitif = hasAnyText(infoText, ['negroni', 'campari', 'amaro', 'aperitif', 'bitter', 'spritz']);
-  const isSpiritForward = hasAnyText(infoText, ['martini', 'manhattan', 'old fashioned', 'stirred']);
+  const isNonAlcoholic =
+    cocktail?.isNonAlcoholic || hasAnyText(infoText, ['zero-proof', 'non-alcoholic', 'mocktail']);
+  const isAperitif = hasAnyText(infoText, [
+    'negroni',
+    'campari',
+    'amaro',
+    'aperitif',
+    'bitter',
+    'spritz',
+  ]);
+  const isSpiritForward = hasAnyText(infoText, [
+    'martini',
+    'manhattan',
+    'old fashioned',
+    'stirred',
+  ]);
   const isCitrusLed = hasAnyText(infoText, ['sour', 'lemon', 'lime', 'citrus', 'grapefruit']);
   const isTropical = hasAnyText(infoText, ['tiki', 'pineapple', 'coconut', 'tropical', 'orgeat']);
-  const isDessert = hasAnyText(infoText, ['espresso', 'coffee', 'dessert', 'cacao', 'chocolate', 'dairy cream', 'heavy cream', 'half-and-half', 'ice cream']);
-  const isHighball = hasAnyText(infoText, ['highball', 'collins', 'soda', 'tonic', 'ginger beer', 'sparkling']);
+  const isDessert = hasAnyText(infoText, [
+    'espresso',
+    'coffee',
+    'dessert',
+    'cacao',
+    'chocolate',
+    'dairy cream',
+    'heavy cream',
+    'half-and-half',
+    'ice cream',
+  ]);
+  const isHighball = hasAnyText(infoText, [
+    'highball',
+    'collins',
+    'soda',
+    'tonic',
+    'ginger beer',
+    'sparkling',
+  ]);
 
   const spirit = String(cocktail?.base || cocktail?.baseSpirit || '').toLowerCase();
   const spiritLabel =
     spirit === 'whiskey' || spirit === 'bourbon' || spirit === 'rye'
       ? 'whiskey'
       : spirit === 'tequila' || spirit === 'mezcal'
-      ? 'agave'
-      : spirit === 'rum' || spirit === 'cachaca' || spirit === 'cachaça'
-      ? 'rum'
-      : spirit === 'gin'
-      ? 'gin'
-      : spirit || 'balanced';
+        ? 'agave'
+        : spirit === 'rum' || spirit === 'cachaca' || spirit === 'cachaça'
+          ? 'rum'
+          : spirit === 'gin'
+            ? 'gin'
+            : spirit || 'balanced';
 
   if (isNonAlcoholic) {
     return pickVariantById(cocktailId, [
@@ -508,7 +598,12 @@ const TASTING_NOTE_OVERRIDES: Record<string, string> = {
     'Cocoa cream arrives first, gin botanicals quietly dry the middle, and the finish lands lighter and crisper than Brandy Alexander.',
 };
 
-function enhanceTips(cocktail: any, parsedIngredients: any[], parsedInstructions: string[], parsedTips: string[]): string[] {
+function enhanceTips(
+  cocktail: any,
+  parsedIngredients: any[],
+  parsedInstructions: string[],
+  parsedTips: string[],
+): string[] {
   const existing = (parsedTips || [])
     .map((tip) => ensureSentenceEnding(sentenceCase(String(tip || ''))))
     .filter(Boolean);
@@ -516,7 +611,9 @@ function enhanceTips(cocktail: any, parsedIngredients: any[], parsedInstructions
   const infoText = [
     cocktail?.title,
     cocktail?.subtitle,
-    ...(parsedIngredients || []).map((ingredient: any) => `${ingredient.name} ${ingredient.amount} ${ingredient.note}`),
+    ...(parsedIngredients || []).map(
+      (ingredient: any) => `${ingredient.name} ${ingredient.amount} ${ingredient.note}`,
+    ),
     ...(parsedInstructions || []),
   ]
     .filter(Boolean)
@@ -526,35 +623,51 @@ function enhanceTips(cocktail: any, parsedIngredients: any[], parsedInstructions
   const suggestions: string[] = [];
 
   if (hasAnyText(infoText, ['shake'])) {
-    suggestions.push('Shake until the tin feels cold and tight so the drink lands properly chilled and diluted.');
+    suggestions.push(
+      'Shake until the tin feels cold and tight so the drink lands properly chilled and diluted.',
+    );
   }
   if (hasAnyText(infoText, ['stir'])) {
-    suggestions.push('Stir only until chilled and integrated so the texture stays clean instead of overworked.');
+    suggestions.push(
+      'Stir only until chilled and integrated so the texture stays clean instead of overworked.',
+    );
   }
   if (hasAnyText(infoText, ['club soda', 'soda water', 'prosecco', 'tonic', 'sparkling'])) {
-    suggestions.push('Add sparkling ingredients last and stir lightly so you keep the lift in the glass.');
+    suggestions.push(
+      'Add sparkling ingredients last and stir lightly so you keep the lift in the glass.',
+    );
   }
   if (hasAnyText(infoText, ['lime', 'lemon', 'grapefruit', 'orange juice', 'fresh citrus'])) {
-    suggestions.push('Fresh citrus will make the drink brighter and more precise than bottled juice.');
+    suggestions.push(
+      'Fresh citrus will make the drink brighter and more precise than bottled juice.',
+    );
   }
   if (hasAnyText(infoText, ['mint'])) {
-    suggestions.push('Handle mint gently so it stays aromatic and fresh instead of turning bitter.');
+    suggestions.push(
+      'Handle mint gently so it stays aromatic and fresh instead of turning bitter.',
+    );
   }
   if (hasAnyText(infoText, ['cream', 'egg white'])) {
-    suggestions.push('A colder shake and a well-chilled glass will help creamy builds land smoother and more refined.');
+    suggestions.push(
+      'A colder shake and a well-chilled glass will help creamy builds land smoother and more refined.',
+    );
   }
   if (hasAnyText(infoText, ['coupe', 'martini glass'])) {
-    suggestions.push('Chill the glass before pouring so the drink stays colder and more polished from the first sip.');
+    suggestions.push(
+      'Chill the glass before pouring so the drink stays colder and more polished from the first sip.',
+    );
   }
 
   const combined = [...existing, ...suggestions];
   const seen = new Set<string>();
-  return combined.filter((tip) => {
-    const key = tip.toLowerCase();
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  }).slice(0, 3);
+  return combined
+    .filter((tip) => {
+      const key = tip.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .slice(0, 3);
 }
 
 // Non-alcoholic beverages data (complete dataset matching NonAlcoholicScreen)
@@ -565,38 +678,61 @@ const nonAlcoholicBeverages = [
     category: 'Zero-Proof Spirits',
     region: 'United Kingdom',
     tier: 'gold',
-    image: 'https://images.unsplash.com/photo-1544145945-f90425340c7e?q=80&w=1200&auto=format&fit=crop',
+    image:
+      'https://images.unsplash.com/photo-1544145945-f90425340c7e?q=80&w=1200&auto=format&fit=crop',
     tagline: 'Herbal & Garden Fresh',
-    description: 'A complex blend of peas, hay, spearmint, rosemary, and thyme creating a fresh garden experience.',
+    description:
+      'A complex blend of peas, hay, spearmint, rosemary, and thyme creating a fresh garden experience.',
     abv: '0.0%',
     flavorNotes: ['Fresh herbs', 'Garden peas', 'Mint', 'Rosemary'],
     useCase: 'Perfect for G&T-style serves and herb-forward cocktails',
     recipes: [
       {
         name: 'Garden 108 & Tonic',
-        ingredients: ['2 oz Seedlip Garden 108', '4 oz Premium tonic water', '3 cucumber slices', 'Fresh mint sprig', 'Lime wheel'],
-        instructions: 'Fill glass with ice. Add Seedlip Garden 108. Top with tonic water. Garnish with cucumber, mint, and lime.',
+        ingredients: [
+          '2 oz Seedlip Garden 108',
+          '4 oz Premium tonic water',
+          '3 cucumber slices',
+          'Fresh mint sprig',
+          'Lime wheel',
+        ],
+        instructions:
+          'Fill glass with ice. Add Seedlip Garden 108. Top with tonic water. Garnish with cucumber, mint, and lime.',
         glassware: 'Highball glass',
         difficulty: 'Easy',
-        time: '2 min'
+        time: '2 min',
       },
       {
         name: 'Herbaceous Spritz',
-        ingredients: ['1 1/2 oz Seedlip Garden 108', '3 oz Elderflower sparkling water', '1/2 oz Fresh lime juice', 'Rosemary sprig', 'Grapefruit peel'],
-        instructions: 'Combine in wine glass over ice. Stir gently. Express grapefruit oils and garnish with rosemary.',
+        ingredients: [
+          '1 1/2 oz Seedlip Garden 108',
+          '3 oz Elderflower sparkling water',
+          '1/2 oz Fresh lime juice',
+          'Rosemary sprig',
+          'Grapefruit peel',
+        ],
+        instructions:
+          'Combine in wine glass over ice. Stir gently. Express grapefruit oils and garnish with rosemary.',
         glassware: 'Wine glass',
         difficulty: 'Easy',
-        time: '3 min'
+        time: '3 min',
       },
       {
         name: 'Garden Gimlet',
-        ingredients: ['2 oz Seedlip Garden 108', '3/4 oz Fresh lime juice', '3/4 oz Simple syrup', 'Cucumber wheel', 'Fresh basil'],
-        instructions: 'Shake ingredients with ice. Double strain into chilled coupe. Garnish with cucumber and basil.',
+        ingredients: [
+          '2 oz Seedlip Garden 108',
+          '3/4 oz Fresh lime juice',
+          '3/4 oz Simple syrup',
+          'Cucumber wheel',
+          'Fresh basil',
+        ],
+        instructions:
+          'Shake ingredients with ice. Double strain into chilled coupe. Garnish with cucumber and basil.',
         glassware: 'Coupe glass',
         difficulty: 'Easy',
-        time: '3 min'
-      }
-    ]
+        time: '3 min',
+      },
+    ],
   },
   {
     id: 'lyre-s-american-malt',
@@ -604,38 +740,61 @@ const nonAlcoholicBeverages = [
     category: 'Zero-Proof Spirits',
     region: 'Australia',
     tier: 'gold',
-    image: 'https://images.unsplash.com/photo-1569529465841-dfecdab7503b?q=80&w=1200&auto=format&fit=crop',
+    image:
+      'https://images.unsplash.com/photo-1569529465841-dfecdab7503b?q=80&w=1200&auto=format&fit=crop',
     tagline: 'Rich & Smoky',
-    description: 'Generous flavors of honey and vanilla with a gentle smoky finish, perfect for classic cocktails.',
+    description:
+      'Generous flavors of honey and vanilla with a gentle smoky finish, perfect for classic cocktails.',
     abv: '0.0%',
     flavorNotes: ['Honey', 'Vanilla', 'Oak', 'Smoke'],
     useCase: 'Ideal for whiskey cocktails like Old Fashioned and Manhattan',
     recipes: [
       {
         name: 'Smokeless Old Fashioned',
-        ingredients: ['2 oz Lyre\'s American Malt', '1/4 oz Maple syrup', '2 dashes Orange bitters', '1 dash Angostura bitters', 'Orange peel', 'Luxardo cherry'],
-        instructions: 'Stir all ingredients with ice. Strain over large ice cube. Express orange oils and garnish with cherry.',
+        ingredients: [
+          "2 oz Lyre's American Malt",
+          '1/4 oz Maple syrup',
+          '2 dashes Orange bitters',
+          '1 dash Angostura bitters',
+          'Orange peel',
+          'Luxardo cherry',
+        ],
+        instructions:
+          'Stir all ingredients with ice. Strain over large ice cube. Express orange oils and garnish with cherry.',
         glassware: 'Old Fashioned glass',
         difficulty: 'Easy',
-        time: '3 min'
+        time: '3 min',
       },
       {
         name: 'Zero Proof Manhattan',
-        ingredients: ['2 oz Lyre\'s American Malt', '1 oz Sweet vermouth', '2 dashes Angostura bitters', 'Maraschino cherry'],
-        instructions: 'Stir ingredients with ice for 30 seconds. Strain into chilled coupe. Garnish with cherry.',
+        ingredients: [
+          "2 oz Lyre's American Malt",
+          '1 oz Sweet vermouth',
+          '2 dashes Angostura bitters',
+          'Maraschino cherry',
+        ],
+        instructions:
+          'Stir ingredients with ice for 30 seconds. Strain into chilled coupe. Garnish with cherry.',
         glassware: 'Coupe glass',
         difficulty: 'Easy',
-        time: '3 min'
+        time: '3 min',
       },
       {
         name: 'Maple Whiskey Sour',
-        ingredients: ['2 oz Lyre\'s American Malt', '3/4 oz Fresh lemon juice', '1/2 oz Maple syrup', '1 Egg white', 'Lemon wheel'],
-        instructions: 'Dry shake without ice. Shake again with ice. Double strain into coupe. Garnish with lemon wheel.',
+        ingredients: [
+          "2 oz Lyre's American Malt",
+          '3/4 oz Fresh lemon juice',
+          '1/2 oz Maple syrup',
+          '1 Egg white',
+          'Lemon wheel',
+        ],
+        instructions:
+          'Dry shake without ice. Shake again with ice. Double strain into coupe. Garnish with lemon wheel.',
         glassware: 'Coupe glass',
         difficulty: 'Medium',
-        time: '4 min'
-      }
-    ]
+        time: '4 min',
+      },
+    ],
   },
   {
     id: 'monday-gin',
@@ -643,9 +802,11 @@ const nonAlcoholicBeverages = [
     category: 'Zero-Proof Spirits',
     region: 'Canada',
     tier: 'silver',
-    image: 'https://images.unsplash.com/photo-1551538827-9c037cb4f32a?q=80&w=1200&auto=format&fit=crop',
+    image:
+      'https://images.unsplash.com/photo-1551538827-9c037cb4f32a?q=80&w=1200&auto=format&fit=crop',
     tagline: 'Juniper Forward',
-    description: 'Classic gin botanicals with zero alcohol - juniper, coriander, and citrus in perfect balance.',
+    description:
+      'Classic gin botanicals with zero alcohol - juniper, coriander, and citrus in perfect balance.',
     abv: '0.0%',
     flavorNotes: ['Juniper', 'Citrus', 'Coriander', 'Angelica'],
     useCase: 'Classic gin cocktails and modern mixed drinks',
@@ -653,12 +814,13 @@ const nonAlcoholicBeverages = [
       {
         name: 'Zero Proof Gin & Tonic',
         ingredients: ['2 oz Monday Gin', '4 oz Tonic water', 'Lime wheel', 'Juniper berries'],
-        instructions: 'Build in glass over ice. Stir gently. Garnish with lime and juniper berries.',
+        instructions:
+          'Build in glass over ice. Stir gently. Garnish with lime and juniper berries.',
         glassware: 'Highball glass',
         difficulty: 'Easy',
-        time: '2 min'
-      }
-    ]
+        time: '2 min',
+      },
+    ],
   },
   {
     id: 'ghia-aperitif',
@@ -666,22 +828,31 @@ const nonAlcoholicBeverages = [
     category: 'Low-ABV Options',
     region: 'United States',
     tier: 'gold',
-    image: 'https://images.unsplash.com/photo-1574671928146-5c89a22b2e85?q=80&w=1200&auto=format&fit=crop',
+    image:
+      'https://images.unsplash.com/photo-1574671928146-5c89a22b2e85?q=80&w=1200&auto=format&fit=crop',
     tagline: 'Mediterranean Botanicals',
-    description: 'A sophisticated aperitif with rosemary, ginger, and elderflower for the perfect pre-dinner drink.',
+    description:
+      'A sophisticated aperitif with rosemary, ginger, and elderflower for the perfect pre-dinner drink.',
     abv: '0.0%',
     flavorNotes: ['Rosemary', 'Ginger', 'Elderflower', 'Citrus'],
     useCase: 'Perfect for aperitif hour and spritz-style cocktails',
     recipes: [
       {
         name: 'Ghia Spritz',
-        ingredients: ['2 oz Ghia Aperitif', '3 oz Sparkling water', '1 oz Fresh grapefruit juice', 'Rosemary sprig', 'Grapefruit wheel'],
-        instructions: 'Build in wine glass over ice. Top with sparkling water. Garnish with grapefruit and rosemary.',
+        ingredients: [
+          '2 oz Ghia Aperitif',
+          '3 oz Sparkling water',
+          '1 oz Fresh grapefruit juice',
+          'Rosemary sprig',
+          'Grapefruit wheel',
+        ],
+        instructions:
+          'Build in wine glass over ice. Top with sparkling water. Garnish with grapefruit and rosemary.',
         glassware: 'Wine glass',
         difficulty: 'Easy',
-        time: '2 min'
-      }
-    ]
+        time: '2 min',
+      },
+    ],
   },
   {
     id: 'gt-s-gingerade',
@@ -691,20 +862,29 @@ const nonAlcoholicBeverages = [
     tier: 'bronze',
     image: require('../../assets/images/mocktails/ginger_kombucha_mule.png'),
     tagline: 'Probiotic & Refreshing',
-    description: 'Living kombucha with organic ginger providing digestive benefits and refreshing taste.',
+    description:
+      'Living kombucha with organic ginger providing digestive benefits and refreshing taste.',
     abv: '<0.5%',
     flavorNotes: ['Ginger', 'Fermented tea', 'Probiotics', 'Tangy'],
     useCase: 'Great for wellness cocktails and digestive health',
     recipes: [
       {
         name: 'Ginger Kombucha Mule',
-        ingredients: ['6 oz GT\'s Gingerade', '1 oz Fresh lime juice', '1/2 oz Agave syrup', 'Mint sprig', 'Candied ginger', 'Lime wheel'],
-        instructions: 'Combine lime juice and agave in mug. Add ice and kombucha. Stir gently. Garnish with mint, ginger, and lime.',
+        ingredients: [
+          "6 oz GT's Gingerade",
+          '1 oz Fresh lime juice',
+          '1/2 oz Agave syrup',
+          'Mint sprig',
+          'Candied ginger',
+          'Lime wheel',
+        ],
+        instructions:
+          'Combine lime juice and agave in mug. Add ice and kombucha. Stir gently. Garnish with mint, ginger, and lime.',
         glassware: 'Copper mug',
         difficulty: 'Easy',
-        time: '3 min'
-      }
-    ]
+        time: '3 min',
+      },
+    ],
   },
   {
     id: 'recess-hemp-sparkling-water',
@@ -714,28 +894,43 @@ const nonAlcoholicBeverages = [
     tier: 'silver',
     image: require('../../assets/images/mocktails/zen_garden_spritz.png'),
     tagline: 'Calm & Focused',
-    description: 'Sparkling water infused with hemp extract and adaptogens for relaxation and focus.',
+    description:
+      'Sparkling water infused with hemp extract and adaptogens for relaxation and focus.',
     abv: '0.0%',
     flavorNotes: ['Light hemp', 'Citrus', 'Adaptogenic herbs', 'Clean finish'],
     useCase: 'Perfect for mindful drinking and wellness-focused cocktails',
     recipes: [
       {
         name: 'Zen Garden Spritz',
-        ingredients: ['8 oz Recess Hemp Water', '1 oz Fresh cucumber juice', '1/2 oz Mint simple syrup', 'Cucumber ribbons', 'Fresh mint'],
-        instructions: 'Combine cucumber juice and syrup in glass. Add ice and Recess water. Garnish with cucumber and mint.',
+        ingredients: [
+          '8 oz Recess Hemp Water',
+          '1 oz Fresh cucumber juice',
+          '1/2 oz Mint simple syrup',
+          'Cucumber ribbons',
+          'Fresh mint',
+        ],
+        instructions:
+          'Combine cucumber juice and syrup in glass. Add ice and Recess water. Garnish with cucumber and mint.',
         glassware: 'Wine glass',
         difficulty: 'Easy',
-        time: '4 min'
+        time: '4 min',
       },
       {
         name: 'Hemp Citrus Cooler',
-        ingredients: ['8 oz Recess Hemp Water', '1 oz Fresh lemon juice', '1/2 oz Simple syrup', 'Fresh thyme', 'Lemon wheel'],
-        instructions: 'Muddle thyme gently in glass. Add lemon juice and syrup. Fill with ice. Top with Recess water. Garnish with lemon wheel.',
+        ingredients: [
+          '8 oz Recess Hemp Water',
+          '1 oz Fresh lemon juice',
+          '1/2 oz Simple syrup',
+          'Fresh thyme',
+          'Lemon wheel',
+        ],
+        instructions:
+          'Muddle thyme gently in glass. Add lemon juice and syrup. Fill with ice. Top with Recess water. Garnish with lemon wheel.',
         glassware: 'Highball glass',
         difficulty: 'Easy',
-        time: '3 min'
-      }
-    ]
+        time: '3 min',
+      },
+    ],
   },
   {
     id: 'ritual-zero-proof-gin',
@@ -743,30 +938,44 @@ const nonAlcoholicBeverages = [
     category: 'Zero-Proof Spirits',
     region: 'United States',
     tier: 'gold',
-    image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?q=80&w=1200&auto=format&fit=crop',
+    image:
+      'https://images.unsplash.com/photo-1578662996442-48f60103fc96?q=80&w=1200&auto=format&fit=crop',
     tagline: 'Botanical Excellence',
-    description: 'Distilled with juniper, coriander, and angelica root for an authentic gin experience without alcohol.',
+    description:
+      'Distilled with juniper, coriander, and angelica root for an authentic gin experience without alcohol.',
     abv: '0.0%',
     flavorNotes: ['Juniper', 'Angelica root', 'Coriander', 'Citrus'],
     useCase: 'Perfect for classic gin cocktails and modern zero-proof mixology',
     recipes: [
       {
         name: 'Zero Proof Negroni',
-        ingredients: ['1 oz Ritual Gin Alternative', '1 oz Seedlip Spice 94', '1 oz Sweet vermouth', 'Orange peel'],
-        instructions: 'Stir all ingredients with ice. Strain over fresh ice. Express orange oils and garnish with peel.',
+        ingredients: [
+          '1 oz Ritual Gin Alternative',
+          '1 oz Seedlip Spice 94',
+          '1 oz Sweet vermouth',
+          'Orange peel',
+        ],
+        instructions:
+          'Stir all ingredients with ice. Strain over fresh ice. Express orange oils and garnish with peel.',
         glassware: 'Rocks glass',
         difficulty: 'Easy',
-        time: '3 min'
+        time: '3 min',
       },
       {
         name: 'Garden Martini',
-        ingredients: ['2 1/2 oz Ritual Gin Alternative', '1/2 oz Dry vermouth', '2 dashes Orange bitters', 'Lemon twist'],
-        instructions: 'Stir ingredients with ice until well chilled. Strain into chilled coupe. Garnish with lemon twist.',
+        ingredients: [
+          '2 1/2 oz Ritual Gin Alternative',
+          '1/2 oz Dry vermouth',
+          '2 dashes Orange bitters',
+          'Lemon twist',
+        ],
+        instructions:
+          'Stir ingredients with ice until well chilled. Strain into chilled coupe. Garnish with lemon twist.',
         glassware: 'Coupe glass',
         difficulty: 'Easy',
-        time: '3 min'
-      }
-    ]
+        time: '3 min',
+      },
+    ],
   },
   {
     id: 'wilderton-earthen',
@@ -774,22 +983,31 @@ const nonAlcoholicBeverages = [
     category: 'Zero-Proof Spirits',
     region: 'United States',
     tier: 'silver',
-    image: 'https://images.unsplash.com/photo-1541745537411-b8046dc6d66c?q=80&w=1200&auto=format&fit=crop',
+    image:
+      'https://images.unsplash.com/photo-1541745537411-b8046dc6d66c?q=80&w=1200&auto=format&fit=crop',
     tagline: 'Forest Floor',
-    description: 'Crafted with Douglas fir, sage, and lavender for an earthy, complex botanical experience.',
+    description:
+      'Crafted with Douglas fir, sage, and lavender for an earthy, complex botanical experience.',
     abv: '0.0%',
     flavorNotes: ['Douglas fir', 'Sage', 'Lavender', 'Earthy botanicals'],
     useCase: 'Ideal for contemplative sipping and herbal cocktails',
     recipes: [
       {
         name: 'Forest Floor',
-        ingredients: ['2 oz Wilderton Earthen', '1/2 oz Honey syrup', '1/2 oz Fresh lemon juice', 'Sage sprig', 'Lavender garnish'],
-        instructions: 'Shake ingredients with ice. Strain into rocks glass over fresh ice. Garnish with sage and lavender.',
+        ingredients: [
+          '2 oz Wilderton Earthen',
+          '1/2 oz Honey syrup',
+          '1/2 oz Fresh lemon juice',
+          'Sage sprig',
+          'Lavender garnish',
+        ],
+        instructions:
+          'Shake ingredients with ice. Strain into rocks glass over fresh ice. Garnish with sage and lavender.',
         glassware: 'Rocks glass',
         difficulty: 'Easy',
-        time: '3 min'
-      }
-    ]
+        time: '3 min',
+      },
+    ],
   },
   {
     id: 'athletic-brewing-coffee',
@@ -797,30 +1015,45 @@ const nonAlcoholicBeverages = [
     category: 'Wellness Drinks',
     region: 'United States',
     tier: 'bronze',
-    image: 'https://images.unsplash.com/photo-1609951651556-5334e2706168?q=80&w=1200&auto=format&fit=crop',
+    image:
+      'https://images.unsplash.com/photo-1609951651556-5334e2706168?q=80&w=1200&auto=format&fit=crop',
     tagline: 'Performance & Flavor',
-    description: 'Premium cold brew coffee crafted for athletes and coffee enthusiasts seeking clean energy.',
+    description:
+      'Premium cold brew coffee crafted for athletes and coffee enthusiasts seeking clean energy.',
     abv: '0.0%',
     flavorNotes: ['Rich coffee', 'Chocolate notes', 'Smooth finish', 'No sugar crash'],
     useCase: 'Perfect for coffee cocktails and energy-focused beverages',
     recipes: [
       {
         name: 'Coffee Spritz',
-        ingredients: ['4 oz Athletic Cold Brew', '2 oz Sparkling water', '1/2 oz Vanilla syrup', 'Orange peel', 'Coffee beans'],
-        instructions: 'Combine cold brew and vanilla syrup in glass. Add ice and top with sparkling water. Garnish with orange peel and coffee beans.',
+        ingredients: [
+          '4 oz Athletic Cold Brew',
+          '2 oz Sparkling water',
+          '1/2 oz Vanilla syrup',
+          'Orange peel',
+          'Coffee beans',
+        ],
+        instructions:
+          'Combine cold brew and vanilla syrup in glass. Add ice and top with sparkling water. Garnish with orange peel and coffee beans.',
         glassware: 'Highball glass',
         difficulty: 'Easy',
-        time: '2 min'
+        time: '2 min',
       },
       {
         name: 'Espresso Martini Zero',
-        ingredients: ['3 oz Athletic Cold Brew', '1 oz Coffee liqueur alternative', '1/2 oz Simple syrup', '3 Coffee beans'],
-        instructions: 'Shake all ingredients vigorously with ice. Double strain into chilled coupe. Float 3 coffee beans on foam.',
+        ingredients: [
+          '3 oz Athletic Cold Brew',
+          '1 oz Coffee liqueur alternative',
+          '1/2 oz Simple syrup',
+          '3 Coffee beans',
+        ],
+        instructions:
+          'Shake all ingredients vigorously with ice. Double strain into chilled coupe. Float 3 coffee beans on foam.',
         glassware: 'Coupe glass',
         difficulty: 'Medium',
-        time: '4 min'
-      }
-    ]
+        time: '4 min',
+      },
+    ],
   },
   {
     id: 'kin-euphorics-high-rhode',
@@ -830,20 +1063,28 @@ const nonAlcoholicBeverages = [
     tier: 'gold',
     image: require('../../assets/images/mocktails/high_rhode_spritz.png'),
     tagline: 'Mood-Elevating',
-    description: 'A euphoric blend of adaptogens, nootropics, and botanicals designed to elevate your mood naturally.',
+    description:
+      'A euphoric blend of adaptogens, nootropics, and botanicals designed to elevate your mood naturally.',
     abv: '<0.5%',
     flavorNotes: ['Hibiscus', 'Orange bitters', 'Licorice root', 'Cardamom'],
     useCase: 'Perfect for social occasions and mood enhancement',
     recipes: [
       {
         name: 'High Rhode Spritz',
-        ingredients: ['2 oz Kin High Rhode', '3 oz Sparkling wine', '1 oz Fresh grapefruit juice', 'Grapefruit wheel', 'Rosemary sprig'],
-        instructions: 'Combine High Rhode and grapefruit juice in wine glass. Add ice and top with sparkling wine. Garnish with grapefruit and rosemary.',
+        ingredients: [
+          '2 oz Kin High Rhode',
+          '3 oz Sparkling wine',
+          '1 oz Fresh grapefruit juice',
+          'Grapefruit wheel',
+          'Rosemary sprig',
+        ],
+        instructions:
+          'Combine High Rhode and grapefruit juice in wine glass. Add ice and top with sparkling wine. Garnish with grapefruit and rosemary.',
         glassware: 'Wine glass',
         difficulty: 'Easy',
-        time: '3 min'
-      }
-    ]
+        time: '3 min',
+      },
+    ],
   },
   {
     id: 'seedlip-spice-94',
@@ -851,7 +1092,8 @@ const nonAlcoholicBeverages = [
     category: 'Zero-Proof Spirits',
     region: 'United Kingdom',
     tier: 'gold',
-    image: 'https://images.unsplash.com/photo-1574671928146-5c89a22b2e85?q=80&w=1200&auto=format&fit=crop',
+    image:
+      'https://images.unsplash.com/photo-1574671928146-5c89a22b2e85?q=80&w=1200&auto=format&fit=crop',
     tagline: 'Warm & Spiced',
     description: 'A warm, aromatic blend of allspice and cardamom with a complex spice profile.',
     abv: '0.0%',
@@ -860,52 +1102,80 @@ const nonAlcoholicBeverages = [
     recipes: [
       {
         name: 'Spiced Mule',
-        ingredients: ['2 oz Seedlip Spice 94', '1/2 oz Fresh lime juice', '4 oz Ginger beer', 'Lime wheel', 'Candied ginger'],
-        instructions: 'Build in copper mug over ice. Stir gently. Garnish with lime and candied ginger.',
+        ingredients: [
+          '2 oz Seedlip Spice 94',
+          '1/2 oz Fresh lime juice',
+          '4 oz Ginger beer',
+          'Lime wheel',
+          'Candied ginger',
+        ],
+        instructions:
+          'Build in copper mug over ice. Stir gently. Garnish with lime and candied ginger.',
         glassware: 'Copper mug',
         difficulty: 'Easy',
-        time: '2 min'
+        time: '2 min',
       },
       {
         name: 'Spice Route',
-        ingredients: ['1 1/2 oz Seedlip Spice 94', '1 oz Apple juice', '1/2 oz Honey syrup', '1/4 oz Lemon juice', 'Cinnamon stick'],
-        instructions: 'Shake ingredients with ice. Strain into rocks glass over fresh ice. Garnish with cinnamon stick.',
+        ingredients: [
+          '1 1/2 oz Seedlip Spice 94',
+          '1 oz Apple juice',
+          '1/2 oz Honey syrup',
+          '1/4 oz Lemon juice',
+          'Cinnamon stick',
+        ],
+        instructions:
+          'Shake ingredients with ice. Strain into rocks glass over fresh ice. Garnish with cinnamon stick.',
         glassware: 'Rocks glass',
         difficulty: 'Easy',
-        time: '3 min'
-      }
-    ]
+        time: '3 min',
+      },
+    ],
   },
   {
     id: 'aperol-spritz-zero',
-    name: 'Lyre\'s Italian Orange',
+    name: "Lyre's Italian Orange",
     category: 'Low-ABV Options',
     region: 'Australia',
     tier: 'silver',
     image: require('../../assets/images/mocktails/italian_sunset.png'),
     tagline: 'Italian Aperitivo',
-    description: 'Zero-proof alternative to Italian orange aperitif with bitter orange and herbal complexity.',
+    description:
+      'Zero-proof alternative to Italian orange aperitif with bitter orange and herbal complexity.',
     abv: '0.0%',
     flavorNotes: ['Bitter orange', 'Herbs', 'Rhubarb', 'Vanilla'],
     useCase: 'Perfect for aperitif hour and Italian-style spritzes',
     recipes: [
       {
         name: 'Zero Proof Aperol Spritz',
-        ingredients: ['3 oz Lyre\'s Italian Orange', '3 oz Prosecco', '1 oz Soda water', 'Orange slice'],
-        instructions: 'Build in wine glass over ice. Top with soda water. Garnish with orange slice.',
+        ingredients: [
+          "3 oz Lyre's Italian Orange",
+          '3 oz Prosecco',
+          '1 oz Soda water',
+          'Orange slice',
+        ],
+        instructions:
+          'Build in wine glass over ice. Top with soda water. Garnish with orange slice.',
         glassware: 'Wine glass',
         difficulty: 'Easy',
-        time: '2 min'
+        time: '2 min',
       },
       {
         name: 'Italian Sunset',
-        ingredients: ['2 oz Lyre\'s Italian Orange', '1 oz Fresh grapefruit juice', '1/2 oz Honey syrup', '3 oz Sparkling water', 'Grapefruit twist'],
-        instructions: 'Shake orange liqueur, grapefruit juice, and honey with ice. Strain into highball over ice. Top with sparkling water.',
+        ingredients: [
+          "2 oz Lyre's Italian Orange",
+          '1 oz Fresh grapefruit juice',
+          '1/2 oz Honey syrup',
+          '3 oz Sparkling water',
+          'Grapefruit twist',
+        ],
+        instructions:
+          'Shake orange liqueur, grapefruit juice, and honey with ice. Strain into highball over ice. Top with sparkling water.',
         glassware: 'Highball glass',
         difficulty: 'Easy',
-        time: '3 min'
-      }
-    ]
+        time: '3 min',
+      },
+    ],
   },
   {
     id: 'curious-elixir-no2',
@@ -915,20 +1185,27 @@ const nonAlcoholicBeverages = [
     tier: 'bronze',
     image: require('../../assets/images/mocktails/curious_spritz.png'),
     tagline: 'Negroni Inspired',
-    description: 'A sophisticated blend inspired by the classic Negroni with bitter and sweet botanicals.',
+    description:
+      'A sophisticated blend inspired by the classic Negroni with bitter and sweet botanicals.',
     abv: '<0.5%',
     flavorNotes: ['Bitter orange', 'Juniper', 'Gentian', 'Rosemary'],
     useCase: 'Ready-to-drink alternative to classic bitter cocktails',
     recipes: [
       {
         name: 'Curious Spritz',
-        ingredients: ['4 oz Curious Elixir No. 2', '2 oz Sparkling water', 'Orange peel', 'Fresh rosemary'],
-        instructions: 'Pour over ice in wine glass. Top with sparkling water. Express orange oils and garnish with rosemary.',
+        ingredients: [
+          '4 oz Curious Elixir No. 2',
+          '2 oz Sparkling water',
+          'Orange peel',
+          'Fresh rosemary',
+        ],
+        instructions:
+          'Pour over ice in wine glass. Top with sparkling water. Express orange oils and garnish with rosemary.',
         glassware: 'Wine glass',
         difficulty: 'Easy',
-        time: '2 min'
-      }
-    ]
+        time: '2 min',
+      },
+    ],
   },
   {
     id: 'health-ade-kombucha',
@@ -936,30 +1213,46 @@ const nonAlcoholicBeverages = [
     category: 'Wellness Drinks',
     region: 'United States',
     tier: 'bronze',
-    image: 'https://images.unsplash.com/photo-1559181567-c3190ca9959b?q=80&w=1200&auto=format&fit=crop',
+    image:
+      'https://images.unsplash.com/photo-1559181567-c3190ca9959b?q=80&w=1200&auto=format&fit=crop',
     tagline: 'Probiotic Power',
-    description: 'Organic kombucha with real ginger and lemon for digestive health and refreshing taste.',
+    description:
+      'Organic kombucha with real ginger and lemon for digestive health and refreshing taste.',
     abv: '<0.5%',
     flavorNotes: ['Fresh ginger', 'Lemon', 'Fermented tea', 'Tangy'],
     useCase: 'Great for wellness cocktails and digestive support',
     recipes: [
       {
         name: 'Ginger Lemon Mule',
-        ingredients: ['6 oz Health-Ade Ginger Lemon', '1 oz Fresh lime juice', '1/2 oz Agave nectar', 'Mint sprig', 'Crystallized ginger'],
-        instructions: 'Combine lime juice and agave in mug. Add ice and kombucha. Stir gently. Garnish with mint and ginger.',
+        ingredients: [
+          '6 oz Health-Ade Ginger Lemon',
+          '1 oz Fresh lime juice',
+          '1/2 oz Agave nectar',
+          'Mint sprig',
+          'Crystallized ginger',
+        ],
+        instructions:
+          'Combine lime juice and agave in mug. Add ice and kombucha. Stir gently. Garnish with mint and ginger.',
         glassware: 'Copper mug',
         difficulty: 'Easy',
-        time: '3 min'
+        time: '3 min',
       },
       {
         name: 'Wellness Spritzer',
-        ingredients: ['4 oz Health-Ade Ginger Lemon', '2 oz Sparkling water', '1 oz Fresh cucumber juice', 'Cucumber ribbon', 'Lemon wheel'],
-        instructions: 'Combine cucumber juice with kombucha in glass. Add ice and top with sparkling water. Garnish with cucumber and lemon.',
+        ingredients: [
+          '4 oz Health-Ade Ginger Lemon',
+          '2 oz Sparkling water',
+          '1 oz Fresh cucumber juice',
+          'Cucumber ribbon',
+          'Lemon wheel',
+        ],
+        instructions:
+          'Combine cucumber juice with kombucha in glass. Add ice and top with sparkling water. Garnish with cucumber and lemon.',
         glassware: 'Highball glass',
         difficulty: 'Easy',
-        time: '3 min'
-      }
-    ]
+        time: '3 min',
+      },
+    ],
   },
   {
     id: 'rebbl-ashwagandha-chai',
@@ -967,31 +1260,47 @@ const nonAlcoholicBeverages = [
     category: 'Wellness Drinks',
     region: 'United States',
     tier: 'silver',
-    image: 'https://images.unsplash.com/photo-1574671928146-5c89a22b2e85?q=80&w=1200&auto=format&fit=crop',
+    image:
+      'https://images.unsplash.com/photo-1574671928146-5c89a22b2e85?q=80&w=1200&auto=format&fit=crop',
     tagline: 'Adaptogenic Blend',
-    description: 'Plant-based superfood drink with ashwagandha, reishi, and warming spices for stress support.',
+    description:
+      'Plant-based superfood drink with ashwagandha, reishi, and warming spices for stress support.',
     abv: '0.0%',
     flavorNotes: ['Chai spices', 'Coconut', 'Ashwagandha', 'Cinnamon'],
     useCase: 'Perfect for evening relaxation and stress relief cocktails',
     recipes: [
       {
         name: 'Golden Hour Latte',
-        ingredients: ['6 oz REBBL Ashwagandha Chai', '2 oz Steamed oat milk', '1/2 oz Vanilla syrup', 'Cinnamon stick', 'Star anise'],
-        instructions: 'Heat chai drink. Steam oat milk and vanilla syrup. Combine in mug. Garnish with cinnamon and star anise.',
+        ingredients: [
+          '6 oz REBBL Ashwagandha Chai',
+          '2 oz Steamed oat milk',
+          '1/2 oz Vanilla syrup',
+          'Cinnamon stick',
+          'Star anise',
+        ],
+        instructions:
+          'Heat chai drink. Steam oat milk and vanilla syrup. Combine in mug. Garnish with cinnamon and star anise.',
         glassware: 'Coffee mug',
         difficulty: 'Easy',
-        time: '4 min'
+        time: '4 min',
       },
       {
         name: 'Spiced Chai Fizz',
-        ingredients: ['4 oz REBBL Ashwagandha Chai', '2 oz Sparkling water', '1/2 oz Maple syrup', 'Orange peel', 'Cardamom pod'],
-        instructions: 'Combine chai and maple syrup in glass. Add ice and top with sparkling water. Garnish with orange peel and cardamom.',
+        ingredients: [
+          '4 oz REBBL Ashwagandha Chai',
+          '2 oz Sparkling water',
+          '1/2 oz Maple syrup',
+          'Orange peel',
+          'Cardamom pod',
+        ],
+        instructions:
+          'Combine chai and maple syrup in glass. Add ice and top with sparkling water. Garnish with orange peel and cardamom.',
         glassware: 'Highball glass',
         difficulty: 'Easy',
-        time: '3 min'
-      }
-    ]
-  }
+        time: '3 min',
+      },
+    ],
+  },
 ];
 
 const cocktailData = {
@@ -999,7 +1308,8 @@ const cocktailData = {
     id: 'old-fashioned',
     title: 'Old Fashioned',
     subtitle: 'Classic • Whiskey-based',
-    description: 'A timeless cocktail made with whiskey, sugar, bitters, and an orange twist. This drink represents the essence of what a cocktail should be - simple, balanced, and perfectly executed.',
+    description:
+      'A timeless cocktail made with whiskey, sugar, bitters, and an orange twist. This drink represents the essence of what a cocktail should be - simple, balanced, and perfectly executed.',
     difficulty: 'Easy',
     time: '3 min',
     ingredients: [
@@ -1007,7 +1317,7 @@ const cocktailData = {
       { name: '1/4 oz Simple Syrup', note: 'Or 1 sugar cube' },
       { name: '2 dashes Angostura Bitters', note: 'Essential for flavor' },
       { name: 'Orange Peel', note: 'For garnish and aroma' },
-      { name: 'Ice', note: 'Large cube preferred' }
+      { name: 'Ice', note: 'Large cube preferred' },
     ],
     instructions: [
       'Add simple syrup and bitters to rocks glass',
@@ -1015,22 +1325,23 @@ const cocktailData = {
       'Add ice (preferably one large cube)',
       'Stir gently to chill and dilute',
       'Express orange peel oils over drink',
-      'Garnish with orange peel'
+      'Garnish with orange peel',
     ],
     tips: [
       'Use a large ice cube to minimize dilution',
       'Express the orange peel properly for best aroma',
-      'Quality whiskey makes a big difference'
+      'Quality whiskey makes a big difference',
     ],
     glassware: 'Rocks Glass',
     kitAvailable: true,
-    kitPrice: 49.99
+    kitPrice: 49.99,
   },
-  'manhattan': {
+  manhattan: {
     id: 'manhattan',
     title: 'Manhattan',
     subtitle: 'Classic • Whiskey-based',
-    description: 'An elegant mix of whiskey, sweet vermouth, and bitters, garnished with a cherry. The Manhattan is the sophisticated sibling of the Old Fashioned.',
+    description:
+      'An elegant mix of whiskey, sweet vermouth, and bitters, garnished with a cherry. The Manhattan is the sophisticated sibling of the Old Fashioned.',
     img: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?auto=format&fit=crop&w=1200&q=60',
     difficulty: 'Easy',
     time: '2 min',
@@ -1038,28 +1349,29 @@ const cocktailData = {
       { name: '2 oz Rye Whiskey', note: 'Bourbon also works well' },
       { name: '1 oz Sweet Vermouth', note: 'Quality matters here' },
       { name: '2 dashes Angostura Bitters', note: 'Classic choice' },
-      { name: 'Maraschino Cherry', note: 'For garnish' }
+      { name: 'Maraschino Cherry', note: 'For garnish' },
     ],
     instructions: [
       'Add whiskey, vermouth, and bitters to mixing glass',
       'Add ice and stir for 30 seconds',
       'Strain into chilled Coupe glass',
-      'Garnish with cherry'
+      'Garnish with cherry',
     ],
     tips: [
-      'Stir, don\'t shake - keeps it clear',
+      "Stir, don't shake - keeps it clear",
       'Chill your glass beforehand',
-      'Good vermouth is crucial'
+      'Good vermouth is crucial',
     ],
     glassware: 'Coupe Glass',
     kitAvailable: true,
-    kitPrice: 54.99
+    kitPrice: 54.99,
   },
-  'negroni': {
+  negroni: {
     id: 'negroni',
     title: 'Negroni',
     subtitle: 'Classic • Gin-based',
-    description: 'A bitter and sweet Italian cocktail with gin, Campari, and sweet vermouth. Perfect for those who appreciate complex, bitter flavors.',
+    description:
+      'A bitter and sweet Italian cocktail with gin, Campari, and sweet vermouth. Perfect for those who appreciate complex, bitter flavors.',
     img: 'https://images.unsplash.com/photo-1541745537411-b8046dc6d66c?auto=format&fit=crop&w=1200&q=60',
     difficulty: 'Easy',
     time: '2 min',
@@ -1067,28 +1379,29 @@ const cocktailData = {
       { name: '1 oz Gin', note: 'London Dry style preferred' },
       { name: '1 oz Campari', note: 'The signature bitter element' },
       { name: '1 oz Sweet Vermouth', note: 'Balances the bitterness' },
-      { name: 'Orange Peel', note: 'Essential garnish' }
+      { name: 'Orange Peel', note: 'Essential garnish' },
     ],
     instructions: [
       'Add gin, Campari, and vermouth to rocks glass',
       'Add ice and stir to combine',
       'Express orange peel over drink',
-      'Drop peel into glass'
+      'Drop peel into glass',
     ],
     tips: [
       'Equal parts - the perfect balance',
       'Build in glass for simplicity',
-      'Orange peel oils are essential'
+      'Orange peel oils are essential',
     ],
     glassware: 'Rocks Glass',
     kitAvailable: true,
-    kitPrice: 64.99
+    kitPrice: 64.99,
   },
   'espresso-martini': {
     id: 'espresso-martini',
     title: 'Espresso Martini',
     subtitle: 'Modern • Vodka-based',
-    description: 'A sophisticated coffee cocktail with vodka, coffee liqueur, and fresh espresso. The perfect pick-me-up cocktail.',
+    description:
+      'A sophisticated coffee cocktail with vodka, coffee liqueur, and fresh espresso. The perfect pick-me-up cocktail.',
     img: 'https://images.unsplash.com/photo-1609951651556-5334e2706168?auto=format&fit=crop&w=1200&q=60',
     difficulty: 'Medium',
     time: '5 min',
@@ -1096,57 +1409,59 @@ const cocktailData = {
       { name: '2 oz Vodka', note: 'Premium vodka recommended' },
       { name: '1/2 oz Coffee Liqueur', note: 'Kahlúa or similar' },
       { name: '1 shot Fresh Espresso', note: 'Must be fresh and hot' },
-      { name: '1/4 oz Simple Syrup', note: 'Optional, to taste' }
+      { name: '1/4 oz Simple Syrup', note: 'Optional, to taste' },
     ],
     instructions: [
       'Brew fresh espresso shot',
       'Add all ingredients to shaker with ice',
       'Shake vigorously for 15 seconds',
       'Double strain into chilled coupe',
-      'Garnish with 3 coffee beans'
+      'Garnish with 3 coffee beans',
     ],
     tips: [
       'Fresh espresso is non-negotiable',
       'Shake hard to create foam',
-      'Serve immediately while hot'
+      'Serve immediately while hot',
     ],
     glassware: 'Coupe Glass',
     kitAvailable: true,
-    kitPrice: 39.99
+    kitPrice: 39.99,
   },
   'classic-martini': {
     id: 'classic-martini',
     title: 'Classic Martini',
     subtitle: 'Classic • Gin-based',
-    description: 'A timeless classic cocktail with gin and dry vermouth. The epitome of cocktail elegance and sophistication.',
+    description:
+      'A timeless classic cocktail with gin and dry vermouth. The epitome of cocktail elegance and sophistication.',
     img: 'https://images.unsplash.com/photo-1541976076758-347942db1978?q=80&w=1200&auto=format&fit=crop',
     difficulty: 'Easy',
     time: '2 min',
     ingredients: [
       { name: '2 oz Gin', note: 'London Dry preferred' },
       { name: '1/2 oz Dry Vermouth', note: 'Quality matters' },
-      { name: 'Olive or Lemon Twist', note: 'For garnish' }
+      { name: 'Olive or Lemon Twist', note: 'For garnish' },
     ],
     instructions: [
       'Add gin and vermouth to mixing glass with ice',
       'Stir for 30 seconds until well chilled',
       'Strain into chilled Coupe glass',
-      'Garnish with olive or lemon twist'
+      'Garnish with olive or lemon twist',
     ],
     tips: [
-      'Stir, don\'t shake for clarity',
+      "Stir, don't shake for clarity",
       'Chill your glass beforehand',
-      'Less vermouth for a drier martini'
+      'Less vermouth for a drier martini',
     ],
     glassware: 'Coupe Glass',
     kitAvailable: true,
-    kitPrice: 44.99
+    kitPrice: 44.99,
   },
   'virgin-mojito': {
     id: 'virgin-mojito',
     title: 'Virgin Mojito',
     subtitle: 'Non-Alcoholic • Refreshing',
-    description: 'Refreshing non-alcoholic version of the classic mojito with fresh mint, lime, and sparkling water.',
+    description:
+      'Refreshing non-alcoholic version of the classic mojito with fresh mint, lime, and sparkling water.',
     img: 'https://images.unsplash.com/photo-1497534547324-0ebb3f052e88?q=80&w=1200&auto=format&fit=crop',
     difficulty: 'Easy',
     time: '2 min',
@@ -1155,29 +1470,26 @@ const cocktailData = {
       { name: 'Mint Leaves', note: '8-10 fresh leaves' },
       { name: 'Simple Syrup', note: '1/2 oz to taste' },
       { name: 'Soda Water', note: '4 oz chilled' },
-      { name: 'Ice', note: 'Crushed preferred' }
+      { name: 'Ice', note: 'Crushed preferred' },
     ],
     instructions: [
       'Muddle mint leaves gently in glass',
       'Add lime juice and simple syrup',
       'Fill glass with crushed ice',
       'Top with soda water',
-      'Stir gently and garnish with mint sprig'
+      'Stir gently and garnish with mint sprig',
     ],
-    tips: [
-      'Don\'t over-muddle the mint',
-      'Use fresh lime juice only',
-      'Adjust sweetness to taste'
-    ],
+    tips: ["Don't over-muddle the mint", 'Use fresh lime juice only', 'Adjust sweetness to taste'],
     glassware: 'Highball Glass',
     kitAvailable: false,
-    kitPrice: 0
+    kitPrice: 0,
   },
-  'mojito': {
+  mojito: {
     id: 'mojito',
     title: 'Mojito',
     subtitle: 'Classic • Rum-based',
-    description: 'A refreshing Cuban cocktail with white rum, fresh mint, lime juice, sugar, and soda water. The perfect summer drink.',
+    description:
+      'A refreshing Cuban cocktail with white rum, fresh mint, lime juice, sugar, and soda water. The perfect summer drink.',
     img: 'https://images.unsplash.com/photo-1551538827-9c037cb4f32a?q=80&w=1200&auto=format&fit=crop',
     difficulty: 'Easy',
     time: '3 min',
@@ -1187,57 +1499,59 @@ const cocktailData = {
       { name: '2 tsp Sugar', note: 'Or 1/2 oz simple syrup' },
       { name: '8-10 Mint Leaves', note: 'Fresh mint only' },
       { name: 'Soda Water', note: '2-3 oz to top' },
-      { name: 'Ice', note: 'Crushed preferred' }
+      { name: 'Ice', note: 'Crushed preferred' },
     ],
     instructions: [
       'Gently muddle mint leaves with sugar in glass',
       'Add lime juice and rum',
       'Fill glass with crushed ice',
       'Top with soda water',
-      'Stir gently and garnish with mint sprig'
+      'Stir gently and garnish with mint sprig',
     ],
     tips: [
-      'Don\'t over-muddle the mint - bruise, don\'t tear',
+      "Don't over-muddle the mint - bruise, don't tear",
       'Use fresh lime juice only',
-      'Adjust sweetness to taste'
+      'Adjust sweetness to taste',
     ],
     glassware: 'Highball Glass',
     kitAvailable: true,
-    kitPrice: 34.99
+    kitPrice: 34.99,
   },
-  'daiquiri': {
+  daiquiri: {
     id: 'daiquiri',
     title: 'Daiquiri',
     subtitle: 'Classic • Rum-based',
-    description: 'A simple yet perfect cocktail with white rum, lime juice, and simple syrup. The essence of Caribbean elegance.',
+    description:
+      'A simple yet perfect cocktail with white rum, lime juice, and simple syrup. The essence of Caribbean elegance.',
     img: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?q=80&w=1200&auto=format&fit=crop',
     difficulty: 'Easy',
     time: '2 min',
     ingredients: [
       { name: '2 oz White Rum', note: 'Quality white rum' },
       { name: '1 oz Fresh Lime Juice', note: 'Freshly squeezed' },
-      { name: '3/4 oz Simple Syrup', note: 'Adjust to taste' }
+      { name: '3/4 oz Simple Syrup', note: 'Adjust to taste' },
     ],
     instructions: [
       'Add all ingredients to shaker with ice',
       'Shake vigorously for 10-15 seconds',
       'Double strain into chilled Coupe glass',
-      'Garnish with lime wheel if desired'
+      'Garnish with lime wheel if desired',
     ],
     tips: [
       'Balance is key - adjust sweetness to taste',
       'Shake hard for proper dilution',
-      'Serve immediately while cold'
+      'Serve immediately while cold',
     ],
     glassware: 'Coupe Glass',
     kitAvailable: true,
-    kitPrice: 29.99
+    kitPrice: 29.99,
   },
-  'margarita': {
+  margarita: {
     id: 'margarita',
     title: 'Margarita',
     subtitle: 'Classic • Tequila-based',
-    description: 'The quintessential tequila cocktail with lime juice, orange liqueur, and a salted rim. Perfect balance of sweet, sour, and salty.',
+    description:
+      'The quintessential tequila cocktail with lime juice, orange liqueur, and a salted rim. Perfect balance of sweet, sour, and salty.',
     img: 'https://images.unsplash.com/photo-1541976076758-347942db1978?q=80&w=1200&auto=format&fit=crop',
     difficulty: 'Easy',
     time: '3 min',
@@ -1246,29 +1560,30 @@ const cocktailData = {
       { name: '1 oz Fresh Lime Juice', note: 'Freshly squeezed' },
       { name: '1 oz Orange Liqueur', note: 'Cointreau or Triple Sec' },
       { name: 'Salt', note: 'For rim' },
-      { name: 'Lime Wheel', note: 'For garnish' }
+      { name: 'Lime Wheel', note: 'For garnish' },
     ],
     instructions: [
       'Rim glass with salt using lime wheel',
       'Add tequila, lime juice, and orange liqueur to shaker',
       'Add ice and shake vigorously',
       'Strain into salt-rimmed rocks glass over ice',
-      'Garnish with lime wheel'
+      'Garnish with lime wheel',
     ],
     tips: [
       'Use 100% agave tequila for best flavor',
       'Fresh lime juice is essential',
-      'Salt rim is traditional but optional'
+      'Salt rim is traditional but optional',
     ],
     glassware: 'Rocks Glass',
     kitAvailable: true,
-    kitPrice: 39.99
+    kitPrice: 39.99,
   },
-  'cosmopolitan': {
+  cosmopolitan: {
     id: 'cosmopolitan',
     title: 'Cosmopolitan',
     subtitle: 'Modern • Vodka-based',
-    description: 'A glamorous pink cocktail with vodka, cranberry juice, lime juice, and orange liqueur. Made famous in the 90s.',
+    description:
+      'A glamorous pink cocktail with vodka, cranberry juice, lime juice, and orange liqueur. Made famous in the 90s.',
     img: 'https://images.unsplash.com/photo-1609951651556-5334e2706168?q=80&w=1200&auto=format&fit=crop',
     difficulty: 'Easy',
     time: '2 min',
@@ -1277,28 +1592,29 @@ const cocktailData = {
       { name: '1/2 oz Orange Liqueur', note: 'Cointreau or Triple Sec' },
       { name: '1/2 oz Fresh Lime Juice', note: 'Freshly squeezed' },
       { name: '1/2 oz Cranberry Juice', note: 'For color and flavor' },
-      { name: 'Lime Wheel', note: 'For garnish' }
+      { name: 'Lime Wheel', note: 'For garnish' },
     ],
     instructions: [
       'Add all ingredients to shaker with ice',
       'Shake vigorously for 10-15 seconds',
       'Double strain into chilled Coupe glass',
-      'Garnish with lime wheel on rim'
+      'Garnish with lime wheel on rim',
     ],
     tips: [
       'Use just enough cranberry for pink color',
       'Fresh lime juice makes all the difference',
-      'Serve in a chilled glass'
+      'Serve in a chilled glass',
     ],
     glassware: 'Coupe Glass',
     kitAvailable: true,
-    kitPrice: 34.99
+    kitPrice: 34.99,
   },
   'moscow-mule': {
     id: 'moscow-mule',
     title: 'Moscow Mule',
     subtitle: 'Classic • Vodka-based',
-    description: 'A refreshing cocktail with vodka, ginger beer, and lime juice, traditionally served in a copper mug.',
+    description:
+      'A refreshing cocktail with vodka, ginger beer, and lime juice, traditionally served in a copper mug.',
     img: 'https://images.unsplash.com/photo-1544145945-f90425340c7e?q=80&w=1200&auto=format&fit=crop',
     difficulty: 'Easy',
     time: '2 min',
@@ -1307,24 +1623,24 @@ const cocktailData = {
       { name: '1/2 oz Fresh Lime Juice', note: 'Freshly squeezed' },
       { name: '4-6 oz Ginger Beer', note: 'Spicy ginger beer preferred' },
       { name: 'Lime Wedge', note: 'For garnish' },
-      { name: 'Ice', note: 'Cubed ice' }
+      { name: 'Ice', note: 'Cubed ice' },
     ],
     instructions: [
       'Fill copper mug or highball glass with ice',
       'Add vodka and lime juice',
       'Top with ginger beer',
       'Stir gently to combine',
-      'Garnish with lime wedge'
+      'Garnish with lime wedge',
     ],
     tips: [
       'Copper mug keeps drink colder longer',
       'Good quality ginger beer is key',
-      'Don\'t over-stir to preserve carbonation'
+      "Don't over-stir to preserve carbonation",
     ],
     glassware: 'Copper Mug',
     kitAvailable: true,
-    kitPrice: 32.99
-  }
+    kitPrice: 32.99,
+  },
 };
 
 // Function to get non-alcoholic recipe data
@@ -1341,17 +1657,17 @@ const getNonAlcoholicRecipeData = (recipeId: string) => {
           img: beverage.image,
           difficulty: recipe.difficulty,
           time: recipe.time,
-          ingredients: recipe.ingredients.map(ingredient => ({
+          ingredients: recipe.ingredients.map((ingredient) => ({
             name: ingredient,
-            note: beverage.name
+            note: beverage.name,
           })),
-          instructions: recipe.instructions.split('. ').filter(step => step.trim()),
-          tips: beverage.flavorNotes.map(note => `Features ${note.toLowerCase()} notes`),
+          instructions: recipe.instructions.split('. ').filter((step) => step.trim()),
+          tips: beverage.flavorNotes.map((note) => `Features ${note.toLowerCase()} notes`),
           glassware: recipe.glassware,
           kitAvailable: false,
           kitPrice: 0,
           isNonAlcoholic: true,
-          beverage
+          beverage,
         };
       }
     }
@@ -1362,7 +1678,8 @@ const getNonAlcoholicRecipeData = (recipeId: string) => {
 export default function CocktailDetailScreen() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute<CocktailDetailScreenRouteProp>();
-  const { toggleSavedCocktail, isCocktailSaved, savedCocktailCount, canSaveMoreCocktails } = useSavedItems();
+  const { toggleSavedCocktail, isCocktailSaved, savedCocktailCount, canSaveMoreCocktails } =
+    useSavedItems();
   const { toast, showToast, hideToast } = useToast();
   const { isPro, isPrestige } = useSubscription();
   const completionConfig = getCompletionPromptConfig(isPro || isPrestige ? 'pro' : 'free');
@@ -1373,11 +1690,13 @@ export default function CocktailDetailScreen() {
   const getUserRecipeById = useUserRecipes((state) => state.getRecipeById);
   const serifFont = Platform.select({ ios: 'Georgia', android: 'serif', default: 'serif' });
 
-  const [firebaseRecipe, setFirebaseRecipe] = useState<Recipe | null>(null);
+  const [remoteRecipe, setRemoteRecipe] = useState<Recipe | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [groceryListVisible, setGroceryListVisible] = useState(false);
   const [hasMadeIt, setHasMadeIt] = useState(false);
+  // Phase 0.8 scaffold: "made Nx" card data (full card treatment is Phase 3).
+  const [timesMade, setTimesMade] = useState(0);
   const [userInventory, setUserInventory] = useState<UserInventoryItem[]>([]);
   const [missingIngredientNames, setMissingIngredientNames] = useState<string[]>([]);
   const [substituteRows, setSubstituteRows] = useState<SubstituteRow[]>([]);
@@ -1403,7 +1722,7 @@ export default function CocktailDetailScreen() {
         const inventory = await InventoryService.getUserInventory(user.id);
         log.info('CocktailDetailScreen', 'Inventory loaded', {
           inventoryCount: inventory.length,
-          items: inventory.map(i => i.item_name).slice(0, 10),
+          items: inventory.map((i) => i.item_name).slice(0, 10),
         });
         setUserInventory(inventory);
       } else {
@@ -1421,11 +1740,8 @@ export default function CocktailDetailScreen() {
         // Always fetch from Supabase to get complete data
         const recipe = await RecipesRepository.getRecipeById(route.params.cocktailId);
         if (recipe) {
-          setFirebaseRecipe(recipe);
+          setRemoteRecipe(recipe);
         }
-
-        // Track recipe view for achievements
-        await achievementService.trackAction('recipesViewed', 1);
       } catch (error) {
         log.error('CocktailDetailScreen', 'Error loading recipe', error);
         // Only show error if we don't have fallback data
@@ -1451,7 +1767,8 @@ export default function CocktailDetailScreen() {
       if (viewDurationSeconds >= 3) {
         trackEvent(ANALYTICS_EVENTS.RECIPE_ENGAGEMENT, {
           [ANALYTICS_PROPS.RECIPE_ID]: route.params.cocktailId,
-          [ANALYTICS_PROPS.RECIPE_NAME]: route.params.cocktail?.title || route.params.cocktail?.name || 'Unknown',
+          [ANALYTICS_PROPS.RECIPE_NAME]:
+            route.params.cocktail?.title || route.params.cocktail?.name || 'Unknown',
           [ANALYTICS_PROPS.VIEW_DURATION_SECONDS]: viewDurationSeconds,
         });
       }
@@ -1463,7 +1780,7 @@ export default function CocktailDetailScreen() {
     setRefreshing(true);
     try {
       const recipe = await RecipesRepository.getRecipeById(route.params.cocktailId);
-      setFirebaseRecipe(recipe);
+      setRemoteRecipe(recipe);
       showToast('Recipe refreshed!', 'success');
     } catch (error) {
       log.error('CocktailDetailScreen', 'Error refreshing recipe', error);
@@ -1476,141 +1793,183 @@ export default function CocktailDetailScreen() {
   // Check data sources in priority order:
   // 1. Passed cocktail object (for local recipes like mocktails)
   // 2. Non-alcoholic recipes
-  // 3. Firebase user-created recipes
+  // 3. Remote (Supabase) user-created recipes
   // 4. Hardcoded premium cocktails (original 11)
   // 5. Transformed centralized cocktails (new 81)
 
   // Transform passed cocktail if it exists and needs transformation
-  const passedCocktail = route.params.cocktail ? (() => {
-    const raw = route.params.cocktail;
-    const normalizedBase = {
-      ...raw,
-      title: raw.title || raw.name || 'Custom Recipe',
-      subtitle: raw.subtitle || 'Custom Recipe',
-      img: raw.img || raw.image || raw.thumbnailImage || raw.headerImage || 'https://images.unsplash.com/photo-1536935338788-846bb9981813?auto=format&fit=crop&w=1200&q=60',
-      difficulty: raw.difficulty || 'Easy',
-      time: raw.time || (raw.prepTime ? `${raw.prepTime} min` : '5 min'),
-    };
+  const passedCocktail = route.params.cocktail
+    ? (() => {
+        const raw = route.params.cocktail;
+        const normalizedBase = {
+          ...raw,
+          title: raw.title || raw.name || 'Custom Recipe',
+          subtitle: raw.subtitle || 'Custom Recipe',
+          img:
+            raw.img ||
+            raw.image ||
+            raw.thumbnailImage ||
+            raw.headerImage ||
+            'https://images.unsplash.com/photo-1536935338788-846bb9981813?auto=format&fit=crop&w=1200&q=60',
+          difficulty: raw.difficulty || 'Easy',
+          time: raw.time || (raw.prepTime ? `${raw.prepTime} min` : '5 min'),
+        };
 
-    // If it already has properly formatted ingredients, use as-is
-    if (raw.ingredients && Array.isArray(raw.ingredients) && raw.ingredients.length > 0 && typeof raw.ingredients[0] === 'object' && raw.ingredients[0].name) {
-      return normalizedBase;
-    }
+        // If it already has properly formatted ingredients, use as-is
+        if (
+          raw.ingredients &&
+          Array.isArray(raw.ingredients) &&
+          raw.ingredients.length > 0 &&
+          typeof raw.ingredients[0] === 'object' &&
+          raw.ingredients[0].name
+        ) {
+          return normalizedBase;
+        }
 
-    // If it has string ingredients, transform them
-    if (raw.ingredients && Array.isArray(raw.ingredients) && raw.ingredients.length > 0) {
-      return {
-        ...normalizedBase,
-        ingredients: raw.ingredients.map((ing: any) => {
-          if (typeof ing === 'string') {
-            return { name: ing, note: undefined };
-          }
-          return ing;
-        })
-      };
-    }
+        // If it has string ingredients, transform them
+        if (raw.ingredients && Array.isArray(raw.ingredients) && raw.ingredients.length > 0) {
+          return {
+            ...normalizedBase,
+            ingredients: raw.ingredients.map((ing: any) => {
+              if (typeof ing === 'string') {
+                return { name: ing, note: undefined };
+              }
+              return ing;
+            }),
+          };
+        }
 
-    // If no ingredients, use the transformer to get them from centralized data
-    return getDetailedCocktail(raw.id) || normalizedBase;
-  })() : null;
+        // If no ingredients, use the transformer to get them from centralized data
+        return getDetailedCocktail(raw.id) || normalizedBase;
+      })()
+    : null;
   const localUserRecipe = getUserRecipeById(route.params.cocktailId);
-  const localUserRecipeCocktail = localUserRecipe ? {
-    id: localUserRecipe.id,
-    title: localUserRecipe.name,
-    subtitle: localUserRecipe.type === 'ai_generated' ? 'AI Generated' : 'Custom Recipe',
-    description: localUserRecipe.description || 'Custom cocktail recipe',
-    img: localUserRecipe.image || localUserRecipe.thumbnailImage || localUserRecipe.headerImage || 'https://images.unsplash.com/photo-1536935338788-846bb9981813?auto=format&fit=crop&w=1200&q=60',
-    image: localUserRecipe.image || localUserRecipe.thumbnailImage || localUserRecipe.headerImage,
-    difficulty: localUserRecipe.difficulty || 'Easy',
-    time: localUserRecipe.prepTime ? `${localUserRecipe.prepTime} min` : '5 min',
-    ingredients: localUserRecipe.ingredients || [],
-    instructions: localUserRecipe.instructions || [],
-    tips: localUserRecipe.tags || [],
-    isLocalUserRecipe: true,
-  } : null;
+  const localUserRecipeCocktail = localUserRecipe
+    ? {
+        id: localUserRecipe.id,
+        title: localUserRecipe.name,
+        subtitle: localUserRecipe.type === 'ai_generated' ? 'AI Generated' : 'Custom Recipe',
+        description: localUserRecipe.description || 'Custom cocktail recipe',
+        img:
+          localUserRecipe.image ||
+          localUserRecipe.thumbnailImage ||
+          localUserRecipe.headerImage ||
+          'https://images.unsplash.com/photo-1536935338788-846bb9981813?auto=format&fit=crop&w=1200&q=60',
+        image:
+          localUserRecipe.image || localUserRecipe.thumbnailImage || localUserRecipe.headerImage,
+        difficulty: localUserRecipe.difficulty || 'Easy',
+        time: localUserRecipe.prepTime ? `${localUserRecipe.prepTime} min` : '5 min',
+        ingredients: localUserRecipe.ingredients || [],
+        instructions: localUserRecipe.instructions || [],
+        tips: localUserRecipe.tags || [],
+        isLocalUserRecipe: true,
+      }
+    : null;
 
   const nonAlcoholicRecipe = getNonAlcoholicRecipeData(route.params.cocktailId);
   const hardcodedCocktail = cocktailData[route.params.cocktailId as keyof typeof cocktailData];
   const transformedCocktail = getDetailedCocktail(route.params.cocktailId);
 
-  // Convert Supabase/Firebase recipe to cocktail format if available
-  const firebaseCocktail = firebaseRecipe ? (() => {
-    // Check if it's an AI-formatted recipe first
-    if (firebaseRecipe.aiFormattedData) {
-      return {
-        id: firebaseRecipe.id,
-        title: firebaseRecipe.aiFormattedData.title || firebaseRecipe.title || 'Untitled Recipe',
-        subtitle: `Custom Recipe • ${firebaseRecipe.aiFormattedData.tags?.[0] || 'Mixed'}`,
-        description: firebaseRecipe.aiFormattedData.description || 'Custom recipe created with AI assistance',
-        img: firebaseRecipe.imageUrl || 'https://images.unsplash.com/photo-1536935338788-846bb9981813?auto=format&fit=crop&w=1200&q=60',
-        difficulty: firebaseRecipe.aiFormattedData.difficulty || 'Medium',
-        time: firebaseRecipe.aiFormattedData.time || '5 min',
-        ingredients: firebaseRecipe.aiFormattedData.ingredients?.map((ing: any) => ({
-          name: `${ing.amount || ''} ${ing.name || ''}`.trim(),
-          note: ing.notes || ''
-        })) || [],
-        instructions: firebaseRecipe.aiFormattedData.instructions || [],
-        tips: firebaseRecipe.aiFormattedData.tags?.map((tag: string) => `Tagged as: ${tag}`) || [],
-        glassware: firebaseRecipe.aiFormattedData.glassware,
-        kitAvailable: false,
-        kitPrice: 0,
-        isFirebaseRecipe: true
-      };
-    }
+  // Convert Supabase recipe to cocktail format if available
+  const remoteCocktail = remoteRecipe
+    ? (() => {
+        // Check if it's an AI-formatted recipe first
+        if (remoteRecipe.aiFormattedData) {
+          return {
+            id: remoteRecipe.id,
+            title: remoteRecipe.aiFormattedData.title || remoteRecipe.title || 'Untitled Recipe',
+            subtitle: `Custom Recipe • ${remoteRecipe.aiFormattedData.tags?.[0] || 'Mixed'}`,
+            description:
+              remoteRecipe.aiFormattedData.description ||
+              'Custom recipe created with AI assistance',
+            img:
+              remoteRecipe.imageUrl ||
+              'https://images.unsplash.com/photo-1536935338788-846bb9981813?auto=format&fit=crop&w=1200&q=60',
+            difficulty: remoteRecipe.aiFormattedData.difficulty || 'Medium',
+            time: remoteRecipe.aiFormattedData.time || '5 min',
+            ingredients:
+              remoteRecipe.aiFormattedData.ingredients?.map((ing: any) => ({
+                name: `${ing.amount || ''} ${ing.name || ''}`.trim(),
+                note: ing.notes || '',
+              })) || [],
+            instructions: remoteRecipe.aiFormattedData.instructions || [],
+            tips:
+              remoteRecipe.aiFormattedData.tags?.map((tag: string) => `Tagged as: ${tag}`) || [],
+            glassware: remoteRecipe.aiFormattedData.glassware,
+            kitAvailable: false,
+            kitPrice: 0,
+            isRemoteRecipe: true,
+          };
+        }
 
-    // Otherwise, it's a Supabase recipe - convert it to display format
-    return {
-      id: firebaseRecipe.id,
-      title: firebaseRecipe.title || 'Untitled Recipe',
-      subtitle: `${firebaseRecipe.category || 'Classic'} • ${firebaseRecipe.baseSpirit || 'Mixed'}-based`,
-      description: firebaseRecipe.description && firebaseRecipe.description.length > 50 ? firebaseRecipe.description : `A classic ${firebaseRecipe.baseSpirit || 'cocktail'} recipe.`,
-      img: firebaseRecipe.image || firebaseRecipe.imageUrl || 'https://images.unsplash.com/photo-1536935338788-846bb9981813?auto=format&fit=crop&w=1200&q=60',
-      difficulty: firebaseRecipe.difficulty === 'beginner' ? 'Easy' : firebaseRecipe.difficulty === 'intermediate' ? 'Medium' : firebaseRecipe.difficulty === 'advanced' ? 'Hard' : 'Medium',
-      time: firebaseRecipe.time || `${firebaseRecipe.preparationTime || 5} min`,
-      ingredients: firebaseRecipe.ingredients?.map((ing: any) => {
-        // Handle different ingredient formats
-        if (typeof ing === 'string') {
-          return { name: ing, note: undefined };
-        }
-        // Supabase format: { item: "White Rum", amount: "1 oz", type: "spirit" }
-        if (ing.item && ing.amount) {
-          return {
-            name: `${ing.amount} ${ing.item}`,
-            note: ing.notes || undefined
-          };
-        }
-        // Legacy format with amount: { name: "White Rum", amount: "1 oz" }
-        if (ing.name && ing.amount && ing.amount.trim()) {
-          return {
-            name: `${ing.amount} ${ing.name}`,
-            note: ing.notes || undefined
-          };
-        }
-        // Format where full ingredient is in name field: { name: "1 oz White Rum", amount: "" }
-        if (ing.name && (!ing.amount || !ing.amount.trim())) {
-          return {
-            name: ing.name,
-            note: ing.notes || undefined
-          };
-        }
-        // Fallback - try to convert to string safely
-        if (typeof ing === 'object' && ing !== null) {
-          return { name: ing.name || JSON.stringify(ing), note: undefined };
-        }
-        return { name: String(ing), note: undefined };
-      }) || [],
-      instructions: firebaseRecipe.instructions || [],
-      tips: firebaseRecipe.tags?.slice(0, 3) || [],
-      glassware: firebaseRecipe.glassware,
-      kitAvailable: true,
-      kitPrice: undefined,
-      isSupabaseRecipe: true
-    };
-  })() : null;
+        // Otherwise, it's a Supabase recipe - convert it to display format
+        return {
+          id: remoteRecipe.id,
+          title: remoteRecipe.title || 'Untitled Recipe',
+          subtitle: `${remoteRecipe.category || 'Classic'} • ${remoteRecipe.baseSpirit || 'Mixed'}-based`,
+          description:
+            remoteRecipe.description && remoteRecipe.description.length > 50
+              ? remoteRecipe.description
+              : `A classic ${remoteRecipe.baseSpirit || 'cocktail'} recipe.`,
+          img:
+            remoteRecipe.image ||
+            remoteRecipe.imageUrl ||
+            'https://images.unsplash.com/photo-1536935338788-846bb9981813?auto=format&fit=crop&w=1200&q=60',
+          difficulty:
+            remoteRecipe.difficulty === 'beginner'
+              ? 'Easy'
+              : remoteRecipe.difficulty === 'intermediate'
+                ? 'Medium'
+                : remoteRecipe.difficulty === 'advanced'
+                  ? 'Hard'
+                  : 'Medium',
+          time: remoteRecipe.time || `${remoteRecipe.preparationTime || 5} min`,
+          ingredients:
+            remoteRecipe.ingredients?.map((ing: any) => {
+              // Handle different ingredient formats
+              if (typeof ing === 'string') {
+                return { name: ing, note: undefined };
+              }
+              // Supabase format: { item: "White Rum", amount: "1 oz", type: "spirit" }
+              if (ing.item && ing.amount) {
+                return {
+                  name: `${ing.amount} ${ing.item}`,
+                  note: ing.notes || undefined,
+                };
+              }
+              // Legacy format with amount: { name: "White Rum", amount: "1 oz" }
+              if (ing.name && ing.amount && ing.amount.trim()) {
+                return {
+                  name: `${ing.amount} ${ing.name}`,
+                  note: ing.notes || undefined,
+                };
+              }
+              // Format where full ingredient is in name field: { name: "1 oz White Rum", amount: "" }
+              if (ing.name && (!ing.amount || !ing.amount.trim())) {
+                return {
+                  name: ing.name,
+                  note: ing.notes || undefined,
+                };
+              }
+              // Fallback - try to convert to string safely
+              if (typeof ing === 'object' && ing !== null) {
+                return { name: ing.name || JSON.stringify(ing), note: undefined };
+              }
+              return { name: String(ing), note: undefined };
+            }) || [],
+          instructions: remoteRecipe.instructions || [],
+          tips: remoteRecipe.tags?.slice(0, 3) || [],
+          glassware: remoteRecipe.glassware,
+          kitAvailable: true,
+          kitPrice: undefined,
+          isSupabaseRecipe: true,
+        };
+      })()
+    : null;
 
   // Priority order: Prefer complete data sources (with ingredients)
   // 1. Non-alcoholic recipes (local, always complete)
-  // 2. Firebase/Supabase data (if it has ingredients)
+  // 2. Supabase data (if it has ingredients)
   // 3. Passed cocktail (only if it has ingredients)
   // 4. Hardcoded cocktails
   // 5. Transformed centralized cocktails
@@ -1619,25 +1978,31 @@ export default function CocktailDetailScreen() {
     // Non-alcoholic recipes are always complete
     if (nonAlcoholicRecipe) return nonAlcoholicRecipe;
 
-    // Check if firebase data is complete (has ingredients)
-    if (firebaseCocktail) {
-      const hasValidIngredients = firebaseCocktail.ingredients && firebaseCocktail.ingredients.length > 0;
-      const hasValidInstructions = firebaseCocktail.instructions && firebaseCocktail.instructions.length > 0;
+    // Check if remote data is complete (has ingredients)
+    if (remoteCocktail) {
+      const hasValidIngredients =
+        remoteCocktail.ingredients && remoteCocktail.ingredients.length > 0;
+      const hasValidInstructions =
+        remoteCocktail.instructions && remoteCocktail.instructions.length > 0;
 
-      // If firebase data is complete, use it (this is the primary source of truth)
+      // If remote data is complete, use it (this is the primary source of truth)
       if (hasValidIngredients && hasValidInstructions) {
-        return firebaseCocktail;
+        return remoteCocktail;
       }
 
-      // If firebase data is incomplete, try to merge with transformed data
+      // If remote data is incomplete, try to merge with transformed data
       if (transformedCocktail) {
         return {
-          ...firebaseCocktail,
-          // Use firebase data for basic info, but get ingredients/instructions from local if missing
-          ingredients: hasValidIngredients ? firebaseCocktail.ingredients : transformedCocktail.ingredients,
-          instructions: hasValidInstructions ? firebaseCocktail.instructions : transformedCocktail.instructions,
-          tips: firebaseCocktail.tips?.length > 0 ? firebaseCocktail.tips : transformedCocktail.tips,
-          glassware: firebaseCocktail.glassware || transformedCocktail.glassware,
+          ...remoteCocktail,
+          // Use remote data for basic info, but get ingredients/instructions from local if missing
+          ingredients: hasValidIngredients
+            ? remoteCocktail.ingredients
+            : transformedCocktail.ingredients,
+          instructions: hasValidInstructions
+            ? remoteCocktail.instructions
+            : transformedCocktail.instructions,
+          tips: remoteCocktail.tips?.length > 0 ? remoteCocktail.tips : transformedCocktail.tips,
+          glassware: remoteCocktail.glassware || transformedCocktail.glassware,
         };
       }
     }
@@ -1651,8 +2016,8 @@ export default function CocktailDetailScreen() {
     if (hardcodedCocktail) return hardcodedCocktail;
     if (transformedCocktail) return transformedCocktail;
 
-    // Last resort: return firebase data even if incomplete, or passed cocktail
-    return firebaseCocktail || passedCocktail || localUserRecipeCocktail || null;
+    // Last resort: return remote data even if incomplete, or passed cocktail
+    return remoteCocktail || passedCocktail || localUserRecipeCocktail || null;
   })();
 
   // Parse ingredients into consistent format for rendering
@@ -1664,8 +2029,8 @@ export default function CocktailDetailScreen() {
       const separator = cocktail.ingredients.includes('|') ? '|' : ',';
       const ingredientStrings = cocktail.ingredients
         .split(separator)
-        .map(s => s.trim())
-        .filter(s => s.length > 0);
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0);
       return ingredientStrings.map((name) => normalizeDetailIngredient(name));
     } else if (Array.isArray(cocktail.ingredients)) {
       return cocktail.ingredients.map((ingredient) => normalizeDetailIngredient(ingredient));
@@ -1709,7 +2074,7 @@ export default function CocktailDetailScreen() {
         name: String(ingredient.name || ''),
         amount: String(ingredient.amount || ''),
       })),
-    [parsedIngredients]
+    [parsedIngredients],
   );
 
   const ownedIngredientNames = React.useMemo(() => {
@@ -1717,13 +2082,19 @@ export default function CocktailDetailScreen() {
     if (tier === 'FREE') return new Set<string>();
     return new Set(
       parsedIngredients
-        .filter((ingredient: any) => hasIngredient(userInventory, String(ingredient.matchName || ingredient.name || '')))
-        .map((ingredient: any) => String(ingredient.matchName || ingredient.name || ''))
+        .filter((ingredient: any) =>
+          hasIngredient(userInventory, String(ingredient.matchName || ingredient.name || '')),
+        )
+        .map((ingredient: any) => String(ingredient.matchName || ingredient.name || '')),
     );
   }, [parsedIngredients, userInventory, tier]);
 
   const normalizeText = (value: string): string =>
-    value.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+    value
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
 
   const isGarnishLike = (value: string): boolean => {
     const t = normalizeText(value);
@@ -1771,7 +2142,7 @@ export default function CocktailDetailScreen() {
     rating?: number,
     isRatingUpdate: boolean = false,
     completionDetails?: RecipeCompletionDetails,
-    completionId?: string
+    completionId?: string,
   ) => {
     try {
       if (!user?.id || !cocktail?.id) return;
@@ -1797,9 +2168,17 @@ export default function CocktailDetailScreen() {
           interactionHistory.completedRecipes[actualIdx] = {
             ...interactionHistory.completedRecipes[actualIdx],
             rating: rating || undefined,
-            feedback: rating ? (rating >= 4 ? 'loved' : rating >= 3 ? 'liked' : 'disliked') : undefined,
-            completionId: completionId || interactionHistory.completedRecipes[actualIdx].completionId,
-            completionDetails: completionDetails || interactionHistory.completedRecipes[actualIdx].completionDetails,
+            feedback: rating
+              ? rating >= 4
+                ? 'loved'
+                : rating >= 3
+                  ? 'liked'
+                  : 'disliked'
+              : undefined,
+            completionId:
+              completionId || interactionHistory.completedRecipes[actualIdx].completionId,
+            completionDetails:
+              completionDetails || interactionHistory.completedRecipes[actualIdx].completionDetails,
             timestamp: new Date(),
           };
         }
@@ -1808,7 +2187,13 @@ export default function CocktailDetailScreen() {
           recipeId: cocktail.id,
           timestamp: new Date(),
           rating: rating || undefined,
-          feedback: rating ? (rating >= 4 ? 'loved' : rating >= 3 ? 'liked' : 'disliked') : undefined,
+          feedback: rating
+            ? rating >= 4
+              ? 'loved'
+              : rating >= 3
+                ? 'liked'
+                : 'disliked'
+            : undefined,
           completionId: completionId || undefined,
           completionDetails: completionDetails || undefined,
         });
@@ -1817,7 +2202,11 @@ export default function CocktailDetailScreen() {
       interactionHistory.lastUpdated = new Date();
       await updateUserProfileFields(user.id, { interactionHistory });
     } catch (error) {
-      log.warn('CocktailDetailScreen', 'Failed to sync completion to profile (non-blocking)', error);
+      log.warn(
+        'CocktailDetailScreen',
+        'Failed to sync completion to profile (non-blocking)',
+        error,
+      );
     }
   };
 
@@ -1879,7 +2268,23 @@ export default function CocktailDetailScreen() {
         [ANALYTICS_PROPS.RECIPE_CATEGORY]: cocktail.subtitle,
       });
 
-      await achievementService.trackAction('cocktailsMade', 1);
+      // North Star sensor (Phase 0.8) — one durable, queryable "made it"
+      // event. Additive to the analytics event above and the brand
+      // completion log below, not a replacement for either.
+      if (user?.id) {
+        logMadeIt({
+          userId: user.id,
+          recipeId: cocktail.id,
+          recipeName: cocktail.title,
+          source: 'recipe_detail',
+          substitutionsUsed: substitutions.trim() ? { notes: substitutions.trim() } : null,
+        })
+          .then((result) => setTimesMade(result.timesMade))
+          .catch((error) =>
+            log.warn('CocktailDetailScreen', 'logMadeIt failed (non-blocking)', { error }),
+          );
+      }
+
       earnCocktailLoggedXP(isDetailed, cocktail.title);
       await syncRecipeCompletionToProfile(undefined, false, completionDetails, completion.id);
 
@@ -1903,7 +2308,11 @@ export default function CocktailDetailScreen() {
     }
 
     try {
-      await updateCompletionRating(lastCompletionId, selectedRating, completionNotes.trim() || undefined);
+      await updateCompletionRating(
+        lastCompletionId,
+        selectedRating,
+        completionNotes.trim() || undefined,
+      );
       await syncRecipeCompletionToProfile(
         selectedRating,
         true,
@@ -1912,7 +2321,7 @@ export default function CocktailDetailScreen() {
               notes: completionNotes.trim(),
             }
           : undefined,
-        lastCompletionId
+        lastCompletionId,
       );
       earnRecipeRatingXP(cocktail.title);
       setRatingFlowVisible(false);
@@ -1932,16 +2341,18 @@ export default function CocktailDetailScreen() {
       // Split by period followed by space, newline, or numbered steps
       const steps = cocktail.instructions
         .split(/\.\s+|\n+/)
-        .map(step => step.trim())
-        .filter(step => step.length > 0)
-        .map(step => {
+        .map((step) => step.trim())
+        .filter((step) => step.length > 0)
+        .map((step) => {
           // Remove leading numbers like "1. ", "2) ", etc.
           return step.replace(/^\d+[\.\)]\s*/, '');
         });
       return steps.map((step) => normalizeMethodStep(step)).filter(Boolean);
     } else if (Array.isArray(cocktail.instructions)) {
-      // Firebase format: already an array
-      return cocktail.instructions.map((step) => normalizeMethodStep(String(step || ''))).filter(Boolean);
+      // Remote format: already an array
+      return cocktail.instructions
+        .map((step) => normalizeMethodStep(String(step || '')))
+        .filter(Boolean);
     }
 
     return [];
@@ -1955,8 +2366,8 @@ export default function CocktailDetailScreen() {
     if (typeof cocktail.tips === 'string') {
       rawTips = cocktail.tips
         .split(/\n+|•/)
-        .map(tip => tip.trim())
-        .filter(tip => tip.length > 0);
+        .map((tip) => tip.trim())
+        .filter((tip) => tip.length > 0);
     } else if (Array.isArray(cocktail.tips)) {
       rawTips = cocktail.tips.map((tip) => String(tip || '').trim()).filter(Boolean);
     }
@@ -1974,7 +2385,15 @@ export default function CocktailDetailScreen() {
         ingredientsLength: cocktail.ingredients?.length || 0,
         ingredientsType: typeof cocktail.ingredients,
         firstIngredient: cocktail.ingredients?.[0],
-        source: passedCocktail ? 'passed' : nonAlcoholicRecipe ? 'nonAlcoholic' : firebaseCocktail ? 'firebase' : hardcodedCocktail ? 'hardcoded' : 'transformed'
+        source: passedCocktail
+          ? 'passed'
+          : nonAlcoholicRecipe
+            ? 'nonAlcoholic'
+            : remoteCocktail
+              ? 'remote'
+              : hardcodedCocktail
+                ? 'hardcoded'
+                : 'transformed',
       });
     }
   }, [cocktail]);
@@ -2021,8 +2440,8 @@ export default function CocktailDetailScreen() {
   const detailEyebrow = cocktail?.isVaultVariation
     ? 'Variation'
     : cocktail?.isNonAlcoholic
-    ? 'Zero-Proof Recipe'
-    : 'Recipe';
+      ? 'Zero-Proof Recipe'
+      : 'Recipe';
   const heroKicker = React.useMemo(() => buildHeroKicker(cocktail), [cocktail]);
   const tastingNote = React.useMemo(() => {
     const recipeId = String(cocktail?.id || route.params.cocktailId || '').toLowerCase();
@@ -2055,6 +2474,38 @@ export default function CocktailDetailScreen() {
       .map((step) => trimSentence(String(step || ''), 96))
       .filter(Boolean);
   }, [isFreeTier, parsedInstructions]);
+
+  // Phase 3.4: fading scaffold — Plus/Pro only. Free keeps the fixed
+  // 2-step teaser above regardless of make count.
+  const [timesMadeThisRecipe, setTimesMadeThisRecipe] = useState(0);
+  const [showFullMethod, setShowFullMethod] = useState(false);
+
+  useEffect(() => {
+    if (isFreeTier || !user?.id || !cocktail?.id) return;
+    let cancelled = false;
+    getTimesMade(user.id, String(cocktail.id)).then((count) => {
+      if (!cancelled) setTimesMadeThisRecipe(count);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [isFreeTier, user?.id, cocktail?.id]);
+
+  const methodRenderMode = React.useMemo(
+    () => resolveMethodRenderMode({ isFreeTier, showFullMethod, timesMade: timesMadeThisRecipe }),
+    [isFreeTier, showFullMethod, timesMadeThisRecipe],
+  );
+
+  const methodSteps = React.useMemo(() => {
+    if (isFreeTier) return displayedInstructions;
+    if (methodRenderMode === 'condensed') return buildCondensedSteps(parsedInstructions);
+    return parsedInstructions;
+  }, [isFreeTier, methodRenderMode, parsedInstructions, displayedInstructions]);
+
+  const methodSpecLine = React.useMemo(
+    () => buildMethodSpecLine(parsedInstructions),
+    [parsedInstructions],
+  );
   const displayedTastingNote = React.useMemo(() => {
     if (!tastingNote) return '';
     return isFreeTier ? trimSentence(tastingNote, 120) : tastingNote;
@@ -2079,9 +2530,6 @@ export default function CocktailDetailScreen() {
           [ANALYTICS_PROPS.RECIPE_NAME]: cocktail.title,
           [ANALYTICS_PROPS.SHARE_METHOD]: result.activityType || 'unknown',
         });
-
-        // Track for achievements
-        await achievementService.trackAction('recipesShared', 1);
       }
     } catch (error) {
       Alert.alert('Error', 'Unable to share at this time');
@@ -2104,20 +2552,12 @@ export default function CocktailDetailScreen() {
       id: route.params.cocktailId,
       name: cocktail.title,
       subtitle: cocktail.subtitle,
-      image: cocktail.img
-        || cocktail.image
-        || cocktail.thumbnailImage
-        || cocktail.headerImage
+      image: cocktail.img || cocktail.image || cocktail.thumbnailImage || cocktail.headerImage,
     });
     if (result === 'limit_reached') {
       saveGate('T3');
       showToast(`Free tier allows ${FREE_RECIPE_LIMIT} saved cocktails.`, 'info');
       return;
-    }
-
-    // Track achievement for favorites
-    if (!wasSaved) {
-      await achievementService.trackAction('favoriteCount', 1);
     }
 
     // Show toast notification
@@ -2129,7 +2569,7 @@ export default function CocktailDetailScreen() {
         tier === 'FREE'
           ? `${cocktail.title} saved! (${nextCount}/${FREE_RECIPE_LIMIT} free)`
           : `${cocktail.title} saved!`,
-        'success'
+        'success',
       );
     }
   };
@@ -2205,28 +2645,41 @@ export default function CocktailDetailScreen() {
 
       const preferred = entry.canSubstitute
         ? entry.substitutions.substitutes.find((sub) =>
-            availableLower.some((name) => name.includes(sub.name.toLowerCase()) || sub.name.toLowerCase().includes(name))
+            availableLower.some(
+              (name) =>
+                name.includes(sub.name.toLowerCase()) || sub.name.toLowerCase().includes(name),
+            ),
           ) || entry.substitutions.substitutes[0]
         : entry.substitutions.substitutes[0];
 
       const ranked = [...entry.substitutions.substitutes].sort((a, b) => {
-        const aIn = availableLower.some((name) => name.includes(a.name.toLowerCase()) || a.name.toLowerCase().includes(name));
-        const bIn = availableLower.some((name) => name.includes(b.name.toLowerCase()) || b.name.toLowerCase().includes(name));
+        const aIn = availableLower.some(
+          (name) => name.includes(a.name.toLowerCase()) || a.name.toLowerCase().includes(name),
+        );
+        const bIn = availableLower.some(
+          (name) => name.includes(b.name.toLowerCase()) || b.name.toLowerCase().includes(name),
+        );
         if (aIn !== bIn) return aIn ? -1 : 1;
         const score = { high: 0, medium: 1, low: 2 } as const;
         return score[a.confidence] - score[b.confidence];
       });
 
       const top = ranked[0];
-      const inInventory = availableLower.some((name) =>
-        name.includes(top.name.toLowerCase()) || top.name.toLowerCase().includes(name)
+      const inInventory = availableLower.some(
+        (name) => name.includes(top.name.toLowerCase()) || top.name.toLowerCase().includes(name),
       );
-      const alternatives = ranked.slice(1, 3).map((sub) => sub.name).join(', ');
+      const alternatives = ranked
+        .slice(1, 3)
+        .map((sub) => sub.name)
+        .join(', ');
 
       return {
         ingredient: entry.ingredient,
         suggestion: top.name,
-        note: getSubstitutionMessage(entry.ingredient, [top]).replace(/^Try\s+.+?\s+instead\s+-\s+/i, ''),
+        note: getSubstitutionMessage(entry.ingredient, [top]).replace(
+          /^Try\s+.+?\s+instead\s+-\s+/i,
+          '',
+        ),
         confidence: top.confidence,
         inInventory,
         isSpirit: isLikelySpiritIngredient(entry.ingredient),
@@ -2253,9 +2706,7 @@ export default function CocktailDetailScreen() {
       <SafeAreaView style={styles.container}>
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>Recipe not found</Text>
-          <Text style={styles.errorSubtext}>
-            This recipe may have been deleted or moved.
-          </Text>
+          <Text style={styles.errorSubtext}>This recipe may have been deleted or moved.</Text>
         </View>
       </SafeAreaView>
     );
@@ -2288,9 +2739,7 @@ export default function CocktailDetailScreen() {
             style={styles.heroImage}
           />
           <LinearGradient
-            colors={
-              ['transparent', 'transparent', 'rgba(26, 18, 13, 0.8)', '#1A120D']
-            }
+            colors={['transparent', 'transparent', 'rgba(26, 18, 13, 0.8)', '#1A120D']}
             style={styles.heroGradient}
           >
             <View style={styles.heroLabelRow}>
@@ -2300,29 +2749,13 @@ export default function CocktailDetailScreen() {
                   size={12}
                   color={colors.accent}
                 />
-                <Text style={styles.heroTypePillText}>
-                  {detailEyebrow}
-                </Text>
+                <Text style={styles.heroTypePillText}>{detailEyebrow}</Text>
               </View>
               <Text style={styles.heroWatermark}>KOOPE</Text>
             </View>
 
-            <Text
-              style={[
-                styles.heroKicker,
-                { fontFamily: serifFont },
-              ]}
-            >
-              {heroKicker}
-            </Text>
-            <Text
-              style={[
-                styles.heroTitle,
-                { fontFamily: serifFont },
-              ]}
-            >
-              {cocktail.title}
-            </Text>
+            <Text style={[styles.heroKicker, { fontFamily: serifFont }]}>{heroKicker}</Text>
+            <Text style={[styles.heroTitle, { fontFamily: serifFont }]}>{cocktail.title}</Text>
 
             <View style={styles.metaRow}>
               <View style={styles.metaItem}>
@@ -2340,10 +2773,12 @@ export default function CocktailDetailScreen() {
                 <>
                   <Text style={styles.metaDot}>•</Text>
                   <View style={styles.metaItem}>
-                    <MaterialCommunityIcons name="glass-cocktail" size={16} color={colors.subtext} />
-                    <Text style={styles.metaText}>
-                      {cocktail.glassware || cocktail.glass}
-                    </Text>
+                    <MaterialCommunityIcons
+                      name="glass-cocktail"
+                      size={16}
+                      color={colors.subtext}
+                    />
+                    <Text style={styles.metaText}>{cocktail.glassware || cocktail.glass}</Text>
                   </View>
                 </>
               )}
@@ -2354,7 +2789,9 @@ export default function CocktailDetailScreen() {
                 <MaterialCommunityIcons
                   name="checkbox-marked-circle-outline"
                   size={16}
-                  color={ingredientStats.owned === ingredientStats.total ? colors.success : colors.accent}
+                  color={
+                    ingredientStats.owned === ingredientStats.total ? colors.success : colors.accent
+                  }
                 />
                 <Text
                   style={[
@@ -2378,22 +2815,28 @@ export default function CocktailDetailScreen() {
 
           {/* Actions (Absolute Top Right) */}
           <View style={styles.topActionsAbsolute}>
-            <TouchableOpacity
-              style={styles.iconButton}
-              onPress={withHaptic(handleShare)}
-            >
+            <TouchableOpacity style={styles.iconButton} onPress={withHaptic(handleShare)}>
               <Ionicons name="share-outline" size={22} color={colors.white} />
             </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.iconButton}
-              onPress={withHaptic(handleSave)}
-            >
-              <Ionicons name={isSaved ? "bookmark" : "bookmark-outline"} size={22} color={colors.white} />
+            <TouchableOpacity style={styles.iconButton} onPress={withHaptic(handleSave)}>
+              <Ionicons
+                name={isSaved ? 'bookmark' : 'bookmark-outline'}
+                size={22}
+                color={colors.white}
+              />
             </TouchableOpacity>
-            {Boolean((route.params as any)?.cocktail?.id?.startsWith?.('recipe_') || (route.params as any)?.cocktail?.type) && (
+            {Boolean(
+              (route.params as any)?.cocktail?.id?.startsWith?.('recipe_') ||
+              (route.params as any)?.cocktail?.type,
+            ) && (
               <TouchableOpacity
                 style={styles.iconButton}
-                onPress={withHaptic(() => nav.navigate('AddRecipe', { recipe: (route.params as any)?.cocktail || cocktail, isEdit: true }))}
+                onPress={withHaptic(() =>
+                  nav.navigate('AddRecipe', {
+                    recipe: (route.params as any)?.cocktail || cocktail,
+                    isEdit: true,
+                  }),
+                )}
               >
                 <Ionicons name="create-outline" size={20} color={colors.white} />
               </TouchableOpacity>
@@ -2403,56 +2846,96 @@ export default function CocktailDetailScreen() {
 
         <View style={useRecipeCardLayout && styles.referenceContentShell}>
           {/* --- Action Buttons --- */}
-          <View style={[styles.actionButtonsContainer, useRecipeCardLayout && styles.referenceActionButtonsContainer]}>
+          <View
+            style={[
+              styles.actionButtonsContainer,
+              useRecipeCardLayout && styles.referenceActionButtonsContainer,
+            ]}
+          >
             {cocktail.kitAvailable ? (
-              <TouchableOpacity style={[styles.primaryButton, useRecipeCardLayout && styles.referencePrimaryButton]} onPress={handleAddToCart}>
-                <Text style={[styles.primaryButtonText, useRecipeCardLayout && styles.referencePrimaryButtonText]}>
+              <TouchableOpacity
+                style={[styles.primaryButton, useRecipeCardLayout && styles.referencePrimaryButton]}
+                onPress={handleAddToCart}
+              >
+                <Text
+                  style={[
+                    styles.primaryButtonText,
+                    useRecipeCardLayout && styles.referencePrimaryButtonText,
+                  ]}
+                >
                   {ingredientStats.missing.length === 0
                     ? 'Add All Ingredients to Cart'
                     : ingredientStats.missing.length === ingredientStats.total
-                    ? 'Add All Ingredients to Cart'
-                    : `Add Missing Ingredients (${ingredientStats.missing.length})`}
+                      ? 'Add All Ingredients to Cart'
+                      : `Add Missing Ingredients (${ingredientStats.missing.length})`}
                 </Text>
               </TouchableOpacity>
             ) : (
-              <TouchableOpacity
-                style={[styles.primaryButton, useRecipeCardLayout && styles.referencePrimaryButton]}
+              <MadeItButton
+                hasMadeIt={hasMadeIt}
                 onPress={handleMadeIt}
-                disabled={hasMadeIt}
-              >
-                <Text style={[styles.primaryButtonText, useRecipeCardLayout && styles.referencePrimaryButtonText]}>
-                  {hasMadeIt ? "You Made It!" : "I made this drink"}
-                </Text>
-              </TouchableOpacity>
+                style={[styles.primaryButton, useRecipeCardLayout && styles.referencePrimaryButton]}
+                textStyle={[
+                  styles.primaryButtonText,
+                  useRecipeCardLayout && styles.referencePrimaryButtonText,
+                ]}
+                label="I made this drink"
+                madeLabel={timesMade > 1 ? `Made ${timesMade}×` : 'You Made It!'}
+              />
             )}
 
             {cocktail.kitAvailable && (
-              <TouchableOpacity
-                style={[styles.secondaryButton, useRecipeCardLayout && styles.referenceSecondaryButton]}
+              <MadeItButton
+                hasMadeIt={hasMadeIt}
                 onPress={handleMadeIt}
-                disabled={hasMadeIt}
-              >
-                <Text style={[styles.secondaryButtonText, useRecipeCardLayout && styles.referenceSecondaryButtonText]}>
-                  {hasMadeIt ? "You Made It!" : "How did you make it?"}
-                </Text>
-                {!hasMadeIt ? (
-                  <Text style={[styles.secondaryButtonXP, useRecipeCardLayout && styles.referenceSecondaryButtonXP]}>+50 XP</Text>
-                ) : null}
-              </TouchableOpacity>
+                madeLabel={timesMade > 1 ? `Made ${timesMade}×` : 'You Made It!'}
+                style={[
+                  styles.secondaryButton,
+                  useRecipeCardLayout && styles.referenceSecondaryButton,
+                ]}
+                textStyle={[
+                  styles.secondaryButtonText,
+                  useRecipeCardLayout && styles.referenceSecondaryButtonText,
+                ]}
+                label="How did you make it?"
+                xpLabel="+50 XP"
+                xpLabelStyle={[
+                  styles.secondaryButtonXP,
+                  useRecipeCardLayout && styles.referenceSecondaryButtonXP,
+                ]}
+              />
             )}
 
             <TouchableOpacity
-              style={[styles.secondaryButton, useRecipeCardLayout && styles.referenceSecondaryButton]}
+              style={[
+                styles.secondaryButton,
+                useRecipeCardLayout && styles.referenceSecondaryButton,
+              ]}
               onPress={handleFindSubstitutes}
             >
-              <Text style={[styles.secondaryButtonText, useRecipeCardLayout && styles.referenceSecondaryButtonText]}>
+              <Text
+                style={[
+                  styles.secondaryButtonText,
+                  useRecipeCardLayout && styles.referenceSecondaryButtonText,
+                ]}
+              >
                 Find Ingredient Substitutes
               </Text>
             </TouchableOpacity>
           </View>
 
-          <View style={[styles.recipeEditorialShell, useRecipeCardLayout && styles.referenceRecipeEditorialShell]}>
-            <View style={[styles.recipeEditorialInner, useRecipeCardLayout && styles.referenceRecipeEditorialInner]}>
+          <View
+            style={[
+              styles.recipeEditorialShell,
+              useRecipeCardLayout && styles.referenceRecipeEditorialShell,
+            ]}
+          >
+            <View
+              style={[
+                styles.recipeEditorialInner,
+                useRecipeCardLayout && styles.referenceRecipeEditorialInner,
+              ]}
+            >
               {useRecipeCardLayout ? (
                 <View style={styles.referenceSectionHeaderRow}>
                   <Text style={styles.referenceSectionEyebrow}>Ingredients</Text>
@@ -2462,52 +2945,60 @@ export default function CocktailDetailScreen() {
               <View style={[styles.specTable, useRecipeCardLayout && styles.referenceSpecTable]}>
                 {parsedIngredients && parsedIngredients.length > 0 ? (
                   parsedIngredients.map((ingredient, index) => {
-                    const isOwnedIngredient = ownedIngredientNames.has(String(ingredient.matchName || ingredient.name || ''));
-                    const rightSideValue = String(ingredient.amount || ingredient.note || '').trim();
+                    const isOwnedIngredient = ownedIngredientNames.has(
+                      String(ingredient.matchName || ingredient.name || ''),
+                    );
+                    const rightSideValue = String(
+                      ingredient.amount || ingredient.note || '',
+                    ).trim();
                     return (
-                    <View
-                      key={`ingredient-${index}`}
-                      style={[
-                        styles.specRow,
-                        useRecipeCardLayout && styles.referenceSpecRow,
-                        isOwnedIngredient && styles.specRowOwned,
-                        isOwnedIngredient && useRecipeCardLayout && styles.referenceSpecRowOwned,
-                        index === parsedIngredients.length - 1 && styles.specRowLast,
-                      ]}
-                    >
-                      <View style={styles.specNameWrap}>
-                        <Text
-                          style={[
-                            styles.specName,
-                            useRecipeCardLayout && styles.referenceSpecName,
-                            isOwnedIngredient && styles.specNameOwned,
-                            isOwnedIngredient && useRecipeCardLayout && styles.referenceSpecNameOwned,
-                          ]}
-                        >
-                          {ingredient.name}
-                        </Text>
-                        {isOwnedIngredient ? (
-                          <MaterialCommunityIcons
-                            name="check-circle"
-                            size={16}
-                            color={colors.success}
-                            style={styles.specOwnedIcon}
-                          />
-                        ) : null}
+                      <View
+                        key={`ingredient-${index}`}
+                        style={[
+                          styles.specRow,
+                          useRecipeCardLayout && styles.referenceSpecRow,
+                          isOwnedIngredient && styles.specRowOwned,
+                          isOwnedIngredient && useRecipeCardLayout && styles.referenceSpecRowOwned,
+                          index === parsedIngredients.length - 1 && styles.specRowLast,
+                        ]}
+                      >
+                        <View style={styles.specNameWrap}>
+                          <Text
+                            style={[
+                              styles.specName,
+                              useRecipeCardLayout && styles.referenceSpecName,
+                              isOwnedIngredient && styles.specNameOwned,
+                              isOwnedIngredient &&
+                                useRecipeCardLayout &&
+                                styles.referenceSpecNameOwned,
+                            ]}
+                          >
+                            {ingredient.name}
+                          </Text>
+                          {isOwnedIngredient ? (
+                            <MaterialCommunityIcons
+                              name="check-circle"
+                              size={16}
+                              color={colors.success}
+                              style={styles.specOwnedIcon}
+                            />
+                          ) : null}
+                        </View>
+                        <View style={styles.specAmountWrap}>
+                          <Text
+                            style={[
+                              styles.specAmount,
+                              useRecipeCardLayout && styles.referenceSpecAmount,
+                              isOwnedIngredient && styles.specAmountOwned,
+                              isOwnedIngredient &&
+                                useRecipeCardLayout &&
+                                styles.referenceSpecAmountOwned,
+                            ]}
+                          >
+                            {rightSideValue}
+                          </Text>
+                        </View>
                       </View>
-                      <View style={styles.specAmountWrap}>
-                        <Text
-                          style={[
-                            styles.specAmount,
-                            useRecipeCardLayout && styles.referenceSpecAmount,
-                            isOwnedIngredient && styles.specAmountOwned,
-                            isOwnedIngredient && useRecipeCardLayout && styles.referenceSpecAmountOwned,
-                          ]}
-                        >
-                          {rightSideValue}
-                        </Text>
-                      </View>
-                    </View>
                     );
                   })
                 ) : (
@@ -2515,37 +3006,36 @@ export default function CocktailDetailScreen() {
                 )}
               </View>
 
-              {displayedInstructions.length > 0 && (
-                <View style={[styles.recipeEditorialSection, useRecipeCardLayout && styles.referenceRecipeEditorialSection]}>
-                  <Text
-                    style={[
-                      styles.recipeEditorialTitle,
-                      { fontFamily: useRecipeCardLayout ? referenceSerifFont : serifFont },
-                      useRecipeCardLayout && styles.referenceRecipeEditorialTitle,
-                    ]}
-                  >
-                    Method
-                  </Text>
-                  <View style={[styles.methodList, useRecipeCardLayout && styles.referenceMethodList]}>
-                    {displayedInstructions.map((step, index) => (
-                      <View key={`step-${index}`} style={[styles.methodRow, useRecipeCardLayout && styles.referenceMethodRow]}>
-                        <Text
-                          style={[
-                            styles.methodIndex,
-                            { fontFamily: useRecipeCardLayout ? referenceDisplayFont : serifFont },
-                            useRecipeCardLayout && styles.referenceMethodIndex,
-                          ]}
-                        >
-                          {String(index + 1).padStart(2, '0')}
-                        </Text>
-                        <Text style={[styles.methodText, useRecipeCardLayout && styles.referenceMethodText]}>{step}</Text>
-                      </View>
-                    ))}
-                  </View>
-                </View>
+              {(methodRenderMode === 'spec'
+                ? methodSpecLine.length > 0
+                : methodSteps.length > 0) && (
+                <MethodSection
+                  mode={methodRenderMode}
+                  steps={methodSteps}
+                  specLine={methodSpecLine}
+                  showEscapeHatch={!isFreeTier && methodRenderMode !== 'full'}
+                  onShowEverything={() => setShowFullMethod(true)}
+                  sectionStyle={[
+                    styles.recipeEditorialSection,
+                    useRecipeCardLayout && styles.referenceRecipeEditorialSection,
+                  ]}
+                  titleStyle={[
+                    styles.recipeEditorialTitle,
+                    { fontFamily: useRecipeCardLayout ? referenceSerifFont : serifFont },
+                    useRecipeCardLayout && styles.referenceRecipeEditorialTitle,
+                  ]}
+                  listStyle={[styles.methodList, useRecipeCardLayout && styles.referenceMethodList]}
+                  rowStyle={[styles.methodRow, useRecipeCardLayout && styles.referenceMethodRow]}
+                  indexStyle={[
+                    styles.methodIndex,
+                    { fontFamily: useRecipeCardLayout ? referenceDisplayFont : serifFont },
+                    useRecipeCardLayout && styles.referenceMethodIndex,
+                  ]}
+                  textStyle={[styles.methodText, useRecipeCardLayout && styles.referenceMethodText]}
+                />
               )}
 
-              {(displayedTastingNote || displayedBestFor) ? (
+              {displayedTastingNote || displayedBestFor ? (
                 <View style={[styles.recipeEditorialSection, styles.recipeEditorialSectionLast]}>
                   <Text
                     style={[
@@ -2558,14 +3048,42 @@ export default function CocktailDetailScreen() {
                   </Text>
                   {displayedTastingNote ? (
                     <>
-                      <Text style={[styles.tastingSubhead, useRecipeCardLayout && styles.referenceTastingSubhead]}>Tasting Note</Text>
-                      <Text style={[styles.tastingNoteText, useRecipeCardLayout && styles.referenceTastingNoteText]}>{displayedTastingNote}</Text>
+                      <Text
+                        style={[
+                          styles.tastingSubhead,
+                          useRecipeCardLayout && styles.referenceTastingSubhead,
+                        ]}
+                      >
+                        Tasting Note
+                      </Text>
+                      <Text
+                        style={[
+                          styles.tastingNoteText,
+                          useRecipeCardLayout && styles.referenceTastingNoteText,
+                        ]}
+                      >
+                        {displayedTastingNote}
+                      </Text>
                     </>
                   ) : null}
                   {displayedBestFor ? (
                     <>
-                      <Text style={[styles.tastingSubhead, useRecipeCardLayout && styles.referenceTastingSubhead]}>Best For</Text>
-                      <Text style={[styles.tastingNoteText, useRecipeCardLayout && styles.referenceTastingNoteText]}>{displayedBestFor}</Text>
+                      <Text
+                        style={[
+                          styles.tastingSubhead,
+                          useRecipeCardLayout && styles.referenceTastingSubhead,
+                        ]}
+                      >
+                        Best For
+                      </Text>
+                      <Text
+                        style={[
+                          styles.tastingNoteText,
+                          useRecipeCardLayout && styles.referenceTastingNoteText,
+                        ]}
+                      >
+                        {displayedBestFor}
+                      </Text>
                     </>
                   ) : null}
                 </View>
@@ -2579,14 +3097,18 @@ export default function CocktailDetailScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionEyebrow}>Notes</Text>
             <View style={styles.proTipsContainer}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+              <View
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}
+              >
                 <MaterialCommunityIcons name="lightbulb-on" size={20} color={colors.accent} />
                 <Text style={[styles.proTipsTitle, { fontFamily: serifFont }]}>
                   {cocktail.isNonAlcoholic ? 'Flavor Profile' : 'Pro Tips'}
                 </Text>
               </View>
               {parsedTips.map((tip, idx) => (
-                <Text key={idx} style={styles.proTipsText}>• {tip}</Text>
+                <Text key={idx} style={styles.proTipsText}>
+                  • {tip}
+                </Text>
               ))}
             </View>
           </View>
@@ -2633,16 +3155,22 @@ export default function CocktailDetailScreen() {
                     onPress={() =>
                       Alert.alert(
                         'Confidence Legend',
-                        'High: very close swap.\nMedium: good swap with some flavor shift.\nLow: backup option when flexibility matters most.'
+                        'High: very close swap.\nMedium: good swap with some flavor shift.\nLow: backup option when flexibility matters most.',
                       )
                     }
                   >
                     <Text style={styles.substituteLegendInfoButtonText}>?</Text>
                   </TouchableOpacity>
                 </View>
-                <Text style={styles.substituteLegendText}>High: same family or very close flavor/role.</Text>
-                <Text style={styles.substituteLegendText}>Medium: workable swap with a noticeable profile shift.</Text>
-                <Text style={styles.substituteLegendText}>Low: backup option when you want flexibility over accuracy.</Text>
+                <Text style={styles.substituteLegendText}>
+                  High: same family or very close flavor/role.
+                </Text>
+                <Text style={styles.substituteLegendText}>
+                  Medium: workable swap with a noticeable profile shift.
+                </Text>
+                <Text style={styles.substituteLegendText}>
+                  Low: backup option when you want flexibility over accuracy.
+                </Text>
               </View>
 
               {spiritSubstituteRows.length > 0 ? (
@@ -2652,15 +3180,21 @@ export default function CocktailDetailScreen() {
                     <View key={`spirit-${row.ingredient}-${idx}`} style={styles.substituteCard}>
                       <View style={styles.substituteRowTop}>
                         <Text style={styles.substituteIngredient}>{row.ingredient}</Text>
-                        <Text style={styles.substituteConfidence}>{row.confidence.toUpperCase()}</Text>
+                        <Text style={styles.substituteConfidence}>
+                          {row.confidence.toUpperCase()}
+                        </Text>
                       </View>
                       <Text style={styles.substituteSuggestion}>Try {row.suggestion}</Text>
                       <Text style={styles.substituteNote}>{row.note}</Text>
                       {row.alternatives ? (
-                        <Text style={styles.substituteAltText}>Also consider: {row.alternatives}</Text>
+                        <Text style={styles.substituteAltText}>
+                          Also consider: {row.alternatives}
+                        </Text>
                       ) : null}
                       {row.inInventory ? (
-                        <Text style={styles.substituteInventoryTag}>You already have this substitute</Text>
+                        <Text style={styles.substituteInventoryTag}>
+                          You already have this substitute
+                        </Text>
                       ) : null}
                     </View>
                   ))}
@@ -2674,15 +3208,21 @@ export default function CocktailDetailScreen() {
                     <View key={`other-${row.ingredient}-${idx}`} style={styles.substituteCard}>
                       <View style={styles.substituteRowTop}>
                         <Text style={styles.substituteIngredient}>{row.ingredient}</Text>
-                        <Text style={styles.substituteConfidence}>{row.confidence.toUpperCase()}</Text>
+                        <Text style={styles.substituteConfidence}>
+                          {row.confidence.toUpperCase()}
+                        </Text>
                       </View>
                       <Text style={styles.substituteSuggestion}>Try {row.suggestion}</Text>
                       <Text style={styles.substituteNote}>{row.note}</Text>
                       {row.alternatives ? (
-                        <Text style={styles.substituteAltText}>Also consider: {row.alternatives}</Text>
+                        <Text style={styles.substituteAltText}>
+                          Also consider: {row.alternatives}
+                        </Text>
                       ) : null}
                       {row.inInventory ? (
-                        <Text style={styles.substituteInventoryTag}>You already have this substitute</Text>
+                        <Text style={styles.substituteInventoryTag}>
+                          You already have this substitute
+                        </Text>
                       ) : null}
                     </View>
                   ))}
@@ -2708,13 +3248,20 @@ export default function CocktailDetailScreen() {
         </View>
       </Modal>
 
-      <Modal visible={makeFlowVisible} animationType="slide" transparent onRequestClose={() => setMakeFlowVisible(false)}>
+      <Modal
+        visible={makeFlowVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setMakeFlowVisible(false)}
+      >
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{completionConfig.promptText}</Text>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <Text style={{ color: colors.accent, fontSize: 13, fontWeight: '600' }}>+{completionConfig.xpReward} XP</Text>
+                <Text style={{ color: colors.accent, fontSize: 13, fontWeight: '600' }}>
+                  +{completionConfig.xpReward} XP
+                </Text>
                 <TouchableOpacity onPress={() => setMakeFlowVisible(false)}>
                   <Ionicons name="close" size={24} color={colors.text} />
                 </TouchableOpacity>
@@ -2747,7 +3294,12 @@ export default function CocktailDetailScreen() {
                           <TouchableOpacity
                             key={`${ingredient.key}_${suggestion}`}
                             style={styles.suggestionChip}
-                            onPress={() => setBrandSelections((prev) => ({ ...prev, [ingredient.key]: suggestion }))}
+                            onPress={() =>
+                              setBrandSelections((prev) => ({
+                                ...prev,
+                                [ingredient.key]: suggestion,
+                              }))
+                            }
                           >
                             <Text style={styles.suggestionChipText}>{suggestion}</Text>
                           </TouchableOpacity>
@@ -2767,7 +3319,9 @@ export default function CocktailDetailScreen() {
                   placeholder={completionConfig.notesPlaceholder}
                   placeholderTextColor={colors.subtext}
                   value={substitutions}
-                  onChangeText={(v) => setSubstitutions(v.slice(0, completionConfig.notesCharLimit))}
+                  onChangeText={(v) =>
+                    setSubstitutions(v.slice(0, completionConfig.notesCharLimit))
+                  }
                   multiline
                   maxLength={completionConfig.notesCharLimit}
                 />
@@ -2803,11 +3357,17 @@ export default function CocktailDetailScreen() {
             </ScrollView>
 
             <View style={styles.modalActions}>
-              <TouchableOpacity style={styles.modalSecondaryButton} onPress={() => setMakeFlowVisible(false)}>
+              <TouchableOpacity
+                style={styles.modalSecondaryButton}
+                onPress={() => setMakeFlowVisible(false)}
+              >
                 <Text style={styles.modalSecondaryButtonText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.modalPrimaryButton, isSavingCompletion && styles.modalPrimaryButtonDisabled]}
+                style={[
+                  styles.modalPrimaryButton,
+                  isSavingCompletion && styles.modalPrimaryButtonDisabled,
+                ]}
                 onPress={handleLogCompletion}
                 disabled={isSavingCompletion}
               >
@@ -2822,7 +3382,12 @@ export default function CocktailDetailScreen() {
         </View>
       </Modal>
 
-      <Modal visible={ratingFlowVisible} animationType="fade" transparent onRequestClose={() => setRatingFlowVisible(false)}>
+      <Modal
+        visible={ratingFlowVisible}
+        animationType="fade"
+        transparent
+        onRequestClose={() => setRatingFlowVisible(false)}
+      >
         <View style={styles.modalBackdrop}>
           <View style={styles.ratingCard}>
             <Text style={styles.modalTitle}>How was it?</Text>
@@ -2850,7 +3415,10 @@ export default function CocktailDetailScreen() {
             />
 
             <View style={styles.ratingActions}>
-              <TouchableOpacity style={styles.modalSecondaryButton} onPress={() => setRatingFlowVisible(false)}>
+              <TouchableOpacity
+                style={styles.modalSecondaryButton}
+                onPress={() => setRatingFlowVisible(false)}
+              >
                 <Text style={styles.modalSecondaryButtonText}>Skip</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.modalPrimaryButton} onPress={handleSaveRating}>
@@ -2862,12 +3430,7 @@ export default function CocktailDetailScreen() {
       </Modal>
 
       {/* Toast Notification */}
-      <Toast
-        message={toast.message}
-        type={toast.type}
-        visible={toast.visible}
-        onHide={hideToast}
-      />
+      <Toast message={toast.message} type={toast.type} visible={toast.visible} onHide={hideToast} />
     </View>
   );
 }

@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Consent Screen - Privacy and analytics consent
  */
@@ -182,6 +181,9 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     alignItems: 'center',
+  },
+  continueButtonDisabled: {
+    opacity: 0.6,
   },
   continueButtonText: {
     color: '#fff',

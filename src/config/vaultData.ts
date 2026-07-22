@@ -26,9 +26,7 @@ const cocktailVariations: VaultItem[] = [
     baseClassicId: 'old_fashioned',
     difficulty: 'pro',
     tags: ['smoked', 'bourbon', 'aromatic'],
-    xpCost: 2200,
-    moneyPriceCents: 499,
-    unlockMethod: 'XP_OR_MONEY',
+    requiredLevel: 23, // was xpCost: 2200
     requiresTier: 'PLUS',
   },
   {
@@ -39,9 +37,7 @@ const cocktailVariations: VaultItem[] = [
     baseClassicId: 'margarita',
     difficulty: 'simple',
     tags: ['spicy', 'tequila', 'heat'],
-    xpCost: 600,
-    moneyPriceCents: 299,
-    unlockMethod: 'XP_OR_MONEY',
+    requiredLevel: 7, // was xpCost: 600
   },
   {
     id: 'clarified_whiskey_sour',
@@ -51,9 +47,7 @@ const cocktailVariations: VaultItem[] = [
     baseClassicId: 'whiskey_sour',
     difficulty: 'pro',
     tags: ['clarified', 'technique', 'whiskey'],
-    xpCost: 1800,
-    moneyPriceCents: 449,
-    unlockMethod: 'XP_OR_MONEY',
+    requiredLevel: 19, // was xpCost: 1800
     requiresTier: 'PRO',
   },
   {
@@ -64,9 +58,7 @@ const cocktailVariations: VaultItem[] = [
     baseClassicId: 'negroni',
     difficulty: 'seasonal',
     tags: ['split-base', 'mezcal', 'gin'],
-    xpCost: 1100,
-    moneyPriceCents: 349,
-    unlockMethod: 'XP_OR_MONEY',
+    requiredLevel: 12, // was xpCost: 1100
   },
   {
     id: 'espresso_martini_nitro',
@@ -76,9 +68,7 @@ const cocktailVariations: VaultItem[] = [
     baseClassicId: 'espresso_martini',
     difficulty: 'pro',
     tags: ['nitro', 'coffee', 'vodka'],
-    xpCost: 2000,
-    moneyPriceCents: 499,
-    unlockMethod: 'XP_ONLY',
+    requiredLevel: 21, // was xpCost: 2000
     requiresTier: 'PRO',
   },
   {
@@ -89,8 +79,7 @@ const cocktailVariations: VaultItem[] = [
     baseClassicId: 'daiquiri',
     difficulty: 'seasonal',
     tags: ['honey', 'ginger', 'rum'],
-    xpCost: 900,
-    unlockMethod: 'XP_ONLY',
+    requiredLevel: 10, // was xpCost: 900
     isLimitedTime: true,
     availableFrom: '2025-12-01T00:00:00Z',
     availableUntil: '2026-03-01T00:00:00Z',
@@ -114,8 +103,7 @@ const techniquePlaybooks: VaultItem[] = [
       'Control dilution in batched cocktails',
       'Understand temperature impact on flavor',
     ],
-    xpCost: 800,
-    unlockMethod: 'XP_ONLY',
+    requiredLevel: 9, // was xpCost: 800
   },
   {
     id: 'acid_control_playbook',
@@ -129,8 +117,7 @@ const techniquePlaybooks: VaultItem[] = [
       'Fix overly sour or flat cocktails',
       'Create balanced tropical drinks',
     ],
-    xpCost: 650,
-    unlockMethod: 'XP_ONLY',
+    requiredLevel: 7, // was xpCost: 650
   },
   {
     id: 'batch_math_playbook',
@@ -144,8 +131,7 @@ const techniquePlaybooks: VaultItem[] = [
       'Adjust citrus for batching',
       'Carbonate batched cocktails at home',
     ],
-    xpCost: 900,
-    unlockMethod: 'XP_ONLY',
+    requiredLevel: 10, // was xpCost: 900
     requiresTier: 'PLUS',
   },
   {
@@ -160,8 +146,7 @@ const techniquePlaybooks: VaultItem[] = [
       'Execute 3+ drink rounds without delay',
       'Maintain quality under pressure',
     ],
-    xpCost: 1200,
-    unlockMethod: 'XP_ONLY',
+    requiredLevel: 13, // was xpCost: 1200
     requiresTier: 'PRO',
   },
 ];
@@ -178,12 +163,11 @@ const barFeatures: VaultItem[] = [
     description: 'Luxury champagne experience in Downtown Calgary.',
     barName: 'Untitled Champagne Lounge',
     city: 'Calgary',
-    vibeDescription: 'Sophisticated luxury with premium champagne, caviar pairings, and live piano jazz with Rocky Mountain views.',
+    vibeDescription:
+      'Sophisticated luxury with premium champagne, caviar pairings, and live piano jazz with Rocky Mountain views.',
     signatureCocktailName: 'Golden Bubbles',
     thumbnailKey: 'depth_frame_header_24', // Uses bar tab thumbnail
-    xpCost: 1200,
-    moneyPriceCents: 499,
-    unlockMethod: 'XP_OR_MONEY' as const,
+    requiredLevel: 13, // was xpCost: 1200
     requiresTier: 'PLUS' as const,
   },
   {
@@ -196,9 +180,7 @@ const barFeatures: VaultItem[] = [
     vibeDescription: 'Late-night energy, bartenders in white coats, serious cocktails.',
     signatureCocktailName: 'Ginger Smash',
     thumbnailKey: 'the_iron_flask', // Speakeasy vibe
-    xpCost: 1400,
-    moneyPriceCents: 399,
-    unlockMethod: 'XP_OR_MONEY' as const,
+    requiredLevel: 15, // was xpCost: 1400
     requiresTier: 'PLUS' as const,
     hasProEarlyAccess: true,
   },
@@ -206,15 +188,13 @@ const barFeatures: VaultItem[] = [
     id: 'bar_attaboy_nyc',
     category: 'BAR_FEATURE' as const,
     title: 'Attaboy',
-    description: 'Intimate speakeasy on NYC\'s Lower East Side.',
+    description: "Intimate speakeasy on NYC's Lower East Side.",
     barName: 'Attaboy',
     city: 'New York City',
     vibeDescription: 'No menu, just conversation and classics done right.',
-    signatureCocktailName: 'Bartender\'s Choice',
+    signatureCocktailName: "Bartender's Choice",
     thumbnailKey: 'the_velvet_curtain', // Intimate atmosphere
-    xpCost: 1500,
-    moneyPriceCents: 399,
-    unlockMethod: 'XP_OR_MONEY' as const,
+    requiredLevel: 16, // was xpCost: 1500
     requiresTier: 'PLUS' as const,
   },
   {
@@ -227,8 +207,7 @@ const barFeatures: VaultItem[] = [
     vibeDescription: 'Standing room only, Gaudí-esque interiors, vermut hour.',
     signatureCocktailName: 'Gin & Tonic with Spanish botanicals',
     thumbnailKey: 'the_gilded_lily', // Elegant architecture
-    xpCost: 1300,
-    unlockMethod: 'XP_ONLY' as const,
+    requiredLevel: 14, // was xpCost: 1300
     requiresTier: 'PRO' as const,
   },
 ];
@@ -244,13 +223,8 @@ const seasonalDrops: VaultItem[] = [
     title: 'Winter Techniques Drop',
     description: 'Hot toddy variations, mulled wine, and cold-weather classics.',
     seasonName: 'Winter 2026',
-    includedItemIds: [
-      'honey_ginger_daiquiri',
-      'ice_strategy_playbook',
-      'smoked_old_fashioned',
-    ],
-    xpCost: 2500,
-    unlockMethod: 'XP_ONLY' as const,
+    includedItemIds: ['honey_ginger_daiquiri', 'ice_strategy_playbook', 'smoked_old_fashioned'],
+    requiredLevel: 26, // was xpCost: 2500
     isLimitedTime: true,
     availableFrom: '2025-12-01T00:00:00Z',
     availableUntil: '2026-03-01T00:00:00Z',

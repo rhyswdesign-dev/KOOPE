@@ -1,12 +1,15 @@
 /**
- * TrialBanner — floating pill banner shown during the 7-day PLUS trial.
+ * TrialBanner — floating pill shown during the 7-day PLUS trial.
+ *
+ * Rendered inside the Tabs navigator (not the root stack), so it is
+ * automatically absent on any screen pushed on top of the tabs
+ * (OCRCapture, AIRecipeFormat, SmartScan, etc.). No route detection needed.
  *
  * Days 1–5: amber, "PLUS TRIAL · X days left"
  * Days 6–7: gold with ⚡, "PRO UNLOCKED · X days left"
- * Expired: "Trial ended — choose your plan"
+ * Expired:  "Trial ended — choose your plan"
  *
- * Absolutely positioned above the tab bar so it doesn't push content.
- * Tapping it opens the Paywall to prompt conversion.
+ * Hidden entirely for paid subscribers (PLUS / PRO).
  */
 
 import React, { useEffect, useRef } from 'react';
@@ -22,8 +25,8 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { useTrialStatus } from '../hooks/useTrialStatus';
+import { useUserTier } from '../store/useUserTier';
 
-// Sits just above the standard tab bar + home indicator
 const TAB_OFFSET = Platform.OS === 'ios' ? 92 : 66;
 const AMBER = '#D68A38';
 const AMBER_DARK = '#1A120D';
@@ -31,11 +34,15 @@ const PRO_GOLD = '#E8B84B';
 
 export function TrialBanner() {
   const { isInTrial, trialDay, daysRemaining, isProPhase, trialExpired } = useTrialStatus();
+  const tier = useUserTier((state) => state.tier);
   const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const translateAnim = useRef(new Animated.Value(80)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
 
-  const visible = isInTrial || trialExpired;
+  // Never show for paying subscribers. The trial store doesn't clear
+  // isTrialActive on conversion, so tier is the source of truth.
+  const isPaidSubscriber = tier === 'PLUS' || tier === 'PRO';
+  const visible = !isPaidSubscriber && (isInTrial || trialExpired);
 
   useEffect(() => {
     Animated.parallel([
@@ -104,7 +111,6 @@ const styles = StyleSheet.create({
     right: 20,
     borderRadius: 30,
     height: 44,
-    // Shadow
     shadowColor: '#000',
     shadowOpacity: 0.25,
     shadowRadius: 12,

@@ -25,6 +25,14 @@ import { withHaptic } from '../../lib/haptics';
 
 const { width } = Dimensions.get('window');
 
+// Require this many consecutive frames to decode the same barcode, within
+// this window, before committing. expo-camera's onBarcodeScanned fires on
+// every frame a code decodes — without this gate, barcode detection running
+// silently underneath normal photo-mode framing would auto-fire on any
+// incidental barcode crossing the viewfinder (a shelf tag, a second product).
+const BARCODE_STABILITY_FRAMES = 2;
+const BARCODE_STABILITY_WINDOW_MS = 600;
+
 export interface CameraCaptureProps {
   visible: boolean;
   onClose: () => void;
@@ -60,10 +68,14 @@ export default function CameraCapture({
   const [isCameraReady, setIsCameraReady] = useState(false);
   const cameraRef = useRef<CameraView>(null);
   const barcodeHandledRef = useRef(false);
+  const barcodeStabilityRef = useRef<{ value: string; count: number; firstSeenAt: number } | null>(null);
+  const [barcodeDetectedPulse, setBarcodeDetectedPulse] = useState(false);
 
   useEffect(() => {
     if (visible) {
       barcodeHandledRef.current = false;
+      barcodeStabilityRef.current = null;
+      setBarcodeDetectedPulse(false);
     }
   }, [visible]);
 
@@ -75,9 +87,23 @@ export default function CameraCapture({
 
   const handleBarcodeScannedInternal = (result: { type: string; data: string }) => {
     if (barcodeHandledRef.current) return;
+
+    const now = Date.now();
+    const prev = barcodeStabilityRef.current;
+    const next = (prev && prev.value === result.data && now - prev.firstSeenAt < BARCODE_STABILITY_WINDOW_MS)
+      ? { value: prev.value, count: prev.count + 1, firstSeenAt: prev.firstSeenAt }
+      : { value: result.data, count: 1, firstSeenAt: now };
+    barcodeStabilityRef.current = next;
+    if (next.count < BARCODE_STABILITY_FRAMES) return;
+
     barcodeHandledRef.current = true;
+    setBarcodeDetectedPulse(true);
     onBarcodeScanned?.(result);
-    setTimeout(() => { barcodeHandledRef.current = false; }, 3000);
+    setTimeout(() => {
+      barcodeHandledRef.current = false;
+      barcodeStabilityRef.current = null;
+      setBarcodeDetectedPulse(false);
+    }, 3000);
   };
 
   const capturePhoto = async () => {
@@ -199,6 +225,14 @@ export default function CameraCapture({
               <View style={styles.instructionContainer}>
                 <Text style={styles.instructionText}>{instructionText}</Text>
               </View>
+
+              {/* Silent barcode detection — a brief pulse, not a mode switch */}
+              {barcodeDetectedPulse && (
+                <View style={styles.barcodePulse}>
+                  <Ionicons name="barcode" size={14} color={colors.gold} />
+                  <Text style={styles.barcodePulseText}>Barcode found — checking...</Text>
+                </View>
+              )}
 
               {!barcodeOnly ? (
                 <View style={styles.viewfinderFrame}>
@@ -361,6 +395,28 @@ const styles = StyleSheet.create({
     paddingVertical: spacing(1),
     borderRadius: 20,
     overflow: 'hidden',
+  },
+  barcodePulse: {
+    position: 'absolute',
+    bottom: spacing(2),
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing(1),
+    alignSelf: 'center',
+    backgroundColor: 'rgba(10,7,5,0.85)',
+    borderWidth: 1,
+    borderColor: 'rgba(214,138,56,0.5)',
+    borderRadius: 999,
+    paddingHorizontal: spacing(2),
+    paddingVertical: spacing(1),
+  },
+  barcodePulseText: {
+    color: colors.gold,
+    fontSize: 12,
+    fontWeight: '600',
   },
   viewfinderFrame: {
     width: width * 0.75,

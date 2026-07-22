@@ -1,4 +1,3 @@
-// @ts-nocheck
 import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, ScrollView, Pressable, StyleSheet, Dimensions, Animated
@@ -74,6 +73,18 @@ const slides: SlideData[] = [
 export default function WelcomeCarouselScreen({ onComplete }: WelcomeCarouselProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const scrollViewRef = useRef<ScrollView>(null);
+  // Guards against double-fire: this is the single onboarding card (Master
+  // Plan Phase 1.4) and its three completion paths (swipe past last slide,
+  // Skip, Get Started) all funnel through here. Without this, a rapid
+  // double-tap on Get Started/Skip — or a swipe immediately followed by a
+  // tap — could invoke onComplete() twice before the parent unmounts this
+  // screen, double-firing the onboarding-completion side effects.
+  const hasCompletedRef = useRef(false);
+  const triggerComplete = () => {
+    if (hasCompletedRef.current) return;
+    hasCompletedRef.current = true;
+    onComplete();
+  };
 
   const handleScroll = (event: any) => {
     const scrollX = event.nativeEvent.contentOffset.x;
@@ -97,12 +108,12 @@ export default function WelcomeCarouselScreen({ onComplete }: WelcomeCarouselPro
 
     // If on last slide and user tries to swipe right, complete onboarding
     if (index === slides.length - 1 && scrollX > (slides.length - 1) * width + 50) {
-      onComplete();
+      triggerComplete();
     }
   };
 
   const skipToEnd = () => {
-    onComplete();
+    triggerComplete();
   };
 
   const currentSlide = slides[currentIndex];
@@ -267,7 +278,6 @@ const styles = StyleSheet.create({
     height: 8,
     borderRadius: 4,
     backgroundColor: colors.muted,
-    transition: 'all 0.3s ease',
   },
   activeDot: {
     width: 24,

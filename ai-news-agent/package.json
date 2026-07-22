@@ -1,0 +1,16 @@
+{
+  "name": "ai-news-agent",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "trigger": "curl http://localhost:8787/trigger"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250620.0",
+    "typescript": "^5.5.0",
+    "wrangler": "^3.114.0"
+  }
+}

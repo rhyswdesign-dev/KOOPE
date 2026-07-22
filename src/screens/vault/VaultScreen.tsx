@@ -20,15 +20,11 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/RootNavigator';
 import { colors, spacing, radii, serif } from '../../theme/tokens';
-import { VaultItem } from '../../types/vault';
-import { useVault } from '../../contexts/VaultContext';
 import { useUser } from '../../store/useUser';
 import { useXPSystem } from '../../store/useXPSystem';
-import { currentVaultCycle, getVaultCountdown } from '../../data/vaultData';
+import { levelForXP } from '../../services/achievementService';
 import XPBalanceModal from '../../components/XPBalanceModal';
 import InPageTabBar from '../../components/ui/InPageTabBar';
-import VaultUnlockModal from './components/VaultUnlockModal';
-import VaultItemCard from './components/VaultItemCard';
 import VaultItemPreviewModal from './components/VaultItemPreviewModal';
 import {
   getBenefitsForVariation,
@@ -38,7 +34,12 @@ import {
   VARIATION_BENEFITS,
 } from '../../config/vaultBenefits';
 import { calculateTasteMatchPercent } from '../../services/tasteMatchService';
-import { useScreenTracking, useAnalyticsContext } from '../../context/AnalyticsContext';
+import {
+  useScreenTracking,
+  trackEvent,
+  ANALYTICS_EVENTS,
+  ANALYTICS_PROPS,
+} from '../../lib/analytics';
 import { VaultCategory } from '../../config/vaultTypes';
 import {
   vaultCategories,
@@ -73,18 +74,15 @@ import {
   getVaultVariationThumbnail,
 } from '../../data/vaultImages';
 
-
 export default function VaultScreen() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { state, dispatch } = useVault();
   const { tier, setTier } = useUserTier();
   const { profile: personalizationProfile } = usePersonalization();
   const { gateWithTrigger: vaultProGate } = useFeatureAccess('vault_pro_drops');
-  const analytics = useAnalyticsContext();
-  const { balance: xpBalance, spendXP, unlockVaultItem, isVaultItemUnlocked } = useXPSystem();
-  const { savedItems, toggleSavedCocktail, isCocktailSaved, toggleSavedVaultItem } = useSavedItems();
+  const { balance: xpBalance, unlockVaultItem, isVaultItemUnlocked } = useXPSystem();
+  const { savedItems, toggleSavedCocktail, isCocktailSaved, toggleSavedVaultItem } =
+    useSavedItems();
   const [selectedTab, setSelectedTab] = useState<string>('variations');
-  const [countdown, setCountdown] = useState(getVaultCountdown());
   const [xpBalanceModalVisible, setXpBalanceModalVisible] = useState(false);
   const [groceryListVisible, setGroceryListVisible] = useState(false);
   const [selectedRecipe, setSelectedRecipe] = useState<any>(null);
@@ -125,15 +123,32 @@ export default function VaultScreen() {
   // Track screen view
   useScreenTracking('VaultScreen');
 
-  // Update countdown every minute
+  // Phase 0.6: vault content auto-unlocks once real XP crosses an item's
+  // requiredLevel — no spend action. Whenever the balance changes, mark
+  // any newly-eligible item unlocked (idempotent: unlockVaultItem no-ops
+  // if already unlocked) and fire the same celebration/analytics/saved-
+  // item side effects the old manual "unlock" button used to. Seasonal
+  // drops are time-gated, not level-gated, so they're excluded here.
   useEffect(() => {
-    const timer = setInterval(() => {
-      setCountdown(getVaultCountdown());
-    }, 60000);
-    return () => clearInterval(timer);
-  }, []);
+    const currentLevel = levelForXP(xpBalance);
+    const allItems = [
+      ...getVariationsForDisplay(),
+      ...getAllPlaybookTypes().flatMap((t) => getTechniquePlaybooksByType(t)),
+      ...getBartenderHacksForDisplay(),
+    ];
+    for (const item of allItems) {
+      if (currentLevel >= item.requiredLevel && !isVaultItemUnlocked(item.id)) {
+        unlockVaultItem(item.id);
+        toggleSavedVaultItem({ id: item.id, name: item.title });
+        trackEvent(ANALYTICS_EVENTS.VAULT_ITEM_UNLOCKED, {
+          [ANALYTICS_PROPS.VAULT_ITEM_TITLE]: item.title,
+        });
+        setUnlockedItemName(item.title);
+        setCelebrationVisible(true);
+      }
+    }
+  }, [xpBalance]);
 
-  
   useLayoutEffect(() => {
     nav.setOptions({
       title: 'Vault',
@@ -142,7 +157,17 @@ export default function VaultScreen() {
       headerTitleStyle: { color: colors.text, fontWeight: '700', fontSize: 22, fontFamily: serif },
       headerShadowVisible: false,
       headerLeft: () => (
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginLeft: 16 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginLeft: 4 }}>
+          {/* Back button */}
+          <Pressable
+            hitSlop={12}
+            onPress={() => nav.goBack()}
+            accessible={true}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+          >
+            <Ionicons name="chevron-back" size={28} color={colors.text} />
+          </Pressable>
           {/* XP Balance */}
           <Pressable
             hitSlop={12}
@@ -165,7 +190,7 @@ export default function VaultScreen() {
               Alert.alert(
                 'How the Vault Works',
                 'XP (Experience Points):\n• Earn XP by completing lessons, challenges, and identity-track progress\n• Use XP to unlock master recipes, advanced technique playbooks, and collector-tier drops\n\nSubscription Tiers:\n• FREE: Limited access, earn XP to unlock select Vault items\n• KOOPE+ ($8.99/mo): Unlock the full Vault library with XP\n• KOOPE PRO ($17.99/mo): PLUS benefits + accelerated XP earning, elite drops, and early-access prestige content\n\nTip: Claiming your weekly Pro drops and finishing lessons helps your Vault identity compound faster.',
-                [{ text: 'Got it!', style: 'default' }]
+                [{ text: 'Got it!', style: 'default' }],
               );
             }}
             accessible={true}
@@ -196,41 +221,21 @@ export default function VaultScreen() {
               borderColor: colors.accent,
             }}
           >
-            <Text style={{ fontSize: 10, fontWeight: '700', color: colors.accent }}>
-              {tier}
-            </Text>
+            <Text style={{ fontSize: 10, fontWeight: '700', color: colors.accent }}>{tier}</Text>
           </Pressable>
-
         </View>
       ),
     });
   }, [nav, tier, setTier, xpBalance]);
 
   const TAB_SUMMARIES: Record<string, string> = {
-    variations: 'Pro-level spins on the classics. Each variation teaches a technique you can apply across your whole repertoire.',
-    playbooks: 'Operational systems for your bar — ice, acid, batch math, and speed. Unlock once, keep forever.',
-    seasonal: 'Limited drops tied to the season. Rotates out when the cycle ends — unlock before they\'re gone.',
+    variations:
+      'Pro-level spins on the classics. Each variation teaches a technique you can apply across your whole repertoire.',
+    playbooks:
+      'Operational systems for your bar — ice, acid, batch math, and speed. Unlock once, keep forever.',
+    seasonal:
+      "Limited drops tied to the season. Rotates out when the cycle ends — unlock before they're gone.",
     hacks: 'One insight per card. Quick unlocks that make an immediate difference behind the bar.',
-  };
-
-  const getFilteredItems = (): VaultItem[] => {
-    const items = state.vaultItems.filter(item => item.isActive);
-
-    switch (selectedTab) {
-      case 'variations':
-      case 'playbooks':
-      case 'seasonal':
-      case 'hacks':
-        return []; // New vault content categories (handled inline)
-      case 'common':
-        return items.filter(item => item.rarity === 'common');
-      case 'limited':
-        return items.filter(item => item.rarity === 'limited');
-      case 'rare':
-        return items.filter(item => item.rarity === 'rare' || item.rarity === 'prestige');
-      default:
-        return items;
-    }
   };
 
   const tabs = [
@@ -238,36 +243,26 @@ export default function VaultScreen() {
     { key: 'seasonal', label: 'Seasonal' },
     { key: 'playbooks', label: 'Playbooks' },
     { key: 'hacks', label: 'Hacks' },
-    // Archived for future product expansion
-    // { key: 'bars', label: 'Bar Features' },
-    // { key: 'games', label: 'Games' }, // archived — does not fit craft identity
   ];
-
-  const renderVaultItem = ({ item }: { item: VaultItem }) => (
-    <VaultItemCard
-      item={item}
-      userProfile={state.userProfile}
-      onPress={() => {
-        // Track vault item view
-        analytics.trackVaultView(item.id, item.category, item.rarity);
-        
-        dispatch({ type: 'SET_SELECTED_ITEM', payload: item });
-        dispatch({ type: 'SHOW_UNLOCK_MODAL', payload: true });
-      }}
-    />
-  );
 
   const renderHeader = () => (
     <View>
       {/* Collection Header */}
       <View style={styles.collectionHeader}>
-          <View style={styles.collectionInfo}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5), marginBottom: spacing(0.5) }}>
-            <Text style={styles.collectionTitle}>{currentVaultCycle.name}</Text>
+        <View style={styles.collectionInfo}>
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: spacing(1.5),
+              marginBottom: spacing(0.5),
+            }}
+          >
+            <Text style={styles.collectionTitle}>The Vault</Text>
             <TierBadge tier={tier} size="small" />
           </View>
         </View>
-        
+
         {/* Quick Stats */}
         <View style={styles.quickStats}>
           <View style={styles.statCard}>
@@ -288,40 +283,30 @@ export default function VaultScreen() {
           <View style={styles.thisWeekLeft}>
             <Text style={styles.thisWeekEyebrow}>This Week's Drop · PRO</Text>
             <Text style={styles.thisWeekTitle}>{activeWeeklyDrop.title}</Text>
-            <Text style={styles.thisWeekReason} numberOfLines={2}>{activeWeeklyDrop.reason}</Text>
+            <Text style={styles.thisWeekReason} numberOfLines={2}>
+              {activeWeeklyDrop.reason}
+            </Text>
           </View>
           <View style={styles.thisWeekRight}>
             <View style={styles.thisWeekDiffBadge}>
               <Text style={styles.thisWeekDiffText}>{activeWeeklyDrop.difficulty}</Text>
             </View>
-            <Ionicons name="chevron-forward" size={18} color={colors.gold} style={{ marginTop: 8 }} />
+            <Ionicons
+              name="chevron-forward"
+              size={18}
+              color={colors.gold}
+              style={{ marginTop: 8 }}
+            />
           </View>
         </TouchableOpacity>
       )}
 
       {/* Filter Tabs */}
       <View style={styles.tabsContainer}>
-        <InPageTabBar
-          items={tabs}
-          activeKey={selectedTab}
-          onChange={setSelectedTab}
-          scrollable
-        />
+        <InPageTabBar items={tabs} activeKey={selectedTab} onChange={setSelectedTab} scrollable />
       </View>
     </View>
   );
-
-  const renderEmptyState = () => (
-    <View style={styles.emptyState}>
-      <Ionicons name="cube-outline" size={80} color={colors.subtext} />
-      <Text style={styles.emptyTitle}>No Items Available</Text>
-      <Text style={styles.emptySubtitle}>
-        Check back when the next cycle begins
-      </Text>
-    </View>
-  );
-
-  const filteredItems = getFilteredItems();
 
   // Placeholder images
   const PLACEHOLDER_IMAGES = {
@@ -368,6 +353,30 @@ export default function VaultScreen() {
 
   // Open preview modal with item details and benefits
   const handleItemPreview = (item: any, imageSource: any, category: string) => {
+    // Tier gate happens on open, not on a since-removed "unlock" action —
+    // T11 gates PRO-exclusive vault drops.
+    const tierAccess = !item.requiredTier || canAccessContent(tier, item.requiredTier);
+    if (!tierAccess) {
+      if (item.requiredTier === 'PRO') {
+        vaultProGate('T11');
+      } else {
+        Alert.alert(
+          'Subscription Required',
+          `This item requires ${item.requiredTier}+ subscription to unlock.`,
+          [
+            { text: 'Cancel', style: 'cancel' },
+            {
+              text: 'View Plans',
+              style: 'default',
+              onPress: () =>
+                nav.navigate('Paywall', { source: 'vault_tier_locked', offering: null }),
+            },
+          ],
+        );
+      }
+      return;
+    }
+
     let benefits = [];
     let fullDescription = '';
 
@@ -377,7 +386,8 @@ export default function VaultScreen() {
         // First try to get specific item benefits by ID (e.g., "spicy_margarita")
         const itemKey = item.id.replace('var_', '');
         const specificBenefits = VARIATION_BENEFITS[itemKey];
-        const variationBenefits = specificBenefits || getBenefitsForVariation(item.difficulty || 'simple');
+        const variationBenefits =
+          specificBenefits || getBenefitsForVariation(item.difficulty || 'simple');
         benefits = variationBenefits.benefits;
         fullDescription = variationBenefits.fullDescription;
         break;
@@ -394,9 +404,25 @@ export default function VaultScreen() {
       case 'hack':
         fullDescription = item.body || item.shortDescription || '';
         benefits = [
-          { icon: 'flash', title: 'Quick Win', description: 'A single actionable technique you can apply tonight' },
-          { icon: 'school', title: 'Pro Knowledge', description: 'Used by working bartenders, explained for home use' },
-          ...(item.relatedDeckSlug ? [{ icon: 'layers', title: 'Goes Deeper', description: 'A full Playbook exists if you want the complete system' }] : []),
+          {
+            icon: 'flash',
+            title: 'Quick Win',
+            description: 'A single actionable technique you can apply tonight',
+          },
+          {
+            icon: 'school',
+            title: 'Pro Knowledge',
+            description: 'Used by working bartenders, explained for home use',
+          },
+          ...(item.relatedDeckSlug
+            ? [
+                {
+                  icon: 'layers',
+                  title: 'Goes Deeper',
+                  description: 'A full Playbook exists if you want the complete system',
+                },
+              ]
+            : []),
         ];
         break;
       case 'game':
@@ -406,11 +432,24 @@ export default function VaultScreen() {
         break;
       case 'seasonal':
         // Seasonal items use a default template for now
-        fullDescription = 'Limited-time seasonal content curated around holidays, ingredients, and cultural moments.';
+        fullDescription =
+          'Limited-time seasonal content curated around holidays, ingredients, and cultural moments.';
         benefits = [
-          { icon: 'calendar', title: 'Seasonal Relevance', description: 'Recipes perfectly timed to ingredient availability' },
-          { icon: 'gift', title: 'Limited Availability', description: 'Exclusive content that rotates out' },
-          { icon: 'star', title: 'Holiday Entertaining', description: 'Impress guests with drinks for celebrations' },
+          {
+            icon: 'calendar',
+            title: 'Seasonal Relevance',
+            description: 'Recipes perfectly timed to ingredient availability',
+          },
+          {
+            icon: 'gift',
+            title: 'Limited Availability',
+            description: 'Exclusive content that rotates out',
+          },
+          {
+            icon: 'star',
+            title: 'Holiday Entertaining',
+            description: 'Impress guests with drinks for celebrations',
+          },
         ];
         break;
     }
@@ -421,7 +460,7 @@ export default function VaultScreen() {
       description: fullDescription,
       imageSource: toImageSource(imageSource),
       category,
-      xpCost: item.xpCost,
+      requiredLevel: item.requiredLevel,
       requiredTier: item.requiredTier,
       benefits,
       isUnlocked: isVaultItemUnlocked(item.id),
@@ -432,8 +471,16 @@ export default function VaultScreen() {
     setPreviewModalVisible(true);
   };
 
-  const renderContentItem = (item: any, imageSource: any, category: string = 'variation', previewImageSource?: any) => {
+  const renderContentItem = (
+    item: any,
+    imageSource: any,
+    category: string = 'variation',
+    previewImageSource?: any,
+  ) => {
     const isTierLocked = !canAccessContent(tier, item.requiredTier);
+    const isUnlocked = isVaultItemUnlocked(item.id);
+    const levelLabel =
+      typeof item.requiredLevel === 'number' ? `Level ${item.requiredLevel}` : item.requiredLevel;
 
     return (
       <TouchableOpacity
@@ -449,21 +496,29 @@ export default function VaultScreen() {
         />
         <View style={styles.contentItemInfo}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1) }}>
-            <Text style={styles.contentItemXP}>{item.xpCost} XP</Text>
+            <Text style={styles.contentItemXP}>{levelLabel}</Text>
             {isTierLocked && item.requiredTier && (
               <View style={styles.tierRequiredBadge}>
                 <Text style={styles.tierRequiredText}>{item.requiredTier} Required</Text>
               </View>
             )}
           </View>
-          <Text style={styles.contentItemTitle}>{item.title || item.barName || item.seasonName}</Text>
+          <Text style={styles.contentItemTitle}>
+            {item.title || item.barName || item.seasonName}
+          </Text>
           <Text style={styles.contentItemDescription} numberOfLines={2}>
-            {item.shortDescription || item.description || `${item.city} • ${item.signatureCocktailName}`}
+            {item.shortDescription ||
+              item.description ||
+              `${item.city} • ${item.signatureCocktailName}`}
           </Text>
         </View>
 
         <View style={styles.contentItemUnlockButton}>
-          <Text style={styles.contentItemUnlockText}>Unlock</Text>
+          <Ionicons
+            name={isUnlocked ? 'checkmark-circle' : 'lock-closed-outline'}
+            size={18}
+            color={isUnlocked ? colors.accent : colors.subtext}
+          />
         </View>
       </TouchableOpacity>
     );
@@ -485,8 +540,8 @@ export default function VaultScreen() {
                     playbook,
                     getVaultPlaybookThumbnail(playbook.id),
                     'playbook',
-                    getVaultPlaybookHeader(playbook.id)
-                  )
+                    getVaultPlaybookHeader(playbook.id),
+                  ),
                 )}
               </View>
             );
@@ -509,7 +564,9 @@ export default function VaultScreen() {
       const hasTasteScores = Object.keys(variationTasteScores).length > 0;
       if (hasTasteScores) {
         for (const key of Object.keys(groupedByDifficulty)) {
-          groupedByDifficulty[key].sort((a, b) => (variationTasteScores[b.id] ?? 0) - (variationTasteScores[a.id] ?? 0));
+          groupedByDifficulty[key].sort(
+            (a, b) => (variationTasteScores[b.id] ?? 0) - (variationTasteScores[a.id] ?? 0),
+          );
         }
       }
       const difficultyLabels = {
@@ -535,7 +592,7 @@ export default function VaultScreen() {
                         variation,
                         getVaultVariationThumbnail(variation.id),
                         'variation',
-                        getVaultVariationHeader(variation.id)
+                        getVaultVariationHeader(variation.id),
                       )}
                       {showBadge && (
                         <View style={styles.tasteMatchBadge}>
@@ -560,11 +617,11 @@ export default function VaultScreen() {
             <Text style={styles.contentSectionTitle}>Available Drops</Text>
             {drops.map((drop) =>
               renderContentItem(
-                { ...drop, xpCost: 'Limited Time' },
+                { ...drop, requiredLevel: 'Limited Time' },
                 getVaultSeasonalThumbnail(drop.id),
                 'seasonal',
-                getVaultSeasonalHeader(drop.id)
-              )
+                getVaultSeasonalHeader(drop.id),
+              ),
             )}
           </View>
         </View>
@@ -608,7 +665,7 @@ export default function VaultScreen() {
                     {renderContentItem(
                       { ...hack, shortDescription: hack.teaser },
                       PLACEHOLDER_IMAGES.cocktail,
-                      'hack'
+                      'hack',
                     )}
                     {hack.relatedDeckSlug && (
                       <View style={styles.hackGoDeeper}>
@@ -630,8 +687,6 @@ export default function VaultScreen() {
     return null;
   };
 
-  const isNewCategory = ['variations', 'playbooks', 'seasonal', 'hacks'].includes(selectedTab);
-
   return (
     <View style={styles.container}>
       <ScrollView
@@ -643,33 +698,8 @@ export default function VaultScreen() {
         {TAB_SUMMARIES[selectedTab] && (
           <Text style={styles.tabSummary}>{TAB_SUMMARIES[selectedTab]}</Text>
         )}
-        {isNewCategory ? (
-          renderInlineContent()
-        ) : (
-          <>
-            {filteredItems.length === 0 ? (
-              renderEmptyState()
-            ) : (
-              filteredItems.map((item) => (
-                <View key={item.id}>
-                  {renderVaultItem({ item })}
-                </View>
-              ))
-            )}
-          </>
-        )}
+        {renderInlineContent()}
       </ScrollView>
-
-      {/* Unlock Modal */}
-      <VaultUnlockModal
-        visible={state.showUnlockModal}
-        item={state.selectedItem}
-        userProfile={state.userProfile}
-        onClose={() => {
-          dispatch({ type: 'SHOW_UNLOCK_MODAL', payload: false });
-          dispatch({ type: 'SET_SELECTED_ITEM', payload: null });
-        }}
-      />
 
       {/* XP Balance Modal */}
       <XPBalanceModal
@@ -677,85 +707,13 @@ export default function VaultScreen() {
         onClose={() => setXpBalanceModalVisible(false)}
       />
 
-      {/* Item Preview Modal */}
+      {/* Item Preview Modal — informational only; unlocking is automatic
+          (see the level-sync effect above), so there's no unlock action here. */}
       <VaultItemPreviewModal
         visible={previewModalVisible}
         onDismiss={() => setPreviewModalVisible(false)}
-        onUnlock={async () => {
-          // Handle unlock logic
-          if (previewItem && typeof previewItem.xpCost === 'number') {
-            const xpCost = previewItem.xpCost;
-
-            // Check tier access — T11 gate for PRO-exclusive vault drops
-            const tierAccess = !previewItem.requiredTier || canAccessContent(tier, previewItem.requiredTier);
-            if (!tierAccess) {
-              if (previewItem.requiredTier === 'PRO') {
-                vaultProGate('T11');
-              } else {
-                Alert.alert(
-                  'Subscription Required',
-                  `This item requires ${previewItem.requiredTier}+ subscription to unlock.`,
-                  [
-                    { text: 'Cancel', style: 'cancel' },
-                    {
-                      text: 'View Plans',
-                      style: 'default',
-                      onPress: () => {
-                        setPreviewModalVisible(false);
-                        nav.navigate('Paywall', {
-                          source: 'vault_tier_locked',
-                          offering: null,
-                        });
-                      },
-                    },
-                  ]
-                );
-              }
-              return;
-            }
-
-            // Check if user can afford
-            if (xpBalance < xpCost) {
-              Alert.alert(
-                'Insufficient XP',
-                `You need ${xpCost.toLocaleString()} XP to unlock this item. You currently have ${xpBalance.toLocaleString()} XP.`,
-                [{ text: 'OK', style: 'default' }]
-              );
-              return;
-            }
-
-            // Deduct XP
-            const itemId = previewItem.id || `vault_${previewItem.category}_${previewItem.title.toLowerCase().replace(/\s+/g, '_')}`;
-            const success = spendXP(xpCost, itemId, `Unlocked: ${previewItem.title}`);
-
-            if (success) {
-              // Track analytics
-              analytics.trackVaultView(previewItem.title, previewItem.category, 'unlocked');
-
-              // Close preview modal
-              setPreviewModalVisible(false);
-
-              // Show celebration animation
-              setUnlockedItemName(previewItem.title);
-              setCelebrationVisible(true);
-
-              // Persist unlocked item to XP store
-              unlockVaultItem(itemId);
-
-              // Add to saved items so it appears in My Collection
-              toggleSavedVaultItem({ id: itemId, name: previewItem.title });
-            } else {
-              Alert.alert(
-                'Error',
-                'Failed to unlock item. Please try again.',
-                [{ text: 'OK', style: 'cancel' }]
-              );
-            }
-          }
-        }}
         item={previewItem}
         userXP={xpBalance}
-        userKeys={0}
         userTier={tier}
       />
 
@@ -782,12 +740,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.bg,
   },
-  
+
   listContent: {
     flexGrow: 1,
     paddingBottom: spacing(4),
   },
-  
+
   // Collection Header
   collectionHeader: {
     backgroundColor: colors.card,
@@ -795,24 +753,24 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.line,
   },
-  
+
   collectionInfo: {
     marginBottom: spacing(1.5),
   },
-  
+
   collectionTitle: {
     fontSize: 24,
     fontWeight: '900',
     color: colors.text,
     marginBottom: spacing(0.5),
   },
-  
+
   collectionSubtitle: {
     fontSize: 14,
     color: colors.accent,
     fontWeight: '600',
   },
-  
+
   collectionSupportText: {
     fontSize: 13,
     lineHeight: 18,
@@ -829,12 +787,12 @@ const styles = StyleSheet.create({
     paddingTop: spacing(2),
     paddingBottom: spacing(1),
   },
-  
+
   quickStats: {
     flexDirection: 'row',
     gap: spacing(2),
   },
-  
+
   statCard: {
     flex: 1,
     flexDirection: 'column',
@@ -874,13 +832,13 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.line,
   },
-  
+
   actionsWrapper: {
     flexDirection: 'row',
     gap: spacing(2),
     alignItems: 'center',
   },
-  
+
   primaryAction: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -891,13 +849,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing(3),
     gap: spacing(1),
   },
-  
+
   primaryActionText: {
     color: colors.white,
     fontSize: 14,
     fontWeight: '700',
   },
-  
+
   secondaryAction: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -910,19 +868,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing(3),
     gap: spacing(1),
   },
-  
+
   secondaryActionText: {
     color: colors.accent,
     fontSize: 14,
     fontWeight: '700',
   },
 
-  
   // Tabs
   tabsScrollView: {
     backgroundColor: colors.bg,
   },
-  
+
   tabsContainer: {
     flexDirection: 'row',
     paddingHorizontal: spacing(2),
@@ -975,12 +932,12 @@ const styles = StyleSheet.create({
     color: colors.gold,
     textTransform: 'capitalize',
   },
-  
+
   // List
   itemSeparator: {
     height: spacing(2),
   },
-  
+
   // Empty State
   emptyState: {
     flex: 1,
@@ -989,7 +946,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing(4),
     paddingTop: spacing(8),
   },
-  
+
   emptyTitle: {
     fontSize: 20,
     fontWeight: '800',
@@ -997,7 +954,7 @@ const styles = StyleSheet.create({
     marginTop: spacing(2),
     marginBottom: spacing(1),
   },
-  
+
   emptySubtitle: {
     fontSize: 14,
     color: colors.subtext,

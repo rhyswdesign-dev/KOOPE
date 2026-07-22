@@ -1,4 +1,3 @@
-// @ts-nocheck
 import React, { useState, useMemo, useEffect, useLayoutEffect } from 'react';
 import {
   View,
@@ -22,10 +21,13 @@ import { createRecipeCardProps } from '../utils/recipeActions';
 import { useSavedItems } from '../hooks/useSavedItems';
 import { RecipesRepository } from '../repos/supabase';
 import { log } from '../lib/logger';
+import type { RootStackParamList } from '../navigation/RootNavigator';
 
 interface CocktailListScreenProps {
-  navigation: NativeStackNavigationProp<any>;
-  route: RouteProp<any, any>;
+  navigation: NativeStackNavigationProp<RootStackParamList>;
+  route: RouteProp<RootStackParamList, 'CocktailList'> & {
+    params: RootStackParamList['CocktailList'] & { cocktails?: any[] };
+  };
 }
 
 export default function CocktailListScreen({ navigation, route }: CocktailListScreenProps) {
@@ -46,7 +48,7 @@ export default function CocktailListScreen({ navigation, route }: CocktailListSc
   useLayoutEffect(() => {
     navigation.setOptions({
       title: title,
-      headerBackTitleVisible: false,
+      headerBackVisible: true,
       headerRight: category === 'mocktails' ? () => (
         <TouchableOpacity
           onPress={() => {

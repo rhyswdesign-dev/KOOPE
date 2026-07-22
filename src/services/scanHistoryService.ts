@@ -1,7 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as FileSystem from 'expo-file-system';
 
 const SCAN_HISTORY_KEY = 'koope_scan_history';
 const MAX_HISTORY_RECORDS = 100;
+const DOCUMENT_DIRECTORY = (FileSystem as unknown as { documentDirectory?: string }).documentDirectory ?? '';
 
 export interface ScanRecord {
   bottleId: string;
@@ -55,7 +57,15 @@ class ScanHistoryServiceClass {
     const sorted = records.sort(
       (a, b) => new Date(b.lastScannedAt).getTime() - new Date(a.lastScannedAt).getTime()
     );
+    const evicted = sorted.slice(MAX_HISTORY_RECORDS);
     const trimmed = sorted.slice(0, MAX_HISTORY_RECORDS);
+
+    // Delete persisted thumbnails for evicted records so the scans/ folder stays bounded
+    for (const r of evicted) {
+      if (r.imageUri?.startsWith(DOCUMENT_DIRECTORY)) {
+        FileSystem.deleteAsync(r.imageUri, { idempotent: true }).catch(() => {});
+      }
+    }
 
     this.cache = trimmed;
     await AsyncStorage.setItem(SCAN_HISTORY_KEY, JSON.stringify(trimmed));
@@ -66,6 +76,9 @@ class ScanHistoryServiceClass {
   }
 
   async clearHistory(): Promise<void> {
+    // Delete all persisted thumbnails
+    const scansDir = `${DOCUMENT_DIRECTORY}scans/`;
+    FileSystem.deleteAsync(scansDir, { idempotent: true }).catch(() => {});
     this.cache = [];
     await AsyncStorage.removeItem(SCAN_HISTORY_KEY);
   }

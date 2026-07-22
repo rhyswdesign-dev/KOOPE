@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Recipe Editor Screen
  * Full-screen editor for customizing AI-generated recipes
@@ -42,7 +41,7 @@ export default function RecipeEditorScreen() {
   const [glassType, setGlassType] = useState(recipe.glass_type || '');
   const [garnish, setGarnish] = useState(recipe.garnish || '');
   const [category, setCategory] = useState(recipe.category || '');
-  const [tips, setTips] = useState(recipe.tips || '');
+  const [tips, setTips] = useState('');
 
   const [saving, setSaving] = useState(false);
 
@@ -73,7 +72,6 @@ export default function RecipeEditorScreen() {
         glass_type: glassType,
         garnish,
         category,
-        tips,
       };
 
       // TODO: Save to Supabase (update cocktails table)
@@ -88,15 +86,15 @@ export default function RecipeEditorScreen() {
             onPress: () => {
               navigation.replace('CocktailDetail', {
                 cocktailId: recipe.id,
-                cocktail: updatedRecipe,
               });
             },
           },
         ]
       );
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Failed to save recipe. Please try again.';
       console.error('Error saving recipe:', error);
-      Alert.alert('Save Failed', error.message || 'Failed to save recipe. Please try again.');
+      Alert.alert('Save Failed', message);
     } finally {
       setSaving(false);
     }

@@ -1,4 +1,3 @@
-// @ts-nocheck
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -15,13 +14,11 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { colors, radii, spacing, serif } from '../theme/tokens';
 import MainPageHeader from '../components/ui/MainPageHeader';
-import EmptyState from '../components/EmptyState';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { useAuth } from '../contexts/AuthContext';
 import { InventoryService } from '../services/inventoryService';
 import { HomeBarService } from '../services/homeBarService';
 import { ShoppingListStore } from '../services/shoppingListStore';
-import { RecipesRepository } from '../repos/supabase';
 import { ALL_COCKTAILS as FALLBACK_COCKTAILS } from '../data/cocktails';
 import { generateOptimizationReport, type BarOptimizationReport } from '../services/optimizeMyBarService';
 import { toBottle, type Bottle, type UserInventoryItem } from '../types/database';
@@ -97,7 +94,7 @@ export default function BarOptimizerScreen() {
         let remoteInventory: Bottle[] = [];
         if (user?.id) {
           const inventoryTimeout = new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error('timeout')), 4000)
+            setTimeout(() => reject(new Error('timeout')), 1500)
           );
           const userInventory = await Promise.race([
             InventoryService.getUserInventory(user.id),
@@ -124,14 +121,8 @@ export default function BarOptimizerScreen() {
         });
 
         const inventory = Array.from(deduped.values());
-        const timeout = new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('timeout')), 5000)
-        );
-        const recipes = await Promise.race([
-          RecipesRepository.getAllRecipes(0, 300),
-          timeout,
-        ]).catch(() => FALLBACK_COCKTAILS as any[]);
-        const optimizationReport = generateOptimizationReport(inventory, recipes as any);
+        // Use bundled cocktail data — optimizer is a local calculation, no network needed
+        const optimizationReport = generateOptimizationReport(inventory, FALLBACK_COCKTAILS as any);
 
         if (!mounted) return;
         setInventoryCount(inventory.length);
@@ -202,8 +193,8 @@ export default function BarOptimizerScreen() {
         nextRun.map((item) =>
           ShoppingListStore.addItemToShoppingList(
             {
-              name: item.ingredient,
-              category: mapCategoryToShoppingList(item.category || 'other'),
+              name: item.ingredientName,
+              category: 'other',
             },
             'Optimize My Bar',
             user?.id || 'default'
@@ -259,6 +250,8 @@ export default function BarOptimizerScreen() {
     );
   }
 
+  // Kill List (Master Plan §2.4): header cart icon removed (audit/sprint-1
+  // review) — it used to navigate to the killed ShoppingCart screen.
   return (
     <SafeAreaView style={styles.container}>
       <MainPageHeader
@@ -266,13 +259,6 @@ export default function BarOptimizerScreen() {
         subtitle={`${inventoryCount} items analyzed`}
         showBackButton
         onBackPress={() => nav.goBack()}
-        rightActions={[
-          {
-            icon: 'cart-outline',
-            onPress: () => nav.navigate('ShoppingCart'),
-            accessibilityLabel: 'Open shopping cart',
-          },
-        ]}
       />
 
       <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer} showsVerticalScrollIndicator={false}>
@@ -348,12 +334,12 @@ export default function BarOptimizerScreen() {
           <Text style={styles.sectionTitle}>Top Purchase Ranking</Text>
           <Text style={styles.sectionSubtitle}>Ranked by unlock potential across the library.</Text>
           {topPurchases.map((item, index) => (
-            <View key={`${item.ingredient}-${index}`} style={styles.rowCard}>
+            <View key={`${item.ingredientName}-${index}`} style={styles.rowCard}>
               <View style={styles.rowMain}>
-                <Text style={styles.rowTitle}>{item.ingredient}</Text>
+                <Text style={styles.rowTitle}>{item.ingredientName}</Text>
                 <Text style={styles.rowMeta}>{item.unlockCount} recipes unlocked</Text>
               </View>
-              <TouchableOpacity style={styles.rowAction} onPress={() => addToShoppingList({ name: item.ingredient, category: item.category })}>
+              <TouchableOpacity style={styles.rowAction} onPress={() => addToShoppingList({ name: item.ingredientName })}>
                 <Ionicons name="add-circle-outline" size={18} color={colors.accent} />
               </TouchableOpacity>
             </View>

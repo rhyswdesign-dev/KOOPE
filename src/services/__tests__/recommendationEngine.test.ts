@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { describe, it, expect } from 'vitest';
 import { RecommendationEngine } from '../recommendationEngine';
 import type { EnhancedUserProfile } from '../../types/userProfile';

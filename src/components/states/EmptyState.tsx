@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * EMPTY STATE COMPONENT
  * Professional empty state designs with contextual illustrations and actions
@@ -12,6 +11,8 @@ import {
   StyleSheet,
   TouchableOpacity,
   Dimensions,
+  type ViewStyle,
+  type TextStyle,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, radii } from '../../theme/tokens';
@@ -35,7 +36,15 @@ interface EmptyStateProps {
 
 const { width: screenWidth } = Dimensions.get('window');
 
-const EMPTY_STATE_CONFIGS = {
+interface EmptyStateConfig {
+  icon: keyof typeof Ionicons.glyphMap;
+  title: string;
+  message: string;
+  actionText?: string;
+  secondaryActionText?: string;
+}
+
+const EMPTY_STATE_CONFIGS: Record<NonNullable<EmptyStateProps['type']>, EmptyStateConfig> = {
   search: {
     icon: 'search',
     title: 'No results found',
@@ -98,8 +107,8 @@ const EMPTY_STATE_CONFIGS = {
   },
   comingSoon: {
     icon: 'hourglass-outline',
-    title: 'Coming Soon',
-    message: 'We\'re working on something special for you. Check back soon for exciting new features!',
+    title: 'Not available in this build',
+    message: 'This feature is not enabled in the current release build.',
   },
   noContent: {
     icon: 'document-outline',
@@ -143,7 +152,7 @@ export default function EmptyState({
   };
 
   const getContainerStyle = () => {
-    const baseStyle = [styles.container];
+    const baseStyle: ViewStyle[] = [styles.container];
 
     if (theme === 'dark') {
       baseStyle.push(styles.darkContainer);
@@ -159,8 +168,8 @@ export default function EmptyState({
   };
 
   const getTextStyles = () => {
-    const titleStyle = [styles.title];
-    const messageStyle = [styles.message];
+    const titleStyle: TextStyle[] = [styles.title];
+    const messageStyle: TextStyle[] = [styles.message];
 
     if (theme === 'dark') {
       titleStyle.push(styles.darkTitle);
@@ -197,7 +206,7 @@ export default function EmptyState({
       <View style={[styles.iconContainer, size === 'small' && styles.smallIconContainer]}>
         <View style={[styles.iconBackground, theme === 'accent' && styles.accentIconBackground]}>
           <Ionicons
-            name={displayIcon as any}
+            name={displayIcon as keyof typeof Ionicons.glyphMap}
             size={getIconSize()}
             color={getIconColor()}
           />

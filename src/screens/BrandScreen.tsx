@@ -9,9 +9,9 @@ export default function BrandScreen() {
   return (
     <View style={styles.container}>
       <EmptyState
-        variant="comingSoon"
+        variant="noContent"
         title={params.brand}
-        description="Brand stories, featured products, and exclusive content are coming soon. Stay tuned!"
+        description="Brand stories and featured products are not available in this build."
       />
     </View>
   );

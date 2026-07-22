@@ -1,9 +1,11 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import ProfileScreen from '../screens/ProfileScreen';
+import LessonsStack from './LessonsStack';
 import { withScreenTour } from '../components/tour/withScreenTour';
 
 export type ProfileStackParamList = {
   ProfileMain: undefined;
+  Lessons: undefined;
 };
 
 const Stack = createNativeStackNavigator<ProfileStackParamList>();
@@ -20,6 +22,7 @@ export default function ProfileStack() {
       }}
     >
       <Stack.Screen name="ProfileMain" component={ProfileMainWithTour} />
+      <Stack.Screen name="Lessons" component={LessonsStack} />
     </Stack.Navigator>
   );
 }

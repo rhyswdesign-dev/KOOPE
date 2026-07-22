@@ -37,6 +37,22 @@ export async function getConsentChoices(): Promise<ConsentChoices> {
 }
 
 /**
+ * Whether the user has ever made an explicit consent choice, as
+ * opposed to getConsentChoices() falling back to DEFAULT_CONSENT.
+ * Analytics uses this to know whether to wait (no choice yet) or act
+ * on a real decision.
+ */
+export async function hasStoredConsentChoices(): Promise<boolean> {
+  try {
+    const stored = await SecureStore.getItemAsync(STORAGE_KEYS.CONSENT_CHOICES);
+    return stored !== null;
+  } catch (error) {
+    log.warn('ConsentStore', 'Failed to check stored consent choices', error);
+    return false;
+  }
+}
+
+/**
  * Save user consent choices and generate receipt
  * Creates audit trail for compliance requirements
  */
@@ -50,6 +66,18 @@ export async function saveConsentChoices(choices: ConsentChoices): Promise<void>
     await saveConsentReceipt(receipt);
 
     log.info('ConsentStore', 'Consent choices saved successfully');
+
+    // Single notification point for every consent-saving path
+    // (updateConsent / saveAllConsent / acceptAllConsent /
+    // rejectAllConsent in useConsent.ts all funnel through here).
+    // Gates the Mixpanel SDK: no init, no device ID, no event until
+    // this fires with an explicit choice.
+    try {
+      const { notifyAnalyticsConsent } = await import('./analytics');
+      notifyAnalyticsConsent(choices.analytics === true);
+    } catch (analyticsError) {
+      log.warn('ConsentStore', 'Failed to notify analytics of consent change', analyticsError);
+    }
   } catch (error) {
     log.error('ConsentStore', 'Failed to save consent choices', error);
     throw error;

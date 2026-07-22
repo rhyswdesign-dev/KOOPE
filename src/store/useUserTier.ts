@@ -1,13 +1,31 @@
 /**
  * User Tier Store
  * Manages user subscription tier (FREE, KOOPE+, KOOPE PRO)
+ *
+ * Phase 0.7 (tier collapse): the product is two tiers, FREE and KŌOPE+.
+ * 'PRO' is a legacy value only — see the UserTier comment below and
+ * `normalizeLegacyTier`. Every write path in this store (setTier,
+ * startTrial, and the persist `migrate` hook for state written before this
+ * pass) normalizes 'PRO' to 'PLUS', so `tier` can never actually read
+ * 'PRO' after this store has run once.
  */
 
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+/**
+ * 'PRO' is kept in the type for backward compatibility with code that
+ * still checks `tier === 'PRO'` (tierAccess.ts's UserTier has the same
+ * note) — but this store never actually stores it; see
+ * `normalizeLegacyTier`.
+ */
 export type UserTier = 'FREE' | 'PLUS' | 'PRO';
+
+/** Legacy-mapping shim (workplan 0.7 accept criterion): PRO -> PLUS. */
+function normalizeLegacyTier(tier: UserTier): UserTier {
+  return tier === 'PRO' ? 'PLUS' : tier;
+}
 
 interface UserTierState {
   // Current tier
@@ -32,6 +50,19 @@ interface UserTierState {
   setSubscriptionStatus: (status: 'active' | 'canceled' | 'expired' | 'trial') => void;
   setSubscriptionEndDate: (date: string | null) => void;
   startTrial: (tier: UserTier, durationDays: number) => void;
+  /**
+   * Phase 0.7: records trial metadata (isTrialActive/dates/status) WITHOUT
+   * touching `tier`. Added so SubscriptionContext.startFreeTrial can record
+   * "this purchase was a trial" after updateSubscriptionState(...) has
+   * already set `tier` from the real RevenueCat entitlement — calling
+   * startTrial() there instead would silently overwrite that with the
+   * tier *requested*, not the tier RevenueCat actually granted. This is
+   * the one genuine duplicate-write among the "5 imperative .getState()
+   * sync sites" the workplan flags; the other 4 (dev-tier-override x2,
+   * founder-status, and updateSubscriptionState's own tier sync) each
+   * write something no other path writes and are not duplicates.
+   */
+  markTrialStarted: (durationDays: number) => void;
   cancelSubscription: () => void;
   endTrial: () => void;
   setFounderStatus: (isFounder: boolean, priceCents?: number, founderNumber?: number) => void;
@@ -57,7 +88,7 @@ export const useUserTier = create<UserTierState>()(
       founderNumber: null,
 
       // Actions
-      setTier: (tier: UserTier) => set({ tier }),
+      setTier: (tier: UserTier) => set({ tier: normalizeLegacyTier(tier) }),
 
       setSubscriptionStatus: (status) => set({ subscriptionStatus: status }),
 
@@ -69,7 +100,20 @@ export const useUserTier = create<UserTierState>()(
         trialEnd.setDate(trialEnd.getDate() + durationDays);
 
         set({
-          tier,
+          tier: normalizeLegacyTier(tier),
+          isTrialActive: true,
+          trialStartDate: now.toISOString(),
+          trialEndDate: trialEnd.toISOString(),
+          subscriptionStatus: 'trial',
+        });
+      },
+
+      markTrialStarted: (durationDays: number) => {
+        const now = new Date();
+        const trialEnd = new Date(now);
+        trialEnd.setDate(trialEnd.getDate() + durationDays);
+
+        set({
           isTrialActive: true,
           trialStartDate: now.toISOString(),
           trialEndDate: trialEnd.toISOString(),
@@ -119,6 +163,19 @@ export const useUserTier = create<UserTierState>()(
     {
       name: 'user-tier-storage',
       storage: createJSONStorage(() => AsyncStorage),
-    }
-  )
+      version: 1,
+      // Phase 0.7: normalize any tier:'PRO' written to AsyncStorage before
+      // the tier collapse — without this, a device that already had 'PRO'
+      // persisted would keep reading 'PRO' back forever (setTier's
+      // normalization only catches *future* writes, not what's already on
+      // disk from before this pass).
+      migrate: (persistedState) => {
+        const state = persistedState as UserTierState;
+        if (state?.tier === 'PRO') {
+          return { ...state, tier: 'PLUS' };
+        }
+        return state;
+      },
+    },
+  ),
 );

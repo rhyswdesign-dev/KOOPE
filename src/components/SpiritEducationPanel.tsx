@@ -53,11 +53,17 @@ const FLAVOUR_DEVELOPMENT: Record<string, string> = {
 
 function findSubstitutions(bottle: Spirit): Spirit[] {
   const flavorSet = new Set(bottle.flavorProfile.map((f) => f.toLowerCase()));
+  const bottleType = (bottle.type || 'other').toLowerCase();
+
   return SPIRITS_DATABASE
     .filter((s) => {
       if (s.id === bottle.id) return false;
+      // Must be the same spirit type — prevents cross-category noise
+      // (e.g. a floral gin appearing next to a peaty Scotch)
+      if ((s.type || 'other').toLowerCase() !== bottleType) return false;
+      // Require at least 3 overlapping flavor tags within the same category
       const overlap = s.flavorProfile.filter((f) => flavorSet.has(f.toLowerCase())).length;
-      return overlap >= 2;
+      return overlap >= 3;
     })
     .sort((a, b) => {
       const aOverlap = a.flavorProfile.filter((f) => flavorSet.has(f.toLowerCase())).length;
@@ -73,9 +79,10 @@ interface Props {
   bottle: Spirit;
   serveRecommendation: BottleServeRecommendation;
   alwaysExpanded?: boolean; // Pro tier
+  inCard?: boolean; // suppress outer margin/border when embedded in a card
 }
 
-export default function SpiritEducationPanel({ bottle, serveRecommendation, alwaysExpanded = false }: Props) {
+export default function SpiritEducationPanel({ bottle, serveRecommendation, alwaysExpanded = false, inCard = false }: Props) {
   const [expanded, setExpanded] = useState(alwaysExpanded);
   const spiritType = (bottle.type || 'other').toLowerCase();
 
@@ -85,7 +92,7 @@ export default function SpiritEducationPanel({ bottle, serveRecommendation, alwa
   const classicServes = serveRecommendation.serveModes.slice(0, 3);
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, inCard && styles.containerInCard]}>
       <TouchableOpacity
         style={styles.header}
         onPress={() => { if (!alwaysExpanded) setExpanded((e) => !e); }}
@@ -118,15 +125,26 @@ export default function SpiritEducationPanel({ bottle, serveRecommendation, alwa
           {/* 3. Substitutions */}
           {substitutions.length > 0 && (
             <View style={styles.section}>
-              <Text style={styles.sectionLabel}>If you like this, try…</Text>
-              <View style={styles.subsList}>
-                {substitutions.map((sub) => (
+              <Text style={styles.sectionLabel}>Similar character</Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.subsList}
+              >
+                {substitutions.map((sub) => {
+                  const sharedFlavors = sub.flavorProfile
+                    .filter((f) => bottle.flavorProfile.map((b) => b.toLowerCase()).includes(f.toLowerCase()))
+                    .slice(0, 2);
+                  return (
                   <View key={sub.id} style={styles.subItem}>
                     <Text style={styles.subName}>{sub.name}</Text>
-                    <Text style={styles.subMeta}>{sub.flavorProfile.slice(0, 2).join(' · ')}</Text>
+                    <Text style={styles.subMeta}>
+                      {sharedFlavors.length > 0 ? `Shares: ${sharedFlavors.join(' · ')}` : sub.flavorProfile.slice(0, 2).join(' · ')}
+                    </Text>
                   </View>
-                ))}
-              </View>
+                  );
+                })}
+              </ScrollView>
             </View>
           )}
         </View>
@@ -146,6 +164,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.line,
     overflow: 'hidden',
+  },
+  containerInCard: {
+    marginHorizontal: 0,
+    marginBottom: 0,
+    backgroundColor: 'transparent',
+    borderWidth: 0,
+    borderRadius: 0,
   },
   header: {
     flexDirection: 'row',
@@ -208,12 +233,17 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   subsList: {
+    flexDirection: 'row',
     gap: spacing(1),
+    paddingRight: spacing(1),
   },
   subItem: {
     backgroundColor: colors.bg,
     borderRadius: radii.md,
-    padding: spacing(1.5),
+    paddingHorizontal: spacing(1.5),
+    paddingVertical: spacing(1),
+    borderWidth: 1,
+    borderColor: colors.line,
   },
   subName: {
     fontSize: 13,

@@ -311,7 +311,7 @@ function findUnderusedBottles(inventory: Bottle[], recipeLibrary: Recipe[]): Und
 
     for (const recipe of recipeLibrary) {
       const usesBottle = recipe.ingredients.some(ing => {
-        const ingName = ing.name.toLowerCase();
+        const ingName = (typeof ing === 'string' ? ing : ing?.name ?? '').toLowerCase();
         return ingName.includes(name) || name.includes(ingName);
       });
       if (usesBottle) {

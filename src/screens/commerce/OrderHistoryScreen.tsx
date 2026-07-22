@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Pressable,
   Image,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -130,6 +131,7 @@ const formatDate = (dateString: string) => {
 
 export default function OrderHistoryScreen() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const isIOS = Platform.OS === 'ios';
 
   useLayoutEffect(() => {
     nav.setOptions({
@@ -220,6 +222,25 @@ export default function OrderHistoryScreen() {
           activeOpacity={0.8}
         >
           <Text style={styles.shopButtonText}>Start Shopping</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  if (isIOS) {
+    return (
+      <View style={styles.emptyContainer}>
+        <Ionicons name="information-circle-outline" size={80} color={colors.subtext} />
+        <Text style={styles.emptyTitle}>Order history is disabled on iOS</Text>
+        <Text style={styles.emptySubtitle}>
+          This build only supports App Store managed subscriptions on iOS.
+        </Text>
+        <TouchableOpacity
+          style={styles.shopButton}
+          onPress={() => nav.navigate('Paywall', { source: 'order_history_ios_notice', displayCloseButton: true })}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.shopButtonText}>Open Paywall</Text>
         </TouchableOpacity>
       </View>
     );

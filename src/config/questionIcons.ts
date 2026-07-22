@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Question Icon Configuration
  * Maps question topics and keywords to visual icons for MCQ and Match exercises
@@ -93,7 +92,7 @@ export const topicIcons: Record<string, IconName> = {
   // Flavor & Tasting
   'flavor': 'flower',
   'taste': 'rose',
-  'aroma': 'nose',
+  'aroma': 'flower-outline',
   'sweet': 'ice-cream',
   'sour': 'leaf',
   'bitter': 'water-outline',

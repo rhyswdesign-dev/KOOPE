@@ -8,6 +8,7 @@ import {
   Image,
   Modal,
   Alert,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -124,6 +125,7 @@ export default function CategoryDetailScreen() {
   const { user } = useUser();
   const userXP = user.xp;
   const { toggleSavedVaultItem, isVaultItemSaved } = useSavedItems();
+  const isIOS = Platform.OS === 'ios';
 
   const products = categoryProducts[categoryId] || [];
 
@@ -171,6 +173,10 @@ export default function CategoryDetailScreen() {
   };
 
   const handlePurchaseMoney = (product: Product) => {
+    if (isIOS) {
+      nav.navigate('Paywall', { source: 'category_detail_ios_money_disabled', displayCloseButton: true });
+      return;
+    }
     if (!product.price) return;
     
     Alert.alert(
@@ -250,7 +256,7 @@ export default function CategoryDetailScreen() {
                 <MaterialCommunityIcons name="star" size={20} color={colors.white} />
                 <Text style={styles.xpButtonText}>Use XP</Text>
               </Pressable>
-              {product.price && (
+              {product.price && !isIOS && (
                 <Pressable 
                   style={styles.purchaseButton}
                   onPress={() => handlePurchaseMoney(product)}
@@ -270,7 +276,7 @@ export default function CategoryDetailScreen() {
                   {product.xpRequired - userXP} XP needed
                 </Text>
               </Pressable>
-              {product.price && (
+              {product.price && !isIOS && (
                 <Pressable 
                   style={styles.purchaseButton}
                   onPress={() => handlePurchaseMoney(product)}
@@ -293,6 +299,11 @@ export default function CategoryDetailScreen() {
           <Text style={styles.headerSubtitle}>
             {products.length} premium items available
           </Text>
+          {isIOS ? (
+            <Text style={styles.iosNoticeText}>
+              Cash purchase options are disabled on iOS in this build.
+            </Text>
+          ) : null}
         </View>
 
         <View style={styles.productsContainer}>
@@ -301,9 +312,9 @@ export default function CategoryDetailScreen() {
           ) : (
             <View style={styles.emptyState}>
               <Ionicons name="cube-outline" size={64} color={colors.subtext} />
-              <Text style={styles.emptyTitle}>Coming Soon</Text>
+              <Text style={styles.emptyTitle}>No products available</Text>
               <Text style={styles.emptyDescription}>
-                New products are being added to this category. Check back soon!
+                This category does not have products in this build yet.
               </Text>
             </View>
           )}
@@ -351,7 +362,7 @@ export default function CategoryDetailScreen() {
                         <MaterialCommunityIcons name="star" size={20} color={colors.white} />
                         <Text style={styles.modalXpButtonText}>Purchase with {selectedProduct.xpRequired} XP</Text>
                       </Pressable>
-                      {selectedProduct.price && (
+                      {selectedProduct.price && !isIOS && (
                         <Pressable 
                           style={styles.modalPurchaseButton}
                           onPress={() => handlePurchaseMoney(selectedProduct)}
@@ -371,7 +382,7 @@ export default function CategoryDetailScreen() {
                           Need {selectedProduct.xpRequired - userXP} more XP
                         </Text>
                       </Pressable>
-                      {selectedProduct.price && (
+                      {selectedProduct.price && !isIOS && (
                         <Pressable 
                           style={styles.modalPurchaseButton}
                           onPress={() => handlePurchaseMoney(selectedProduct)}
@@ -410,6 +421,12 @@ const styles = StyleSheet.create({
   headerSubtitle: {
     fontSize: 16,
     color: colors.subtext,
+  },
+  iosNoticeText: {
+    marginTop: spacing(1),
+    fontSize: 12,
+    color: colors.subtext,
+    lineHeight: 18,
   },
   productsContainer: {
     padding: spacing(3),

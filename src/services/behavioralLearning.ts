@@ -3,13 +3,11 @@
  * Learns from user interactions in real-time to improve recommendations
  */
 
-import { getFirestore, doc, updateDoc, increment } from '@firebase/firestore';
 import { log } from '../lib/logger';
+import { trackEvent } from '../lib/analytics';
 import { Recipe } from '../types/recipe';
 import { EnhancedUserProfile, TasteProfile, FlavorProfile, Spirit, getABVRangeForPreference } from '../types/userProfile';
 import { loadUserProfile, saveUserProfile } from './userProfileService';
-
-const db = getFirestore();
 
 export type InteractionType = 'view' | 'like' | 'complete' | 'skip' | 'save';
 
@@ -221,24 +219,22 @@ export class BehavioralLearning {
   }
 
   /**
-   * Track mood selection
+   * Track mood selection.
+   *
+   * Phase 0.4 (Firebase excision): this used to write straight to a
+   * Firestore `tasteProfile.moodPreferences.<mood>` path that doesn't
+   * exist anywhere in the current TasteProfile schema (see
+   * types/userProfile.ts) and had zero callers — pure dead code that
+   * could not have run (the `firebase` package isn't installed).
+   * Reduced to an analytics signal until mood preference actually
+   * becomes part of the taste model.
    */
   static async trackMoodSelection(
     userId: string,
     mood: string
   ): Promise<void> {
-    try {
-      const userRef = doc(db, 'users', userId);
-
-      // Increment mood selection count
-      await updateDoc(userRef, {
-        [`tasteProfile.moodPreferences.${mood}`]: increment(1),
-      });
-
-      log.debug('BehavioralLearning', 'Tracked mood selection', { mood });
-    } catch (error) {
-      log.error('BehavioralLearning', 'Failed to track mood', error);
-    }
+    trackEvent('mood_selected', { userId, mood });
+    log.debug('BehavioralLearning', 'Tracked mood selection', { mood });
   }
 
   /**

@@ -24,7 +24,6 @@ import { InventoryService } from '../services/inventoryService';
 import { type BarIngredient, type HomeBar, HomeBarService } from '../services/homeBarService';
 import { useFeatureAccess } from '../hooks/useFeatureAccess';
 import { ShoppingListStore } from '../services/shoppingListStore';
-import { useShoppingCart } from '../store/useShoppingCart';
 import { useUserTier } from '../store/useUserTier';
 import { isCocktailAccessible } from '../config/tierAccess';
 import { trackEvent, ANALYTICS_EVENTS } from '../lib/analytics';
@@ -310,7 +309,6 @@ export default function HostingScreen() {
 
   const { hasAccess: hasAdvancedHosting, gateWithTrigger: advancedHostingGate } = useFeatureAccess('hosting_advanced');
   const { hasAccess: hasGuestMenu, gate: guestMenuGate } = useFeatureAccess('guest_menu_generator');
-  const { addItem: addToCart } = useShoppingCart();
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -745,24 +743,9 @@ export default function HostingScreen() {
     });
   };
 
-  const handleAddMissingToCart = () => {
-    if (!selectedRecipe || selectedRecipe.missingIngredients.length === 0) return;
-    hapticSelection();
-    for (const missing of selectedRecipe.missingIngredients) {
-      const scaled = selectedRecipeIngredients.find(
-        (i) => i.name.toLowerCase().includes(missing.toLowerCase()) || missing.toLowerCase().includes(i.name.toLowerCase())
-      );
-      const quantity = scaled ? `${scaled.totalOz.toFixed(1)} oz` : '1 bottle';
-      addToCart({
-        name: missing,
-        category: 'ingredient',
-        quantity,
-        recipeIds: [selectedRecipe.recipeId],
-        recipeNames: [selectedRecipe.name],
-      });
-    }
-    nav.navigate('ShoppingCart');
-  };
+  // handleAddMissingToCart removed (audit/sprint-1 review): its only caller was
+  // the "Add missing to cart" CTA, which navigated to the killed ShoppingCart
+  // screen and has been removed above (Master Plan Kill List §2.4).
 
   const deletePlan = async (planId: string) => {
     try {
@@ -1325,14 +1308,9 @@ export default function HostingScreen() {
           Loaded from Saved Plan. Use Edit Setup to change recipe or save a new plan.
         </Text>
       )}
-      {selectedRecipe && selectedRecipe.missingIngredients.length > 0 && (
-        <TouchableOpacity style={styles.addMissingCta} onPress={handleAddMissingToCart}>
-          <Ionicons name="cart-outline" size={16} color={colors.accent} />
-          <Text style={styles.addMissingCtaText}>
-            Add {selectedRecipe.missingIngredients.length} missing to cart
-          </Text>
-        </TouchableOpacity>
-      )}
+      {/* Kill List (Master Plan §2.4): "Add missing to cart" removed
+          (audit/sprint-1 review) — it navigated to the killed ShoppingCart
+          screen. Missing ingredients are still visible in the batch list above. */}
       <TouchableOpacity style={styles.guestMenuCta} onPress={handleCreateGuestMenu}>
         <Ionicons name="document-text-outline" size={16} color={colors.bg} />
         <Text style={styles.guestMenuCtaText}>Create Guest Menu</Text>
@@ -1372,6 +1350,8 @@ export default function HostingScreen() {
   const showSavedPlans = savedPlans.length > 0 && !selectedRecipe && step === 0;
   const isCenteredWizard = !selectedRecipe && (step === 0 || step === 1);
 
+  // Kill List (Master Plan §2.4): header cart icon removed (audit/sprint-1
+  // review) — it used to navigate to the killed ShoppingCart screen.
   return (
     <SafeAreaView style={styles.container}>
       <MainPageHeader
@@ -1379,7 +1359,6 @@ export default function HostingScreen() {
         subtitle={selectedRecipe ? 'Recipe Batch Mode' : `Step ${step + 1} of 3`}
         showBackButton
         onBackPress={() => nav.goBack()}
-        rightActions={[{ icon: 'cart-outline', onPress: () => nav.navigate('ShoppingCart'), accessibilityLabel: 'Open shopping cart' }]}
       />
 
       <ScrollView

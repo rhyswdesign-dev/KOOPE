@@ -1,4 +1,3 @@
-// @ts-nocheck
 import React from 'react';
 import {
   View,
@@ -31,8 +30,7 @@ const SKILL_LEVELS = [
   { key: 'beginner', label: 'Beginner', description: 'Just getting started' },
   { key: 'intermediate', label: 'Intermediate', description: 'Some experience' },
   { key: 'advanced', label: 'Advanced', description: 'Confident mixer' },
-  { key: 'expert', label: 'Expert', description: 'Professional level' },
-];
+] as const;
 
 const FLAVOR_PROFILES = [
   { key: 'sweet', label: 'Sweet', icon: '🍯' },
@@ -66,7 +64,7 @@ export default function RecipePreferencesModal({ visible, onClose }: RecipePrefe
         });
       } else {
         // Update spirit scores
-        const spiritScores = { ...profile.spiritScores } || {};
+        const spiritScores = { ...profile.spiritScores };
         spiritScores[spirit] = 100;
 
         await updateProfile({
@@ -82,13 +80,12 @@ export default function RecipePreferencesModal({ visible, onClose }: RecipePrefe
     }
   };
 
-  const handleSkillLevelSelect = async (level: string) => {
+  const handleSkillLevelSelect = async (level: 'beginner' | 'intermediate' | 'advanced') => {
     try {
       const difficultyMap: Record<string, string[]> = {
         beginner: ['Easy'],
         intermediate: ['Easy', 'Medium'],
         advanced: ['Medium', 'Hard'],
-        expert: ['Medium', 'Hard', 'Expert']
       };
 
       await updateProfile({
@@ -110,7 +107,7 @@ export default function RecipePreferencesModal({ visible, onClose }: RecipePrefe
         : [...currentFlavors, flavor];
 
       // Update flavor scores
-      const flavorScores = { ...profile?.flavorScores } || {};
+      const flavorScores = { ...(profile?.flavorScores || {}) };
       newFlavors.forEach(f => {
         flavorScores[f] = 85;
       });

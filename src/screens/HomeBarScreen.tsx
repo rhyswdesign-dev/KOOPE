@@ -43,6 +43,9 @@ import { CellarService } from '../services/cellarService';
 import { notificationService } from '../services/notificationService';
 import { FeedbackPromptModal } from '../components/FeedbackPromptModal';
 import { useWishlist, WISHLIST_FREE_CAP } from '../store/useWishlist';
+import { useCurrencyPreference } from '../store/useCurrencyPreference';
+import { logSpottedPrice } from '../services/spottedPriceService';
+import { buyIngredient } from '../services/affiliateService';
 import { useTasteModel, ALL_FLAVOUR_TAGS } from '../store/useTasteModel';
 import { flavourTagLabel } from '../utils/tasteSignal';
 
@@ -50,7 +53,8 @@ import { flavourTagLabel } from '../utils/tasteSignal';
 import * as Images from '../../assets/images';
 
 // Category definitions
-type InventoryCategory = 'spirits' | 'mixers' | 'garnishes' | 'ingredients' | 'liqueur' | 'bitters' | 'syrup' | 'other' | 'saved';
+type InventoryCategory =
+  'spirits' | 'mixers' | 'garnishes' | 'ingredients' | 'liqueur' | 'bitters' | 'syrup' | 'other';
 
 interface InventoryItem extends BarIngredient {
   purchase_price?: number | null;
@@ -72,10 +76,9 @@ function hasCellarRecord(item: InventoryItem): boolean {
     item.valuation_estimate != null ||
     item.drinking_window_start ||
     item.drinking_window_end ||
-    item.cellar_notes
+    item.cellar_notes,
   );
 }
-
 
 // Empty initialiser — prevents null state on mount. Ingredients are loaded from Supabase.
 const mockHomeBar: HomeBar = {
@@ -95,55 +98,66 @@ export default function HomeBarScreen() {
   const { gateWithTrigger: upgradeGate } = useFeatureAccess('inventory_unlimited');
   const { gateWithTrigger: hostingBasicGate } = useFeatureAccess('hosting_basic');
   const { gateWithTrigger: optimizeMyBarGate } = useFeatureAccess('optimize_my_bar');
-  const { hasAccess: hasCellarMode, gateWithTrigger: cellarModeGate } = useFeatureAccess('cellar_mode');
+  const { hasAccess: hasCellarMode, gateWithTrigger: cellarModeGate } =
+    useFeatureAccess('cellar_mode');
   const { gate: expiryAlertsGate } = useFeatureAccess('expiry_alerts');
   const { gate: barHealthGate } = useFeatureAccess('bar_health_score');
   const { user } = useAuth();
   const { items: wishlistItems, removeFromWishlist, addPriceEntry } = useWishlist();
+  const { currency: userCurrency } = useCurrencyPreference();
   const { dominantCluster, flavourScores, profileVisible } = useTasteModel();
   const [palateExpanded, setPalateExpanded] = useState(false);
-  const [logPriceItem, setLogPriceItem] = useState<import('../store/useWishlist').WishlistItem | null>(null);
+  const [logPriceItem, setLogPriceItem] = useState<
+    import('../store/useWishlist').WishlistItem | null
+  >(null);
   const [logPriceValue, setLogPriceValue] = useState('');
   const [logPriceLocation, setLogPriceLocation] = useState('');
 
   // Defined after gate hooks so closures capture the latest gate functions.
   // Using a flat array + FlatList (not nested ScrollView) avoids gesture conflicts.
-  const FEATURE_CARDS = useMemo(() => [
-    {
-      key: 'hosting',
-      title: 'Hosting',
-      subtitle: 'Guest menu planner',
-      icon: 'people-outline' as const,
-      onPress: () => hostingBasicGate('T6', () => nav.navigate('Hosting')),
-    },
-    {
-      key: 'optimize',
-      title: 'Optimize',
-      subtitle: 'What to buy next',
-      icon: 'bar-chart-outline' as const,
-      onPress: () => optimizeMyBarGate('T4', () => nav.navigate('BarOptimizer')),
-    },
-    {
-      key: 'expiry',
-      title: 'Expiry Alerts',
-      subtitle: 'Use-first list',
-      icon: 'time-outline' as const,
-      onPress: () => expiryAlertsGate(() => nav.navigate('InventoryInsights', { mode: 'expiry' })),
-    },
-    {
-      key: 'health',
-      title: 'Bar Health',
-      subtitle: 'Coverage score',
-      icon: 'analytics-outline' as const,
-      onPress: () => barHealthGate(() => nav.navigate('InventoryInsights', { mode: 'health' })),
-    },
-  ], [hostingBasicGate, optimizeMyBarGate, expiryAlertsGate, barHealthGate, nav]);
+  const FEATURE_CARDS = useMemo(
+    () => [
+      {
+        key: 'hosting',
+        title: 'Hosting',
+        subtitle: 'Guest menu planner',
+        icon: 'people-outline' as const,
+        onPress: () => hostingBasicGate('T6', () => nav.navigate('Hosting')),
+      },
+      {
+        key: 'optimize',
+        title: 'Optimize',
+        subtitle: 'What to buy next',
+        icon: 'bar-chart-outline' as const,
+        onPress: () => optimizeMyBarGate('T4', () => nav.navigate('BarOptimizer')),
+      },
+      {
+        key: 'expiry',
+        title: 'Expiry Alerts',
+        subtitle: 'Use-first list',
+        icon: 'time-outline' as const,
+        onPress: () =>
+          expiryAlertsGate(() => nav.navigate('InventoryInsights', { mode: 'expiry' })),
+      },
+      {
+        key: 'health',
+        title: 'Bar Health',
+        subtitle: 'Coverage score',
+        icon: 'analytics-outline' as const,
+        onPress: () => barHealthGate(() => nav.navigate('InventoryInsights', { mode: 'health' })),
+      },
+    ],
+    [hostingBasicGate, optimizeMyBarGate, expiryAlertsGate, barHealthGate, nav],
+  );
   const [cartFeedbackVisible, setCartFeedbackVisible] = useState(false);
   const [showSearchModal, setShowSearchModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchModalQuery, setSearchModalQuery] = useState('');
   const [searchHistory, setSearchHistory] = useState<string[]>([]);
   const [activeCategory, setActiveCategory] = useState<InventoryCategory | 'all'>('all');
+  // Owned vs Want — top-level view switch (1.4c). Previously this was a
+  // 'saved' sentinel inside activeCategory, one chip among Spirits/Mixers/etc.
+  const [inventoryView, setInventoryView] = useState<'owned' | 'want'>('owned');
   const [homeBar, setHomeBar] = useState<HomeBar>({ ...mockHomeBar, ingredients: [] });
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
   const [itemNoteDraft, setItemNoteDraft] = useState('');
@@ -155,7 +169,9 @@ export default function HomeBarScreen() {
   const [cellarIntakeWindowStart, setCellarIntakeWindowStart] = useState('');
   const [cellarIntakeWindowEnd, setCellarIntakeWindowEnd] = useState('');
   const [cellarIntakeNotes, setCellarIntakeNotes] = useState('');
-  const [cellarIntakeQuantity, setCellarIntakeQuantity] = useState<'full' | 'half' | 'low' | 'empty'>('full');
+  const [cellarIntakeQuantity, setCellarIntakeQuantity] = useState<
+    'full' | 'half' | 'low' | 'empty'
+  >('full');
   const [savingCellarIntake, setSavingCellarIntake] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [editName, setEditName] = useState('');
@@ -179,13 +195,16 @@ export default function HomeBarScreen() {
       if (isLoadingRef.current || now - lastLoadTimeRef.current < 3000) return;
       isLoadingRef.current = true;
       lastLoadTimeRef.current = now;
-      loadStoredIngredients().finally(() => { isLoadingRef.current = false; });
-    }, [])
+      loadStoredIngredients().finally(() => {
+        isLoadingRef.current = false;
+      });
+    }, []),
   );
 
   const loadStoredIngredients = async () => {
     try {
       if (!user) return;
+      await HomeBarService.migrateLegacyImageUrisOnce();
 
       const remoteItems = await InventoryService.getUserInventory(user.id);
       const mappedRemote: InventoryItem[] = remoteItems.map((item) => {
@@ -193,11 +212,22 @@ export default function HomeBarScreen() {
         let parsedName = rawName;
         let parsedBrand = item.brand || undefined;
         const rawSubcategory = item.subcategory || undefined;
-        const validCategories: BarIngredient['category'][] = ['spirit', 'liqueur', 'mixer', 'bitters', 'syrup', 'garnish', 'ingredient', 'other'];
+        const validCategories: BarIngredient['category'][] = [
+          'spirit',
+          'liqueur',
+          'mixer',
+          'bitters',
+          'syrup',
+          'garnish',
+          'ingredient',
+          'other',
+        ];
         const rawCategory = String(item.category || '').toLowerCase();
         const inferredCategory = validCategories.includes(rawCategory as BarIngredient['category'])
           ? (rawCategory as BarIngredient['category'])
-          : (item.item_type === 'spirit' ? 'spirit' : 'ingredient');
+          : item.item_type === 'spirit'
+            ? 'spirit'
+            : 'ingredient';
 
         if (!parsedBrand && rawName.includes(' - ')) {
           const [maybeBrand, ...rest] = rawName.split(' - ');
@@ -209,7 +239,9 @@ export default function HomeBarScreen() {
         }
 
         if (!parsedBrand && rawSubcategory) {
-          const withoutSubcategory = rawName.replace(new RegExp(`\\b${rawSubcategory}\\b`, 'i'), '').trim();
+          const withoutSubcategory = rawName
+            .replace(new RegExp(`\\b${rawSubcategory}\\b`, 'i'), '')
+            .trim();
           if (withoutSubcategory && withoutSubcategory !== rawName) {
             parsedBrand = withoutSubcategory.replace(/\s{2,}/g, ' ').trim();
           }
@@ -225,6 +257,7 @@ export default function HomeBarScreen() {
           notes: item.notes || undefined,
           volume: item.volume || 750,
           imageUrl: item.image_url || undefined,
+          imageUri: item.image_url || undefined,
           addedAt: item.added_at ? new Date(item.added_at) : new Date(),
           isFavorite: item.is_favorite || false,
           tags: item.flavor_tags || [],
@@ -243,14 +276,30 @@ export default function HomeBarScreen() {
 
       const storedIngredients = await HomeBarService.getStoredIngredients();
       const combined = [...mappedRemote];
-      const seen = new Set(combined.map((i) => `${i.name.toLowerCase()}|${(i.category || '').toLowerCase()}`));
+      const seen = new Map(
+        combined.map((i, index) => [
+          `${i.name.toLowerCase()}|${(i.category || '').toLowerCase()}`,
+          index,
+        ]),
+      );
 
       for (const item of storedIngredients) {
         const key = `${item.name.toLowerCase()}|${(item.category || '').toLowerCase()}`;
-        if (!seen.has(key)) {
-          combined.push(item);
-          seen.add(key);
+        const existingIndex = seen.get(key);
+        if (existingIndex !== undefined) {
+          const existing = combined[existingIndex];
+          combined[existingIndex] = {
+            ...existing,
+            imageUrl: existing.imageUrl || item.imageUri || item.imageUrl,
+            imageUri: (existing as any).imageUri || item.imageUri || item.imageUrl,
+            notes: existing.notes || item.notes,
+            brand: existing.brand || item.brand,
+          };
+          continue;
         }
+
+        combined.push(item as InventoryItem);
+        seen.set(key, combined.length - 1);
       }
 
       // Merge cellar record quantity onto inventory items so the Low Stock
@@ -271,20 +320,18 @@ export default function HomeBarScreen() {
         ...prev,
         ingredients: combined,
       }));
-
     } catch (error) {
       log.error('HomeBarScreen', 'Failed to load stored ingredients', error as Error);
     }
   };
 
-  const categories: Array<{ key: InventoryCategory | 'all'; label: string; icon: any }> = [
+  const categories: { key: InventoryCategory | 'all'; label: string; icon: any }[] = [
     { key: 'all', label: 'All', icon: 'apps' },
     { key: 'spirits', label: 'Spirits', icon: 'wine' },
     { key: 'liqueur', label: 'Liqueurs', icon: 'wine-outline' },
     { key: 'mixers', label: 'Mixers', icon: 'water' },
     { key: 'garnishes', label: 'Garnishes', icon: 'leaf' },
     { key: 'ingredients', label: 'Ingredients', icon: 'nutrition' },
-    { key: 'saved', label: 'Saved', icon: 'bookmark-outline' },
   ];
 
   const getFilteredInventory = () => {
@@ -293,24 +340,24 @@ export default function HomeBarScreen() {
     // Filter by category
     if (activeCategory !== 'all') {
       if (activeCategory === 'spirits') {
-        filtered = filtered.filter(item => item.category === 'spirit');
+        filtered = filtered.filter((item) => item.category === 'spirit');
       } else if (activeCategory === 'liqueur') {
-        filtered = filtered.filter(item => item.category === 'liqueur');
+        filtered = filtered.filter((item) => item.category === 'liqueur');
       } else if (activeCategory === 'mixers') {
-        filtered = filtered.filter(item => item.category === 'mixer');
+        filtered = filtered.filter((item) => item.category === 'mixer');
       } else if (activeCategory === 'garnishes') {
-        filtered = filtered.filter(item => item.category === 'garnish');
+        filtered = filtered.filter((item) => item.category === 'garnish');
       } else if (activeCategory === 'ingredients') {
-        filtered = filtered.filter(item => item.category === 'ingredient');
+        filtered = filtered.filter((item) => item.category === 'ingredient');
       } else {
-        filtered = filtered.filter(item => item.category === activeCategory);
+        filtered = filtered.filter((item) => item.category === activeCategory);
       }
     }
 
     // Filter by search
     if (searchQuery.trim()) {
-      filtered = filtered.filter(item =>
-        item.name.toLowerCase().includes(searchQuery.toLowerCase())
+      filtered = filtered.filter((item) =>
+        item.name.toLowerCase().includes(searchQuery.toLowerCase()),
       );
     }
 
@@ -402,16 +449,17 @@ export default function HomeBarScreen() {
     const query = searchModalQuery.trim().toLowerCase();
     const pool = Array.from(
       new Set(
-        homeBar.ingredients.flatMap((item) =>
-          [item.name, item.brand, categoryDisplayMap[item.category], item.subcategory].filter(Boolean) as string[]
-        )
-      )
+        homeBar.ingredients.flatMap(
+          (item) =>
+            [item.name, item.brand, categoryDisplayMap[item.category], item.subcategory].filter(
+              Boolean,
+            ) as string[],
+        ),
+      ),
     );
 
     if (query.length > 0) {
-      const filtered = pool
-        .filter((text) => text.toLowerCase().includes(query))
-        .slice(0, 8);
+      const filtered = pool.filter((text) => text.toLowerCase().includes(query)).slice(0, 8);
       return filtered.map((text) => ({ text, type: 'search' as const }));
     }
 
@@ -424,13 +472,18 @@ export default function HomeBarScreen() {
 
   const favoriteItems = useMemo(
     () => homeBar.ingredients.filter((item) => item.isFavorite).slice(0, 6),
-    [homeBar.ingredients]
+    [homeBar.ingredients],
   );
 
   const recordSearchHistory = (value: string) => {
     const normalized = value.trim();
     if (!normalized) return;
-    setSearchHistory((prev) => [normalized, ...prev.filter((item) => item.toLowerCase() !== normalized.toLowerCase())].slice(0, 10));
+    setSearchHistory((prev) =>
+      [normalized, ...prev.filter((item) => item.toLowerCase() !== normalized.toLowerCase())].slice(
+        0,
+        10,
+      ),
+    );
   };
 
   const openSearchModal = () => {
@@ -497,14 +550,16 @@ export default function HomeBarScreen() {
 
     setHomeBar((prev) => ({
       ...prev,
-      ingredients: prev.ingredients.map((entry) => entry.id === item.id ? nextItem : entry),
+      ingredients: prev.ingredients.map((entry) => (entry.id === item.id ? nextItem : entry)),
     }));
     setSelectedItem(nextItem);
 
-    const remoteUpdated = user?.id ? await InventoryService.updateInventoryItem(item.id, {
-      isFavorite: updates.isFavorite,
-      notes: updates.notes,
-    }) : false;
+    const remoteUpdated = user?.id
+      ? await InventoryService.updateInventoryItem(item.id, {
+          isFavorite: updates.isFavorite,
+          notes: updates.notes,
+        })
+      : false;
 
     if (!remoteUpdated) {
       await HomeBarService.updateStoredIngredient(item.name, item.category, {
@@ -524,17 +579,26 @@ export default function HomeBarScreen() {
     if (!selectedItem) return;
     const trimmedNotes = itemNoteDraft.trim();
     await syncItemMetadata(selectedItem, { notes: trimmedNotes || undefined });
-    Alert.alert('Notes Saved', trimmedNotes ? 'Your bar note was updated.' : 'Your note was cleared.');
+    Alert.alert(
+      'Notes Saved',
+      trimmedNotes ? 'Your bar note was updated.' : 'Your note was cleared.',
+    );
   };
 
   const handleOpenCellarIntake = () => {
     if (!selectedItem) return;
-    setCellarIntakePrice(selectedItem.purchase_price != null ? String(selectedItem.purchase_price) : '');
-    setCellarIntakeValuation(selectedItem.valuation_estimate != null ? String(selectedItem.valuation_estimate) : '');
+    setCellarIntakePrice(
+      selectedItem.purchase_price != null ? String(selectedItem.purchase_price) : '',
+    );
+    setCellarIntakeValuation(
+      selectedItem.valuation_estimate != null ? String(selectedItem.valuation_estimate) : '',
+    );
     setCellarIntakeWindowStart(selectedItem.drinking_window_start || '');
     setCellarIntakeWindowEnd(selectedItem.drinking_window_end || '');
     setCellarIntakeNotes(selectedItem.cellar_notes || '');
-    setCellarIntakeQuantity(((selectedItem as any).quantity as 'full' | 'half' | 'low' | 'empty') || 'full');
+    setCellarIntakeQuantity(
+      ((selectedItem as any).quantity as 'full' | 'half' | 'low' | 'empty') || 'full',
+    );
     setShowCellarIntakeModal(true);
   };
 
@@ -564,7 +628,8 @@ export default function HomeBarScreen() {
         createdAt: new Date().toISOString(),
         imageUrl: selectedItem.imageUrl || null,
         brand: selectedItem.brand || null,
-        type: selectedBottleDetails?.type || selectedItem.subcategory || selectedItem.category || null,
+        type:
+          selectedBottleDetails?.type || selectedItem.subcategory || selectedItem.category || null,
         abv: selectedBottleDetails?.abv || selectedItem.abv || null,
         region: selectedBottleDetails?.region || selectedItem.region || null,
         flavorProfile: selectedBottleDetails?.flavorProfile || selectedItem.flavor_tags || [],
@@ -572,14 +637,18 @@ export default function HomeBarScreen() {
         serveGuidance: selectedBottleDetails?.serveGuidance || selectedItem.serve_guidance || null,
         quantity: cellarIntakeQuantity,
         purchasePrice: parsedPrice,
-        valuationEstimate: parsedValuation ?? parsedPrice ?? selectedItem.valuation_estimate ?? null,
+        valuationEstimate:
+          parsedValuation ?? parsedPrice ?? selectedItem.valuation_estimate ?? null,
         drinkingWindowStart,
         drinkingWindowEnd,
         cellarNotes,
       });
     } catch {
       setSavingCellarIntake(false);
-      Alert.alert('Unable to Track', 'We could not create a cellar record for this item right now.');
+      Alert.alert(
+        'Unable to Track',
+        'We could not create a cellar record for this item right now.',
+      );
       return;
     }
 
@@ -593,7 +662,9 @@ export default function HomeBarScreen() {
     };
     setHomeBar((prev) => ({
       ...prev,
-      ingredients: prev.ingredients.map((entry) => entry.id === selectedItem.id ? nextItem : entry),
+      ingredients: prev.ingredients.map((entry) =>
+        entry.id === selectedItem.id ? nextItem : entry,
+      ),
     }));
     setSelectedItem(nextItem);
 
@@ -601,7 +672,8 @@ export default function HomeBarScreen() {
       cellarNotes: cellarNotes ?? undefined,
       drinkingWindowStart,
       drinkingWindowEnd,
-      valuationEstimate: parsedValuation ?? parsedPrice ?? selectedItem.valuation_estimate ?? undefined,
+      valuationEstimate:
+        parsedValuation ?? parsedPrice ?? selectedItem.valuation_estimate ?? undefined,
     }).catch(() => {});
 
     // Fire or cancel low stock alert based on quantity
@@ -619,9 +691,9 @@ export default function HomeBarScreen() {
   const handleDeleteItem = () => {
     if (!selectedItem) return;
 
-    setHomeBar(prev => ({
+    setHomeBar((prev) => ({
       ...prev,
-      ingredients: prev.ingredients.filter(item => item.id !== selectedItem.id)
+      ingredients: prev.ingredients.filter((item) => item.id !== selectedItem.id),
     }));
 
     setShowItemOptionsModal(false);
@@ -633,7 +705,9 @@ export default function HomeBarScreen() {
 
     try {
       // Map BarIngredient category to GroceryItem category
-      const mapCategory = (barCategory: string): 'spirits_liquors' | 'mixers' | 'garnish' | 'bitters' | 'syrup' | 'other' => {
+      const mapCategory = (
+        barCategory: string,
+      ): 'spirits_liquors' | 'mixers' | 'garnish' | 'bitters' | 'syrup' | 'other' => {
         switch (barCategory) {
           case 'spirit':
           case 'liqueur':
@@ -659,13 +733,16 @@ export default function HomeBarScreen() {
           subcategory: selectedItem.subcategory,
           brand: selectedItem.brand,
         },
-        'Inventory Restock'
+        'Inventory Restock',
       );
 
       setShowItemOptionsModal(false);
       setSelectedItem(null);
 
-      Alert.alert('Added to Shopping List', `${selectedItem.name} has been added to your shopping list`);
+      Alert.alert(
+        'Added to Shopping List',
+        `${selectedItem.name} has been added to your shopping list`,
+      );
     } catch (error) {
       log.error('HomeBarScreen', 'Error adding item to shopping list', error);
       Alert.alert('Error', 'Failed to add item to shopping list');
@@ -673,11 +750,13 @@ export default function HomeBarScreen() {
   };
 
   const getIngredientImage = (item: BarIngredient) => {
+    if ((item as any).imageUri) return { uri: (item as any).imageUri };
     if (item.imageUrl) return { uri: item.imageUrl };
 
-    const haystack = `${item.category || ''} ${item.subcategory || ''} ${item.name || ''} ${item.brand || ''}`.toLowerCase();
+    const haystack =
+      `${item.category || ''} ${item.subcategory || ''} ${item.name || ''} ${item.brand || ''}`.toLowerCase();
 
-    const spiritFamilyMap: Array<{ pattern: RegExp; key: keyof typeof Images.spirits }> = [
+    const spiritFamilyMap: { pattern: RegExp; key: keyof typeof Images.spirits }[] = [
       { pattern: /(gin|juniper)/, key: 'gin' },
       { pattern: /(scotch)/, key: 'scotch' },
       { pattern: /(whiskey|whisky|bourbon|rye)/, key: 'whiskey' },
@@ -694,7 +773,7 @@ export default function HomeBarScreen() {
       }
     }
 
-    const ingredientFamilyMap: Array<{ pattern: RegExp; key: keyof typeof Images.ingredients }> = [
+    const ingredientFamilyMap: { pattern: RegExp; key: keyof typeof Images.ingredients }[] = [
       { pattern: /(lemon)/, key: 'lemon' },
       { pattern: /(lime)/, key: 'lime' },
       { pattern: /(orange|triple sec|cointreau|curacao)/, key: 'orange' },
@@ -713,7 +792,10 @@ export default function HomeBarScreen() {
       { pattern: /(anise|pastis|absinthe|sambuca)/, key: 'aniseLiquor' },
       { pattern: /(creme de cacao|cacao)/, key: 'cremeDeCacao' },
       { pattern: /(elderflower|st-germain)/, key: 'elderflowerLiquor' },
-      { pattern: /(coffee liqueur|espresso liqueur|kahlua|mr black|espresso)/, key: 'espressoLiquor' },
+      {
+        pattern: /(coffee liqueur|espresso liqueur|kahlua|mr black|espresso)/,
+        key: 'espressoLiquor',
+      },
       { pattern: /(orange liqueur|grand marnier)/, key: 'orangeLiquor' },
       { pattern: /(bitters|angostura|peychaud)/, key: 'bitters' },
     ];
@@ -741,12 +823,20 @@ export default function HomeBarScreen() {
         return 'water-outline';
       case 'mixer':
         if (/(milk|cream|coconut cream)/.test(haystack)) return 'cafe-outline';
-        if (/(juice|lemon|lime|orange|grapefruit|pineapple|passionfruit|berry|strawberry|blueberry|raspberry|blackberry|peach|apple|mango|fruit)/.test(haystack)) {
+        if (
+          /(juice|lemon|lime|orange|grapefruit|pineapple|passionfruit|berry|strawberry|blueberry|raspberry|blackberry|peach|apple|mango|fruit)/.test(
+            haystack,
+          )
+        ) {
           return 'nutrition-outline';
         }
         return 'water';
       case 'garnish':
-        if (/(lemon|lime|orange|grapefruit|pineapple|passionfruit|berry|strawberry|blueberry|raspberry|blackberry|peach|apple|mango|fruit)/.test(haystack)) {
+        if (
+          /(lemon|lime|orange|grapefruit|pineapple|passionfruit|berry|strawberry|blueberry|raspberry|blackberry|peach|apple|mango|fruit)/.test(
+            haystack,
+          )
+        ) {
           return 'nutrition-outline';
         }
         return 'leaf-outline';
@@ -754,7 +844,11 @@ export default function HomeBarScreen() {
         if (/(egg|egg white)/.test(haystack)) return 'egg-outline';
         if (/(salt|pepper|cinnamon|nutmeg|spice)/.test(haystack)) return 'restaurant-outline';
         if (/(sugar|honey|agave|syrup|grenadine|orgeat)/.test(haystack)) return 'water-outline';
-        if (/(lemon|lime|orange|grapefruit|pineapple|passionfruit|berry|strawberry|blueberry|raspberry|blackberry|peach|apple|mango|fruit|juice)/.test(haystack)) {
+        if (
+          /(lemon|lime|orange|grapefruit|pineapple|passionfruit|berry|strawberry|blueberry|raspberry|blackberry|peach|apple|mango|fruit|juice)/.test(
+            haystack,
+          )
+        ) {
           return 'nutrition-outline';
         }
         return 'nutrition';
@@ -771,21 +865,29 @@ export default function HomeBarScreen() {
   };
 
   const isBottleLike = (item: InventoryItem) => {
-    const haystack = `${item.category || ''} ${item.subcategory || ''} ${item.name || ''}`.toLowerCase();
-    return /(vodka|gin|whiskey|whisky|bourbon|scotch|rum|tequila|mezcal|brandy|cognac|liqueur|vermouth|campari|amaro)/.test(haystack);
+    const haystack =
+      `${item.category || ''} ${item.subcategory || ''} ${item.name || ''}`.toLowerCase();
+    return /(vodka|gin|whiskey|whisky|bourbon|scotch|rum|tequila|mezcal|brandy|cognac|liqueur|vermouth|campari|amaro)/.test(
+      haystack,
+    );
   };
 
-  const isCellarEligible = (item: InventoryItem) => item.category === 'spirit' || item.category === 'liqueur' || isBottleLike(item);
+  const isCellarEligible = (item: InventoryItem) =>
+    item.category === 'spirit' || item.category === 'liqueur' || isBottleLike(item);
 
   const getInventoryInsight = (item: InventoryItem) => {
     if (item.category === 'spirit') {
-      return item.abv ? `${item.abv}% ABV bottle for base pours and spirit-forward serves.` : 'Core bottle for builds, stirred drinks, and house pours.';
+      return item.abv
+        ? `${item.abv}% ABV bottle for base pours and spirit-forward serves.`
+        : 'Core bottle for builds, stirred drinks, and house pours.';
     }
     if (item.category === 'liqueur') {
       return 'Modifier bottle that adds sweetness, bitterness, or depth to recipes.';
     }
     if (item.category === 'mixer') {
-      return /juice|citrus|fruit/i.test(`${item.subcategory || ''} ${item.name}`) ? 'Freshens drinks and supports sours, spritzes, and lengthened builds.' : 'Supports highballs, spritzes, and longer refreshing serves.';
+      return /juice|citrus|fruit/i.test(`${item.subcategory || ''} ${item.name}`)
+        ? 'Freshens drinks and supports sours, spritzes, and lengthened builds.'
+        : 'Supports highballs, spritzes, and longer refreshing serves.';
     }
     if (item.category === 'garnish') {
       return 'Finishing ingredient that changes aroma, freshness, and first impression.';
@@ -803,7 +905,8 @@ export default function HomeBarScreen() {
     const pills: string[] = [getCategoryDisplay(item)];
     if (item.brand) pills.push(item.brand);
     if (item.volume) pills.push(`${item.volume}ml`);
-    else if (item.category === 'garnish' || item.category === 'ingredient') pills.push('Fresh item');
+    else if (item.category === 'garnish' || item.category === 'ingredient')
+      pills.push('Fresh item');
     if (item.isFavorite) pills.push('Favorite');
     return pills.slice(0, 3);
   };
@@ -812,17 +915,19 @@ export default function HomeBarScreen() {
     if (!selectedItem) return null;
     const itemName = selectedItem.name.toLowerCase().trim();
     const itemBrand = (selectedItem.brand || '').toLowerCase().trim();
-    return SPIRITS_DATABASE.find((spirit) => {
-      const spiritName = spirit.name.toLowerCase();
-      const spiritBrand = spirit.brand.toLowerCase();
-      return (
-        spiritName === itemName ||
-        spiritName.includes(itemName) ||
-        itemName.includes(spiritName) ||
-        (itemBrand && spiritBrand === itemBrand) ||
-        spirit.searchTerms.some((term) => itemName.includes(term.toLowerCase()))
-      );
-    }) || null;
+    return (
+      SPIRITS_DATABASE.find((spirit) => {
+        const spiritName = spirit.name.toLowerCase();
+        const spiritBrand = spirit.brand.toLowerCase();
+        return (
+          spiritName === itemName ||
+          spiritName.includes(itemName) ||
+          itemName.includes(spiritName) ||
+          (itemBrand && spiritBrand === itemBrand) ||
+          spirit.searchTerms.some((term) => itemName.includes(term.toLowerCase()))
+        );
+      }) || null
+    );
   }, [selectedItem]);
 
   const selectedBottleDetails = useMemo(() => {
@@ -832,12 +937,15 @@ export default function HomeBarScreen() {
       : matchedSpiritProfile?.flavorProfile || [];
     const tastingNotes = selectedItem.tasting_notes || matchedSpiritProfile?.tastingNotes || '';
     const region = selectedItem.region || matchedSpiritProfile?.origin || '';
-    const type = selectedItem.subcategory || matchedSpiritProfile?.type || getCategoryDisplay(selectedItem);
+    const type =
+      selectedItem.subcategory || matchedSpiritProfile?.type || getCategoryDisplay(selectedItem);
     const brand = selectedItem.brand || matchedSpiritProfile?.brand || '';
     const abv = selectedItem.abv || matchedSpiritProfile?.abv || null;
-    const serveGuidance = selectedItem.serve_guidance || (matchedSpiritProfile
-      ? `${BottleServeService.getRecommendation(matchedSpiritProfile, tier).heroTitle}. ${BottleServeService.getRecommendation(matchedSpiritProfile, tier).why}`
-      : '');
+    const serveGuidance =
+      selectedItem.serve_guidance ||
+      (matchedSpiritProfile
+        ? `${BottleServeService.getRecommendation(matchedSpiritProfile, tier).heroTitle}. ${BottleServeService.getRecommendation(matchedSpiritProfile, tier).why}`
+        : '');
 
     return {
       brand,
@@ -891,7 +999,10 @@ export default function HomeBarScreen() {
           <Text style={styles.cardSubtitle} numberOfLines={1}>
             {item.flavor_tags?.length
               ? item.flavor_tags.slice(0, 2).join(' · ')
-              : item.tags?.filter(t => t !== 'manual-entry').slice(0, 2).join(' · ') || getCategoryDisplay(item)}
+              : item.tags
+                  ?.filter((t) => t !== 'manual-entry')
+                  .slice(0, 2)
+                  .join(' · ') || getCategoryDisplay(item)}
           </Text>
           {pills.length > 0 && (
             <View style={styles.cardPillRow}>
@@ -916,13 +1027,20 @@ export default function HomeBarScreen() {
     <SafeAreaView style={styles.container}>
       <MainPageHeader
         title="Your Shelf"
-        subtitle={`${all.length} item${all.length !== 1 ? 's' : ''}`}
+        subtitle={
+          inventoryView === 'want'
+            ? `${wishlistItems.length} saved`
+            : `${all.length} item${all.length !== 1 ? 's' : ''}`
+        }
         onTitlePress={withHaptic(handleInventoryHeaderMenu, 'selection')}
-        leftContent={(
-          <TouchableOpacity style={styles.headerSearchButton} onPress={withHaptic(openSearchModal, 'selection')}>
+        leftContent={
+          <TouchableOpacity
+            style={styles.headerSearchButton}
+            onPress={withHaptic(openSearchModal, 'selection')}
+          >
             <Ionicons name="search" size={18} color={colors.text} />
           </TouchableOpacity>
-        )}
+        }
         rightActions={[
           {
             icon: 'scan-outline',
@@ -974,7 +1092,9 @@ export default function HomeBarScreen() {
               <Ionicons name="wine-outline" size={18} color={colors.gold} />
               <View style={{ flex: 1 }}>
                 <Text style={styles.barDropdownItemTitle}>The Cellar</Text>
-                <Text style={styles.barDropdownItemMeta}>Collector showcase, tracked bottles, and portfolio view</Text>
+                <Text style={styles.barDropdownItemMeta}>
+                  Collector showcase, tracked bottles, and portfolio view
+                </Text>
               </View>
               <Ionicons name="chevron-forward" size={16} color={colors.subtext} />
             </TouchableOpacity>
@@ -992,8 +1112,56 @@ export default function HomeBarScreen() {
           onScrollHaptic();
         }}
       >
+        {/* Owned / Want — top-level view switch (1.4c) */}
+        <View
+          style={{
+            flexDirection: 'row',
+            marginHorizontal: spacing(3),
+            marginTop: spacing(2),
+            marginBottom: spacing(1),
+            backgroundColor: colors.card,
+            borderRadius: 999,
+            borderWidth: 1,
+            borderColor: colors.line,
+            padding: 4,
+          }}
+        >
+          <TouchableOpacity
+            style={[
+              { flex: 1, paddingVertical: spacing(1), borderRadius: 999, alignItems: 'center' },
+              inventoryView === 'owned' && styles.activeCategoryChip,
+            ]}
+            onPress={withHaptic(() => setInventoryView('owned'), 'selection')}
+          >
+            <Text
+              style={[
+                styles.categoryChipText,
+                inventoryView === 'owned' && styles.activeCategoryChipText,
+              ]}
+            >
+              Owned
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              { flex: 1, paddingVertical: spacing(1), borderRadius: 999, alignItems: 'center' },
+              inventoryView === 'want' && styles.activeCategoryChip,
+            ]}
+            onPress={withHaptic(() => setInventoryView('want'), 'selection')}
+          >
+            <Text
+              style={[
+                styles.categoryChipText,
+                inventoryView === 'want' && styles.activeCategoryChipText,
+              ]}
+            >
+              Want
+            </Text>
+          </TouchableOpacity>
+        </View>
+
         {/* Feature Cards — horizontal FlatList avoids nested-ScrollView gesture conflicts */}
-        {homeBar.ingredients.length > 0 && (
+        {inventoryView === 'owned' && homeBar.ingredients.length > 0 && (
           <FlatList
             horizontal
             data={FEATURE_CARDS}
@@ -1002,10 +1170,7 @@ export default function HomeBarScreen() {
             style={styles.featureCardsScroll}
             contentContainerStyle={styles.featureCardsContent}
             renderItem={({ item }) => (
-              <TouchableOpacity
-                style={styles.featureCard}
-                onPress={withHaptic(item.onPress)}
-              >
+              <TouchableOpacity style={styles.featureCard} onPress={withHaptic(item.onPress)}>
                 <View style={styles.featureCardIconWrap}>
                   <Ionicons name={item.icon} size={26} color={colors.accent} />
                 </View>
@@ -1016,36 +1181,46 @@ export default function HomeBarScreen() {
           />
         )}
 
-        {/* Category Filters — above inventory list */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.categoryFilters}
-          contentContainerStyle={styles.categoryFiltersContent}
-        >
-          {categories.map((cat) => (
-            <TouchableOpacity
-              key={cat.key}
-              style={[styles.categoryChip, activeCategory === cat.key && styles.activeCategoryChip]}
-              onPress={withHaptic(() => setActiveCategory(cat.key), 'selection')}
-            >
-              <Ionicons
-                name={cat.icon}
-                size={16}
-                color={activeCategory === cat.key ? colors.bg : colors.text}
-              />
-              <Text style={[styles.categoryChipText, activeCategory === cat.key && styles.activeCategoryChipText]}>
-                {cat.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
+        {/* Category Filters — above inventory list, Owned only */}
+        {inventoryView === 'owned' && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.categoryFilters}
+            contentContainerStyle={styles.categoryFiltersContent}
+          >
+            {categories.map((cat) => (
+              <TouchableOpacity
+                key={cat.key}
+                style={[
+                  styles.categoryChip,
+                  activeCategory === cat.key && styles.activeCategoryChip,
+                ]}
+                onPress={withHaptic(() => setActiveCategory(cat.key), 'selection')}
+              >
+                <Ionicons
+                  name={cat.icon}
+                  size={16}
+                  color={activeCategory === cat.key ? colors.bg : colors.text}
+                />
+                <Text
+                  style={[
+                    styles.categoryChipText,
+                    activeCategory === cat.key && styles.activeCategoryChipText,
+                  ]}
+                >
+                  {cat.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        )}
 
         {/* Your Palate — visible after 5 scans, shelf tabs only */}
-        {profileVisible && activeCategory !== 'saved' && dominantCluster.length > 0 && (
+        {profileVisible && inventoryView === 'owned' && dominantCluster.length > 0 && (
           <TouchableOpacity
             style={styles.palateCard}
-            onPress={withHaptic(() => setPalateExpanded(p => !p), 'selection')}
+            onPress={withHaptic(() => setPalateExpanded((p) => !p), 'selection')}
             activeOpacity={0.85}
           >
             <View style={styles.palateHeader}>
@@ -1066,8 +1241,7 @@ export default function HomeBarScreen() {
 
             {palateExpanded && (
               <View style={styles.palateBars}>
-                {ALL_FLAVOUR_TAGS
-                  .map((tag) => ({ tag, score: flavourScores[tag] ?? 0 }))
+                {ALL_FLAVOUR_TAGS.map((tag) => ({ tag, score: flavourScores[tag] ?? 0 }))
                   .filter(({ score }) => score > 0)
                   .sort((a, b) => b.score - a.score)
                   .slice(0, 5)
@@ -1078,8 +1252,7 @@ export default function HomeBarScreen() {
                         <View style={[styles.palateBarFill, { width: `${score}%` as any }]} />
                       </View>
                     </View>
-                  ))
-                }
+                  ))}
               </View>
             )}
           </TouchableOpacity>
@@ -1093,18 +1266,27 @@ export default function HomeBarScreen() {
             activeOpacity={0.8}
           >
             <View style={styles.shelfCapTrack}>
-              <View style={[styles.shelfCapFill, {
-                width: `${Math.min((homeBar.ingredients.length / TIER_LIMITS.FREE.maxBottles) * 100, 100)}%`,
-                backgroundColor: homeBar.ingredients.length >= TIER_LIMITS.FREE.maxBottles ? colors.error || '#ff4444' : colors.accent,
-              }]} />
+              <View
+                style={[
+                  styles.shelfCapFill,
+                  {
+                    width: `${Math.min((homeBar.ingredients.length / TIER_LIMITS.FREE.maxBottles) * 100, 100)}%`,
+                    backgroundColor:
+                      homeBar.ingredients.length >= TIER_LIMITS.FREE.maxBottles
+                        ? colors.error || '#ff4444'
+                        : colors.accent,
+                  },
+                ]}
+              />
             </View>
             <Text style={styles.shelfCapText}>
-              {homeBar.ingredients.length} / {TIER_LIMITS.FREE.maxBottles} bottles · <Text style={styles.shelfCapCta}>Upgrade for unlimited</Text>
+              {homeBar.ingredients.length} / {TIER_LIMITS.FREE.maxBottles} bottles ·{' '}
+              <Text style={styles.shelfCapCta}>Upgrade for unlimited</Text>
             </Text>
           </TouchableOpacity>
         )}
 
-        {activeCategory === 'saved' ? (
+        {inventoryView === 'want' ? (
           // ── Saved (Wishlist) tab ──────────────────────────────────────────
           wishlistItems.length > 0 ? (
             <View style={styles.section}>
@@ -1119,9 +1301,10 @@ export default function HomeBarScreen() {
               </Text>
               <View style={styles.grid}>
                 {wishlistItems.map((item) => {
-                  const lowestEntry = item.priceEntries.length > 0
-                    ? item.priceEntries.reduce((a, b) => a.price < b.price ? a : b)
-                    : null;
+                  const lowestEntry =
+                    item.priceEntries.length > 0
+                      ? item.priceEntries.reduce((a, b) => (a.price < b.price ? a : b))
+                      : null;
                   const spiritProxy = {
                     id: item.bottleId,
                     name: item.name,
@@ -1129,7 +1312,11 @@ export default function HomeBarScreen() {
                     type: (item.type || 'other') as any,
                     abv: 0,
                     priceTier: 'mid-range' as any,
-                    priceEstimate: { USD: { min: 0, max: 0 }, CAD: { min: 0, max: 0 }, GBP: { min: 0, max: 0 } },
+                    priceEstimate: {
+                      USD: { min: 0, max: 0 },
+                      CAD: { min: 0, max: 0 },
+                      GBP: { min: 0, max: 0 },
+                    },
                     flavorProfile: [],
                     tastingNotes: '',
                     origin: '',
@@ -1139,16 +1326,24 @@ export default function HomeBarScreen() {
                     <TouchableOpacity
                       key={item.bottleId}
                       style={[styles.inventoryCard, styles.spiritCard]}
-                      onPress={withHaptic(() => (nav as any).navigate('Camera', {
-                        screen: 'BottleDetail',
-                        params: { bottle: spiritProxy, imageUri: item.imageUri },
-                      }), 'selection')}
+                      onPress={withHaptic(
+                        () =>
+                          (nav as any).navigate('Camera', {
+                            screen: 'BottleDetail',
+                            params: { bottle: spiritProxy, imageUri: item.imageUri },
+                          }),
+                        'selection',
+                      )}
                       activeOpacity={0.82}
                     >
                       <View style={styles.cardAccentStrip} />
                       <View style={styles.cardImageContainer}>
                         {item.imageUri ? (
-                          <Image source={{ uri: item.imageUri }} style={styles.cardImage} resizeMode="cover" />
+                          <Image
+                            source={{ uri: item.imageUri }}
+                            style={styles.cardImage}
+                            resizeMode="cover"
+                          />
                         ) : (
                           <View style={styles.cardIconWrap}>
                             <Ionicons name="wine-outline" size={48} color={colors.accent} />
@@ -1159,32 +1354,50 @@ export default function HomeBarScreen() {
                         </View>
                       </View>
                       <View style={styles.cardContent}>
-                        <Text style={styles.cardTitle} numberOfLines={2}>{item.name}</Text>
-                        <Text style={styles.cardSubtitle} numberOfLines={1}>{item.brand}</Text>
+                        <Text style={styles.cardTitle} numberOfLines={2}>
+                          {item.name}
+                        </Text>
+                        <Text style={styles.cardSubtitle} numberOfLines={1}>
+                          {item.brand}
+                        </Text>
                         {lowestEntry ? (
                           <View style={styles.cardPillRow}>
                             <View style={styles.cardPill}>
                               <Text style={styles.cardPillText}>
-                                {lowestEntry.currency} {lowestEntry.price.toFixed(0)} · {lowestEntry.locationLabel}
+                                {lowestEntry.currency} {lowestEntry.price.toFixed(0)} ·{' '}
+                                {lowestEntry.locationLabel}
                               </Text>
                             </View>
                           </View>
                         ) : (
                           <Text style={styles.savedNoPriceText}>No price logged yet</Text>
                         )}
-                        <TouchableOpacity
-                          style={styles.savedLogPriceButton}
-                          onPress={withHaptic((e?: any) => {
-                            e?.stopPropagation?.();
-                            setLogPriceItem(item);
-                            setLogPriceValue('');
-                            setLogPriceLocation('');
-                          }, 'selection')}
-                          hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
-                        >
-                          <Ionicons name="pricetag-outline" size={11} color={colors.accent} />
-                          <Text style={styles.savedLogPriceText}>Log price</Text>
-                        </TouchableOpacity>
+                        <View style={styles.savedActionsRow}>
+                          <TouchableOpacity
+                            style={styles.savedLogPriceButton}
+                            onPress={withHaptic((e?: any) => {
+                              e?.stopPropagation?.();
+                              setLogPriceItem(item);
+                              setLogPriceValue('');
+                              setLogPriceLocation('');
+                            }, 'selection')}
+                            hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+                          >
+                            <Ionicons name="pricetag-outline" size={11} color={colors.accent} />
+                            <Text style={styles.savedLogPriceText}>Log price</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={styles.savedBuyButton}
+                            onPress={withHaptic((e?: any) => {
+                              e?.stopPropagation?.();
+                              buyIngredient(item.name, item.type, 'homebar_wishlist');
+                            }, 'selection')}
+                            hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+                          >
+                            <Ionicons name="cart-outline" size={11} color={colors.accent} />
+                            <Text style={styles.savedLogPriceText}>Buy</Text>
+                          </TouchableOpacity>
+                        </View>
                       </View>
                       <TouchableOpacity
                         style={styles.savedRemoveButton}
@@ -1200,10 +1413,16 @@ export default function HomeBarScreen() {
             </View>
           ) : (
             <View style={styles.emptyShelf}>
-              <Ionicons name="bookmark-outline" size={52} color={colors.accent} style={{ marginBottom: 20 }} />
+              <Ionicons
+                name="bookmark-outline"
+                size={52}
+                color={colors.accent}
+                style={{ marginBottom: 20 }}
+              />
               <Text style={styles.emptyShelfTitle}>Nothing saved yet</Text>
               <Text style={styles.emptyShelfBody}>
-                Bottles you've spotted but haven't bought yet live here.{'\n'}Scan anything out in the world and save it.
+                Bottles you've spotted but haven't bought yet live here.{'\n'}Scan anything out in
+                the world and save it.
               </Text>
               <TouchableOpacity
                 style={styles.emptyShelfButton}
@@ -1225,10 +1444,10 @@ export default function HomeBarScreen() {
                   <Text style={styles.sectionTitle}>FAVORITES</Text>
                   <View style={styles.sectionHeaderLine} />
                 </View>
-                <Text style={styles.sectionBodyText}>Keep your go-to bottles, mixers, and garnish staples easy to find.</Text>
-                <View style={styles.grid}>
-                  {favoriteItems.map(renderInventoryCard)}
-                </View>
+                <Text style={styles.sectionBodyText}>
+                  Keep your go-to bottles, mixers, and garnish staples easy to find.
+                </Text>
+                <View style={styles.grid}>{favoriteItems.map(renderInventoryCard)}</View>
               </View>
             )}
 
@@ -1238,26 +1457,35 @@ export default function HomeBarScreen() {
                 <View style={styles.sectionHeader}>
                   <View style={styles.sectionHeaderLine} />
                   <Text style={styles.sectionTitle}>
-                    {(activeCategory === 'all' ? 'YOUR SHELF' : (categories.find(c => c.key === activeCategory)?.label || 'ITEMS')).toUpperCase()}
+                    {(activeCategory === 'all'
+                      ? 'YOUR SHELF'
+                      : categories.find((c) => c.key === activeCategory)?.label || 'ITEMS'
+                    ).toUpperCase()}
                   </Text>
                   <View style={styles.sectionHeaderLine} />
                 </View>
-                <View style={styles.grid}>
-                  {all.map(renderInventoryCard)}
-                </View>
+                <View style={styles.grid}>{all.map(renderInventoryCard)}</View>
               </View>
             )}
 
             {all.length === 0 && !searchQuery.trim() && (
               <View style={styles.emptyShelf}>
-                <Ionicons name="scan-outline" size={52} color={colors.accent} style={{ marginBottom: 20 }} />
+                <Ionicons
+                  name="scan-outline"
+                  size={52}
+                  color={colors.accent}
+                  style={{ marginBottom: 20 }}
+                />
                 <Text style={styles.emptyShelfTitle}>Your shelf is what you own</Text>
                 <Text style={styles.emptyShelfBody}>
-                  Scan a bottle at home to add it.{'\n'}Your shelf powers your recipes — only add what's actually in your bar.
+                  Scan a bottle at home to add it.{'\n'}Your shelf powers your recipes — only add
+                  what's actually in your bar.
                 </Text>
                 <TouchableOpacity
                   style={styles.emptyShelfButton}
-                  onPress={withHaptic(() => (nav as any).navigate('Camera', { screen: 'SmartScan' }))}
+                  onPress={withHaptic(() =>
+                    (nav as any).navigate('Camera', { screen: 'SmartScan' }),
+                  )}
                 >
                   <Ionicons name="camera-outline" size={18} color={colors.bg} />
                   <Text style={styles.emptyShelfButtonText}>Scan a Bottle</Text>
@@ -1299,279 +1527,353 @@ export default function HomeBarScreen() {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.modalScrollContent}>
-            <View style={styles.modalHeader}>
-              <TouchableOpacity onPress={withHaptic(() => { setShowItemOptionsModal(false); setEditMode(false); }, 'selection')}>
-                <Ionicons name="close" size={24} color={colors.text} />
-              </TouchableOpacity>
-              <Heading level={2} style={[styles.modalTitle, { flex: 1, textAlign: 'center' }]} numberOfLines={1}>
-                {editMode ? (editName || selectedItem?.name) : selectedItem?.name}
-              </Heading>
-              <TouchableOpacity
-                onPress={withHaptic(() => {
-                  if (editMode) {
-                    handleSaveItemEdit();
-                  } else {
-                    setEditMode(true);
-                  }
-                }, 'selection')}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              >
-                {editMode
-                  ? <Text style={styles.editDoneButton}>Done</Text>
-                  : <Ionicons name="create-outline" size={22} color={colors.accent} />
-                }
-              </TouchableOpacity>
-            </View>
-
-            {selectedItem?.imageUrl ? (
-              <Image source={{ uri: selectedItem.imageUrl }} style={styles.inventoryDetailImage} resizeMode="cover" />
-            ) : selectedItem && getIngredientImage(selectedItem) ? (
-              <Image source={getIngredientImage(selectedItem) as any} style={styles.inventoryDetailImage} resizeMode="cover" />
-            ) : null}
-
-            {editMode ? (
-              <View style={styles.editFieldsContainer}>
-                <Text style={styles.editFieldLabel}>Name</Text>
-                <TextInput
-                  style={styles.editFieldInput}
-                  value={editName}
-                  onChangeText={setEditName}
-                  placeholder="Bottle name"
-                  placeholderTextColor={colors.muted}
-                  autoFocus
-                />
-                <Text style={styles.editFieldLabel}>Brand</Text>
-                <TextInput
-                  style={styles.editFieldInput}
-                  value={editBrand}
-                  onChangeText={setEditBrand}
-                  placeholder="Brand (optional)"
-                  placeholderTextColor={colors.muted}
-                />
-                <Text style={styles.editFieldLabel}>Category</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: spacing(0.5) }}>
-                  <View style={styles.editCategoryRow}>
-                    {([
-                      { key: 'spirit', label: 'Spirit' },
-                      { key: 'liqueur', label: 'Liqueur' },
-                      { key: 'mixer', label: 'Mixer' },
-                      { key: 'bitters', label: 'Bitters' },
-                      { key: 'syrup', label: 'Syrup' },
-                      { key: 'garnish', label: 'Garnish' },
-                      { key: 'ingredient', label: 'Ingredient' },
-                      { key: 'other', label: 'Other' },
-                    ] as Array<{ key: BarIngredient['category']; label: string }>).map((opt) => (
-                      <TouchableOpacity
-                        key={opt.key}
-                        style={[styles.editCategoryChip, editCategory === opt.key && styles.editCategoryChipActive]}
-                        onPress={() => setEditCategory(opt.key)}
-                      >
-                        <Text style={[styles.editCategoryChipText, editCategory === opt.key && styles.editCategoryChipTextActive]}>
-                          {opt.label}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </ScrollView>
-                <Text style={styles.editFieldLabel}>Bar Note</Text>
-                <TextInput
-                  style={[styles.editFieldInput, { minHeight: 64 }]}
-                  value={itemNoteDraft}
-                  onChangeText={setItemNoteDraft}
-                  placeholder="Add a quick note"
-                  placeholderTextColor={colors.muted}
-                  multiline
-                />
-              </View>
-            ) : (
-              <View style={styles.itemDetailsContainer}>
-                <Text style={styles.itemDetail}>Brand: {selectedBottleDetails?.brand || selectedItem?.brand || 'Unknown'}</Text>
-                <Text style={styles.itemDetail}>
-                  Type: {selectedBottleDetails?.type ? String(selectedBottleDetails.type).replace(/\b\w/g, (letter) => letter.toUpperCase()) : selectedItem ? getCategoryDisplay(selectedItem) : 'Unknown'}
-                </Text>
-                <Text style={styles.itemDetail}>Volume: {selectedItem?.volume ? `${selectedItem.volume}ml` : 'Not set'}</Text>
-                {selectedBottleDetails?.abv && <Text style={styles.itemDetail}>ABV: {selectedBottleDetails.abv}%</Text>}
-                {selectedBottleDetails?.region && <Text style={styles.itemDetail}>Region: {selectedBottleDetails.region}</Text>}
-                {selectedItem && (
-                  <Text style={styles.itemDetail}>{getInventoryInsight(selectedItem)}</Text>
-                )}
-              </View>
-            )}
-
-            {selectedBottleDetails ? (
-              <View style={styles.inventoryBottleBrief}>
-                {selectedBottleDetails.flavorProfile.length ? (
-                  <>
-                    <Text style={styles.inventoryBottleBriefLabel}>Flavor Profile</Text>
-                    <View style={styles.inventoryBottleFlavorRow}>
-                      {selectedBottleDetails.flavorProfile.slice(0, 6).map((flavor) => (
-                        <View key={`${selectedItem?.id}-${flavor}`} style={styles.inventoryBottleFlavorChip}>
-                          <Text style={styles.inventoryBottleFlavorChipText}>{flavor}</Text>
-                        </View>
-                      ))}
-                    </View>
-                  </>
-                ) : null}
-
-                {selectedBottleDetails.tastingNotes ? (
-                  <>
-                    <Text style={styles.inventoryBottleBriefLabel}>Tasting Notes</Text>
-                    <Text style={styles.inventoryBottleBriefBody}>{selectedBottleDetails.tastingNotes}</Text>
-                  </>
-                ) : null}
-
-                {selectedBottleDetails.serveGuidance ? (
-                  <>
-                    <Text style={styles.inventoryBottleBriefLabel}>Serve Guidance</Text>
-                    <Text style={styles.inventoryBottleBriefBody}>{selectedBottleDetails.serveGuidance}</Text>
-                  </>
-                ) : null}
-              </View>
-            ) : null}
-
-            <TouchableOpacity
-              style={styles.favoriteToggle}
-              onPress={withHaptic(handleToggleFavorite, 'selection')}
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.modalScrollContent}
             >
-              <Ionicons
-                name={selectedItem?.isFavorite ? 'star' : 'star-outline'}
-                size={20}
-                color={colors.gold}
-              />
-              <Text style={styles.favoriteToggleText}>
-                {selectedItem?.isFavorite ? 'Pinned as a bar favorite' : 'Pin as a bar favorite'}
-              </Text>
-            </TouchableOpacity>
-
-            {!editMode && (
-              <View style={styles.noteBlock}>
-                <Text style={styles.noteLabel}>Bar Note</Text>
-                <TextInput
-                  style={styles.noteInput}
-                  value={itemNoteDraft}
-                  onChangeText={setItemNoteDraft}
-                  placeholder="Add a quick note like low stock, guest favorite, or replace soon"
-                  placeholderTextColor={colors.muted}
-                  multiline
-                />
+              <View style={styles.modalHeader}>
                 <TouchableOpacity
-                  style={styles.noteSaveButton}
-                  onPress={withHaptic(handleSaveItemNotes, 'selection')}
+                  onPress={withHaptic(() => {
+                    setShowItemOptionsModal(false);
+                    setEditMode(false);
+                  }, 'selection')}
                 >
-                  <Ionicons name="create-outline" size={16} color={colors.accent} />
-                  <Text style={styles.noteSaveButtonText}>Save note</Text>
+                  <Ionicons name="close" size={24} color={colors.text} />
+                </TouchableOpacity>
+                <Heading
+                  level={2}
+                  style={[styles.modalTitle, { flex: 1, textAlign: 'center' }]}
+                  numberOfLines={1}
+                >
+                  {editMode ? editName || selectedItem?.name : selectedItem?.name}
+                </Heading>
+                <TouchableOpacity
+                  onPress={withHaptic(() => {
+                    if (editMode) {
+                      handleSaveItemEdit();
+                    } else {
+                      setEditMode(true);
+                    }
+                  }, 'selection')}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  {editMode ? (
+                    <Text style={styles.editDoneButton}>Done</Text>
+                  ) : (
+                    <Ionicons name="create-outline" size={22} color={colors.accent} />
+                  )}
                 </TouchableOpacity>
               </View>
-            )}
 
-            {selectedItem && isCellarEligible(selectedItem) ? (
-              <View style={styles.inventoryCellarCard}>
-                <View style={styles.inventoryCellarHeader}>
-                  <View>
-                    <Text style={styles.inventoryCellarEyebrow}>
-                      {hasCellarMode ? 'PRO Collector Layer' : 'PRO Upgrade'}
-                    </Text>
-                    <Text style={styles.inventoryCellarTitle}>Cellar Mode</Text>
-                  </View>
-                  <View style={styles.inventoryCellarBadge}>
-                    <Text style={styles.inventoryCellarBadgeText}>
-                      {hasCellarMode ? 'Bottle Eligible' : 'Bottle Tracking'}
-                    </Text>
-                  </View>
-                </View>
+              {selectedItem?.imageUrl ? (
+                <Image
+                  source={{ uri: selectedItem.imageUrl }}
+                  style={styles.inventoryDetailImage}
+                  resizeMode="cover"
+                />
+              ) : selectedItem && getIngredientImage(selectedItem) ? (
+                <Image
+                  source={getIngredientImage(selectedItem) as any}
+                  style={styles.inventoryDetailImage}
+                  resizeMode="cover"
+                />
+              ) : null}
 
-                <Text style={styles.inventoryCellarBody}>
-                  {hasCellarMode
-                    ? (selectedItem.cellar_notes || (hasCellarRecord(selectedItem)
-                      ? 'This bottle is already tracked in The Cellar. Open The Cellar from the Inventory header any time to revisit it.'
-                      : 'Track purchase price, opening window, and collector notes once this bottle becomes more than everyday inventory.'))
-                    : 'This bottle can be tracked in Cellar Mode with valuation, drinking window, and collector notes once you unlock PRO.'}
-                </Text>
-
-                {hasCellarMode ? (
-                  <>
-                    <View style={styles.inventoryCellarSummaryRow}>
-                      <View style={styles.inventoryCellarSummaryPill}>
-                        <Text style={styles.inventoryCellarSummaryLabel}>Value</Text>
-                        <Text style={styles.inventoryCellarSummaryValue}>
-                          {selectedItem.valuation_estimate ? `$${Math.round(selectedItem.valuation_estimate)}` : 'Open'}
-                        </Text>
-                      </View>
-                      <View style={styles.inventoryCellarSummaryPill}>
-                        <Text style={styles.inventoryCellarSummaryLabel}>Window</Text>
-                        <Text style={styles.inventoryCellarSummaryValue}>
-                          {selectedItem.drinking_window_end || 'Not tracked'}
-                        </Text>
-                      </View>
-                    </View>
-
-                    {hasCellarRecord(selectedItem) ? (
-                      <TouchableOpacity
-                        style={styles.inventoryCellarButton}
-                        onPress={withHaptic(() => nav.navigate('CellarBottleDetail', { inventoryItemId: selectedItem.id }), 'selection')}
-                      >
-                        <Ionicons name="checkmark-circle-outline" size={18} color={colors.accent} />
-                        <Text style={styles.inventoryCellarButtonText}>View in Cellar</Text>
-                      </TouchableOpacity>
-                    ) : (
-                      <TouchableOpacity
-                        style={styles.inventoryCellarButton}
-                        onPress={withHaptic(handleOpenCellarIntake, 'selection')}
-                      >
-                        <Ionicons name="add-circle-outline" size={18} color={colors.accent} />
-                        <Text style={styles.inventoryCellarButtonText}>Track in Cellar</Text>
-                      </TouchableOpacity>
-                    )}
-                  </>
-                ) : (
-                  <TouchableOpacity
-                    style={styles.inventoryCellarButton}
-                    onPress={withHaptic(() => cellarModeGate('T11'), 'selection')}
+              {editMode ? (
+                <View style={styles.editFieldsContainer}>
+                  <Text style={styles.editFieldLabel}>Name</Text>
+                  <TextInput
+                    style={styles.editFieldInput}
+                    value={editName}
+                    onChangeText={setEditName}
+                    placeholder="Bottle name"
+                    placeholderTextColor={colors.muted}
+                    autoFocus
+                  />
+                  <Text style={styles.editFieldLabel}>Brand</Text>
+                  <TextInput
+                    style={styles.editFieldInput}
+                    value={editBrand}
+                    onChangeText={setEditBrand}
+                    placeholder="Brand (optional)"
+                    placeholderTextColor={colors.muted}
+                  />
+                  <Text style={styles.editFieldLabel}>Category</Text>
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    style={{ marginBottom: spacing(0.5) }}
                   >
-                    <Ionicons name="diamond-outline" size={18} color={colors.accent} />
-                    <Text style={styles.inventoryCellarButtonText}>Unlock Cellar Mode</Text>
+                    <View style={styles.editCategoryRow}>
+                      {(
+                        [
+                          { key: 'spirit', label: 'Spirit' },
+                          { key: 'liqueur', label: 'Liqueur' },
+                          { key: 'mixer', label: 'Mixer' },
+                          { key: 'bitters', label: 'Bitters' },
+                          { key: 'syrup', label: 'Syrup' },
+                          { key: 'garnish', label: 'Garnish' },
+                          { key: 'ingredient', label: 'Ingredient' },
+                          { key: 'other', label: 'Other' },
+                        ] as { key: BarIngredient['category']; label: string }[]
+                      ).map((opt) => (
+                        <TouchableOpacity
+                          key={opt.key}
+                          style={[
+                            styles.editCategoryChip,
+                            editCategory === opt.key && styles.editCategoryChipActive,
+                          ]}
+                          onPress={() => setEditCategory(opt.key)}
+                        >
+                          <Text
+                            style={[
+                              styles.editCategoryChipText,
+                              editCategory === opt.key && styles.editCategoryChipTextActive,
+                            ]}
+                          >
+                            {opt.label}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </ScrollView>
+                  <Text style={styles.editFieldLabel}>Bar Note</Text>
+                  <TextInput
+                    style={[styles.editFieldInput, { minHeight: 64 }]}
+                    value={itemNoteDraft}
+                    onChangeText={setItemNoteDraft}
+                    placeholder="Add a quick note"
+                    placeholderTextColor={colors.muted}
+                    multiline
+                  />
+                </View>
+              ) : (
+                <View style={styles.itemDetailsContainer}>
+                  <Text style={styles.itemDetail}>
+                    Brand: {selectedBottleDetails?.brand || selectedItem?.brand || 'Unknown'}
+                  </Text>
+                  <Text style={styles.itemDetail}>
+                    Type:{' '}
+                    {selectedBottleDetails?.type
+                      ? String(selectedBottleDetails.type).replace(/\b\w/g, (letter) =>
+                          letter.toUpperCase(),
+                        )
+                      : selectedItem
+                        ? getCategoryDisplay(selectedItem)
+                        : 'Unknown'}
+                  </Text>
+                  <Text style={styles.itemDetail}>
+                    Volume: {selectedItem?.volume ? `${selectedItem.volume}ml` : 'Not set'}
+                  </Text>
+                  {selectedBottleDetails?.abv && (
+                    <Text style={styles.itemDetail}>ABV: {selectedBottleDetails.abv}%</Text>
+                  )}
+                  {selectedBottleDetails?.region && (
+                    <Text style={styles.itemDetail}>Region: {selectedBottleDetails.region}</Text>
+                  )}
+                  {selectedItem && (
+                    <Text style={styles.itemDetail}>{getInventoryInsight(selectedItem)}</Text>
+                  )}
+                </View>
+              )}
+
+              {selectedBottleDetails ? (
+                <View style={styles.inventoryBottleBrief}>
+                  {selectedBottleDetails.flavorProfile.length ? (
+                    <>
+                      <Text style={styles.inventoryBottleBriefLabel}>Flavor Profile</Text>
+                      <View style={styles.inventoryBottleFlavorRow}>
+                        {selectedBottleDetails.flavorProfile.slice(0, 6).map((flavor) => (
+                          <View
+                            key={`${selectedItem?.id}-${flavor}`}
+                            style={styles.inventoryBottleFlavorChip}
+                          >
+                            <Text style={styles.inventoryBottleFlavorChipText}>{flavor}</Text>
+                          </View>
+                        ))}
+                      </View>
+                    </>
+                  ) : null}
+
+                  {selectedBottleDetails.tastingNotes ? (
+                    <>
+                      <Text style={styles.inventoryBottleBriefLabel}>Tasting Notes</Text>
+                      <Text style={styles.inventoryBottleBriefBody}>
+                        {selectedBottleDetails.tastingNotes}
+                      </Text>
+                    </>
+                  ) : null}
+
+                  {selectedBottleDetails.serveGuidance ? (
+                    <>
+                      <Text style={styles.inventoryBottleBriefLabel}>Serve Guidance</Text>
+                      <Text style={styles.inventoryBottleBriefBody}>
+                        {selectedBottleDetails.serveGuidance}
+                      </Text>
+                    </>
+                  ) : null}
+                </View>
+              ) : null}
+
+              <TouchableOpacity
+                style={styles.favoriteToggle}
+                onPress={withHaptic(handleToggleFavorite, 'selection')}
+              >
+                <Ionicons
+                  name={selectedItem?.isFavorite ? 'star' : 'star-outline'}
+                  size={20}
+                  color={colors.gold}
+                />
+                <Text style={styles.favoriteToggleText}>
+                  {selectedItem?.isFavorite ? 'Pinned as a bar favorite' : 'Pin as a bar favorite'}
+                </Text>
+              </TouchableOpacity>
+
+              {!editMode && (
+                <View style={styles.noteBlock}>
+                  <Text style={styles.noteLabel}>Bar Note</Text>
+                  <TextInput
+                    style={styles.noteInput}
+                    value={itemNoteDraft}
+                    onChangeText={setItemNoteDraft}
+                    placeholder="Add a quick note like low stock, guest favorite, or replace soon"
+                    placeholderTextColor={colors.muted}
+                    multiline
+                  />
+                  <TouchableOpacity
+                    style={styles.noteSaveButton}
+                    onPress={withHaptic(handleSaveItemNotes, 'selection')}
+                  >
+                    <Ionicons name="create-outline" size={16} color={colors.accent} />
+                    <Text style={styles.noteSaveButtonText}>Save note</Text>
                   </TouchableOpacity>
-                )}
+                </View>
+              )}
+
+              {selectedItem && isCellarEligible(selectedItem) ? (
+                <View style={styles.inventoryCellarCard}>
+                  <View style={styles.inventoryCellarHeader}>
+                    <View>
+                      <Text style={styles.inventoryCellarEyebrow}>
+                        {hasCellarMode ? 'PRO Collector Layer' : 'PRO Upgrade'}
+                      </Text>
+                      <Text style={styles.inventoryCellarTitle}>Cellar Mode</Text>
+                    </View>
+                    <View style={styles.inventoryCellarBadge}>
+                      <Text style={styles.inventoryCellarBadgeText}>
+                        {hasCellarMode ? 'Bottle Eligible' : 'Bottle Tracking'}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <Text style={styles.inventoryCellarBody}>
+                    {hasCellarMode
+                      ? selectedItem.cellar_notes ||
+                        (hasCellarRecord(selectedItem)
+                          ? 'This bottle is already tracked in The Cellar. Open The Cellar from the Inventory header any time to revisit it.'
+                          : 'Track purchase price, opening window, and collector notes once this bottle becomes more than everyday inventory.')
+                      : 'This bottle can be tracked in Cellar Mode with valuation, drinking window, and collector notes once you unlock PRO.'}
+                  </Text>
+
+                  {hasCellarMode ? (
+                    <>
+                      <View style={styles.inventoryCellarSummaryRow}>
+                        <View style={styles.inventoryCellarSummaryPill}>
+                          <Text style={styles.inventoryCellarSummaryLabel}>Value</Text>
+                          <Text style={styles.inventoryCellarSummaryValue}>
+                            {selectedItem.valuation_estimate
+                              ? `$${Math.round(selectedItem.valuation_estimate)}`
+                              : 'Open'}
+                          </Text>
+                        </View>
+                        <View style={styles.inventoryCellarSummaryPill}>
+                          <Text style={styles.inventoryCellarSummaryLabel}>Window</Text>
+                          <Text style={styles.inventoryCellarSummaryValue}>
+                            {selectedItem.drinking_window_end || 'Not tracked'}
+                          </Text>
+                        </View>
+                      </View>
+
+                      {hasCellarRecord(selectedItem) ? (
+                        <TouchableOpacity
+                          style={styles.inventoryCellarButton}
+                          onPress={withHaptic(
+                            () =>
+                              nav.navigate('CellarBottleDetail', {
+                                inventoryItemId: selectedItem.id,
+                              }),
+                            'selection',
+                          )}
+                        >
+                          <Ionicons
+                            name="checkmark-circle-outline"
+                            size={18}
+                            color={colors.accent}
+                          />
+                          <Text style={styles.inventoryCellarButtonText}>View in Cellar</Text>
+                        </TouchableOpacity>
+                      ) : (
+                        <TouchableOpacity
+                          style={styles.inventoryCellarButton}
+                          onPress={withHaptic(handleOpenCellarIntake, 'selection')}
+                        >
+                          <Ionicons name="add-circle-outline" size={18} color={colors.accent} />
+                          <Text style={styles.inventoryCellarButtonText}>Track in Cellar</Text>
+                        </TouchableOpacity>
+                      )}
+                    </>
+                  ) : (
+                    <TouchableOpacity
+                      style={styles.inventoryCellarButton}
+                      onPress={withHaptic(() => cellarModeGate('T11'), 'selection')}
+                    >
+                      <Ionicons name="diamond-outline" size={18} color={colors.accent} />
+                      <Text style={styles.inventoryCellarButtonText}>Unlock Cellar Mode</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              ) : null}
+
+              <View style={styles.optionsContainer}>
+                <TouchableOpacity
+                  style={styles.optionButton}
+                  onPress={withHaptic(handleAddToShoppingList)}
+                >
+                  <View style={styles.optionIconContainer}>
+                    <Ionicons name="cart" size={28} color={colors.gold} />
+                  </View>
+                  <View style={styles.optionTextContainer}>
+                    <Heading level={3} style={styles.optionTitle}>
+                      Add to Shopping List
+                    </Heading>
+                    <Text style={styles.optionDescription}>Restock this ingredient</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color={colors.muted} />
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.optionButton, styles.deleteOptionButton]}
+                  onPress={withHaptic(handleDeleteItem)}
+                >
+                  <View style={[styles.optionIconContainer, styles.deleteIconContainer]}>
+                    <Ionicons name="trash" size={28} color={colors.error || '#ff4444'} />
+                  </View>
+                  <View style={styles.optionTextContainer}>
+                    <Heading level={3} style={[styles.optionTitle, styles.deleteOptionTitle]}>
+                      Remove from Bar
+                    </Heading>
+                    <Text style={styles.optionDescription}>Delete this ingredient</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color={colors.muted} />
+                </TouchableOpacity>
               </View>
-            ) : null}
-
-            <View style={styles.optionsContainer}>
-              <TouchableOpacity
-                style={styles.optionButton}
-                onPress={withHaptic(handleAddToShoppingList)}
-              >
-                <View style={styles.optionIconContainer}>
-                  <Ionicons name="cart" size={28} color={colors.gold} />
-                </View>
-                <View style={styles.optionTextContainer}>
-                  <Heading level={3} style={styles.optionTitle}>Add to Shopping List</Heading>
-                  <Text style={styles.optionDescription}>Restock this ingredient</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={20} color={colors.muted} />
-              </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.optionButton, styles.deleteOptionButton]}
-                onPress={withHaptic(handleDeleteItem)}
+                style={styles.cancelButton}
+                onPress={withHaptic(() => setShowItemOptionsModal(false), 'selection')}
               >
-                <View style={[styles.optionIconContainer, styles.deleteIconContainer]}>
-                  <Ionicons name="trash" size={28} color={colors.error || '#ff4444'} />
-                </View>
-                <View style={styles.optionTextContainer}>
-                  <Heading level={3} style={[styles.optionTitle, styles.deleteOptionTitle]}>Remove from Bar</Heading>
-                  <Text style={styles.optionDescription}>Delete this ingredient</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={20} color={colors.muted} />
+                <Text style={styles.cancelButtonText}>Cancel</Text>
               </TouchableOpacity>
-            </View>
-
-            <TouchableOpacity
-              style={styles.cancelButton}
-              onPress={withHaptic(() => setShowItemOptionsModal(false), 'selection')}
-            >
-              <Text style={styles.cancelButtonText}>Cancel</Text>
-            </TouchableOpacity>
             </ScrollView>
           </View>
         </View>
@@ -1584,13 +1886,19 @@ export default function HomeBarScreen() {
         transparent={true}
         onRequestClose={() => setShowCellarIntakeModal(false)}
       >
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={{ flex: 1 }}
+        >
           <View style={styles.modalOverlay}>
             <View style={[styles.modalContent, styles.manualModalContent]}>
               <View style={[styles.modalHeader, styles.manualModalHeader]}>
                 <Text style={styles.modalTitle}>Track in Cellar</Text>
                 <View style={styles.manualHeaderActions}>
-                  <TouchableOpacity style={styles.headerActionGhost} onPress={() => setShowCellarIntakeModal(false)}>
+                  <TouchableOpacity
+                    style={styles.headerActionGhost}
+                    onPress={() => setShowCellarIntakeModal(false)}
+                  >
                     <Text style={styles.headerActionGhostText}>Cancel</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
@@ -1598,7 +1906,9 @@ export default function HomeBarScreen() {
                     onPress={handleSaveCellarIntake}
                     disabled={savingCellarIntake}
                   >
-                    <Text style={styles.headerActionPrimaryText}>{savingCellarIntake ? 'Saving…' : 'Track'}</Text>
+                    <Text style={styles.headerActionPrimaryText}>
+                      {savingCellarIntake ? 'Saving…' : 'Track'}
+                    </Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -1611,7 +1921,8 @@ export default function HomeBarScreen() {
               >
                 <Text style={styles.modalEyebrow}>Collector Record</Text>
                 <Text style={styles.modalSubtitle}>
-                  {selectedItem?.name}{selectedItem?.brand ? ` · ${selectedItem.brand}` : ''}
+                  {selectedItem?.name}
+                  {selectedItem?.brand ? ` · ${selectedItem.brand}` : ''}
                 </Text>
 
                 {/* Quantity */}
@@ -1621,10 +1932,18 @@ export default function HomeBarScreen() {
                     {(['full', 'half', 'low', 'empty'] as const).map((q) => (
                       <TouchableOpacity
                         key={q}
-                        style={[styles.cellarQuantityChip, cellarIntakeQuantity === q && styles.cellarQuantityChipActive]}
+                        style={[
+                          styles.cellarQuantityChip,
+                          cellarIntakeQuantity === q && styles.cellarQuantityChipActive,
+                        ]}
                         onPress={() => setCellarIntakeQuantity(q)}
                       >
-                        <Text style={[styles.cellarQuantityChipText, cellarIntakeQuantity === q && styles.cellarQuantityChipTextActive]}>
+                        <Text
+                          style={[
+                            styles.cellarQuantityChipText,
+                            cellarIntakeQuantity === q && styles.cellarQuantityChipTextActive,
+                          ]}
+                        >
                           {q.charAt(0).toUpperCase() + q.slice(1)}
                         </Text>
                       </TouchableOpacity>
@@ -1723,7 +2042,10 @@ export default function HomeBarScreen() {
           >
             <View style={styles.searchScreenHeader}>
               <Text style={styles.searchScreenTitle}>Search Your Shelf</Text>
-              <TouchableOpacity style={styles.searchHeaderCloseButton} onPress={withHaptic(closeSearchModal, 'selection')}>
+              <TouchableOpacity
+                style={styles.searchHeaderCloseButton}
+                onPress={withHaptic(closeSearchModal, 'selection')}
+              >
                 <Ionicons name="close" size={22} color={colors.text} />
               </TouchableOpacity>
             </View>
@@ -1747,7 +2069,9 @@ export default function HomeBarScreen() {
                   blurOnSubmit={false}
                 />
                 {searchModalQuery.length > 0 && (
-                  <TouchableOpacity onPress={withHaptic(() => setSearchModalQuery(''), 'selection')}>
+                  <TouchableOpacity
+                    onPress={withHaptic(() => setSearchModalQuery(''), 'selection')}
+                  >
                     <Ionicons name="close-circle" size={20} color={colors.muted} />
                   </TouchableOpacity>
                 )}
@@ -1798,7 +2122,9 @@ export default function HomeBarScreen() {
                       {hasActiveSearch ? `Results for "${searchModalQuery}"` : 'Popular & Trending'}
                     </Text>
                     {hasActiveSearch && (
-                      <TouchableOpacity onPress={withHaptic(() => setSearchModalQuery(''), 'selection')}>
+                      <TouchableOpacity
+                        onPress={withHaptic(() => setSearchModalQuery(''), 'selection')}
+                      >
                         <Text style={styles.searchClearText}>Clear</Text>
                       </TouchableOpacity>
                     )}
@@ -1825,7 +2151,9 @@ export default function HomeBarScreen() {
                         <View style={styles.searchResultInfo}>
                           <Text style={styles.searchResultName}>{item.name}</Text>
                           <Text style={styles.searchResultDetails}>
-                            {(item.volume ? `${item.volume}ml` : categoryDisplayMap[item.category] || item.category)}
+                            {item.volume
+                              ? `${item.volume}ml`
+                              : categoryDisplayMap[item.category] || item.category}
                             {item.brand ? ` • ${item.brand}` : ''}
                           </Text>
                         </View>
@@ -1850,8 +2178,8 @@ export default function HomeBarScreen() {
 
       <FeedbackPromptModal
         featureKey="shopping_cart"
-        title="Shopping cart — coming soon"
-        body="We're building a smart cart that lets you add missing ingredients directly from any recipe and order them through the app — no separate store trips needed. Would you use this?"
+        title="Shopping cart feedback"
+        body="Would you use a smart cart that adds missing ingredients from recipes and helps plan your next bottle run?"
         visible={cartFeedbackVisible}
         onDismiss={() => setCartFeedbackVisible(false)}
       />
@@ -1863,9 +2191,16 @@ export default function HomeBarScreen() {
         animationType="fade"
         onRequestClose={() => setLogPriceItem(null)}
       >
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={{ flex: 1 }}
+        >
           <View style={styles.pricePromptOverlay}>
-            <TouchableOpacity style={StyleSheet.absoluteFillObject} activeOpacity={1} onPress={() => setLogPriceItem(null)} />
+            <TouchableOpacity
+              style={StyleSheet.absoluteFillObject}
+              activeOpacity={1}
+              onPress={() => setLogPriceItem(null)}
+            />
             <View style={styles.pricePromptCard}>
               <Text style={styles.pricePromptTitle}>Log a price</Text>
               <Text style={styles.pricePromptSubtitle}>{logPriceItem?.name}</Text>
@@ -1886,7 +2221,10 @@ export default function HomeBarScreen() {
                 placeholderTextColor={colors.muted}
               />
               <View style={styles.pricePromptActions}>
-                <TouchableOpacity style={styles.pricePromptSkip} onPress={() => setLogPriceItem(null)}>
+                <TouchableOpacity
+                  style={styles.pricePromptSkip}
+                  onPress={() => setLogPriceItem(null)}
+                >
                   <Text style={styles.pricePromptSkipText}>Cancel</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -1894,10 +2232,19 @@ export default function HomeBarScreen() {
                   onPress={() => {
                     const price = parseFloat(logPriceValue.replace(/[^0-9.]/g, ''));
                     if (!isNaN(price) && price > 0 && logPriceLocation.trim() && logPriceItem) {
+                      // Phase 1.2 fix: was hardcoded 'USD' regardless of locale.
                       addPriceEntry(logPriceItem.bottleId, {
                         price,
-                        currency: 'USD',
+                        currency: userCurrency,
                         locationLabel: logPriceLocation.trim(),
+                      });
+                      logSpottedPrice({
+                        bottleId: logPriceItem.bottleId,
+                        price,
+                        currency: userCurrency,
+                        locationLabel: logPriceLocation.trim(),
+                        capturePoint: 'home_bar',
+                        userId: user?.id,
                       });
                     }
                     setLogPriceItem(null);
@@ -2031,7 +2378,7 @@ const styles = StyleSheet.create({
   },
   categoryFilters: {
     marginTop: spacing(2.5),
-    marginBottom: spacing(0.5),
+    marginBottom: spacing(2),
   },
   categoryFiltersContent: {
     paddingHorizontal: spacing(3),
@@ -3236,11 +3583,21 @@ const styles = StyleSheet.create({
     color: colors.accent,
     fontWeight: '700',
   },
+  savedActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(2),
+    marginTop: spacing(0.75),
+  },
   savedLogPriceButton: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing(0.5),
-    marginTop: spacing(0.75),
+  },
+  savedBuyButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(0.5),
   },
   savedLogPriceText: {
     fontSize: 11,

@@ -5,7 +5,15 @@
  */
 
 import React, { useEffect, useRef, useCallback } from 'react';
-import { View, Text, StyleSheet, Modal, Animated, Dimensions, TouchableOpacity } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Modal,
+  Animated,
+  Dimensions,
+  TouchableOpacity,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, radii, serif } from '../theme/tokens';
 import { Achievement } from '../services/achievementService';
@@ -89,7 +97,12 @@ export default function AchievementUnlockModal({
       Animated.sequence([
         Animated.timing(overlayOpacity, { toValue: 1, duration: 220, useNativeDriver: true }),
         Animated.parallel([
-          Animated.spring(cardScale, { toValue: 1, tension: 52, friction: 8, useNativeDriver: true }),
+          Animated.spring(cardScale, {
+            toValue: 1,
+            tension: 52,
+            friction: 8,
+            useNativeDriver: true,
+          }),
           Animated.timing(cardOpacity, { toValue: 1, duration: 260, useNativeDriver: true }),
           Animated.timing(shimmerOpacity, { toValue: 1, duration: 400, useNativeDriver: true }),
         ]),
@@ -100,7 +113,7 @@ export default function AchievementUnlockModal({
           Animated.sequence([
             Animated.timing(glowOpacity, { toValue: 1, duration: 900, useNativeDriver: true }),
             Animated.timing(glowOpacity, { toValue: 0.45, duration: 900, useNativeDriver: true }),
-          ])
+          ]),
         ).start();
       });
 
@@ -118,7 +131,8 @@ export default function AchievementUnlockModal({
 
   if (!achievement) return null;
 
-  const rarity = RARITY_CONFIG[achievement.rarity as keyof typeof RARITY_CONFIG] ?? RARITY_CONFIG.common;
+  const rarity =
+    RARITY_CONFIG[achievement.rarity as keyof typeof RARITY_CONFIG] ?? RARITY_CONFIG.common;
 
   return (
     <Modal visible={visible} transparent animationType="none" onRequestClose={handleClose}>
@@ -134,17 +148,19 @@ export default function AchievementUnlockModal({
         >
           {/* Rarity shimmer at top */}
           <Animated.View style={[styles.topShimmer, { opacity: shimmerOpacity }]}>
-            <LinearGradient
-              colors={rarity.shimmer}
-              style={StyleSheet.absoluteFill}
-            />
+            <LinearGradient colors={rarity.shimmer} style={StyleSheet.absoluteFill} />
           </Animated.View>
 
           {/* Icon */}
           <View style={styles.iconSection}>
-            <Animated.View style={[styles.glowHalo, { backgroundColor: rarity.glow, opacity: glowOpacity }]} />
             <Animated.View
-              style={[styles.iconRing, { borderColor: rarity.border, transform: [{ scale: iconScale }] }]}
+              style={[styles.glowHalo, { backgroundColor: rarity.glow, opacity: glowOpacity }]}
+            />
+            <Animated.View
+              style={[
+                styles.iconRing,
+                { borderColor: rarity.border, transform: [{ scale: iconScale }] },
+              ]}
             >
               <View style={[styles.iconInner, { backgroundColor: rarity.bg }]}>
                 <Ionicons name={achievement.icon as any} size={46} color={rarity.color} />
@@ -155,7 +171,7 @@ export default function AchievementUnlockModal({
           {/* Eyebrow */}
           <View style={styles.eyebrow}>
             <Ionicons name="trophy" size={12} color={colors.accent} />
-            <Text style={styles.eyebrowText}>ACHIEVEMENT UNLOCKED</Text>
+            <Text style={styles.eyebrowText}>MILESTONE REACHED</Text>
           </View>
 
           {/* Title */}
@@ -169,14 +185,19 @@ export default function AchievementUnlockModal({
 
           {/* Rarity + XP */}
           <View style={styles.metaRow}>
-            <View style={[styles.rarityPill, { backgroundColor: rarity.bg, borderColor: rarity.border }]}>
+            <View
+              style={[
+                styles.rarityPill,
+                { backgroundColor: rarity.bg, borderColor: rarity.border },
+              ]}
+            >
               <Text style={[styles.rarityText, { color: rarity.color }]}>
                 {rarity.label.toUpperCase()}
               </Text>
             </View>
             <View style={styles.xpPill}>
               <Ionicons name="star" size={13} color={colors.accent} />
-              <Text style={styles.xpText}>+{achievement.xpReward} XP</Text>
+              <Text style={styles.xpText}>LEVEL {achievement.level}</Text>
             </View>
           </View>
 
@@ -187,13 +208,14 @@ export default function AchievementUnlockModal({
         </Animated.View>
 
         {/* Amber spark particles */}
-        {visible && [...Array(8)].map((_, i) => (
-          <SparkParticle
-            key={i}
-            index={i}
-            color={i % 3 === 0 ? colors.accent : i % 3 === 1 ? '#F2E5D5' : rarity.color}
-          />
-        ))}
+        {visible &&
+          [...Array(8)].map((_, i) => (
+            <SparkParticle
+              key={i}
+              index={i}
+              color={i % 3 === 0 ? colors.accent : i % 3 === 1 ? '#F2E5D5' : rarity.color}
+            />
+          ))}
       </View>
     </Modal>
   );
@@ -217,8 +239,16 @@ function SparkParticle({ index, color }: { index: number; color: string }) {
         Animated.spring(scale, { toValue: 1, tension: 90, friction: 5, useNativeDriver: true }),
       ]),
       Animated.parallel([
-        Animated.timing(y, { toValue: -Math.sin(angle) * dist, duration: 550, useNativeDriver: true }),
-        Animated.timing(x, { toValue: Math.cos(angle) * dist, duration: 550, useNativeDriver: true }),
+        Animated.timing(y, {
+          toValue: -Math.sin(angle) * dist,
+          duration: 550,
+          useNativeDriver: true,
+        }),
+        Animated.timing(x, {
+          toValue: Math.cos(angle) * dist,
+          duration: 550,
+          useNativeDriver: true,
+        }),
         Animated.timing(opacity, { toValue: 0, duration: 550, useNativeDriver: true }),
       ]),
     ]).start();

@@ -39,10 +39,9 @@ import { isCocktailAccessible } from '../config/tierAccess';
 import { useUserTier } from '../store/useUserTier';
 import { useXPSystem } from '../store/useXPSystem';
 import { useEngagement } from '../store/useEngagement';
-import {
-  generateRecipeFromInventory,
-  checkRateLimit,
-} from '../services/aiRecipeGenerationService';
+import { useFeatureAccess } from '../hooks/useFeatureAccess';
+import { getSpiritSubstitutions } from '../utils/spiritSubstitutions';
+import { generateRecipeFromInventory, checkRateLimit } from '../services/aiRecipeGenerationService';
 import { supabase } from '../lib/supabase';
 import { FeedbackPromptModal } from '../components/FeedbackPromptModal';
 // BartenderAssistant removed in favor of full screen AI Chat
@@ -58,6 +57,13 @@ export default function WhatCanIMakeScreen() {
   const { tier } = useUserTier();
   const { isCocktailUnlockedWithXP } = useXPSystem();
   const { isRecipeUnlocked: isRecipeUnlockedWithEngagement } = useEngagement();
+  // Phase 2.2: smart substitution swap ideas on almost-makeable cards —
+  // gated (KŌOPE+), unlike CocktailDetailScreen's existing free version,
+  // per the founder's call that this inventory-planning screen is the
+  // "plan your whole bar" upsell surface, not the reactive single-recipe
+  // swap already shipped free elsewhere.
+  const { hasAccess: hasSmartSubstitutions, gateWithTrigger } =
+    useFeatureAccess('smart_substitutions');
 
   const [chatFeedbackVisible, setChatFeedbackVisible] = useState(false);
   const [cartFeedbackVisible, setCartFeedbackVisible] = useState(false);
@@ -69,7 +75,9 @@ export default function WhatCanIMakeScreen() {
   const [ingredientSearch, setIngredientSearch] = useState('');
 
   // AI Recipe Generation State
-  const [selectedDifficulty, setSelectedDifficulty] = useState<'beginner' | 'intermediate' | 'expert' | null>(null);
+  const [selectedDifficulty, setSelectedDifficulty] = useState<
+    'beginner' | 'intermediate' | 'expert' | null
+  >(null);
   const [generatingRecipe, setGeneratingRecipe] = useState(false);
   const [aiRecipes, setAiRecipes] = useState<CocktailWithMatch[]>([]);
 
@@ -81,9 +89,7 @@ export default function WhatCanIMakeScreen() {
   const matchCocktails = useCallback(async () => {
     try {
       // Filter inventory to only selected items
-      const filteredInventory = inventory.filter(item =>
-        selectedItems.has(item.item_name)
-      );
+      const filteredInventory = inventory.filter((item) => selectedItems.has(item.item_name));
 
       // Load all recipes from RecipesRepository (same as RecipesScreen)
       const recipesData = await RecipesRepository.getInitialRecipes(150);
@@ -93,10 +99,11 @@ export default function WhatCanIMakeScreen() {
 
         if (tier === 'FREE') {
           // Free users: free 9 classics + anything unlocked via XP or engagement, sorted by match
-          const accessibleRecipes = recipesData.filter(cocktail =>
-            isCocktailAccessible(cocktail.id, tier) ||
-            isCocktailUnlockedWithXP(cocktail.id) ||
-            isRecipeUnlockedWithEngagement(cocktail.id)
+          const accessibleRecipes = recipesData.filter(
+            (cocktail) =>
+              isCocktailAccessible(cocktail.id, tier) ||
+              isCocktailUnlockedWithXP(cocktail.id) ||
+              isRecipeUnlockedWithEngagement(cocktail.id),
           );
           matched = sortByMatch(accessibleRecipes as any[], filteredInventory);
         } else {
@@ -135,7 +142,7 @@ export default function WhatCanIMakeScreen() {
       setInventory(userInventory);
 
       // Select all items by default
-      const allItemNames = new Set(userInventory.map(item => item.item_name));
+      const allItemNames = new Set(userInventory.map((item) => item.item_name));
       setSelectedItems(allItemNames);
 
       // Load all recipes from RecipesRepository (same as RecipesScreen)
@@ -147,8 +154,8 @@ export default function WhatCanIMakeScreen() {
         if (tier === 'FREE') {
           // Free users: show all 9 FREE_TIER_COCKTAILS sorted by match percentage
           // This ensures they can always see which classics they're closest to making
-          const accessibleRecipes = recipesData.filter(cocktail =>
-            isCocktailAccessible(cocktail.id, tier)
+          const accessibleRecipes = recipesData.filter((cocktail) =>
+            isCocktailAccessible(cocktail.id, tier),
           );
           matched = sortByMatch(accessibleRecipes as any[], userInventory);
         } else {
@@ -176,7 +183,7 @@ export default function WhatCanIMakeScreen() {
   };
 
   const selectAll = () => {
-    const allItemNames = new Set(inventory.map(item => item.item_name));
+    const allItemNames = new Set(inventory.map((item) => item.item_name));
     setSelectedItems(allItemNames);
   };
 
@@ -211,7 +218,7 @@ export default function WhatCanIMakeScreen() {
                 displayCloseButton: true,
               }),
           },
-        ]
+        ],
       );
       return;
     }
@@ -220,9 +227,7 @@ export default function WhatCanIMakeScreen() {
 
     try {
       // Get filtered inventory based on selection
-      const filteredInventory = inventory.filter(item =>
-        selectedItems.has(item.item_name)
-      );
+      const filteredInventory = inventory.filter((item) => selectedItems.has(item.item_name));
 
       // Use defaults for spirit, method, and flavor since user only chose difficulty
       const recipe = await generateRecipeFromInventory({
@@ -240,7 +245,7 @@ export default function WhatCanIMakeScreen() {
         ...recipe,
         match: {
           matchPercentage: 100, // AI recipe uses user's inventory
-          matchedIngredients: filteredInventory.map(i => i.item_name),
+          matchedIngredients: filteredInventory.map((i) => i.item_name),
           missingIngredients: [],
           canMake: true,
           almostCanMake: true,
@@ -250,17 +255,15 @@ export default function WhatCanIMakeScreen() {
       // Add to AI recipes list at the top
       setAiRecipes([recipeWithMatch, ...aiRecipes]);
 
-      Alert.alert(
-        'Recipe Generated! ✨',
-        `"${recipe.name}" has been added to your list!`,
-        [{ text: 'Awesome!' }]
-      );
+      Alert.alert('Recipe Generated! ✨', `"${recipe.name}" has been added to your list!`, [
+        { text: 'Awesome!' },
+      ]);
     } catch (error: any) {
       console.error('Error generating recipe:', error);
       Alert.alert(
         'Generation Failed',
         error.message || 'Failed to generate recipe. Please try again.',
-        [{ text: 'OK' }]
+        [{ text: 'OK' }],
       );
     } finally {
       setGeneratingRecipe(false);
@@ -271,41 +274,37 @@ export default function WhatCanIMakeScreen() {
    * Delete an AI-generated recipe
    */
   const handleDeleteAIRecipe = async (recipeId: string, recipeName: string) => {
-    Alert.alert(
-      'Delete Recipe?',
-      `Are you sure you want to delete "${recipeName}"?`,
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              // Remove from local state
-              setAiRecipes(aiRecipes.filter(recipe => recipe.id !== recipeId));
+    Alert.alert('Delete Recipe?', `Are you sure you want to delete "${recipeName}"?`, [
+      {
+        text: 'Cancel',
+        style: 'cancel',
+      },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            // Remove from local state
+            setAiRecipes(aiRecipes.filter((recipe) => recipe.id !== recipeId));
 
-              // Delete from Supabase
-              const { error } = await supabase
-                .from('cocktails')
-                .delete()
-                .eq('id', recipeId)
-                .eq('is_ai_generated', true)
-                .eq('generated_by_user_id', user?.id);
+            // Delete from Supabase
+            const { error } = await supabase
+              .from('cocktails')
+              .delete()
+              .eq('id', recipeId)
+              .eq('is_ai_generated', true)
+              .eq('generated_by_user_id', user?.id);
 
-              if (error) {
-                console.error('Error deleting AI recipe:', error);
-                // Still removed from UI, so just log the error
-              }
-            } catch (error) {
+            if (error) {
               console.error('Error deleting AI recipe:', error);
+              // Still removed from UI, so just log the error
             }
-          },
+          } catch (error) {
+            console.error('Error deleting AI recipe:', error);
+          }
         },
-      ]
-    );
+      },
+    ]);
   };
 
   const renderCocktailCard = ({ item, index }: { item: CocktailWithMatch; index?: number }) => {
@@ -323,6 +322,15 @@ export default function WhatCanIMakeScreen() {
       showCartButton: true,
       source: 'home_bar',
     });
+
+    // Phase 2.2: swap suggestion for the first missing ingredient on an
+    // almost-makeable card. Compact by design — just the top pick, not
+    // the full "1 primary + 2 secondary" blueprint list CocktailDetail's
+    // modal shows; there isn't room for that in a 2-column grid card.
+    const primaryMissing = item.match?.missingIngredients?.[0];
+    const topSubstitute = primaryMissing
+      ? getSpiritSubstitutions(primaryMissing)?.substitutes[0]
+      : undefined;
 
     return (
       <View style={{ width: (width - spacing(2) * 2 - GUTTER) / 2, marginBottom: spacing(2) }}>
@@ -342,6 +350,29 @@ export default function WhatCanIMakeScreen() {
             </TouchableOpacity>
           </>
         )}
+        {topSubstitute &&
+          (hasSmartSubstitutions ? (
+            <View style={styles.substitutionRow}>
+              <Ionicons name="swap-horizontal" size={12} color={colors.accent} />
+              <Text style={styles.substitutionRowText} numberOfLines={1}>
+                Try {topSubstitute.name} instead
+              </Text>
+            </View>
+          ) : (
+            <TouchableOpacity
+              style={styles.substitutionRow}
+              onPress={() => gateWithTrigger('T_SUBSTITUTIONS')}
+              hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+            >
+              <Ionicons name="lock-closed" size={12} color={colors.subtext} />
+              <Text
+                style={[styles.substitutionRowText, { color: colors.subtext }]}
+                numberOfLines={1}
+              >
+                Swap ideas — KŌOPE+
+              </Text>
+            </TouchableOpacity>
+          ))}
       </View>
     );
   };
@@ -362,7 +393,9 @@ export default function WhatCanIMakeScreen() {
       <SafeAreaView style={styles.container}>
         <View style={styles.emptyState}>
           <Ionicons name="person-outline" size={52} color={colors.subtext} />
-          <Heading level={2} style={styles.emptyTitle}>Sign In Required</Heading>
+          <Heading level={2} style={styles.emptyTitle}>
+            Sign In Required
+          </Heading>
           <Text style={styles.emptyDescription}>
             Sign in to see what cocktails you can make with your inventory
           </Text>
@@ -382,7 +415,9 @@ export default function WhatCanIMakeScreen() {
       <SafeAreaView style={styles.container}>
         <View style={styles.emptyState}>
           <Ionicons name="scan-outline" size={52} color={colors.subtext} />
-          <Heading level={2} style={styles.emptyTitle}>No Inventory Yet</Heading>
+          <Heading level={2} style={styles.emptyTitle}>
+            No Inventory Yet
+          </Heading>
           <Text style={styles.emptyDescription}>
             Start scanning bottles and ingredients to see what cocktails you can make!
           </Text>
@@ -398,8 +433,8 @@ export default function WhatCanIMakeScreen() {
     );
   }
 
-  const canMake = cocktails.filter(c => c.match.canMake);
-  const almostCanMake = cocktails.filter(c => c.match.almostCanMake && !c.match.canMake);
+  const canMake = cocktails.filter((c) => c.match.canMake);
+  const almostCanMake = cocktails.filter((c) => c.match.almostCanMake && !c.match.canMake);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -430,7 +465,9 @@ export default function WhatCanIMakeScreen() {
       {showFilters && (
         <View style={styles.filterPanel}>
           <View style={styles.filterHeader}>
-            <Heading level={3} style={styles.filterTitle}>Select Ingredients</Heading>
+            <Heading level={3} style={styles.filterTitle}>
+              Select Ingredients
+            </Heading>
             <View style={styles.filterActions}>
               <TouchableOpacity onPress={selectAll}>
                 <Text style={styles.filterAction}>Select All</Text>
@@ -461,16 +498,12 @@ export default function WhatCanIMakeScreen() {
             )}
           </View>
 
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.filterScroll}
-          >
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll}>
             {inventory
-              .filter(item =>
-                item.item_name.toLowerCase().includes(ingredientSearch.toLowerCase())
+              .filter((item) =>
+                item.item_name.toLowerCase().includes(ingredientSearch.toLowerCase()),
               )
-              .map(item => (
+              .map((item) => (
                 <TouchableOpacity
                   key={item.id}
                   style={[
@@ -480,7 +513,9 @@ export default function WhatCanIMakeScreen() {
                   onPress={() => toggleItem(item.item_name)}
                 >
                   <Ionicons
-                    name={selectedItems.has(item.item_name) ? 'checkmark-circle' : 'ellipse-outline'}
+                    name={
+                      selectedItems.has(item.item_name) ? 'checkmark-circle' : 'ellipse-outline'
+                    }
                     size={16}
                     color={selectedItems.has(item.item_name) ? colors.gold : colors.subtext}
                   />
@@ -504,9 +539,7 @@ export default function WhatCanIMakeScreen() {
           <Ionicons name="sparkles" size={14} color={colors.gold} />
           <Text style={styles.aiSectionTitle}>Generate Custom Recipe</Text>
         </View>
-        <Text style={styles.aiSectionSubtitle}>
-          Let AI build a recipe from what's in your bar
-        </Text>
+        <Text style={styles.aiSectionSubtitle}>Let AI build a recipe from what's in your bar</Text>
 
         {/* Difficulty Selector */}
         <ScrollView
@@ -515,7 +548,7 @@ export default function WhatCanIMakeScreen() {
           style={styles.difficultyScroll}
           contentContainerStyle={styles.difficultyScrollContent}
         >
-          {(['beginner', 'intermediate', 'expert'] as const).map(difficulty => (
+          {(['beginner', 'intermediate', 'expert'] as const).map((difficulty) => (
             <TouchableOpacity
               key={difficulty}
               style={[
@@ -572,20 +605,21 @@ export default function WhatCanIMakeScreen() {
 
       {/* Cocktail List */}
       <FlatList
-        data={[...aiRecipes, ...cocktails].filter(cocktail => {
+        data={[...aiRecipes, ...cocktails].filter((cocktail) => {
           // If there's a search term, filter cocktails by ingredient name
           if (ingredientSearch.trim().length > 0) {
             const searchLower = ingredientSearch.toLowerCase();
             // Check if any ingredient in the cocktail matches the search
-            const ingredients = typeof cocktail.ingredients === 'string'
-              ? cocktail.ingredients.toLowerCase()
-              : '';
-            return ingredients.includes(searchLower) || cocktail.name.toLowerCase().includes(searchLower);
+            const ingredients =
+              typeof cocktail.ingredients === 'string' ? cocktail.ingredients.toLowerCase() : '';
+            return (
+              ingredients.includes(searchLower) || cocktail.name.toLowerCase().includes(searchLower)
+            );
           }
           return true;
         })}
         renderItem={renderCocktailCard}
-        keyExtractor={item => item.id}
+        keyExtractor={(item) => item.id}
         numColumns={2}
         columnWrapperStyle={{ gap: GUTTER }}
         contentContainerStyle={styles.listContent}
@@ -593,7 +627,9 @@ export default function WhatCanIMakeScreen() {
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <Ionicons name="wine-outline" size={60} color={colors.subtext} />
-            <Heading level={2} style={styles.emptyTitle}>No matches found</Heading>
+            <Heading level={2} style={styles.emptyTitle}>
+              No matches found
+            </Heading>
             <Text style={styles.emptyDescription}>
               {ingredientSearch.trim().length > 0
                 ? `No cocktails found with "${ingredientSearch}"`
@@ -605,8 +641,8 @@ export default function WhatCanIMakeScreen() {
 
       <FeedbackPromptModal
         featureKey="shopping_cart_recipe"
-        title="Shopping cart — coming soon"
-        body="We're building a smart cart that lets you add missing ingredients directly from any recipe and order them through the app — no separate store trips needed. Would you use this?"
+        title="Shopping cart feedback"
+        body="Would you use a smart cart that adds missing ingredients from recipes and helps plan your next bottle run?"
         visible={cartFeedbackVisible}
         onDismiss={() => setCartFeedbackVisible(false)}
       />
@@ -621,8 +657,8 @@ export default function WhatCanIMakeScreen() {
 
       <FeedbackPromptModal
         featureKey="ai_bartender"
-        title="Bartender Hotline — coming soon"
-        body="A direct line to a bartender who knows your inventory. Ask technique questions, get recipe ideas, and troubleshoot drinks in real time. Would you use this?"
+        title="Bartender Hotline feedback"
+        body="Would you use a direct line to an AI bartender that knows your inventory and helps troubleshoot recipes in real time?"
         visible={chatFeedbackVisible}
         onDismiss={() => setChatFeedbackVisible(false)}
       />
@@ -1170,6 +1206,19 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
     color: colors.white,
+  },
+  substitutionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(0.5),
+    marginTop: spacing(0.5),
+    paddingHorizontal: spacing(0.5),
+  },
+  substitutionRowText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.accent,
+    flexShrink: 1,
   },
   deleteButton: {
     position: 'absolute',

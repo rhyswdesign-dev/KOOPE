@@ -12,22 +12,39 @@
  * 3. Add MIXPANEL_TOKEN to your environment configuration
  */
 
+import React from 'react';
 import { Mixpanel } from 'mixpanel-react-native';
 import { log } from './logger';
 
 /**
  * Mixpanel instance
- * Initialize once at app startup
+ * Initialize once at app startup — but ONLY after analytics consent is
+ * confirmed. Calling Mixpanel.init() is itself a tracking action (it
+ * generates/reads a device ID), so it must never run before consent is
+ * known, not just before the first tracked event.
  */
 let mixpanel: Mixpanel | null = null;
 
 /**
- * Initialize analytics SDK
- * Call this once in App.tsx before rendering
- *
- * @param token - Mixpanel project token
+ * Consent-gated startup state.
+ * - 'unknown': no consent decision stored yet (first run, prompt not
+ *   yet answered). Events are buffered, NOT sent, until this resolves.
+ * - 'granted': Mixpanel is (or will be) initialized; queued events flush.
+ * - 'declined': Mixpanel is never initialized; queued events are dropped.
  */
-export async function initAnalytics(token: string): Promise<void> {
+type ConsentState = 'unknown' | 'granted' | 'declined';
+let consentState: ConsentState = 'unknown';
+let pendingToken: string | null = null;
+
+const MAX_QUEUED_EVENTS = 100;
+let eventQueue: { name: string; props?: Record<string, any> }[] = [];
+
+/**
+ * Raw Mixpanel init — never call directly from app code. Only reached
+ * via initAnalyticsWithConsent (consent already confirmed granted) or
+ * notifyAnalyticsConsent (consent just changed to granted).
+ */
+async function initMixpanelSdk(token: string): Promise<void> {
   try {
     mixpanel = await Mixpanel.init(token);
     log.info('Analytics', 'Mixpanel initialized successfully');
@@ -37,7 +54,89 @@ export async function initAnalytics(token: string): Promise<void> {
 }
 
 /**
- * Track an event with optional properties
+ * Consent-aware analytics bootstrap. Call this once in App.tsx at
+ * startup instead of initializing Mixpanel directly.
+ *
+ * Checks the stored consent choice (via consentStore, the same store
+ * ConsentCenterScreen and useConsent read/write):
+ *  - No choice stored yet -> stays 'unknown'; every trackEvent() call
+ *    until the user answers is buffered in memory, never sent.
+ *  - Choice stored + analytics granted -> initializes Mixpanel now.
+ *  - Choice stored + analytics declined -> never initializes Mixpanel;
+ *    buffered events (if any) are dropped.
+ *
+ * @param token - Mixpanel project token
+ */
+export async function initAnalyticsWithConsent(token: string): Promise<void> {
+  pendingToken = token;
+  try {
+    // Local import to avoid a hard circular import at module-load time
+    // (consentStore also calls back into this file on save).
+    const { hasStoredConsentChoices, getConsentChoices } = await import('./consentStore');
+    const hasChoice = await hasStoredConsentChoices();
+
+    if (!hasChoice) {
+      consentState = 'unknown';
+      log.info('Analytics', 'No consent decision stored yet — Mixpanel init deferred');
+      return;
+    }
+
+    const choices = await getConsentChoices();
+    if (choices.analytics) {
+      consentState = 'granted';
+      await initMixpanelSdk(token);
+    } else {
+      consentState = 'declined';
+      log.info('Analytics', 'Analytics consent previously declined — Mixpanel not initialized');
+    }
+  } catch (error) {
+    log.error('Analytics', 'Failed to resolve consent state at startup', error);
+    // Fail closed: stay 'unknown' rather than silently tracking.
+  }
+}
+
+/**
+ * Called by consentStore.saveConsentChoices() whenever the user's
+ * analytics consent choice changes (initial answer, or a later change
+ * via ConsentCenterScreen). This is the single notification point for
+ * every consent-saving code path (updateConsent / saveAllConsent /
+ * acceptAllConsent / rejectAllConsent all funnel through it).
+ */
+export function notifyAnalyticsConsent(granted: boolean): void {
+  if (granted) {
+    consentState = 'granted';
+    if (!mixpanel && pendingToken) {
+      initMixpanelSdk(pendingToken).then(() => flushQueue());
+    } else {
+      flushQueue();
+    }
+  } else {
+    consentState = 'declined';
+    // Drop anything buffered pre-consent — never send it.
+    eventQueue = [];
+    log.info('Analytics', 'Analytics consent declined — buffered events dropped');
+  }
+}
+
+function flushQueue(): void {
+  if (!mixpanel || eventQueue.length === 0) return;
+  const queued = eventQueue;
+  eventQueue = [];
+  for (const { name, props } of queued) {
+    try {
+      mixpanel.track(name, props);
+    } catch (error) {
+      log.error('Analytics', 'Error flushing queued event', error, { name });
+    }
+  }
+  log.info('Analytics', 'Flushed queued pre-consent events', { count: queued.length });
+}
+
+/**
+ * Track an event with optional properties. Consent-gated:
+ *  - consent unknown -> buffered (capped), not sent, until resolved.
+ *  - consent declined -> dropped immediately, never sent.
+ *  - consent granted -> sent to Mixpanel now.
  *
  * @example
  * ```typescript
@@ -45,17 +144,47 @@ export async function initAnalytics(token: string): Promise<void> {
  * ```
  */
 export function trackEvent(name: string, props?: Record<string, any>): void {
-  try {
-    if (!mixpanel) {
-      log.warn('Analytics', 'Mixpanel not initialized, event not tracked', { name });
-      return;
-    }
+  if (consentState === 'declined') {
+    return;
+  }
 
+  if (consentState === 'unknown' || !mixpanel) {
+    if (consentState === 'unknown') {
+      if (eventQueue.length >= MAX_QUEUED_EVENTS) {
+        eventQueue.shift();
+      }
+      eventQueue.push({ name, props });
+    } else {
+      log.warn('Analytics', 'Mixpanel not initialized, event not tracked', { name });
+    }
+    return;
+  }
+
+  try {
     mixpanel.track(name, props);
     log.info('Analytics', 'Event tracked', { name, props });
   } catch (error) {
     log.error('Analytics', 'Error tracking event', error, { name });
   }
+}
+
+/**
+ * Screen view convenience wrapper (kept for parity with the old
+ * services/analytics.ts facade that this file replaces).
+ */
+export function trackScreen(screenName: string, properties?: Record<string, any>): void {
+  trackEvent('Screen Viewed', { screen_name: screenName, ...properties });
+}
+
+/**
+ * Screen-view tracking hook (replaces the old useScreenTracking from
+ * the deleted src/context/AnalyticsContext.tsx — same call signature).
+ */
+export function useScreenTracking(screenName: string, properties?: Record<string, any>): void {
+  React.useEffect(() => {
+    trackScreen(screenName, properties);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [screenName]);
 }
 
 /**
@@ -164,8 +293,18 @@ export const ANALYTICS_EVENTS = {
   // Scanning
   SCAN_ATTEMPT: 'Scan Attempt',
   SCAN_SUCCESS: 'Scan Success',
+  SCAN_RESOLVED: 'Scan Resolved', // Phase 1.3 telemetry: fires on every successful
+  // scan resolution (photo or barcode) with the full per-layer timing breakdown.
+  // Distinct from SCAN_SUCCESS (BottleDetailScreen, anchors the 1.2 value-line
+  // acceptance ratio) — do not repurpose that event for latency.
   SCAN_FAILED: 'Scan Failed',
   SCAN_LIMIT_REACHED: 'Scan Limit Reached',
+
+  // Value-on-scan (Phase 1.2). Acceptance metric "≥60% of scans show a
+  // value line" = VALUE_LINE_SHOWN / SCAN_SUCCESS as a Mixpanel ratio.
+  VALUE_LINE_SHOWN: 'Value Line Shown',
+  SPOTTED_PRICE_LOGGED: 'Spotted Price Logged',
+  VALUE_VERDICT_SHOWN: 'Value Verdict Shown',
 
   // Inventory
   INVENTORY_ITEM_ADDED: 'Inventory Item Added',
@@ -175,9 +314,12 @@ export const ANALYTICS_EVENTS = {
   // Lessons
   LESSON_STARTED: 'Lesson Started',
   LESSON_COMPLETED: 'Lesson Completed',
+  LESSON_ITEM_ATTEMPTED: 'Lesson Item Attempted',
+  XP_AWARDED: 'XP Awarded',
 
   // Vault
   VAULT_ITEM_OPENED: 'Vault Item Opened',
+  VAULT_ITEM_UNLOCKED: 'Vault Item Unlocked',
 
   // Recipe Saves
   RECIPE_SAVED: 'Recipe Saved',
@@ -237,6 +379,14 @@ export const ANALYTICS_EVENTS = {
 export const ANALYTICS_PROPS = {
   // General
   SOURCE: 'source', // Where the event originated (e.g., 'home_bar', 'cocktail_detail', 'lessons')
+  // Phase 2.4: which PAYWALL_TRIGGERS entry (T1/T6/T15/T_ALMOST_MAKEABLE/
+  // T_SUBSTITUTIONS/etc.) caused this paywall to show, if any — undefined
+  // for a generic, un-bannered paywall visit. Without this on every event
+  // in the view->CTA->purchase funnel, "conversion by trigger" can't be
+  // computed at all; it was defined per-trigger in paywallTriggers.ts
+  // (the `analyticsEvent` field) but never actually attached to a
+  // trackEvent call anywhere.
+  TRIGGER_ID: 'trigger_id',
 
   // Onboarding
   STEP_NUMBER: 'step_number',
@@ -248,6 +398,11 @@ export const ANALYTICS_PROPS = {
   PRODUCT_ID: 'product_id',
   PRICE: 'price',
   CURRENCY: 'currency',
+
+  // Value-on-scan (Phase 1.2)
+  VALUE_SOURCE: 'value_source',
+  VERDICT: 'verdict',
+  CAPTURE_POINT: 'capture_point',
   PREVIOUS_TIER: 'previous_tier',
   NEW_TIER: 'new_tier',
 
@@ -261,6 +416,18 @@ export const ANALYTICS_PROPS = {
   ITEM_NAME: 'item_name',
   DETECTION_CONFIDENCE: 'detection_confidence',
   MONTHLY_SCAN_COUNT: 'monthly_scan_count',
+
+  // Scan telemetry (Phase 1.3) — p50/p95 time-to-answer + success rate
+  SCAN_PATH: 'scan_path', // 'photo' | 'barcode'
+  FAILURE_REASON: 'failure_reason',
+  RESOLUTION_SOURCE: 'resolution_source', // 'catalog' | 'cache' | 'claude-vision' | 'barcode'
+  CONVERT_MS: 'convert_ms', // client-side image crop/downscale/base64
+  NETWORK_MS: 'network_ms', // client-perceived round trip to the edge function
+  SERVER_TOTAL_MS: 'server_total_ms',
+  SERVER_VISION_MS: 'server_vision_ms',
+  SERVER_CATALOG_MS: 'server_catalog_ms',
+  SERVER_CACHE_MS: 'server_cache_ms',
+  SERVER_CLAUDE_MS: 'server_claude_ms',
 
   // Inventory
   INVENTORY_COUNT: 'inventory_count',

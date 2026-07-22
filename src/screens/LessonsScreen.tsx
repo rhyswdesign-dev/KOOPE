@@ -675,7 +675,7 @@ function LessonsView() {
     const lessons = curriculumData.lessons.filter(lesson => lesson.moduleId === module.id);
     const availableLessons = lessons.filter(lesson => hasPlayableContent(lesson));
     if (availableLessons.length === 0) {
-      Alert.alert('Coming Soon', 'This chapter is still being built. More lessons are on the way.');
+      Alert.alert('Chapter Unavailable', 'This chapter has no published lessons in this build.');
       return;
     }
     setSelectedModule(module);
@@ -711,7 +711,7 @@ function LessonsView() {
     }
 
     if (!hasContent) {
-      Alert.alert('Coming Soon', 'This lesson is still being built.');
+      Alert.alert('Lesson Unavailable', 'This lesson is not published in this build.');
       return;
     }
 
@@ -781,7 +781,7 @@ function LessonsView() {
 
     const masteryModule = curriculumData.modules.find((module) => MASTERY_MODULE_IDS.has(module.id));
     if (!masteryModule) {
-      Alert.alert('Coming Soon', 'Mastery lessons are not available yet.');
+      Alert.alert('Mastery Unavailable', 'Mastery lessons are not available in this build.');
       return;
     }
 
@@ -790,7 +790,7 @@ function LessonsView() {
       .filter((lesson) => hasPlayableContent(lesson));
 
     if (masteryLessons.length === 0) {
-      Alert.alert('Coming Soon', 'Mastery lessons are still being built.');
+      Alert.alert('Mastery Unavailable', 'Mastery lessons are not published in this build.');
       return;
     }
 
@@ -890,7 +890,7 @@ function LessonsView() {
     let subtitleStyle: any = styles.subtitleLocked;
 
     if (!hasContent) {
-      statusText = 'Coming Soon';
+      statusText = 'Unavailable';
       subtitleStyle = styles.subtitleLocked;
     } else if (isCompleted) {
       statusText = 'Completed';
@@ -1102,7 +1102,7 @@ function LessonsView() {
           briefTarget?.mode === 'lesson'
             ? (() => {
                 const state = getLessonLockState(briefTarget.lesson);
-                if (!state.hasContent) return 'Coming Soon';
+                if (!state.hasContent) return 'Unavailable';
                 if (state.tierLocked) return 'PRO Only';
                 if (state.sequenceLocked) return 'Locked';
                 if (state.outOfLives) return 'Out of Lives';
@@ -1139,11 +1139,20 @@ export default function LessonsScreen() {
   const [liveStreak, setLiveStreak] = useState(streakService.getCurrentStreak());
   const [xpBalanceModalVisible, setXpBalanceModalVisible] = useState(false);
 
-  const [index, setIndex] = useState(1);
+  const [index, setIndex] = useState(0);
   const [routes] = useState([
-    { key: 'lessons', title: 'Lessons' },
     { key: 'challenges', title: 'Challenges' },
+    { key: 'lessons', title: 'Lessons' },
   ]);
+  const vaultPulse = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(vaultPulse, { toValue: 1.25, duration: 700, useNativeDriver: true }),
+        Animated.timing(vaultPulse, { toValue: 1, duration: 700, useNativeDriver: true }),
+      ])
+    ).start();
+  }, [vaultPulse]);
 
   useEffect(() => {
     const unsubscribe = streakService.addStreakListener((next) => setLiveStreak(next));
@@ -1200,7 +1209,9 @@ export default function LessonsScreen() {
               accessibilityRole="button"
               accessibilityLabel="Open vault"
             >
-              <MaterialCommunityIcons name="treasure-chest" size={26} color={colors.gold} />
+              <Animated.View style={{ transform: [{ scale: vaultPulse }] }}>
+                <MaterialCommunityIcons name="treasure-chest" size={26} color={colors.gold} />
+              </Animated.View>
             </Pressable>
           </View>
         }
@@ -1218,7 +1229,7 @@ export default function LessonsScreen() {
             styles.segmentedTabText,
             index === 0 && styles.segmentedTabTextActive,
           ]}>
-            Lessons
+            Challenges
           </Text>
         </Pressable>
         <Pressable
@@ -1232,7 +1243,7 @@ export default function LessonsScreen() {
             styles.segmentedTabText,
             index === 1 && styles.segmentedTabTextActive,
           ]}>
-            Challenges
+            Lessons
           </Text>
         </Pressable>
       </View>

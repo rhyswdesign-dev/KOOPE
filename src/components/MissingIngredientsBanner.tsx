@@ -47,7 +47,11 @@ export default function MissingIngredientsBanner({
       return;
     }
 
-    const params = { source: 'missing_ingredients_banner', displayCloseButton: true };
+    const params = {
+      source: 'missing_ingredients_banner',
+      triggerId: 'T_ALMOST_MAKEABLE',
+      displayCloseButton: true,
+    };
     const parentNavigation = navigation.getParent?.();
     if (parentNavigation) {
       parentNavigation.navigate('Paywall', params);
@@ -108,13 +112,13 @@ export default function MissingIngredientsBanner({
         {missingIngredients.slice(0, 5).map((name) => (
           <View key={name} style={styles.ingredientRow}>
             <Ionicons name="add-circle-outline" size={16} color={colors.accent} />
-            <Text style={styles.ingredientName} numberOfLines={1}>{name}</Text>
+            <Text style={styles.ingredientName} numberOfLines={1}>
+              {name}
+            </Text>
           </View>
         ))}
         {missingIngredients.length > 5 && (
-          <Text style={styles.moreText}>
-            +{missingIngredients.length - 5} more
-          </Text>
+          <Text style={styles.moreText}>+{missingIngredients.length - 5} more</Text>
         )}
       </View>
 

@@ -75,9 +75,19 @@ export class BarcodeService {
 
     try {
       const variants = BarcodeService.getBarcodeVariants(normalizedBarcode);
-      const { candidates, hasAnyNetworkError, allRequestsFailed } = await BarcodeService.fetchCandidates(variants);
+      const [{ candidates, hasAnyNetworkError, allRequestsFailed }, communityWinnerId] = await Promise.all([
+        BarcodeService.fetchCandidates(variants),
+        BarcodeService.getCommunityWinner(normalizedBarcode),
+      ]);
 
-      if (candidates.length === 0) {
+      // A community-voted winner is a real user-confirmed answer, not a
+      // heuristic string match — it wins over the 3-external-API guess
+      // whenever one exists.
+      const communitySpirit = communityWinnerId
+        ? await BarcodeService.resolveCommunityWinner(communityWinnerId)
+        : null;
+
+      if (candidates.length === 0 && !communitySpirit) {
         const status: BarcodeResult['status'] = hasAnyNetworkError && allRequestsFailed ? 'network_error' : 'not_found';
         log.info('BarcodeService', 'Barcode lookup returned no candidates', {
           barcode: normalizedBarcode,
@@ -94,10 +104,11 @@ export class BarcodeService {
         return result;
       }
 
-      const spirit = BarcodeService.matchBestSpirit(candidates);
-      const bestCandidate = BarcodeService.pickBestPrefillCandidate(candidates);
-      const productName = bestCandidate.name || bestCandidate.brand || null;
-      const productBrand = bestCandidate.brand || null;
+      const heuristicSpirit = candidates.length > 0 ? BarcodeService.matchBestSpirit(candidates) : null;
+      const spirit = communitySpirit || heuristicSpirit;
+      const bestCandidate = candidates.length > 0 ? BarcodeService.pickBestPrefillCandidate(candidates) : null;
+      const productName = spirit?.name || bestCandidate?.name || bestCandidate?.brand || null;
+      const productBrand = spirit?.brand || bestCandidate?.brand || null;
       const status: BarcodeResult['status'] = spirit ? 'matched' : 'not_found';
 
       log.info('BarcodeService', 'Barcode lookup complete', {
@@ -106,6 +117,7 @@ export class BarcodeService {
         productBrand,
         status,
         matched: !!spirit,
+        communityWinner: !!communitySpirit,
         sources: [...new Set(candidates.map((c) => c.source))],
       });
 
@@ -278,24 +290,90 @@ export class BarcodeService {
    * Persist a successful barcode → spirit match to spirits_cache so future
    * AI vision lookups for the same bottle benefit immediately.
    * Uses `barcode_XXXX` as lookup_key to avoid any schema migration.
+   *
+   * Column names must match supabase/migrations/018_spirits_cache.sql exactly
+   * (name/brand, not spirit_name/spirit_brand/spirit_id) — a prior version of
+   * this upsert used non-existent columns and was silently failing.
    */
   private static async persistBarcodeCacheEntry(barcode: string, spirit: Spirit): Promise<void> {
     try {
       const lookupKey = `barcode_${barcode}`;
       await supabase.from('spirits_cache').upsert({
         lookup_key: lookupKey,
-        spirit_id: spirit.id,
-        spirit_name: spirit.name,
-        spirit_brand: spirit.brand,
+        name: spirit.name,
+        brand: spirit.brand,
         spirit_type: spirit.type,
         abv: spirit.abv,
         origin: spirit.origin,
         price_tier: spirit.priceTier,
+        price_usd_min: spirit.priceEstimate?.USD?.min ?? null,
+        price_usd_max: spirit.priceEstimate?.USD?.max ?? null,
+        price_cad_min: spirit.priceEstimate?.CAD?.min ?? null,
+        price_cad_max: spirit.priceEstimate?.CAD?.max ?? null,
+        price_gbp_min: spirit.priceEstimate?.GBP?.min ?? null,
+        price_gbp_max: spirit.priceEstimate?.GBP?.max ?? null,
         flavor_profile: spirit.flavorProfile,
         tasting_notes: spirit.tastingNotes,
+        search_terms: spirit.searchTerms,
+        confidence: 1.0,
+        source: 'barcode',
       }, { onConflict: 'lookup_key', ignoreDuplicates: true });
     } catch {
       // Non-fatal — cache write failure does not affect the user
+    }
+  }
+
+  /**
+   * Check the community weighted-vote table for a known-correct bottle for
+   * this barcode (populated by scan corrections — see scanCorrectionService).
+   * Returns a bottle id (local slug or spirits_cache UUID) or null.
+   */
+  private static async getCommunityWinner(barcode: string): Promise<string | null> {
+    try {
+      const { data, error } = await supabase.rpc('get_barcode_winner', { p_barcode: barcode });
+      if (error || !data) return null;
+      return data as string;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Resolve a community-winner bottle id to a full Spirit — checks the local
+   * database first (most bottle ids are local slugs), then spirits_cache
+   * (populated for AI-identified bottles, keyed by UUID).
+   */
+  private static async resolveCommunityWinner(bottleId: string): Promise<Spirit | null> {
+    const local = SPIRITS_DATABASE.find((s) => s.id === bottleId);
+    if (local) return local;
+
+    try {
+      const { data, error } = await supabase
+        .from('spirits_cache')
+        .select('*')
+        .eq('id', bottleId)
+        .maybeSingle();
+      if (error || !data) return null;
+
+      return {
+        id: bottleId,
+        name: data.name,
+        brand: data.brand,
+        type: data.spirit_type,
+        abv: data.abv ?? 40,
+        priceTier: data.price_tier ?? 'mid-range',
+        priceEstimate: {
+          USD: { min: data.price_usd_min ?? 20, max: data.price_usd_max ?? 35 },
+          CAD: { min: data.price_cad_min ?? 28, max: data.price_cad_max ?? 45 },
+          GBP: { min: data.price_gbp_min ?? 18, max: data.price_gbp_max ?? 30 },
+        },
+        flavorProfile: data.flavor_profile ?? [],
+        tastingNotes: data.tasting_notes ?? '',
+        origin: data.origin ?? '',
+        searchTerms: data.search_terms ?? [],
+      } as Spirit;
+    } catch {
+      return null;
     }
   }
 

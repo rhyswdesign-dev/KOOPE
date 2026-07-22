@@ -1,21 +1,18 @@
-import React, { useLayoutEffect, useState } from 'react';
+import React, { useLayoutEffect } from 'react';
 import {
   View,
   Text,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
-  Pressable,
-  Image,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/RootNavigator';
 import { colors, spacing, radii, fonts } from '../../theme/tokens';
-import { PricingPlan, Product } from '../../types/commerce';
-import { useCart } from '../../contexts/CartContext';
-import InPageTabBar from '../../components/ui/InPageTabBar';
+import { PricingPlan } from '../../types/commerce';
 
 const pricingPlans: PricingPlan[] = [
   {
@@ -66,100 +63,31 @@ const pricingPlans: PricingPlan[] = [
   },
 ];
 
-const featuredProducts: Product[] = [
-  {
-    id: 'premium-shaker-set',
-    name: 'Premium Cocktail Shaker Set',
-    description: 'Professional-grade stainless steel shaker with strainer and jigger',
-    price: 79.99,
-    image: 'https://images.unsplash.com/photo-1569529465841-dfecdab7503b?auto=format&fit=crop&w=800&q=60',
-    category: 'bar-tools',
-    brand: 'HomeGameAdvantage',
-    inStock: true,
-    value: '$120 Value',
-  },
-  {
-    id: 'craft-cocktail-book',
-    name: 'The Art of Craft Cocktails',
-    description: 'Comprehensive guide to mixology with 200+ recipes',
-    price: 34.99,
-    image: 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?auto=format&fit=crop&w=800&q=60',
-    category: 'books',
-    brand: 'HomeGameAdvantage',
-    inStock: true,
-  },
-  {
-    id: 'glassware-collection',
-    name: 'Essential Glassware Collection',
-    description: 'Set of 8 professional cocktail glasses for every occasion',
-    price: 149.99,
-    image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?auto=format&fit=crop&w=800&q=60',
-    category: 'glassware',
-    brand: 'Crystal Co.',
-    inStock: true,
-    value: '$200+ Value',
-  },
-  {
-    id: 'premium-bitters-set',
-    name: 'Artisan Bitters Collection',
-    description: 'Curated set of 6 premium bitters from around the world',
-    price: 89.99,
-    image: 'https://images.unsplash.com/photo-1574494043502-b0bbda3a796a?auto=format&fit=crop&w=800&q=60',
-    category: 'ingredients',
-    brand: 'Bitter Truth Co.',
-    inStock: false,
-  },
-];
-
 export default function PricingScreen() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { addToCart, getCartItemCount } = useCart();
-  const [selectedTab, setSelectedTab] = useState<'plans' | 'products'>('plans');
+
+  const isIOS = Platform.OS === 'ios';
 
   useLayoutEffect(() => {
     nav.setOptions({
-      title: 'Premium & Products',
+      title: 'Premium',
       headerStyle: { backgroundColor: colors.bg },
       headerTintColor: colors.text,
       headerTitleStyle: { color: colors.text, fontWeight: '900' },
       headerShadowVisible: false,
-      headerRight: () => (
-        <Pressable hitSlop={12} onPress={() => nav.navigate('Cart')}>
-          <View style={{ position: 'relative' }}>
-            <Ionicons name="bag-outline" size={24} color={colors.text} />
-            {getCartItemCount() > 0 && (
-              <View style={styles.cartBadge}>
-                <Text style={styles.cartBadgeText}>{getCartItemCount()}</Text>
-              </View>
-            )}
-          </View>
-        </Pressable>
-      ),
+      // Kill List (Master Plan §2.4): the header cart icon used to navigate to
+      // the mock Cart screen — removed (audit/sprint-1 review), not replaced,
+      // since in-app checkout is permanently gone (commerce = affiliate links out).
     });
-  }, [nav, getCartItemCount()]);
+  }, [nav]);
 
   const handleSelectPlan = (plan: PricingPlan) => {
-    addToCart({
-      type: 'plan',
-      planId: plan.id,
-      quantity: 1,
-      price: plan.price,
-      name: plan.name,
-    });
-    nav.navigate('Cart');
-  };
-
-  const handleAddProduct = (product: Product) => {
-    if (!product.inStock) return;
-    
-    addToCart({
-      type: 'product',
-      productId: product.id,
-      quantity: 1,
-      price: product.price,
-      name: product.name,
-      image: product.image,
-    });
+    // Kill List (Master Plan §2.4): both platforms now route to Paywall — the
+    // one live subscription entry point. The Android path previously added the
+    // plan to a local cart then navigated to the killed Cart screen; that
+    // navigation is removed (audit/sprint-1 review) rather than left as a
+    // dead-end tap.
+    nav.navigate('Paywall', { source: 'pricing_screen_plan_select', displayCloseButton: true });
   };
 
   const renderPlanCard = (plan: PricingPlan) => (
@@ -208,106 +136,51 @@ export default function PricingScreen() {
     </View>
   );
 
-  const renderProductCard = (product: Product) => (
-    <View key={product.id} style={styles.productCard}>
-      <View style={styles.productImageContainer}>
-        <Image source={{ uri: product.image }} style={styles.productImage} />
-        {!product.inStock && (
-          <View style={styles.outOfStockOverlay}>
-            <Text style={styles.outOfStockText}>Out of Stock</Text>
-          </View>
-        )}
-        {product.value && (
-          <View style={styles.valueBadge}>
-            <Text style={styles.valueBadgeText}>{product.value}</Text>
-          </View>
-        )}
-      </View>
-      
-      <View style={styles.productInfo}>
-        {product.brand && (
-          <Text style={styles.productBrand}>{product.brand}</Text>
-        )}
-        <Text style={styles.productName}>{product.name}</Text>
-        <Text style={styles.productDescription} numberOfLines={2}>
-          {product.description}
-        </Text>
-        
-        <View style={styles.productFooter}>
-          <Text style={styles.productPrice}>${product.price}</Text>
+  if (isIOS) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.iosComplianceCard}>
+          <Text style={styles.iosComplianceTitle}>Store purchases are disabled on iOS</Text>
+          <Text style={styles.iosComplianceBody}>
+            This build only supports App Store managed subscriptions on iOS.
+          </Text>
           <TouchableOpacity
-            style={[
-              styles.addToCartButton,
-              !product.inStock && styles.disabledButton
-            ]}
-            onPress={() => handleAddProduct(product)}
-            disabled={!product.inStock}
+            style={styles.iosComplianceButton}
+            onPress={() => nav.navigate('Paywall', { source: 'pricing_screen_ios_notice', displayCloseButton: true })}
             activeOpacity={0.8}
           >
-            <Ionicons 
-              name={product.inStock ? "add" : "ban"} 
-              size={16} 
-              color={product.inStock ? colors.white : colors.subtext} 
-            />
-            <Text style={[
-              styles.addToCartText,
-              !product.inStock && styles.disabledButtonText
-            ]}>
-              {product.inStock ? 'Add to Cart' : 'Out of Stock'}
-            </Text>
+            <Text style={styles.iosComplianceButtonText}>View Subscription Options</Text>
           </TouchableOpacity>
         </View>
       </View>
-    </View>
-  );
+    );
+  }
 
   return (
     <View style={styles.container}>
-      {/* Tab Selector */}
-      <View style={styles.tabContainer}>
-        <InPageTabBar
-          items={[
-            { key: 'plans', label: 'Subscription Plans', icon: 'card-outline' },
-            { key: 'products', label: 'Products', icon: 'bag-outline' },
-          ]}
-          activeKey={selectedTab}
-          onChange={(key) => setSelectedTab(key as 'plans' | 'products')}
-        />
-      </View>
-
+      {/* Kill List (Master Plan §2.4): the Products tab (fake merch + a
+          broken "Add to Cart" that called a never-mounted CartContext)
+          was removed — commerce returns in Phase 3 as affiliate links
+          out, not an in-app cart. Subscription plans are the only tab
+          left, so the tab selector is gone too. */}
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        {selectedTab === 'plans' ? (
-          <View style={styles.plansContainer}>
-            <View style={styles.headerSection}>
-              <Text style={styles.sectionTitle}>Choose Your Plan</Text>
-              <Text style={styles.sectionSubtitle}>
-                Unlock premium content and exclusive features
-              </Text>
-            </View>
-            
-            {pricingPlans.map(renderPlanCard)}
-            
-            <View style={styles.trialNote}>
-              <Ionicons name="information-circle-outline" size={20} color={colors.accent} />
-              <Text style={styles.trialNoteText}>
-                All plans include a 7-day free trial. Cancel anytime.
-              </Text>
-            </View>
+        <View style={styles.plansContainer}>
+          <View style={styles.headerSection}>
+            <Text style={styles.sectionTitle}>Choose Your Plan</Text>
+            <Text style={styles.sectionSubtitle}>
+              Unlock premium content and exclusive features
+            </Text>
           </View>
-        ) : (
-          <View style={styles.productsContainer}>
-            <View style={styles.headerSection}>
-              <Text style={styles.sectionTitle}>Premium Products</Text>
-              <Text style={styles.sectionSubtitle}>
-                Curated bar tools and accessories
-              </Text>
-            </View>
-            
-            <View style={styles.productsGrid}>
-              {featuredProducts.map(renderProductCard)}
-            </View>
+
+          {pricingPlans.map(renderPlanCard)}
+
+          <View style={styles.trialNote}>
+            <Ionicons name="information-circle-outline" size={20} color={colors.accent} />
+            <Text style={styles.trialNoteText}>
+              All plans include a 7-day free trial. Cancel anytime.
+            </Text>
           </View>
-        )}
+        </View>
       </ScrollView>
     </View>
   );
@@ -324,6 +197,38 @@ const styles = StyleSheet.create({
     margin: spacing(2),
     borderRadius: radii.lg,
     padding: spacing(0.5),
+  },
+  iosComplianceCard: {
+    margin: spacing(2),
+    backgroundColor: colors.card,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.line,
+    padding: spacing(2),
+    gap: spacing(1),
+  },
+  iosComplianceTitle: {
+    color: colors.text,
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  iosComplianceBody: {
+    color: colors.subtext,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  iosComplianceButton: {
+    marginTop: spacing(1),
+    alignSelf: 'flex-start',
+    backgroundColor: colors.accent,
+    borderRadius: radii.md,
+    paddingHorizontal: spacing(2),
+    paddingVertical: spacing(1.25),
+  },
+  iosComplianceButtonText: {
+    color: colors.white,
+    fontSize: 14,
+    fontWeight: '700',
   },
   tab: {
     flex: 1,

@@ -22,7 +22,7 @@ import {
   SafeAreaView,
   Image,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, radii } from '../theme/tokens';
@@ -85,7 +85,8 @@ function scoreSpirit(spirit: Spirit, query: string): number {
 
 export default function BottleSearchScreen() {
   const navigation = useNavigation<Nav>();
-  const [query, setQuery] = useState('');
+  const route = useRoute<any>();
+  const [query, setQuery] = useState<string>(() => (route?.params as any)?.initialQuery ?? '');
   const [activeFilter, setActiveFilter] = useState<FilterKey>('all');
 
   const results = useMemo(() => {

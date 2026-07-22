@@ -34,23 +34,34 @@ import type { RootStackParamList } from '../navigation/RootNavigator';
 import { getPriceTierDisplay } from '../data/spiritsDatabase';
 import { useXPSystem } from '../store/useXPSystem';
 import * as Localization from 'expo-localization';
-import { useCurrencyPreference, convertFromUSD, formatPriceRange, CURRENCY_META, type SupportedCurrency } from '../store/useCurrencyPreference';
+import {
+  useCurrencyPreference,
+  convertFromUSD,
+  formatPriceRange,
+  CURRENCY_META,
+  type SupportedCurrency,
+} from '../store/useCurrencyPreference';
 import { supabase } from '../lib/supabase';
 import { InventoryService } from '../services/inventoryService';
 import { challengeProgressService } from '../services/challengeProgressService';
-import { achievementService } from '../services/achievementService';
 import { useAuth } from '../contexts/AuthContext';
 import { sortByMatch, getMatchMessage } from '../utils/recipeMatching';
 import type { RecipeMatch } from '../utils/recipeMatching';
 import { RecipesRepository } from '../repos/supabase';
 import { useUserTier } from '../store/useUserTier';
-import { isCocktailAccessible, TIER_LIMITS, SPIRIT_STARTER_MAP } from '../config/tierAccess';
+import {
+  isCocktailAccessible,
+  TIER_LIMITS,
+  SPIRIT_STARTER_MAP,
+  ANSWER_CARD_FREE_RECIPE_COUNT,
+} from '../config/tierAccess';
 import { useFeatureAccess } from '../hooks/useFeatureAccess';
 import type { UserInventoryItem } from '../types/database';
 import { BottleServeService } from '../services/bottleServeService';
 import { useEngagement } from '../store/useEngagement';
 import { getCocktailImage } from '../../assets/images/cocktails';
 import RecipeCard from '../components/RecipeCard';
+import LockedRecipeCard from '../components/LockedRecipeCard';
 import { ScanHistoryService } from '../services/scanHistoryService';
 import { trackEvent, ANALYTICS_EVENTS, ANALYTICS_PROPS } from '../lib/analytics';
 import { useWishlist, WISHLIST_FREE_CAP } from '../store/useWishlist';
@@ -58,7 +69,22 @@ import { notificationService } from '../services/notificationService';
 import { useTasteModel } from '../store/useTasteModel';
 import type { FlavourTag } from '../store/useTasteModel';
 import { getTasteSignalLine } from '../utils/tasteSignal';
+import { logScanEvent, updateScanOutcome } from '../services/scanContextService';
 import SpiritEducationPanel from '../components/SpiritEducationPanel';
+import GiftModePanel from '../components/bottle/GiftModePanel';
+import TastePromptPanel from '../components/bottle/TastePromptPanel';
+import {
+  computeGiftVerdict,
+  filterRecipesForGift,
+  type GiftPreference,
+} from '../services/giftVerdictService';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { usePersonalization } from '../store/usePersonalization';
+import type { FlavorProfile } from '../types/userProfile';
+import ValueLine from '../components/bottle/ValueLine';
+import { useSpottedPrices } from '../store/useSpottedPrices';
+import { logSpottedPrice } from '../services/spottedPriceService';
+import { computeValueVerdict } from '../services/valueVerdictService';
 
 type BottleDetailScreenNavigationProp = CompositeNavigationProp<
   NativeStackNavigationProp<CameraStackParamList, 'BottleDetail'>,
@@ -73,6 +99,9 @@ const SPIRIT_ALIAS_MAP: Record<string, string> = {
   cognac: 'brandy',
 };
 
+const DOCUMENT_DIRECTORY =
+  (FileSystem as unknown as { documentDirectory?: string }).documentDirectory ?? '';
+
 // ─── Spirit-category fallbacks ────────────────────────────────────────────────
 // Used when a specific bottle lacks flavor profile or tasting notes data.
 // Ensures every scan returns useful, contextually accurate information.
@@ -86,47 +115,56 @@ interface SpiritCategoryDefaults {
 const SPIRIT_CATEGORY_DEFAULTS: Record<string, SpiritCategoryDefaults> = {
   gin: {
     flavorProfile: ['Juniper', 'Citrus', 'Botanical'],
-    tastingNotes: 'A London Dry-style gin with classic juniper at the fore, bright citrus notes, and a layered botanical finish. Crisp and dry.',
+    tastingNotes:
+      'A London Dry-style gin with classic juniper at the fore, bright citrus notes, and a layered botanical finish. Crisp and dry.',
     origin: 'United Kingdom',
   },
   vodka: {
     flavorProfile: ['Clean', 'Smooth', 'Neutral'],
-    tastingNotes: 'A clean, neutral spirit with a smooth palate and a crisp finish. Subtle grain sweetness makes it exceptionally versatile.',
+    tastingNotes:
+      'A clean, neutral spirit with a smooth palate and a crisp finish. Subtle grain sweetness makes it exceptionally versatile.',
     origin: 'Europe',
   },
   whiskey: {
     flavorProfile: ['Caramel', 'Vanilla', 'Oak'],
-    tastingNotes: 'Rich caramel and vanilla upfront, underpinned by toasted oak and a hint of dried fruit. Warm, rounded finish.',
+    tastingNotes:
+      'Rich caramel and vanilla upfront, underpinned by toasted oak and a hint of dried fruit. Warm, rounded finish.',
     origin: 'United States',
   },
   rum: {
     flavorProfile: ['Vanilla', 'Tropical Fruit', 'Caramel'],
-    tastingNotes: 'Sweet vanilla and tropical fruit on the nose, with warm caramel and a touch of molasses on the palate. Smooth finish.',
+    tastingNotes:
+      'Sweet vanilla and tropical fruit on the nose, with warm caramel and a touch of molasses on the palate. Smooth finish.',
     origin: 'Caribbean',
   },
   tequila: {
     flavorProfile: ['Agave', 'Citrus', 'Pepper'],
-    tastingNotes: '100% agave character — fresh vegetal notes, bright citrus, and white pepper. Clean, smooth, and true to the plant.',
+    tastingNotes:
+      '100% agave character — fresh vegetal notes, bright citrus, and white pepper. Clean, smooth, and true to the plant.',
     origin: 'Mexico',
   },
   mezcal: {
     flavorProfile: ['Smoke', 'Agave', 'Earthy'],
-    tastingNotes: 'Artisanal smoke from slow-roasted agave hearts, with earthy mineral notes and a long, complex finish.',
+    tastingNotes:
+      'Artisanal smoke from slow-roasted agave hearts, with earthy mineral notes and a long, complex finish.',
     origin: 'Mexico',
   },
   brandy: {
     flavorProfile: ['Dried Fruit', 'Oak', 'Vanilla'],
-    tastingNotes: 'Warm dried fruit and toasted oak with vanilla undertones. Smooth and balanced with a gentle warming finish.',
+    tastingNotes:
+      'Warm dried fruit and toasted oak with vanilla undertones. Smooth and balanced with a gentle warming finish.',
     origin: 'France',
   },
   liqueur: {
     flavorProfile: ['Sweet', 'Fruit', 'Herbal'],
-    tastingNotes: 'A sweet, approachable liqueur with fruit and herbal character. Versatile as a modifier in cocktails or over ice.',
+    tastingNotes:
+      'A sweet, approachable liqueur with fruit and herbal character. Versatile as a modifier in cocktails or over ice.',
     origin: 'Europe',
   },
   other: {
     flavorProfile: ['Complex', 'Aromatic', 'Distinct'],
-    tastingNotes: 'A distinctive spirit with its own character. Explore neat first to understand its personality before building cocktails.',
+    tastingNotes:
+      'A distinctive spirit with its own character. Explore neat first to understand its personality before building cocktails.',
     origin: 'International',
   },
 };
@@ -146,9 +184,11 @@ function getRespectThisBottleScore(
   recipe: any,
   spiritName: string,
   bottle: any,
-  serveRecommendation: ReturnType<typeof BottleServeService.getRecommendation>
+  serveRecommendation: ReturnType<typeof BottleServeService.getRecommendation>,
 ): number {
-  const tags = Array.isArray(recipe.tags) ? recipe.tags.map((tag: string) => String(tag).toLowerCase()) : [];
+  const tags = Array.isArray(recipe.tags)
+    ? recipe.tags.map((tag: string) => String(tag).toLowerCase())
+    : [];
   const category = String(recipe.category || '').toLowerCase();
   const name = String(recipe.name || '').toLowerCase();
   const description = String(recipe.description || '').toLowerCase();
@@ -166,8 +206,12 @@ function getRespectThisBottleScore(
   if (tags.includes('spirit-forward')) score += 18;
   if (tags.includes('smoky') && serveRecommendation.spiritFamily === 'scotch') score += 10;
   if (tags.includes('agave') && serveRecommendation.spiritFamily === 'tequila') score += 10;
-  if (['old fashioned', 'manhattan', 'sazerac'].some((needle) => name.includes(needle))) score += 18;
-  if (['boozy', 'spirit-forward', 'minimal dilution'].some((needle) => description.includes(needle))) score += 10;
+  if (['old fashioned', 'manhattan', 'sazerac'].some((needle) => name.includes(needle)))
+    score += 18;
+  if (
+    ['boozy', 'spirit-forward', 'minimal dilution'].some((needle) => description.includes(needle))
+  )
+    score += 10;
   if (category.includes('old fashioned') || category.includes('martini')) score += 8;
   if (difficulty === 'easy') score += 4;
   if (ingredientsCount > 0 && ingredientsCount <= 4) score += 10;
@@ -186,7 +230,13 @@ function getRespectThisBottleScore(
   if (spiritName === 'tequila' && tags.includes('tequila')) score += 6;
   if (spiritName === 'mezcal' && tags.includes('mezcal')) score += 8;
   if (spiritName === 'brandy' && (tags.includes('cognac') || tags.includes('brandy'))) score += 8;
-  if (String(bottle.name || '').toLowerCase().includes('scotch') && tags.includes('scotch')) score += 10;
+  if (
+    String(bottle.name || '')
+      .toLowerCase()
+      .includes('scotch') &&
+    tags.includes('scotch')
+  )
+    score += 10;
 
   return score;
 }
@@ -195,70 +245,14 @@ function normalizeInventoryName(value: string): string {
   return value.toLowerCase().replace(/\s+/g, ' ').trim();
 }
 
-function formatDisplayDate(value?: string | null): string {
-  if (!value) return 'Not set';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleDateString(undefined, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
-}
-
-function getSuggestedDrinkingWindow(bottle: any): { start: string; end: string; note: string } {
-  const bottleType = String(bottle.type || bottle.category || '').toLowerCase();
-  const priceTier = String(bottle.priceTier || '').toLowerCase();
-
-  if (['vermouth', 'cream liqueur', 'liqueur'].some((token) => bottleType.includes(token))) {
-    return {
-      start: 'Now',
-      end: 'Within 6 months',
-      note: 'Best enjoyed on the fresher side. Once opened, keep an eye on oxidation and sweetness flattening.',
-    };
-  }
-
-  if (priceTier === 'luxury' || priceTier === 'premium') {
-    return {
-      start: 'Now',
-      end: '2-5 years',
-      note: 'This bottle can sit in the cellar for special pours. Track fill level and heat exposure more than age.',
-    };
-  }
-
-  return {
-    start: 'Now',
-    end: '1-3 years',
-    note: 'Most spirits are shelf-stable, but premium texture and aromatics hold best when stored upright and cool.',
-  };
-}
-
-function getCellarValuation(bottle: any, currency: SupportedCurrency, purchasePrice?: number | null): number {
-  // Native currencies in priceEstimate; others derived from USD
-  const nativeCurrencies: Array<SupportedCurrency> = ['USD', 'CAD', 'GBP'];
-  const nativeEstimate = nativeCurrencies.includes(currency)
-    ? bottle?.priceEstimate?.[currency as 'USD' | 'CAD' | 'GBP']
-    : bottle?.priceEstimate?.['USD']
-      ? { min: convertFromUSD(bottle.priceEstimate.USD.min, currency), max: convertFromUSD(bottle.priceEstimate.USD.max, currency) }
-      : undefined;
-  const estimate = nativeEstimate;
-  const midpoint = estimate ? (estimate.min + estimate.max) / 2 : 0;
-  const priceTier = String(bottle?.priceTier || '').toLowerCase();
-  const multiplier =
-    priceTier === 'luxury' ? 1.16 :
-    priceTier === 'premium' ? 1.08 :
-    priceTier === 'mid' ? 1.02 :
-    0.96;
-
-  if (purchasePrice && purchasePrice > 0) {
-    return Number((purchasePrice * multiplier).toFixed(2));
-  }
-
-  return Number((midpoint * multiplier).toFixed(2));
-}
-
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const HERO_HEIGHT = SCREEN_HEIGHT * 0.42;
+
+// Phase 1.6 onboarding inversion: one-time, free "what do you like" prompt
+// shown after a new user's first suggested-recipes moment. Distinct from
+// AGE_VERIFIED_KEY/ONBOARDING_COMPLETED_KEY in useSimpleOnboarding.ts —
+// this fires later, inside the app, not during the pre-main-app flow.
+const TASTE_PROMPT_SHOWN_KEY = '@KOOPE:taste_prompt_shown';
 
 export default function BottleDetailScreen() {
   const navigation = useNavigation<BottleDetailScreenNavigationProp>();
@@ -267,48 +261,180 @@ export default function BottleDetailScreen() {
   const { earnScanXP, isCocktailUnlockedWithXP } = useXPSystem();
   const { isRecipeUnlocked: isRecipeUnlockedWithEngagement } = useEngagement();
   const { user } = useAuth();
+  const { profile: personalizationProfile, updateProfile: updatePersonalizationProfile } =
+    usePersonalization();
   const { tier } = useUserTier();
   const { gateWithTrigger: inventoryGate } = useFeatureAccess('inventory_unlimited');
   const { hasAccess: hasPremiumServeEducation } = useFeatureAccess('premium_serve_education');
-  const { hasAccess: hasPremiumServePersonalization } = useFeatureAccess('premium_serve_personalization');
-  const { hasAccess: hasCellarMode, gateWithTrigger: cellarModeGate } = useFeatureAccess('cellar_mode');
-  const { bottle, imageUri } = route.params;
+  const { hasAccess: hasPremiumServePersonalization } = useFeatureAccess(
+    'premium_serve_personalization',
+  );
+  const { bottle, imageUri, scanConfidence, scannedBarcode, scanSource } = route.params;
+  const isLowConfidence =
+    imageUri != null && typeof scanConfidence === 'number' && scanConfidence < 0.8;
   const { currency: userCurrency, setCurrency } = useCurrencyPreference();
   const [userRegion, setUserRegion] = useState<string>('');
-  const [suggestedCocktails, setSuggestedCocktails] = useState<Array<any & { match: RecipeMatch }>>([]);
+  const [suggestedCocktails, setSuggestedCocktails] = useState<(any & { match: RecipeMatch })[]>(
+    [],
+  );
   const [lockedCocktailCount, setLockedCocktailCount] = useState(0);
-  const [lockedCocktailTeaser, setLockedCocktailTeaser] = useState<{ name: string; subtitle: string } | null>(null);
+  const [lockedCocktailTeaser, setLockedCocktailTeaser] = useState<
+    (any & { match?: RecipeMatch }) | null
+  >(null);
   const [loadingCocktails, setLoadingCocktails] = useState(true);
   const [inventoryItem, setInventoryItem] = useState<UserInventoryItem | null>(null);
-  const [cellarModalVisible, setCellarModalVisible] = useState(false);
-  const [savingCellar, setSavingCellar] = useState(false);
-  const [cellarExpanded, setCellarExpanded] = useState(false);
-  const [purchasePriceInput, setPurchasePriceInput] = useState('');
-  const [acquiredAtInput, setAcquiredAtInput] = useState('');
-  const [windowStartInput, setWindowStartInput] = useState('');
-  const [windowEndInput, setWindowEndInput] = useState('');
-  const [cellarNotesInput, setCellarNotesInput] = useState('');
-  const [selectedQuantity, setSelectedQuantity] = useState<'full' | 'half' | 'low' | 'empty'>('full');
+  const [persistedImageUri, setPersistedImageUri] = useState<string | undefined>(undefined);
+  const [giftMode, setGiftMode] = useState(false);
+  const [giftPreference, setGiftPreference] = useState<GiftPreference>({});
+  // Phase 1.5 scan-context: one scan_events row per Answer Card visit,
+  // created here and updated by the 3 actions below (or 'passed' on exit
+  // via the beforeRemove listener further down).
+  const [scanEventId, setScanEventId] = useState<string | null>(null);
+  const scanOutcomeRecordedRef = useRef(false);
+  // Phase 1.6: free, one-time "what do you like" prompt (see
+  // TastePromptPanel) — mutually exclusive with Gift mode's own panel.
+  const [showTastePrompt, setShowTastePrompt] = useState(false);
+  const [tasteSpiritHint, setTasteSpiritHint] = useState<string | undefined>(undefined);
+  const [tasteFlavorHint, setTasteFlavorHint] = useState<FlavorProfile | undefined>(undefined);
+  const [expanded, setExpanded] = useState(false);
   // Stage 10 — scan feedback
-  const [feedbackState, setFeedbackState] = useState<'pending' | 'confirmed' | 'dismissed'>('pending');
+  const [feedbackState, setFeedbackState] = useState<
+    'pending' | 'confirmed' | 'correcting' | 'typing' | 'dismissed'
+  >('pending');
+  const [correctionName, setCorrectionName] = useState('');
+  const [correctionBrand, setCorrectionBrand] = useState('');
+  const [submittingCorrection, setSubmittingCorrection] = useState(false);
+
+  // Phase 1.5: log the scan_events row once, on mount. Fire-and-forget —
+  // doesn't block render, and no-ops if there's no signed-in user or
+  // analytics consent isn't granted (see scanContextService.ts).
+  useEffect(() => {
+    let cancelled = false;
+    logScanEvent({
+      userId: user?.id,
+      bottleId: bottle.id,
+      bottleName: bottle.name,
+      brandName: bottle.brand,
+      scanSource,
+    }).then((id) => {
+      if (!cancelled) setScanEventId(id);
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // If the user leaves the Answer Card without Add-to-Bar/Want-it ever
+  // firing, the scan resolves to 'passed' — every scan eventually gets
+  // exactly one of owned/wanted/passed.
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('beforeRemove', () => {
+      if (scanEventId && !scanOutcomeRecordedRef.current) {
+        updateScanOutcome({ scanEventId, outcome: 'passed' });
+      }
+    });
+    return unsubscribe;
+  }, [navigation, scanEventId]);
+
+  // Phase 1.6: offer the free taste prompt once, right after the first
+  // suggested-recipes moment — only for users with no taste signal yet
+  // (so it doesn't re-nag someone who's already done onboarding/
+  // RefineYourTaste), and never alongside Gift mode's own panel.
+  useEffect(() => {
+    if (loadingCocktails || suggestedCocktails.length === 0 || giftMode) return;
+    if (!personalizationProfile) return;
+    const hasTasteSignal =
+      (personalizationProfile.favoriteSpirits?.length ?? 0) > 0 ||
+      (personalizationProfile.flavorPreferences?.length ?? 0) > 0;
+    if (hasTasteSignal) return;
+
+    let cancelled = false;
+    AsyncStorage.getItem(TASTE_PROMPT_SHOWN_KEY).then((shown) => {
+      if (!cancelled && !shown) setShowTastePrompt(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [loadingCocktails, suggestedCocktails.length, giftMode, personalizationProfile]);
+
+  const dismissTastePrompt = () => {
+    setShowTastePrompt(false);
+    AsyncStorage.setItem(TASTE_PROMPT_SHOWN_KEY, 'true');
+  };
+
+  const handleTasteSpiritSelect = (value: string | undefined) => {
+    setTasteSpiritHint(value);
+    updatePersonalizationProfile({ favoriteSpirits: value ? [value] : [] });
+    AsyncStorage.setItem(TASTE_PROMPT_SHOWN_KEY, 'true');
+  };
+
+  const handleTasteFlavorSelect = (value: FlavorProfile | undefined) => {
+    setTasteFlavorHint(value);
+    updatePersonalizationProfile({ flavorPreferences: value ? [value] : [] });
+    AsyncStorage.setItem(TASTE_PROMPT_SHOWN_KEY, 'true');
+  };
 
   // Taste model
-  const { recordScan, recordThumbsUp, recordThumbsDown, totalScans, dominantCluster, profileVisible } = useTasteModel();
+  const {
+    recordScan,
+    recordThumbsUp,
+    recordThumbsDown,
+    totalScans,
+    dominantCluster,
+    profileVisible,
+  } = useTasteModel();
   const [thumbsState, setThumbsState] = useState<'idle' | 'up' | 'down'>('idle');
   const [showCorrectionPills, setShowCorrectionPills] = useState(false);
   const [showCurrencyPicker, setShowCurrencyPicker] = useState(false);
-  const [infoCardsPage, setInfoCardsPage] = useState(0);
 
   // Wishlist
   const { saveToWishlist, isWishlisted, removeFromWishlist, addPriceEntry } = useWishlist();
-  const bottleWishlistId = bottle.id || `${bottle.name}_${bottle.brand}`.toLowerCase().replace(/\s+/g, '_');
+  const bottleWishlistId =
+    bottle.id || `${bottle.name}_${bottle.brand}`.toLowerCase().replace(/\s+/g, '_');
   const [wishlisted, setWishlisted] = useState(() => isWishlisted(bottleWishlistId));
   const [showPricePrompt, setShowPricePrompt] = useState(false);
   const [priceInput, setPriceInput] = useState('');
   const [locationInput, setLocationInput] = useState('');
   const serveRecommendation = useMemo(
     () => BottleServeService.getRecommendation(bottle, tier),
-    [bottle, tier]
+    [bottle, tier],
+  );
+
+  // Value line — fair-price range estimate (Phase 1.2 adds the source
+  // label, the spotted-price verdict, and at-scan capture via ValueLine).
+  const priceRangeEstimate = useMemo(() => {
+    const nativeCurrencies: SupportedCurrency[] = ['USD', 'CAD', 'GBP'];
+    if (nativeCurrencies.includes(userCurrency)) {
+      return bottle.priceEstimate?.[userCurrency as 'USD' | 'CAD' | 'GBP'] ?? null;
+    }
+    if (!bottle.priceEstimate?.USD) return null;
+    return {
+      min: convertFromUSD(bottle.priceEstimate.USD.min, userCurrency),
+      max: convertFromUSD(bottle.priceEstimate.USD.max, userCurrency),
+    };
+  }, [bottle.priceEstimate, userCurrency]);
+
+  // Every value names its source (Phase 1.2 acceptance rule). scanSource
+  // comes from bottle-recognize via route params; absent = barcode/library
+  // paths, whose bottles come from the bundled catalog.
+  const valueSourceLabel = useMemo(() => {
+    switch (scanSource) {
+      case 'cache':
+        return 'Community-verified estimate';
+      case 'claude-vision':
+        return 'AI estimate';
+      case 'catalog':
+      default:
+        return 'KŌOPE catalog estimate';
+    }
+  }, [scanSource]);
+
+  // The user's price journal entry for this bottle — drives the verdict.
+  const spottedEntries = useSpottedPrices((s) => s.entries);
+  const spottedForBottle = useMemo(
+    () => spottedEntries.find((e) => e.bottleId === bottleWishlistId),
+    [spottedEntries, bottleWishlistId],
   );
 
   // Merge bottle-specific data with spirit-category defaults so every scan
@@ -316,7 +442,8 @@ export default function BottleDetailScreen() {
   const bottleProfile = useMemo(() => {
     const defaults = getSpiritCategoryDefaults(bottle);
     return {
-      flavorProfile: bottle.flavorProfile?.length > 0 ? bottle.flavorProfile : defaults.flavorProfile,
+      flavorProfile:
+        bottle.flavorProfile?.length > 0 ? bottle.flavorProfile : defaults.flavorProfile,
       tastingNotes: bottle.tastingNotes?.trim() ? bottle.tastingNotes : defaults.tastingNotes,
       origin: bottle.origin?.trim() ? bottle.origin : defaults.origin,
       isFlavorFallback: !(bottle.flavorProfile?.length > 0),
@@ -324,78 +451,18 @@ export default function BottleDetailScreen() {
     };
   }, [bottle]);
 
-  const suggestedCellarWindow = useMemo(() => getSuggestedDrinkingWindow(bottle), [bottle]);
-  const cellarValuation = useMemo(
-    () => getCellarValuation(bottle, userCurrency, inventoryItem?.purchase_price ?? null),
-    [bottle, userCurrency, inventoryItem?.purchase_price]
+  const storyLine = useMemo(() => {
+    const notes = bottleProfile.tastingNotes || '';
+    const firstSentence = notes.split(/(?<=[.!?])\s+/)[0] || notes;
+    return giftMode ? `A crowd-pleasing choice — ${firstSentence}` : firstSentence;
+  }, [bottleProfile.tastingNotes, giftMode]);
+
+  // Gift mode: re-rank the already-fetched, already-tier-gated Hook data by
+  // the recipient's flavor hint rather than fetching/ranking anything new.
+  const giftFilteredCocktails = useMemo(
+    () => filterRecipesForGift(suggestedCocktails, giftPreference),
+    [suggestedCocktails, giftPreference],
   );
-
-  const openCellarModal = () => {
-    if (!inventoryItem) return;
-    setPurchasePriceInput(
-      inventoryItem.purchase_price !== null && inventoryItem.purchase_price !== undefined
-        ? String(inventoryItem.purchase_price)
-        : ''
-    );
-    setAcquiredAtInput(
-      inventoryItem.acquired_at
-        ? String(inventoryItem.acquired_at).slice(0, 10)
-        : String(inventoryItem.added_at || '').slice(0, 10)
-    );
-    setWindowStartInput(inventoryItem.drinking_window_start || suggestedCellarWindow.start);
-    setWindowEndInput(inventoryItem.drinking_window_end || suggestedCellarWindow.end);
-    setCellarNotesInput(inventoryItem.cellar_notes || '');
-    setSelectedQuantity(((inventoryItem.quantity as any) || 'full') as 'full' | 'half' | 'low' | 'empty');
-    setCellarModalVisible(true);
-  };
-
-  const handleSaveCellar = async () => {
-    if (!inventoryItem) return;
-
-    const parsedPrice = purchasePriceInput.trim().length > 0 ? Number(purchasePriceInput) : null;
-    if (parsedPrice !== null && Number.isNaN(parsedPrice)) {
-      Alert.alert('Invalid Price', 'Enter a valid number for purchase price.');
-      return;
-    }
-
-    setSavingCellar(true);
-    const nextValuation = getCellarValuation(bottle, userCurrency, parsedPrice);
-    const success = await InventoryService.updateInventoryItem(inventoryItem.id, {
-      quantity: selectedQuantity,
-      purchasePrice: parsedPrice,
-      acquiredAt: acquiredAtInput.trim() || null,
-      drinkingWindowStart: windowStartInput.trim() || null,
-      drinkingWindowEnd: windowEndInput.trim() || null,
-      cellarNotes: cellarNotesInput.trim() || null,
-      valuationEstimate: nextValuation,
-    });
-    setSavingCellar(false);
-
-    if (!success) {
-      Alert.alert('Save Failed', 'Unable to update this bottle in Cellar Mode right now.');
-      return;
-    }
-
-    setInventoryItem((prev) => prev ? {
-      ...prev,
-      quantity: selectedQuantity,
-      purchase_price: parsedPrice,
-      acquired_at: acquiredAtInput.trim() || null,
-      drinking_window_start: windowStartInput.trim() || null,
-      drinking_window_end: windowEndInput.trim() || null,
-      cellar_notes: cellarNotesInput.trim() || null,
-      valuation_estimate: nextValuation,
-    } : prev);
-    setCellarModalVisible(false);
-    Alert.alert('Cellar Updated', 'Your collector details have been saved for this bottle.');
-
-    // Fire or cancel low stock alert based on the saved quantity
-    if (selectedQuantity === 'low' || selectedQuantity === 'empty') {
-      notificationService.scheduleLowStockAlert(inventoryItem.id, bottle.name).catch(() => {});
-    } else {
-      notificationService.cancelLowStockAlert(inventoryItem.id).catch(() => {});
-    }
-  };
 
   useEffect(() => {
     // Record this bottle to the user's scan history journal.
@@ -405,7 +472,7 @@ export default function BottleDetailScreen() {
       let persistedUri = imageUri;
       if (imageUri) {
         try {
-          const scansDir = `${FileSystem.documentDirectory}scans/`;
+          const scansDir = `${DOCUMENT_DIRECTORY}scans/`;
           await FileSystem.makeDirectoryAsync(scansDir, { intermediates: true });
           const bottleKey = (bottle.id || bottle.name).replace(/[^a-z0-9]/gi, '_').toLowerCase();
           const dest = `${scansDir}${bottleKey}.jpg`;
@@ -415,6 +482,7 @@ export default function BottleDetailScreen() {
           // If copy fails (e.g. URI already persisted or invalid), keep original
         }
       }
+      setPersistedImageUri(persistedUri || undefined);
       ScanHistoryService.recordScan(bottle, persistedUri).catch(() => {});
     };
     recordWithPersistedImage();
@@ -430,6 +498,27 @@ export default function BottleDetailScreen() {
       [ANALYTICS_PROPS.SCAN_TYPE]: 'bottle',
       spirit_type: bottle.type || 'unknown',
     });
+
+    // Value-on-scan acceptance metric (Phase 1.2): VALUE_LINE_SHOWN /
+    // SCAN_SUCCESS is the "% of scans that show a value line" ratio.
+    if (priceRangeEstimate) {
+      trackEvent(ANALYTICS_EVENTS.VALUE_LINE_SHOWN, {
+        [ANALYTICS_PROPS.VALUE_SOURCE]: scanSource ?? 'catalog',
+        [ANALYTICS_PROPS.CURRENCY]: userCurrency,
+      });
+      if (spottedForBottle) {
+        const verdict = computeValueVerdict(
+          { price: spottedForBottle.price, currency: spottedForBottle.currency },
+          { ...priceRangeEstimate, currency: userCurrency },
+        );
+        if (verdict) {
+          trackEvent(ANALYTICS_EVENTS.VALUE_VERDICT_SHOWN, {
+            [ANALYTICS_PROPS.VERDICT]: verdict.verdict,
+            [ANALYTICS_PROPS.VALUE_SOURCE]: scanSource ?? 'catalog',
+          });
+        }
+      }
+    }
   }, [bottle.id]);
 
   useEffect(() => {
@@ -445,9 +534,11 @@ export default function BottleDetailScreen() {
       try {
         // 1. Fetch user's inventory
         const userInventory = user ? await InventoryService.getUserInventory(user.id) : [];
-        const matchedInventoryItem = userInventory.find((item) =>
-          normalizeInventoryName(item.item_name) === normalizeInventoryName(bottle.name)
-        ) || null;
+        const matchedInventoryItem =
+          userInventory.find(
+            (item) =>
+              normalizeInventoryName(item.item_name) === normalizeInventoryName(bottle.name),
+          ) || null;
         setInventoryItem(matchedInventoryItem);
 
         // 1.5. Create combined inventory including the scanned bottle
@@ -478,12 +569,27 @@ export default function BottleDetailScreen() {
         // Fallback: Extract spirit type from bottle name if category is missing
         if (!spiritName && bottle.name) {
           const bottleName = bottle.name.toLowerCase();
-          const spiritTypes = ['vodka', 'gin', 'rum', 'tequila', 'whiskey', 'whisky', 'bourbon', 'scotch', 'brandy', 'cognac', 'mezcal', 'rye'];
+          const spiritTypes = [
+            'vodka',
+            'gin',
+            'rum',
+            'tequila',
+            'whiskey',
+            'whisky',
+            'bourbon',
+            'scotch',
+            'brandy',
+            'cognac',
+            'mezcal',
+            'rye',
+          ];
 
           for (const spirit of spiritTypes) {
             if (bottleName.includes(spirit)) {
               spiritName = normalizeSpiritToken(spirit);
-              console.log(`BottleDetailScreen: Extracted spirit "${spiritName}" from bottle name "${bottle.name}"`);
+              console.log(
+                `BottleDetailScreen: Extracted spirit "${spiritName}" from bottle name "${bottle.name}"`,
+              );
               break;
             }
           }
@@ -509,7 +615,7 @@ export default function BottleDetailScreen() {
             name: recipesData[0].name,
             baseSpirit: recipesData[0].baseSpirit,
             category: recipesData[0].category,
-            tags: recipesData[0].tags
+            tags: recipesData[0].tags,
           });
         }
 
@@ -532,7 +638,7 @@ export default function BottleDetailScreen() {
           if (spiritsUsed.length === 0 && bottleNameToken) {
             const ingredientNames = Array.isArray(recipe.ingredients)
               ? recipe.ingredients.map((ing: any) =>
-                  typeof ing === 'string' ? ing : (ing?.name || ing?.ingredient || '')
+                  typeof ing === 'string' ? ing : ing?.name || ing?.ingredient || '',
                 )
               : [];
             if (ingredientNames.some((n: string) => n.toLowerCase().includes(bottleNameToken))) {
@@ -555,9 +661,14 @@ export default function BottleDetailScreen() {
           return false;
         });
 
-        console.log(`BottleDetailScreen: Found ${matchedData.length} recipes matching "${spiritName}"`);
+        console.log(
+          `BottleDetailScreen: Found ${matchedData.length} recipes matching "${spiritName}"`,
+        );
         if (matchedData.length > 0 && matchedData.length <= 3) {
-          console.log('Sample matched recipes:', matchedData.slice(0, 3).map(r => ({ name: r.name, baseSpirit: r.baseSpirit })));
+          console.log(
+            'Sample matched recipes:',
+            matchedData.slice(0, 3).map((r) => ({ name: r.name, baseSpirit: r.baseSpirit })),
+          );
         }
 
         // 3.5. For Free tier: split into accessible and locked pools so we can
@@ -580,34 +691,33 @@ export default function BottleDetailScreen() {
 
         if (tier === 'FREE') {
           // Accessible: free 9 + any XP/engagement unlocks
-          const accessibleData = matchedData.filter(recipe =>
-            isCocktailAccessible(recipe.id, tier) ||
-            isCocktailUnlockedWithXP(recipe.id) ||
-            isRecipeUnlockedWithEngagement(recipe.id)
+          const accessibleData = matchedData.filter(
+            (recipe) =>
+              isCocktailAccessible(recipe.id, tier) ||
+              isCocktailUnlockedWithXP(recipe.id) ||
+              isRecipeUnlockedWithEngagement(recipe.id),
           );
           // Boost starter recipes for this spirit to the front of accessible results
-          const starterIds = SPIRIT_STARTER_MAP[spiritName] || SPIRIT_STARTER_MAP[bottleNameToken] || [];
+          const starterIds =
+            SPIRIT_STARTER_MAP[spiritName] || SPIRIT_STARTER_MAP[bottleNameToken] || [];
           const starterFirst = [
-            ...accessibleData.filter(r => starterIds.includes(r.id)),
-            ...accessibleData.filter(r => !starterIds.includes(r.id)),
+            ...accessibleData.filter((r) => starterIds.includes(r.id)),
+            ...accessibleData.filter((r) => !starterIds.includes(r.id)),
           ];
           const ranked = rankRecipes(starterFirst);
-          const topMatches = ranked.slice(0, 3);
+          const topMatches = ranked.slice(0, ANSWER_CARD_FREE_RECIPE_COUNT);
           setSuggestedCocktails(topMatches);
 
           // Locked: everything else that matched the spirit but isn't accessible
-          const lockedData = matchedData.filter(recipe =>
-            !isCocktailAccessible(recipe.id, tier) &&
-            !isCocktailUnlockedWithXP(recipe.id) &&
-            !isRecipeUnlockedWithEngagement(recipe.id)
+          const lockedData = matchedData.filter(
+            (recipe) =>
+              !isCocktailAccessible(recipe.id, tier) &&
+              !isCocktailUnlockedWithXP(recipe.id) &&
+              !isRecipeUnlockedWithEngagement(recipe.id),
           );
           const rankedLocked = rankRecipes(lockedData);
           setLockedCocktailCount(lockedData.length);
-          setLockedCocktailTeaser(
-            rankedLocked[0]
-              ? { name: rankedLocked[0].name, subtitle: rankedLocked[0].subtitle || 'Classic recipe' }
-              : null
-          );
+          setLockedCocktailTeaser(rankedLocked[0] || null);
         } else {
           // 4. Paid tiers: rank and show top 5
           const ranked = rankRecipes(matchedData);
@@ -628,18 +738,23 @@ export default function BottleDetailScreen() {
     };
 
     fetchCocktails();
-  }, [bottle, bottle.type, bottle.name, user, tier, isCocktailUnlockedWithXP, isRecipeUnlockedWithEngagement, serveRecommendation]);
+  }, [
+    bottle,
+    bottle.type,
+    bottle.name,
+    user,
+    tier,
+    isCocktailUnlockedWithXP,
+    isRecipeUnlockedWithEngagement,
+    serveRecommendation,
+  ]);
 
   const handleAddToShelf = async () => {
     if (!user) {
-      Alert.alert(
-        'Sign In Required',
-        'Please sign in to add bottles to your shelf.',
-        [
-          { text: 'Sign In', onPress: () => navigation.navigate('Settings') },
-          { text: 'Cancel', style: 'cancel' },
-        ]
-      );
+      Alert.alert('Sign In Required', 'Please sign in to add bottles to your shelf.', [
+        { text: 'Sign In', onPress: () => navigation.navigate('Settings') },
+        { text: 'Cancel', style: 'cancel' },
+      ]);
       return;
     }
 
@@ -656,7 +771,7 @@ export default function BottleDetailScreen() {
       itemType: 'spirit',
       itemName: bottle.name,
       category: bottle.type === 'liqueur' ? 'liqueur' : 'spirit',
-      imageUrl: imageUri || undefined,
+      imageUrl: persistedImageUri || imageUri || undefined,
       subcategory: bottle.type,
       brand: bottle.brand,
       abv: bottle.abv,
@@ -664,12 +779,17 @@ export default function BottleDetailScreen() {
       region: bottleProfile.origin,
       flavorTags: bottleProfile.flavorProfile,
       tastingNotes: bottleProfile.tastingNotes,
-      serveGuidance: `${serveRecommendation.heroTitle}. ${serveRecommendation.why} ${serveRecommendation.cocktailUse}`.trim(),
+      serveGuidance:
+        `${serveRecommendation.heroTitle}. ${serveRecommendation.why} ${serveRecommendation.cocktailUse}`.trim(),
     });
 
     if (result.duplicate) {
       // Already there — just reflect that in state silently
       setInventoryItem({ id: 'existing', item_name: bottle.name } as any);
+      if (scanEventId) {
+        scanOutcomeRecordedRef.current = true;
+        updateScanOutcome({ scanEventId, outcome: 'owned', context: 'home' });
+      }
       return;
     }
 
@@ -681,8 +801,11 @@ export default function BottleDetailScreen() {
     // Silently update shelf state — no modal, no XP celebration
     setInventoryItem({ id: 'added', item_name: bottle.name } as any);
     challengeProgressService.trackAddToInventory(user.id, bottle.id || bottle.name);
-    achievementService.trackAction('homeBarIngredients');
     earnScanXP(bottle.id);
+    if (scanEventId) {
+      scanOutcomeRecordedRef.current = true;
+      updateScanOutcome({ scanEventId, outcome: 'owned', context: 'home' });
+    }
     // Boost taste model with shelf signal
     recordScan(bottle, true);
     // Strengthen cache — adding to shelf is the strongest confirmation signal
@@ -691,25 +814,33 @@ export default function BottleDetailScreen() {
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, ' ')
         .trim();
-      await supabase.from('spirits_cache').upsert(
-        { lookup_key: lookupKey, confidence: 1.0 },
-        { onConflict: 'lookup_key' }
-      );
-    } catch { /* silent — shelf add already succeeded */ }
+      await supabase
+        .from('spirits_cache')
+        .upsert({ lookup_key: lookupKey, confidence: 1.0 }, { onConflict: 'lookup_key' });
+    } catch {
+      /* silent — shelf add already succeeded */
+    }
   };
 
   const handleSaveToWishlist = () => {
-    const result = saveToWishlist(
-      { id: bottle.id, name: bottle.name, brand: bottle.brand, type: bottle.type, imageUri },
-    );
+    const result = saveToWishlist({
+      id: bottle.id,
+      name: bottle.name,
+      brand: bottle.brand,
+      type: bottle.type,
+      imageUri: persistedImageUri || imageUri,
+    });
     if (result === 'cap_reached') {
       Alert.alert(
         'Wishlist Full',
         `You can save up to ${WISHLIST_FREE_CAP} bottles on the free plan. Upgrade for unlimited.`,
         [
-          { text: 'Upgrade', onPress: () => (navigation as any).navigate('Paywall', { triggerId: 'T1' }) },
+          {
+            text: 'Upgrade',
+            onPress: () => (navigation as any).navigate('Paywall', { triggerId: 'T1' }),
+          },
           { text: 'Cancel', style: 'cancel' },
-        ]
+        ],
       );
       return;
     }
@@ -730,6 +861,20 @@ export default function BottleDetailScreen() {
         currency: userCurrency,
         locationLabel: locationInput.trim(),
       });
+      // Phase 1.2: also feed the journal + community sync (one write path).
+      logSpottedPrice({
+        bottleId: bottleWishlistId,
+        price,
+        currency: userCurrency,
+        locationLabel: locationInput.trim(),
+        capturePoint: 'post_wishlist',
+        userId: user?.id,
+      });
+      // Phase 1.5: price-capture present -> store context, wanted outcome.
+      if (scanEventId) {
+        scanOutcomeRecordedRef.current = true;
+        updateScanOutcome({ scanEventId, outcome: 'wanted', context: 'store', priceSeen: price });
+      }
     }
     setPriceInput('');
     setLocationInput('');
@@ -783,8 +928,14 @@ export default function BottleDetailScreen() {
 
   const handleShareFind = async () => {
     const topRecipe = suggestedCocktails[0];
-    const nativePriceEstimate = bottle.priceEstimate?.[userCurrency as 'USD' | 'CAD' | 'GBP']
-      ?? (bottle.priceEstimate?.USD ? { min: convertFromUSD(bottle.priceEstimate.USD.min, userCurrency), max: convertFromUSD(bottle.priceEstimate.USD.max, userCurrency) } : null);
+    const nativePriceEstimate =
+      bottle.priceEstimate?.[userCurrency as 'USD' | 'CAD' | 'GBP'] ??
+      (bottle.priceEstimate?.USD
+        ? {
+            min: convertFromUSD(bottle.priceEstimate.USD.min, userCurrency),
+            max: convertFromUSD(bottle.priceEstimate.USD.max, userCurrency),
+          }
+        : null);
     const priceLine = nativePriceEstimate
       ? ` · ${formatPriceRange(nativePriceEstimate.min, nativePriceEstimate.max, userCurrency)}`
       : '';
@@ -795,7 +946,6 @@ export default function BottleDetailScreen() {
       if (user?.id) {
         challengeProgressService.trackShareMoment(user.id, bottle.id);
       }
-      achievementService.trackAction('recipesShared');
     } catch {
       // Share dismissed — no-op
     }
@@ -819,24 +969,19 @@ export default function BottleDetailScreen() {
               const lookupKey = (bottle.id || bottle.name)
                 .toLowerCase()
                 .replace(/[^a-z0-9]+/g, ' ')
-                .trim()
-              await supabase
-                .from('spirits_cache')
-                .delete()
-                .eq('lookup_key', lookupKey)
-              Alert.alert(
-                'Cache Cleared',
-                'Scan the bottle again for a fresh identification.',
-                [{ text: 'Scan Again', onPress: () => navigation.navigate('SmartScan') }]
-              )
+                .trim();
+              await supabase.from('spirits_cache').delete().eq('lookup_key', lookupKey);
+              Alert.alert('Cache Cleared', 'Scan the bottle again for a fresh identification.', [
+                { text: 'Scan Again', onPress: () => navigation.navigate('SmartScan') },
+              ]);
             } catch {
-              Alert.alert('Error', 'Could not clear cache. Please try again.')
+              Alert.alert('Error', 'Could not clear cache. Please try again.');
             }
           },
         },
         { text: 'Cancel', style: 'cancel' },
-      ]
-    )
+      ],
+    );
   };
 
   const handleFeedbackYes = async () => {
@@ -846,51 +991,111 @@ export default function BottleDetailScreen() {
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, ' ')
         .trim();
-      await supabase
-        .from('spirits_cache')
-        .update({ confidence: 1.0 })
-        .eq('lookup_key', lookupKey);
+      // Full upsert: creates the cache entry if it doesn't exist yet (e.g. local DB match),
+      // or raises confidence on an existing Claude result to 1.0.
+      // source='user_confirmed' makes these the highest-priority cache hits.
+      await supabase.from('spirits_cache').upsert(
+        {
+          lookup_key: lookupKey,
+          name: bottle.name,
+          brand: bottle.brand,
+          spirit_type: bottle.type,
+          abv: bottle.abv,
+          price_tier: bottle.priceTier,
+          price_usd_min: bottle.priceEstimate?.USD?.min ?? null,
+          price_usd_max: bottle.priceEstimate?.USD?.max ?? null,
+          price_cad_min: bottle.priceEstimate?.CAD?.min ?? null,
+          price_cad_max: bottle.priceEstimate?.CAD?.max ?? null,
+          price_gbp_min: bottle.priceEstimate?.GBP?.min ?? null,
+          price_gbp_max: bottle.priceEstimate?.GBP?.max ?? null,
+          flavor_profile: bottle.flavorProfile,
+          tasting_notes: bottle.tastingNotes,
+          origin: bottle.origin,
+          search_terms: bottle.searchTerms,
+          confidence: 1.0,
+          source: 'user_confirmed',
+        },
+        { onConflict: 'lookup_key' },
+      );
     } catch {
       // Feedback failure is silent — result is still shown
     }
   };
 
+  const invalidateCacheEntry = async () => {
+    try {
+      const lookupKey = (bottle.id || bottle.name)
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, ' ')
+        .trim();
+      await supabase.from('spirits_cache').delete().eq('lookup_key', lookupKey);
+    } catch {
+      /* silent */
+    }
+  };
+
   const handleFeedbackNo = () => {
-    Alert.alert(
-      'Not the right bottle?',
-      'We\'ll clear the cached result. What would you like to do next?',
-      [
-        {
-          text: 'Scan Again',
-          onPress: async () => {
-            try {
-              const lookupKey = (bottle.id || bottle.name)
-                .toLowerCase()
-                .replace(/[^a-z0-9]+/g, ' ')
-                .trim();
-              await supabase.from('spirits_cache').delete().eq('lookup_key', lookupKey);
-            } catch { /* silent */ }
-            setFeedbackState('dismissed');
-            navigation.navigate('SmartScan');
+    // Show the 3-option correction picker
+    setFeedbackState('correcting');
+  };
+
+  const handleCorrectionBarcode = async () => {
+    await invalidateCacheEntry();
+    setFeedbackState('dismissed');
+    navigation.navigate('SmartScan', { barcodeOnly: true });
+  };
+
+  const handleCorrectionSearchLibrary = async () => {
+    await invalidateCacheEntry();
+    setFeedbackState('dismissed');
+    navigation.navigate('BottleSearch', { initialQuery: bottle.name });
+  };
+
+  const handleCorrectionSubmit = async () => {
+    const name = correctionName.trim();
+    if (!name) return;
+
+    setSubmittingCorrection(true);
+    try {
+      // 1. Invalidate the wrong cache entry so the next scan re-identifies cleanly
+      await invalidateCacheEntry();
+
+      // 2. Write the correction to Supabase for future model review
+      await supabase.from('scan_corrections').insert({
+        identified_name: bottle.name,
+        identified_brand: bottle.brand || null,
+        corrected_name: name,
+        corrected_brand: correctionBrand.trim() || null,
+        image_uri: imageUri || null,
+      });
+
+      // 3. Update the local scan history record with the corrected name
+      await ScanHistoryService.recordScan(
+        { id: bottle.id, name, brand: correctionBrand.trim() || bottle.brand, type: bottle.type },
+        imageUri,
+      );
+
+      // 4. Feed the weighted anti-fraud correction pipeline so the community
+      // consensus (bottle_barcode_mappings) actually gets populated — only
+      // possible when this scan started from a known barcode.
+      if (scannedBarcode && user?.id) {
+        await InventoryService.submitScanCorrection({
+          userId: user.id,
+          barcode: scannedBarcode,
+          correctBottleId: null,
+          newBottleData: {
+            name,
+            brand: correctionBrand.trim() || bottle.brand,
+            type: bottle.type,
           },
-        },
-        {
-          text: 'Search Library',
-          onPress: async () => {
-            try {
-              const lookupKey = (bottle.id || bottle.name)
-                .toLowerCase()
-                .replace(/[^a-z0-9]+/g, ' ')
-                .trim();
-              await supabase.from('spirits_cache').delete().eq('lookup_key', lookupKey);
-            } catch { /* silent */ }
-            setFeedbackState('dismissed');
-            navigation.navigate('BottleSearch');
-          },
-        },
-        { text: 'Cancel', style: 'cancel' },
-      ]
-    );
+        });
+      }
+    } catch {
+      /* silent — correction is best-effort */
+    }
+
+    setSubmittingCorrection(false);
+    setFeedbackState('dismissed');
   };
 
   return (
@@ -924,10 +1129,24 @@ export default function BottleDetailScreen() {
             <Ionicons name="chevron-back" size={24} color="#fff" />
           </TouchableOpacity>
 
-          {/* Identified badge */}
-          <View style={[styles.heroBadge, { top: insets.top + spacing(1) }]}>
-            <Ionicons name="checkmark-circle" size={16} color={colors.gold} />
-            <Text style={styles.heroBadgeText}>Identified</Text>
+          {/* Identified / Low-confidence badge */}
+          <View
+            style={[
+              styles.heroBadge,
+              isLowConfidence && styles.heroBadgeLowConfidence,
+              { top: insets.top + spacing(1) },
+            ]}
+          >
+            <Ionicons
+              name={isLowConfidence ? 'help-circle' : 'checkmark-circle'}
+              size={16}
+              color={isLowConfidence ? colors.warning : colors.gold}
+            />
+            <Text
+              style={[styles.heroBadgeText, isLowConfidence && styles.heroBadgeTextLowConfidence]}
+            >
+              {isLowConfidence ? 'Best match' : 'Identified'}
+            </Text>
           </View>
 
           {/* Bottle name & stats anchored to bottom of hero */}
@@ -937,7 +1156,9 @@ export default function BottleDetailScreen() {
                 <Ionicons name="wine" size={48} color={colors.gold} />
               </View>
             )}
-            <Text style={styles.heroBottleName} numberOfLines={2}>{bottle.name}</Text>
+            <Text style={styles.heroBottleName} numberOfLines={2}>
+              {bottle.name}
+            </Text>
             <Text style={styles.heroBottleBrand}>{bottle.brand}</Text>
 
             {/* Inline stat pills */}
@@ -957,55 +1178,150 @@ export default function BottleDetailScreen() {
                 <Text style={styles.heroPillText}>{getPriceTierDisplay(bottle.priceTier)}</Text>
               </View>
             </View>
+
+            <Text style={styles.heroStoryLine} numberOfLines={2}>
+              {storyLine}
+            </Text>
           </View>
         </View>
 
         {/* Body content — padded */}
         <View style={styles.bodyContent}>
-
-        {/* Stage 10 — Is this correct? feedback strip (only shown for scanned bottles) */}
-        {imageUri && feedbackState !== 'dismissed' && (
-          <View style={styles.feedbackStrip}>
-            {feedbackState === 'confirmed' ? (
-              <>
-                <Ionicons name="checkmark-circle" size={18} color={colors.gold} />
-                <Text style={styles.feedbackConfirmedText}>Thanks — noted!</Text>
-              </>
-            ) : (
-              <>
-                <Text style={styles.feedbackQuestion}>Is this the right bottle?</Text>
-                <View style={styles.feedbackButtons}>
-                  <TouchableOpacity style={styles.feedbackYes} onPress={handleFeedbackYes}>
-                    <Ionicons name="thumbs-up-outline" size={15} color={colors.gold} />
-                    <Text style={styles.feedbackYesText}>Yes</Text>
+          {/* Stage 10 — Is this correct? feedback strip (only shown for scanned bottles) */}
+          {imageUri && feedbackState !== 'dismissed' && (
+            <View
+              style={[
+                styles.feedbackStrip,
+                isLowConfidence && styles.feedbackStripProminent,
+                (feedbackState === 'correcting' || feedbackState === 'typing') &&
+                  styles.feedbackStripCorrection,
+              ]}
+            >
+              {feedbackState === 'confirmed' ? (
+                <>
+                  <Ionicons name="checkmark-circle" size={18} color={colors.gold} />
+                  <Text style={styles.feedbackConfirmedText}>Thanks — noted!</Text>
+                </>
+              ) : feedbackState === 'correcting' ? (
+                <>
+                  <Text style={styles.correctionLabel}>Help us get it right</Text>
+                  <TouchableOpacity
+                    style={styles.correctionOption}
+                    onPress={handleCorrectionBarcode}
+                  >
+                    <View style={styles.correctionOptionIcon}>
+                      <Ionicons name="barcode-outline" size={20} color={colors.gold} />
+                    </View>
+                    <View style={styles.correctionOptionBody}>
+                      <Text style={styles.correctionOptionTitle}>Scan the barcode</Text>
+                      <Text style={styles.correctionOptionSub}>
+                        Fastest — point at the barcode on the bottle
+                      </Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={16} color={colors.subtext} />
                   </TouchableOpacity>
-                  <TouchableOpacity style={styles.feedbackNo} onPress={handleFeedbackNo}>
-                    <Ionicons name="thumbs-down-outline" size={15} color={colors.subtext} />
-                    <Text style={styles.feedbackNoText}>No</Text>
+                  <TouchableOpacity
+                    style={styles.correctionOption}
+                    onPress={handleCorrectionSearchLibrary}
+                  >
+                    <View style={styles.correctionOptionIcon}>
+                      <Ionicons name="search-outline" size={20} color={colors.accent} />
+                    </View>
+                    <View style={styles.correctionOptionBody}>
+                      <Text style={styles.correctionOptionTitle}>Search the library</Text>
+                      <Text style={styles.correctionOptionSub}>
+                        Find it by name from our database
+                      </Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={16} color={colors.subtext} />
                   </TouchableOpacity>
-                </View>
-              </>
-            )}
-          </View>
-        )}
+                  <TouchableOpacity
+                    style={styles.correctionOption}
+                    onPress={() => setFeedbackState('typing')}
+                  >
+                    <View style={styles.correctionOptionIcon}>
+                      <Ionicons name="create-outline" size={20} color={colors.subtext} />
+                    </View>
+                    <View style={styles.correctionOptionBody}>
+                      <Text style={styles.correctionOptionTitle}>Type it in</Text>
+                      <Text style={styles.correctionOptionSub}>Enter the name manually</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={16} color={colors.subtext} />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.correctionCancel}
+                    onPress={() => setFeedbackState('dismissed')}
+                  >
+                    <Text style={styles.correctionCancelText}>Skip</Text>
+                  </TouchableOpacity>
+                </>
+              ) : feedbackState === 'typing' ? (
+                <>
+                  <Text style={styles.correctionLabel}>What's the right bottle?</Text>
+                  <TextInput
+                    style={styles.correctionInput}
+                    placeholder="Bottle name"
+                    placeholderTextColor={colors.subtext}
+                    value={correctionName}
+                    onChangeText={setCorrectionName}
+                    autoFocus
+                    returnKeyType="next"
+                  />
+                  <TextInput
+                    style={styles.correctionInput}
+                    placeholder="Brand (optional)"
+                    placeholderTextColor={colors.subtext}
+                    value={correctionBrand}
+                    onChangeText={setCorrectionBrand}
+                    returnKeyType="done"
+                    onSubmitEditing={handleCorrectionSubmit}
+                  />
+                  <View style={styles.correctionActions}>
+                    <TouchableOpacity
+                      style={[styles.correctionSubmit, !correctionName.trim() && { opacity: 0.5 }]}
+                      onPress={handleCorrectionSubmit}
+                      disabled={!correctionName.trim() || submittingCorrection}
+                    >
+                      {submittingCorrection ? (
+                        <ActivityIndicator size="small" color="#1A120D" />
+                      ) : (
+                        <Text style={styles.correctionSubmitText}>Submit</Text>
+                      )}
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.correctionCancel}
+                      onPress={() => setFeedbackState('correcting')}
+                    >
+                      <Text style={styles.correctionCancelText}>Back</Text>
+                    </TouchableOpacity>
+                  </View>
+                </>
+              ) : (
+                <>
+                  <Text
+                    style={[
+                      styles.feedbackQuestion,
+                      isLowConfidence && styles.feedbackQuestionProminent,
+                    ]}
+                  >
+                    Is this the right bottle?
+                  </Text>
+                  <View style={styles.feedbackButtons}>
+                    <TouchableOpacity style={styles.feedbackYes} onPress={handleFeedbackYes}>
+                      <Ionicons name="thumbs-up-outline" size={15} color={colors.gold} />
+                      <Text style={styles.feedbackYesText}>Yes</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.feedbackNo} onPress={handleFeedbackNo}>
+                      <Ionicons name="thumbs-down-outline" size={15} color={colors.subtext} />
+                      <Text style={styles.feedbackNoText}>No</Text>
+                    </TouchableOpacity>
+                  </View>
+                </>
+              )}
+            </View>
+          )}
 
-        {/* Flavour & Tasting Notes — horizontal swipe cards */}
-        <View style={styles.infoCardsDotsRow}>
-          <View style={[styles.infoCardDot, infoCardsPage === 0 && styles.infoCardDotActive]} />
-          <View style={[styles.infoCardDot, infoCardsPage === 1 && styles.infoCardDotActive]} />
-        </View>
-        <ScrollView
-          horizontal
-          pagingEnabled
-          showsHorizontalScrollIndicator={false}
-          style={styles.infoCardsScroll}
-          contentContainerStyle={styles.infoCardsContent}
-          onMomentumScrollEnd={(e) => {
-            const page = Math.round(e.nativeEvent.contentOffset.x / (Dimensions.get('window').width - spacing(3) * 2));
-            setInfoCardsPage(page);
-          }}
-        >
-          {/* Card 1 — Flavor Profile */}
+          {/* Identity — Flavor Profile (quick glance; full tasting notes live below the fold) */}
           <View style={styles.infoCard}>
             <View style={styles.infoCardHeaderRow}>
               <Text style={styles.infoCardTitle}>Flavor Profile</Text>
@@ -1019,438 +1335,386 @@ export default function BottleDetailScreen() {
                   <View style={styles.flavorIconCircle}>
                     <FlavorIcon flavor={flavor} size={26} color={colors.goldText} />
                   </View>
-                  <Text style={styles.flavorIconLabel} numberOfLines={2}>{flavor}</Text>
+                  <Text style={styles.flavorIconLabel} numberOfLines={2}>
+                    {flavor}
+                  </Text>
                 </View>
               ))}
             </View>
           </View>
 
-          {/* Card 2 — Tasting Notes */}
-          <View style={styles.infoCard}>
-            <View style={styles.infoCardHeaderRow}>
-              <Text style={styles.infoCardTitle}>Tasting Notes</Text>
-              {bottleProfile.isTastingFallback && (
-                <Text style={styles.categoryDefaultBadge}>{bottle.type} profile</Text>
-              )}
-            </View>
-            <Text style={styles.tastingNotes}>{bottleProfile.tastingNotes}</Text>
-          </View>
-        </ScrollView>
-
-        {/* Price Estimate — tap to change currency */}
-        <TouchableOpacity
-          style={styles.priceCard}
-          onPress={() => setShowCurrencyPicker(true)}
-          activeOpacity={0.8}
-        >
-          <View style={styles.priceHeader}>
-            <Ionicons name="cash-outline" size={20} color={colors.accent} />
-            <Text style={styles.priceTitle}>Typical Price Range</Text>
-            <View style={styles.regionBadgeTappable}>
-              <Text style={styles.regionBadgeText}>{CURRENCY_META[userCurrency].flag} {userCurrency}</Text>
-              <Ionicons name="chevron-down" size={11} color={colors.accent} />
-            </View>
-          </View>
-          {(() => {
-            const nativeCurrencies = ['USD', 'CAD', 'GBP'];
-            const estimate = nativeCurrencies.includes(userCurrency)
-              ? bottle.priceEstimate[userCurrency as 'USD' | 'CAD' | 'GBP']
-              : bottle.priceEstimate?.USD
-                ? { min: convertFromUSD(bottle.priceEstimate.USD.min, userCurrency), max: convertFromUSD(bottle.priceEstimate.USD.max, userCurrency) }
-                : null;
-            if (!estimate) return null;
-            return (
-              <>
-                <Text style={styles.priceText}>
-                  {formatPriceRange(estimate.min, estimate.max, userCurrency)}
-                </Text>
-                <Text style={styles.priceDisclaimer}>
-                  {nativeCurrencies.includes(userCurrency)
-                    ? '* Prices vary by location and retailer'
-                    : '* Approximate price converted from USD'}
-                </Text>
-              </>
-            );
-          })()}
-        </TouchableOpacity>
-
-        {/* Currency picker modal */}
-        <Modal
-          visible={showCurrencyPicker}
-          transparent
-          animationType="slide"
-          onRequestClose={() => setShowCurrencyPicker(false)}
-        >
-          <TouchableOpacity
-            style={styles.currencyModalOverlay}
-            activeOpacity={1}
-            onPress={() => setShowCurrencyPicker(false)}
-          >
-            <View style={styles.currencyModalSheet}>
-              <View style={styles.currencyModalHandle} />
-              <Text style={styles.currencyModalTitle}>Price Currency</Text>
-              {(Object.keys(CURRENCY_META) as SupportedCurrency[]).map((c) => (
-                <TouchableOpacity
-                  key={c}
-                  style={[styles.currencyOption, c === userCurrency && styles.currencyOptionActive]}
-                  onPress={() => { setCurrency(c); setShowCurrencyPicker(false); }}
-                >
-                  <Text style={styles.currencyOptionFlag}>{CURRENCY_META[c].flag}</Text>
-                  <View style={styles.currencyOptionLabels}>
-                    <Text style={[styles.currencyOptionCode, c === userCurrency && styles.currencyOptionCodeActive]}>{c}</Text>
-                    <Text style={styles.currencyOptionName}>{CURRENCY_META[c].label}</Text>
-                  </View>
-                  {c === userCurrency && (
-                    <Ionicons name="checkmark" size={18} color={colors.gold} />
-                  )}
-                </TouchableOpacity>
-              ))}
-            </View>
-          </TouchableOpacity>
-        </Modal>
-
-        {/* Serve Guidance */}
-        <View style={[styles.serveCard, serveRecommendation.isPremiumExperience && styles.serveCardPremium, styles.infoCard]}>
-          <View style={styles.serveHeader}>
-            <View style={styles.serveHeaderCopy}>
-              <Text style={styles.serveEyebrow}>
-                {serveRecommendation.isPremiumExperience ? 'Premium Bottle Guidance' : 'Serve Guidance'}
-              </Text>
-              <Text style={styles.serveTitle}>{serveRecommendation.heroTitle}</Text>
-              <Text style={styles.serveSubtitle}>{serveRecommendation.heroSubtitle}</Text>
-            </View>
-            <View style={styles.firstPourBadge}>
-              <Text style={styles.firstPourLabel}>Start With</Text>
-              <Text style={styles.firstPourValue}>
-                {serveRecommendation.serveModes.find((mode) => mode.mode === serveRecommendation.firstPour)?.label || 'Neat'}
-              </Text>
-            </View>
-          </View>
-
-          <Text style={styles.serveWhy}>{serveRecommendation.why}</Text>
-
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.serveModesRail}
-            contentContainerStyle={styles.serveModesRailContent}
-          >
-            {serveRecommendation.serveModes.map((mode, index) => (
-              <React.Fragment key={mode.mode}>
-                {index > 0 && <View style={styles.serveModeSeparator} />}
-                <View style={styles.serveModeCard}>
-                  <View style={styles.serveModeIcon}>
-                    <Ionicons
-                      name={
-                        mode.mode === 'neat'
-                          ? 'wine-outline'
-                          : mode.mode === 'water-drops'
-                            ? 'water-outline'
-                            : mode.mode === 'large-rock'
-                              ? 'cube-outline'
-                              : 'sparkles-outline'
-                      }
-                      size={18}
-                      color={colors.gold}
-                    />
-                  </View>
-                  <Text style={styles.serveModeLabel}>{mode.label}</Text>
-                  <Text style={styles.serveModeDescription}>{mode.description}</Text>
-                </View>
-              </React.Fragment>
-            ))}
-          </ScrollView>
-
-          <View style={styles.serveFootnote}>
-            <Ionicons name="information-circle-outline" size={16} color={colors.accent} />
-            <Text style={styles.serveFootnoteText}>{serveRecommendation.cocktailUse}</Text>
-          </View>
-        </View>
-
-        {/* Cocktails You Can Make */}
-        {!loadingCocktails && suggestedCocktails.length > 0 && (
-          <View style={styles.section}>
-            <View style={styles.cocktailsHeader}>
-              <Ionicons name="sparkles" size={24} color={colors.gold} />
-              <View style={styles.cocktailsHeaderCopy}>
-                <Text style={styles.cocktailsTitle}>
-                  {serveRecommendation.cocktailPlacement === 'secondary'
-                    ? 'Cocktails That Respect This Bottle'
-                    : 'Cocktails You Can Make'}
-                </Text>
-                <Text style={styles.cocktailsSubtitle}>
-                  {tier === 'FREE'
-                    ? 'Up to 3 matches from your free and unlocked recipe pool.'
-                    : 'Best matches from your current recipe access.'}
-                </Text>
-              </View>
-            </View>
-            <FlatList
-              horizontal
-              data={suggestedCocktails}
-              keyExtractor={(cocktail) => cocktail.id}
-              renderItem={({ item: cocktail }) => {
-                const displayRecipe = {
-                  ...cocktail,
-                  image: getCocktailImage(cocktail.id, cocktail.image),
-                  subtitle: cocktail.match?.canMake
-                    ? 'You can make this'
-                    : cocktail.match?.almostCanMake
-                      ? getMatchMessage(cocktail.match)
-                      : cocktail.subtitle || 'Worth a closer look',
-                };
-
-                return (
-                  <RecipeCard
-                    recipe={displayRecipe}
-                    onPress={() => navigation.navigate('CocktailDetail', { cocktailId: cocktail.id })}
-                    showSaveButton={false}
-                    showCartButton={false}
-                    showDeleteButton={false}
-                    style={styles.discoveryRecipeCard}
-                  />
-                );
-              }}
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.cocktailsRail}
-              ItemSeparatorComponent={() => <View style={styles.cocktailRailSeparator} />}
-              ListFooterComponent={
-                tier === 'FREE' && lockedCocktailCount > 0 ? (
-                  <TouchableOpacity
-                    style={styles.lockedRecipeTeaser}
-                    activeOpacity={0.88}
-                    onPress={() => inventoryGate('T1')}
-                  >
-                    <View style={styles.lockedRecipeTeaserContent}>
-                      <View style={styles.lockedRecipeLockBadge}>
-                        <Ionicons name="lock-closed" size={16} color={colors.accent} />
-                      </View>
-                      <Text style={styles.lockedRecipeTeaserName} numberOfLines={2}>
-                        {lockedCocktailTeaser?.name ?? 'More recipes'}
-                      </Text>
-                      <Text style={styles.lockedRecipeTeaserSub} numberOfLines={1}>
-                        {lockedCocktailTeaser?.subtitle ?? 'Unlock with KOOPE+'}
-                      </Text>
-                      <View style={styles.lockedRecipeTeaserDivider} />
-                      <Text style={styles.lockedRecipeTeaserCta}>
-                        +{lockedCocktailCount} more with KOOPE+
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
-                ) : null
-              }
-              nestedScrollEnabled
-              removeClippedSubviews={false}
-            />
-          </View>
-        )}
-
-        {/* About This Spirit */}
-        <View style={[styles.infoCard, { marginBottom: spacing(3) }]}>
-          <SpiritEducationPanel
-            bottle={bottle}
-            serveRecommendation={serveRecommendation}
-            alwaysExpanded={true}
-            inCard
+          {/* Value line — sourced range + spotted-price verdict + at-scan capture (Phase 1.2) */}
+          <ValueLine
+            range={priceRangeEstimate}
+            currency={userCurrency}
+            sourceLabel={valueSourceLabel}
+            spotted={spottedForBottle}
+            giftMode={giftMode}
+            onOpenCurrencyPicker={() => setShowCurrencyPicker(true)}
+            onLogPrice={(price) =>
+              logSpottedPrice({
+                bottleId: bottleWishlistId,
+                price,
+                currency: userCurrency,
+                capturePoint: 'at_scan',
+                userId: user?.id,
+              })
+            }
           />
-        </View>
 
-        {/* Secondary actions row */}
-        <View style={[styles.secondaryActions, { marginTop: spacing(1), marginBottom: spacing(1) }]}>
-          <TouchableOpacity
-            style={styles.secondaryButton}
-            onPress={handleTryAnother}
+          {/* Currency picker modal */}
+          <Modal
+            visible={showCurrencyPicker}
+            transparent
+            animationType="slide"
+            onRequestClose={() => setShowCurrencyPicker(false)}
           >
-            <Ionicons name="camera-outline" size={20} color={colors.accent} />
-            <Text style={styles.secondaryButtonText}>Scan Again</Text>
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.currencyModalOverlay}
+              activeOpacity={1}
+              onPress={() => setShowCurrencyPicker(false)}
+            >
+              <View style={styles.currencyModalSheet}>
+                <View style={styles.currencyModalHandle} />
+                <Text style={styles.currencyModalTitle}>Price Currency</Text>
+                {(Object.keys(CURRENCY_META) as SupportedCurrency[]).map((c) => (
+                  <TouchableOpacity
+                    key={c}
+                    style={[
+                      styles.currencyOption,
+                      c === userCurrency && styles.currencyOptionActive,
+                    ]}
+                    onPress={() => {
+                      setCurrency(c);
+                      setShowCurrencyPicker(false);
+                    }}
+                  >
+                    <Text style={styles.currencyOptionFlag}>{CURRENCY_META[c].flag}</Text>
+                    <View style={styles.currencyOptionLabels}>
+                      <Text
+                        style={[
+                          styles.currencyOptionCode,
+                          c === userCurrency && styles.currencyOptionCodeActive,
+                        ]}
+                      >
+                        {c}
+                      </Text>
+                      <Text style={styles.currencyOptionName}>{CURRENCY_META[c].label}</Text>
+                    </View>
+                    {c === userCurrency && (
+                      <Ionicons name="checkmark" size={18} color={colors.gold} />
+                    )}
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </TouchableOpacity>
+          </Modal>
 
-          <TouchableOpacity
-            style={styles.secondaryButton}
-            onPress={handleFindNearby}
-          >
-            <Ionicons name="location-outline" size={20} color={colors.accent} />
-            <Text style={styles.secondaryButtonText}>Find Nearby</Text>
-          </TouchableOpacity>
+          {/* The Hook — recipe unlock, promoted above serve guidance / full tasting notes */}
+          {!loadingCocktails && suggestedCocktails.length > 0 && (
+            <View style={styles.section}>
+              <View style={styles.cocktailsHeader}>
+                <Ionicons name="sparkles" size={24} color={colors.gold} />
+                <View style={styles.cocktailsHeaderCopy}>
+                  <Text style={styles.cocktailsTitle}>
+                    {giftMode && giftPreference.flavorHint
+                      ? `They could make ${giftFilteredCocktails.length} cocktails with this bottle`
+                      : tier === 'FREE' && lockedCocktailCount > 0
+                        ? `Owning this unlocks ${suggestedCocktails.length + lockedCocktailCount} cocktails with your shelf`
+                        : serveRecommendation.cocktailPlacement === 'secondary'
+                          ? 'Cocktails That Respect This Bottle'
+                          : 'Cocktails You Can Make'}
+                  </Text>
+                  <Text style={styles.cocktailsSubtitle}>
+                    {giftMode && giftPreference.flavorHint
+                      ? 'Matched to how they like it'
+                      : tier === 'FREE'
+                        ? lockedCocktailCount > 0
+                          ? `${ANSWER_CARD_FREE_RECIPE_COUNT} free now — the rest with KŌOPE+`
+                          : 'From your free and unlocked recipe pool.'
+                        : 'Best matches from your current recipe access.'}
+                  </Text>
+                </View>
+              </View>
+              <FlatList
+                horizontal
+                data={giftMode ? giftFilteredCocktails : suggestedCocktails}
+                keyExtractor={(cocktail) => cocktail.id}
+                renderItem={({ item: cocktail }) => {
+                  const displayRecipe = {
+                    ...cocktail,
+                    image: getCocktailImage(cocktail.id, cocktail.image),
+                    subtitle: cocktail.match?.canMake
+                      ? 'You can make this'
+                      : cocktail.match?.almostCanMake
+                        ? getMatchMessage(cocktail.match)
+                        : cocktail.subtitle || 'Worth a closer look',
+                  };
 
-          <TouchableOpacity
-            style={styles.secondaryButton}
-            onPress={handleShareFind}
-          >
-            <Ionicons name="share-outline" size={20} color={colors.accent} />
-            <Text style={styles.secondaryButtonText}>Share</Text>
-          </TouchableOpacity>
-        </View>
+                  return (
+                    <RecipeCard
+                      recipe={displayRecipe}
+                      onPress={() =>
+                        navigation.navigate('CocktailDetail', { cocktailId: cocktail.id })
+                      }
+                      showSaveButton={false}
+                      showCartButton={false}
+                      showDeleteButton={false}
+                      style={styles.discoveryRecipeCard}
+                    />
+                  );
+                }}
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.cocktailsRail}
+                ItemSeparatorComponent={() => <View style={styles.cocktailRailSeparator} />}
+                ListFooterComponent={
+                  tier === 'FREE' && lockedCocktailCount > 0 && lockedCocktailTeaser ? (
+                    <LockedRecipeCard
+                      image={getCocktailImage(lockedCocktailTeaser.id, lockedCocktailTeaser.image)}
+                      title={lockedCocktailTeaser.name}
+                      subtitle={
+                        lockedCocktailCount > 1
+                          ? `+${lockedCocktailCount - 1} more with KŌOPE+`
+                          : 'Unlock with KŌOPE+'
+                      }
+                      onPress={() => inventoryGate('T15')}
+                      style={styles.lockedRecipeCardInRail}
+                    />
+                  ) : null
+                }
+                nestedScrollEnabled
+                removeClippedSubviews={false}
+              />
+            </View>
+          )}
 
-        {/* Wrong Result — small text link */}
-        <TouchableOpacity style={styles.wrongResultLink} onPress={handleWrongResult}>
-          <Text style={styles.wrongResultLinkText}>Wrong bottle? Clear result</Text>
-        </TouchableOpacity>
-
-        {/* Wishlist link — only on scan results, only when not already on shelf */}
-        {imageUri && !inventoryItem && (
-          <View style={styles.wishlistRow}>
-            {wishlisted ? (
-              <>
-                <Ionicons name="bookmark" size={14} color={colors.accent} />
-                <Text style={styles.wishlistSavedText}>Saved to wishlist</Text>
-                <TouchableOpacity onPress={handleRemoveFromWishlist} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                  <Text style={styles.wishlistRemoveText}>Remove</Text>
-                </TouchableOpacity>
-              </>
-            ) : (
-              <TouchableOpacity style={styles.wishlistLink} onPress={handleSaveToWishlist}>
-                <Ionicons name="bookmark-outline" size={14} color={colors.subtext} />
-                <Text style={styles.wishlistLinkText}>Not yours yet — save to wishlist</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        )}
-
-
-        {false && <View style={[
-          styles.cellarCard,
-          hasCellarMode ? styles.cellarCardActive : styles.cellarCardLocked,
-        ]}>
-          <View style={styles.cellarHeader}>
-            <View style={styles.cellarHeaderCopy}>
-              <Text style={styles.cellarEyebrow}>Collector Layer</Text>
-              <Text style={styles.cellarTitle}>Cellar Mode</Text>
-              <Text style={styles.cellarSubtitle}>
-                {hasCellarMode
-                  ? 'A secondary collector view for bottles you want to track more deliberately.'
-                  : 'Optional PRO tracking for value, drinking windows, and collector notes once a bottle is in inventory.'}
+          {/* Actions row — three peers */}
+          <View style={[styles.secondaryActions, { marginTop: spacing(2) }]}>
+            <TouchableOpacity
+              style={[styles.secondaryButton, !!inventoryItem && styles.secondaryButtonActive]}
+              onPress={handleAddToShelf}
+              disabled={!!inventoryItem}
+            >
+              <Ionicons
+                name={inventoryItem ? 'checkmark-circle' : 'add-circle-outline'}
+                size={20}
+                color={inventoryItem ? colors.gold : colors.accent}
+              />
+              <Text style={styles.secondaryButtonText}>
+                {inventoryItem ? 'In Bar' : 'Add to Bar'}
               </Text>
-            </View>
-            <View style={styles.cellarHeaderActions}>
-              <View style={styles.cellarBadge}>
-                <Text style={styles.cellarBadgeText}>{hasCellarMode ? 'PRO Active' : 'PRO'}</Text>
-              </View>
-              <TouchableOpacity
-                style={styles.cellarCollapseButton}
-                activeOpacity={0.85}
-                onPress={() => setCellarExpanded((value) => !value)}
-              >
-                <Text style={styles.cellarCollapseButtonText}>
-                  {cellarExpanded ? 'Hide' : 'Expand'}
-                </Text>
-                <Ionicons
-                  name={cellarExpanded ? 'chevron-up' : 'chevron-down'}
-                  size={16}
-                  color={colors.accent}
-                />
-              </TouchableOpacity>
-            </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.secondaryButton, wishlisted && styles.secondaryButtonActive]}
+              onPress={wishlisted ? handleRemoveFromWishlist : handleSaveToWishlist}
+            >
+              <Ionicons
+                name={wishlisted ? 'bookmark' : 'bookmark-outline'}
+                size={20}
+                color={wishlisted ? colors.gold : colors.accent}
+              />
+              <Text style={styles.secondaryButtonText}>{wishlisted ? 'Wanted' : 'Want it'}</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.secondaryButton, giftMode && styles.secondaryButtonActive]}
+              onPress={() => {
+                setGiftMode((value) => {
+                  const next = !value;
+                  if (!next) setGiftPreference({});
+                  // Phase 1.5: gift mode is a context modifier, not an
+                  // outcome — only write when turning it ON.
+                  if (next && scanEventId) {
+                    updateScanOutcome({ scanEventId, context: 'gift' });
+                  }
+                  return next;
+                });
+              }}
+            >
+              <Ionicons
+                name={giftMode ? 'gift' : 'gift-outline'}
+                size={20}
+                color={giftMode ? colors.gold : colors.accent}
+              />
+              <Text style={styles.secondaryButtonText}>Gift</Text>
+            </TouchableOpacity>
           </View>
 
-          {hasCellarMode ? (
-            inventoryItem ? (
-              <>
-                <View style={styles.cellarSummaryRow}>
-                  <View style={styles.cellarSummaryPill}>
-                    <Text style={styles.cellarSummaryLabel}>Value</Text>
-                    <Text style={styles.cellarSummaryValue}>
-                      {userCurrency === 'GBP' ? '£' : '$'}{(inventoryItem.valuation_estimate ?? cellarValuation).toFixed(0)}
-                    </Text>
-                  </View>
-                  <View style={styles.cellarSummaryPill}>
-                    <Text style={styles.cellarSummaryLabel}>Window</Text>
-                    <Text style={styles.cellarSummaryValue}>
-                      {(inventoryItem.drinking_window_end || suggestedCellarWindow.end)}
-                    </Text>
-                  </View>
-                  <View style={styles.cellarSummaryPill}>
-                    <Text style={styles.cellarSummaryLabel}>Qty</Text>
-                    <Text style={styles.cellarSummaryValue}>{String(inventoryItem.quantity || 'full').toUpperCase()}</Text>
-                  </View>
-                </View>
+          {/* Gift mode — 2-tap "who's this for" + verdict (Phase 1.1) */}
+          {giftMode && (
+            <GiftModePanel
+              preference={giftPreference}
+              onPreferenceChange={setGiftPreference}
+              verdict={
+                giftPreference.spiritHint || giftPreference.flavorHint
+                  ? computeGiftVerdict({
+                      spiritToken: normalizeSpiritToken(bottle.type || (bottle as any).category),
+                      flavorWords: bottleProfile.flavorProfile,
+                      priceRange: priceRangeEstimate,
+                      preference: giftPreference,
+                    })
+                  : null
+              }
+            />
+          )}
 
-                {cellarExpanded ? (
-                  <>
-                    <View style={styles.cellarMetricsRow}>
-                      <View style={styles.cellarMetric}>
-                        <Text style={styles.cellarMetricLabel}>Estimated Value</Text>
-                        <Text style={styles.cellarMetricValue}>
-                          {userCurrency === 'GBP' ? '£' : '$'}{(inventoryItem.valuation_estimate ?? cellarValuation).toFixed(0)}
-                        </Text>
-                      </View>
-                      <View style={styles.cellarMetric}>
-                        <Text style={styles.cellarMetricLabel}>Acquired</Text>
-                        <Text style={styles.cellarMetricValue}>{formatDisplayDate(inventoryItem.acquired_at || inventoryItem.added_at)}</Text>
-                      </View>
-                      <View style={styles.cellarMetric}>
-                        <Text style={styles.cellarMetricLabel}>Quantity</Text>
-                        <Text style={styles.cellarMetricValue}>{String(inventoryItem.quantity || 'full').toUpperCase()}</Text>
-                      </View>
-                    </View>
+          {/* Free "what do you like" prompt (Phase 1.6) — one-time, never alongside Gift mode */}
+          {!giftMode && showTastePrompt && (
+            <TastePromptPanel
+              spiritHint={tasteSpiritHint}
+              flavorHint={tasteFlavorHint}
+              onSpiritSelect={handleTasteSpiritSelect}
+              onFlavorSelect={handleTasteFlavorSelect}
+              onDismiss={dismissTastePrompt}
+            />
+          )}
 
-                    <View style={styles.cellarWindowCard}>
-                      <Text style={styles.cellarWindowTitle}>Suggested Drinking Window</Text>
-                      <Text style={styles.cellarWindowValue}>
-                        {(inventoryItem.drinking_window_start || suggestedCellarWindow.start)} to {(inventoryItem.drinking_window_end || suggestedCellarWindow.end)}
-                      </Text>
-                      <Text style={styles.cellarWindowNote}>{suggestedCellarWindow.note}</Text>
-                    </View>
+          {/* See more — everything else lives below this fold */}
+          <TouchableOpacity
+            style={styles.seeMoreToggle}
+            onPress={() => setExpanded((value) => !value)}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.seeMoreToggleText}>{expanded ? 'See less' : 'See more'}</Text>
+            <Ionicons
+              name={expanded ? 'chevron-up' : 'chevron-down'}
+              size={16}
+              color={colors.accent}
+            />
+          </TouchableOpacity>
 
-                    <View style={styles.cellarNotesCard}>
-                      <Text style={styles.cellarNotesTitle}>Collector Notes</Text>
-                      <Text style={styles.cellarNotesBody}>
-                        {inventoryItem.cellar_notes || 'No collector notes yet. Use Cellar Mode to log purchase context, special occasions, or why this bottle is worth holding.'}
-                      </Text>
-                    </View>
-                  </>
-                ) : null}
-
-                <TouchableOpacity style={styles.cellarButton} onPress={openCellarModal}>
-                  <Ionicons name="library-outline" size={18} color={colors.white} />
-                  <Text style={styles.cellarButtonText}>
-                    {cellarExpanded ? 'Update Cellar Record' : 'Open Cellar Record'}
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.cellarSecondaryButton}
-                  onPress={() => navigation.navigate('TheWineCellar')}
-                >
-                  <Ionicons name="wine-outline" size={18} color={colors.accent} />
-                  <Text style={styles.cellarSecondaryButtonText}>Open Cellar Portfolio</Text>
-                </TouchableOpacity>
-              </>
-            ) : (
-              <View style={styles.cellarEmptyState}>
-                <Text style={styles.cellarEmptyTitle}>Add this bottle to inventory first</Text>
-                <Text style={styles.cellarEmptyBody}>
-                  Once it’s in your bar, Cellar Mode can track acquisition date, value, drinking window, and collector notes.
-                </Text>
-              </View>
-            )
-          ) : (
+          {expanded && (
             <>
-              {cellarExpanded ? (
-                <View style={styles.cellarWindowCard}>
-                  <Text style={styles.cellarWindowTitle}>Why it matters</Text>
-                  <Text style={styles.cellarWindowNote}>
-                    PRO turns premium bottles into tracked collector references with purchase context, value, and opening guidance.
-                  </Text>
+              {/* Tasting Notes */}
+              <View style={styles.infoCard}>
+                <View style={styles.infoCardHeaderRow}>
+                  <Text style={styles.infoCardTitle}>Tasting Notes</Text>
+                  {bottleProfile.isTastingFallback && (
+                    <Text style={styles.categoryDefaultBadge}>{bottle.type} profile</Text>
+                  )}
                 </View>
-              ) : null}
-              <TouchableOpacity
-                style={styles.cellarUpgradeButton}
-                onPress={() => cellarModeGate('T11')}
+                <Text style={styles.tastingNotes}>{bottleProfile.tastingNotes}</Text>
+              </View>
+
+              {/* Serve Guidance */}
+              <View
+                style={[
+                  styles.serveCard,
+                  serveRecommendation.isPremiumExperience && styles.serveCardPremium,
+                  styles.infoCard,
+                ]}
               >
-                <Ionicons name="diamond-outline" size={18} color={colors.accent} />
-                <Text style={styles.cellarUpgradeButtonText}>Unlock Cellar Mode</Text>
+                <View style={styles.serveHeader}>
+                  <View style={styles.serveHeaderCopy}>
+                    <Text style={styles.serveEyebrow}>
+                      {serveRecommendation.isPremiumExperience
+                        ? 'Premium Bottle Guidance'
+                        : 'Serve Guidance'}
+                    </Text>
+                    <Text style={styles.serveTitle}>{serveRecommendation.heroTitle}</Text>
+                    <Text style={styles.serveSubtitle}>{serveRecommendation.heroSubtitle}</Text>
+                  </View>
+                  <View style={styles.firstPourBadge}>
+                    <Text style={styles.firstPourLabel}>Start With</Text>
+                    <Text style={styles.firstPourValue}>
+                      {serveRecommendation.serveModes.find(
+                        (mode) => mode.mode === serveRecommendation.firstPour,
+                      )?.label || 'Neat'}
+                    </Text>
+                  </View>
+                </View>
+
+                <Text style={styles.serveWhy}>{serveRecommendation.why}</Text>
+
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  style={styles.serveModesRail}
+                  contentContainerStyle={styles.serveModesRailContent}
+                >
+                  {serveRecommendation.serveModes.map((mode, index) => (
+                    <React.Fragment key={mode.mode}>
+                      {index > 0 && <View style={styles.serveModeSeparator} />}
+                      <View style={styles.serveModeCard}>
+                        <View style={styles.serveModeIcon}>
+                          <Ionicons
+                            name={
+                              mode.mode === 'neat'
+                                ? 'wine-outline'
+                                : mode.mode === 'water-drops'
+                                  ? 'water-outline'
+                                  : mode.mode === 'large-rock'
+                                    ? 'cube-outline'
+                                    : 'sparkles-outline'
+                            }
+                            size={18}
+                            color={colors.gold}
+                          />
+                        </View>
+                        <Text style={styles.serveModeLabel}>{mode.label}</Text>
+                        <Text style={styles.serveModeDescription}>{mode.description}</Text>
+                      </View>
+                    </React.Fragment>
+                  ))}
+                </ScrollView>
+
+                <View style={styles.serveFootnote}>
+                  <Ionicons name="information-circle-outline" size={16} color={colors.accent} />
+                  <Text style={styles.serveFootnoteText}>{serveRecommendation.cocktailUse}</Text>
+                </View>
+              </View>
+
+              {/* About This Spirit */}
+              <View style={[styles.infoCard, { marginBottom: spacing(3) }]}>
+                <SpiritEducationPanel
+                  bottle={bottle}
+                  serveRecommendation={serveRecommendation}
+                  alwaysExpanded={true}
+                  inCard
+                />
+              </View>
+
+              {/* Secondary actions row */}
+              <View
+                style={[
+                  styles.secondaryActions,
+                  { marginTop: spacing(1), marginBottom: spacing(1) },
+                ]}
+              >
+                <TouchableOpacity style={styles.secondaryButton} onPress={handleTryAnother}>
+                  <Ionicons name="camera-outline" size={20} color={colors.accent} />
+                  <Text style={styles.secondaryButtonText}>Scan Again</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity style={styles.secondaryButton} onPress={handleFindNearby}>
+                  <Ionicons name="location-outline" size={20} color={colors.accent} />
+                  <Text style={styles.secondaryButtonText}>Find Nearby</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity style={styles.secondaryButton} onPress={handleShareFind}>
+                  <Ionicons name="share-outline" size={20} color={colors.accent} />
+                  <Text style={styles.secondaryButtonText}>Share</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Wrong Result — small text link */}
+              <TouchableOpacity style={styles.wrongResultLink} onPress={handleWrongResult}>
+                <Text style={styles.wrongResultLinkText}>Wrong bottle? Clear result</Text>
               </TouchableOpacity>
             </>
           )}
-        </View>}
 
-        {/* end bodyContent */}
+          {/* end bodyContent */}
         </View>
       </ScrollView>
 
-      {/* Sticky shelf action bar — always visible */}
-      <View style={[styles.stickyShelfBar, { paddingBottom: Math.max(insets.bottom, spacing(2)) }]}>
-        {inventoryItem ? (
+      {/* Sticky shelf confirmation bar — only shown once added; the primary
+          "Add to Bar" action now lives in the in-screen actions row */}
+      {inventoryItem && (
+        <View
+          style={[styles.stickyShelfBar, { paddingBottom: Math.max(insets.bottom, spacing(2)) }]}
+        >
           <View style={styles.stickyShelfConfirmed}>
             <Ionicons name="checkmark-circle" size={18} color={colors.gold} />
             <Text style={styles.stickyShelfConfirmedText}>In your shelf</Text>
@@ -1461,19 +1725,8 @@ export default function BottleDetailScreen() {
               <Text style={styles.shelfActionViewLink}>View shelf →</Text>
             </TouchableOpacity>
           </View>
-        ) : (
-          <TouchableOpacity
-            style={styles.stickyShelfButton}
-            onPress={handleAddToShelf}
-            activeOpacity={0.85}
-          >
-            <Ionicons name="add-circle-outline" size={20} color={colors.goldText} />
-            <Text style={styles.stickyShelfButtonText}>Add to Shelf</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-
-      {/* inventoryConfirmModal removed — shelf add is now silent (v2) */}
+        </View>
+      )}
 
       {/* Price prompt — appears after saving to wishlist */}
       <Modal
@@ -1515,110 +1768,13 @@ export default function BottleDetailScreen() {
               >
                 <Text style={styles.pricePromptSkipText}>Skip</Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.pricePromptSave}
-                onPress={handleSavePriceEntry}
-              >
+              <TouchableOpacity style={styles.pricePromptSave} onPress={handleSavePriceEntry}>
                 <Text style={styles.pricePromptSaveText}>Save</Text>
               </TouchableOpacity>
             </View>
           </View>
         </View>
       </Modal>
-
-      {false && <Modal visible={cellarModalVisible} transparent animationType="fade" onRequestClose={() => setCellarModalVisible(false)}>
-        <View style={styles.cellarModalBackdrop}>
-          <View style={styles.cellarModalCard}>
-            <Text style={styles.cellarModalTitle}>Update Cellar Record</Text>
-            <Text style={styles.cellarModalSubtitle}>
-              Capture what you paid, when you bought it, and how you want to treat this bottle in your collection.
-            </Text>
-
-            <Text style={styles.cellarInputLabel}>Purchase Price ({userCurrency})</Text>
-            <TextInput
-              value={purchasePriceInput}
-              onChangeText={setPurchasePriceInput}
-              placeholder="e.g. 68"
-              placeholderTextColor={colors.subtext}
-              keyboardType="decimal-pad"
-              style={styles.cellarInput}
-            />
-
-            <Text style={styles.cellarInputLabel}>Acquired Date</Text>
-            <TextInput
-              value={acquiredAtInput}
-              onChangeText={setAcquiredAtInput}
-              placeholder="YYYY-MM-DD"
-              placeholderTextColor={colors.subtext}
-              style={styles.cellarInput}
-            />
-
-            <Text style={styles.cellarInputLabel}>Drinking Window</Text>
-            <View style={styles.cellarWindowInputs}>
-              <TextInput
-                value={windowStartInput}
-                onChangeText={setWindowStartInput}
-                placeholder="Start"
-                placeholderTextColor={colors.subtext}
-                style={[styles.cellarInput, styles.cellarWindowInput]}
-              />
-              <TextInput
-                value={windowEndInput}
-                onChangeText={setWindowEndInput}
-                placeholder="End"
-                placeholderTextColor={colors.subtext}
-                style={[styles.cellarInput, styles.cellarWindowInput]}
-              />
-            </View>
-
-            <Text style={styles.cellarInputLabel}>Quantity</Text>
-            <View style={styles.quantityRow}>
-              {(['full', 'half', 'low', 'empty'] as const).map((level) => (
-                <TouchableOpacity
-                  key={level}
-                  style={[
-                    styles.quantityChip,
-                    selectedQuantity === level && styles.quantityChipActive,
-                  ]}
-                  onPress={() => setSelectedQuantity(level)}
-                >
-                  <Text
-                    style={[
-                      styles.quantityChipText,
-                      selectedQuantity === level && styles.quantityChipTextActive,
-                    ]}
-                  >
-                    {level.toUpperCase()}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            <Text style={styles.cellarInputLabel}>Collector Notes</Text>
-            <TextInput
-              value={cellarNotesInput}
-              onChangeText={setCellarNotesInput}
-              placeholder="Why you bought it, when to open it, who it’s for..."
-              placeholderTextColor={colors.subtext}
-              multiline
-              style={[styles.cellarInput, styles.cellarNotesInput]}
-            />
-
-            <View style={styles.cellarModalActions}>
-              <TouchableOpacity style={styles.cellarModalSecondary} onPress={() => setCellarModalVisible(false)}>
-                <Text style={styles.cellarModalSecondaryText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.cellarModalPrimary} onPress={handleSaveCellar} disabled={savingCellar}>
-                {savingCellar ? (
-                  <ActivityIndicator color={colors.white} />
-                ) : (
-                  <Text style={styles.cellarModalPrimaryText}>Save</Text>
-                )}
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>}
     </SafeAreaView>
   );
 }
@@ -1677,6 +1833,14 @@ const styles = StyleSheet.create({
     color: colors.gold,
     letterSpacing: 0.3,
   },
+  heroBadgeLowConfidence: {
+    backgroundColor: 'rgba(255,152,0,0.18)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,152,0,0.4)',
+  },
+  heroBadgeTextLowConfidence: {
+    color: colors.warning,
+  },
   heroContent: {
     position: 'absolute',
     bottom: 0,
@@ -1730,6 +1894,12 @@ const styles = StyleSheet.create({
     height: 10,
     backgroundColor: 'rgba(255,255,255,0.2)',
     marginHorizontal: spacing(1.5),
+  },
+  heroStoryLine: {
+    marginTop: spacing(1),
+    fontSize: 13,
+    lineHeight: 18,
+    color: 'rgba(255,255,255,0.82)',
   },
   bodyContent: {
     paddingHorizontal: spacing(3),
@@ -2385,6 +2555,23 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.accent,
   },
+  lockedRecipeCardInRail: {
+    width: 240,
+    height: 320,
+    marginLeft: spacing(2),
+  },
+  seeMoreToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing(0.5),
+    paddingVertical: spacing(2),
+  },
+  seeMoreToggleText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.accent,
+  },
   actions: {
     gap: spacing(2),
     marginTop: spacing(2),
@@ -2440,6 +2627,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: colors.text,
+  },
+  secondaryButtonActive: {
+    backgroundColor: `${colors.gold}14`,
+    borderColor: colors.gold,
   },
   invConfirmBackdrop: {
     flex: 1,
@@ -2554,6 +2745,92 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '500',
     color: colors.subtext,
+  },
+  feedbackStripProminent: {
+    backgroundColor: 'rgba(255,152,0,0.1)',
+    borderColor: 'rgba(255,152,0,0.35)',
+  },
+  feedbackStripCorrection: {
+    flexDirection: 'column',
+    alignItems: 'stretch',
+    gap: spacing(1),
+  },
+  correctionLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: spacing(0.5),
+  },
+  correctionOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(1.5),
+    paddingVertical: spacing(1.25),
+    borderBottomWidth: 1,
+    borderBottomColor: colors.line,
+  },
+  correctionOptionIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: radii.md,
+    backgroundColor: colors.bg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  correctionOptionBody: {
+    flex: 1,
+    gap: 2,
+  },
+  correctionOptionTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  correctionOptionSub: {
+    fontSize: 11,
+    color: colors.subtext,
+  },
+  correctionInput: {
+    backgroundColor: colors.bg,
+    borderRadius: radii.sm,
+    borderWidth: 1,
+    borderColor: colors.line,
+    paddingHorizontal: spacing(1.5),
+    paddingVertical: spacing(1),
+    fontSize: 14,
+    color: colors.text,
+  },
+  correctionActions: {
+    flexDirection: 'row',
+    gap: spacing(1),
+    marginTop: spacing(0.5),
+  },
+  correctionSubmit: {
+    flex: 1,
+    backgroundColor: colors.gold,
+    borderRadius: radii.sm,
+    paddingVertical: spacing(1),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  correctionSubmitText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#1A120D',
+  },
+  correctionCancel: {
+    paddingHorizontal: spacing(2),
+    paddingVertical: spacing(1),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  correctionCancelText: {
+    fontSize: 13,
+    color: colors.subtext,
+  },
+  feedbackQuestionProminent: {
+    color: colors.text,
+    fontWeight: '600',
   },
   feedbackConfirmedText: {
     fontSize: 13,

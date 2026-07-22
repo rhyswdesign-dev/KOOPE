@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * CONSENT CENTER SCREEN
  * Central hub for managing privacy preferences and tracking consent
@@ -17,24 +16,20 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import PreferenceToggle from '../components/PreferenceToggle';
 import { useConsent } from '../hooks/useConsent';
 import { colors, spacing, radii } from '../theme/tokens';
 import { CONSENT_CATEGORIES, privacyConfig } from '../../config/privacy';
 import type { ConsentCategory } from '../types/consent';
-
-interface RouteParams {
-  tab?: string;
-}
+import type { RootStackParamList } from '../navigation/RootNavigator';
 
 /**
  * Consent center with toggles for tracking preferences and data rights
  */
 export default function ConsentCenterScreen() {
-  const navigation = useNavigation();
-  const route = useRoute();
-  const routeParams = route.params as RouteParams | undefined;
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
   const {
     choices,
@@ -111,17 +106,8 @@ export default function ConsentCenterScreen() {
    * Handle "Learn More" link for privacy policy sections
    */
   const handleLearnMore = (category: ConsentCategory) => {
-    const anchors = {
-      essential: 'essential-functions',
-      analytics: 'analytics-and-improvement',
-      crash: 'tracking-technologies',
-      marketing: 'marketing-and-ads',
-    };
-
-    // Navigate to privacy policy with specific anchor
-    navigation.navigate('PrivacyPolicy' as never, {
-      anchor: anchors[category],
-    });
+    // Navigate to privacy policy (anchor routing can be added when route type supports it)
+    navigation.navigate('PrivacyPolicy');
   };
 
   /**
@@ -247,7 +233,7 @@ export default function ConsentCenterScreen() {
                 key={category}
                 title={categoryInfo.title}
                 description={categoryInfo.description}
-                examples={categoryInfo.examples}
+                examples={[...categoryInfo.examples]}
                 value={hasConsent(category)}
                 disabled={loading}
                 required={categoryInfo.required}

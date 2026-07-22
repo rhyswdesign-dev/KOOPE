@@ -1,14 +1,21 @@
-// @ts-nocheck
 /**
  * Recommendation Tracking Service
- * Tracks user interactions with AI recommendations to improve future suggestions
+ * Tracks user interactions with AI recommendations to improve future suggestions.
+ *
+ * Phase 0.4 (Firebase excision): this previously wrote every interaction to a
+ * Firestore `recommendationInteractions` collection via `@firebase/firestore`
+ * (a package that was never installed — this module could not have run
+ * without throwing at import time, since `getFirestore()` was called at
+ * module load). Nothing in the app ever read that collection back
+ * (getRecommendationAnalytics below had zero callers), so per the workplan's
+ * "stub if unread" rule this now just forwards to Mixpanel (the same
+ * trackEvent call that already fired alongside every Firestore write) and
+ * drops the unread write. If per-recommendation analytics become a real
+ * product need, back this with a Supabase table instead.
  */
 
-import { getFirestore, collection, addDoc, query, where, getDocs, Timestamp } from '@firebase/firestore';
 import { log } from '../lib/logger';
-import { trackEvent } from './analytics';
-
-const db = getFirestore();
+import { trackEvent } from '../lib/analytics';
 
 export interface RecommendationInteraction {
   userId: string;
@@ -45,54 +52,31 @@ export interface RecommendationAnalytics {
   }>;
 }
 
+interface RecommendationRef {
+  id: string;
+  cocktailName: string;
+  matchScore: number;
+  canMakeNow: boolean;
+  missingIngredients: string[];
+}
+
 /**
  * Track when a user views a recommendation
  */
 export async function trackRecommendationView(
   userId: string,
-  recommendation: {
-    id: string;
-    cocktailName: string;
-    matchScore: number;
-    canMakeNow: boolean;
-    missingIngredients: string[];
-  },
+  recommendation: RecommendationRef,
   context: { timeOfDay: string; season: string }
 ): Promise<void> {
-  try {
-    const interaction: RecommendationInteraction = {
-      userId,
-      recommendationId: recommendation.id,
-      cocktailName: recommendation.cocktailName,
-      matchScore: recommendation.matchScore,
-      interactionType: 'viewed',
-      context: {
-        timeOfDay: context.timeOfDay,
-        season: context.season,
-        hadAllIngredients: recommendation.canMakeNow,
-        missingIngredients: recommendation.missingIngredients,
-      },
-      timestamp: new Date(),
-    };
+  trackEvent('ai_recommendation_viewed', {
+    cocktail_name: recommendation.cocktailName,
+    match_score: recommendation.matchScore,
+    can_make: recommendation.canMakeNow,
+    time_of_day: context.timeOfDay,
+    season: context.season,
+  });
 
-    await addDoc(collection(db, 'recommendationInteractions'), interaction);
-
-    // Track in analytics
-    trackEvent('ai_recommendation_viewed', {
-      cocktail_name: recommendation.cocktailName,
-      match_score: recommendation.matchScore,
-      can_make: recommendation.canMakeNow,
-    });
-
-    log.debug('RecommendationTrackingService', 'Tracked view', { cocktailName: recommendation.cocktailName });
-  } catch (error: any) {
-    // Handle offline gracefully
-    if (error?.message?.includes('offline') || error?.code === 'unavailable') {
-      log.info('RecommendationTrackingService', 'Offline - tracking will sync when online');
-      return;
-    }
-    log.error('RecommendationTrackingService', 'Failed to track recommendation view', error);
-  }
+  log.debug('RecommendationTrackingService', 'Tracked view', { cocktailName: recommendation.cocktailName });
 }
 
 /**
@@ -100,47 +84,18 @@ export async function trackRecommendationView(
  */
 export async function trackRecommendationSaved(
   userId: string,
-  recommendation: {
-    id: string;
-    cocktailName: string;
-    matchScore: number;
-    canMakeNow: boolean;
-    missingIngredients: string[];
-  },
+  recommendation: RecommendationRef,
   context: { timeOfDay: string; season: string }
 ): Promise<void> {
-  try {
-    const interaction: RecommendationInteraction = {
-      userId,
-      recommendationId: recommendation.id,
-      cocktailName: recommendation.cocktailName,
-      matchScore: recommendation.matchScore,
-      interactionType: 'saved',
-      context: {
-        timeOfDay: context.timeOfDay,
-        season: context.season,
-        hadAllIngredients: recommendation.canMakeNow,
-        missingIngredients: recommendation.missingIngredients,
-      },
-      timestamp: new Date(),
-    };
+  trackEvent('ai_recommendation_saved', {
+    cocktail_name: recommendation.cocktailName,
+    match_score: recommendation.matchScore,
+    can_make: recommendation.canMakeNow,
+    time_of_day: context.timeOfDay,
+    season: context.season,
+  });
 
-    await addDoc(collection(db, 'recommendationInteractions'), interaction);
-
-    trackEvent('ai_recommendation_saved', {
-      cocktail_name: recommendation.cocktailName,
-      match_score: recommendation.matchScore,
-      can_make: recommendation.canMakeNow,
-    });
-
-    log.debug('RecommendationTrackingService', 'Tracked save', { cocktailName: recommendation.cocktailName });
-  } catch (error: any) {
-    if (error?.message?.includes('offline') || error?.code === 'unavailable') {
-      log.info('RecommendationTrackingService', 'Offline - tracking will sync when online');
-      return;
-    }
-    log.error('RecommendationTrackingService', 'Failed to track recommendation save', error);
-  }
+  log.debug('RecommendationTrackingService', 'Tracked save', { cocktailName: recommendation.cocktailName });
 }
 
 /**
@@ -148,47 +103,16 @@ export async function trackRecommendationSaved(
  */
 export async function trackRecommendationMade(
   userId: string,
-  recommendation: {
-    id: string;
-    cocktailName: string;
-    matchScore: number;
-    canMakeNow: boolean;
-    missingIngredients: string[];
-  },
+  recommendation: RecommendationRef,
   context: { timeOfDay: string; season: string }
 ): Promise<void> {
-  try {
-    const interaction: RecommendationInteraction = {
-      userId,
-      recommendationId: recommendation.id,
-      cocktailName: recommendation.cocktailName,
-      matchScore: recommendation.matchScore,
-      interactionType: 'made',
-      context: {
-        timeOfDay: context.timeOfDay,
-        season: context.season,
-        hadAllIngredients: recommendation.canMakeNow,
-        missingIngredients: recommendation.missingIngredients,
-      },
-      timestamp: new Date(),
-    };
+  trackEvent('ai_recommendation_made', {
+    cocktail_name: recommendation.cocktailName,
+    match_score: recommendation.matchScore,
+    can_make: recommendation.canMakeNow,
+  });
 
-    await addDoc(collection(db, 'recommendationInteractions'), interaction);
-
-    trackEvent('ai_recommendation_made', {
-      cocktail_name: recommendation.cocktailName,
-      match_score: recommendation.matchScore,
-      can_make: recommendation.canMakeNow,
-    });
-
-    log.info('RecommendationTrackingService', 'User made cocktail!', { cocktailName: recommendation.cocktailName });
-  } catch (error: any) {
-    if (error?.message?.includes('offline') || error?.code === 'unavailable') {
-      log.info('RecommendationTrackingService', 'Offline - tracking will sync when online');
-      return;
-    }
-    log.error('RecommendationTrackingService', 'Failed to track recommendation made', error);
-  }
+  log.info('RecommendationTrackingService', 'User made cocktail!', { cocktailName: recommendation.cocktailName });
 }
 
 /**
@@ -196,56 +120,20 @@ export async function trackRecommendationMade(
  */
 export async function trackRecommendationDismissed(
   userId: string,
-  recommendation: {
-    id: string;
-    cocktailName: string;
-    matchScore: number;
-    canMakeNow: boolean;
-    missingIngredients: string[];
-  },
+  recommendation: RecommendationRef,
   context: { timeOfDay: string; season: string },
   reason?: string
 ): Promise<void> {
-  try {
-    const interaction: RecommendationInteraction = {
-      userId,
-      recommendationId: recommendation.id,
-      cocktailName: recommendation.cocktailName,
-      matchScore: recommendation.matchScore,
-      interactionType: 'dismissed',
-      context: {
-        timeOfDay: context.timeOfDay,
-        season: context.season,
-        hadAllIngredients: recommendation.canMakeNow,
-        missingIngredients: recommendation.missingIngredients,
-      },
-      timestamp: new Date(),
-    };
+  trackEvent('ai_recommendation_dismissed', {
+    cocktail_name: recommendation.cocktailName,
+    match_score: recommendation.matchScore,
+    reason: reason || 'not_specified',
+  });
 
-    // Only include feedback if provided (Firestore doesn't accept undefined)
-    if (reason !== undefined && reason !== null && reason.trim() !== '') {
-      interaction.feedback = reason;
-    }
-
-    await addDoc(collection(db, 'recommendationInteractions'), interaction);
-
-    trackEvent('ai_recommendation_dismissed', {
-      cocktail_name: recommendation.cocktailName,
-      match_score: recommendation.matchScore,
-      reason: reason || 'not_specified',
-    });
-
-    log.debug('RecommendationTrackingService', 'User dismissed cocktail', {
-      cocktailName: recommendation.cocktailName,
-      reason
-    });
-  } catch (error: any) {
-    if (error?.message?.includes('offline') || error?.code === 'unavailable') {
-      log.info('RecommendationTrackingService', 'Offline - tracking will sync when online');
-      return;
-    }
-    log.error('RecommendationTrackingService', 'Failed to track recommendation dismissal', error);
-  }
+  log.debug('RecommendationTrackingService', 'User dismissed cocktail', {
+    cocktailName: recommendation.cocktailName,
+    reason,
+  });
 }
 
 /**
@@ -253,136 +141,32 @@ export async function trackRecommendationDismissed(
  */
 export async function trackRecommendationRating(
   userId: string,
-  recommendation: {
-    id: string;
-    cocktailName: string;
-    matchScore: number;
-    canMakeNow: boolean;
-    missingIngredients: string[];
-  },
+  recommendation: RecommendationRef,
   rating: number,
   feedback?: string,
   context?: { timeOfDay: string; season: string }
 ): Promise<void> {
-  try {
-    const interaction: RecommendationInteraction = {
-      userId,
-      recommendationId: recommendation.id,
-      cocktailName: recommendation.cocktailName,
-      matchScore: recommendation.matchScore,
-      interactionType: 'rated',
-      rating,
-      context: {
-        timeOfDay: context?.timeOfDay || 'unknown',
-        season: context?.season || 'unknown',
-        hadAllIngredients: recommendation.canMakeNow,
-        missingIngredients: recommendation.missingIngredients,
-      },
-      timestamp: new Date(),
-    };
+  trackEvent('ai_recommendation_rated', {
+    cocktail_name: recommendation.cocktailName,
+    rating,
+    match_score: recommendation.matchScore,
+    feedback: feedback || undefined,
+  });
 
-    // Only include feedback if provided (Firestore doesn't accept undefined)
-    if (feedback !== undefined && feedback !== null && feedback.trim() !== '') {
-      interaction.feedback = feedback;
-    }
-
-    await addDoc(collection(db, 'recommendationInteractions'), interaction);
-
-    trackEvent('ai_recommendation_rated', {
-      cocktail_name: recommendation.cocktailName,
-      rating,
-      match_score: recommendation.matchScore,
-    });
-
-    log.info('RecommendationTrackingService', 'User rated cocktail', {
-      cocktailName: recommendation.cocktailName,
-      rating
-    });
-  } catch (error: any) {
-    if (error?.message?.includes('offline') || error?.code === 'unavailable') {
-      log.info('RecommendationTrackingService', 'Offline - tracking will sync when online');
-      return;
-    }
-    log.error('RecommendationTrackingService', 'Failed to track recommendation rating', error);
-  }
+  log.info('RecommendationTrackingService', 'User rated cocktail', {
+    cocktailName: recommendation.cocktailName,
+    rating,
+  });
 }
 
 /**
- * Get analytics for user's recommendation interactions
+ * Get analytics for user's recommendation interactions.
+ *
+ * Unwired since the Firestore store this used to read was itself
+ * write-only (see file header) — there is no data source to query.
+ * Zero call sites reference this today; returns null until a real
+ * Supabase-backed store exists.
  */
-export async function getRecommendationAnalytics(userId: string): Promise<RecommendationAnalytics | null> {
-  try {
-    const q = query(
-      collection(db, 'recommendationInteractions'),
-      where('userId', '==', userId)
-    );
-
-    const snapshot = await getDocs(q);
-    const interactions = snapshot.docs.map(doc => doc.data() as RecommendationInteraction);
-
-    if (interactions.length === 0) {
-      return null;
-    }
-
-    // Calculate metrics
-    const viewedCount = interactions.filter(i => i.interactionType === 'viewed').length;
-    const savedCount = interactions.filter(i => i.interactionType === 'saved').length;
-    const madeCount = interactions.filter(i => i.interactionType === 'made').length;
-    const dismissedCount = interactions.filter(i => i.interactionType === 'dismissed').length;
-
-    const ratings = interactions.filter(i => i.rating !== undefined).map(i => i.rating!);
-    const averageRating = ratings.length > 0
-      ? ratings.reduce((sum, r) => sum + r, 0) / ratings.length
-      : 0;
-
-    const conversionRate = viewedCount > 0 ? (madeCount / viewedCount) * 100 : 0;
-
-    // Calculate top performing cocktails
-    const cocktailStats = new Map<string, { views: number; saves: number; makes: number; ratings: number[] }>();
-
-    interactions.forEach(interaction => {
-      const name = interaction.cocktailName;
-      if (!cocktailStats.has(name)) {
-        cocktailStats.set(name, { views: 0, saves: 0, makes: 0, ratings: [] });
-      }
-
-      const stats = cocktailStats.get(name)!;
-      if (interaction.interactionType === 'viewed') stats.views++;
-      if (interaction.interactionType === 'saved') stats.saves++;
-      if (interaction.interactionType === 'made') stats.makes++;
-      if (interaction.rating) stats.ratings.push(interaction.rating);
-    });
-
-    const topPerformingCocktails = Array.from(cocktailStats.entries())
-      .map(([name, stats]) => ({
-        name,
-        viewCount: stats.views,
-        saveCount: stats.saves,
-        makeCount: stats.makes,
-        avgRating: stats.ratings.length > 0
-          ? stats.ratings.reduce((sum, r) => sum + r, 0) / stats.ratings.length
-          : 0,
-      }))
-      .sort((a, b) => b.makeCount - a.makeCount)
-      .slice(0, 10);
-
-    return {
-      userId,
-      totalRecommendations: viewedCount,
-      viewedCount,
-      savedCount,
-      madeCount,
-      dismissedCount,
-      averageRating,
-      conversionRate,
-      topPerformingCocktails,
-    };
-  } catch (error: any) {
-    if (error?.message?.includes('offline') || error?.code === 'unavailable') {
-      log.info('RecommendationTrackingService', 'Offline - analytics unavailable');
-      return null;
-    }
-    log.error('RecommendationTrackingService', 'Failed to get recommendation analytics', error);
-    return null;
-  }
+export async function getRecommendationAnalytics(_userId: string): Promise<RecommendationAnalytics | null> {
+  return null;
 }

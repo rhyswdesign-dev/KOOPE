@@ -11,9 +11,16 @@ import { withScreenTour } from '../components/tour/withScreenTour';
 
 export type CameraStackParamList = {
   CameraHub: undefined;
-  SmartScan: undefined;
-  BottleDetail: { bottle: Spirit; imageUri?: string };
-  BottleSearch: undefined;
+  SmartScan: { barcodeOnly?: boolean } | undefined;
+  BottleDetail: {
+    bottle: Spirit;
+    imageUri?: string;
+    scanConfidence?: number;
+    scannedBarcode?: string;
+    /** Which resolution path identified the bottle ('catalog' | 'cache' | 'claude-vision') — labels the value line's source (Phase 1.2). Absent = barcode/library, treated as catalog. */
+    scanSource?: string;
+  };
+  BottleSearch: { initialQuery?: string } | undefined;
   OCRCapture: undefined;
   IngredientScan: undefined;
   RecipeURLImport: { url?: string } | undefined;

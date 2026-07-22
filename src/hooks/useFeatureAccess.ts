@@ -18,14 +18,8 @@ import { useCallback } from 'react';
 import { useNavigation } from '@react-navigation/native';
 import { useUserTier, UserTier } from '../store/useUserTier';
 import { useTrialStatus } from './useTrialStatus';
-import {
-  FeatureKey,
-  FEATURE_REGISTRY,
-  hasFeatureAccessByKey,
-} from '../config/featureRegistry';
-import {
-  PAYWALL_TRIGGERS,
-} from '../config/paywallTriggers';
+import { FeatureKey, FEATURE_REGISTRY, hasFeatureAccessByKey } from '../config/featureRegistry';
+import { PAYWALL_TRIGGERS } from '../config/paywallTriggers';
 import { trackEvent, ANALYTICS_EVENTS, ANALYTICS_PROPS } from '../lib/analytics';
 
 interface FeatureAccessResult {
@@ -41,23 +35,17 @@ interface FeatureAccessResult {
   gateWithTrigger: (triggerId: string, onSuccess?: () => void) => boolean;
 }
 
+// Phase 0.7: only the four surviving desire-peak triggers get a default
+// mapping. Feature keys not listed here still gate correctly (tier check
+// is unaffected) — they just render the paywall without a bespoke
+// contextual banner, which PaywallScreen treats as a no-op, not an error.
 const DEFAULT_TRIGGER_BY_FEATURE: Partial<Record<FeatureKey, string>> = {
   inventory_unlimited: 'T1',
-  advanced_filters: 'T2',
-  saved_cocktails_unlimited: 'T3',
-  optimize_my_bar: 'T4',
-  shopping_list_export: 'T5',
   hosting_basic: 'T6',
   party_scaling: 'T6',
-  hosting_advanced: 'T7',
-  batch_optimizer: 'T7',
-  bring_to_party: 'T8',
-  predictive_engine: 'T9',
-  mastery_lessons: 'T10',
-  vault_pro_drops: 'T11',
-  cellar_mode: 'T11',
-  adjustable_flavor_controls: 'T12',
-  predictive_restock: 'T13',
+  hosting_advanced: 'T6',
+  batch_optimizer: 'T6',
+  shopping_list_export: 'T_ALMOST_MAKEABLE',
 };
 
 /**
@@ -67,7 +55,7 @@ const DEFAULT_TRIGGER_BY_FEATURE: Partial<Record<FeatureKey, string>> = {
  */
 export function useFeatureAccess(featureKey: FeatureKey): FeatureAccessResult {
   const navigation = useNavigation<any>();
-  const tier = useUserTier(s => s.tier);
+  const tier = useUserTier((s) => s.tier);
   const feature = FEATURE_REGISTRY[featureKey];
   const { isProPhase } = useTrialStatus();
 
@@ -105,14 +93,14 @@ export function useFeatureAccess(featureKey: FeatureKey): FeatureAccessResult {
 
       return false;
     },
-    [hasAccess, featureKey, feature, effectiveTier, navigation]
+    [hasAccess, featureKey, feature, effectiveTier, navigation],
   );
 
   const gateWithTrigger = useCallback(
     (triggerId: string, onSuccess?: () => void): boolean => {
       return gate(onSuccess, triggerId);
     },
-    [gate]
+    [gate],
   );
 
   return {

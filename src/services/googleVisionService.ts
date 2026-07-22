@@ -9,6 +9,44 @@ import * as ImageManipulator from 'expo-image-manipulator';
 import { log } from '../lib/logger';
 import { findSpirit, SPIRITS_DATABASE, type Spirit } from '../data/spiritsDatabase';
 import { supabase } from '../lib/supabase';
+import type { ScanServerTimings } from './scanTelemetry';
+
+/** Parses the optional `timings` field bottle-recognize returns into the
+ *  camelCase shape scanTelemetry expects. Absent/malformed data returns
+ *  undefined rather than a partial object — telemetry treats "no server
+ *  timings" as a clean omission, not zeros. */
+function parseServerTimings(data: any): ScanServerTimings | undefined {
+  const t = data?.timings;
+  if (!t || typeof t !== 'object') return undefined;
+  return {
+    totalMs: typeof t.total_ms === 'number' ? t.total_ms : undefined,
+    visionMs: typeof t.vision_ms === 'number' ? t.vision_ms : undefined,
+    catalogMs: typeof t.catalog_ms === 'number' ? t.catalog_ms : undefined,
+    cacheMs: typeof t.cache_ms === 'number' ? t.cache_ms : undefined,
+    claudeMs: typeof t.claude_ms === 'number' ? t.claude_ms : undefined,
+  };
+}
+
+/**
+ * True when an error means "the backend could not be reached at all" —
+ * device offline, DNS failure, or the Supabase project unreachable — as
+ * opposed to the backend answering with a failure. Used to surface an
+ * honest connection state in the scan UI instead of "Bottle Not Found"
+ * (audit/sprint-1 device-test fix).
+ */
+export function isConnectivityError(error: unknown): boolean {
+  if (!error) return false;
+  const text = `${(error as any)?.name ?? ''} ${(error as any)?.message ?? String(error)}`;
+  return (
+    text.includes('FunctionsFetchError') ||
+    text.includes('AuthRetryableFetchError') ||
+    text.includes('Network request failed') ||
+    text.includes('Failed to fetch') ||
+    text.includes('NetworkError') ||
+    text.includes('ECONNREFUSED') ||
+    text.includes('timeout')
+  );
+}
 
 export interface VisionResult {
   labels: string[];
@@ -30,7 +68,7 @@ const DEMO_BOTTLE_RESULTS: Record<string, VisionResult> = {
   },
   hendricks: {
     labels: ['bottle', 'gin', 'spirits', 'cucumber', 'scottish'],
-    text: ['HENDRICK\'S', 'GIN', 'DISTILLED', '44% ALC/VOL', 'SCOTLAND', 'CUCUMBER', 'ROSE'],
+    text: ["HENDRICK'S", 'GIN', 'DISTILLED', '44% ALC/VOL', 'SCOTLAND', 'CUCUMBER', 'ROSE'],
     confidence: 0.92,
   },
   woodford: {
@@ -52,7 +90,7 @@ const DEMO_BOTTLE_RESULTS: Record<string, VisionResult> = {
 
 function chooseDemoBottleResult(imageUri: string): VisionResult {
   const normalizedUri = imageUri.toLowerCase();
-  const keywordMap: Array<{ patterns: string[]; key: keyof typeof DEMO_BOTTLE_RESULTS }> = [
+  const keywordMap: { patterns: string[]; key: keyof typeof DEMO_BOTTLE_RESULTS }[] = [
     { patterns: ['bacardi', 'rum'], key: 'bacardi' },
     { patterns: ['hendrick', 'gin'], key: 'hendricks' },
     { patterns: ['woodford', 'bourbon'], key: 'woodford' },
@@ -61,13 +99,13 @@ function chooseDemoBottleResult(imageUri: string): VisionResult {
   ];
 
   const keywordMatch = keywordMap.find((entry) =>
-    entry.patterns.some((pattern) => normalizedUri.includes(pattern))
+    entry.patterns.some((pattern) => normalizedUri.includes(pattern)),
   );
   if (keywordMatch) {
     return DEMO_BOTTLE_RESULTS[keywordMatch.key];
   }
 
-  const demoKeys = Object.keys(DEMO_BOTTLE_RESULTS) as Array<keyof typeof DEMO_BOTTLE_RESULTS>;
+  const demoKeys = Object.keys(DEMO_BOTTLE_RESULTS) as (keyof typeof DEMO_BOTTLE_RESULTS)[];
   const hash = normalizedUri.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0);
   return DEMO_BOTTLE_RESULTS[demoKeys[hash % demoKeys.length]];
 }
@@ -76,12 +114,40 @@ function chooseDemoBottleResult(imageUri: string): VisionResult {
 //    result to be treated as a bottle scan. Prevents "Plastic", "Glass Bottle",
 //    random objects, and shelf tags from ever reaching Claude.
 const SPIRIT_SIGNALS = new Set([
-  'bottle', 'alcohol', 'alcoholic beverage', 'spirits', 'liquor', 'distilled beverage',
-  'wine bottle', 'beer bottle', 'spirit', 'beverage', 'drink', 'drinking',
-  'vodka', 'gin', 'rum', 'whiskey', 'whisky', 'bourbon', 'scotch',
-  'tequila', 'mezcal', 'brandy', 'cognac', 'liqueur', 'champagne', 'wine',
-  'distilled', 'fermented', 'agave', 'barrel', 'cask', 'proof', 'abv',
-])
+  'bottle',
+  'alcohol',
+  'alcoholic beverage',
+  'spirits',
+  'liquor',
+  'distilled beverage',
+  'wine bottle',
+  'beer bottle',
+  'spirit',
+  'beverage',
+  'drink',
+  'drinking',
+  'vodka',
+  'gin',
+  'rum',
+  'whiskey',
+  'whisky',
+  'bourbon',
+  'scotch',
+  'tequila',
+  'mezcal',
+  'brandy',
+  'cognac',
+  'liqueur',
+  'champagne',
+  'wine',
+  'distilled',
+  'fermented',
+  'agave',
+  'barrel',
+  'cask',
+  'proof',
+  'abv',
+]);
 
 export class GoogleVisionService {
   /**
@@ -89,15 +155,15 @@ export class GoogleVisionService {
    * Returns false for photos of plastic objects, random shelf items, hands, etc.
    */
   static isSpiritImage(result: VisionResult): boolean {
-    const labelsLower = result.labels.map(l => l.toLowerCase())
+    const labelsLower = result.labels.map((l) => l.toLowerCase());
     // Check labels
-    if (labelsLower.some(l => SPIRIT_SIGNALS.has(l))) return true
+    if (labelsLower.some((l) => SPIRIT_SIGNALS.has(l))) return true;
     // Also check if any label *contains* a spirit signal word (e.g. "alcoholic drink")
-    if (labelsLower.some(l => [...SPIRIT_SIGNALS].some(s => l.includes(s)))) return true
+    if (labelsLower.some((l) => [...SPIRIT_SIGNALS].some((s) => l.includes(s)))) return true;
     // Check OCR text as a last resort — ABV pattern is a definitive bottle indicator
-    const fullText = (result.text?.[0] || '').toLowerCase()
-    if (/\d+(\.\d+)?\s*%\s*(abv|alc|vol|proof)/i.test(fullText)) return true
-    return false
+    const fullText = (result.text?.[0] || '').toLowerCase();
+    if (/\d+(\.\d+)?\s*%\s*(abv|alc|vol|proof)/i.test(fullText)) return true;
+    return false;
   }
 
   /**
@@ -106,19 +172,54 @@ export class GoogleVisionService {
    */
   static isUsableWebDetection(result: VisionResult): boolean {
     const GENERIC = new Set([
-      'plastic','glass','ceramic','bottle','liquid','product','object','container',
-      'decanter','vase','jar','cup','vessel','red','blue','green','black','white',
-      'brown','crystal','wood','metal','unknown','item','thing','material',
-      'surface','texture','pattern','design','art','craft','handmade','decorative',
-      'glassware','barware','drinkware','stopper','cork','tableware',
-    ])
-    const guesses = result.bestGuessLabels ?? []
-    const entities = result.webEntities ?? []
-    const candidates = [...guesses, ...entities]
-    return candidates.some(s => {
-      const words = s.trim().toLowerCase().split(/\s+/)
-      return !words.every(w => GENERIC.has(w))
-    })
+      'plastic',
+      'glass',
+      'ceramic',
+      'bottle',
+      'liquid',
+      'product',
+      'object',
+      'container',
+      'decanter',
+      'vase',
+      'jar',
+      'cup',
+      'vessel',
+      'red',
+      'blue',
+      'green',
+      'black',
+      'white',
+      'brown',
+      'crystal',
+      'wood',
+      'metal',
+      'unknown',
+      'item',
+      'thing',
+      'material',
+      'surface',
+      'texture',
+      'pattern',
+      'design',
+      'art',
+      'craft',
+      'handmade',
+      'decorative',
+      'glassware',
+      'barware',
+      'drinkware',
+      'stopper',
+      'cork',
+      'tableware',
+    ]);
+    const guesses = result.bestGuessLabels ?? [];
+    const entities = result.webEntities ?? [];
+    const candidates = [...guesses, ...entities];
+    return candidates.some((s) => {
+      const words = s.trim().toLowerCase().split(/\s+/);
+      return !words.every((w) => GENERIC.has(w));
+    });
   }
 
   /**
@@ -160,6 +261,110 @@ export class GoogleVisionService {
     }
   }
 
+  /**
+   * Consolidated bottle recognition — calls the `bottle-recognize` edge
+   * function, which does Google Vision + local-catalog matching + (on a
+   * catalog miss) the Claude Vision fallback in ONE server-side round trip,
+   * instead of the client chaining analyzeImage() -> matchBottle() ->
+   * lookupBottleProfile() across two separate edge function calls.
+   * Bottle scan type only — recipe/ingredient scans still use analyzeImage().
+   */
+  static async recognizeBottle(imageUri: string): Promise<{
+    spirit: Spirit | null;
+    confidence: number;
+    source: string;
+    isSpiritImage: boolean;
+    /** Phase 1.3 telemetry — client convert/network split + server per-layer
+     *  breakdown passed through from bottle-recognize's `timings` field. */
+    timings?: {
+      convertMs: number;
+      networkMs: number;
+      server?: ScanServerTimings;
+    };
+  }> {
+    try {
+      const convertStartedAt = Date.now();
+      const base64Image = await this.convertImageToBase64(imageUri);
+      const convertMs = Date.now() - convertStartedAt;
+
+      const networkStartedAt = Date.now();
+      const { data, error } = await supabase.functions.invoke('bottle-recognize', {
+        body: { imageBase64: base64Image },
+      });
+      const networkMs = Date.now() - networkStartedAt;
+      const timings = { convertMs, networkMs, server: parseServerTimings(data) };
+
+      if (error) {
+        log.warn('GoogleVisionService', 'bottle-recognize call failed', error);
+        // Distinguish "couldn't reach the backend" from "backend answered but
+        // failed" (audit/sprint-1 device-test fix). supabase.functions.invoke
+        // reports fetch-level failures as FunctionsFetchError in `error`
+        // rather than throwing. Previously both cases collapsed into
+        // source:'error' -> spirit:null, which the scan screen presented as
+        // "Bottle Not Found" — a lie when the real problem is connectivity.
+        if (isConnectivityError(error)) {
+          return {
+            spirit: null,
+            confidence: 0,
+            source: 'network_error',
+            isSpiritImage: true,
+            timings,
+          };
+        }
+        return { spirit: null, confidence: 0, source: 'error', isSpiritImage: true, timings };
+      }
+
+      if (data?.isSpiritImage === false) {
+        return { spirit: null, confidence: 0, source: 'none', isSpiritImage: false, timings };
+      }
+
+      if (!data?.profile) {
+        log.warn('GoogleVisionService', 'bottle-recognize returned no profile', error);
+        return { spirit: null, confidence: 0, source: 'error', isSpiritImage: true, timings };
+      }
+
+      const p = data.profile;
+      const confidence = typeof data.confidence === 'number' ? data.confidence : 0.85;
+      log.info('GoogleVisionService', 'bottle-recognize resolved', {
+        name: p.name,
+        source: data.source,
+        confidence,
+      });
+
+      const spirit: Spirit = {
+        id: p.id || p.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+        name: p.name,
+        brand: p.brand,
+        type: p.type as Spirit['type'],
+        abv: p.abv ?? 40,
+        priceTier: (p.priceTier ?? 'mid-range') as Spirit['priceTier'],
+        priceEstimate: p.priceEstimate ?? {
+          USD: { min: 20, max: 35 },
+          CAD: { min: 28, max: 45 },
+          GBP: { min: 18, max: 30 },
+        },
+        flavorProfile: p.flavorProfile ?? [],
+        tastingNotes: p.tastingNotes ?? '',
+        origin: p.origin ?? '',
+        searchTerms: p.searchTerms ?? [],
+      };
+
+      return {
+        spirit,
+        confidence,
+        source: data.source ?? 'bottle-recognize',
+        isSpiritImage: true,
+        timings,
+      };
+    } catch (err) {
+      log.error('GoogleVisionService', 'recognizeBottle error', err);
+      if (isConnectivityError(err)) {
+        return { spirit: null, confidence: 0, source: 'network_error', isSpiritImage: true };
+      }
+      return { spirit: null, confidence: 0, source: 'error', isSpiritImage: true };
+    }
+  }
+
   private static async convertImageToBase64(imageUri: string): Promise<string> {
     try {
       // Stage 8 — centre-crop to 60% width / 70% height before sending to Vision.
@@ -174,11 +379,29 @@ export class GoogleVisionService {
       const originX = Math.round((width - cropW) / 2);
       const originY = Math.round((height - cropH) / 2);
 
-      const result = await ImageManipulator.manipulateAsync(
-        imageUri,
-        [{ crop: { originX, originY, width: cropW, height: cropH } }],
-        { base64: true, compress: 0.85, format: ImageManipulator.SaveFormat.JPEG }
-      );
+      // Downscale to ≤1024px on the long edge after cropping (scan cost
+      // strategy L3 / scanner spec A.3): 1024px is generous for label OCR,
+      // Anthropic resizes anything above 1568px server-side anyway, and the
+      // smaller payload cuts both the upload leg of the 3-second latency
+      // budget and ~35% of the Claude-fallback image-token cost.
+      const MAX_LONG_EDGE = 1024;
+      const longEdge = Math.max(cropW, cropH);
+      const actions: ImageManipulator.Action[] = [
+        { crop: { originX, originY, width: cropW, height: cropH } },
+      ];
+      if (longEdge > MAX_LONG_EDGE) {
+        actions.push(
+          cropW >= cropH
+            ? { resize: { width: MAX_LONG_EDGE } }
+            : { resize: { height: MAX_LONG_EDGE } },
+        );
+      }
+
+      const result = await ImageManipulator.manipulateAsync(imageUri, actions, {
+        base64: true,
+        compress: 0.6,
+        format: ImageManipulator.SaveFormat.JPEG,
+      });
       if (!result.base64) throw new Error('No base64 data returned');
       return result.base64;
     } catch (error) {
@@ -195,7 +418,7 @@ export class GoogleVisionService {
     log.info('GoogleVisionService', 'Using fallback analysis');
 
     // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    await new Promise((resolve) => setTimeout(resolve, 1500));
 
     // Demo mode should show believable, recognized bottle detail flows instead of
     // random unknown results. We use filename hints when available and otherwise
@@ -236,10 +459,34 @@ export class GoogleVisionService {
 
     // Common brand patterns
     const brands = {
-      vodka: ['TITO\'S', 'GREY GOOSE', 'BELVEDERE', 'ABSOLUT', 'KETEL ONE', 'STOLICHNAYA', 'SMIRNOFF', 'SKYY'],
-      gin: ['HENDRICK\'S', 'TANQUERAY', 'BOMBAY', 'BEEFEATER', 'GORDON\'S', 'AVIATION', 'MONKEY 47'],
-      whiskey: ['BUFFALO TRACE', 'MAKER\'S MARK', 'JAMESON', 'JACK DANIEL\'S', 'JOHNNIE WALKER', 'CROWN ROYAL', 'BULLEIT'],
-      bourbon: ['BUFFALO TRACE', 'MAKER\'S MARK', 'WILD TURKEY', 'JIM BEAM', 'WOODFORD', 'FOUR ROSES'],
+      vodka: [
+        "TITO'S",
+        'GREY GOOSE',
+        'BELVEDERE',
+        'ABSOLUT',
+        'KETEL ONE',
+        'STOLICHNAYA',
+        'SMIRNOFF',
+        'SKYY',
+      ],
+      gin: ["HENDRICK'S", 'TANQUERAY', 'BOMBAY', 'BEEFEATER', "GORDON'S", 'AVIATION', 'MONKEY 47'],
+      whiskey: [
+        'BUFFALO TRACE',
+        "MAKER'S MARK",
+        'JAMESON',
+        "JACK DANIEL'S",
+        'JOHNNIE WALKER',
+        'CROWN ROYAL',
+        'BULLEIT',
+      ],
+      bourbon: [
+        'BUFFALO TRACE',
+        "MAKER'S MARK",
+        'WILD TURKEY',
+        'JIM BEAM',
+        'WOODFORD',
+        'FOUR ROSES',
+      ],
       rum: ['BACARDI', 'CAPTAIN MORGAN', 'HAVANA CLUB', 'APPLETON', 'MOUNT GAY', 'PLANTATION'],
       tequila: ['PATRON', 'DON JULIO', 'CASAMIGOS', 'HERRADURA', 'ESPOLON', '1800', 'HORNITOS'],
       mezcal: ['DEL MAGUEY', 'VIDA', 'ILEGAL', 'MONTELOBOS', 'SOMBRA'],
@@ -273,7 +520,11 @@ export class GoogleVisionService {
     if (allLabels.includes('gin')) {
       return { category: 'spirit', subcategory: 'gin', abv };
     }
-    if (allLabels.includes('whiskey') || allLabels.includes('whisky') || allLabels.includes('bourbon')) {
+    if (
+      allLabels.includes('whiskey') ||
+      allLabels.includes('whisky') ||
+      allLabels.includes('bourbon')
+    ) {
       return { category: 'spirit', subcategory: 'whiskey', abv };
     }
     if (allLabels.includes('rum')) {
@@ -306,12 +557,12 @@ export class GoogleVisionService {
    */
   static matchIngredients(
     result: VisionResult,
-    maxResults: number = 6
-  ): Array<{
+    maxResults: number = 6,
+  ): {
     name: string;
     category: string;
     confidence: number;
-  }> {
+  }[] {
     const allText = (result.text || []).join(' ').toLowerCase();
     const allLabels = result.labels.join(' ').toLowerCase();
 
@@ -332,14 +583,26 @@ export class GoogleVisionService {
     const ingredients: Record<string, string[]> = {
       citrus: ['lemon', 'lime', 'orange', 'grapefruit', 'yuzu', 'bergamot'],
       herbs: ['mint', 'basil', 'rosemary', 'thyme', 'sage', 'cilantro', 'parsley'],
-      fruits: ['strawberry', 'raspberry', 'blackberry', 'blueberry', 'cherry', 'pineapple', 'mango', 'watermelon', 'apple', 'pear', 'peach'],
+      fruits: [
+        'strawberry',
+        'raspberry',
+        'blackberry',
+        'blueberry',
+        'cherry',
+        'pineapple',
+        'mango',
+        'watermelon',
+        'apple',
+        'pear',
+        'peach',
+      ],
       vegetables: ['cucumber', 'celery', 'tomato', 'pepper', 'jalapeño', 'ginger'],
       garnishes: ['olive', 'orange peel', 'lemon peel', 'lime wheel', 'mint sprig'],
       spices: ['cinnamon', 'nutmeg', 'clove', 'cardamom', 'vanilla'],
       sweeteners: ['sugar', 'honey', 'agave', 'syrup', 'simple syrup'],
     };
 
-    const scoredMatches: Array<{ name: string; category: string; score: number }> = [];
+    const scoredMatches: { name: string; category: string; score: number }[] = [];
     for (const [category, ingredientList] of Object.entries(ingredients)) {
       for (const ingredient of ingredientList) {
         let score = 0;
@@ -367,31 +630,72 @@ export class GoogleVisionService {
     if (topMatches.length === 0) {
       // Map Vision's generic labels to ingredient categories.
       // Vision won't return "clove" for a bowl of cloves — it returns "spice", "seed", "food" etc.
-      const LABEL_FALLBACKS: Array<{ signals: string[]; name: string; category: string }> = [
-        { signals: ['spice', 'seed', 'seasoning', 'condiment', 'five-spice powder', 'masala', 'powder'], name: 'Spice', category: 'spices' },
+      const LABEL_FALLBACKS: { signals: string[]; name: string; category: string }[] = [
+        {
+          signals: [
+            'spice',
+            'seed',
+            'seasoning',
+            'condiment',
+            'five-spice powder',
+            'masala',
+            'powder',
+          ],
+          name: 'Spice',
+          category: 'spices',
+        },
         { signals: ['citrus', 'citrus fruit'], name: 'Citrus', category: 'citrus' },
         { signals: ['herb', 'plant', 'leaf', 'foliage', 'grass'], name: 'Herb', category: 'herbs' },
         { signals: ['berry', 'stone fruit', 'tropical fruit'], name: 'Fruit', category: 'fruits' },
-        { signals: ['vegetable', 'root vegetable', 'allium'], name: 'Vegetable', category: 'vegetables' },
+        {
+          signals: ['vegetable', 'root vegetable', 'allium'],
+          name: 'Vegetable',
+          category: 'vegetables',
+        },
         { signals: ['fruit', 'food', 'produce', 'ingredient'], name: 'Fruit', category: 'fruits' },
       ];
 
       // Also check OCR text for spice/herb names Vision missed as labels
-      const TEXT_SIGNALS: Array<{ patterns: RegExp; name: string; category: string }> = [
-        { patterns: /\b(cloves?|cinnamon|cardamom|nutmeg|allspice|star anise|cumin|coriander|turmeric|pepper|peppercorn)\b/i, name: 'Spice', category: 'spices' },
-        { patterns: /\b(lavender|chamomile|tarragon|dill|chive|oregano|marjoram|bay leaf)\b/i, name: 'Herb', category: 'herbs' },
-        { patterns: /\b(lemon|lime|orange|grapefruit|yuzu)\b/i, name: 'Citrus', category: 'citrus' },
+      const TEXT_SIGNALS: { patterns: RegExp; name: string; category: string }[] = [
+        {
+          patterns:
+            /\b(cloves?|cinnamon|cardamom|nutmeg|allspice|star anise|cumin|coriander|turmeric|pepper|peppercorn)\b/i,
+          name: 'Spice',
+          category: 'spices',
+        },
+        {
+          patterns: /\b(lavender|chamomile|tarragon|dill|chive|oregano|marjoram|bay leaf)\b/i,
+          name: 'Herb',
+          category: 'herbs',
+        },
+        {
+          patterns: /\b(lemon|lime|orange|grapefruit|yuzu)\b/i,
+          name: 'Citrus',
+          category: 'citrus',
+        },
       ];
 
       for (const { patterns, name, category } of TEXT_SIGNALS) {
         if (patterns.test(allText)) {
-          return [{ name, category: category.charAt(0).toUpperCase() + category.slice(1), confidence: result.confidence }];
+          return [
+            {
+              name,
+              category: category.charAt(0).toUpperCase() + category.slice(1),
+              confidence: result.confidence,
+            },
+          ];
         }
       }
 
       for (const { signals, name, category } of LABEL_FALLBACKS) {
-        if (signals.some(s => allLabels.includes(s))) {
-          return [{ name, category: category.charAt(0).toUpperCase() + category.slice(1), confidence: result.confidence }];
+        if (signals.some((s) => allLabels.includes(s))) {
+          return [
+            {
+              name,
+              category: category.charAt(0).toUpperCase() + category.slice(1),
+              confidence: result.confidence,
+            },
+          ];
         }
       }
 
@@ -421,22 +725,59 @@ export class GoogleVisionService {
 
     // Check for bottle indicators
     const bottleIndicators = [
-      'bottle', 'alcohol', 'spirits', 'liquor', 'vodka', 'gin', 'rum',
-      'whiskey', 'tequila', 'mezcal', 'brandy', 'cognac', 'liqueur',
-      'abv', 'alc/vol', 'proof', 'distilled', 'barrel'
+      'bottle',
+      'alcohol',
+      'spirits',
+      'liquor',
+      'vodka',
+      'gin',
+      'rum',
+      'whiskey',
+      'tequila',
+      'mezcal',
+      'brandy',
+      'cognac',
+      'liqueur',
+      'abv',
+      'alc/vol',
+      'proof',
+      'distilled',
+      'barrel',
     ];
 
     // Check for recipe indicators
     const recipeIndicators = [
-      'oz', 'ml', 'cup', 'tsp', 'tbsp', 'dash', 'splash',
-      'ingredients', 'recipe', 'instructions', 'garnish',
-      'shake', 'stir', 'strain', 'muddle', 'build'
+      'oz',
+      'ml',
+      'cup',
+      'tsp',
+      'tbsp',
+      'dash',
+      'splash',
+      'ingredients',
+      'recipe',
+      'instructions',
+      'garnish',
+      'shake',
+      'stir',
+      'strain',
+      'muddle',
+      'build',
     ];
 
     // Check for ingredient indicators
     const ingredientIndicators = [
-      'lemon', 'lime', 'orange', 'mint', 'basil', 'cucumber',
-      'fruit', 'herb', 'vegetable', 'citrus', 'berry'
+      'lemon',
+      'lime',
+      'orange',
+      'mint',
+      'basil',
+      'cucumber',
+      'fruit',
+      'herb',
+      'vegetable',
+      'citrus',
+      'berry',
     ];
 
     let bottleScore = 0;
@@ -444,17 +785,17 @@ export class GoogleVisionService {
     let ingredientScore = 0;
 
     // Score based on labels
-    bottleIndicators.forEach(indicator => {
+    bottleIndicators.forEach((indicator) => {
       if (allLabels.includes(indicator)) bottleScore += 2;
       if (allText.includes(indicator.toUpperCase())) bottleScore += 1;
     });
 
-    recipeIndicators.forEach(indicator => {
+    recipeIndicators.forEach((indicator) => {
       if (allLabels.includes(indicator)) recipeScore += 2;
       if (allText.includes(indicator.toUpperCase())) recipeScore += 1;
     });
 
-    ingredientIndicators.forEach(indicator => {
+    ingredientIndicators.forEach((indicator) => {
       if (allLabels.includes(indicator)) ingredientScore += 2;
       if (allText.includes(indicator.toUpperCase())) ingredientScore += 1;
     });
@@ -507,21 +848,26 @@ export class GoogleVisionService {
     const fullBlock = textTokens[0] || '';
     const lines = fullBlock
       .split(/\n/)
-      .map(l => l.trim())
-      .filter(l => l.length >= 3);
+      .map((l) => l.trim())
+      .filter((l) => l.length >= 3);
 
     if (lines.length === 0) return null;
 
     // Score each line — higher = more likely to be the brand/product name
-    const NOISE = /^(\d+(\.\d+)?(%|CL|ML|L)?|ALC|ABV|VOL|PROOF|DISTILLED|BOTTLED|PRODUCED|EST\.|SINCE|DEPUIS|DESDE|LIMITED|EDITION|IMPORTED|CONTAINS|PRODUCT|WARNING|GOVERNMENT|DRINK|RESPONSIBLY|www\.|©|100%|DE AGAVE|AGAVE|AGAVE AZUL|100% DE AGAVE|100% AGAVE|BLUE AGAVE|PURO AGAVE|PRODUCT OF|PRODUIT DE|PRODUCTO DE|ELABORADO DE|IMPORTADO|SINGLE MALT|SCOTCH WHISKY|BLENDED SCOTCH|RESERVA|RESERVA EXCLUSIVA|GRAN RESERVA|AGED \d+ YEARS?|HECHO EN MEXICO|JALISCO|SAN LUIS DEL RIO|OAXACA)$/i;
-    const SPIRIT_TYPES = /\b(amaro|gin|vodka|rum|whiskey|whisky|bourbon|scotch|tequila|mezcal|cognac|brandy|liqueur|bitter|aperitivo|vermouth)\b/i;
+    // Bare spirit-category words are too generic to be a useful bottle name — filtering
+    // them prevents "TEQUILA" / "GIN" / "LIQUEUR" from becoming the cache key and
+    // poisoning the spirits_cache for every bottle of that type.
+    const NOISE =
+      /^(\d+(\.\d+)?(%|CL|ML|L)?|ALC|ABV|VOL|PROOF|DISTILLED|BOTTLED|PRODUCED|EST\.|SINCE|DEPUIS|DESDE|LIMITED|EDITION|IMPORTED|CONTAINS|PRODUCT|WARNING|GOVERNMENT|DRINK|RESPONSIBLY|www\.|©|100%|DE AGAVE|AGAVE|AGAVE AZUL|100% DE AGAVE|100% AGAVE|BLUE AGAVE|PURO AGAVE|PRODUCT OF|PRODUIT DE|PRODUCTO DE|ELABORADO DE|IMPORTADO|SINGLE MALT|SCOTCH WHISKY|BLENDED SCOTCH|RESERVA|RESERVA EXCLUSIVA|GRAN RESERVA|AGED \d+ YEARS?|HECHO EN MEXICO|JALISCO|SAN LUIS DEL RIO|OAXACA|GIN|VODKA|RUM|WHISKEY|WHISKY|BOURBON|SCOTCH|TEQUILA|MEZCAL|COGNAC|BRANDY|LIQUEUR|AMARO|BITTER|APERITIVO|VERMOUTH|REPOSADO|BLANCO|ANEJO|AÑEJO|SILVER|GOLD|PLATINUM)$/i;
+    const SPIRIT_TYPES =
+      /\b(amaro|gin|vodka|rum|whiskey|whisky|bourbon|scotch|tequila|mezcal|cognac|brandy|liqueur|bitter|aperitivo|vermouth)\b/i;
 
     const scored = lines
       // Strip leading punctuation/dashes before NOISE test (catches "-SINCE/DEPUIS 18Y." etc.)
-      .map(l => l.replace(/^[-–—*/]+\s*/, '').trim())
-      .filter(l => l.length >= 3)
-      .filter(l => !NOISE.test(l))
-      .filter(l => l.length <= 50)
+      .map((l) => l.replace(/^[-–—*/]+\s*/, '').trim())
+      .filter((l) => l.length >= 3)
+      .filter((l) => !NOISE.test(l))
+      .filter((l) => l.length <= 50)
       .map((l, index) => {
         let score = 0;
         // Lines earlier in the block are more likely to be the main label
@@ -545,9 +891,8 @@ export class GoogleVisionService {
     // If it doesn't contain a spirit type but the second line does, append it.
     const best = scored[0].line;
     const second = scored[1]?.line;
-    const name = (!SPIRIT_TYPES.test(best) && second && SPIRIT_TYPES.test(second))
-      ? `${best} ${second}`
-      : best;
+    const name =
+      !SPIRIT_TYPES.test(best) && second && SPIRIT_TYPES.test(second) ? `${best} ${second}` : best;
     return name.slice(0, 80);
   }
 
@@ -565,7 +910,7 @@ export class GoogleVisionService {
     bottleName: string,
     visionResult?: VisionResult,
     imageBase64?: string,
-  ): Promise<Spirit | null> {
+  ): Promise<{ spirit: Spirit | null; confidence: number }> {
     try {
       const { data, error } = await supabase.functions.invoke('spirit-lookup', {
         body: {
@@ -585,13 +930,15 @@ export class GoogleVisionService {
         // Do NOT build a fallback from OCR fragments. A confident wrong answer
         // is worse than no answer. Return null so SmartScanScreen routes to
         // the library search screen instead.
-        return null;
+        return { spirit: null, confidence: 0 };
       }
 
       const p = data.profile;
+      const confidence = typeof data.confidence === 'number' ? data.confidence : 0.85;
       log.info('GoogleVisionService', 'spirit-lookup resolved', {
         name: p.name,
         source: data.source,
+        confidence,
       });
 
       // Map to Spirit shape (compatible with BottleDetailScreen)
@@ -613,10 +960,10 @@ export class GoogleVisionService {
         searchTerms: p.searchTerms ?? [],
       };
 
-      return spirit;
+      return { spirit, confidence };
     } catch (err) {
       log.error('GoogleVisionService', 'lookupBottleProfile error', err);
-      return null;
+      return { spirit: null, confidence: 0 };
     }
   }
 
@@ -642,82 +989,166 @@ export class GoogleVisionService {
     // Mezcal San Luis Potosí") — far more reliable than OCR for decorative bottles.
     // Score every spirit against bestGuessLabels and webEntities first.
     const GENERIC_TOKENS = new Set([
-      'plastic','glass','ceramic','bottle','liquid','product','object','container',
-      'decanter','vase','jar','cup','vessel','red','blue','green','black','white',
-      'brown','crystal','wood','metal','unknown','item','thing','material','surface',
-      'texture','pattern','design','art','craft','handmade','decorative','glassware',
-    ])
+      'plastic',
+      'glass',
+      'ceramic',
+      'bottle',
+      'liquid',
+      'product',
+      'object',
+      'container',
+      'decanter',
+      'vase',
+      'jar',
+      'cup',
+      'vessel',
+      'red',
+      'blue',
+      'green',
+      'black',
+      'white',
+      'brown',
+      'crystal',
+      'wood',
+      'metal',
+      'unknown',
+      'item',
+      'thing',
+      'material',
+      'surface',
+      'texture',
+      'pattern',
+      'design',
+      'art',
+      'craft',
+      'handmade',
+      'decorative',
+      'glassware',
+    ]);
     const isUsableWebResult = (s: string) => {
-      const words = s.trim().toLowerCase().split(/\s+/)
-      return !words.every(w => GENERIC_TOKENS.has(w))
-    }
+      const words = s.trim().toLowerCase().split(/\s+/);
+      return !words.every((w) => GENERIC_TOKENS.has(w));
+    };
 
-    const webCandidates = [
-      ...(result.bestGuessLabels ?? []),
-      ...(result.webEntities ?? []),
-    ].filter(isUsableWebResult)
+    const webCandidates = [...(result.bestGuessLabels ?? []), ...(result.webEntities ?? [])].filter(
+      isUsableWebResult,
+    );
 
     const normalizeWeb = (s: string) =>
-      s.toLowerCase()
+      s
+        .toLowerCase()
         .normalize('NFD')
         .replace(/[\u0300-\u036f]/g, '')
         .replace(/[^a-z0-9\s]/g, ' ')
         .replace(/\s+/g, ' ')
-        .trim()
+        .trim();
 
     if (webCandidates.length > 0) {
-      const webText = webCandidates.join(' ').toLowerCase().replace(/[^a-z0-9\s]/g, ' ')
-      let webBest: Spirit | null = null
-      let webBestScore = 0
+      const webText = webCandidates
+        .join(' ')
+        .toLowerCase()
+        .replace(/[^a-z0-9\s]/g, ' ');
+      let webBest: Spirit | null = null;
+      let webBestScore = 0;
       for (const spirit of SPIRITS_DATABASE) {
-        const brand = normalizeWeb(spirit.brand)
-        const name = normalizeWeb(spirit.name)
-        let score = 0
-        if (brand && webText.includes(brand)) score += 10
-        if (name && webText.includes(name)) score += 8
+        const brand = normalizeWeb(spirit.brand);
+        const name = normalizeWeb(spirit.name);
+        let score = 0;
+        if (brand && webText.includes(brand)) score += 10;
+        if (name && webText.includes(name)) score += 8;
         for (const term of spirit.searchTerms) {
-          const t = normalizeWeb(term)
-          if (t.length >= 3 && webText.includes(t)) score += 5
+          const t = normalizeWeb(term);
+          if (t.length >= 3 && webText.includes(t)) score += 5;
         }
-        if (score > webBestScore) { webBestScore = score; webBest = spirit }
+        if (score > webBestScore) {
+          webBestScore = score;
+          webBest = spirit;
+        }
       }
       if (webBest && webBestScore >= 12) {
         // Cross-validate against OCR: if the label has meaningful text, the
         // Web Detection match must share at least one significant word with it.
         // This prevents Vision returning "Johnnie Walker" for a Rum-Bar bottle.
         // (For label-less/decorative bottles the OCR is empty so we always trust Web Detection.)
-        const ocrWords = normalizedText.split(/\s+/).filter(w => w.length >= 4)
+        // Generic category words appear in every bottle's OCR and many searchTerms —
+        // they must not count as brand-confirming overlap (e.g. "liqueur" matching
+        // Chartreuse OCR to Drambuie's searchTerms, or "tequila" to Jose Cuervo).
+        const GENERIC_SPIRIT_WORDS = new Set([
+          'liqueur',
+          'whisky',
+          'whiskey',
+          'bourbon',
+          'scotch',
+          'vodka',
+          'gin',
+          'rum',
+          'tequila',
+          'mezcal',
+          'cognac',
+          'brandy',
+          'spirit',
+          'spirits',
+          'amaro',
+          'bitter',
+          'aperitivo',
+          'vermouth',
+          'reposado',
+          'blanco',
+          'anejo',
+          'silver',
+          'gold',
+          'premium',
+          'reserve',
+          'aged',
+          'single',
+          'malt',
+          'blended',
+          'special',
+          'edition',
+        ]);
+        const ocrWords = normalizedText
+          .split(/\s+/)
+          .filter((w) => w.length >= 4)
+          .filter((w) => !GENERIC_SPIRIT_WORDS.has(w));
         if (ocrWords.length >= 3) {
           const candidateWords = new Set(
             [webBest.brand, webBest.name, ...webBest.searchTerms]
-              .join(' ').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/)
-              .filter(w => w.length >= 4)
-          )
-          const hasOcrOverlap = ocrWords.some(w => candidateWords.has(w))
+              .join(' ')
+              .toLowerCase()
+              .replace(/[^a-z0-9\s]/g, ' ')
+              .split(/\s+/)
+              .filter((w) => w.length >= 4)
+              .filter((w) => !GENERIC_SPIRIT_WORDS.has(w)),
+          );
+          const hasOcrOverlap = ocrWords.some((w) => candidateWords.has(w));
           if (!hasOcrOverlap) {
             log.warn('GoogleVisionService', 'Web Detection contradicts OCR — skipping Layer 1', {
               webCandidate: webBest.name,
               webScore: webBestScore,
               webCandidates,
-            })
+            });
             // Fall through to Layer 2 (OCR scoring)
           } else {
             log.info('GoogleVisionService', 'Bottle matched via Web Detection (OCR confirmed)', {
               brand: webBest.brand,
               name: webBest.name,
               score: webBestScore,
-            })
-            return webBest
+            });
+            return webBest;
           }
         } else {
           // No meaningful OCR — label-less bottle (Clase Azul, Crystal Head etc.)
           // Trust Web Detection entirely.
-          log.info('GoogleVisionService', 'Bottle matched via Web Detection (no OCR to contradict)', {
-            brand: webBest.brand,
-            name: webBest.name,
-            score: webBestScore,
-          })
-          return webBest
+          log.info(
+            'GoogleVisionService',
+            'Bottle matched via Web Detection (no OCR to contradict)',
+            {
+              brand: webBest.brand,
+              name: webBest.name,
+              score: webBestScore,
+            },
+          );
+          return webBest;
         }
       }
     }
@@ -733,7 +1164,8 @@ export class GoogleVisionService {
 
     // Helper: strip accents + non-alphanumeric so "Patrón" matches "patron" in OCR
     const normalizeForMatch = (s: string) =>
-      s.toLowerCase()
+      s
+        .toLowerCase()
         .normalize('NFD')
         .replace(/[\u0300-\u036f]/g, '')
         .replace(/[^a-z0-9\s]/g, ' ')
@@ -745,21 +1177,41 @@ export class GoogleVisionService {
     let bestScore = 0;
     let secondBestSpirit: Spirit | null = null;
     let secondBestScore = 0;
+    // Track per-winner breakdown for the high-confidence gate below.
+    let bestBrandScore = 0;
+    let bestNameScore = 0;
+    let bestMultiWordTermHits = 0;
 
     for (const spirit of SPIRITS_DATABASE) {
       const brand = normalizeForMatch(spirit.brand);
       const name = normalizeForMatch(spirit.name);
       const type = spirit.type.toLowerCase();
       let score = 0;
+      let brandScore = 0;
+      let nameScore = 0;
+      let multiWordTermHits = 0;
 
-      if (brand && normalizedText.includes(brand)) score += 8;
-      if (name && normalizedText.includes(name)) score += 6;
+      if (brand && normalizedText.includes(brand)) {
+        brandScore = 8;
+        score += 8;
+      }
+      if (name && normalizedText.includes(name)) {
+        nameScore = 6;
+        score += 6;
+      }
       if (allLabels.includes(type)) score += 2;
 
       for (const term of spirit.searchTerms) {
         const normalizedTerm = normalizeForMatch(term);
         if (normalizedTerm.length < 3) continue;
-        if (normalizedText.includes(normalizedTerm)) score += 4;
+        if (normalizedText.includes(normalizedTerm)) {
+          // Multi-word terms (2+ words) are meaningful product descriptors.
+          // Single-word terms (e.g. "foursquare") can appear as distillery
+          // attribution text on an unrelated bottle — don't count them toward
+          // the high-confidence gate.
+          if (normalizedTerm.trim().split(/\s+/).length >= 2) multiWordTermHits++;
+          score += 4;
+        }
       }
 
       if (score > bestScore) {
@@ -767,21 +1219,32 @@ export class GoogleVisionService {
         secondBestSpirit = bestSpirit;
         bestScore = score;
         bestSpirit = spirit;
+        bestBrandScore = brandScore;
+        bestNameScore = nameScore;
+        bestMultiWordTermHits = multiWordTermHits;
       } else if (score > secondBestScore) {
         secondBestScore = score;
         secondBestSpirit = spirit;
       }
     }
 
-    // Threshold of 10 requires at minimum a brand match (8) + type or searchTerm hit.
-    if (bestSpirit && bestScore >= 10) {
+    // High-confidence gate: brand must appear in OCR AND at least one of:
+    //   (a) the product name appears verbatim as a substring, or
+    //   (b) a multi-word search term matches.
+    // This prevents a brand name that appears only as distillery attribution
+    // text (e.g. "Distilled at Foursquare Rum Distillery" on a Doorly's label)
+    // from producing a false DB match. Bottles that don't pass this gate fall
+    // through to Claude Vision, which reads the label directly.
+    const isHighConfidence = bestBrandScore > 0 && (bestNameScore > 0 || bestMultiWordTermHits > 0);
+
+    if (bestSpirit && bestScore >= 14 && isHighConfidence) {
       // Variant ambiguity check: if the top two results share the same brand and
       // scores are within 4 points, we can't confidently pick a variant (e.g.
       // Green vs Yellow Chartreuse, Patrón Silver vs Reposado). Return null so
       // the edge function can use web entities to disambiguate.
       if (
         secondBestSpirit &&
-        secondBestScore >= 10 &&
+        secondBestScore >= 14 &&
         normalizeForMatch(bestSpirit.brand) === normalizeForMatch(secondBestSpirit.brand) &&
         bestScore - secondBestScore <= 4
       ) {

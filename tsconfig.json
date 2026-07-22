@@ -29,15 +29,10 @@
     }
   },
   "exclude": [
-    "MixMind/**/*",
     "node_modules",
     "scripts/**/*",
     "src/tests/**/*",
     "src/components/__tests__/**/*",
-    "supabase/functions/**/*",
-    "firebase/**/*",
-    "@firebase/**/*",
-    "VAULT_EXAMPLE_USAGE.tsx",
-    "src/**/*OLD*"
+    "supabase/functions/**/*"
   ]
 }

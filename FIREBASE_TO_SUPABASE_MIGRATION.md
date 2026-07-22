@@ -4,6 +4,14 @@ This guide documents the migration from Firebase Firestore to Supabase PostgreSQ
 
 ---
 
+> **Correction (Phase 0.4, engineering workplan, 2026-07):** see the same
+> note in `MIGRATION_COMPLETE.md` — this migration was not actually 100%
+> complete at time of writing. Residual Firebase-shaped code (unreachable
+> without a `firebase` package that was never installed) has now been
+> removed for real; see the `chore(phase-0): 0.4 firebase excision` commit.
+
+---
+
 ## Migration Status
 
 ### ✅ Completed

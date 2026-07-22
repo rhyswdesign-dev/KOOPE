@@ -1,4 +1,12 @@
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  ReactNode,
+} from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import * as Google from 'expo-auth-session/providers/google';
@@ -43,7 +51,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // Google OAuth configuration - make optional for development
   const googleConfig = {
     iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || 'placeholder-ios-client-id',
-    androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || 'placeholder-android-client-id',
+    androidClientId:
+      process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || 'placeholder-android-client-id',
     webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || 'placeholder-web-client-id',
   };
 
@@ -55,29 +64,52 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     console.log('🔐 AuthContext: Setting up auth state listener');
 
     // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      log.info('AuthContext', 'Initial session loaded', { userId: session?.user?.id || 'No user' });
-      console.log('🔐 AuthContext: Initial session loaded', {
-        hasSession: !!session,
-        userId: session?.user?.id || 'No user',
-        userEmail: session?.user?.email || 'No email'
+    supabase.auth
+      .getSession()
+      .then(({ data: { session } }) => {
+        log.info('AuthContext', 'Initial session loaded', {
+          userId: session?.user?.id || 'No user',
+        });
+        console.log('🔐 AuthContext: Initial session loaded', {
+          hasSession: !!session,
+          userId: session?.user?.id || 'No user',
+          userEmail: session?.user?.email || 'No email',
+        });
+        setSession(session);
+        setUser(session?.user ?? null);
+        setIsLoading(false);
+      })
+      .catch((error) => {
+        // Degrade to signed-out instead of crashing (audit/sprint-1 device-test
+        // fix): when the Supabase backend is unreachable — offline, or the
+        // project URL itself is dead — a stored session that needs a token
+        // refresh makes getSession() reject with AuthRetryableFetchError. This
+        // chain previously had no .catch(), so that rejection went unhandled
+        // and surfaced as a crash/red screen on-device instead of a friendly
+        // signed-out state. The app works signed-out by design, so that is the
+        // safe fallback; onAuthStateChange will restore the session if the
+        // backend comes back.
+        log.warn('AuthContext', 'Could not load initial session (backend unreachable?)', {
+          error: error?.message,
+        });
+        setSession(null);
+        setUser(null);
+        setIsLoading(false);
       });
-      setSession(session);
-      setUser(session?.user ?? null);
-      setIsLoading(false);
-    });
 
     // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
       log.info('AuthContext', 'Auth state changed', {
         event: _event,
-        userId: session?.user?.id || 'No user'
+        userId: session?.user?.id || 'No user',
       });
       console.log('🔐 AuthContext: Auth state changed!', {
         event: _event,
         hasSession: !!session,
         userId: session?.user?.id || 'No user',
-        userEmail: session?.user?.email || 'No email'
+        userEmail: session?.user?.email || 'No email',
       });
       setSession(session);
       setUser(session?.user ?? null);
@@ -89,17 +121,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     };
   }, []);
 
-  // Handle Google OAuth response
-  useEffect(() => {
-    if (response?.type === 'success') {
-      const { authentication } = response;
-      if (authentication?.idToken) {
-        signInWithGoogleIdToken(authentication.idToken);
-      }
-    }
-  }, [response]);
-
-  const signInWithGoogleIdToken = async (idToken: string) => {
+  // Moved above the "Handle Google OAuth response" effect below (Phase 0.9):
+  // that effect's dependency array now references this function, and a
+  // `const` declared later in the same scope isn't accessible from an
+  // earlier dependency array (temporal dead zone).
+  const signInWithGoogleIdToken = useCallback(async (idToken: string) => {
     try {
       const { data, error } = await supabase.auth.signInWithIdToken({
         provider: 'google',
@@ -113,9 +139,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       log.error('AuthContext', 'Google sign-in failed', error);
       throw error;
     }
-  };
+  }, []);
 
-  const signInWithApple = async () => {
+  // Handle Google OAuth response
+  useEffect(() => {
+    if (response?.type === 'success') {
+      const { authentication } = response;
+      if (authentication?.idToken) {
+        signInWithGoogleIdToken(authentication.idToken);
+      }
+    }
+  }, [response, signInWithGoogleIdToken]);
+
+  const signInWithApple = useCallback(async () => {
     try {
       log.info('AuthContext', 'Apple Sign-In initiated');
 
@@ -148,9 +184,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         throw error;
       }
     }
-  };
+  }, []);
 
-  const signInWithGoogle = async () => {
+  const signInWithGoogle = useCallback(async () => {
     try {
       log.info('AuthContext', 'Google Sign-In initiated');
       await promptAsync();
@@ -158,12 +194,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       log.error('AuthContext', 'Google sign-in failed', error);
       throw error;
     }
-  };
+  }, [promptAsync]);
 
-  const signInWithEmail = async (email: string, password: string) => {
+  const signInWithEmail = useCallback(async (email: string, password: string) => {
     try {
       log.info('AuthContext', 'Email Sign-In initiated');
-      console.log('📧 Starting Email Sign-In...', { email });
+      console.log('📧 Starting Email Sign-In...');
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -178,9 +214,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.log('❌ Email Sign-In failed:', error);
       throw error;
     }
-  };
+  }, []);
 
-  const signOut = async () => {
+  const signOut = useCallback(async () => {
     try {
       log.info('AuthContext', 'Sign out initiated');
       const { error } = await supabase.auth.signOut();
@@ -190,24 +226,26 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       log.error('AuthContext', 'Sign out failed', error);
       throw error;
     }
-  };
+  }, []);
 
-  const value = {
-    user,
-    session,
-    isAuthenticated: !!user,
-    isLoading,
-    signInWithApple,
-    signInWithGoogle,
-    signInWithEmail,
-    signOut,
-  };
-
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
+  // Phase 0.9 guardrail: memoize the context value so consumers don't
+  // re-render on every AuthProvider render (e.g. the Google auth response
+  // effect above) when nothing they actually read has changed.
+  const value = useMemo(
+    () => ({
+      user,
+      session,
+      isAuthenticated: !!user,
+      isLoading,
+      signInWithApple,
+      signInWithGoogle,
+      signInWithEmail,
+      signOut,
+    }),
+    [user, session, isLoading, signInWithApple, signInWithGoogle, signInWithEmail, signOut],
   );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
 export const useAuth = (): AuthContextType => {

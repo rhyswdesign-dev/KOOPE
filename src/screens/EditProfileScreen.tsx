@@ -1,4 +1,3 @@
-// @ts-nocheck
 import React, { useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import {
   View,
@@ -26,13 +25,10 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 type ExtraProfileData = {
   username: string;
   city: string;
-  favoriteSpirits: string[];
 };
 
 const DEFAULT_BIO =
   'Home bartender building better drinks one bottle at a time.';
-
-const SPIRIT_OPTIONS = ['Whiskey', 'Gin', 'Tequila', 'Rum', 'Vodka', 'Brandy', 'Mezcal', 'Amaro'];
 
 const getExtraProfileStorageKey = (userId: string) => `profile_extra_${userId}`;
 
@@ -43,12 +39,10 @@ export default function EditProfileScreen() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  const [name, setName] = useState(user?.displayName || '');
+  const [name, setName] = useState('');
   const [bio, setBio] = useState(DEFAULT_BIO);
   const [username, setUsername] = useState('');
   const [city, setCity] = useState('');
-  const [favoriteSpirits, setFavoriteSpirits] = useState<string[]>([]);
-
   const initials = useMemo(() => {
     const source = name.trim() || user?.email || 'K';
     return source.substring(0, 1).toUpperCase();
@@ -74,7 +68,7 @@ export default function EditProfileScreen() {
         </TouchableOpacity>
       ),
     });
-  }, [navigation, saving, loading, name, bio, username, city, favoriteSpirits]);
+  }, [navigation, saving, loading, name, bio, username, city]);
 
   useEffect(() => {
     let isMounted = true;
@@ -93,18 +87,16 @@ export default function EditProfileScreen() {
 
         if (!isMounted) return;
 
-        setName(profile?.display_name || user.displayName || '');
+        setName(profile?.display_name || '');
         setBio(profile?.bio || DEFAULT_BIO);
 
         if (storedExtra) {
           const parsed = JSON.parse(storedExtra) as ExtraProfileData;
           setUsername(parsed.username || '');
           setCity(parsed.city || '');
-          setFavoriteSpirits(parsed.favoriteSpirits || []);
         } else {
           setUsername('');
           setCity('');
-          setFavoriteSpirits([]);
         }
       } catch (error) {
         log.warn('EditProfileScreen', 'Unable to fully load profile, using defaults', { error });
@@ -119,19 +111,6 @@ export default function EditProfileScreen() {
       isMounted = false;
     };
   }, [user]);
-
-  const toggleSpirit = (spirit: string) => {
-    setFavoriteSpirits((prev) => {
-      if (prev.includes(spirit)) {
-        return prev.filter((item) => item !== spirit);
-      }
-      if (prev.length >= 5) {
-        Alert.alert('Limit reached', 'Pick up to 5 favorite spirits.');
-        return prev;
-      }
-      return [...prev, spirit];
-    });
-  };
 
   const handleSave = async () => {
     if (!user) {
@@ -166,7 +145,6 @@ export default function EditProfileScreen() {
       const extraData: ExtraProfileData = {
         username: username.trim(),
         city: city.trim(),
-        favoriteSpirits,
       };
 
       await AsyncStorage.setItem(getExtraProfileStorageKey(user.id), JSON.stringify(extraData));
@@ -174,7 +152,6 @@ export default function EditProfileScreen() {
       log.info('EditProfileScreen', 'Profile saved', {
         userId: user.id,
         hasUsername: Boolean(extraData.username),
-        favoriteSpiritCount: extraData.favoriteSpirits.length,
       });
 
       Alert.alert('Saved', 'Your profile has been updated.', [
@@ -263,26 +240,6 @@ export default function EditProfileScreen() {
             keyboardAppearance="dark"
           />
           <Text style={styles.helperText}>{bio.length}/200</Text>
-        </View>
-
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Taste Profile</Text>
-          <Text style={styles.helperText}>Choose up to 5 favorites.</Text>
-          <View style={styles.chipGrid}>
-            {SPIRIT_OPTIONS.map((spirit) => {
-              const selected = favoriteSpirits.includes(spirit);
-              return (
-                <TouchableOpacity
-                  key={spirit}
-                  style={[styles.chip, selected && styles.chipActive]}
-                  onPress={() => toggleSpirit(spirit)}
-                  activeOpacity={0.8}
-                >
-                  <Text style={[styles.chipText, selected && styles.chipTextActive]}>{spirit}</Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
         </View>
 
         <TouchableOpacity style={styles.saveButton} onPress={handleSave} disabled={saving} activeOpacity={0.8}>
@@ -420,32 +377,6 @@ const styles = StyleSheet.create({
     color: colors.subtext,
     fontSize: 12,
     marginTop: spacing(0.75),
-  },
-  chipGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing(1),
-    marginTop: spacing(1.5),
-  },
-  chip: {
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: colors.line,
-    backgroundColor: colors.bg,
-    paddingVertical: spacing(0.9),
-    paddingHorizontal: spacing(1.5),
-  },
-  chipActive: {
-    borderColor: colors.accent,
-    backgroundColor: 'rgba(214, 138, 56, 0.18)',
-  },
-  chipText: {
-    color: colors.subtext,
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  chipTextActive: {
-    color: colors.text,
   },
   saveButton: {
     marginTop: spacing(0.5),

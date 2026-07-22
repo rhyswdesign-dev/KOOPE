@@ -38,6 +38,22 @@ serve(async (req) => {
   }
 
   try {
+    // 1. Validate JWT
+    const authHeader = req.headers.get('authorization')
+    if (!authHeader) {
+      return jsonError('Unauthorized', 401)
+    }
+
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    const supabase = createClient(supabaseUrl, supabaseKey)
+
+    const jwt = authHeader.replace('Bearer ', '')
+    const { data: { user }, error: authError } = await supabase.auth.getUser(jwt)
+    if (authError || !user) {
+      return jsonError('Unauthorized', 401)
+    }
+
     const { bottleName, imageBase64, visionLabels } = await req.json()
     if (!bottleName || typeof bottleName !== 'string') {
       return jsonError('Missing bottleName', 400)
@@ -48,16 +64,23 @@ serve(async (req) => {
 
     const lookupKey = bottleName.toLowerCase().replace(/\s+/g, ' ').trim()
 
-    // ── 1. Check cache ────────────────────────────────────────────────────────
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    const supabase = createClient(supabaseUrl, supabaseKey)
+    // Generic single-word category names (tequila, gin, liqueur…) are too broad
+    // to be reliable cache keys — one bad Claude response would poison every scan
+    // of that spirit type. Skip cache entirely for these.
+    const GENERIC_KEYS = new Set([
+      'gin','vodka','rum','whiskey','whisky','bourbon','scotch','tequila','mezcal',
+      'cognac','brandy','liqueur','amaro','bitter','aperitivo','vermouth','spirit',
+      'spirits','reposado','blanco','anejo','silver','gold','unknown bottle',
+    ])
+    const useCache = !GENERIC_KEYS.has(lookupKey)
 
-    const { data: cached } = await supabase
+    // ── 2. Check cache ────────────────────────────────────────────────────────
+
+    const { data: cached } = useCache ? await supabase
       .from('spirits_cache')
       .select('*')
       .eq('lookup_key', lookupKey)
-      .maybeSingle()
+      .maybeSingle() : { data: null }
 
     if (cached) {
       supabase
@@ -72,7 +95,7 @@ serve(async (req) => {
       )
     }
 
-    // ── 2. Call Claude ────────────────────────────────────────────────────────
+    // ── 3. Call Claude ────────────────────────────────────────────────────────
     const anthropicKey = Deno.env.get('ANTHROPIC_API_KEY')
     if (!anthropicKey) {
       return jsonError('AI lookup not configured', 503)
@@ -97,12 +120,12 @@ serve(async (req) => {
     }
 
     // ── 3. Cache if confident enough ──────────────────────────────────────────
-    // Vision results require higher confidence bar before caching — lower confidence
-    // means Claude wasn't sure even with the image, so we want a fresh attempt next time.
     const cacheThreshold = hasImage ? 0.8 : 0.7
-    if (claudeConfidence >= cacheThreshold) {
+    if (useCache && claudeConfidence >= cacheThreshold) {
       const row = profileToRow(profile, lookupKey, claudeConfidence)
       await supabase.from('spirits_cache').upsert(row, { onConflict: 'lookup_key' })
+    } else if (!useCache) {
+      console.log(`Generic key "${lookupKey}" — skipping cache to prevent cross-bottle pollution`)
     } else {
       console.log(`Low confidence (${claudeConfidence}) for "${lookupKey}" — skipping cache`)
     }
@@ -174,8 +197,8 @@ Rules:
       'anthropic-version': '2023-06-01',
     },
     body: JSON.stringify({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 1024,
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 512,
       messages: [{
         role: 'user',
         content: [
@@ -256,7 +279,7 @@ Rules:
     },
     body: JSON.stringify({
       model: 'claude-haiku-4-5-20251001',
-      max_tokens: 1024,
+      max_tokens: 512,
       messages: [{ role: 'user', content: prompt }],
     }),
   })

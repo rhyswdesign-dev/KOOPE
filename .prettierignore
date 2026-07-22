@@ -1,0 +1,10 @@
+node_modules
+dist
+android
+ios
+backups
+MixMind
+MixedMindsRecipes
+supabase/.temp
+.expo
+package-lock.json

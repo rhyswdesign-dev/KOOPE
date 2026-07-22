@@ -8,7 +8,7 @@
  * not scan capability.
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -18,11 +18,11 @@ import {
   ActivityIndicator,
   BackHandler,
 } from 'react-native';
-import { useNavigation, useIsFocused } from '@react-navigation/native';
+import { useNavigation, useIsFocused, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, radii } from '../theme/tokens';
-import { GoogleVisionService } from '../services/googleVisionService';
+import { GoogleVisionService, isConnectivityError } from '../services/googleVisionService';
 import { BarcodeService } from '../services/barcodeService';
 import CameraCapture from '../components/camera/CameraCapture';
 import type { CameraStackParamList } from '../navigation/CameraStack';
@@ -34,11 +34,19 @@ import DataConsentDialog from '../components/modals/DataConsentDialog';
 import BottleNotFoundModal from '../components/BottleNotFoundModal';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { challengeProgressService } from '../services/challengeProgressService';
-import { achievementService } from '../services/achievementService';
 import { ImageQualityService } from '../services/imageQualityService';
 import { supabase } from '../lib/supabase';
+import {
+  createScanSession,
+  trackScanAttempt,
+  trackScanResolved,
+  trackScanFailed,
+} from '../services/scanTelemetry';
 
-function getManualPrefill(productName: string | null, productBrand: string | null): { brand?: string; name?: string } {
+function getManualPrefill(
+  productName: string | null,
+  productBrand: string | null,
+): { brand?: string; name?: string } {
   const cleanName = productName?.trim() || '';
   const cleanBrand = productBrand?.trim() || '';
 
@@ -58,6 +66,7 @@ function getManualPrefill(productName: string | null, productBrand: string | nul
 
 export default function SmartScanScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<CameraStackParamList>>();
+  const route = useRoute<any>();
   const isFocused = useIsFocused();
   const { user } = useAuth();
   const { isSubscriber } = useSubscription();
@@ -68,32 +77,36 @@ export default function SmartScanScreen() {
   const [cameraMode, setCameraMode] = useState<'bottle' | 'recipe' | 'ingredients'>('bottle');
   const [showConsentDialog, setShowConsentDialog] = useState(false);
   const [hasGivenConsent, setHasGivenConsent] = useState(false);
-  // When true, camera opens in barcode-only mode (Stage 7 fallback)
-  const [barcodeMode, setBarcodeMode] = useState(false);
+  // When true, camera opens in barcode-only mode (Stage 7 fallback, or correction flow)
+  const [barcodeMode, setBarcodeMode] = useState(() => !!(route?.params as any)?.barcodeOnly);
   const [showBottleNotFound, setShowBottleNotFound] = useState(false);
   // Always keep full photo scanner enabled; GoogleVisionService handles API fallback.
   const aiScanEnabled = true;
+
+  // Guard to ensure camera only auto-opens on first mount, not on re-focus
+  // after returning from BottleDetail or other downstream screens.
+  const hasOpenedOnMountRef = useRef(false);
 
   // Check consent status on mount
   useEffect(() => {
     checkConsentStatus();
   }, []);
 
-  // Show/hide camera based on focus + consent.
-  // Small delay avoids modal+jump glitch during stack transition.
+  // Open camera once on mount (after consent resolves), never again on re-focus.
+  useEffect(() => {
+    if (hasOpenedOnMountRef.current) return;
+    if (!hasGivenConsent) return;
+    hasOpenedOnMountRef.current = true;
+    const timer = setTimeout(() => setCameraVisible(true), 120);
+    return () => clearTimeout(timer);
+  }, [hasGivenConsent]);
+
+  // Close camera when screen loses focus (navigating away, tab switch, etc.)
   useEffect(() => {
     if (!isFocused) {
       setCameraVisible(false);
-      return;
     }
-    if (!hasGivenConsent || showConsentDialog) return;
-
-    const timer = setTimeout(() => {
-      setCameraVisible(true);
-    }, 120);
-
-    return () => clearTimeout(timer);
-  }, [hasGivenConsent, isFocused, showConsentDialog]);
+  }, [isFocused]);
 
   const checkConsentStatus = async () => {
     try {
@@ -151,7 +164,7 @@ export default function SmartScanScreen() {
             style: 'cancel',
             onPress: () => navigation.goBack(),
           },
-        ]
+        ],
       );
     }
   };
@@ -178,55 +191,77 @@ export default function SmartScanScreen() {
       setAnalyzing(true);
       setScanMode('barcode');
 
+      const session = createScanSession('barcode');
+      trackScanAttempt(session);
+
       try {
         log.info('SmartScanScreen', 'Barcode detected', { barcode: result.data });
 
-        const { spirit, productName, productBrand, status, barcode } = await BarcodeService.lookupBarcode(result.data);
+        const lookupStartedAt = Date.now();
+        const { spirit, productName, productBrand, status, barcode } =
+          await BarcodeService.lookupBarcode(result.data);
+        const networkMs = Date.now() - lookupStartedAt;
 
         if (status === 'invalid_barcode') {
+          trackScanFailed(session, 'invalid_barcode');
           Alert.alert(
             'Unsupported Barcode',
             'This code format is not supported for bottle lookup yet. Try scanning the label instead.',
             [
               {
                 text: 'Scan Label',
-                onPress: () => { setBarcodeMode(false); handleRetake(); },
+                onPress: () => {
+                  setBarcodeMode(false);
+                  handleRetake();
+                },
               },
               {
                 text: 'Cancel',
                 style: 'cancel',
                 onPress: () => handleRetake(),
               },
-            ]
+            ],
           );
         } else if (status === 'network_error') {
+          trackScanFailed(session, 'connection_error');
           Alert.alert(
             'Lookup Service Unavailable',
             'We could not reach barcode lookup services. Check your connection and try again.',
             [
               { text: 'Try Again', onPress: () => handleRetake() },
               { text: 'Cancel', style: 'cancel', onPress: () => navigation.goBack() },
-            ]
+            ],
           );
         } else if (spirit) {
-          await InventoryService.recordScan({
+          InventoryService.recordScan({
             userId: user?.id || null,
             scanType: 'bottle',
             itemName: spirit.name,
             brandName: spirit.brand,
             addedToInventory: false,
-          });
+          }).catch(() => {});
 
           if (user?.id) {
-            challengeProgressService.trackScanBottle(user.id, spirit.id || spirit.name, spirit.type);
+            challengeProgressService.trackScanBottle(
+              user.id,
+              spirit.id || spirit.name,
+              spirit.type,
+            );
           }
-          achievementService.trackAction('bottlesScanned');
 
-          navigation.replace('BottleDetail', { bottle: spirit });
+          trackScanResolved(session, { resolutionSource: 'barcode', networkMs });
+
+          navigation.replace('BottleDetail', {
+            bottle: spirit,
+            scannedBarcode: barcode || result.data,
+          });
         } else {
           // Barcode found but not in our spirits DB — go to manual entry
+          trackScanFailed(session, 'barcode_not_found');
           const prefill = getManualPrefill(productName, productBrand);
-          const labelForAlert = productName ? `"${productName}"` : `barcode ${barcode || result.data}`;
+          const labelForAlert = productName
+            ? `"${productName}"`
+            : `barcode ${barcode || result.data}`;
           Alert.alert(
             'Bottle Not Found Yet',
             `We found ${labelForAlert} but it's not in our database yet.\n\nTry scanning the front label for more detail, or add the bottle manually from the Home Bar screen.`,
@@ -240,18 +275,34 @@ export default function SmartScanScreen() {
                 style: 'cancel',
                 onPress: () => navigation.goBack(),
               },
-            ]
+            ],
           );
         }
       } catch (error) {
         log.error('SmartScanScreen', 'Error looking up barcode', error);
-        handleRetake();
+        // Never fail silently (audit/sprint-1 device-test fix): a connection
+        // failure gets the honest offline state; anything else gets a visible
+        // error with a path forward instead of the camera quietly reopening.
+        if (isConnectivityError(error)) {
+          trackScanFailed(session, 'connection_error');
+          handleScanConnectionError();
+        } else {
+          trackScanFailed(session, 'error');
+          Alert.alert(
+            'Lookup Failed',
+            'Something went wrong looking up that barcode. Please try again.',
+            [
+              { text: 'Try Again', onPress: () => handleRetake() },
+              { text: 'Cancel', style: 'cancel', onPress: () => navigation.goBack() },
+            ],
+          );
+        }
       } finally {
         setAnalyzing(false);
         setScanMode(null);
       }
     },
-    [user, navigation]
+    [user, navigation],
   );
 
   // ─── Photo capture handler ────────────────────────────────────────────────
@@ -260,6 +311,14 @@ export default function SmartScanScreen() {
     setAnalyzing(true);
     setScanMode('ai');
 
+    // Telemetry (Phase 1.3) is scoped to bottle scans — recipe/ingredient
+    // photo captures share this handler but aren't part of the scan-latency
+    // metric, so no session is created for them (an untracked ATTEMPT with
+    // no matching RESOLVED/FAILED would silently corrupt the success rate).
+    const isBottleScan = cameraMode === 'bottle';
+    const session = isBottleScan ? createScanSession('photo') : null;
+    if (session) trackScanAttempt(session);
+
     try {
       log.info('SmartScanScreen', 'Running AI analysis on captured image');
 
@@ -267,26 +326,100 @@ export default function SmartScanScreen() {
       // Check before calling Vision API — saves API cost on bad photos.
       const quality = await ImageQualityService.check(uri);
       if (!quality.ok) {
-        log.warn('SmartScanScreen', 'Stage 1 gate: image quality failed', { reason: quality.reason });
+        log.warn('SmartScanScreen', 'Stage 1 gate: image quality failed', {
+          reason: quality.reason,
+        });
+        if (session)
+          trackScanFailed(session, quality.reason === 'too_dark' ? 'too_dark' : 'too_blurry');
         setAnalyzing(false);
         setScanMode(null);
-        Alert.alert(
-          quality.reason === 'too_dark' ? 'Too Dark' : 'Too Blurry',
-          quality.message,
-          [
-            { text: 'Try Again', onPress: () => handleRetake() },
-            { text: 'Cancel', style: 'cancel', onPress: () => navigation.goBack() },
-          ]
-        );
+        Alert.alert(quality.reason === 'too_dark' ? 'Too Dark' : 'Too Blurry', quality.message, [
+          { text: 'Try Again', onPress: () => handleRetake() },
+          { text: 'Cancel', style: 'cancel', onPress: () => navigation.goBack() },
+        ]);
         return;
       }
 
+      // ── Bottle mode: ONE consolidated server round trip ──────────────────────
+      // bottle-recognize does Vision + spirit-gate + local-catalog match +
+      // (on a catalog miss) the Claude fallback, all in a single invocation —
+      // this replaces what used to be up to two chained client-initiated
+      // calls (vision-analyze, then spirit-lookup on a local-match miss).
+      if (cameraMode === 'bottle') {
+        const {
+          spirit: bottle,
+          confidence: scanConfidence,
+          isSpiritImage,
+          source,
+          timings,
+        } = await GoogleVisionService.recognizeBottle(uri);
+
+        // Connection failure is not "bottle not found" (audit/sprint-1
+        // device-test fix): surface an honest connection state with a retry
+        // instead of pretending the bottle isn't in the database.
+        if (source === 'network_error') {
+          if (session) trackScanFailed(session, 'connection_error');
+          setAnalyzing(false);
+          setScanMode(null);
+          handleScanConnectionError();
+          return;
+        }
+
+        if (!isSpiritImage) {
+          log.warn('SmartScanScreen', 'Stage 2 gate: no spirit signal detected');
+          if (session) trackScanFailed(session, 'not_a_bottle');
+          setAnalyzing(false);
+          setScanMode(null);
+          handleNotABottle();
+          return;
+        }
+
+        InventoryService.recordScan({
+          userId: user?.id || null,
+          scanType: 'bottle',
+          itemName: bottle?.name,
+          brandName: bottle?.brand,
+          imageUrl: uri,
+          addedToInventory: false,
+        }).catch(() => {});
+
+        if (bottle) {
+          if (user?.id) {
+            challengeProgressService.trackScanBottle(
+              user.id,
+              bottle.id || bottle.name,
+              bottle.type,
+            );
+          }
+          if (session) {
+            trackScanResolved(session, {
+              resolutionSource: source,
+              convertMs: timings?.convertMs,
+              networkMs: timings?.networkMs,
+              server: timings?.server,
+            });
+          }
+          navigation.replace('BottleDetail', {
+            bottle,
+            imageUri: uri,
+            scanConfidence,
+            scanSource: source,
+          });
+        } else {
+          // ── Stage 7: Barcode fallback ─────────────────────────────────────
+          // Vision couldn't identify the bottle — offer barcode scan as a
+          // 100%-accurate fallback before falling through to "not recognised".
+          if (session) trackScanFailed(session, 'not_recognised');
+          handleBottleNotFound();
+        }
+        return;
+      }
+
+      // ── Recipe / ingredient modes — unchanged, still use vision-analyze ──────
       const visionResult = await GoogleVisionService.analyzeImage(uri);
 
-      // Use the mode the user explicitly selected in the camera UI.
       // Map 'ingredients' → 'ingredient' to match the scanType values used below.
       const modeMap: Record<string, string> = {
-        bottle: 'bottle',
         recipe: 'recipe',
         ingredients: 'ingredient',
       };
@@ -295,101 +428,6 @@ export default function SmartScanScreen() {
       log.info('SmartScanScreen', 'Scan type', { scanType, cameraMode });
 
       switch (scanType) {
-        case 'bottle': {
-          // ── Stage 2: Spirit-signal gate ──────────────────────────────────────
-          // Reject if Vision sees no spirit-related labels at all. This prevents
-          // plastic objects, hands, shelf tags, and random items from reaching Claude.
-          if (!GoogleVisionService.isSpiritImage(visionResult)) {
-            log.warn('SmartScanScreen', 'Stage 2 gate: no spirit signal in labels', { labels: visionResult.labels });
-            setAnalyzing(false);
-            setScanMode(null);
-            handleNotABottle();
-            break;
-          }
-
-          // ── Stage 1+3: Local DB lookup (Web Detection first, then OCR) ───────
-          let bottle = GoogleVisionService.matchBottle(visionResult);
-
-          // If local DB matched, silently upsert to spirits_cache with confidence 1.0.
-          // This overwrites any stale Haiku-generated cache entry for the same bottle,
-          // preventing old bad data from being served on future edge function calls.
-          if (bottle) {
-            const lookupKey = bottle.name.toLowerCase().replace(/\s+/g, ' ').trim();
-            supabase.from('spirits_cache').upsert({
-              lookup_key: lookupKey,
-              name: bottle.name,
-              brand: bottle.brand,
-              spirit_type: bottle.type,
-              abv: bottle.abv,
-              price_tier: bottle.priceTier,
-              price_usd_min: bottle.priceEstimate?.USD?.min ?? null,
-              price_usd_max: bottle.priceEstimate?.USD?.max ?? null,
-              price_cad_min: bottle.priceEstimate?.CAD?.min ?? null,
-              price_cad_max: bottle.priceEstimate?.CAD?.max ?? null,
-              price_gbp_min: bottle.priceEstimate?.GBP?.min ?? null,
-              price_gbp_max: bottle.priceEstimate?.GBP?.max ?? null,
-              flavor_profile: bottle.flavorProfile,
-              tasting_notes: bottle.tastingNotes,
-              origin: bottle.origin,
-              search_terms: bottle.searchTerms,
-              confidence: 1.0,
-              source: 'local_db',
-            }, { onConflict: 'lookup_key' }).then(() => {});
-          }
-
-          // ── Stage 4: Claude fallback with garbage detection ───────────────────
-          if (!bottle) {
-            const rawName = GoogleVisionService.extractBottleNameFromOCR(visionResult);
-
-            const isGarbled = (name: string | null): boolean => {
-              if (!name) return true;
-              const chars = name.replace(/\s/g, '').toUpperCase();
-              if (chars.length < 4) return true;
-              const freq = [...chars].reduce((acc, c) => { acc[c] = (acc[c] || 0) + 1; return acc; }, {} as Record<string, number>);
-              const maxFreq = Math.max(...Object.values(freq));
-              return maxFreq / chars.length > 0.4;
-            };
-
-            const extractedName = isGarbled(rawName) ? '' : rawName;
-            log.info('SmartScanScreen', 'SpiritLookup', { rawName, extractedName, garbled: isGarbled(rawName) });
-
-            if (extractedName || (visionResult?.labels?.length ?? 0) > 0) {
-              try {
-                bottle = await GoogleVisionService.lookupBottleProfile(
-                  extractedName || 'unknown bottle',
-                  visionResult,
-                  visionResult?.imageBase64,
-                );
-              } catch (lookupErr: any) {
-                log.warn('SmartScanScreen', 'SpiritLookup threw', { message: lookupErr?.message });
-              }
-            }
-          }
-
-          await InventoryService.recordScan({
-            userId: user?.id || null,
-            scanType: 'bottle',
-            itemName: bottle?.name,
-            brandName: bottle?.brand,
-            imageUrl: uri,
-            addedToInventory: false,
-          });
-
-          if (bottle) {
-            if (user?.id) {
-              challengeProgressService.trackScanBottle(user.id, bottle.id || bottle.name, bottle.type);
-            }
-            achievementService.trackAction('bottlesScanned');
-            navigation.replace('BottleDetail', { bottle, imageUri: uri });
-          } else {
-            // ── Stage 7: Barcode fallback ─────────────────────────────────────
-            // Vision couldn't identify the bottle — offer barcode scan as a
-            // 100%-accurate fallback before falling through to "not recognised".
-            handleBottleNotFound();
-          }
-          break;
-        }
-
         case 'recipe': {
           await InventoryService.recordScan({
             userId: user?.id || null,
@@ -404,7 +442,7 @@ export default function SmartScanScreen() {
             Alert.alert(
               'No Text Found',
               'Could not read text from this image. Try better lighting or a clearer angle.',
-              [{ text: 'Try Again', onPress: () => handleRetake() }]
+              [{ text: 'Try Again', onPress: () => handleRetake() }],
             );
             break;
           }
@@ -448,11 +486,17 @@ export default function SmartScanScreen() {
       }
     } catch (error) {
       log.error('SmartScanScreen', 'Error analyzing image', error);
-      Alert.alert(
-        'Analysis Failed',
-        'Failed to analyze the image. Please try again.',
-        [{ text: 'OK', onPress: () => handleRetake() }]
-      );
+      // Connection failures get the honest offline state rather than a
+      // generic "Analysis Failed" (audit/sprint-1 device-test fix).
+      if (isConnectivityError(error)) {
+        if (session) trackScanFailed(session, 'connection_error');
+        handleScanConnectionError();
+      } else {
+        if (session) trackScanFailed(session, 'error');
+        Alert.alert('Analysis Failed', 'Failed to analyze the image. Please try again.', [
+          { text: 'OK', onPress: () => handleRetake() },
+        ]);
+      }
     } finally {
       setAnalyzing(false);
       setScanMode(null);
@@ -463,6 +507,21 @@ export default function SmartScanScreen() {
     setShowBottleNotFound(true);
   };
 
+  // Branded connection-failure state (audit/sprint-1 device-test fix):
+  // scanning needs the backend, and a connection failure must never be a
+  // silent retake, a spinner-forever, or a fake "Bottle Not Found".
+  // Alert.alert renders through the app's branded modal (installAppAlert).
+  const handleScanConnectionError = () => {
+    Alert.alert(
+      "You're Offline",
+      'Scanning needs a connection. Check your internet and try again.',
+      [
+        { text: 'Retry', onPress: () => handleRetake() },
+        { text: 'Cancel', style: 'cancel', onPress: () => navigation.goBack() },
+      ],
+    );
+  };
+
   const handleNotABottle = () => {
     Alert.alert(
       'No Bottle Detected',
@@ -470,10 +529,9 @@ export default function SmartScanScreen() {
       [
         { text: 'Try Again', onPress: () => handleRetake() },
         { text: 'Cancel', style: 'cancel', onPress: () => navigation.goBack() },
-      ]
+      ],
     );
   };
-
 
   const handleUnknownIngredient = () => {
     Alert.alert(
@@ -482,30 +540,26 @@ export default function SmartScanScreen() {
       [
         { text: 'Try Again', onPress: () => handleRetake() },
         { text: 'Cancel', style: 'cancel', onPress: () => navigation.goBack() },
-      ]
+      ],
     );
   };
 
   const handleUnknownItem = () => {
-    Alert.alert(
-      "Can't Detect Item",
-      "Couldn't determine what this is. What are you scanning?",
-      [
-        {
-          text: 'Bottle',
-          onPress: () => handleRetake(),
-        },
-        {
-          text: 'Recipe',
-          onPress: () => handleRetake(),
-        },
-        {
-          text: 'Ingredient',
-          onPress: () => handleRetake(),
-        },
-        { text: 'Cancel', style: 'cancel', onPress: () => navigation.goBack() },
-      ]
-    );
+    Alert.alert("Can't Detect Item", "Couldn't determine what this is. What are you scanning?", [
+      {
+        text: 'Bottle',
+        onPress: () => handleRetake(),
+      },
+      {
+        text: 'Recipe',
+        onPress: () => handleRetake(),
+      },
+      {
+        text: 'Ingredient',
+        onPress: () => handleRetake(),
+      },
+      { text: 'Cancel', style: 'cancel', onPress: () => navigation.goBack() },
+    ]);
   };
 
   const handleRetake = () => {
@@ -519,16 +573,8 @@ export default function SmartScanScreen() {
     navigation.goBack();
   };
 
-  const handleImportFromURL = () => {
-    setCameraVisible(false);
-    navigation.navigate('RecipeURLImport');
-  };
-
-  const analyzingTitle = scanMode === 'barcode' ? 'Looking up barcode...' : 'Analyzing with AI...';
-  const analyzingSubtitle =
-    scanMode === 'barcode'
-      ? 'Searching spirits database'
-      : 'Detecting bottles, recipes, and ingredients';
+  const analyzingTitle = scanMode === 'barcode' ? 'Looking up barcode...' : 'Identifying bottle...';
+  const analyzingSubtitle = scanMode === 'barcode' ? 'Searching spirits database' : 'Reading label';
   return (
     <>
       <DataConsentDialog
@@ -540,26 +586,35 @@ export default function SmartScanScreen() {
 
       <BottleNotFoundModal
         visible={showBottleNotFound}
-        onTryAgain={() => { setShowBottleNotFound(false); handleRetake(); }}
+        onTryAgain={() => {
+          setShowBottleNotFound(false);
+          handleRetake();
+        }}
         onScanBarcode={() => {
           setShowBottleNotFound(false);
           setBarcodeMode(true);
           setScanMode(null);
           setCameraVisible(true);
         }}
-        onSearchLibrary={() => { setShowBottleNotFound(false); navigation.navigate('BottleSearch'); }}
-        onCancel={() => { setShowBottleNotFound(false); navigation.goBack(); }}
+        onSearchLibrary={() => {
+          setShowBottleNotFound(false);
+          navigation.navigate('BottleSearch');
+        }}
+        onCancel={() => {
+          setShowBottleNotFound(false);
+          navigation.goBack();
+        }}
       />
 
       <CameraCapture
         visible={cameraVisible}
         onClose={handleCameraClose}
         onImageCaptured={handleImageCaptured}
-        // Enable barcode scanning in barcode-only mode OR as Stage 7 fallback
-        // (barcodeMode=true when Vision failed to identify the bottle).
-        // Never wire barcode in normal AI photo mode — causes auto-fire on any
-        // barcode that appears in frame.
-        onBarcodeScanned={(!aiScanEnabled || barcodeMode) ? handleBarcodeScanned : undefined}
+        // Barcode-first: detection now runs continuously, silently, underneath
+        // normal photo-mode framing too (not just barcode-only/Stage-7 fallback).
+        // CameraCapture's stability gate (consecutive-frame match) prevents the
+        // false-fire-on-any-barcode-in-frame regression this used to guard against.
+        onBarcodeScanned={handleBarcodeScanned}
         barcodeOnly={!aiScanEnabled || barcodeMode}
         autoCloseOnCapture={false}
         title="Smart Scan"
@@ -567,15 +622,6 @@ export default function SmartScanScreen() {
         isGuest={!user}
       />
 
-      {/* URL import remains a paid convenience surface */}
-      {cameraVisible && isSubscriber && (
-        <View style={styles.urlButtonContainer}>
-          <TouchableOpacity style={styles.urlButton} onPress={handleImportFromURL}>
-            <Ionicons name="link" size={24} color={colors.white} />
-            <Text style={styles.urlButtonText}>URL</Text>
-          </TouchableOpacity>
-        </View>
-      )}
       {analyzing && (
         <View style={styles.analyzingOverlay}>
           <ActivityIndicator size="large" color={colors.accent} />

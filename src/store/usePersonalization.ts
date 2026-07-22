@@ -165,7 +165,7 @@ export const usePersonalization = create<PersonalizationState>((set, get) => ({
 
   /**
    * Initialize personalization from survey responses
-   * Saves to both AsyncStorage and Firebase
+   * Saves to AsyncStorage (Supabase persistence handled elsewhere)
    */
   initializeFromSurvey: async (answers: SurveyAnswers) => {
     try {
@@ -229,7 +229,7 @@ export const usePersonalization = create<PersonalizationState>((set, get) => ({
 
   /**
    * Update profile with new preferences or learned behavior
-   * Saves to both AsyncStorage (cache) and Firebase (persistence)
+   * Saves to AsyncStorage (cache); Supabase persistence handled elsewhere
    */
   updateProfile: async (updates: Partial<UserPersonalizationProfile>) => {
     const { profile } = get();

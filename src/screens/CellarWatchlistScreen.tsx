@@ -294,7 +294,7 @@ function CellarWatchlistScreen() {
               {/* CTA */}
               <TouchableOpacity
                 style={styles.watchAnalyticsBtn}
-                onPress={() => Alert.alert('Coming Soon', 'Full analytics view is launching in a future update.')}
+                onPress={() => Alert.alert('Analytics', 'The full analytics view is not enabled for this build yet.')}
               >
                 <Text style={styles.watchAnalyticsBtnText}>VIEW FULL ANALYTICS</Text>
                 <Ionicons name="arrow-forward" size={14} color={colors.accent} />

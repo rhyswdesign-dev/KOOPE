@@ -1,4 +1,3 @@
-// @ts-nocheck
 import React, { useLayoutEffect } from 'react';
 import {
   View,
@@ -112,10 +111,10 @@ export default function CategoriesListScreen() {
   }, [nav]);
 
   const handleCategoryPress = (category: typeof categories[0]) => {
-    nav.navigate('CategoryDetail' as never, { 
+    nav.navigate('CategoryDetail', {
       categoryId: category.id, 
       categoryName: category.name 
-    } as never);
+    });
   };
 
   return (

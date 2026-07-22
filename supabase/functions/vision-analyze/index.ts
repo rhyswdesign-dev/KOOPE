@@ -107,7 +107,10 @@ serve(async (req) => {
       return jsonError(`Vision API error: ${response.error.message}`, 502)
     }
 
-    const textAnnotations: Array<{ description: string }> = response?.textAnnotations || []
+    const textAnnotations: Array<{
+      description: string
+      boundingPoly?: { vertices?: Array<{ x?: number; y?: number }> }
+    }> = response?.textAnnotations || []
     const labelAnnotations: Array<{ description: string; score: number }> = response?.labelAnnotations || []
     const webDetection = response?.webDetection || {}
 
@@ -124,12 +127,33 @@ serve(async (req) => {
 
     const labels = labelAnnotations.map((l) => l.description.toLowerCase())
     const text = textAnnotations.map((t) => t.description)
+    const textBounds = textAnnotations
+      .slice(1) // index 0 is the full concatenated block
+      .map((t) => {
+        const verts = t.boundingPoly?.vertices || []
+        const xs = verts.map((v) => Number(v.x ?? 0))
+        const ys = verts.map((v) => Number(v.y ?? 0))
+        const minX = xs.length ? Math.min(...xs) : 0
+        const minY = ys.length ? Math.min(...ys) : 0
+        const maxX = xs.length ? Math.max(...xs) : 0
+        const maxY = ys.length ? Math.max(...ys) : 0
+        return {
+          text: t.description,
+          bounds: {
+            x: minX,
+            y: minY,
+            width: Math.max(0, maxX - minX),
+            height: Math.max(0, maxY - minY),
+          },
+        }
+      })
+      .filter((b) => b.bounds.width > 0 && b.bounds.height > 0)
     const confidence = labelAnnotations.length > 0
       ? labelAnnotations.reduce((sum, l) => sum + l.score, 0) / labelAnnotations.length
       : 0
 
     return new Response(
-      JSON.stringify({ labels, text, confidence, webEntities, bestGuessLabels }),
+      JSON.stringify({ labels, text, textBounds, confidence, webEntities, bestGuessLabels }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   } catch (error) {

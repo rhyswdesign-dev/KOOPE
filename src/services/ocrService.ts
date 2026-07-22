@@ -12,6 +12,15 @@ export interface OCRResult {
   }>;
 }
 
+interface VisionAnalyzeResponse {
+  text: string[];
+  confidence: number;
+  textBounds?: Array<{
+    text: string;
+    bounds: { x: number; y: number; width: number; height: number };
+  }>;
+}
+
 export class OCRService {
 
   /**
@@ -76,21 +85,7 @@ export class OCRService {
    */
   static async extractTextFromImage(imageUri: string): Promise<string> {
     try {
-      const optimized = await this.optimizeImageForOCR(imageUri);
-      const base64 = await this.imageToBase64(optimized.uri);
-
-      const { data, error } = await supabase.functions.invoke('vision-analyze', {
-        body: { imageBase64: base64 },
-      });
-
-      if (error || !data) {
-        log.warn('OCRService', 'vision-analyze edge function failed', error);
-        // Return a clear message rather than silently falling through to mock data
-        return 'Could not read the image. Please check your connection and try again.';
-      }
-
-      // The edge function returns { labels, text, confidence }
-      // text[0] is the full detected text block
+      const data = await this.invokeVisionAnalyze(imageUri);
       const rawText: string = Array.isArray(data.text) ? (data.text[0] ?? '') : '';
 
       if (!rawText.trim()) {
@@ -102,6 +97,85 @@ export class OCRService {
       log.error('OCRService', 'OCR processing error', error);
       return 'Unable to process the image. Please try again or enter the recipe manually.';
     }
+  }
+
+  /**
+   * Detect a likely recipe text block and return normalized region coordinates (0-1).
+   * This is used to smart-initialize the crop selection in menu scans.
+   */
+  static async detectRecipeRegion(
+    imageUri: string,
+    imageWidth: number,
+    imageHeight: number
+  ): Promise<SelectionBox | null> {
+    try {
+      const data = await this.invokeVisionAnalyze(imageUri);
+      const bounds = Array.isArray(data.textBounds) ? data.textBounds : [];
+      if (!bounds.length || !imageWidth || !imageHeight) return null;
+
+      const filtered = bounds.filter((b) => {
+        const t = String(b.text || '').trim();
+        const area = Math.max(0, b.bounds.width) * Math.max(0, b.bounds.height);
+        if (!t || t.length < 2) return false;
+        if (area < 36) return false;
+        if (/^[^a-zA-Z]+$/.test(t)) return false;
+        return true;
+      });
+      if (!filtered.length) return null;
+
+      let minX = Number.POSITIVE_INFINITY;
+      let minY = Number.POSITIVE_INFINITY;
+      let maxX = 0;
+      let maxY = 0;
+
+      filtered.forEach((b) => {
+        const x0 = b.bounds.x;
+        const y0 = b.bounds.y;
+        const x1 = b.bounds.x + b.bounds.width;
+        const y1 = b.bounds.y + b.bounds.height;
+        if (x0 < minX) minX = x0;
+        if (y0 < minY) minY = y0;
+        if (x1 > maxX) maxX = x1;
+        if (y1 > maxY) maxY = y1;
+      });
+
+      const padX = Math.max(12, (maxX - minX) * 0.08);
+      const padY = Math.max(12, (maxY - minY) * 0.10);
+
+      minX = Math.max(0, minX - padX);
+      minY = Math.max(0, minY - padY);
+      maxX = Math.min(imageWidth, maxX + padX);
+      maxY = Math.min(imageHeight, maxY + padY);
+
+      const w = Math.max(1, maxX - minX);
+      const h = Math.max(1, maxY - minY);
+
+      return {
+        x: minX / imageWidth,
+        y: minY / imageHeight,
+        w: w / imageWidth,
+        h: h / imageHeight,
+      };
+    } catch (error: any) {
+      log.warn('OCRService', 'Recipe region detection failed', error);
+      return null;
+    }
+  }
+
+  private static async invokeVisionAnalyze(imageUri: string): Promise<VisionAnalyzeResponse> {
+    const optimized = await this.optimizeImageForOCR(imageUri);
+    const base64 = await this.imageToBase64(optimized.uri);
+
+    const { data, error } = await supabase.functions.invoke('vision-analyze', {
+      body: { imageBase64: base64 },
+    });
+
+    if (error || !data) {
+      log.warn('OCRService', 'vision-analyze edge function failed', error);
+      throw new Error('Could not read the image. Please check your connection and try again.');
+    }
+
+    return data as VisionAnalyzeResponse;
   }
 
   /**
@@ -226,3 +300,10 @@ Instructions:
 4. Express orange oils over drink and garnish`;
   }
 }
+
+type SelectionBox = {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+};

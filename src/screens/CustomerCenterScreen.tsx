@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * CUSTOMER CENTER SCREEN
  * RevenueCat Customer Center for subscription management
@@ -43,7 +42,7 @@ export default function CustomerCenterScreen() {
   /**
    * Handle customer center result
    */
-  const handleCustomerCenterResult = async (result: CUSTOMER_CENTER_RESULT) => {
+  const handleCustomerCenterResult = async (result?: CUSTOMER_CENTER_RESULT) => {
     log.info('CustomerCenterScreen', 'Customer Center result', { result });
 
     switch (result) {
@@ -96,6 +95,9 @@ export default function CustomerCenterScreen() {
           ]
         );
         break;
+      default:
+        navigation.goBack();
+        break;
     }
   };
 
@@ -108,9 +110,8 @@ export default function CustomerCenterScreen() {
         setIsLoading(true);
 
         // Present RevenueCat Customer Center
-        const result = await RevenueCatUI.presentCustomerCenter();
-
-        handleCustomerCenterResult(result);
+        const result = (await RevenueCatUI.presentCustomerCenter()) as CUSTOMER_CENTER_RESULT | undefined;
+        await handleCustomerCenterResult(result);
       } catch (error) {
         log.error('CustomerCenterScreen', 'Error presenting customer center', error);
         Alert.alert(

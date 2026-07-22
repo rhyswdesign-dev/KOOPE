@@ -62,14 +62,14 @@ export interface PredictiveContext {
 // ============================================================================
 
 const SIGNAL_WEIGHTS = {
-  tasteGraph: 35,       // Taste Graph match (PRO version with decay)
-  timeOfDay: 15,        // Time-appropriate cocktail
-  recentScans: 12,      // "Cocktails with your scanned bottle"
-  recentSaves: 10,      // "Because you saved X"
-  seasonMatch: 8,       // Seasonal relevance
-  inventoryMatch: 10,   // Can you actually make this?
-  quantityUrgency: 5,   // "Use your low bottle"
-  hostingFit: 5,        // Party-appropriate
+  tasteGraph: 35, // Taste Graph match (PRO version with decay)
+  timeOfDay: 15, // Time-appropriate cocktail
+  recentScans: 12, // "Cocktails with your scanned bottle"
+  recentSaves: 10, // "Because you saved X"
+  seasonMatch: 8, // Seasonal relevance
+  inventoryMatch: 10, // Can you actually make this?
+  quantityUrgency: 5, // "Use your low bottle"
+  hostingFit: 5, // Party-appropriate
 };
 
 function getRecipeFlavorProfiles(recipe: Recipe): FlavorProfile[] {
@@ -96,13 +96,13 @@ export function getPredictiveRecommendations(
   userProfile: EnhancedUserProfile,
   tasteGraph: TasteGraphData,
   context: PredictiveContext,
-  limit: number = 20
+  limit: number = 20,
 ): PredictedRecipe[] {
   const effectiveProfile = getEffectiveTasteProfile(tasteGraph);
 
   const scored: PredictedRecipe[] = recipes
-    .filter(r => !userProfile.dislikedRecipes.includes(r.id))
-    .map(recipe => {
+    .filter((r) => !userProfile.dislikedRecipes.includes(r.id))
+    .map((recipe) => {
       const signals: PredictiveSignal[] = [];
 
       // Signal 1: Taste Graph match
@@ -166,9 +166,10 @@ export function getPredictiveRecommendations(
           source: 'inventoryMatch',
           weight: SIGNAL_WEIGHTS.inventoryMatch,
           boost: invBoost,
-          reason: invBoost >= SIGNAL_WEIGHTS.inventoryMatch * 0.8
-            ? 'You have everything you need'
-            : 'You have most of the ingredients',
+          reason:
+            invBoost >= SIGNAL_WEIGHTS.inventoryMatch * 0.8
+              ? 'You have everything you need'
+              : 'You have most of the ingredients',
         });
       }
 
@@ -198,12 +199,15 @@ export function getPredictiveRecommendations(
 
       // Sum all boosts
       const predictionScore = Math.round(
-        Math.min(100, signals.reduce((sum, s) => sum + s.boost, 0))
+        Math.min(
+          100,
+          signals.reduce((sum, s) => sum + s.boost, 0),
+        ),
       );
 
       // Build reason from top 2 signals
       const topSignals = [...signals].sort((a, b) => b.boost - a.boost).slice(0, 2);
-      const predictionReason = topSignals.map(s => s.reason).join(' + ');
+      const predictionReason = topSignals.map((s) => s.reason).join(' + ');
 
       return {
         ...recipe,
@@ -283,14 +287,12 @@ function calculateTimeBoost(recipe: Recipe, timeOfDay: TimeOfDay): number {
 function calculateScanBoost(recipe: Recipe, recentScans?: Bottle[]): number {
   if (!recentScans || recentScans.length === 0) return 0;
 
-  const scannedNames = recentScans.map(b => b.name.toLowerCase());
+  const scannedNames = recentScans.map((b) => b.name.toLowerCase());
 
   // Check if recipe uses any recently scanned bottle
-  const usesScanned = recipe.ingredients.some(ing => {
-    const name = ing.name.toLowerCase();
-    return scannedNames.some(scan =>
-      name.includes(scan) || scan.includes(name)
-    );
+  const usesScanned = recipe.ingredients.some((ing) => {
+    const name = getIngredientName(ing);
+    return name && scannedNames.some((scan) => name.includes(scan) || scan.includes(name));
   });
 
   return usesScanned ? SIGNAL_WEIGHTS.recentScans : 0;
@@ -323,7 +325,9 @@ function calculateSeasonBoost(recipe: Recipe, season: Season): number {
   };
 
   const seasonalFlavors = seasonMap[season] || [];
-  const matchCount = getRecipeFlavorProfiles(recipe).filter(f => seasonalFlavors.includes(f)).length;
+  const matchCount = getRecipeFlavorProfiles(recipe).filter((f) =>
+    seasonalFlavors.includes(f),
+  ).length;
 
   if (matchCount >= 2) return SIGNAL_WEIGHTS.seasonMatch;
   if (matchCount >= 1) return SIGNAL_WEIGHTS.seasonMatch * 0.5;
@@ -333,14 +337,14 @@ function calculateSeasonBoost(recipe: Recipe, season: Season): number {
 function calculateInventoryBoost(recipe: Recipe, inventory: Bottle[]): number {
   if (inventory.length === 0) return 0;
 
-  const invNames = inventory.map(b => b.name.toLowerCase());
+  const invNames = inventory.map((b) => b.name.toLowerCase());
   const totalIngredients = recipe.ingredients.length;
   if (totalIngredients === 0) return 0;
 
   let matched = 0;
   for (const ing of recipe.ingredients) {
     const name = getIngredientName(ing);
-    if (invNames.some(inv => inv.includes(name) || name.includes(inv))) {
+    if (invNames.some((inv) => inv.includes(name) || name.includes(inv))) {
       matched++;
     }
   }
@@ -351,13 +355,13 @@ function calculateInventoryBoost(recipe: Recipe, inventory: Bottle[]): number {
 
 function calculateQuantityUrgency(recipe: Recipe, inventory: Bottle[]): number {
   // Find bottles with 'low' quantity that this recipe uses
-  const lowBottles = inventory.filter(b => b.quantity === 'low');
+  const lowBottles = inventory.filter((b) => b.quantity === 'low');
   if (lowBottles.length === 0) return 0;
 
-  const lowNames = lowBottles.map(b => b.name.toLowerCase());
-  const usesLow = recipe.ingredients.some(ing => {
+  const lowNames = lowBottles.map((b) => b.name.toLowerCase());
+  const usesLow = recipe.ingredients.some((ing) => {
     const name = getIngredientName(ing);
-    return lowNames.some(low => name.includes(low) || low.includes(name));
+    return lowNames.some((low) => name.includes(low) || low.includes(name));
   });
 
   return usesLow ? SIGNAL_WEIGHTS.quantityUrgency : 0;
@@ -378,7 +382,7 @@ function calculateHostingBoost(recipe: Recipe, _guestCount?: number): number {
 
   // Favor crowd-pleasing flavors
   const crowdPleasingFlavors: FlavorProfile[] = ['citrus', 'sweet'];
-  if (getRecipeFlavorProfiles(recipe).some(f => crowdPleasingFlavors.includes(f))) {
+  if (getRecipeFlavorProfiles(recipe).some((f) => crowdPleasingFlavors.includes(f))) {
     boost += SIGNAL_WEIGHTS.hostingFit * 0.2;
   }
 
@@ -387,9 +391,13 @@ function calculateHostingBoost(recipe: Recipe, _guestCount?: number): number {
 
 function formatTimeOfDay(time: TimeOfDay): string {
   switch (time) {
-    case 'morning': return 'morning';
-    case 'afternoon': return 'the afternoon';
-    case 'evening': return 'tonight';
-    case 'lateNight': return 'a late night';
+    case 'morning':
+      return 'morning';
+    case 'afternoon':
+      return 'the afternoon';
+    case 'evening':
+      return 'tonight';
+    case 'lateNight':
+      return 'a late night';
   }
 }

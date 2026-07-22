@@ -25,6 +25,7 @@ import * as Clipboard from 'expo-clipboard';
 import { colors, spacing, radii } from '../theme/tokens';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { log } from '../lib/logger';
+import { supabase } from '../lib/supabase';
 
 export default function RecipeURLImportScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -49,33 +50,19 @@ export default function RecipeURLImportScreen() {
     setAlertConfig(null);
   }, []);
 
-  // Check if URL was passed via share extension or deep link
-  useEffect(() => {
-    const params = route.params as any;
-    if (params?.url) {
-      setUrl(params.url);
-      if (!hasAutoHandledSharedUrl) {
-        setHasAutoHandledSharedUrl(true);
-        navigation.navigate('AIRecipeFormat', { recipeUrl: params.url });
-      }
-    }
-  }, [route.params, navigation, hasAutoHandledSharedUrl]);
+  /**
+   * Phase 0.10 fix: this used to hand `recipeUrl` straight to AIRecipeFormatScreen,
+   * a param that screen never reads — pasting a URL landed on a blank manual-entry
+   * form with no error. Now it calls the recipe-url-fetch edge function (server-side
+   * GET + schema.org Recipe JSON-LD extraction, plain-text fallback) and navigates
+   * with the same `{ recipe: { extractedText, ... } }` contract OCRCaptureScreen
+   * already uses successfully (OCRCaptureScreen.tsx:220).
+   */
+  const importUrl = useCallback(async (rawUrl: string) => {
+    const normalizedUrl = rawUrl.trim();
 
-  const handleImport = async () => {
-    if (!url.trim()) {
-      showAlert({
-        title: 'Enter URL',
-        message: 'Please enter a recipe URL to import.',
-        icon: 'alert-circle',
-        iconColor: colors.warning,
-        actions: [{ label: 'OK', style: 'primary' }],
-      });
-      return;
-    }
-
-    // Validate URL format
     try {
-      new URL(url);
+      new URL(normalizedUrl);
     } catch {
       showAlert({
         title: 'Invalid URL',
@@ -91,14 +78,40 @@ export default function RecipeURLImportScreen() {
     setLoading(true);
 
     try {
-      const normalizedUrl = url.trim();
-      log.info('RecipeURLImportScreen', 'Routing URL to AI recipe formatting', { url: normalizedUrl });
-      navigation.navigate('AIRecipeFormat', { recipeUrl: normalizedUrl });
+      log.info('RecipeURLImportScreen', 'Fetching recipe from URL', { url: normalizedUrl });
+      const { data, error } = await supabase.functions.invoke('recipe-url-fetch', {
+        body: { url: normalizedUrl },
+      });
+
+      if (error || !data?.extractedText) {
+        log.error('RecipeURLImportScreen', 'recipe-url-fetch edge function error', error);
+        showAlert({
+          title: 'Could Not Import Recipe',
+          message: 'We could not read a recipe from that link. Try pasting the text manually instead.',
+          icon: 'close-circle',
+          iconColor: colors.error,
+          actions: [{ label: 'OK', style: 'primary' }],
+        });
+        return;
+      }
+
+      navigation.navigate('AIRecipeFormat', {
+        recipe: {
+          id: `url-${Date.now()}`,
+          title: data.title || 'Imported Recipe',
+          sourceUrl: normalizedUrl,
+          imageUrl: data.imageUrl ?? null,
+          extractedText: data.extractedText,
+          userNotes: 'Recipe imported from URL',
+          fromMenu: false,
+          createdAt: new Date(),
+        },
+      });
     } catch (error) {
       log.error('RecipeURLImportScreen', 'Error importing recipe', error);
       showAlert({
-        title: 'Could Not Start Import',
-        message: 'We could not open recipe formatting for this URL. Please try again.',
+        title: 'Could Not Import Recipe',
+        message: 'Something went wrong reading that link. Please try again.',
         icon: 'close-circle',
         iconColor: colors.error,
         actions: [{ label: 'OK', style: 'primary' }],
@@ -106,6 +119,33 @@ export default function RecipeURLImportScreen() {
     } finally {
       setLoading(false);
     }
+  }, [navigation, showAlert]);
+
+  // Check if URL was passed via share extension or deep link
+  useEffect(() => {
+    const params = route.params as any;
+    if (params?.url) {
+      setUrl(params.url);
+      if (!hasAutoHandledSharedUrl) {
+        setHasAutoHandledSharedUrl(true);
+        importUrl(params.url);
+      }
+    }
+  }, [route.params, hasAutoHandledSharedUrl, importUrl]);
+
+  const handleImport = async () => {
+    if (!url.trim()) {
+      showAlert({
+        title: 'Enter URL',
+        message: 'Please enter a recipe URL to import.',
+        icon: 'alert-circle',
+        iconColor: colors.warning,
+        actions: [{ label: 'OK', style: 'primary' }],
+      });
+      return;
+    }
+
+    await importUrl(url);
   };
 
   const handlePasteFromClipboard = async () => {

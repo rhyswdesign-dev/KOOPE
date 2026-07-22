@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * CONSENT MODAL COMPONENT
  * First-run or re-consent modal for privacy compliance
@@ -219,7 +218,7 @@ export default function ConsentModal({
                     key={category}
                     title={categoryInfo.title}
                     description={categoryInfo.description}
-                    examples={categoryInfo.examples}
+                    examples={[...categoryInfo.examples]}
                     value={choices[category]}
                     required={categoryInfo.required}
                     onValueChange={(enabled) => handleToggleConsent(category, enabled)}
@@ -462,7 +461,4 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 16,
   },
-
-  // Colors (fallbacks if not in theme)
-  success: '#10b981',
 });

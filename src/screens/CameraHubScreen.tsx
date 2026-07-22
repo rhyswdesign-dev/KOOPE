@@ -9,20 +9,14 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  TouchableWithoutFeedback,
   SafeAreaView,
   Animated,
   Platform,
-  TextInput,
   KeyboardAvoidingView,
-  Keyboard,
   ScrollView,
   Dimensions,
-  ImageSourcePropType,
   Easing,
 } from 'react-native';
-
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
@@ -33,9 +27,11 @@ import { colors, spacing, radii } from '../theme/tokens';
 import type { CameraStackParamList } from '../navigation/CameraStack';
 import { withHaptic } from '../lib/haptics';
 
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+
 const serifFont = Platform.select({ ios: 'Georgia', android: 'serif', default: 'serif' });
 
-const BACKGROUNDS: ImageSourcePropType[] = [
+const BACKGROUNDS: number[] = [
   require('../../assets/images/backgrounds/camera/bg-01.png'),
   require('../../assets/images/backgrounds/camera/bg-02.png'),
   require('../../assets/images/backgrounds/camera/bg-03.png'),
@@ -86,22 +82,26 @@ export default function CameraHubScreen() {
   const [assetsReady, setAssetsReady] = useState(false);
   const activeLayerRef = useRef<0 | 1>(0);
   const currentIndexRef = useRef(0);
-  const pendingTransitionRef = useRef<{ currentLayer: 0 | 1; nextLayer: 0 | 1; incoming: number } | null>(null);
+  const pendingTransitionRef = useRef<{
+    currentLayer: 0 | 1;
+    nextLayer: 0 | 1;
+    incoming: number;
+  } | null>(null);
   const transitionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const layerALoadedIndexRef = useRef<number | null>(null);
   const layerBLoadedIndexRef = useRef<number | null>(null);
   const queueNextTransitionRef = useRef<(() => void) | null>(null);
   const runPendingTransitionRef = useRef<(() => void) | null>(null);
 
-  // URL Input State
-  const [showUrlInput, setShowUrlInput] = useState(false);
-  const [urlText, setUrlText] = useState('');
-
   useEffect(() => {
     let cancelled = false;
 
     Promise.all(
-      BACKGROUNDS.map((background) => Asset.fromModule(background).downloadAsync().catch(() => null))
+      BACKGROUNDS.map((background) =>
+        Asset.fromModule(background)
+          .downloadAsync()
+          .catch(() => null),
+      ),
     ).finally(() => {
       if (!cancelled) {
         setAssetsReady(true);
@@ -128,7 +128,7 @@ export default function CameraHubScreen() {
           duration: 1500,
           useNativeDriver: true,
         }),
-      ])
+      ]),
     );
     pulse.start();
 
@@ -158,7 +158,8 @@ export default function CameraHubScreen() {
       const pending = pendingTransitionRef.current;
       if (!pending) return;
 
-      const readyIndex = pending.nextLayer === 0 ? layerALoadedIndexRef.current : layerBLoadedIndexRef.current;
+      const readyIndex =
+        pending.nextLayer === 0 ? layerALoadedIndexRef.current : layerBLoadedIndexRef.current;
       if (readyIndex !== pending.incoming) return;
 
       pendingTransitionRef.current = null;
@@ -202,7 +203,7 @@ export default function CameraHubScreen() {
             animateDrift(incomingScale, INCOMING_SETTLE, DRIFT_END, ACTIVE_DRIFT_MS).start();
             queueNextTransitionRef.current?.();
           });
-        })
+        }),
       );
     };
     runPendingTransitionRef.current = runPendingTransition;
@@ -266,25 +267,10 @@ export default function CameraHubScreen() {
       return;
     }
 
-    const readyIndex = pending.nextLayer === 0 ? layerALoadedIndexRef.current : layerBLoadedIndexRef.current;
+    const readyIndex =
+      pending.nextLayer === 0 ? layerALoadedIndexRef.current : layerBLoadedIndexRef.current;
     if (readyIndex !== pending.incoming) return;
     runPendingTransitionRef.current?.();
-  };
-
-  const handleUrlSubmit = () => {
-    if (urlText.trim()) {
-      Keyboard.dismiss();
-      setShowUrlInput(false);
-      navigation.navigate('RecipeURLImport', { url: urlText.trim() });
-      setUrlText('');
-    }
-  };
-
-  const handleLinkPress = () => {
-    setShowUrlInput(!showUrlInput);
-    if (!showUrlInput) {
-      // Focus will happen via autoFocus
-    }
   };
 
   return (
@@ -320,15 +306,6 @@ export default function CameraHubScreen() {
         style={styles.gradientOverlay}
       />
 
-      <TouchableWithoutFeedback
-        onPress={() => {
-          if (showUrlInput) {
-            setShowUrlInput(false);
-            setUrlText('');
-            Keyboard.dismiss();
-          }
-        }}
-      >
       <SafeAreaView style={styles.safeArea}>
         {/* Header */}
         <View style={styles.header}>
@@ -405,48 +382,12 @@ export default function CameraHubScreen() {
                 </View>
                 <Text style={styles.quickText}>ADD</Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.quickLink, showUrlInput && styles.quickLinkActive]}
-                onPress={withHaptic(handleLinkPress, 'selection')}
-              >
-                <View style={[styles.quickIcon, showUrlInput && styles.quickIconActive]}>
-                  <Ionicons name="link" size={20} color={showUrlInput ? colors.white : colors.gold} />
-                </View>
-                <Text style={[styles.quickText, showUrlInput && styles.quickTextActive]}>LINK</Text>
-              </TouchableOpacity>
             </ScrollView>
-
-            {/* URL Input - shown when LINK is tapped */}
-            {showUrlInput && (
-              <View style={styles.urlInputContainer}>
-                <TextInput
-                  style={styles.urlInput}
-                  placeholder="Paste recipe URL here..."
-                  placeholderTextColor={colors.subtext}
-                  value={urlText}
-                  onChangeText={setUrlText}
-                  autoFocus
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  keyboardType="url"
-                  returnKeyType="go"
-                  onSubmitEditing={handleUrlSubmit}
-                />
-                <TouchableOpacity
-                  style={[styles.urlSubmitButton, !urlText.trim() && styles.urlSubmitButtonDisabled]}
-                  onPress={withHaptic(handleUrlSubmit, 'medium')}
-                  disabled={!urlText.trim()}
-                >
-                  <Ionicons name="arrow-forward" size={20} color={colors.white} />
-                </TouchableOpacity>
-              </View>
-            )}
 
             <Text style={styles.taglineText}>Scan a bottle. Discover a recipe.</Text>
           </View>
         </View>
       </SafeAreaView>
-      </TouchableWithoutFeedback>
     </KeyboardAvoidingView>
   );
 }

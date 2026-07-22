@@ -1,7 +1,9 @@
 # KOOPE Growth Roadmap & Financial Outlook by MAU
 
+> ⚠️ **SUPERSEDED (July 2026).** The financial projections in this document use a 15% MAU→paid conversion assumption and sponsorship rates that do not survive diligence, and reference Drizly (shut down March 2024). The canonical strategy, corrected financial model, tier structure, and pricing now live in **[KOOPE-PRODUCT-BIBLE.md](KOOPE-PRODUCT-BIBLE.md)** (Parts II–III). Do not pitch, plan, or model from the numbers below. Kept for historical reference only.
+
 **Last updated:** 2026-04-01
-**Status:** v1 scope locked. App built. Launching April 2026.
+**Status:** ~~v1 scope locked. App built. Launching April 2026.~~ **Superseded by the Product Bible.**
 
 ---
 

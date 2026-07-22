@@ -1,6 +1,11 @@
 /**
- * ACHIEVEMENTS SCREEN
- * Shows user achievements, streaks, and engagement stats
+ * ACHIEVEMENTS SCREEN — Milestones
+ *
+ * Phase 0.6: was a 5-category, 42-badge tracker with a daily-streak tab.
+ * Folded into a flat list of XP-level milestones (see
+ * services/achievementService.ts) — no categories, since a milestone isn't
+ * "about" recipes or collection, it's a level crossed. No streak card,
+ * since daily streaks are killed app-wide (KOOPE-MASTER-PLAN.md).
  */
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -9,20 +14,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, radii, serif } from '../theme/tokens';
 import { achievementService, Achievement } from '../services/achievementService';
-import { streakService } from '../services/streakService';
 import { useXPSystem } from '../store/useXPSystem';
 import AchievementCard from '../components/AchievementCard';
-import StreakCard from '../components/StreakCard';
 import AchievementUnlockModal from '../components/AchievementUnlockModal';
-import InPageTabBar from '../components/ui/InPageTabBar';
-
-type TabType = 'all' | 'recipe' | 'collection' | 'knowledge' | 'streak';
 
 export default function AchievementsScreen() {
-  const [achievements, setAchievements] = useState<Achievement[]>([]);
-  const [activeTab, setActiveTab] = useState<TabType>('all');
+  const [milestones, setMilestones] = useState<Achievement[]>([]);
   const [unlockedAchievement, setUnlockedAchievement] = useState<Achievement | null>(null);
-  const [streakData, setStreakData] = useState(streakService.getStreakData());
   const barAnim = useRef(new Animated.Value(0)).current;
 
   const { balance: totalXP } = useXPSystem();
@@ -31,13 +29,21 @@ export default function AchievementsScreen() {
   const xpForNextLevel = 100;
   const levelProgress = xpInLevel / xpForNextLevel;
 
+  // Recompute milestones whenever the real XP balance changes.
   useEffect(() => {
-    loadData();
+    setMilestones(achievementService.getMilestones(totalXP));
+  }, [totalXP]);
+
+  // Mount-only: just triggers the unlock-celebration modal. Milestone
+  // recomputation is handled by the effect above once the balance update
+  // that caused the unlock propagates through useXPSystem.
+  useEffect(() => {
     const unsubscribe = achievementService.addAchievementListener((achievement) => {
       setUnlockedAchievement(achievement);
-      loadData();
     });
-    return () => { unsubscribe(); };
+    return () => {
+      unsubscribe();
+    };
   }, []);
 
   useEffect(() => {
@@ -49,26 +55,10 @@ export default function AchievementsScreen() {
     }).start();
   }, [levelProgress]);
 
-  const loadData = () => {
-    setAchievements(achievementService.getAchievements());
-    setStreakData(streakService.getStreakData());
-  };
-
-  const filteredAchievements = activeTab === 'all'
-    ? achievements
-    : achievements.filter(a => a.category === activeTab);
-
-  const unlockedCount = achievements.filter(a => a.unlocked).length;
-  const totalAchievements = achievements.length;
-  const completionPct = totalAchievements > 0 ? Math.round((unlockedCount / totalAchievements) * 100) : 0;
-
-  const tabs: { key: TabType; label: string; icon: string }[] = [
-    { key: 'all', label: 'All', icon: 'grid-outline' },
-    { key: 'recipe', label: 'Recipe', icon: 'restaurant-outline' },
-    { key: 'collection', label: 'Collection', icon: 'albums-outline' },
-    { key: 'knowledge', label: 'Knowledge', icon: 'school-outline' },
-    { key: 'streak', label: 'Streak', icon: 'flame-outline' },
-  ];
+  const unlockedCount = milestones.filter((m) => m.unlocked).length;
+  const totalMilestones = milestones.length;
+  const completionPct =
+    totalMilestones > 0 ? Math.round((unlockedCount / totalMilestones) * 100) : 0;
 
   const barWidth = barAnim.interpolate({
     inputRange: [0, 1],
@@ -77,10 +67,7 @@ export default function AchievementsScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['left', 'right', 'bottom']}>
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* ── Hero: Level + XP ── */}
         <View style={styles.heroSection}>
           <View style={styles.heroTopRow}>
@@ -103,11 +90,8 @@ export default function AchievementsScreen() {
           <View style={styles.heroBarTrack}>
             <Animated.View style={[styles.heroBarFill, { width: barWidth }]} />
             {/* Notch markers */}
-            {[25, 50, 75].map(pct => (
-              <View
-                key={pct}
-                style={[styles.heroBarNotch, { left: `${pct}%` as any }]}
-              />
+            {[25, 50, 75].map((pct) => (
+              <View key={pct} style={[styles.heroBarNotch, { left: `${pct}%` as any }]} />
             ))}
           </View>
         </View>
@@ -115,60 +99,38 @@ export default function AchievementsScreen() {
         {/* ── Stat Row ── */}
         <View style={styles.statRow}>
           <View style={[styles.statCell, styles.statCellBorder]}>
-            <Text style={styles.statValue}>{unlockedCount}<Text style={styles.statDenom}>/{totalAchievements}</Text></Text>
-            <Text style={styles.statLabel}>Unlocked</Text>
-          </View>
-          <View style={[styles.statCell, styles.statCellBorder]}>
-            <Text style={styles.statValue}>{streakData.currentStreak}<Text style={styles.statUnit}> d</Text></Text>
-            <Text style={styles.statLabel}>Streak</Text>
+            <Text style={styles.statValue}>
+              {unlockedCount}
+              <Text style={styles.statDenom}>/{totalMilestones}</Text>
+            </Text>
+            <Text style={styles.statLabel}>Reached</Text>
           </View>
           <View style={styles.statCell}>
-            <Text style={styles.statValue}>{completionPct}<Text style={styles.statUnit}>%</Text></Text>
+            <Text style={styles.statValue}>
+              {completionPct}
+              <Text style={styles.statUnit}>%</Text>
+            </Text>
             <Text style={styles.statLabel}>Complete</Text>
           </View>
-        </View>
-
-        {/* ── Streak card ── */}
-        <StreakCard
-          currentStreak={streakData.currentStreak}
-          longestStreak={streakData.longestStreak}
-          isActiveToday={streakService.isActiveToday()}
-          streakCalendar={streakService.getStreakCalendar(7)}
-          style={styles.streakCard}
-        />
-
-        {/* ── Category filter ── */}
-        <View style={styles.tabsContainer}>
-          <InPageTabBar
-            items={tabs}
-            activeKey={activeTab}
-            onChange={(key) => setActiveTab(key as TabType)}
-            scrollable
-          />
         </View>
 
         {/* ── Section label ── */}
         <View style={styles.sectionLabelRow}>
           <View style={styles.sectionLabelLine} />
-          <Text style={styles.sectionLabelText}>
-            {activeTab === 'all' ? 'ALL ACHIEVEMENTS' : activeTab.toUpperCase()}
-          </Text>
+          <Text style={styles.sectionLabelText}>MILESTONES</Text>
           <View style={styles.sectionLabelLine} />
         </View>
 
-        {/* ── Achievements list ── */}
+        {/* ── Milestones list ── */}
         <View style={styles.achievementsList}>
-          {filteredAchievements.length > 0 ? (
-            filteredAchievements.map(achievement => (
-              <AchievementCard
-                key={achievement.id}
-                achievement={achievement}
-              />
+          {milestones.length > 0 ? (
+            milestones.map((milestone) => (
+              <AchievementCard key={milestone.id} achievement={milestone} />
             ))
           ) : (
             <View style={styles.emptyState}>
               <Ionicons name="trophy-outline" size={48} color={colors.muted} />
-              <Text style={styles.emptyText}>No achievements in this category yet</Text>
+              <Text style={styles.emptyText}>No milestones yet</Text>
             </View>
           )}
         </View>
@@ -315,18 +277,6 @@ const styles = StyleSheet.create({
     marginTop: 2,
     fontWeight: '500',
     letterSpacing: 0.3,
-  },
-
-  // Streak
-  streakCard: {
-    marginHorizontal: spacing(3),
-    marginTop: spacing(2),
-  },
-
-  // Tabs
-  tabsContainer: {
-    marginTop: spacing(3),
-    marginBottom: spacing(0.5),
   },
 
   // Section label

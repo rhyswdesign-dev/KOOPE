@@ -14,11 +14,11 @@ export interface UserRecipe {
   createdAt: Date;
   updatedAt: Date;
   description?: string;
-  ingredients: Array<{
+  ingredients: {
     name: string;
     amount: string;
     unit?: string;
-  }>;
+  }[];
   instructions: string[];
   image?: string;
   thumbnailImage?: string;
@@ -69,12 +69,6 @@ export const useUserRecipes = create<UserRecipesState>((set, get) => ({
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updatedRecipes));
 
       log.info('UserRecipesStore', 'Recipe added successfully', { recipeName: newRecipe.name });
-
-      // Track recipe creation for achievements
-      try {
-        const { achievementService } = await import('../services/achievementService');
-        await achievementService.trackAction('recipesCreated', 1);
-      } catch {}
     } catch (error) {
       log.error('UserRecipesStore', 'Error adding recipe', error);
     }
@@ -82,10 +76,8 @@ export const useUserRecipes = create<UserRecipesState>((set, get) => ({
 
   updateRecipe: async (id, updates) => {
     try {
-      const updatedRecipes = get().recipes.map(recipe =>
-        recipe.id === id
-          ? { ...recipe, ...updates, updatedAt: new Date() }
-          : recipe
+      const updatedRecipes = get().recipes.map((recipe) =>
+        recipe.id === id ? { ...recipe, ...updates, updatedAt: new Date() } : recipe,
       );
 
       set({ recipes: updatedRecipes });
@@ -101,7 +93,7 @@ export const useUserRecipes = create<UserRecipesState>((set, get) => ({
 
   deleteRecipe: async (id) => {
     try {
-      const updatedRecipes = get().recipes.filter(recipe => recipe.id !== id);
+      const updatedRecipes = get().recipes.filter((recipe) => recipe.id !== id);
 
       set({ recipes: updatedRecipes });
 
@@ -115,11 +107,11 @@ export const useUserRecipes = create<UserRecipesState>((set, get) => ({
   },
 
   getRecipeById: (id) => {
-    return get().recipes.find(recipe => recipe.id === id);
+    return get().recipes.find((recipe) => recipe.id === id);
   },
 
   getRecipesByType: (type) => {
-    return get().recipes.filter(recipe => recipe.type === type);
+    return get().recipes.filter((recipe) => recipe.type === type);
   },
 
   loadRecipes: async () => {

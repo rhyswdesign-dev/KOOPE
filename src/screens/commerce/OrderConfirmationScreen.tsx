@@ -6,6 +6,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   Share,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -33,6 +34,7 @@ export default function OrderConfirmationScreen() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute<OrderConfirmationRouteProp>();
   const { orderId } = route.params;
+  const isIOS = Platform.OS === 'ios';
 
   useLayoutEffect(() => {
     nav.setOptions({
@@ -54,6 +56,28 @@ export default function OrderConfirmationScreen() {
       log.error('OrderConfirmationScreen', 'Error sharing', error);
     }
   };
+
+  if (isIOS) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.iosBlockedWrap}>
+          <Ionicons name="information-circle-outline" size={72} color={colors.subtext} />
+          <Text style={styles.iosBlockedTitle}>Order confirmation is disabled on iOS</Text>
+          <Text style={styles.iosBlockedBody}>
+            This build only supports App Store managed subscriptions on iOS.
+          </Text>
+          <TouchableOpacity
+            style={styles.homeButton}
+            onPress={() => nav.navigate('Main')}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="home" size={20} color={colors.white} />
+            <Text style={styles.homeButtonText}>Back to Home</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -195,6 +219,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: spacing(4),
     backgroundColor: colors.card,
+  },
+  iosBlockedWrap: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing(4),
+    gap: spacing(1.5),
+  },
+  iosBlockedTitle: {
+    color: colors.text,
+    fontSize: 24,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+  iosBlockedBody: {
+    color: colors.subtext,
+    fontSize: 15,
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: spacing(1),
   },
   successIcon: {
     marginBottom: spacing(2),

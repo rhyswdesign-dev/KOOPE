@@ -1,25 +1,14 @@
-// @ts-nocheck
 /**
  * Bartender AI Assistant Service
- * Handles chat conversations, rate limiting, and recipe suggestions
+ * Handles chat conversations and recipe suggestions.
+ * All AI calls route through the ai-proxy Edge Function — the OpenAI key
+ * never touches the client bundle.
  */
 
-import OpenAI from 'openai';
 import { supabase } from '../lib/supabase';
 import { log } from '../lib/logger';
+import { sendAIMessage, getAIUsageStatus, AIProxyRequestError } from './aiProxyService';
 import type { UserInventoryItem } from '../types/database';
-
-// OpenAI client (same as AI recipe generation)
-const openai = new OpenAI({
-  apiKey: process.env.EXPO_PUBLIC_OPENAI_API_KEY || '',
-});
-
-// Tier limits
-const MESSAGE_LIMITS = {
-  FREE: 10,
-  PLUS: 50,
-  PRO: 999999, // Unlimited
-} as const;
 
 const CONVERSATION_MEMORY = {
   FREE: 3,
@@ -39,21 +28,6 @@ export interface UsageStatus {
   messagesRemaining: number;
   limit: number;
   canSendMessage: boolean;
-}
-
-/**
- * Check if API key is valid
- */
-function isValidApiKey(apiKey: string | undefined): boolean {
-  return !!apiKey && apiKey.length > 0 && !apiKey.includes('PLACEHOLDER');
-}
-
-/**
- * Check if we're in development mode (no valid API key)
- */
-function isDevelopmentMode(): boolean {
-  const apiKey = process.env.EXPO_PUBLIC_OPENAI_API_KEY;
-  return !isValidApiKey(apiKey);
 }
 
 /**
@@ -113,83 +87,23 @@ export async function getConversationHistory(
 }
 
 /**
- * Check daily usage and remaining messages
+ * Check daily usage via the proxy — returns the same shape as before
+ * so callers don't need to change.
  */
 export async function checkUsageStatus(
-  userId: string,
-  tier: 'FREE' | 'PLUS' | 'PRO'
+  _userId: string,
+  _tier: 'FREE' | 'PLUS' | 'PRO'
 ): Promise<UsageStatus> {
   try {
-    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-
-    const { data, error } = await supabase
-      .from('bartender_chat_usage')
-      .select('message_count')
-      .eq('user_id', userId)
-      .eq('date', today)
-      .single();
-
-    const messagesUsed = data?.message_count || 0;
-    const limit = MESSAGE_LIMITS[tier];
-    const messagesRemaining = Math.max(0, limit - messagesUsed);
-
+    const status = await getAIUsageStatus('bartender_chat');
     return {
-      messagesUsed,
-      messagesRemaining,
-      limit,
-      canSendMessage: messagesRemaining > 0,
+      messagesUsed: status.dailyUsage,
+      messagesRemaining: status.dailyLimit - status.dailyUsage,
+      limit: status.dailyLimit,
+      canSendMessage: status.canSend,
     };
-  } catch (error) {
-    log.error('bartenderAssistant', 'Error checking usage', error);
-    // Default to allowing message if error (fail open)
-    return {
-      messagesUsed: 0,
-      messagesRemaining: MESSAGE_LIMITS[tier],
-      limit: MESSAGE_LIMITS[tier],
-      canSendMessage: true,
-    };
-  }
-}
-
-/**
- * Increment usage counter
- */
-async function incrementUsage(userId: string): Promise<void> {
-  try {
-    const today = new Date().toISOString().split('T')[0];
-
-    // Upsert (insert or update)
-    const { error } = await supabase
-      .from('bartender_chat_usage')
-      .upsert({
-        user_id: userId,
-        date: today,
-        message_count: 1,
-        last_message_at: new Date().toISOString(),
-      }, {
-        onConflict: 'user_id,date',
-        // If row exists, increment count
-      });
-
-    if (!error) {
-      // If upsert succeeded, increment the count
-      await supabase.rpc('increment_bartender_usage', {
-        p_user_id: userId,
-        p_date: today,
-      }).catch(() => {
-        // Fallback: manual increment
-        supabase
-          .from('bartender_chat_usage')
-          .update({
-            message_count: supabase.raw('message_count + 1'),
-            last_message_at: new Date().toISOString(),
-          })
-          .eq('user_id', userId)
-          .eq('date', today);
-      });
-    }
-  } catch (error) {
-    log.error('bartenderAssistant', 'Error incrementing usage', error);
+  } catch {
+    return { messagesUsed: 0, messagesRemaining: 3, limit: 3, canSendMessage: true };
   }
 }
 
@@ -226,52 +140,23 @@ export async function sendMessage(params: {
   try {
     log.info('bartenderAssistant', 'Sending message', { userId, tier });
 
-    // Check rate limit
-    const usage = await checkUsageStatus(userId, tier);
-    if (!usage.canSendMessage) {
-      return {
-        response: '',
-        error: `You've reached your daily limit of ${usage.limit} messages. Upgrade to Koope ${tier === 'FREE' ? 'Plus' : 'Pro'} for more!`,
-      };
-    }
-
     // Get conversation history
     const memoryLimit = CONVERSATION_MEMORY[tier];
     const history = await getConversationHistory(userId, memoryLimit);
 
-    // Build messages array for OpenAI
+    // Build conversation for the proxy
     const systemPrompt = buildSystemPrompt(userInventory, tier);
-    const messages: any[] = [
-      { role: 'system', content: systemPrompt },
-      ...history.map(msg => ({ role: msg.role, content: msg.content })),
-      { role: 'user', content: message },
+    const messages = [
+      ...history.map(msg => ({ role: msg.role as 'user' | 'assistant', content: msg.content })),
+      { role: 'user' as const, content: message },
     ];
 
-    // Save user message
+    // Save user message before calling the proxy
     await saveMessage(userId, 'user', message);
 
-    // Increment usage counter
-    await incrementUsage(userId);
-
-    let assistantResponse: string;
-
-    // Development mode: use mock response
-    if (isDevelopmentMode()) {
-      log.info('bartenderAssistant', 'Using mock response (dev mode)');
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate delay
-
-      assistantResponse = `Based on your inventory, I can suggest a classic cocktail! 🍸 Try a refreshing drink with what you have. Need help with techniques or substitutions?`;
-    } else {
-      // Production mode: call OpenAI
-      const completion = await openai.chat.completions.create({
-        model: 'gpt-4o-mini', // Faster and cheaper for chat
-        messages,
-        temperature: 0.7,
-        max_tokens: 200, // Keep responses concise
-      });
-
-      assistantResponse = completion.choices[0]?.message?.content || 'Sorry, I had trouble responding. Please try again.';
-    }
+    // Route through the server-side proxy (handles auth, tier, rate limits)
+    const result = await sendAIMessage('bartender_chat', messages, systemPrompt);
+    const assistantResponse = result.content || 'Sorry, I had trouble responding. Please try again.';
 
     // Save assistant response
     await saveMessage(userId, 'assistant', assistantResponse);
@@ -279,10 +164,20 @@ export async function sendMessage(params: {
     return { response: assistantResponse };
   } catch (error: any) {
     log.error('bartenderAssistant', 'Error sending message', error);
-    return {
-      response: '',
-      error: 'Sorry, I encountered an error. Please try again.',
-    };
+
+    if (error instanceof AIProxyRequestError) {
+      if (error.isRateLimited) {
+        return { response: '', error: 'Daily message limit reached. Upgrade for more!' };
+      }
+      if (error.isTierBlocked) {
+        return { response: '', error: 'This feature requires a higher tier.' };
+      }
+      if (error.isAuthError) {
+        return { response: '', error: 'Session expired. Please sign in again.' };
+      }
+    }
+
+    return { response: '', error: 'Sorry, I encountered an error. Please try again.' };
   }
 }
 

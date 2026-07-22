@@ -4,14 +4,22 @@ import { useUserTier } from '../store/useUserTier';
 import { log } from '../lib/logger';
 import { useAuth } from '../contexts/AuthContext';
 import { challengeProgressService } from '../services/challengeProgressService';
-import { achievementService } from '../services/achievementService';
 
 export interface SavedItem {
   id: string;
   name: string;
   subtitle?: string;
   image?: any;
-  type: 'bar' | 'spirit' | 'cocktail' | 'event' | 'community' | 'vault' | 'game' | 'drink' | 'recipe_card';
+  type:
+    | 'bar'
+    | 'spirit'
+    | 'cocktail'
+    | 'event'
+    | 'community'
+    | 'vault'
+    | 'game'
+    | 'drink'
+    | 'recipe_card';
 }
 
 export interface SavedItemsState {
@@ -70,7 +78,9 @@ export function useSavedItems() {
       const stored = await AsyncStorage.getItem(STORAGE_KEY);
       if (stored) {
         const parsedItems = JSON.parse(stored);
-        log.debug('useSavedItems', 'Loaded saved items', { itemsCount: Object.keys(parsedItems).length });
+        log.debug('useSavedItems', 'Loaded saved items', {
+          itemsCount: Object.keys(parsedItems).length,
+        });
 
         // Ensure all required properties exist with default empty arrays
         const mergedItems: SavedItemsState = {
@@ -112,16 +122,18 @@ export function useSavedItems() {
     }
   };
 
-  const toggleSavedBar = (item: SavedItem | { id: string; name: string; subtitle?: string; image?: string }) => {
+  const toggleSavedBar = (
+    item: SavedItem | { id: string; name: string; subtitle?: string; image?: string },
+  ) => {
     const barItem: SavedItem = { ...item, type: 'bar' };
     log.debug('useSavedItems', 'Toggling bar', { barId: barItem.id, name: barItem.name });
     {
-      const exists = globalSavedItemsState.savedBars.find(b => b.id === barItem.id);
+      const exists = globalSavedItemsState.savedBars.find((b) => b.id === barItem.id);
       const newItems = {
         ...globalSavedItemsState,
         savedBars: exists
-          ? globalSavedItemsState.savedBars.filter(b => b.id !== barItem.id)
-          : [...globalSavedItemsState.savedBars, barItem]
+          ? globalSavedItemsState.savedBars.filter((b) => b.id !== barItem.id)
+          : [...globalSavedItemsState.savedBars, barItem],
       };
       log.debug('useSavedItems', 'Updated saved bars', { count: newItems.savedBars.length });
       publishSavedItems(newItems);
@@ -129,30 +141,36 @@ export function useSavedItems() {
     }
   };
 
-  const toggleSavedSpirit = (item: SavedItem | { id: string; name: string; subtitle?: string; image?: string }) => {
+  const toggleSavedSpirit = (
+    item: SavedItem | { id: string; name: string; subtitle?: string; image?: string },
+  ) => {
     const spiritItem: SavedItem = { ...item, type: 'spirit' };
     {
-      const exists = globalSavedItemsState.savedSpirits.find(s => s.id === spiritItem.id);
+      const exists = globalSavedItemsState.savedSpirits.find((s) => s.id === spiritItem.id);
       const newItems = {
         ...globalSavedItemsState,
         savedSpirits: exists
-          ? globalSavedItemsState.savedSpirits.filter(s => s.id !== spiritItem.id)
-          : [...globalSavedItemsState.savedSpirits, spiritItem]
+          ? globalSavedItemsState.savedSpirits.filter((s) => s.id !== spiritItem.id)
+          : [...globalSavedItemsState.savedSpirits, spiritItem],
       };
       publishSavedItems(newItems);
       saveToStorage(newItems);
     }
   };
 
-  const toggleSavedCocktail = (item: SavedItem | { id: string; name: string; subtitle?: string; image?: string }): 'success' | 'limit_reached' | 'removed' => {
+  const toggleSavedCocktail = (
+    item: SavedItem | { id: string; name: string; subtitle?: string; image?: string },
+  ): 'success' | 'limit_reached' | 'removed' => {
     const cocktailItem: SavedItem = { ...item, type: 'cocktail' };
-    const exists = globalSavedItemsState.savedCocktails.find(c => c.id === cocktailItem.id);
+    const exists = globalSavedItemsState.savedCocktails.find((c) => c.id === cocktailItem.id);
 
     // If removing, allow it
     if (exists) {
       const newItems = {
         ...globalSavedItemsState,
-        savedCocktails: globalSavedItemsState.savedCocktails.filter(c => c.id !== cocktailItem.id)
+        savedCocktails: globalSavedItemsState.savedCocktails.filter(
+          (c) => c.id !== cocktailItem.id,
+        ),
       };
       publishSavedItems(newItems);
       saveToStorage(newItems);
@@ -163,7 +181,7 @@ export function useSavedItems() {
     if (tier === 'FREE' && globalSavedItemsState.savedCocktails.length >= FREE_RECIPE_LIMIT) {
       log.info('useSavedItems', 'Free user recipe limit reached - cannot save more', {
         limit: FREE_RECIPE_LIMIT,
-        currentCount: globalSavedItemsState.savedCocktails.length
+        currentCount: globalSavedItemsState.savedCocktails.length,
       });
       return 'limit_reached';
     }
@@ -171,94 +189,105 @@ export function useSavedItems() {
     // Save the cocktail
     const newItems = {
       ...globalSavedItemsState,
-      savedCocktails: [...globalSavedItemsState.savedCocktails, cocktailItem]
+      savedCocktails: [...globalSavedItemsState.savedCocktails, cocktailItem],
     };
     publishSavedItems(newItems);
     saveToStorage(newItems);
     if (user?.id) {
       challengeProgressService.trackSaveRecipe(user.id, cocktailItem.id);
     }
-    achievementService.trackAction('favoriteCount');
     return 'success';
   };
 
-  const toggleSavedEvent = (item: SavedItem | { id: string; name: string; subtitle?: string; image?: string }) => {
+  const toggleSavedEvent = (
+    item: SavedItem | { id: string; name: string; subtitle?: string; image?: string },
+  ) => {
     const eventItem: SavedItem = { ...item, type: 'event' };
-    const exists = globalSavedItemsState.savedEvents.find(e => e.id === eventItem.id);
+    const exists = globalSavedItemsState.savedEvents.find((e) => e.id === eventItem.id);
     const newItems = {
       ...globalSavedItemsState,
       savedEvents: exists
-        ? globalSavedItemsState.savedEvents.filter(e => e.id !== eventItem.id)
-        : [...globalSavedItemsState.savedEvents, eventItem]
+        ? globalSavedItemsState.savedEvents.filter((e) => e.id !== eventItem.id)
+        : [...globalSavedItemsState.savedEvents, eventItem],
     };
     publishSavedItems(newItems);
     saveToStorage(newItems);
   };
 
-  const toggleFollowedCommunity = (item: SavedItem | { id: string; name: string; subtitle?: string; image?: string }) => {
+  const toggleFollowedCommunity = (
+    item: SavedItem | { id: string; name: string; subtitle?: string; image?: string },
+  ) => {
     const communityItem: SavedItem = { ...item, type: 'community' };
-    const exists = globalSavedItemsState.followedCommunities.find(c => c.id === communityItem.id);
+    const exists = globalSavedItemsState.followedCommunities.find((c) => c.id === communityItem.id);
     const newItems = {
       ...globalSavedItemsState,
       followedCommunities: exists
-        ? globalSavedItemsState.followedCommunities.filter(c => c.id !== communityItem.id)
-        : [...globalSavedItemsState.followedCommunities, communityItem]
+        ? globalSavedItemsState.followedCommunities.filter((c) => c.id !== communityItem.id)
+        : [...globalSavedItemsState.followedCommunities, communityItem],
     };
     publishSavedItems(newItems);
     saveToStorage(newItems);
   };
 
-  const toggleSavedVaultItem = (item: SavedItem | { id: string; name: string; subtitle?: string; image?: string }) => {
+  const toggleSavedVaultItem = (
+    item: SavedItem | { id: string; name: string; subtitle?: string; image?: string },
+  ) => {
     const vaultItem: SavedItem = { ...item, type: 'vault' };
     const savedVaultItems = globalSavedItemsState.savedVaultItems || [];
-    const exists = savedVaultItems.find(v => v.id === vaultItem.id);
+    const exists = savedVaultItems.find((v) => v.id === vaultItem.id);
     const newItems = {
       ...globalSavedItemsState,
       savedVaultItems: exists
-        ? savedVaultItems.filter(v => v.id !== vaultItem.id)
-        : [...savedVaultItems, vaultItem]
+        ? savedVaultItems.filter((v) => v.id !== vaultItem.id)
+        : [...savedVaultItems, vaultItem],
     };
     publishSavedItems(newItems);
     saveToStorage(newItems);
   };
 
-  const toggleSavedGame = (item: SavedItem | { id: string; name: string; subtitle?: string; image?: string }) => {
+  const toggleSavedGame = (
+    item: SavedItem | { id: string; name: string; subtitle?: string; image?: string },
+  ) => {
     const gameItem: SavedItem = { ...item, type: 'game' };
     const savedGames = globalSavedItemsState.savedGames || [];
-    const exists = savedGames.find(g => g.id === gameItem.id);
+    const exists = savedGames.find((g) => g.id === gameItem.id);
     const newItems = {
       ...globalSavedItemsState,
       savedGames: exists
-        ? savedGames.filter(g => g.id !== gameItem.id)
-        : [...savedGames, gameItem]
+        ? savedGames.filter((g) => g.id !== gameItem.id)
+        : [...savedGames, gameItem],
     };
     publishSavedItems(newItems);
     saveToStorage(newItems);
   };
 
-  const toggleSavedDrink = (item: SavedItem | { id: string; name: string; subtitle?: string; image?: string }) => {
+  const toggleSavedDrink = (
+    item: SavedItem | { id: string; name: string; subtitle?: string; image?: string },
+  ) => {
     const drinkItem: SavedItem = { ...item, type: 'drink' };
     const savedDrinks = globalSavedItemsState.savedDrinks || [];
-    const exists = savedDrinks.find(d => d.id === drinkItem.id);
+    const exists = savedDrinks.find((d) => d.id === drinkItem.id);
     const newItems = {
       ...globalSavedItemsState,
       savedDrinks: exists
-        ? savedDrinks.filter(d => d.id !== drinkItem.id)
-        : [...savedDrinks, drinkItem]
+        ? savedDrinks.filter((d) => d.id !== drinkItem.id)
+        : [...savedDrinks, drinkItem],
     };
     publishSavedItems(newItems);
     saveToStorage(newItems);
   };
 
-  const toggleSavedRecipeCard = (item: SavedItem | { id: string; name: string; subtitle?: string; image?: string }) => {
+  const toggleSavedRecipeCard = (
+    item: SavedItem | { id: string; name: string; subtitle?: string; image?: string },
+  ) => {
     const recipeCardItem: SavedItem = { ...item, type: 'recipe_card' };
     const savedRecipeCards = globalSavedItemsState.savedRecipeCards || [];
-    const exists = savedRecipeCards.find(card => card.id === recipeCardItem.id);
+    const exists = savedRecipeCards.find((card) => card.id === recipeCardItem.id);
     const newItems = {
       ...globalSavedItemsState,
       savedRecipeCards: exists
-        ? savedRecipeCards.filter(card => card.id !== recipeCardItem.id)
-        : [...savedRecipeCards, recipeCardItem]
+        ? savedRecipeCards.filter((card) => card.id !== recipeCardItem.id)
+        : [...savedRecipeCards, recipeCardItem],
     };
     publishSavedItems(newItems);
     saveToStorage(newItems);
@@ -267,22 +296,30 @@ export function useSavedItems() {
   // Helper functions to check if items are saved
   const isBarSaved = (barId: string) => {
     if (!savedItems.savedBars || !Array.isArray(savedItems.savedBars)) return false;
-    const isSaved = savedItems.savedBars.some(b => b.id === barId);
+    const isSaved = savedItems.savedBars.some((b) => b.id === barId);
     log.debug('useSavedItems', 'Checking if bar is saved', {
       barId,
       isSaved,
-      savedBarIds: savedItems.savedBars.map(b => b.id)
+      savedBarIds: savedItems.savedBars.map((b) => b.id),
     });
     return isSaved;
   };
-  const isSpiritSaved = (spiritId: string) => savedItems.savedSpirits?.some(s => s.id === spiritId) || false;
-  const isCocktailSaved = (cocktailId: string) => savedItems.savedCocktails?.some(c => c.id === cocktailId) || false;
-  const isEventSaved = (eventId: string) => savedItems.savedEvents?.some(e => e.id === eventId) || false;
-  const isCommunityFollowed = (communityId: string) => savedItems.followedCommunities?.some(c => c.id === communityId) || false;
-  const isVaultItemSaved = (vaultId: string) => savedItems.savedVaultItems?.some(v => v.id === vaultId) || false;
-  const isGameSaved = (gameId: string) => savedItems.savedGames?.some(g => g.id === gameId) || false;
-  const isDrinkSaved = (drinkId: string) => savedItems.savedDrinks?.some(d => d.id === drinkId) || false;
-  const isRecipeCardSaved = (cardId: string) => savedItems.savedRecipeCards?.some(card => card.id === cardId) || false;
+  const isSpiritSaved = (spiritId: string) =>
+    savedItems.savedSpirits?.some((s) => s.id === spiritId) || false;
+  const isCocktailSaved = (cocktailId: string) =>
+    savedItems.savedCocktails?.some((c) => c.id === cocktailId) || false;
+  const isEventSaved = (eventId: string) =>
+    savedItems.savedEvents?.some((e) => e.id === eventId) || false;
+  const isCommunityFollowed = (communityId: string) =>
+    savedItems.followedCommunities?.some((c) => c.id === communityId) || false;
+  const isVaultItemSaved = (vaultId: string) =>
+    savedItems.savedVaultItems?.some((v) => v.id === vaultId) || false;
+  const isGameSaved = (gameId: string) =>
+    savedItems.savedGames?.some((g) => g.id === gameId) || false;
+  const isDrinkSaved = (drinkId: string) =>
+    savedItems.savedDrinks?.some((d) => d.id === drinkId) || false;
+  const isRecipeCardSaved = (cardId: string) =>
+    savedItems.savedRecipeCards?.some((card) => card.id === cardId) || false;
 
   return {
     savedItems,
@@ -303,7 +340,8 @@ export function useSavedItems() {
     isDrinkSaved,
     isRecipeCardSaved,
     savedCocktailCount: savedItems.savedCocktails?.length || 0,
-    canSaveMoreCocktails: tier !== 'FREE' || (savedItems.savedCocktails?.length || 0) < FREE_RECIPE_LIMIT,
+    canSaveMoreCocktails:
+      tier !== 'FREE' || (savedItems.savedCocktails?.length || 0) < FREE_RECIPE_LIMIT,
     clearStorage, // For debugging
   };
 }

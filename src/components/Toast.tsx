@@ -1,4 +1,3 @@
-// @ts-nocheck
 import React, { useEffect, useRef } from 'react';
 import { Animated, Text, StyleSheet, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -48,6 +47,7 @@ export default function Toast({
 
       return () => clearTimeout(timer);
     }
+    return undefined;
   }, [visible]);
 
   const hideToast = () => {

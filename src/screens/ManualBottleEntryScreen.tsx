@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Manual Bottle Entry Screen
  * Uses the same visual structure as Inventory manual add flow.
@@ -24,6 +23,7 @@ import type { RouteProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, radii } from '../theme/tokens';
 import type { CameraStackParamList } from '../navigation/CameraStack';
+import type { RootStackParamList } from '../navigation/RootNavigator';
 import { InventoryService } from '../services/inventoryService';
 import { useAuth } from '../contexts/AuthContext';
 import { useXPSystem } from '../store/useXPSystem';
@@ -32,8 +32,14 @@ import { useFeatureAccess } from '../hooks/useFeatureAccess';
 import { TIER_LIMITS } from '../config/tierAccess';
 import { withHaptic } from '../lib/haptics';
 
-type ManualBottleEntryNav = NativeStackNavigationProp<CameraStackParamList, 'ManualBottleEntry'>;
-type ManualBottleEntryRoute = RouteProp<CameraStackParamList, 'ManualBottleEntry'>;
+type AppNavParamList = RootStackParamList & CameraStackParamList;
+type ManualBottleEntryNav = NativeStackNavigationProp<AppNavParamList>;
+type ManualBottleEntryParams = {
+  initialName?: string;
+  initialBrand?: string;
+  imageUri?: string;
+};
+type ManualBottleEntryRoute = RouteProp<Record<string, ManualBottleEntryParams | undefined>, string>;
 
 const CATEGORIES = ['Spirit', 'Liqueur', 'Bitters', 'Syrup', 'Ingredient', 'Garnish', 'Other'] as const;
 const SPIRIT_TYPES = ['Gin', 'Vodka', 'Rum', 'Whiskey', 'Tequila', 'Mezcal', 'Brandy', 'Other'] as const;
@@ -138,8 +144,6 @@ export default function ManualBottleEntryScreen() {
         return 'e.g. Tito\'s';
       case 'Liqueur':
         return 'e.g. Cointreau';
-      case 'Mixer':
-        return 'e.g. Fever-Tree';
       case 'Bitters':
         return 'e.g. Angostura';
       case 'Syrup':

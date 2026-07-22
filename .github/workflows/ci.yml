@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Type check & tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Provide stub env vars so TypeScript can resolve process.env references
+      # without hitting real services. Supabase client will not be called at build time.
+      - name: Create stub env
+        run: |
+          echo "EXPO_PUBLIC_SUPABASE_URL=https://stub.supabase.co" >> $GITHUB_ENV
+          echo "EXPO_PUBLIC_SUPABASE_ANON_KEY=stub_anon_key" >> $GITHUB_ENV
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Run tests
+        run: npm run test:run
+
+      # Phase 0.9 guardrail: coverage thresholds scoped to the money paths
+      # only (tierAccess, SubscriptionContext entitlement mapping,
+      # makeLogService) — see vitest.config.ts's `coverage.include`. Fails
+      # the build if those specific files regress below threshold; does
+      # not require repo-wide coverage.
+      - name: Money-path coverage
+        run: npm run test:coverage

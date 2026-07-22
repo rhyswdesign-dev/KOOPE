@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Welcome Screen - Luxury onboarding experience
  */
@@ -248,7 +247,6 @@ const styles = StyleSheet.create({
     borderRadius: width * 0.4,
     backgroundColor: colors.gold,
     opacity: 0.03,
-    blur: 100,
   },
   lightOrbTop: {
     top: -width * 0.4,

@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * FeatureTooltip Component
  * "What's new" tooltips and coach-marks for new features
@@ -14,7 +13,6 @@ import {
   Animated,
   TouchableWithoutFeedback,
   Dimensions,
-  ViewStyle 
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -69,6 +67,8 @@ export default function FeatureTooltip({
   const opacityAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+
     if (visible && targetRef.current) {
       // Measure target element
       targetRef.current.measureInWindow((x, y, width, height) => {
@@ -93,11 +93,9 @@ export default function FeatureTooltip({
 
       // Auto close if specified
       if (autoCloseDelay > 0 && !feature.persistent) {
-        const timer = setTimeout(() => {
+        timer = setTimeout(() => {
           handleDismiss();
         }, autoCloseDelay);
-
-        return () => clearTimeout(timer);
       }
     } else {
       // Animate out
@@ -116,6 +114,10 @@ export default function FeatureTooltip({
         setTooltipPosition(null);
       });
     }
+
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
   }, [visible, targetRef, placement, maxWidth, autoCloseDelay, feature.persistent]);
 
   const calculatePosition = (
@@ -223,6 +225,14 @@ export default function FeatureTooltip({
   if (!visible || !tooltipPosition) {
     return null;
   }
+  const arrowPlacementStyle =
+    tooltipPosition.placement === 'top'
+      ? styles.arrowTop
+      : tooltipPosition.placement === 'bottom'
+        ? styles.arrowBottom
+        : tooltipPosition.placement === 'left'
+          ? styles.arrowLeft
+          : styles.arrowRight;
 
   return (
     <Modal visible transparent animationType="none">
@@ -246,7 +256,7 @@ export default function FeatureTooltip({
                 <View
                   style={[
                     styles.arrow,
-                    styles[`arrow${tooltipPosition.placement.charAt(0).toUpperCase() + tooltipPosition.placement.slice(1)}` as keyof typeof styles],
+                    arrowPlacementStyle,
                     {
                       left: tooltipPosition.placement === 'left' || tooltipPosition.placement === 'right' 
                         ? tooltipPosition.arrowX 

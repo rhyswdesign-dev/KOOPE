@@ -43,3 +43,6 @@ exports/
 
 # Supabase local cache
 supabase/.temp/
+
+# Vitest coverage output (Phase 0.9)
+coverage/
