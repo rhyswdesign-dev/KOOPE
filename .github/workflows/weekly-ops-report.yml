@@ -33,6 +33,7 @@ jobs:
             --request POST \
             --url "${SUPABASE_URL}/functions/v1/weekly-ops-report" \
             --header "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+            --header "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
             --header "Content-Type: application/json")
 
           echo "HTTP status: $http_status"
