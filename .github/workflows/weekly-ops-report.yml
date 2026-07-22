@@ -25,17 +25,29 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
-          response=$(curl --silent --show-error --fail-with-body \
+          echo "Target URL: ${SUPABASE_URL}/functions/v1/weekly-ops-report"
+          echo "Service key length: ${#SUPABASE_SERVICE_ROLE_KEY} chars"
+
+          http_status=$(curl --silent --show-error \
+            --output /tmp/response.json --write-out "%{http_code}" \
             --request POST \
             --url "${SUPABASE_URL}/functions/v1/weekly-ops-report" \
             --header "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
             --header "Content-Type: application/json")
 
-          echo "Response: $response"
+          echo "HTTP status: $http_status"
+          echo "Response body:"
+          cat /tmp/response.json
+          echo ""
 
-          ok=$(echo "$response" | jq -r '.ok')
+          if [ "$http_status" != "200" ]; then
+            echo "Weekly ops report failed (HTTP $http_status)."
+            exit 1
+          fi
+
+          ok=$(jq -r '.ok' /tmp/response.json)
           if [ "$ok" != "true" ]; then
-            echo "Weekly ops report failed or Slack post failed."
+            echo "Weekly ops report returned ok=false."
             exit 1
           fi
 
