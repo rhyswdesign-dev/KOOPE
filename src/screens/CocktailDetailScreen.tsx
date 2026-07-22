@@ -52,8 +52,14 @@ import {
   updateCompletionRating,
   syncCompletionToSupabase,
 } from '../services/recipeCompletionService';
-import { logMadeIt } from '../services/makeLogService';
+import { logMadeIt, getTimesMade } from '../services/makeLogService';
 import MadeItButton from '../components/MadeItButton';
+import MethodSection from '../components/recipe/MethodSection';
+import {
+  resolveMethodRenderMode,
+  buildCondensedSteps,
+  buildMethodSpecLine,
+} from '../utils/methodFading';
 import { getCompletionPromptConfig } from '../lib/completions/brandCapture';
 import { loadUserProfile, updateUserProfileFields } from '../services/userProfileService';
 import type { RecipeCompletionDetails } from '../types/userProfile';
@@ -2468,6 +2474,38 @@ export default function CocktailDetailScreen() {
       .map((step) => trimSentence(String(step || ''), 96))
       .filter(Boolean);
   }, [isFreeTier, parsedInstructions]);
+
+  // Phase 3.4: fading scaffold — Plus/Pro only. Free keeps the fixed
+  // 2-step teaser above regardless of make count.
+  const [timesMadeThisRecipe, setTimesMadeThisRecipe] = useState(0);
+  const [showFullMethod, setShowFullMethod] = useState(false);
+
+  useEffect(() => {
+    if (isFreeTier || !user?.id || !cocktail?.id) return;
+    let cancelled = false;
+    getTimesMade(user.id, String(cocktail.id)).then((count) => {
+      if (!cancelled) setTimesMadeThisRecipe(count);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [isFreeTier, user?.id, cocktail?.id]);
+
+  const methodRenderMode = React.useMemo(
+    () => resolveMethodRenderMode({ isFreeTier, showFullMethod, timesMade: timesMadeThisRecipe }),
+    [isFreeTier, showFullMethod, timesMadeThisRecipe],
+  );
+
+  const methodSteps = React.useMemo(() => {
+    if (isFreeTier) return displayedInstructions;
+    if (methodRenderMode === 'condensed') return buildCondensedSteps(parsedInstructions);
+    return parsedInstructions;
+  }, [isFreeTier, methodRenderMode, parsedInstructions, displayedInstructions]);
+
+  const methodSpecLine = React.useMemo(
+    () => buildMethodSpecLine(parsedInstructions),
+    [parsedInstructions],
+  );
   const displayedTastingNote = React.useMemo(() => {
     if (!tastingNote) return '';
     return isFreeTier ? trimSentence(tastingNote, 120) : tastingNote;
@@ -2968,51 +3006,33 @@ export default function CocktailDetailScreen() {
                 )}
               </View>
 
-              {displayedInstructions.length > 0 && (
-                <View
-                  style={[
+              {(methodRenderMode === 'spec'
+                ? methodSpecLine.length > 0
+                : methodSteps.length > 0) && (
+                <MethodSection
+                  mode={methodRenderMode}
+                  steps={methodSteps}
+                  specLine={methodSpecLine}
+                  showEscapeHatch={!isFreeTier && methodRenderMode !== 'full'}
+                  onShowEverything={() => setShowFullMethod(true)}
+                  sectionStyle={[
                     styles.recipeEditorialSection,
                     useRecipeCardLayout && styles.referenceRecipeEditorialSection,
                   ]}
-                >
-                  <Text
-                    style={[
-                      styles.recipeEditorialTitle,
-                      { fontFamily: useRecipeCardLayout ? referenceSerifFont : serifFont },
-                      useRecipeCardLayout && styles.referenceRecipeEditorialTitle,
-                    ]}
-                  >
-                    Method
-                  </Text>
-                  <View
-                    style={[styles.methodList, useRecipeCardLayout && styles.referenceMethodList]}
-                  >
-                    {displayedInstructions.map((step, index) => (
-                      <View
-                        key={`step-${index}`}
-                        style={[styles.methodRow, useRecipeCardLayout && styles.referenceMethodRow]}
-                      >
-                        <Text
-                          style={[
-                            styles.methodIndex,
-                            { fontFamily: useRecipeCardLayout ? referenceDisplayFont : serifFont },
-                            useRecipeCardLayout && styles.referenceMethodIndex,
-                          ]}
-                        >
-                          {String(index + 1).padStart(2, '0')}
-                        </Text>
-                        <Text
-                          style={[
-                            styles.methodText,
-                            useRecipeCardLayout && styles.referenceMethodText,
-                          ]}
-                        >
-                          {step}
-                        </Text>
-                      </View>
-                    ))}
-                  </View>
-                </View>
+                  titleStyle={[
+                    styles.recipeEditorialTitle,
+                    { fontFamily: useRecipeCardLayout ? referenceSerifFont : serifFont },
+                    useRecipeCardLayout && styles.referenceRecipeEditorialTitle,
+                  ]}
+                  listStyle={[styles.methodList, useRecipeCardLayout && styles.referenceMethodList]}
+                  rowStyle={[styles.methodRow, useRecipeCardLayout && styles.referenceMethodRow]}
+                  indexStyle={[
+                    styles.methodIndex,
+                    { fontFamily: useRecipeCardLayout ? referenceDisplayFont : serifFont },
+                    useRecipeCardLayout && styles.referenceMethodIndex,
+                  ]}
+                  textStyle={[styles.methodText, useRecipeCardLayout && styles.referenceMethodText]}
+                />
               )}
 
               {displayedTastingNote || displayedBestFor ? (
