@@ -11,7 +11,7 @@
  * Start with generic search links, upgrade to API integrations later.
  */
 
-import { Linking, Platform } from 'react-native';
+import { Linking } from 'react-native';
 import { trackEvent, ANALYTICS_EVENTS, ANALYTICS_PROPS } from '../lib/analytics';
 import { log } from '../lib/logger';
 
@@ -132,7 +132,7 @@ export function unregisterProvider(providerId: string): void {
  * Get all active providers.
  */
 export function getActiveProviders(): AffiliateProvider[] {
-  return Array.from(providerRegistry.values()).filter(p => p.isActive);
+  return Array.from(providerRegistry.values()).filter((p) => p.isActive);
 }
 
 /**
@@ -159,10 +159,7 @@ const ALCOHOL_CATEGORIES = ['spirit', 'liqueur', 'bitters'];
  * @param category - Optional category to pick the right retailer
  * @returns Array of affiliate links, best match first
  */
-export function getAffiliateLinks(
-  ingredientName: string,
-  category?: string
-): AffiliateLink[] {
+export function getAffiliateLinks(ingredientName: string, category?: string): AffiliateLink[] {
   const activeProviders = getActiveProviders();
   const isAlcohol = category && ALCOHOL_CATEGORIES.includes(category);
 
@@ -177,7 +174,7 @@ export function getAffiliateLinks(
     return 0;
   });
 
-  return sorted.map(provider => ({
+  return sorted.map((provider) => ({
     provider: provider.id,
     providerName: provider.name,
     url: provider.buildSearchUrl(ingredientName, category),
@@ -191,7 +188,7 @@ export function getAffiliateLinks(
  */
 export function getBestAffiliateLink(
   ingredientName: string,
-  category?: string
+  category?: string,
 ): AffiliateLink | null {
   const links = getAffiliateLinks(ingredientName, category);
   return links[0] || null;
@@ -207,18 +204,14 @@ export function getBestAffiliateLink(
  * @param link - The affiliate link to open
  * @param source - Which screen/component triggered this (for analytics)
  */
-export async function openAffiliateLink(
-  link: AffiliateLink,
-  source: string
-): Promise<boolean> {
+export async function openAffiliateLink(link: AffiliateLink, source: string): Promise<boolean> {
   try {
-    if (Platform.OS === 'ios') {
-      log.warn('Affiliate', 'Blocked affiliate open on iOS for App Store compliance', {
-        provider: link.provider,
-        source,
-      });
-      return false;
-    }
+    // Phase 3.2: linking out to a third-party retailer for a physical
+    // product (a bottle, via an external browser/retailer app — never
+    // in-app checkout) is standard and allowed on iOS; the App Store
+    // restriction this used to guard against is specifically about
+    // bypassing in-app purchase for digital goods, which doesn't apply
+    // here. No in-app checkout ships, per the workplan's 3.2 spec.
 
     // Track the click
     trackEvent(ANALYTICS_EVENTS.AFFILIATE_LINK_CLICKED, {
@@ -248,7 +241,7 @@ export async function openAffiliateLink(
 export async function buyIngredient(
   ingredientName: string,
   category?: string,
-  source: string = 'unknown'
+  source: string = 'unknown',
 ): Promise<boolean> {
   const link = getBestAffiliateLink(ingredientName, category);
   if (!link) return false;

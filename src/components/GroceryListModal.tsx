@@ -12,6 +12,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { GroceryListService, GroceryList, GroceryItem } from '../services/groceryListService';
 import { ShoppingListStore } from '../services/shoppingListStore';
+import { buyIngredient } from '../services/affiliateService';
 import { useAuth } from '../contexts/AuthContext';
 import { useFeatureAccess } from '../hooks/useFeatureAccess';
 import { useUserTier } from '../store/useUserTier';
@@ -54,9 +55,7 @@ export default function GroceryListModal({
 
     const resolve = async () => {
       const map: Record<string, FeaturedBrand> = {};
-      const ingredientNames = ingredients.map((i) =>
-        typeof i === 'string' ? i : i.name
-      );
+      const ingredientNames = ingredients.map((i) => (typeof i === 'string' ? i : i.name));
 
       await Promise.all(
         ingredientNames.map(async (name) => {
@@ -75,7 +74,7 @@ export default function GroceryListModal({
               userTier: tierToCompletionPlan(tier),
             });
           }
-        })
+        }),
       );
 
       setFeaturedBrandsMap(map);
@@ -85,22 +84,24 @@ export default function GroceryListModal({
   }, [visible]);
   const groceryList = useMemo<Omit<GroceryList, 'id' | 'createdAt' | 'updatedAt' | 'userId'>>(
     () => GroceryListService.generateGroceryList(recipeName, ingredients, recipeId),
-    [recipeName, ingredients, recipeId]
+    [recipeName, ingredients, recipeId],
   );
 
   const buildInitialCheckedItems = useCallback(
     (list: Omit<GroceryList, 'id' | 'createdAt' | 'updatedAt' | 'userId'>) => {
       if (preSelectedIngredients.length === 0) {
-        return new Set(list.items.map(item => item.id));
+        return new Set(list.items.map((item) => item.id));
       }
 
       const preSelected = new Set<string>();
-      list.items.forEach(item => {
-        const matchesPreSelected = preSelectedIngredients.some(preSelectedName => {
+      list.items.forEach((item) => {
+        const matchesPreSelected = preSelectedIngredients.some((preSelectedName) => {
           const normalizedItemName = item.name.toLowerCase().trim();
           const normalizedPreSelected = preSelectedName.toLowerCase().trim();
-          return normalizedItemName.includes(normalizedPreSelected) ||
-            normalizedPreSelected.includes(normalizedItemName);
+          return (
+            normalizedItemName.includes(normalizedPreSelected) ||
+            normalizedPreSelected.includes(normalizedItemName)
+          );
         });
 
         if (matchesPreSelected) {
@@ -110,7 +111,7 @@ export default function GroceryListModal({
 
       return preSelected;
     },
-    [preSelectedIngredients]
+    [preSelectedIngredients],
   );
 
   const [checkedItems, setCheckedItems] = useState<Set<string>>(new Set());
@@ -166,7 +167,7 @@ export default function GroceryListModal({
 
       Object.entries(groupedItems).forEach(([category, items]) => {
         shareText += `${GroceryListService.getCategoryDisplayName(category as GroceryItem['category'])}:\n`;
-        items.forEach(item => {
+        items.forEach((item) => {
           const checked = checkedItems.has(item.id) ? '✅' : '⬜';
           const price = item.estimatedPrice ? ` (~$${item.estimatedPrice})` : '';
           shareText += `${checked} ${item.name}${price}\n`;
@@ -195,7 +196,7 @@ export default function GroceryListModal({
   const handleSaveToList = async () => {
     try {
       // Only save checked items
-      const selectedItems = groceryList.items.filter(item => checkedItems.has(item.id));
+      const selectedItems = groceryList.items.filter((item) => checkedItems.has(item.id));
 
       if (selectedItems.length === 0) {
         Alert.alert('No Items Selected', 'Please select at least one item to add to your cart.');
@@ -217,20 +218,26 @@ export default function GroceryListModal({
 
       const selectedGroceryList = {
         ...groceryList,
-        items: selectedItems
+        items: selectedItems,
       };
 
-      await ShoppingListStore.saveShoppingList(selectedGroceryList, recipeName, user?.id || 'anonymous');
+      await ShoppingListStore.saveShoppingList(
+        selectedGroceryList,
+        recipeName,
+        user?.id || 'anonymous',
+      );
       Alert.alert(
         'Added to Cart!',
         `${selectedItems.length} item${selectedItems.length !== 1 ? 's' : ''} added to your shopping cart.`,
-        [
-          { text: 'OK', onPress: onClose }
-        ]
+        [{ text: 'OK', onPress: onClose }],
       );
     } catch (error) {
       Alert.alert('Error', 'Failed to add items to cart. Please try again.');
     }
+  };
+
+  const handleBuyItem = (item: GroceryItem) => {
+    buyIngredient(item.name, item.category, 'grocery_list_modal');
   };
 
   const checkedCount = checkedItems.size;
@@ -272,7 +279,8 @@ export default function GroceryListModal({
           {Object.entries(groupedItems).map(([category, items]) => (
             <View key={category} style={styles.categorySection}>
               <Text style={styles.categoryTitle}>
-                {GroceryListService.getCategoryDisplayName(category as GroceryItem['category'])} ({items.length})
+                {GroceryListService.getCategoryDisplayName(category as GroceryItem['category'])} (
+                {items.length})
               </Text>
 
               {items.map((item, index) => {
@@ -283,8 +291,10 @@ export default function GroceryListModal({
                 const getCategoryLabel = (category: string, subcategory?: string): string => {
                   switch (category) {
                     case 'spirits_liquors':
-                      if (subcategory?.toLowerCase().includes('liqueur') ||
-                          ['Maraschino', 'Amaretto', 'Campari'].includes(subcategory || '')) {
+                      if (
+                        subcategory?.toLowerCase().includes('liqueur') ||
+                        ['Maraschino', 'Amaretto', 'Campari'].includes(subcategory || '')
+                      ) {
                         return 'Liqueur';
                       }
                       return 'Spirit';
@@ -306,11 +316,12 @@ export default function GroceryListModal({
                   : getCategoryLabel(item.category, item.subcategory);
 
                 // Get liqueur description if applicable
-                const liqueurDescription = (item.category === 'spirits_liquors' &&
-                  item.subcategory?.toLowerCase().includes('liqueur')) ||
+                const liqueurDescription =
+                  (item.category === 'spirits_liquors' &&
+                    item.subcategory?.toLowerCase().includes('liqueur')) ||
                   ['Maraschino', 'Amaretto', 'Campari'].includes(item.subcategory || '')
-                  ? GroceryListService.getLiqueurDescription(item.subcategory || '')
-                  : undefined;
+                    ? GroceryListService.getLiqueurDescription(item.subcategory || '')
+                    : undefined;
 
                 return (
                   <TouchableOpacity
@@ -318,7 +329,7 @@ export default function GroceryListModal({
                     style={[
                       styles.itemContainer,
                       isChecked && styles.itemContainerChecked,
-                      !isLastItem && styles.itemBorder
+                      !isLastItem && styles.itemBorder,
                     ]}
                     onPress={() => toggleItem(item.id)}
                     activeOpacity={0.7}
@@ -353,11 +364,21 @@ export default function GroceryListModal({
                       </View>
                     </View>
 
-                    {item.estimatedPrice && (
-                      <Text style={[styles.itemPrice, isChecked && styles.itemPriceChecked]}>
-                        ${item.estimatedPrice}
-                      </Text>
-                    )}
+                    <View style={styles.itemRight}>
+                      {item.estimatedPrice && (
+                        <Text style={[styles.itemPrice, isChecked && styles.itemPriceChecked]}>
+                          ${item.estimatedPrice}
+                        </Text>
+                      )}
+                      <TouchableOpacity
+                        style={styles.buyButton}
+                        onPress={() => handleBuyItem(item)}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      >
+                        <Ionicons name="cart-outline" size={14} color="#0D0906" />
+                        <Text style={styles.buyButtonText}>Buy</Text>
+                      </TouchableOpacity>
+                    </View>
                   </TouchableOpacity>
                 );
               })}
@@ -378,8 +399,9 @@ export default function GroceryListModal({
             <View style={styles.cartSummary}>
               <Ionicons name="cart" size={16} color="#888888" />
               <Text style={styles.cartSummaryText}>
-                {checkedItems.size} Items Selected | ${groceryList.items
-                  .filter(item => checkedItems.has(item.id))
+                {checkedItems.size} Items Selected | $
+                {groceryList.items
+                  .filter((item) => checkedItems.has(item.id))
                   .reduce((sum, item) => sum + (item.estimatedPrice || 0), 0)
                   .toFixed(2)}
               </Text>
@@ -545,14 +567,32 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     marginBottom: 2,
   },
+  itemRight: {
+    alignItems: 'flex-end',
+    marginLeft: 12,
+    gap: 6,
+  },
   itemPrice: {
     fontSize: 15,
     fontWeight: '600',
     color: '#F4ECE4', // Light text
-    marginLeft: 12,
   },
   itemPriceChecked: {
     textDecorationLine: 'line-through',
+  },
+  buyButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#D7A15E', // Gold accent
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
+  },
+  buyButtonText: {
+    color: '#0D0906',
+    fontSize: 12,
+    fontWeight: '700',
   },
   actions: {
     position: 'absolute',

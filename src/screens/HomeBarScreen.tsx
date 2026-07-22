@@ -45,6 +45,7 @@ import { FeedbackPromptModal } from '../components/FeedbackPromptModal';
 import { useWishlist, WISHLIST_FREE_CAP } from '../store/useWishlist';
 import { useCurrencyPreference } from '../store/useCurrencyPreference';
 import { logSpottedPrice } from '../services/spottedPriceService';
+import { buyIngredient } from '../services/affiliateService';
 import { useTasteModel, ALL_FLAVOUR_TAGS } from '../store/useTasteModel';
 import { flavourTagLabel } from '../utils/tasteSignal';
 
@@ -1371,19 +1372,32 @@ export default function HomeBarScreen() {
                         ) : (
                           <Text style={styles.savedNoPriceText}>No price logged yet</Text>
                         )}
-                        <TouchableOpacity
-                          style={styles.savedLogPriceButton}
-                          onPress={withHaptic((e?: any) => {
-                            e?.stopPropagation?.();
-                            setLogPriceItem(item);
-                            setLogPriceValue('');
-                            setLogPriceLocation('');
-                          }, 'selection')}
-                          hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
-                        >
-                          <Ionicons name="pricetag-outline" size={11} color={colors.accent} />
-                          <Text style={styles.savedLogPriceText}>Log price</Text>
-                        </TouchableOpacity>
+                        <View style={styles.savedActionsRow}>
+                          <TouchableOpacity
+                            style={styles.savedLogPriceButton}
+                            onPress={withHaptic((e?: any) => {
+                              e?.stopPropagation?.();
+                              setLogPriceItem(item);
+                              setLogPriceValue('');
+                              setLogPriceLocation('');
+                            }, 'selection')}
+                            hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+                          >
+                            <Ionicons name="pricetag-outline" size={11} color={colors.accent} />
+                            <Text style={styles.savedLogPriceText}>Log price</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={styles.savedBuyButton}
+                            onPress={withHaptic((e?: any) => {
+                              e?.stopPropagation?.();
+                              buyIngredient(item.name, item.type, 'homebar_wishlist');
+                            }, 'selection')}
+                            hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+                          >
+                            <Ionicons name="cart-outline" size={11} color={colors.accent} />
+                            <Text style={styles.savedLogPriceText}>Buy</Text>
+                          </TouchableOpacity>
+                        </View>
                       </View>
                       <TouchableOpacity
                         style={styles.savedRemoveButton}
@@ -3569,11 +3583,21 @@ const styles = StyleSheet.create({
     color: colors.accent,
     fontWeight: '700',
   },
+  savedActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(2),
+    marginTop: spacing(0.75),
+  },
   savedLogPriceButton: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing(0.5),
-    marginTop: spacing(0.75),
+  },
+  savedBuyButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(0.5),
   },
   savedLogPriceText: {
     fontSize: 11,
