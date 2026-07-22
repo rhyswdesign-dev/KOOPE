@@ -203,10 +203,17 @@ interface SubscriptionProviderProps {
  * Initializes RevenueCat and manages subscription status.
  */
 export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
-  const [isPro, setIsPro] = useState(false);
-  const [isKoopePro, setIsKoopePro] = useState(false);
-  const [isPrestige, setIsPrestige] = useState(false);
-  const [isSubscriber, setIsSubscriber] = useState(false);
+  // Phase 4 (state consolidation): tier/isPrestige live in useUserTier —
+  // the single source of truth for entitlement state. isKoopePro/isPro are
+  // pure derivations of tier; isSubscriber of tier+isPrestige. Subscribing
+  // to the store here (rather than getState()) makes the provider re-render
+  // when RevenueCat's listener writes a new tier, same as the old local
+  // useState did.
+  const tier = useUserTier((s) => s.tier);
+  const isPrestige = useUserTier((s) => s.isPrestige);
+  const isKoopePro = tier === 'PLUS' || tier === 'PRO';
+  const isPro = tier === 'PRO';
+  const isSubscriber = isKoopePro || isPrestige;
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [customerInfo, setCustomerInfo] = useState<CustomerInfo | null>(null);
@@ -229,10 +236,6 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
   const updateSubscriptionState = useCallback((info: CustomerInfo) => {
     const derived = deriveEntitlementState(info.entitlements.active);
 
-    setIsKoopePro(derived.isKoopePro); // Either KOOPE+ or KOOPE PRO grants koopePro status
-    setIsPro(derived.hasProEntitlement); // Only KOOPE PRO grants pro status
-    setIsPrestige(derived.prestigeActive);
-    setIsSubscriber(derived.isSubscriber);
     setCustomerInfo(info);
 
     // Update analytics user properties
@@ -247,11 +250,14 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
       setUserId(info.originalAppUserId);
     }
 
-    // Update UserTier store to sync with subscription status. setTier()
-    // normalizes 'PRO' -> 'PLUS' on write (Phase 0.7) — gating is
-    // identical for both.
+    // Write entitlement state to useUserTier — the single source of truth
+    // (Phase 4). setTier() normalizes 'PRO' -> 'PLUS' on write (Phase 0.7)
+    // — gating is identical for both. isPro/isKoopePro/isSubscriber are not
+    // written here; they're pure derivations of tier/isPrestige computed
+    // where they're read.
     const tierStore = useUserTier.getState();
     tierStore.setTier(derived.tier);
+    tierStore.setPrestigeStatus(derived.prestigeActive);
 
     // Update subscription status in tier store
     if (derived.isSubscriber) {
@@ -608,11 +614,11 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
         err instanceof Error ? err.message : 'Failed to refresh subscription status';
       log.error('SubscriptionContext', 'Error refreshing subscription', err);
       setError(errorMessage);
-      // Don't block the app - just mark as non-subscriber
-      setIsKoopePro(false);
-      setIsPro(false);
-      setIsPrestige(false);
-      setIsSubscriber(false);
+      // Don't block the app — leave tier/isPrestige at their last-known
+      // value from useUserTier rather than forcing non-subscriber. This
+      // matches RevenueCat's own cache-first behavior (Test Flow 4 above):
+      // a transient network failure shouldn't kick a cached Pro/Prestige
+      // subscriber down to Free.
     } finally {
       setIsLoading(false);
     }
@@ -663,10 +669,7 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
               const tierStore = useUserTier.getState();
               tierStore.setTier(devTier);
               tierStore.setSubscriptionStatus('active');
-              setIsKoopePro(true);
-              setIsPro(devTier === 'PRO');
-              setIsPrestige(false);
-              setIsSubscriber(true);
+              tierStore.setPrestigeStatus(false);
             }
           }
 
@@ -740,9 +743,7 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
             const tierStore = useUserTier.getState();
             tierStore.setTier(devTier);
             tierStore.setSubscriptionStatus('active');
-            setIsKoopePro(true);
-            setIsPro(devTier === 'PRO');
-            setIsSubscriber(true);
+            tierStore.setPrestigeStatus(false);
           }
         }
 

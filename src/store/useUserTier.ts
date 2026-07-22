@@ -45,8 +45,20 @@ interface UserTierState {
   founderLockedPriceCents: number | null;
   founderNumber: number | null;
 
+  /**
+   * Phase 4 (state consolidation): Prestige is a separate RevenueCat
+   * entitlement, not a rung on the FREE/PLUS/PRO ladder (see
+   * entitlementMapping.ts's deriveEntitlementState — a Prestige-only
+   * subscriber does NOT elevate `tier`, an intentionally-unresolved
+   * product question, not a bug). This flag is the store-side home for
+   * that fact so SubscriptionContext no longer has to keep its own
+   * parallel copy of it.
+   */
+  isPrestige: boolean;
+
   // Actions
   setTier: (tier: UserTier) => void;
+  setPrestigeStatus: (active: boolean) => void;
   setSubscriptionStatus: (status: 'active' | 'canceled' | 'expired' | 'trial') => void;
   setSubscriptionEndDate: (date: string | null) => void;
   startTrial: (tier: UserTier, durationDays: number) => void;
@@ -70,6 +82,7 @@ interface UserTierState {
   // Helpers
   isPremium: () => boolean;
   isProUser: () => boolean;
+  isSubscriber: () => boolean;
   isInTrial: () => boolean;
 }
 
@@ -86,9 +99,12 @@ export const useUserTier = create<UserTierState>()(
       isFounder: false,
       founderLockedPriceCents: null,
       founderNumber: null,
+      isPrestige: false,
 
       // Actions
       setTier: (tier: UserTier) => set({ tier: normalizeLegacyTier(tier) }),
+
+      setPrestigeStatus: (active: boolean) => set({ isPrestige: active }),
 
       setSubscriptionStatus: (status) => set({ subscriptionStatus: status }),
 
@@ -151,6 +167,11 @@ export const useUserTier = create<UserTierState>()(
 
       isProUser: () => {
         return get().tier === 'PRO';
+      },
+
+      isSubscriber: () => {
+        const state = get();
+        return state.tier === 'PLUS' || state.tier === 'PRO' || state.isPrestige;
       },
 
       isInTrial: () => {
