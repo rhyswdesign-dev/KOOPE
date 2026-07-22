@@ -33,6 +33,7 @@ jobs:
             --request POST \
             --url "${SUPABASE_URL}/functions/v1/refresh-challenges" \
             --header "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+            --header "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
             --header "Content-Type: application/json")
 
           echo "Response: $response"
