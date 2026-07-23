@@ -20,6 +20,7 @@ export const COCKTAIL_OF_THE_WEEK = {
   description: weeklyCocktails[0].description,
   badge: 'GOLD' as const,
 };
+export type CocktailOfTheWeek = typeof COCKTAIL_OF_THE_WEEK;
 
 // Mood-based categories with comprehensive cocktail listings
 export const COCKTAIL_MOODS = [

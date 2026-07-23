@@ -69,6 +69,7 @@ import {
   ALL_SHOTS,
   sampleRecipes,
 } from '../utils/recipesScreenData';
+import HeroCard from '../components/HeroCard';
 import MainPageHeader from '../components/ui/MainPageHeader';
 import { cocktailVariations } from '../config/vaultContent';
 import { getVaultVariationThumbnail } from '../data/vaultImages';
@@ -123,106 +124,6 @@ function uniqueById(items: any[]) {
     seen.add(item.id);
     return true;
   });
-}
-
-/* ------------------------- UI PIECES ------------------------- */
-
-function MoodCard({
-  title,
-  image,
-  subtitle,
-  onPress,
-  index = 0,
-}: {
-  title: string;
-  image: string;
-  subtitle?: string;
-  onPress?: () => void;
-  index?: number;
-}) {
-  const w = Math.min(0.78 * width, 300);
-  const h = Math.round(w * 0.66);
-  return (
-    <Animated.View entering={FadeInRight.delay(index * 100).duration(500)}>
-      <Pressable
-        onPress={onPress ? withHaptic(onPress) : undefined}
-        style={{ width: w, marginRight: spacing(1.25) }}
-      >
-        <Image
-          source={{ uri: image }}
-          style={{ width: '100%', height: h, borderRadius: radii.lg }}
-        />
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
-          <Text style={{ color: colors.text, fontWeight: '900', fontSize: 18 }}>{title}</Text>
-          <Ionicons
-            name="chevron-forward"
-            size={16}
-            color={colors.accent}
-            style={{ marginLeft: 4 }}
-          />
-        </View>
-        {subtitle ? <Text style={{ color: colors.muted }}>{subtitle}</Text> : null}
-      </Pressable>
-    </Animated.View>
-  );
-}
-
-function HeroCard({
-  cocktail,
-  onPress,
-}: {
-  cocktail: typeof COCKTAIL_OF_THE_WEEK;
-  onPress: () => void;
-}) {
-  const cardW = width - spacing(2) * 2;
-  const cardH = Math.round(cardW * 0.56);
-
-  const resolvedImage =
-    typeof cocktail.image === 'string'
-      ? getCocktailImage(cocktail.id, cocktail.image)
-      : cocktail.image;
-
-  return (
-    <Animated.View
-      entering={FadeIn.duration(600)}
-      style={{
-        marginHorizontal: spacing(2),
-        borderRadius: radii.xl,
-        overflow: 'hidden',
-        backgroundColor: colors.card,
-        marginBottom: spacing(1.5),
-      }}
-    >
-      <Pressable onPress={withHaptic(onPress)} style={{ width: cardW, height: cardH }}>
-        <Image
-          source={typeof resolvedImage === 'string' ? { uri: resolvedImage } : resolvedImage}
-          style={{ width: '100%', height: '100%' }}
-        />
-      </Pressable>
-
-      {/* gold label */}
-      <View
-        style={{
-          position: 'absolute',
-          top: 10,
-          left: 10,
-          backgroundColor: GOLD,
-          paddingHorizontal: 10,
-          paddingVertical: 6,
-          borderRadius: 999,
-        }}
-      >
-        <Text style={{ color: '#120D07', fontWeight: '900' }}>COCKTAIL OF THE WEEK</Text>
-      </View>
-
-      <View style={{ padding: spacing(2) }}>
-        <Text style={{ color: colors.text, fontSize: 28, fontWeight: '900' }}>{cocktail.name}</Text>
-        <Text style={{ color: colors.muted, fontSize: 18, marginTop: 4 }}>
-          {cocktail.description}
-        </Text>
-      </View>
-    </Animated.View>
-  );
 }
 
 /* ------------------------- SCREEN ------------------------- */
