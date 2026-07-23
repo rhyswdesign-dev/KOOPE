@@ -1,5 +1,5 @@
 import { Modal, View, Text, Pressable, FlatList } from 'react-native';
-import { colors, spacing, radii, textStyles, layouts, components } from '../theme/tokens';
+import { colors, spacing, radii, textStyles, layouts, components } from '../../theme/tokens';
 
 export default function CityPickerModal({
   visible,

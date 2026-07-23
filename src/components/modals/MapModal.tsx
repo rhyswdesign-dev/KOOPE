@@ -1,6 +1,6 @@
 import { Modal, View, Text, FlatList, Pressable } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
-import { colors, spacing, radii } from '../theme/tokens';
+import { colors, spacing, radii } from '../../theme/tokens';
 
 export type BarPin = {
   name: string;
