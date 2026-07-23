@@ -58,6 +58,11 @@ import { useScrollHaptic, withHaptic } from '../lib/haptics';
 import { useUserRecipes } from '../store/useUserRecipes';
 import { useMadeItFlow } from '../hooks/useMadeItFlow';
 import { styles } from './CocktailDetailScreen.styles';
+import SubstituteIngredientsModal, {
+  type SubstituteRow,
+} from '../components/SubstituteIngredientsModal';
+import MakeItModal from '../components/MakeItModal';
+import RatingModal from '../components/RatingModal';
 import {
   DETAIL_FALLBACK_IMAGE,
   TASTING_NOTE_OVERRIDES,
@@ -80,16 +85,6 @@ type CocktailDetailScreenRouteProp = {
     cocktailId: string;
     cocktail?: any; // Optional: Pass full cocktail object for local recipes
   };
-};
-
-type SubstituteRow = {
-  ingredient: string;
-  suggestion: string;
-  note: string;
-  confidence: 'high' | 'medium' | 'low';
-  inInventory: boolean;
-  isSpirit: boolean;
-  alternatives?: string;
 };
 
 const referenceDisplayFont = Platform.select({
@@ -1385,305 +1380,43 @@ export default function CocktailDetailScreen() {
         />
       )}
 
-      <Modal
+      <SubstituteIngredientsModal
         visible={substituteModalVisible}
-        animationType="slide"
-        transparent
-        onRequestClose={() => setSubstituteModalVisible(false)}
-      >
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>
-                {ingredientStats.missing.length > 0 ? 'Ingredient Substitutes' : 'Optional Swaps'}
-              </Text>
-              <TouchableOpacity onPress={() => setSubstituteModalVisible(false)}>
-                <Ionicons name="close" size={24} color={colors.text} />
-              </TouchableOpacity>
-            </View>
+        onClose={() => setSubstituteModalVisible(false)}
+        hasMissingIngredients={ingredientStats.missing.length > 0}
+        spiritRows={spiritSubstituteRows}
+        otherRows={otherSubstituteRows}
+      />
 
-            <ScrollView style={styles.modalScroll} showsVerticalScrollIndicator={false}>
-              <View style={styles.substituteLegendCard}>
-                <View style={styles.substituteLegendHeaderRow}>
-                  <Text style={styles.substituteLegendTitle}>Confidence Legend</Text>
-                  <TouchableOpacity
-                    style={styles.substituteLegendInfoButton}
-                    onPress={() =>
-                      Alert.alert(
-                        'Confidence Legend',
-                        'High: very close swap.\nMedium: good swap with some flavor shift.\nLow: backup option when flexibility matters most.',
-                      )
-                    }
-                  >
-                    <Text style={styles.substituteLegendInfoButtonText}>?</Text>
-                  </TouchableOpacity>
-                </View>
-                <Text style={styles.substituteLegendText}>
-                  High: same family or very close flavor/role.
-                </Text>
-                <Text style={styles.substituteLegendText}>
-                  Medium: workable swap with a noticeable profile shift.
-                </Text>
-                <Text style={styles.substituteLegendText}>
-                  Low: backup option when you want flexibility over accuracy.
-                </Text>
-              </View>
-
-              {spiritSubstituteRows.length > 0 ? (
-                <View style={styles.substituteGroup}>
-                  <Text style={styles.substituteGroupTitle}>Spirit swaps</Text>
-                  {spiritSubstituteRows.map((row, idx) => (
-                    <View key={`spirit-${row.ingredient}-${idx}`} style={styles.substituteCard}>
-                      <View style={styles.substituteRowTop}>
-                        <Text style={styles.substituteIngredient}>{row.ingredient}</Text>
-                        <Text style={styles.substituteConfidence}>
-                          {row.confidence.toUpperCase()}
-                        </Text>
-                      </View>
-                      <Text style={styles.substituteSuggestion}>Try {row.suggestion}</Text>
-                      <Text style={styles.substituteNote}>{row.note}</Text>
-                      {row.alternatives ? (
-                        <Text style={styles.substituteAltText}>
-                          Also consider: {row.alternatives}
-                        </Text>
-                      ) : null}
-                      {row.inInventory ? (
-                        <Text style={styles.substituteInventoryTag}>
-                          You already have this substitute
-                        </Text>
-                      ) : null}
-                    </View>
-                  ))}
-                </View>
-              ) : null}
-
-              {otherSubstituteRows.length > 0 ? (
-                <View style={styles.substituteGroup}>
-                  <Text style={styles.substituteGroupTitle}>Other ingredient swaps</Text>
-                  {otherSubstituteRows.map((row, idx) => (
-                    <View key={`other-${row.ingredient}-${idx}`} style={styles.substituteCard}>
-                      <View style={styles.substituteRowTop}>
-                        <Text style={styles.substituteIngredient}>{row.ingredient}</Text>
-                        <Text style={styles.substituteConfidence}>
-                          {row.confidence.toUpperCase()}
-                        </Text>
-                      </View>
-                      <Text style={styles.substituteSuggestion}>Try {row.suggestion}</Text>
-                      <Text style={styles.substituteNote}>{row.note}</Text>
-                      {row.alternatives ? (
-                        <Text style={styles.substituteAltText}>
-                          Also consider: {row.alternatives}
-                        </Text>
-                      ) : null}
-                      {row.inInventory ? (
-                        <Text style={styles.substituteInventoryTag}>
-                          You already have this substitute
-                        </Text>
-                      ) : null}
-                    </View>
-                  ))}
-                </View>
-              ) : null}
-
-              {!spiritSubstituteRows.length && !otherSubstituteRows.length ? (
-                <View style={styles.substituteCard}>
-                  <Text style={styles.substituteNote}>No substitute suggestions found yet.</Text>
-                </View>
-              ) : null}
-            </ScrollView>
-
-            <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={styles.modalPrimaryButton}
-                onPress={() => setSubstituteModalVisible(false)}
-              >
-                <Text style={styles.modalPrimaryButtonText}>Done</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      <Modal
+      <MakeItModal
         visible={makeFlowVisible}
-        animationType="slide"
-        transparent
-        onRequestClose={() => setMakeFlowVisible(false)}
-      >
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{completionConfig.promptText}</Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <Text style={{ color: colors.accent, fontSize: 13, fontWeight: '600' }}>
-                  +{completionConfig.xpReward} XP
-                </Text>
-                <TouchableOpacity onPress={() => setMakeFlowVisible(false)}>
-                  <Ionicons name="close" size={24} color={colors.text} />
-                </TouchableOpacity>
-              </View>
-            </View>
+        onClose={() => setMakeFlowVisible(false)}
+        completionConfig={completionConfig}
+        ingredients={makeFlowIngredients}
+        getSuggestionsForIngredient={getSuggestionsForIngredient}
+        brandSelections={brandSelections}
+        onBrandSelectionChange={(key, value) =>
+          setBrandSelections((prev) => ({ ...prev, [key]: value }))
+        }
+        substitutions={substitutions}
+        onSubstitutionsChange={setSubstitutions}
+        techniqueVariations={techniqueVariations}
+        onTechniqueVariationsChange={setTechniqueVariations}
+        personalModifications={personalModifications}
+        onPersonalModificationsChange={setPersonalModifications}
+        isSaving={isSavingCompletion}
+        onSubmit={handleLogCompletion}
+      />
 
-            <ScrollView style={styles.modalScroll} showsVerticalScrollIndicator={false}>
-              {makeFlowIngredients.map((ingredient) => {
-                const suggestions = getSuggestionsForIngredient(ingredient.name);
-                return (
-                  <View key={ingredient.key} style={styles.modalSection}>
-                    <Text style={styles.modalSectionTitle}>
-                      {ingredient.name}
-                      {ingredient.amount ? ` (${ingredient.amount})` : ''}
-                    </Text>
-
-                    <TextInput
-                      style={styles.modalInput}
-                      placeholder="Type brand used or choose below"
-                      placeholderTextColor={colors.subtext}
-                      value={brandSelections[ingredient.key] || ''}
-                      onChangeText={(value) =>
-                        setBrandSelections((prev) => ({ ...prev, [ingredient.key]: value }))
-                      }
-                    />
-
-                    {suggestions.length > 0 && (
-                      <View style={styles.suggestionRow}>
-                        {suggestions.map((suggestion) => (
-                          <TouchableOpacity
-                            key={`${ingredient.key}_${suggestion}`}
-                            style={styles.suggestionChip}
-                            onPress={() =>
-                              setBrandSelections((prev) => ({
-                                ...prev,
-                                [ingredient.key]: suggestion,
-                              }))
-                            }
-                          >
-                            <Text style={styles.suggestionChipText}>{suggestion}</Text>
-                          </TouchableOpacity>
-                        ))}
-                      </View>
-                    )}
-                  </View>
-                );
-              })}
-
-              <View style={styles.modalSection}>
-                <Text style={styles.modalSectionTitle}>
-                  Quick note{completionConfig.showDetailedNotes ? '' : ' (50 chars)'}
-                </Text>
-                <TextInput
-                  style={[styles.modalInput, styles.multilineInput]}
-                  placeholder={completionConfig.notesPlaceholder}
-                  placeholderTextColor={colors.subtext}
-                  value={substitutions}
-                  onChangeText={(v) =>
-                    setSubstitutions(v.slice(0, completionConfig.notesCharLimit))
-                  }
-                  multiline
-                  maxLength={completionConfig.notesCharLimit}
-                />
-              </View>
-
-              {completionConfig.showDetailedNotes && (
-                <View style={styles.modalSection}>
-                  <Text style={styles.modalSectionTitle}>Technique variations</Text>
-                  <TextInput
-                    style={[styles.modalInput, styles.multilineInput]}
-                    placeholder="Shaken vs stirred, dilution, garnish technique..."
-                    placeholderTextColor={colors.subtext}
-                    value={techniqueVariations}
-                    onChangeText={setTechniqueVariations}
-                    multiline
-                  />
-                </View>
-              )}
-
-              {completionConfig.showDetailedNotes && (
-                <View style={styles.modalSection}>
-                  <Text style={styles.modalSectionTitle}>Personal modifications</Text>
-                  <TextInput
-                    style={[styles.modalInput, styles.multilineInput]}
-                    placeholder="Any tweaks to sweetness, bitter balance, ratios..."
-                    placeholderTextColor={colors.subtext}
-                    value={personalModifications}
-                    onChangeText={setPersonalModifications}
-                    multiline
-                  />
-                </View>
-              )}
-            </ScrollView>
-
-            <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={styles.modalSecondaryButton}
-                onPress={() => setMakeFlowVisible(false)}
-              >
-                <Text style={styles.modalSecondaryButtonText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.modalPrimaryButton,
-                  isSavingCompletion && styles.modalPrimaryButtonDisabled,
-                ]}
-                onPress={handleLogCompletion}
-                disabled={isSavingCompletion}
-              >
-                {isSavingCompletion ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
-                ) : (
-                  <Text style={styles.modalPrimaryButtonText}>I made it!</Text>
-                )}
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      <Modal
+      <RatingModal
         visible={ratingFlowVisible}
-        animationType="fade"
-        transparent
-        onRequestClose={() => setRatingFlowVisible(false)}
-      >
-        <View style={styles.modalBackdrop}>
-          <View style={styles.ratingCard}>
-            <Text style={styles.modalTitle}>How was it?</Text>
-            <Text style={styles.ratingSubtitle}>Optional rating to improve recommendations</Text>
-
-            <View style={styles.ratingRow}>
-              {[1, 2, 3, 4, 5].map((rating) => (
-                <TouchableOpacity key={rating} onPress={() => setSelectedRating(rating)}>
-                  <Ionicons
-                    name={rating <= selectedRating ? 'star' : 'star-outline'}
-                    size={32}
-                    color={rating <= selectedRating ? colors.gold : colors.subtext}
-                  />
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            <TextInput
-              style={[styles.modalInput, styles.multilineInput]}
-              placeholder="Notes (optional)"
-              placeholderTextColor={colors.subtext}
-              value={completionNotes}
-              onChangeText={setCompletionNotes}
-              multiline
-            />
-
-            <View style={styles.ratingActions}>
-              <TouchableOpacity
-                style={styles.modalSecondaryButton}
-                onPress={() => setRatingFlowVisible(false)}
-              >
-                <Text style={styles.modalSecondaryButtonText}>Skip</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.modalPrimaryButton} onPress={handleSaveRating}>
-                <Text style={styles.modalPrimaryButtonText}>Save Feedback</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+        onClose={() => setRatingFlowVisible(false)}
+        selectedRating={selectedRating}
+        onSelectRating={setSelectedRating}
+        notes={completionNotes}
+        onNotesChange={setCompletionNotes}
+        onSave={handleSaveRating}
+      />
 
       {/* Toast Notification */}
       <Toast message={toast.message} type={toast.type} visible={toast.visible} onHide={hideToast} />

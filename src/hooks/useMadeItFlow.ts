@@ -20,7 +20,7 @@ import type { RecipeCompletionDetails } from '../types/userProfile';
 import { log } from '../lib/logger';
 import { trackEvent, ANALYTICS_EVENTS, ANALYTICS_PROPS } from '../lib/analytics';
 
-interface MadeItFlowIngredient {
+export interface MadeItFlowIngredient {
   key: string;
   name: string;
   amount: string;
