@@ -886,7 +886,7 @@ export default function CocktailDetailScreen() {
         }
         return {
           ingredient: entry.ingredient,
-          suggestion: 'No strong swap found',
+          suggestion: null,
           note: 'Use original ingredient when possible.',
           confidence: 'low',
           inInventory: false,

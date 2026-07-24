@@ -10,7 +10,8 @@ import { styles } from '../screens/CocktailDetailScreen.styles';
 
 export type SubstituteRow = {
   ingredient: string;
-  suggestion: string;
+  /** null when no real substitute was found — render a "no swap" message instead of "Try {suggestion}". */
+  suggestion: string | null;
   note: string;
   confidence: 'high' | 'medium' | 'low';
   inInventory: boolean;
@@ -33,7 +34,9 @@ function SubstituteRowCard({ row }: { row: SubstituteRow }) {
         <Text style={styles.substituteIngredient}>{row.ingredient}</Text>
         <Text style={styles.substituteConfidence}>{row.confidence.toUpperCase()}</Text>
       </View>
-      <Text style={styles.substituteSuggestion}>Try {row.suggestion}</Text>
+      <Text style={styles.substituteSuggestion}>
+        {row.suggestion ? `Try ${row.suggestion}` : 'No strong swap found'}
+      </Text>
       <Text style={styles.substituteNote}>{row.note}</Text>
       {row.alternatives ? (
         <Text style={styles.substituteAltText}>Also consider: {row.alternatives}</Text>
