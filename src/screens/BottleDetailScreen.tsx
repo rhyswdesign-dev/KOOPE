@@ -38,7 +38,6 @@ import {
   useCurrencyPreference,
   convertFromUSD,
   formatPriceRange,
-  CURRENCY_META,
   type SupportedCurrency,
 } from '../store/useCurrencyPreference';
 import { supabase } from '../lib/supabase';
@@ -82,6 +81,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { usePersonalization } from '../store/usePersonalization';
 import type { FlavorProfile } from '../types/userProfile';
 import ValueLine from '../components/bottle/ValueLine';
+import CurrencyPickerModal from '../components/CurrencyPickerModal';
+import PriceSpottedPromptModal from '../components/PriceSpottedPromptModal';
 import { useSpottedPrices } from '../store/useSpottedPrices';
 import { logSpottedPrice } from '../services/spottedPriceService';
 import { computeValueVerdict } from '../services/valueVerdictService';
@@ -1360,52 +1361,15 @@ export default function BottleDetailScreen() {
           />
 
           {/* Currency picker modal */}
-          <Modal
+          <CurrencyPickerModal
             visible={showCurrencyPicker}
-            transparent
-            animationType="slide"
-            onRequestClose={() => setShowCurrencyPicker(false)}
-          >
-            <TouchableOpacity
-              style={styles.currencyModalOverlay}
-              activeOpacity={1}
-              onPress={() => setShowCurrencyPicker(false)}
-            >
-              <View style={styles.currencyModalSheet}>
-                <View style={styles.currencyModalHandle} />
-                <Text style={styles.currencyModalTitle}>Price Currency</Text>
-                {(Object.keys(CURRENCY_META) as SupportedCurrency[]).map((c) => (
-                  <TouchableOpacity
-                    key={c}
-                    style={[
-                      styles.currencyOption,
-                      c === userCurrency && styles.currencyOptionActive,
-                    ]}
-                    onPress={() => {
-                      setCurrency(c);
-                      setShowCurrencyPicker(false);
-                    }}
-                  >
-                    <Text style={styles.currencyOptionFlag}>{CURRENCY_META[c].flag}</Text>
-                    <View style={styles.currencyOptionLabels}>
-                      <Text
-                        style={[
-                          styles.currencyOptionCode,
-                          c === userCurrency && styles.currencyOptionCodeActive,
-                        ]}
-                      >
-                        {c}
-                      </Text>
-                      <Text style={styles.currencyOptionName}>{CURRENCY_META[c].label}</Text>
-                    </View>
-                    {c === userCurrency && (
-                      <Ionicons name="checkmark" size={18} color={colors.gold} />
-                    )}
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </TouchableOpacity>
-          </Modal>
+            onClose={() => setShowCurrencyPicker(false)}
+            currentCurrency={userCurrency}
+            onSelectCurrency={(c) => {
+              setCurrency(c);
+              setShowCurrencyPicker(false);
+            }}
+          />
 
           {/* The Hook — recipe unlock, promoted above serve guidance / full tasting notes */}
           {!loadingCocktails && suggestedCocktails.length > 0 && (
@@ -1726,52 +1690,16 @@ export default function BottleDetailScreen() {
       )}
 
       {/* Price prompt — appears after saving to wishlist */}
-      <Modal
+      <PriceSpottedPromptModal
         visible={showPricePrompt}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowPricePrompt(false)}
-      >
-        <View style={styles.pricePromptOverlay}>
-          <View style={styles.pricePromptCard}>
-            <Text style={styles.pricePromptTitle}>Seen a price?</Text>
-            <Text style={styles.pricePromptSubtitle}>
-              Log where you spotted it and how much — you can compare stores later.
-            </Text>
-
-            <TextInput
-              style={styles.pricePromptInput}
-              value={priceInput}
-              onChangeText={setPriceInput}
-              placeholder={`Price (${userCurrency})`}
-              placeholderTextColor={colors.subtext}
-              keyboardType="decimal-pad"
-              returnKeyType="next"
-            />
-            <TextInput
-              style={styles.pricePromptInput}
-              value={locationInput}
-              onChangeText={setLocationInput}
-              placeholder="Store or location (e.g. Total Wine, Miami)"
-              placeholderTextColor={colors.subtext}
-              returnKeyType="done"
-              onSubmitEditing={handleSavePriceEntry}
-            />
-
-            <View style={styles.pricePromptActions}>
-              <TouchableOpacity
-                style={styles.pricePromptSkip}
-                onPress={() => setShowPricePrompt(false)}
-              >
-                <Text style={styles.pricePromptSkipText}>Skip</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.pricePromptSave} onPress={handleSavePriceEntry}>
-                <Text style={styles.pricePromptSaveText}>Save</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+        onClose={() => setShowPricePrompt(false)}
+        currency={userCurrency}
+        priceInput={priceInput}
+        onPriceInputChange={setPriceInput}
+        locationInput={locationInput}
+        onLocationInputChange={setLocationInput}
+        onSave={handleSavePriceEntry}
+      />
     </SafeAreaView>
   );
 }
