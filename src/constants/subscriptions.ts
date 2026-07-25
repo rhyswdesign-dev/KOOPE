@@ -50,10 +50,12 @@ export const SUBSCRIPTION_PRODUCTS = {
  * These are fallback display values
  */
 export const PRICING_DISPLAY = {
+  // KŌOPE+ — confirmed live production pricing (App Store Connect / RevenueCat).
+  // $59/yr (shown as $4.92/mo, "SAVE 30%" vs monthly) or $6.99/mo.
   PLUS: {
-    yearly: '$49',
-    yearlyPerMonth: '$4.08',
-    yearlySavings: '42%',
+    yearly: '$59',
+    yearlyPerMonth: '$4.92',
+    yearlySavings: '30%',
     monthly: '$6.99',
     monthlyPerMonth: '$6.99',
   },
@@ -124,12 +126,7 @@ function isInvalidRevenueCatKey(key: string | undefined, platform: 'ios' | 'andr
 
   if (!normalized.startsWith(requiredPrefix)) return true;
 
-  const blockedFragments = [
-    'PLACEHOLDER',
-    'REPLACE_ME',
-    'appl_your',
-    'goog_your',
-  ];
+  const blockedFragments = ['PLACEHOLDER', 'REPLACE_ME', 'appl_your', 'goog_your'];
 
   return blockedFragments.some((fragment) => normalized.includes(fragment));
 }
@@ -151,5 +148,7 @@ export function getRevenueCatConfigValidation() {
 /**
  * Type definitions for type-safe subscription handling
  */
-export type SubscriptionEntitlement = typeof SUBSCRIPTION_ENTITLEMENTS[keyof typeof SUBSCRIPTION_ENTITLEMENTS];
-export type SubscriptionProduct = typeof SUBSCRIPTION_PRODUCTS[keyof typeof SUBSCRIPTION_PRODUCTS];
+export type SubscriptionEntitlement =
+  (typeof SUBSCRIPTION_ENTITLEMENTS)[keyof typeof SUBSCRIPTION_ENTITLEMENTS];
+export type SubscriptionProduct =
+  (typeof SUBSCRIPTION_PRODUCTS)[keyof typeof SUBSCRIPTION_PRODUCTS];
