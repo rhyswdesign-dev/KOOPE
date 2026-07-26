@@ -598,7 +598,11 @@ export default function SmartScanScreen() {
         }}
         onSearchLibrary={() => {
           setShowBottleNotFound(false);
-          navigation.navigate('BottleSearch');
+          // replace, not navigate: SmartScanScreen has nothing to show once
+          // the camera/modal is dismissed (cameraVisible never gets set back
+          // to true on this path), so leaving it underneath BottleSearch on
+          // the stack means the back button lands on a blank screen.
+          navigation.replace('BottleSearch');
         }}
         onCancel={() => {
           setShowBottleNotFound(false);

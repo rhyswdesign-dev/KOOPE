@@ -85,6 +85,7 @@ import CurrencyPickerModal from '../components/CurrencyPickerModal';
 import PriceSpottedPromptModal from '../components/PriceSpottedPromptModal';
 import { useSpottedPrices } from '../store/useSpottedPrices';
 import { logSpottedPrice } from '../services/spottedPriceService';
+import { parseLocalePrice } from '../utils/priceInput';
 import { computeValueVerdict } from '../services/valueVerdictService';
 import {
   getSpiritCategoryDefaults,
@@ -122,7 +123,7 @@ export default function BottleDetailScreen() {
   const { hasAccess: hasPremiumServePersonalization } = useFeatureAccess(
     'premium_serve_personalization',
   );
-  const { bottle, imageUri, scanConfidence, scannedBarcode, scanSource } = route.params;
+  const { bottle, imageUri, scanConfidence, scannedBarcode, scanSource, returnTo } = route.params;
   const isLowConfidence =
     imageUri != null && typeof scanConfidence === 'number' && scanConfidence < 0.8;
   const { currency: userCurrency, setCurrency } = useCurrencyPreference();
@@ -150,6 +151,21 @@ export default function BottleDetailScreen() {
   const [tasteSpiritHint, setTasteSpiritHint] = useState<string | undefined>(undefined);
   const [tasteFlavorHint, setTasteFlavorHint] = useState<FlavorProfile | undefined>(undefined);
   const [expanded, setExpanded] = useState(false);
+  // "See more" jump target from the truncated hero story line down to the
+  // full Tasting Notes section — that section is itself gated behind
+  // `expanded`, but the toggle above it stays at a fixed position whether
+  // expanded or not, so it's safe to measure and scroll to immediately.
+  const scrollViewRef = useRef<ScrollView>(null);
+  const seeMoreRef = useRef<View>(null);
+  const scrollToTastingNotes = () => {
+    setExpanded(true);
+    seeMoreRef.current?.measureLayout(
+      scrollViewRef.current as unknown as number,
+      (_x, y) =>
+        scrollViewRef.current?.scrollTo({ y: Math.max(y - spacing(2), 0), animated: true }),
+      () => {},
+    );
+  };
   // Stage 10 — scan feedback
   const [feedbackState, setFeedbackState] = useState<
     'pending' | 'confirmed' | 'correcting' | 'typing' | 'dismissed'
@@ -189,6 +205,20 @@ export default function BottleDetailScreen() {
     });
     return unsubscribe;
   }, [navigation, scanEventId]);
+
+  // returnTo === 'shelf' means this screen was entered cross-tab (from the
+  // Shelf/Want grid, which lives in a different bottom-tab stack) —
+  // intercept every removal path (button tap, swipe-back gesture, Android
+  // hardware back), not just the on-screen button, so all of them return
+  // to the Shelf tab instead of popping to CameraHub underneath.
+  useEffect(() => {
+    if (returnTo !== 'shelf') return;
+    const unsubscribe = navigation.addListener('beforeRemove', (e) => {
+      e.preventDefault();
+      (navigation as any).navigate('Shelf');
+    });
+    return unsubscribe;
+  }, [navigation, returnTo]);
 
   // Phase 1.6: offer the free taste prompt once, right after the first
   // suggested-recipes moment — only for users with no taste signal yet
@@ -307,7 +337,17 @@ export default function BottleDetailScreen() {
   const storyLine = useMemo(() => {
     const notes = bottleProfile.tastingNotes || '';
     const firstSentence = notes.split(/(?<=[.!?])\s+/)[0] || notes;
-    return giftMode ? `A crowd-pleasing choice — ${firstSentence}` : firstSentence;
+    // First sentences got noticeably longer/denser once tastingNotes was
+    // expanded from a 1-2 sentence blurb into a full paragraph — this teaser
+    // sits under the hero pills at numberOfLines={2}, so cap it by length
+    // (word-boundary + ellipsis) rather than trusting sentence length to
+    // reliably fit two lines.
+    const STORY_LINE_MAX = 110;
+    const truncated =
+      firstSentence.length > STORY_LINE_MAX
+        ? `${firstSentence.slice(0, STORY_LINE_MAX).replace(/\s+\S*$/, '')}…`
+        : firstSentence;
+    return giftMode ? `A crowd-pleasing choice — ${truncated}` : truncated;
   }, [bottleProfile.tastingNotes, giftMode]);
 
   // Gift mode: re-rank the already-fetched, already-tier-gated Hook data by
@@ -707,27 +747,34 @@ export default function BottleDetailScreen() {
   };
 
   const handleSavePriceEntry = () => {
-    const price = parseFloat(priceInput.replace(/[^0-9.]/g, ''));
-    if (!isNaN(price) && price > 0 && locationInput.trim()) {
-      addPriceEntry(bottleWishlistId, {
-        price,
-        currency: userCurrency,
-        locationLabel: locationInput.trim(),
-      });
-      // Phase 1.2: also feed the journal + community sync (one write path).
-      logSpottedPrice({
-        bottleId: bottleWishlistId,
-        price,
-        currency: userCurrency,
-        locationLabel: locationInput.trim(),
-        capturePoint: 'post_wishlist',
-        userId: user?.id,
-      });
-      // Phase 1.5: price-capture present -> store context, wanted outcome.
-      if (scanEventId) {
-        scanOutcomeRecordedRef.current = true;
-        updateScanOutcome({ scanEventId, outcome: 'wanted', context: 'store', priceSeen: price });
-      }
+    const price = parseLocalePrice(priceInput);
+    if (!(price > 0) || !locationInput.trim()) {
+      Alert.alert(
+        'Missing info',
+        !(price > 0)
+          ? 'Enter a valid price to save this entry.'
+          : 'Enter a store or location to save this entry.',
+      );
+      return;
+    }
+    addPriceEntry(bottleWishlistId, {
+      price,
+      currency: userCurrency,
+      locationLabel: locationInput.trim(),
+    });
+    // Phase 1.2: also feed the journal + community sync (one write path).
+    logSpottedPrice({
+      bottleId: bottleWishlistId,
+      price,
+      currency: userCurrency,
+      locationLabel: locationInput.trim(),
+      capturePoint: 'post_wishlist',
+      userId: user?.id,
+    });
+    // Phase 1.5: price-capture present -> store context, wanted outcome.
+    if (scanEventId) {
+      scanOutcomeRecordedRef.current = true;
+      updateScanOutcome({ scanEventId, outcome: 'wanted', context: 'store', priceSeen: price });
     }
     setPriceInput('');
     setLocationInput('');
@@ -954,6 +1001,7 @@ export default function BottleDetailScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <ScrollView
+        ref={scrollViewRef}
         contentContainerStyle={[
           styles.scrollContent,
           { paddingBottom: Math.max(insets.bottom, spacing(3)) + spacing(8) },
@@ -974,7 +1022,9 @@ export default function BottleDetailScreen() {
             style={StyleSheet.absoluteFillObject}
           />
 
-          {/* Back / close button */}
+          {/* Back / close button — returnTo==='shelf' redirect handled
+              centrally in the beforeRemove listener below, so it also
+              covers the swipe-back gesture and Android hardware back. */}
           <TouchableOpacity
             style={[styles.heroBackButton, { top: insets.top + spacing(1) }]}
             onPress={() => navigation.goBack()}
@@ -1032,9 +1082,12 @@ export default function BottleDetailScreen() {
               </View>
             </View>
 
-            <Text style={styles.heroStoryLine} numberOfLines={2}>
-              {storyLine}
-            </Text>
+            <TouchableOpacity onPress={scrollToTastingNotes} activeOpacity={0.7}>
+              <Text style={styles.heroStoryLine} numberOfLines={2}>
+                {storyLine}
+              </Text>
+              <Text style={styles.heroStoryLineSeeMore}>See more</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -1388,6 +1441,7 @@ export default function BottleDetailScreen() {
 
           {/* See more — everything else lives below this fold */}
           <TouchableOpacity
+            ref={seeMoreRef}
             style={styles.seeMoreToggle}
             onPress={() => setExpanded((value) => !value)}
             activeOpacity={0.8}

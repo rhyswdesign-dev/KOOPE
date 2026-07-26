@@ -19,6 +19,10 @@ export type CameraStackParamList = {
     scannedBarcode?: string;
     /** Which resolution path identified the bottle ('catalog' | 'cache' | 'claude-vision') — labels the value line's source (Phase 1.2). Absent = barcode/library, treated as catalog. */
     scanSource?: string;
+    /** Set when entered cross-tab (e.g. from the Shelf/Want grid) so the back
+     * button can return to that tab instead of popping the Camera stack,
+     * which strands the user on CameraHub/Home instead of where they were. */
+    returnTo?: 'shelf';
   };
   BottleSearch: { initialQuery?: string } | undefined;
   OCRCapture: undefined;
