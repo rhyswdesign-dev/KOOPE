@@ -74,6 +74,9 @@ import UnlockDeckScreen from '../screens/UnlockDeckScreen';
 import RecipeCardDetailScreen from '../screens/RecipeCardDetailScreen';
 import CellarNavigator from './CellarNavigator';
 import CellarBottleDetailScreen from '../screens/CellarBottleDetailScreen';
+import BottleSearchScreen from '../screens/BottleSearchScreen';
+import BottleDetailScreen from '../screens/BottleDetailScreen';
+import type { CameraStackParamList } from './CameraStack';
 import CellarRegisterScreen from '../screens/CellarRegisterScreen';
 import CellarWatchlistScreen from '../screens/CellarWatchlistScreen';
 import CellarAnalyticsScreen from '../screens/CellarAnalyticsScreen';
@@ -176,6 +179,12 @@ export type RootStackParamList = {
   VoiceRecipe: undefined;
   HomeBar: undefined;
   SpiritRecognition: undefined;
+  // Root-level access to the bottle library/detail screens — lets any tab
+  // (not just Camera) reach them directly via a modal, instead of the
+  // cross-tab `navigate('Camera', { screen, params })` jump, which switches
+  // the visible tab and needs a `returnTo` hack on the way back out.
+  BottleSearch: CameraStackParamList['BottleSearch'];
+  BottleDetail: CameraStackParamList['BottleDetail'];
   ShoppingCart: undefined;
   InventoryInsights: { mode: 'expiry' | 'health' };
   Achievements: undefined;
@@ -683,6 +692,16 @@ export default function RootNavigator({ initialRouteName = 'Main' }: RootNavigat
           options={{ headerShown: true, title: 'Voice Recipe Input' }}
         />
         <Stack.Screen name="HomeBar" component={HomeBarScreen} options={{ headerShown: false }} />
+        <Stack.Screen
+          name="BottleSearch"
+          component={BottleSearchScreen}
+          options={{ headerShown: false, presentation: 'modal' }}
+        />
+        <Stack.Screen
+          name="BottleDetail"
+          component={BottleDetailScreen}
+          options={{ headerShown: false }}
+        />
         <Stack.Screen
           name="SpiritRecognition"
           component={SpiritRecognitionScreen}

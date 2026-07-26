@@ -23,6 +23,7 @@ import {
 import { colors, spacing, radii, fonts, serif } from '../theme/tokens';
 import { Heading, MainPageHeader } from '../components/ui';
 import { Ionicons } from '@expo/vector-icons';
+import { FlavorIcon } from '../components/FlavorIcon';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/RootNavigator';
@@ -37,14 +38,16 @@ import { useFeatureAccess } from '../hooks/useFeatureAccess';
 import { useUserTier } from '../store/useUserTier';
 import { TIER_LIMITS } from '../config/tierAccess';
 import { useScrollHaptic, withHaptic } from '../lib/haptics';
-import { SPIRITS_DATABASE } from '../data/spiritsDatabase';
+import { SPIRITS_DATABASE, findSpirit } from '../data/spiritsDatabase';
 import { BottleServeService } from '../services/bottleServeService';
 import { CellarService } from '../services/cellarService';
 import { notificationService } from '../services/notificationService';
 import { FeedbackPromptModal } from '../components/FeedbackPromptModal';
 import { useWishlist, WISHLIST_FREE_CAP } from '../store/useWishlist';
+import { useSpottedPrices } from '../store/useSpottedPrices';
 import { useCurrencyPreference } from '../store/useCurrencyPreference';
 import { logSpottedPrice } from '../services/spottedPriceService';
+import { parseLocalePrice } from '../utils/priceInput';
 import { buyIngredient } from '../services/affiliateService';
 import { useTasteModel, ALL_FLAVOUR_TAGS } from '../store/useTasteModel';
 import { flavourTagLabel } from '../utils/tasteSignal';
@@ -104,6 +107,11 @@ export default function HomeBarScreen() {
   const { gate: barHealthGate } = useFeatureAccess('bar_health_score');
   const { user } = useAuth();
   const { items: wishlistItems, removeFromWishlist, addPriceEntry } = useWishlist();
+  const sortedWishlistItems = useMemo(
+    () => [...wishlistItems].sort((a, b) => a.name.localeCompare(b.name)),
+    [wishlistItems],
+  );
+  const spottedPriceEntries = useSpottedPrices((s) => s.entries);
   const { currency: userCurrency } = useCurrencyPreference();
   const { dominantCluster, flavourScores, profileVisible } = useTasteModel();
   const [palateExpanded, setPalateExpanded] = useState(false);
@@ -160,6 +168,10 @@ export default function HomeBarScreen() {
   const [inventoryView, setInventoryView] = useState<'owned' | 'want'>('owned');
   const [homeBar, setHomeBar] = useState<HomeBar>({ ...mockHomeBar, ingredients: [] });
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
+  // Tracks a failed/broken image load for the detail modal — without this,
+  // a stale or unreachable imageUrl just renders as an empty colored box
+  // (inventoryDetailImage's backgroundColor) with no icon fallback.
+  const [detailImageFailed, setDetailImageFailed] = useState(false);
   const [itemNoteDraft, setItemNoteDraft] = useState('');
   const [showItemOptionsModal, setShowItemOptionsModal] = useState(false);
   const [showInventorySwitcher, setShowInventorySwitcher] = useState(false);
@@ -361,6 +373,9 @@ export default function HomeBarScreen() {
       );
     }
 
+    // Alphabetical — easier to scan/find a specific bottle than insertion order.
+    filtered = [...filtered].sort((a, b) => a.name.localeCompare(b.name));
+
     // FREE tier visibility cap mirrors the hard add limit, applied after filters.
     if (tier === 'FREE') {
       filtered = filtered.slice(0, TIER_LIMITS.FREE.maxBottles);
@@ -511,6 +526,7 @@ export default function HomeBarScreen() {
 
   const handleItemPress = (item: InventoryItem) => {
     setSelectedItem(item);
+    setDetailImageFailed(false);
     setItemNoteDraft(item.notes || '');
     setEditMode(false);
     setEditName(item.name);
@@ -901,14 +917,15 @@ export default function HomeBarScreen() {
     return 'Supporting ingredient used to round out prep, balance, or presentation.';
   };
 
+  // Brand now lives in the card subtitle and favorite in the star badge —
+  // keep pills to facts not shown anywhere else on the card, matching the
+  // Want grid's one-clear-fact-per-pill pattern instead of stacking three.
   const getInventoryPills = (item: InventoryItem) => {
     const pills: string[] = [getCategoryDisplay(item)];
-    if (item.brand) pills.push(item.brand);
     if (item.volume) pills.push(`${item.volume}ml`);
     else if (item.category === 'garnish' || item.category === 'ingredient')
       pills.push('Fresh item');
-    if (item.isFavorite) pills.push('Favorite');
-    return pills.slice(0, 3);
+    return pills.slice(0, 2);
   };
 
   const matchedSpiritProfile = useMemo(() => {
@@ -997,12 +1014,7 @@ export default function HomeBarScreen() {
             {item.name}
           </Text>
           <Text style={styles.cardSubtitle} numberOfLines={1}>
-            {item.flavor_tags?.length
-              ? item.flavor_tags.slice(0, 2).join(' · ')
-              : item.tags
-                  ?.filter((t) => t !== 'manual-entry')
-                  .slice(0, 2)
-                  .join(' · ') || getCategoryDisplay(item)}
+            {item.brand || getCategoryDisplay(item)}
           </Text>
           {pills.length > 0 && (
             <View style={styles.cardPillRow}>
@@ -1300,27 +1312,37 @@ export default function HomeBarScreen() {
                 Bottles you've spotted but haven't bought yet. Tap to see prices you've logged.
               </Text>
               <View style={styles.grid}>
-                {wishlistItems.map((item) => {
+                {sortedWishlistItems.map((item) => {
+                  // Read from the price journal (useSpottedPrices) — the
+                  // single source of truth every capture point (at-scan
+                  // chip, post-wishlist prompt, this grid's "Log price")
+                  // writes to — instead of the legacy per-item
+                  // priceEntries, which only the latter two ever update.
+                  const itemSpottedEntries = spottedPriceEntries.filter(
+                    (e) => e.bottleId === item.bottleId,
+                  );
                   const lowestEntry =
-                    item.priceEntries.length > 0
-                      ? item.priceEntries.reduce((a, b) => (a.price < b.price ? a : b))
+                    itemSpottedEntries.length > 0
+                      ? itemSpottedEntries.reduce((a, b) => (a.price < b.price ? a : b))
                       : null;
+                  // Wishlist items only store name/brand/type — look up the
+                  // catalog entry for real price data instead of faking a
+                  // $0 range (which broke the Fair Price line and made the
+                  // spotted-price verdict impossible to show, since it
+                  // requires range.min > 0).
+                  const catalogMatch = findSpirit(item.name) ?? findSpirit(item.bottleId);
                   const spiritProxy = {
                     id: item.bottleId,
                     name: item.name,
                     brand: item.brand,
                     type: (item.type || 'other') as any,
-                    abv: 0,
-                    priceTier: 'mid-range' as any,
-                    priceEstimate: {
-                      USD: { min: 0, max: 0 },
-                      CAD: { min: 0, max: 0 },
-                      GBP: { min: 0, max: 0 },
-                    },
-                    flavorProfile: [],
-                    tastingNotes: '',
-                    origin: '',
-                    searchTerms: [],
+                    abv: catalogMatch?.abv ?? 0,
+                    priceTier: catalogMatch?.priceTier ?? ('mid-range' as any),
+                    priceEstimate: catalogMatch?.priceEstimate,
+                    flavorProfile: catalogMatch?.flavorProfile ?? [],
+                    tastingNotes: catalogMatch?.tastingNotes ?? '',
+                    origin: catalogMatch?.origin ?? '',
+                    searchTerms: catalogMatch?.searchTerms ?? [],
                   };
                   return (
                     <TouchableOpacity
@@ -1330,7 +1352,11 @@ export default function HomeBarScreen() {
                         () =>
                           (nav as any).navigate('Camera', {
                             screen: 'BottleDetail',
-                            params: { bottle: spiritProxy, imageUri: item.imageUri },
+                            params: {
+                              bottle: spiritProxy,
+                              imageUri: item.imageUri,
+                              returnTo: 'shelf',
+                            },
                           }),
                         'selection',
                       )}
@@ -1364,8 +1390,8 @@ export default function HomeBarScreen() {
                           <View style={styles.cardPillRow}>
                             <View style={styles.cardPill}>
                               <Text style={styles.cardPillText}>
-                                {lowestEntry.currency} {lowestEntry.price.toFixed(0)} ·{' '}
-                                {lowestEntry.locationLabel}
+                                {lowestEntry.currency} {lowestEntry.price.toFixed(0)}
+                                {lowestEntry.locationLabel ? ` · ${lowestEntry.locationLabel}` : ''}
                               </Text>
                             </View>
                           </View>
@@ -1565,11 +1591,12 @@ export default function HomeBarScreen() {
                 </TouchableOpacity>
               </View>
 
-              {selectedItem?.imageUrl ? (
+              {selectedItem?.imageUrl && !detailImageFailed ? (
                 <Image
                   source={{ uri: selectedItem.imageUrl }}
                   style={styles.inventoryDetailImage}
                   resizeMode="cover"
+                  onError={() => setDetailImageFailed(true)}
                 />
               ) : selectedItem && getIngredientImage(selectedItem) ? (
                 <Image
@@ -1577,7 +1604,21 @@ export default function HomeBarScreen() {
                   style={styles.inventoryDetailImage}
                   resizeMode="cover"
                 />
-              ) : null}
+              ) : (
+                selectedItem && (
+                  <View style={[styles.inventoryDetailImage, styles.inventoryDetailImageFallback]}>
+                    <Ionicons
+                      name={getCategoryIcon(
+                        selectedItem.category,
+                        selectedItem.subcategory,
+                        selectedItem.name,
+                      )}
+                      size={48}
+                      color={colors.accent}
+                    />
+                  </View>
+                )
+              )}
 
               {editMode ? (
                 <View style={styles.editFieldsContainer}>
@@ -1649,30 +1690,58 @@ export default function HomeBarScreen() {
                 </View>
               ) : (
                 <View style={styles.itemDetailsContainer}>
-                  <Text style={styles.itemDetail}>
-                    Brand: {selectedBottleDetails?.brand || selectedItem?.brand || 'Unknown'}
+                  <Text style={styles.itemDetailBrand}>
+                    {selectedBottleDetails?.brand || selectedItem?.brand || 'Unknown brand'}
                   </Text>
-                  <Text style={styles.itemDetail}>
-                    Type:{' '}
-                    {selectedBottleDetails?.type
-                      ? String(selectedBottleDetails.type).replace(/\b\w/g, (letter) =>
-                          letter.toUpperCase(),
-                        )
-                      : selectedItem
-                        ? getCategoryDisplay(selectedItem)
-                        : 'Unknown'}
-                  </Text>
-                  <Text style={styles.itemDetail}>
-                    Volume: {selectedItem?.volume ? `${selectedItem.volume}ml` : 'Not set'}
-                  </Text>
-                  {selectedBottleDetails?.abv && (
-                    <Text style={styles.itemDetail}>ABV: {selectedBottleDetails.abv}%</Text>
-                  )}
-                  {selectedBottleDetails?.region && (
-                    <Text style={styles.itemDetail}>Region: {selectedBottleDetails.region}</Text>
-                  )}
+                  <View style={styles.itemStatPills}>
+                    <View style={styles.itemStatPill}>
+                      <Ionicons name="pricetag" size={13} color={colors.gold} />
+                      <Text style={styles.itemStatPillText}>
+                        {selectedBottleDetails?.type
+                          ? String(selectedBottleDetails.type).replace(/\b\w/g, (letter) =>
+                              letter.toUpperCase(),
+                            )
+                          : selectedItem
+                            ? getCategoryDisplay(selectedItem)
+                            : 'Unknown'}
+                      </Text>
+                    </View>
+                    {selectedBottleDetails?.abv ? (
+                      <>
+                        <View style={styles.itemStatPillDivider} />
+                        <View style={styles.itemStatPill}>
+                          <Ionicons name="flash" size={13} color={colors.gold} />
+                          <Text style={styles.itemStatPillText}>
+                            {selectedBottleDetails.abv}% ABV
+                          </Text>
+                        </View>
+                      </>
+                    ) : null}
+                    {selectedBottleDetails?.region ? (
+                      <>
+                        <View style={styles.itemStatPillDivider} />
+                        <View style={styles.itemStatPill}>
+                          <Ionicons name="location" size={13} color={colors.gold} />
+                          <Text style={styles.itemStatPillText}>
+                            {selectedBottleDetails.region}
+                          </Text>
+                        </View>
+                      </>
+                    ) : null}
+                    {selectedItem?.volume ? (
+                      <>
+                        <View style={styles.itemStatPillDivider} />
+                        <View style={styles.itemStatPill}>
+                          <Ionicons name="water" size={13} color={colors.gold} />
+                          <Text style={styles.itemStatPillText}>{selectedItem.volume}ml</Text>
+                        </View>
+                      </>
+                    ) : null}
+                  </View>
                   {selectedItem && (
-                    <Text style={styles.itemDetail}>{getInventoryInsight(selectedItem)}</Text>
+                    <Text style={styles.itemDetailInsight}>
+                      {getInventoryInsight(selectedItem)}
+                    </Text>
                   )}
                 </View>
               )}
@@ -1686,9 +1755,14 @@ export default function HomeBarScreen() {
                         {selectedBottleDetails.flavorProfile.slice(0, 6).map((flavor) => (
                           <View
                             key={`${selectedItem?.id}-${flavor}`}
-                            style={styles.inventoryBottleFlavorChip}
+                            style={styles.inventoryBottleFlavorCell}
                           >
-                            <Text style={styles.inventoryBottleFlavorChipText}>{flavor}</Text>
+                            <View style={styles.inventoryBottleFlavorCircle}>
+                              <FlavorIcon flavor={flavor} size={22} color={colors.goldText} />
+                            </View>
+                            <Text style={styles.inventoryBottleFlavorChipText} numberOfLines={2}>
+                              {flavor}
+                            </Text>
                           </View>
                         ))}
                       </View>
@@ -2170,6 +2244,30 @@ export default function HomeBarScreen() {
                     </View>
                   )}
                 </View>
+
+                {/* This search only covers what's already on the shelf —
+                    it never searched the full catalog, which is what got
+                    flagged as missing. BottleSearch/BottleDetail are now
+                    also registered at the root navigator as a modal, so this
+                    opens them directly without switching to the Camera tab —
+                    no cross-tab jump, no returnTo hack needed to get back. */}
+                {hasActiveSearch && (
+                  <TouchableOpacity
+                    style={styles.searchLibraryCta}
+                    onPress={withHaptic(() => {
+                      recordSearchHistory(searchModalQuery);
+                      const query = searchModalQuery;
+                      closeSearchModal();
+                      (nav as any).navigate('BottleSearch', { initialQuery: query });
+                    }, 'selection')}
+                  >
+                    <Ionicons name="library-outline" size={18} color={colors.accent} />
+                    <Text style={styles.searchLibraryCtaText}>
+                      Not on your shelf? Search the full bottle library
+                    </Text>
+                    <Ionicons name="chevron-forward" size={16} color={colors.accent} />
+                  </TouchableOpacity>
+                )}
               </ScrollView>
             </View>
           </KeyboardAvoidingView>
@@ -2230,23 +2328,31 @@ export default function HomeBarScreen() {
                 <TouchableOpacity
                   style={styles.pricePromptSave}
                   onPress={() => {
-                    const price = parseFloat(logPriceValue.replace(/[^0-9.]/g, ''));
-                    if (!isNaN(price) && price > 0 && logPriceLocation.trim() && logPriceItem) {
-                      // Phase 1.2 fix: was hardcoded 'USD' regardless of locale.
-                      addPriceEntry(logPriceItem.bottleId, {
-                        price,
-                        currency: userCurrency,
-                        locationLabel: logPriceLocation.trim(),
-                      });
-                      logSpottedPrice({
-                        bottleId: logPriceItem.bottleId,
-                        price,
-                        currency: userCurrency,
-                        locationLabel: logPriceLocation.trim(),
-                        capturePoint: 'home_bar',
-                        userId: user?.id,
-                      });
+                    if (!logPriceItem) return;
+                    const price = parseLocalePrice(logPriceValue);
+                    if (!(price > 0) || !logPriceLocation.trim()) {
+                      Alert.alert(
+                        'Missing info',
+                        !(price > 0)
+                          ? 'Enter a valid price to save this entry.'
+                          : 'Enter a store or location to save this entry.',
+                      );
+                      return;
                     }
+                    // Phase 1.2 fix: was hardcoded 'USD' regardless of locale.
+                    addPriceEntry(logPriceItem.bottleId, {
+                      price,
+                      currency: userCurrency,
+                      locationLabel: logPriceLocation.trim(),
+                    });
+                    logSpottedPrice({
+                      bottleId: logPriceItem.bottleId,
+                      price,
+                      currency: userCurrency,
+                      locationLabel: logPriceLocation.trim(),
+                      capturePoint: 'home_bar',
+                      userId: user?.id,
+                    });
                     setLogPriceItem(null);
                   }}
                 >
@@ -2700,7 +2806,43 @@ const styles = StyleSheet.create({
     marginBottom: spacing(2),
     backgroundColor: colors.bg,
   },
+  inventoryDetailImageFallback: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   itemDetail: {
+    fontSize: 13,
+    lineHeight: 18,
+    color: colors.subtext,
+  },
+  itemDetailBrand: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.subtext,
+  },
+  itemStatPills: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    rowGap: spacing(0.6),
+  },
+  itemStatPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(0.5),
+  },
+  itemStatPillText: {
+    fontSize: 12,
+    color: colors.subtext,
+    fontWeight: '600',
+  },
+  itemStatPillDivider: {
+    width: 1,
+    height: 10,
+    backgroundColor: colors.line,
+    marginHorizontal: spacing(1.25),
+  },
+  itemDetailInsight: {
     fontSize: 13,
     lineHeight: 18,
     color: colors.subtext,
@@ -2729,21 +2871,28 @@ const styles = StyleSheet.create({
   inventoryBottleFlavorRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: spacing(0.6),
+    gap: spacing(1.5),
     marginBottom: spacing(0.4),
   },
-  inventoryBottleFlavorChip: {
-    paddingHorizontal: spacing(0.9),
-    paddingVertical: spacing(0.5),
-    borderRadius: radii.full,
-    backgroundColor: `${colors.accent}15`,
-    borderWidth: 1,
-    borderColor: `${colors.accent}30`,
+  inventoryBottleFlavorCell: {
+    width: '26%',
+    alignItems: 'center',
+    gap: spacing(0.5),
+  },
+  inventoryBottleFlavorCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.gold,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   inventoryBottleFlavorChipText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: colors.accent,
+    fontSize: 10,
+    fontWeight: '500',
+    color: colors.subtext,
+    textAlign: 'center',
+    lineHeight: 13,
   },
   inventoryCellarCard: {
     marginBottom: spacing(2),
@@ -3368,6 +3517,23 @@ const styles = StyleSheet.create({
   noResultsSubtext: {
     fontSize: 14,
     color: colors.subtext,
+  },
+  searchLibraryCta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(1),
+    marginTop: spacing(2),
+    padding: spacing(1.5),
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: `${colors.accent}30`,
+    backgroundColor: `${colors.accent}10`,
+  },
+  searchLibraryCtaText: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.accent,
   },
   searchHint: {
     alignItems: 'center',

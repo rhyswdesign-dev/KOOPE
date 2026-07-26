@@ -132,6 +132,12 @@ export const styles = StyleSheet.create({
     lineHeight: 18,
     color: 'rgba(255,255,255,0.82)',
   },
+  heroStoryLineSeeMore: {
+    marginTop: spacing(0.25),
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.gold,
+  },
   bodyContent: {
     paddingHorizontal: spacing(3),
   },

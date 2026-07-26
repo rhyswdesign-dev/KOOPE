@@ -27,6 +27,7 @@ import {
   type SupportedCurrency,
 } from '../../store/useCurrencyPreference';
 import { computeValueVerdict } from '../../services/valueVerdictService';
+import { parseLocalePrice } from '../../utils/priceInput';
 import type { SpottedPrice } from '../../store/useSpottedPrices';
 
 interface ValueLineProps {
@@ -63,8 +64,11 @@ export default function ValueLine({
     : null;
 
   const handleSave = () => {
-    const price = parseFloat(priceInput);
-    if (!(price > 0)) return;
+    const price = parseLocalePrice(priceInput);
+    if (!(price > 0)) {
+      Alert.alert('Invalid price', 'Enter a price greater than 0.');
+      return;
+    }
     onLogPrice(price);
     setPriceInput('');
     setCapturing(false);
@@ -102,8 +106,8 @@ export default function ValueLine({
         </TouchableOpacity>
       </View>
 
-      {/* Row 2 — verdict when a spotted price exists */}
-      {verdict && (
+      {/* Row 2 — verdict when a spotted price exists, with a way back in to edit it */}
+      {verdict && !capturing && (
         <View style={styles.verdictRow}>
           <Ionicons
             name={verdict.verdict === 'good_buy' ? 'checkmark-circle' : 'pricetag-outline'}
@@ -116,38 +120,48 @@ export default function ValueLine({
           >
             {verdict.headline}
           </Text>
+          <TouchableOpacity
+            hitSlop={8}
+            onPress={() => {
+              setPriceInput(spotted ? String(spotted.price) : '');
+              setCapturing(true);
+            }}
+          >
+            <Ionicons name="pencil-outline" size={13} color={colors.subtext} />
+          </TouchableOpacity>
         </View>
       )}
 
-      {/* Row 3 — at-scan capture when no spotted price yet */}
-      {!spotted &&
-        (capturing ? (
-          <View style={styles.captureRow}>
-            <Text style={styles.capturePrefix}>{CURRENCY_META[currency].symbol}</Text>
-            <TextInput
-              style={styles.captureInput}
-              value={priceInput}
-              onChangeText={setPriceInput}
-              keyboardType="decimal-pad"
-              placeholder="0.00"
-              placeholderTextColor={colors.subtext}
-              autoFocus
-              returnKeyType="done"
-              onSubmitEditing={handleSave}
-            />
-            <TouchableOpacity style={styles.captureSave} onPress={handleSave}>
-              <Text style={styles.captureSaveText}>Save</Text>
-            </TouchableOpacity>
-            <TouchableOpacity hitSlop={8} onPress={() => setCapturing(false)}>
-              <Ionicons name="close" size={16} color={colors.subtext} />
-            </TouchableOpacity>
-          </View>
-        ) : (
+      {/* Row 3 — capture input (fresh entry, or editing an existing spotted price) */}
+      {capturing ? (
+        <View style={styles.captureRow}>
+          <Text style={styles.capturePrefix}>{CURRENCY_META[currency].symbol}</Text>
+          <TextInput
+            style={styles.captureInput}
+            value={priceInput}
+            onChangeText={setPriceInput}
+            keyboardType="decimal-pad"
+            placeholder="0.00"
+            placeholderTextColor={colors.subtext}
+            autoFocus
+            returnKeyType="done"
+            onSubmitEditing={handleSave}
+          />
+          <TouchableOpacity style={styles.captureSave} onPress={handleSave}>
+            <Text style={styles.captureSaveText}>Save</Text>
+          </TouchableOpacity>
+          <TouchableOpacity hitSlop={8} onPress={() => setCapturing(false)}>
+            <Ionicons name="close" size={16} color={colors.subtext} />
+          </TouchableOpacity>
+        </View>
+      ) : (
+        !spotted && (
           <TouchableOpacity style={styles.captureChip} onPress={() => setCapturing(true)}>
             <Ionicons name="pricetag-outline" size={12} color={colors.accent} />
             <Text style={styles.captureChipText}>Seen a price? Log it</Text>
           </TouchableOpacity>
-        ))}
+        )
+      )}
     </View>
   );
 }
