@@ -6,27 +6,23 @@
  *
  * Actions:
  *   1. Try Again   — retakes the scan (primary)
- *   2. Scan Barcode — switches to barcode mode (secondary)
- *   3. Search Library — navigates to BottleSearch (secondary)
- *   4. Cancel — dismisses and goes back (ghost link)
+ *   2. Search Library — navigates to BottleSearch (secondary)
+ *   3. Cancel — dismisses and goes back (ghost link)
+ *
+ * There is deliberately no "scan the barcode instead" escape hatch: asking the
+ * user to flip the bottle and hunt for a UPC is exactly the grocery-checkout
+ * feel the scanner spec (A.0) rejects. Last resort is a retry hint or manual
+ * search, never a barcode instruction.
  */
 
 import React, { useEffect, useRef } from 'react';
-import {
-  Animated,
-  Modal,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { Animated, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, radii, spacing } from '../theme/tokens';
 
 interface Props {
   visible: boolean;
   onTryAgain: () => void;
-  onScanBarcode: () => void;
   onSearchLibrary: () => void;
   onCancel: () => void;
 }
@@ -34,7 +30,6 @@ interface Props {
 export default function BottleNotFoundModal({
   visible,
   onTryAgain,
-  onScanBarcode,
   onSearchLibrary,
   onCancel,
 }: Props) {
@@ -83,11 +78,7 @@ export default function BottleNotFoundModal({
       onRequestClose={onCancel}
     >
       <Animated.View style={[styles.overlay, { opacity: fadeAnim }]}>
-        <TouchableOpacity
-          style={StyleSheet.absoluteFill}
-          activeOpacity={1}
-          onPress={onCancel}
-        />
+        <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={onCancel} />
         <Animated.View
           style={[styles.sheet, { transform: [{ translateY: slideAnim }] }]}
           onStartShouldSetResponder={() => true}
@@ -105,18 +96,20 @@ export default function BottleNotFoundModal({
           {/* Copy */}
           <Text style={styles.title}>Bottle Not Recognised</Text>
           <Text style={styles.body}>
-            We couldn't read the label clearly. Try scanning again with the label fully in frame, or use the barcode on the back.
+            We couldn't read the label clearly. Try again with the label fully in frame and good
+            light, or search for it by name.
           </Text>
 
           {/* Actions */}
           <View style={styles.actions}>
             {/* Primary */}
-            <TouchableOpacity
-              style={styles.primaryBtn}
-              onPress={onTryAgain}
-              activeOpacity={0.85}
-            >
-              <Ionicons name="camera-outline" size={17} color={colors.goldText} style={styles.btnIcon} />
+            <TouchableOpacity style={styles.primaryBtn} onPress={onTryAgain} activeOpacity={0.85}>
+              <Ionicons
+                name="camera-outline"
+                size={17}
+                color={colors.goldText}
+                style={styles.btnIcon}
+              />
               <Text style={styles.primaryBtnText}>Try Again</Text>
             </TouchableOpacity>
 
@@ -124,29 +117,21 @@ export default function BottleNotFoundModal({
             <View style={styles.secondaryRow}>
               <TouchableOpacity
                 style={styles.secondaryBtn}
-                onPress={onScanBarcode}
-                activeOpacity={0.8}
-              >
-                <Ionicons name="barcode-outline" size={16} color={colors.accent} style={styles.btnIcon} />
-                <Text style={styles.secondaryBtnText}>Scan Barcode</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.secondaryBtn}
                 onPress={onSearchLibrary}
                 activeOpacity={0.8}
               >
-                <Ionicons name="search-outline" size={16} color={colors.accent} style={styles.btnIcon} />
+                <Ionicons
+                  name="search-outline"
+                  size={16}
+                  color={colors.accent}
+                  style={styles.btnIcon}
+                />
                 <Text style={styles.secondaryBtnText}>Search Library</Text>
               </TouchableOpacity>
             </View>
 
             {/* Cancel ghost */}
-            <TouchableOpacity
-              style={styles.cancelBtn}
-              onPress={onCancel}
-              activeOpacity={0.6}
-            >
+            <TouchableOpacity style={styles.cancelBtn} onPress={onCancel} activeOpacity={0.6}>
               <Text style={styles.cancelText}>Cancel</Text>
             </TouchableOpacity>
           </View>

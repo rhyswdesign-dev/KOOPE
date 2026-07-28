@@ -20,7 +20,6 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing } from '../../theme/tokens';
-import ScanCounter from './ScanCounter';
 import { withHaptic } from '../../lib/haptics';
 
 const { width } = Dimensions.get('window');
@@ -37,28 +36,26 @@ export interface CameraCaptureProps {
   visible: boolean;
   onClose: () => void;
   onImageCaptured: (imageUri: string) => void;
+  /** Silent, always-on decode (scanner spec A.0). Attaching this handler adds
+   *  NO UI — there is no barcode mode, reticle, or prompt to switch to. */
   onBarcodeScanned?: (result: { type: string; data: string }) => void;
-  barcodeOnly?: boolean;
   title?: string;
   allowGallery?: boolean;
   mode?: 'bottle' | 'recipe' | 'ingredients';
+  /** Accepted for caller compatibility but no longer rendered — the badge these
+   *  drove ("BARCODE · FREE") only ever appeared in barcode mode, which is gone. */
   scansRemaining?: number;
   isPaidUser?: boolean;
   isGuest?: boolean;
   autoCloseOnCapture?: boolean;
 }
 
-
 export default function CameraCapture({
   visible,
   onClose,
   onImageCaptured,
   onBarcodeScanned,
-  barcodeOnly = false,
   allowGallery = true,
-  scansRemaining,
-  isPaidUser = false,
-  isGuest = false,
   autoCloseOnCapture = true,
 }: CameraCaptureProps) {
   const [permission, requestPermission] = useCameraPermissions();
@@ -68,14 +65,14 @@ export default function CameraCapture({
   const [isCameraReady, setIsCameraReady] = useState(false);
   const cameraRef = useRef<CameraView>(null);
   const barcodeHandledRef = useRef(false);
-  const barcodeStabilityRef = useRef<{ value: string; count: number; firstSeenAt: number } | null>(null);
-  const [barcodeDetectedPulse, setBarcodeDetectedPulse] = useState(false);
+  const barcodeStabilityRef = useRef<{ value: string; count: number; firstSeenAt: number } | null>(
+    null,
+  );
 
   useEffect(() => {
     if (visible) {
       barcodeHandledRef.current = false;
       barcodeStabilityRef.current = null;
-      setBarcodeDetectedPulse(false);
     }
   }, [visible]);
 
@@ -90,19 +87,20 @@ export default function CameraCapture({
 
     const now = Date.now();
     const prev = barcodeStabilityRef.current;
-    const next = (prev && prev.value === result.data && now - prev.firstSeenAt < BARCODE_STABILITY_WINDOW_MS)
-      ? { value: prev.value, count: prev.count + 1, firstSeenAt: prev.firstSeenAt }
-      : { value: result.data, count: 1, firstSeenAt: now };
+    const next =
+      prev && prev.value === result.data && now - prev.firstSeenAt < BARCODE_STABILITY_WINDOW_MS
+        ? { value: prev.value, count: prev.count + 1, firstSeenAt: prev.firstSeenAt }
+        : { value: result.data, count: 1, firstSeenAt: now };
     barcodeStabilityRef.current = next;
     if (next.count < BARCODE_STABILITY_FRAMES) return;
 
+    // No UI, no haptic, no state change — the caller decides silently whether
+    // this resolves the scan. The user must never learn a barcode was read.
     barcodeHandledRef.current = true;
-    setBarcodeDetectedPulse(true);
     onBarcodeScanned?.(result);
     setTimeout(() => {
       barcodeHandledRef.current = false;
       barcodeStabilityRef.current = null;
-      setBarcodeDetectedPulse(false);
     }, 3000);
   };
 
@@ -162,7 +160,10 @@ export default function CameraCapture({
             <TouchableOpacity
               style={styles.permissionPrimaryButton}
               onPress={withHaptic(async () => {
-                if (canAskAgain) { await requestPermission(); return; }
+                if (canAskAgain) {
+                  await requestPermission();
+                  return;
+                }
                 await Linking.openSettings();
               }, 'medium')}
             >
@@ -170,7 +171,10 @@ export default function CameraCapture({
                 {canAskAgain ? 'Allow Camera Access' : 'Open Settings'}
               </Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.permissionSecondaryButton} onPress={withHaptic(onClose, 'selection')}>
+            <TouchableOpacity
+              style={styles.permissionSecondaryButton}
+              onPress={withHaptic(onClose, 'selection')}
+            >
               <Text style={styles.permissionSecondaryText}>Not Now</Text>
             </TouchableOpacity>
           </View>
@@ -179,9 +183,8 @@ export default function CameraCapture({
     );
   }
 
-  const instructionText = barcodeOnly
-    ? 'Point camera at the bottle\'s barcode\nor tap below to add manually'
-    : 'Point camera at the label\nand tap to capture';
+  // One instruction, always. Never mentions a barcode (spec A.0).
+  const instructionText = 'Point camera at the label\nand tap to capture';
 
   return (
     <Modal visible={visible} animationType="slide" transparent={false}>
@@ -192,31 +195,37 @@ export default function CameraCapture({
           facing={cameraType}
           flash={flashMode}
           onCameraReady={() => setIsCameraReady(true)}
-          {...(onBarcodeScanned ? {
-            onBarcodeScanned: handleBarcodeScannedInternal,
-            barcodeScannerSettings: {
-              barcodeTypes: ['ean13', 'ean8', 'upc_a', 'upc_e'],
-            },
-          } : {})}
+          {...(onBarcodeScanned
+            ? {
+                onBarcodeScanned: handleBarcodeScannedInternal,
+                barcodeScannerSettings: {
+                  barcodeTypes: ['ean13', 'ean8', 'upc_a', 'upc_e'],
+                },
+              }
+            : {})}
         >
           <SafeAreaView style={styles.overlay}>
-
             {/* Top Bar */}
             <View style={styles.topBar}>
-              <TouchableOpacity onPress={withHaptic(onClose, 'selection')} style={styles.iconButton}>
-                <Ionicons name="close" size={28} color={colors.white} />
-              </TouchableOpacity>
-              <ScanCounter
-                scansRemaining={scansRemaining}
-                isPaidUser={isPaidUser}
-                isGuest={isGuest}
-                barcodeOnly={barcodeOnly}
-              />
               <TouchableOpacity
-                onPress={withHaptic(() => setFlashMode(f => f === 'off' ? 'on' : 'off'), 'selection')}
+                onPress={withHaptic(onClose, 'selection')}
                 style={styles.iconButton}
               >
-                <Ionicons name={flashMode === 'on' ? 'flash' : 'flash-off'} size={24} color={colors.white} />
+                <Ionicons name="close" size={28} color={colors.white} />
+              </TouchableOpacity>
+              <View />
+              <TouchableOpacity
+                onPress={withHaptic(
+                  () => setFlashMode((f) => (f === 'off' ? 'on' : 'off')),
+                  'selection',
+                )}
+                style={styles.iconButton}
+              >
+                <Ionicons
+                  name={flashMode === 'on' ? 'flash' : 'flash-off'}
+                  size={24}
+                  color={colors.white}
+                />
               </TouchableOpacity>
             </View>
 
@@ -226,48 +235,31 @@ export default function CameraCapture({
                 <Text style={styles.instructionText}>{instructionText}</Text>
               </View>
 
-              {/* Silent barcode detection — a brief pulse, not a mode switch */}
-              {barcodeDetectedPulse && (
-                <View style={styles.barcodePulse}>
-                  <Ionicons name="barcode" size={14} color={colors.gold} />
-                  <Text style={styles.barcodePulseText}>Barcode found — checking...</Text>
-                </View>
-              )}
-
-              {!barcodeOnly ? (
-                <View style={styles.viewfinderFrame}>
-                  <View style={styles.viewfinderInner}>
-                    <View style={[styles.corner, styles.cornerTL]} />
-                    <View style={[styles.corner, styles.cornerTR]} />
-                    <View style={[styles.corner, styles.cornerBL]} />
-                    <View style={[styles.corner, styles.cornerBR]} />
-                    {/* Centre alignment rule — helps user align the label horizontally */}
-                    <View style={styles.centerLine} />
-                    <View style={styles.centerLineLabel}>
-                      <Text style={styles.centerLineLabelText}>Align label here</Text>
-                    </View>
+              {/* One viewfinder: the bottle label. There is no barcode
+                  reticle and no alternate frame to switch to. */}
+              <View style={styles.viewfinderFrame}>
+                <View style={styles.viewfinderInner}>
+                  <View style={[styles.corner, styles.cornerTL]} />
+                  <View style={[styles.corner, styles.cornerTR]} />
+                  <View style={[styles.corner, styles.cornerBL]} />
+                  <View style={[styles.corner, styles.cornerBR]} />
+                  {/* Centre alignment rule — helps user align the label horizontally */}
+                  <View style={styles.centerLine} />
+                  <View style={styles.centerLineLabel}>
+                    <Text style={styles.centerLineLabelText}>Align label here</Text>
                   </View>
                 </View>
-              ) : (
-                <View style={[
-                  styles.viewfinderFrame,
-                  barcodeOnly && styles.viewfinderBarcode,
-                ]} />
-              )}
+              </View>
             </View>
 
             {/* Bottom Controls */}
             <View style={styles.bottomControls}>
-              {barcodeOnly && (
-                <View style={styles.barcodeHint}>
-                  <Ionicons name="barcode-outline" size={16} color="rgba(255,255,255,0.6)" />
-                  <Text style={styles.barcodeHintText}>Scanning for barcode automatically</Text>
-                </View>
-              )}
-
               <View style={styles.shutterRow}>
-                {!barcodeOnly && allowGallery ? (
-                  <TouchableOpacity onPress={withHaptic(pickFromGallery, 'selection')} style={styles.sideButton}>
+                {allowGallery ? (
+                  <TouchableOpacity
+                    onPress={withHaptic(pickFromGallery, 'selection')}
+                    style={styles.sideButton}
+                  >
                     <Ionicons name="images-outline" size={26} color={colors.white} />
                   </TouchableOpacity>
                 ) : (
@@ -289,14 +281,16 @@ export default function CameraCapture({
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  onPress={withHaptic(() => setCameraType(t => t === 'back' ? 'front' : 'back'), 'selection')}
+                  onPress={withHaptic(
+                    () => setCameraType((t) => (t === 'back' ? 'front' : 'back')),
+                    'selection',
+                  )}
                   style={styles.sideButton}
                 >
                   <Ionicons name="camera-reverse-outline" size={26} color={colors.white} />
                 </TouchableOpacity>
               </View>
             </View>
-
           </SafeAreaView>
         </CameraView>
       </View>
@@ -396,28 +390,6 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     overflow: 'hidden',
   },
-  barcodePulse: {
-    position: 'absolute',
-    bottom: spacing(2),
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing(1),
-    alignSelf: 'center',
-    backgroundColor: 'rgba(10,7,5,0.85)',
-    borderWidth: 1,
-    borderColor: 'rgba(214,138,56,0.5)',
-    borderRadius: 999,
-    paddingHorizontal: spacing(2),
-    paddingVertical: spacing(1),
-  },
-  barcodePulseText: {
-    color: colors.gold,
-    fontSize: 12,
-    fontWeight: '600',
-  },
   viewfinderFrame: {
     width: width * 0.75,
     height: width * 0.9,
@@ -429,10 +401,27 @@ const styles = StyleSheet.create({
   viewfinderInner: { flex: 1, position: 'relative' },
   corner: { position: 'absolute', width: 26, height: 26, borderColor: '#D68A38' },
   cornerTL: { top: -1, left: -1, borderTopWidth: 3, borderLeftWidth: 3, borderTopLeftRadius: 10 },
-  cornerTR: { top: -1, right: -1, borderTopWidth: 3, borderRightWidth: 3, borderTopRightRadius: 10 },
-  cornerBL: { bottom: -1, left: -1, borderBottomWidth: 3, borderLeftWidth: 3, borderBottomLeftRadius: 10 },
-  cornerBR: { bottom: -1, right: -1, borderBottomWidth: 3, borderRightWidth: 3, borderBottomRightRadius: 10 },
-  viewfinderBarcode: { width: width * 0.8, height: width * 0.35, borderRadius: 16 },
+  cornerTR: {
+    top: -1,
+    right: -1,
+    borderTopWidth: 3,
+    borderRightWidth: 3,
+    borderTopRightRadius: 10,
+  },
+  cornerBL: {
+    bottom: -1,
+    left: -1,
+    borderBottomWidth: 3,
+    borderLeftWidth: 3,
+    borderBottomLeftRadius: 10,
+  },
+  cornerBR: {
+    bottom: -1,
+    right: -1,
+    borderBottomWidth: 3,
+    borderRightWidth: 3,
+    borderBottomRightRadius: 10,
+  },
   centerLine: {
     position: 'absolute',
     left: 12,
@@ -465,19 +454,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing(1),
     paddingVertical: spacing(0.75),
   },
-  modeTab: { alignItems: 'center', gap: spacing(0.5), paddingHorizontal: spacing(2), paddingVertical: spacing(0.75), borderRadius: 20 },
+  modeTab: {
+    alignItems: 'center',
+    gap: spacing(0.5),
+    paddingHorizontal: spacing(2),
+    paddingVertical: spacing(0.75),
+    borderRadius: 20,
+  },
   modeTabActive: { backgroundColor: 'rgba(214,138,56,0.18)' },
   modeTabText: { color: 'rgba(255,255,255,0.5)', fontSize: 12, fontWeight: '600' },
   modeTabTextActive: { color: colors.gold },
-  barcodeHint: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing(1),
-    marginBottom: spacing(4),
-    opacity: 0.6,
-  },
-  barcodeHintText: { color: 'rgba(255,255,255,0.6)', fontSize: 13, fontWeight: '500' },
   shutterRow: {
     flexDirection: 'row',
     alignItems: 'center',

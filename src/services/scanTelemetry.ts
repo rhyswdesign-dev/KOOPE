@@ -23,7 +23,10 @@ export type ScanPath = 'photo' | 'barcode';
 
 export type ScanFailureReason =
   | 'too_dark'
+  | 'too_bright'
   | 'too_blurry'
+  | 'too_far'
+  | 'too_small'
   | 'not_a_bottle'
   | 'not_recognised'
   | 'connection_error'

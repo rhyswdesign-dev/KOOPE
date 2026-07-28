@@ -1,8 +1,19 @@
 /**
  * Smart Scan Screen
- * Scan waterfall (all tiers):
  *
- *   barcode first (fastest) → AI label OCR → visual recognition → manual fallback
+ * ONE presented experience: point the camera at the bottle (scanner spec A.0).
+ * There is no barcode mode, no barcode reticle, no mode switch, and nothing
+ * anywhere tells the user to find or aim at a UPC.
+ *
+ * Underneath, two paths race silently and the user never learns which won:
+ *
+ *   · silent barcode  — on-device decode runs continuously on every frame at
+ *     zero cost. If a barcode happens to drift through frame and resolves
+ *     confidently, we skip AI vision entirely and go straight to the Answer
+ *     Card. If it misses, it fails *silently*: no alert, no mode change, the
+ *     camera stays open and the user just keeps framing the bottle.
+ *   · photo → bottle-recognize — one consolidated server round trip. This is
+ *     the primary path, since front-of-bottle framing rarely shows a barcode.
  *
  * Free tier is scan-unlimited; monetization gate is inventory capacity (10 bottles),
  * not scan capability.
@@ -18,7 +29,7 @@ import {
   ActivityIndicator,
   BackHandler,
 } from 'react-native';
-import { useNavigation, useIsFocused, useRoute } from '@react-navigation/native';
+import { useNavigation, useIsFocused } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, radii } from '../theme/tokens';
@@ -43,49 +54,33 @@ import {
   trackScanFailed,
 } from '../services/scanTelemetry';
 
-function getManualPrefill(
-  productName: string | null,
-  productBrand: string | null,
-): { brand?: string; name?: string } {
-  const cleanName = productName?.trim() || '';
-  const cleanBrand = productBrand?.trim() || '';
-
-  if (!cleanName && !cleanBrand) return {};
-  if (!cleanBrand) return { brand: cleanName };
-  if (!cleanName) return { brand: cleanBrand };
-
-  const normalizedName = cleanName.toLowerCase();
-  const normalizedBrand = cleanBrand.toLowerCase();
-  if (normalizedName.startsWith(normalizedBrand)) {
-    const trimmed = cleanName.slice(cleanBrand.length).trim();
-    return { brand: cleanBrand, name: trimmed || undefined };
-  }
-
-  return { brand: cleanBrand, name: cleanName };
-}
-
 export default function SmartScanScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<CameraStackParamList>>();
-  const route = useRoute<any>();
   const isFocused = useIsFocused();
   const { user } = useAuth();
   const { isSubscriber } = useSubscription();
 
   const [cameraVisible, setCameraVisible] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
-  const [scanMode, setScanMode] = useState<'barcode' | 'ai' | null>(null);
   const [cameraMode, setCameraMode] = useState<'bottle' | 'recipe' | 'ingredients'>('bottle');
   const [showConsentDialog, setShowConsentDialog] = useState(false);
   const [hasGivenConsent, setHasGivenConsent] = useState(false);
-  // When true, camera opens in barcode-only mode (Stage 7 fallback, or correction flow)
-  const [barcodeMode, setBarcodeMode] = useState(() => !!(route?.params as any)?.barcodeOnly);
   const [showBottleNotFound, setShowBottleNotFound] = useState(false);
-  // Always keep full photo scanner enabled; GoogleVisionService handles API fallback.
-  const aiScanEnabled = true;
 
   // Guard to ensure camera only auto-opens on first mount, not on re-focus
   // after returning from BottleDetail or other downstream screens.
   const hasOpenedOnMountRef = useRef(false);
+
+  // Monotonic id for the current scan attempt. A silent barcode lookup that
+  // comes back after the user has already captured a photo (or after another
+  // code was decoded) is stale and must be dropped — otherwise a slow
+  // background lookup could yank the user off a photo result seconds later.
+  const scanRunIdRef = useRef(0);
+
+  // Codes that already came back empty. The decoder's stability gate re-arms
+  // every 3s, so without this a barcode parked in frame would be re-queried
+  // (and re-logged) on a loop for as long as the user stands there.
+  const exhaustedBarcodesRef = useRef<Set<string>>(new Set());
 
   // Check consent status on mount
   useEffect(() => {
@@ -183,123 +178,77 @@ export default function SmartScanScreen() {
     return () => backHandler.remove();
   }, [cameraVisible, navigation]);
 
-  // ─── Barcode scan handler (FREE + PLUS/PRO) ───────────────────────────────
+  // ─── Silent barcode resolution ────────────────────────────────────────────
+  // Fires from the always-on, zero-UI decode running underneath normal
+  // bottle framing (spec A.0). Three rules make it invisible:
+  //
+  //   1. It shows NO UI while it runs — no overlay, no "looking up barcode",
+  //      no mode change. The camera stays open and the user keeps framing.
+  //   2. It fails SILENTLY. A miss, an unsupported code, an offline lookup —
+  //      none of them get an alert, because the user never asked for a barcode
+  //      scan and telling them one failed would leak the mechanism. The photo
+  //      path is still right there, and it owns every error state.
+  //   3. It only emits telemetry when it WINS. The user's scan attempt is the
+  //      photo they are lining up; an incidental shelf-tag barcode drifting
+  //      through frame is not a scan attempt, and counting one as a failure
+  //      (every 3s, for as long as it stays in frame) would bury the 1.3
+  //      success-rate KPI in phantom failures. Misses are logged, not tracked.
+  //
+  // Only a confident hit is allowed to act, and when it does it goes straight
+  // to the Answer Card with nothing indicating a barcode was involved.
   const handleBarcodeScanned = useCallback(
     async (result: { type: string; data: string }) => {
-      setCameraVisible(false);
-      setBarcodeMode(false);
-      setAnalyzing(true);
-      setScanMode('barcode');
+      // Same code, already resolved to nothing this session — don't re-query it
+      // every time the decoder's stability gate re-arms.
+      if (exhaustedBarcodesRef.current.has(result.data)) return;
 
-      const session = createScanSession('barcode');
-      trackScanAttempt(session);
+      const runId = ++scanRunIdRef.current;
+      const detectedAt = Date.now();
 
       try {
-        log.info('SmartScanScreen', 'Barcode detected', { barcode: result.data });
+        log.info('SmartScanScreen', 'Silent barcode detected', { barcode: result.data });
 
-        const lookupStartedAt = Date.now();
-        const { spirit, productName, productBrand, status, barcode } =
-          await BarcodeService.lookupBarcode(result.data);
-        const networkMs = Date.now() - lookupStartedAt;
+        const { spirit, barcode, source } = await BarcodeService.lookupBarcode(result.data);
+        const networkMs = Date.now() - detectedAt;
 
-        if (status === 'invalid_barcode') {
-          trackScanFailed(session, 'invalid_barcode');
-          Alert.alert(
-            'Unsupported Barcode',
-            'This code format is not supported for bottle lookup yet. Try scanning the label instead.',
-            [
-              {
-                text: 'Scan Label',
-                onPress: () => {
-                  setBarcodeMode(false);
-                  handleRetake();
-                },
-              },
-              {
-                text: 'Cancel',
-                style: 'cancel',
-                onPress: () => handleRetake(),
-              },
-            ],
-          );
-        } else if (status === 'network_error') {
-          trackScanFailed(session, 'connection_error');
-          Alert.alert(
-            'Lookup Service Unavailable',
-            'We could not reach barcode lookup services. Check your connection and try again.',
-            [
-              { text: 'Try Again', onPress: () => handleRetake() },
-              { text: 'Cancel', style: 'cancel', onPress: () => navigation.goBack() },
-            ],
-          );
-        } else if (spirit) {
-          InventoryService.recordScan({
-            userId: user?.id || null,
-            scanType: 'bottle',
-            itemName: spirit.name,
-            brandName: spirit.brand,
-            addedToInventory: false,
-          }).catch(() => {});
+        // Superseded by a photo capture or a later decode — drop it.
+        if (runId !== scanRunIdRef.current) return;
 
-          if (user?.id) {
-            challengeProgressService.trackScanBottle(
-              user.id,
-              spirit.id || spirit.name,
-              spirit.type,
-            );
-          }
-
-          trackScanResolved(session, { resolutionSource: 'barcode', networkMs });
-
-          navigation.replace('BottleDetail', {
-            bottle: spirit,
-            scannedBarcode: barcode || result.data,
-          });
-        } else {
-          // Barcode found but not in our spirits DB — go to manual entry
-          trackScanFailed(session, 'barcode_not_found');
-          const prefill = getManualPrefill(productName, productBrand);
-          const labelForAlert = productName
-            ? `"${productName}"`
-            : `barcode ${barcode || result.data}`;
-          Alert.alert(
-            'Bottle Not Found Yet',
-            `We found ${labelForAlert} but it's not in our database yet.\n\nTry scanning the front label for more detail, or add the bottle manually from the Home Bar screen.`,
-            [
-              {
-                text: 'Scan Again',
-                onPress: () => handleRetake(),
-              },
-              {
-                text: 'Cancel',
-                style: 'cancel',
-                onPress: () => navigation.goBack(),
-              },
-            ],
-          );
+        if (!spirit) {
+          exhaustedBarcodesRef.current.add(result.data);
+          return;
         }
+
+        InventoryService.recordScan({
+          userId: user?.id || null,
+          scanType: 'bottle',
+          itemName: spirit.name,
+          brandName: spirit.brand,
+          addedToInventory: false,
+        }).catch(() => {});
+
+        if (user?.id) {
+          challengeProgressService.trackScanBottle(user.id, spirit.id || spirit.name, spirit.type);
+        }
+
+        // Session clock is backdated to the decode, so DURATION_MS measures the
+        // real "frame to Answer Card" time this path is budgeted against (A.4).
+        const session = createScanSession('barcode', detectedAt);
+        trackScanAttempt(session);
+        trackScanResolved(session, {
+          resolutionSource: source ? `barcode_${source}` : 'barcode',
+          networkMs,
+        });
+
+        setCameraVisible(false);
+        navigation.replace('BottleDetail', {
+          bottle: spirit,
+          scannedBarcode: barcode || result.data,
+        });
       } catch (error) {
-        log.error('SmartScanScreen', 'Error looking up barcode', error);
-        // Never fail silently (audit/sprint-1 device-test fix): a connection
-        // failure gets the honest offline state; anything else gets a visible
-        // error with a path forward instead of the camera quietly reopening.
-        if (isConnectivityError(error)) {
-          trackScanFailed(session, 'connection_error');
-          handleScanConnectionError();
-        } else {
-          trackScanFailed(session, 'error');
-          Alert.alert(
-            'Lookup Failed',
-            'Something went wrong looking up that barcode. Please try again.',
-            [
-              { text: 'Try Again', onPress: () => handleRetake() },
-              { text: 'Cancel', style: 'cancel', onPress: () => navigation.goBack() },
-            ],
-          );
-        }
-      } finally {
-        setAnalyzing(false);
-        setScanMode(null);
+        // Silent by design — the photo path owns every user-visible failure.
+        exhaustedBarcodesRef.current.add(result.data);
+        log.warn('SmartScanScreen', 'Silent barcode lookup failed', error);
       }
     },
     [user, navigation],
@@ -307,9 +256,12 @@ export default function SmartScanScreen() {
 
   // ─── Photo capture handler ────────────────────────────────────────────────
   const handleImageCaptured = async (uri: string) => {
+    // Capturing supersedes any silent barcode lookup still in flight — the
+    // user has committed to this frame, so a late barcode answer must not
+    // navigate out from under the photo result.
+    scanRunIdRef.current += 1;
     setCameraVisible(false);
     setAnalyzing(true);
-    setScanMode('ai');
 
     // Telemetry (Phase 1.3) is scoped to bottle scans — recipe/ingredient
     // photo captures share this handler but aren't part of the scan-latency
@@ -322,18 +274,19 @@ export default function SmartScanScreen() {
     try {
       log.info('SmartScanScreen', 'Running AI analysis on captured image');
 
-      // ── Stage 1: Image quality gate ──────────────────────────────────────────
-      // Check before calling Vision API — saves API cost on bad photos.
+      // ── Stage 1: on-device quality gate ─────────────────────────────────────
+      // Runs before any network call so a doomed photo spends none of the
+      // 3-second budget (spec A.3). The service picks the specific fix —
+      // "more light", "move closer", "hold steady" — and we render it verbatim
+      // rather than collapsing everything into one generic retry.
       const quality = await ImageQualityService.check(uri);
       if (!quality.ok) {
         log.warn('SmartScanScreen', 'Stage 1 gate: image quality failed', {
           reason: quality.reason,
         });
-        if (session)
-          trackScanFailed(session, quality.reason === 'too_dark' ? 'too_dark' : 'too_blurry');
+        if (session) trackScanFailed(session, quality.reason);
         setAnalyzing(false);
-        setScanMode(null);
-        Alert.alert(quality.reason === 'too_dark' ? 'Too Dark' : 'Too Blurry', quality.message, [
+        Alert.alert(quality.title, quality.message, [
           { text: 'Try Again', onPress: () => handleRetake() },
           { text: 'Cancel', style: 'cancel', onPress: () => navigation.goBack() },
         ]);
@@ -360,7 +313,6 @@ export default function SmartScanScreen() {
         if (source === 'network_error') {
           if (session) trackScanFailed(session, 'connection_error');
           setAnalyzing(false);
-          setScanMode(null);
           handleScanConnectionError();
           return;
         }
@@ -369,7 +321,6 @@ export default function SmartScanScreen() {
           log.warn('SmartScanScreen', 'Stage 2 gate: no spirit signal detected');
           if (session) trackScanFailed(session, 'not_a_bottle');
           setAnalyzing(false);
-          setScanMode(null);
           handleNotABottle();
           return;
         }
@@ -499,7 +450,6 @@ export default function SmartScanScreen() {
       }
     } finally {
       setAnalyzing(false);
-      setScanMode(null);
     }
   };
 
@@ -522,15 +472,13 @@ export default function SmartScanScreen() {
     );
   };
 
+  // Was a plain Alert.alert with only Try Again / Cancel — no way out if this
+  // pre-network gate false-negatives on a real bottle photo. Reuses the same
+  // BottleNotFoundModal as handleBottleNotFound (below) so both "not a
+  // bottle at all" and "a bottle, but couldn't identify which one" land on
+  // the same recovery UI, including the Search Library escape hatch.
   const handleNotABottle = () => {
-    Alert.alert(
-      'No Bottle Detected',
-      'Make sure the bottle label is clearly visible and in the frame. Try better lighting or move closer.',
-      [
-        { text: 'Try Again', onPress: () => handleRetake() },
-        { text: 'Cancel', style: 'cancel', onPress: () => navigation.goBack() },
-      ],
-    );
+    setShowBottleNotFound(true);
   };
 
   const handleUnknownIngredient = () => {
@@ -563,18 +511,18 @@ export default function SmartScanScreen() {
   };
 
   const handleRetake = () => {
-    setScanMode(null);
-    setBarcodeMode(false);
     setCameraVisible(true);
   };
 
   const handleCameraClose = () => {
-    setBarcodeMode(false);
     navigation.goBack();
   };
 
-  const analyzingTitle = scanMode === 'barcode' ? 'Looking up barcode...' : 'Identifying bottle...';
-  const analyzingSubtitle = scanMode === 'barcode' ? 'Searching spirits database' : 'Reading label';
+  // One copy for every path. The barcode racer never speaks for itself — if it
+  // wins we navigate before this ever renders, and if it loses the user is
+  // simply looking at the camera (spec A.0).
+  const analyzingTitle = 'Identifying bottle...';
+  const analyzingSubtitle = 'Reading label';
   return (
     <>
       <DataConsentDialog
@@ -589,12 +537,6 @@ export default function SmartScanScreen() {
         onTryAgain={() => {
           setShowBottleNotFound(false);
           handleRetake();
-        }}
-        onScanBarcode={() => {
-          setShowBottleNotFound(false);
-          setBarcodeMode(true);
-          setScanMode(null);
-          setCameraVisible(true);
         }}
         onSearchLibrary={() => {
           setShowBottleNotFound(false);
@@ -614,16 +556,13 @@ export default function SmartScanScreen() {
         visible={cameraVisible}
         onClose={handleCameraClose}
         onImageCaptured={handleImageCaptured}
-        // Barcode-first: detection now runs continuously, silently, underneath
-        // normal photo-mode framing too (not just barcode-only/Stage-7 fallback).
-        // CameraCapture's stability gate (consecutive-frame match) prevents the
-        // false-fire-on-any-barcode-in-frame regression this used to guard against.
+        // Always on, always silent (spec A.0). CameraCapture's stability gate
+        // (same code decoded on consecutive frames) is what makes leaving this
+        // running under normal photo framing safe — without it, any incidental
+        // barcode crossing the viewfinder would auto-fire.
         onBarcodeScanned={handleBarcodeScanned}
-        barcodeOnly={!aiScanEnabled || barcodeMode}
         autoCloseOnCapture={false}
         title="Smart Scan"
-        isPaidUser={isSubscriber}
-        isGuest={!user}
       />
 
       {analyzing && (
