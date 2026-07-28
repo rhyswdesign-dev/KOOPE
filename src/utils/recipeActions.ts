@@ -4,6 +4,8 @@ import { usePersonalization } from '../store/usePersonalization';
 import { log } from '../lib/logger';
 import { trackEvent, ANALYTICS_EVENTS, ANALYTICS_PROPS } from '../lib/analytics';
 import { getCocktailImage } from '../../assets/images/cocktails';
+import { dominantFlavors } from './flavorTaxonomy';
+import { logRecipeSignal } from '../services/recipeSignalService';
 import type { DetailedCocktail } from './cocktailDataTransformer';
 
 /**
@@ -47,7 +49,7 @@ export type RecipeViewSource =
 export const handleRecipeView = (
   recipe: Recipe,
   navigation: any,
-  source: RecipeViewSource = 'unknown'
+  source: RecipeViewSource = 'unknown',
 ) => {
   // Track recipe view with source for analytics
   trackEvent(ANALYTICS_EVENTS.RECIPE_VIEWED, {
@@ -60,7 +62,7 @@ export const handleRecipeView = (
   // This allows local recipes (like mocktails) to be displayed without Supabase lookup
   navigation.navigate('CocktailDetail', {
     cocktailId: recipe.id,
-    cocktail: recipe
+    cocktail: recipe,
   });
 
   // Record user behavior for AI learning
@@ -68,8 +70,15 @@ export const handleRecipeView = (
     const { recordInteraction } = usePersonalization.getState();
     recordInteraction('cocktail_viewed', recipe.id, { recipe, source });
   } catch (error) {
-    log.warn('recipeActions', 'Failed to record recipe view behavior', { error, recipeId: recipe.id });
+    log.warn('recipeActions', 'Failed to record recipe view behavior', {
+      error,
+      recipeId: recipe.id,
+    });
   }
+
+  // Durable taste signal. This is the card-tap path into CocktailDetail;
+  // RecipeDetailScreen logs its own view for the separate RecipeDetail route.
+  logRecipeSignal({ recipeId: recipe.id, signal: 'view', source });
 };
 
 /**
@@ -78,7 +87,7 @@ export const handleRecipeView = (
 export const handleCreateShoppingList = (
   recipe: Recipe,
   setSelectedRecipe: (recipe: Recipe | DetailedCocktail) => void,
-  setGroceryListVisible: (visible: boolean) => void
+  setGroceryListVisible: (visible: boolean) => void,
 ) => {
   // Try to get transformed recipe data with detailed ingredients
   const transformedRecipe = getDetailedCocktail(recipe.id);
@@ -94,7 +103,10 @@ export const handleCreateShoppingList = (
     const { recordInteraction } = usePersonalization.getState();
     recordInteraction('shopping_list_opened', recipe.id, { recipe });
   } catch (error) {
-    log.warn('recipeActions', 'Failed to record shopping list behavior', { error, recipeId: recipe.id });
+    log.warn('recipeActions', 'Failed to record shopping list behavior', {
+      error,
+      recipeId: recipe.id,
+    });
   }
 };
 
@@ -106,13 +118,13 @@ export const handleSaveRecipe = (
   toggleSavedCocktail: (cocktail: any) => 'success' | 'limit_reached' | 'removed',
   isCocktailSaved: (id: string) => boolean,
   navigation?: any,
-  showToast?: (message: string, type: 'success' | 'error' | 'info' | 'warning') => void
+  showToast?: (message: string, type: 'success' | 'error' | 'info' | 'warning') => void,
 ) => {
   const cocktailData = {
     id: recipe.id,
     name: recipe.name || recipe.title || 'Untitled Recipe',
     subtitle: recipe.description || recipe.subtitle || '',
-    image: getCocktailImage(recipe.id, recipe.image) // Resolve to local image if available
+    image: getCocktailImage(recipe.id, recipe.image), // Resolve to local image if available
   };
 
   const wasSaved = isCocktailSaved(recipe.id);
@@ -120,7 +132,9 @@ export const handleSaveRecipe = (
 
   // Handle limit reached - redirect to paywall
   if (result === 'limit_reached') {
-    log.info('recipeActions', 'Free recipe limit reached - redirecting to paywall', { recipeId: recipe.id });
+    log.info('recipeActions', 'Free recipe limit reached - redirecting to paywall', {
+      recipeId: recipe.id,
+    });
     if (showToast) {
       showToast('Upgrade to save more recipes', 'warning');
     }
@@ -139,6 +153,14 @@ export const handleSaveRecipe = (
     }
   }
 
+  // Durable taste signal, both directions — an unsave is real negative
+  // feedback and was previously discarded entirely.
+  if (result === 'removed') {
+    logRecipeSignal({ recipeId: recipe.id, signal: 'unsave' });
+  } else if (result === 'success') {
+    logRecipeSignal({ recipeId: recipe.id, signal: 'save' });
+  }
+
   // Record user behavior for AI learning (only when saving, not unsaving)
   if (!wasSaved && result === 'success') {
     // Also record for personalization profile with spirit and flavor context
@@ -150,20 +172,23 @@ export const handleSaveRecipe = (
         flavors: extractFlavors(recipe),
       });
     } catch (error) {
-      log.warn('recipeActions', 'Failed to record personalization interaction', { error, recipeId: recipe.id });
+      log.warn('recipeActions', 'Failed to record personalization interaction', {
+        error,
+        recipeId: recipe.id,
+      });
     }
   }
 };
 
 /**
- * Extract flavor keywords from recipe description
+ * Extract a recipe's dominant flavours.
+ *
+ * Was a substring match over the description ("does the text contain the word
+ * 'smoky'?"), which found nothing for most recipes and the wrong thing for
+ * some. Now delegates to the canonical extractor, which prefers the recipe's
+ * declared flavorProfiles and falls back to ingredient matching.
  */
-const extractFlavors = (recipe: Recipe): string[] => {
-  const flavorKeywords = ['citrus', 'herbal', 'bitter', 'sweet', 'smoky', 'floral', 'spiced', 'fruity', 'sour', 'spicy'];
-  const text = `${recipe.description || ''} ${recipe.subtitle || ''}`.toLowerCase();
-
-  return flavorKeywords.filter(flavor => text.includes(flavor));
-};
+const extractFlavors = (recipe: Recipe): string[] => dominantFlavors(recipe as any);
 
 /**
  * Handle recipe deletion with confirmation
@@ -171,7 +196,7 @@ const extractFlavors = (recipe: Recipe): string[] => {
 export const handleDeleteRecipe = async (
   recipe: Recipe,
   deleteRecipe: (id: string) => Promise<void>,
-  refreshCallback?: () => Promise<void>
+  refreshCallback?: () => Promise<void>,
 ) => {
   if (!recipe.id) return;
 
@@ -195,7 +220,7 @@ export const handleDeleteRecipe = async (
           }
         },
       },
-    ]
+    ],
   );
 };
 
@@ -217,7 +242,7 @@ export const createRecipeCardProps = (
     showCartButton?: boolean;
     showDeleteButton?: boolean;
     source?: RecipeViewSource;
-  } = {}
+  } = {},
 ) => {
   const {
     toggleSavedCocktail,
@@ -236,12 +261,16 @@ export const createRecipeCardProps = (
   return {
     recipe,
     onPress: (recipe: Recipe) => handleRecipeView(recipe, navigation, source),
-    onSave: toggleSavedCocktail && isCocktailSaved
-      ? (recipe: Recipe) => handleSaveRecipe(recipe, toggleSavedCocktail, isCocktailSaved, navigation, showToast)
-      : undefined,
-    onAddToCart: setSelectedRecipe && setGroceryListVisible
-      ? (recipe: Recipe) => handleCreateShoppingList(recipe, setSelectedRecipe, setGroceryListVisible)
-      : undefined,
+    onSave:
+      toggleSavedCocktail && isCocktailSaved
+        ? (recipe: Recipe) =>
+            handleSaveRecipe(recipe, toggleSavedCocktail, isCocktailSaved, navigation, showToast)
+        : undefined,
+    onAddToCart:
+      setSelectedRecipe && setGroceryListVisible
+        ? (recipe: Recipe) =>
+            handleCreateShoppingList(recipe, setSelectedRecipe, setGroceryListVisible)
+        : undefined,
     onDelete: deleteRecipe
       ? (recipe: Recipe) => handleDeleteRecipe(recipe, deleteRecipe, refreshCallback)
       : undefined,

@@ -79,7 +79,7 @@ import { ingredientListToSearchText } from '../utils/ingredientFormatting';
 import { curriculumData } from '../utils/curriculumAdapter';
 import { getCurriculumUnlockForRecipeId } from '../config/unlockContent';
 import { loadUserProfile } from '../services/userProfileService';
-import { initializeTasteGraph } from '../services/tasteGraphService';
+import { hydrateTasteGraph } from '../services/tasteGraphService';
 import {
   detectSeason,
   detectTimeOfDay,
@@ -840,7 +840,9 @@ export default function RecipesScreen() {
             );
           }
 
-          const tasteGraph = initializeTasteGraph(enhancedProfile.tasteProfile);
+          // Hydrate rather than initialize — initializeTasteGraph() re-stamps all
+          // timestamps as "now", which disables decay and confidence entirely.
+          const tasteGraph = hydrateTasteGraph(enhancedProfile.tasteProfile)!;
           const predictions = getPredictiveRecommendations(
             ALL_COCKTAILS as any,
             enhancedProfile as any,

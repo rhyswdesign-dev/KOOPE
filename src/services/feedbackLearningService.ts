@@ -7,6 +7,10 @@
 
 import { log } from '../lib/logger';
 import { UserPersonalizationProfile } from './personalizedExperience';
+import { dominantFlavors } from '../utils/flavorTaxonomy';
+import { ALL_COCKTAILS } from '../data/cocktails';
+
+const COCKTAIL_BY_ID = new Map<string, any>(ALL_COCKTAILS.map((c: any) => [c.id, c]));
 
 /**
  * Weight adjustment amounts
@@ -34,7 +38,7 @@ function updateSpiritScores(
   currentScores: Record<string, number>,
   cocktailSpirit: string | undefined,
   liked: boolean,
-  feedbackReasons: string[]
+  feedbackReasons: string[],
 ): Record<string, number> {
   const updatedScores = { ...currentScores };
 
@@ -54,7 +58,9 @@ function updateSpiritScores(
 
     updatedScores[spirit] = clampScore((updatedScores[spirit] || 50) + adjustment);
 
-    log.debug('FeedbackLearningService', `Boosted ${spirit} by +${adjustment}`, { newScore: updatedScores[spirit] });
+    log.debug('FeedbackLearningService', `Boosted ${spirit} by +${adjustment}`, {
+      newScore: updatedScores[spirit],
+    });
   } else {
     // Negative feedback - reduce this spirit
     const adjustment = hatesSpiritFeedback
@@ -63,7 +69,9 @@ function updateSpiritScores(
 
     updatedScores[spirit] = clampScore((updatedScores[spirit] || 50) + adjustment);
 
-    log.debug('FeedbackLearningService', `Reduced ${spirit} by ${adjustment}`, { newScore: updatedScores[spirit] });
+    log.debug('FeedbackLearningService', `Reduced ${spirit} by ${adjustment}`, {
+      newScore: updatedScores[spirit],
+    });
   }
 
   return updatedScores;
@@ -76,7 +84,7 @@ function updateFlavorScores(
   currentScores: Record<string, number>,
   cocktailFlavors: string[],
   liked: boolean,
-  feedbackReasons: string[]
+  feedbackReasons: string[],
 ): Record<string, number> {
   const updatedScores = { ...currentScores };
 
@@ -86,13 +94,13 @@ function updateFlavorScores(
     ? WEIGHT_ADJUSTMENTS.MODERATE_POSITIVE
     : WEIGHT_ADJUSTMENTS.MODERATE_NEGATIVE;
 
-  cocktailFlavors.forEach(flavor => {
+  cocktailFlavors.forEach((flavor) => {
     const flavorKey = flavor.toLowerCase();
     updatedScores[flavorKey] = clampScore((updatedScores[flavorKey] || 50) + adjustment);
 
     log.debug('FeedbackLearningService', `Adjusted ${flavorKey} by ${adjustment}`, {
       liked,
-      newScore: updatedScores[flavorKey]
+      newScore: updatedScores[flavorKey],
     });
   });
 
@@ -106,7 +114,7 @@ function updateComplexityScore(
   currentScore: number,
   cocktailDifficulty: string | undefined,
   liked: boolean,
-  feedbackReasons: string[]
+  feedbackReasons: string[],
 ): number {
   const tooComplexFeedback = feedbackReasons.includes('too_complex');
 
@@ -134,14 +142,14 @@ function updatePreferredDifficulty(
   currentDifficulties: string[],
   cocktailDifficulty: string | undefined,
   liked: boolean,
-  feedbackReasons: string[]
+  feedbackReasons: string[],
 ): string[] {
   const tooComplexFeedback = feedbackReasons.includes('too_complex');
 
   // If user said "too complex", ensure we're showing easier cocktails
   if (tooComplexFeedback && cocktailDifficulty === 'Hard') {
     // Remove 'Hard' from preferences if present
-    return currentDifficulties.filter(d => d !== 'Hard');
+    return currentDifficulties.filter((d) => d !== 'Hard');
   }
 
   // If user liked a hard cocktail, add Hard to preferences
@@ -161,37 +169,37 @@ interface CocktailMetadata {
   difficulty?: string;
 }
 
-function extractCocktailMetadata(cocktailName: string): CocktailMetadata {
-  // This is a simple extraction - in production you'd look up the actual cocktail data
-  const name = cocktailName.toLowerCase();
+/**
+ * Resolve a recommendation to real recipe metadata.
+ *
+ * This used to substring-match the cocktail's *name*, which meant a "Last
+ * Word" (gin, herbal, citrus) taught the model nothing at all, and a "Smoky
+ * Margarita" taught it "tequila" while missing the smoke — or worse, matched
+ * a name containing a spirit word that isn't its base. Now it looks the
+ * recipe up in the catalog by id and reads its declared data, falling back to
+ * a name match on the catalog only when the id misses.
+ */
+function extractCocktailMetadata(cocktailId: string, cocktailName: string): CocktailMetadata {
+  const recipe =
+    COCKTAIL_BY_ID.get(cocktailId) ??
+    ALL_COCKTAILS.find(
+      (c: any) => String(c.name || c.title || '').toLowerCase() === cocktailName.toLowerCase(),
+    );
 
-  // Detect spirit
-  let spirit: string | undefined;
-  if (name.includes('margarita') || name.includes('tequila') || name.includes('mezcal')) {
-    spirit = name.includes('mezcal') ? 'mezcal' : 'tequila';
-  } else if (name.includes('whiskey') || name.includes('bourbon') || name.includes('rye')) {
-    spirit = 'whiskey';
-  } else if (name.includes('gin')) {
-    spirit = 'gin';
-  } else if (name.includes('rum')) {
-    spirit = 'rum';
-  } else if (name.includes('vodka')) {
-    spirit = 'vodka';
-  } else if (name.includes('brandy') || name.includes('cognac')) {
-    spirit = 'brandy';
+  if (!recipe) {
+    // Unknown recipe — return nothing rather than guessing from the name.
+    // A wrong signal is worse than no signal.
+    return { spirit: undefined, flavors: [], difficulty: undefined };
   }
 
-  // Detect flavors (simplified)
-  const flavors: string[] = [];
-  if (name.includes('citrus') || name.includes('lemon') || name.includes('lime')) flavors.push('citrus');
-  if (name.includes('sweet') || name.includes('sugar')) flavors.push('sweet');
-  if (name.includes('bitter')) flavors.push('bitter');
-  if (name.includes('spicy') || name.includes('spice')) flavors.push('spiced');
-  if (name.includes('herb') || name.includes('mint') || name.includes('basil')) flavors.push('herbal');
-  if (name.includes('smoke') || name.includes('smoky')) flavors.push('smoky');
-  if (name.includes('floral')) flavors.push('floral');
+  const spirit =
+    String((recipe as any).baseSpirit || (recipe as any).base || '').toLowerCase() || undefined;
 
-  return { spirit, flavors, difficulty: undefined };
+  return {
+    spirit,
+    flavors: dominantFlavors(recipe as any),
+    difficulty: (recipe as any).difficulty,
+  };
 }
 
 /**
@@ -206,11 +214,12 @@ function extractCocktailMetadata(cocktailName: string): CocktailMetadata {
 export function updateProfileFromFeedback(
   currentProfile: UserPersonalizationProfile,
   recommendation: {
+    id?: string;
     cocktailName: string;
     matchScore: number;
   },
   liked: boolean,
-  feedbackReasons: string[]
+  feedbackReasons: string[],
 ): Partial<UserPersonalizationProfile> {
   log.info('FeedbackLearningService', 'Learning from user feedback', {
     cocktail: recommendation.cocktailName,
@@ -219,14 +228,14 @@ export function updateProfileFromFeedback(
   });
 
   // Extract cocktail metadata
-  const metadata = extractCocktailMetadata(recommendation.cocktailName);
+  const metadata = extractCocktailMetadata(recommendation.id ?? '', recommendation.cocktailName);
 
   // Update spirit scores
   const updatedSpiritScores = updateSpiritScores(
     currentProfile.spiritScores || {},
     metadata.spirit,
     liked,
-    feedbackReasons
+    feedbackReasons,
   );
 
   // Update flavor scores
@@ -234,7 +243,7 @@ export function updateProfileFromFeedback(
     currentProfile.flavorScores || {},
     metadata.flavors,
     liked,
-    feedbackReasons
+    feedbackReasons,
   );
 
   // Update complexity score
@@ -242,7 +251,7 @@ export function updateProfileFromFeedback(
     currentProfile.complexityScore || 50,
     metadata.difficulty,
     liked,
-    feedbackReasons
+    feedbackReasons,
   );
 
   // Update preferred difficulty
@@ -250,7 +259,7 @@ export function updateProfileFromFeedback(
     currentProfile.preferredDifficulty || ['Easy', 'Medium'],
     metadata.difficulty,
     liked,
-    feedbackReasons
+    feedbackReasons,
   );
 
   // Update favorite spirits list if needed

@@ -6,15 +6,7 @@
  */
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import {
-  Alert,
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  FlatList,
-  Animated,
-} from 'react-native';
+import { Alert, View, Text, StyleSheet, TouchableOpacity, FlatList, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, radii, serif } from '../theme/tokens';
 import Svg, { Circle, G, Line, Polygon, Text as SvgText } from 'react-native-svg';
@@ -23,14 +15,26 @@ import { ALL_COCKTAILS } from '../data/cocktails';
 import RecipeCard from './RecipeCard';
 import { getCocktailImage } from '../../assets/images/cocktails';
 import { log } from '../lib/logger';
-import { getTrendingCocktails, getCurrentSeason, getSeasonDisplayName } from '../services/seasonalTrendingService';
+import {
+  getTrendingCocktails,
+  getCurrentSeason,
+  getSeasonDisplayName,
+} from '../services/seasonalTrendingService';
 import { useUserTier } from '../store/useUserTier';
 import InPageTabBar from './ui/InPageTabBar';
 import { withHaptic } from '../lib/haptics';
 import { useAuth } from '../contexts/AuthContext';
 import { loadUserProfile, saveRecipeToProfile } from '../services/userProfileService';
-import { generateRadarChart, initializeTasteGraph } from '../services/tasteGraphService';
-import { getPredictiveRecommendations, detectTimeOfDay, detectSeason } from '../services/predictiveEngine';
+import {
+  generateRadarChart,
+  initializeTasteGraph,
+  hydrateTasteGraph,
+} from '../services/tasteGraphService';
+import {
+  getPredictiveRecommendations,
+  detectTimeOfDay,
+  detectSeason,
+} from '../services/predictiveEngine';
 import { InventoryService } from '../services/inventoryService';
 import { toBottle } from '../types/database';
 import { RecipesRepository } from '../repos/supabase';
@@ -44,7 +48,7 @@ const RADAR_CENTER = RADAR_SIZE / 2;
 const RADAR_MAX_RADIUS = 76;
 
 function polarPoint(index: number, total: number, radius: number) {
-  const angle = (-Math.PI / 2) + (index / total) * Math.PI * 2;
+  const angle = -Math.PI / 2 + (index / total) * Math.PI * 2;
   return {
     x: RADAR_CENTER + Math.cos(angle) * radius,
     y: RADAR_CENTER + Math.sin(angle) * radius,
@@ -67,7 +71,9 @@ function buildTasteSummary(radar: any) {
   return {
     headline: `${topFlavor} and ${secondFlavor} are leading your palate right now.`,
     support: `${topSpirit} and ${secondSpirit} are the strongest spirit signals shaping your For You feed.`,
-    flavorHighlights: flavors.slice(0, 3).map((item) => ({ label: item.label, value: Math.round(item.value * 100) })),
+    flavorHighlights: flavors
+      .slice(0, 3)
+      .map((item) => ({ label: item.label, value: Math.round(item.value * 100) })),
   };
 }
 
@@ -76,7 +82,10 @@ function isZeroProofPreference(profile: any) {
 }
 
 function TasteRadar({ radar }: { radar: any }) {
-  const points = FLAVOR_ORDER.map((label) => radar?.flavorPoints?.find((item: any) => item.label === label) || { label, value: 0 });
+  const points = FLAVOR_ORDER.map(
+    (label) =>
+      radar?.flavorPoints?.find((item: any) => item.label === label) || { label, value: 0 },
+  );
   const polygonPoints = points
     .map((point, index) => {
       const coords = polarPoint(index, points.length, RADAR_MAX_RADIUS * point.value);
@@ -139,7 +148,9 @@ function TasteRadar({ radar }: { radar: any }) {
 
           {points.map((point, index) => {
             const coords = polarPoint(index, points.length, RADAR_MAX_RADIUS * point.value);
-            return <Circle key={`dot-${point.label}`} cx={coords.x} cy={coords.y} r={4} fill="#F6EBDD" />;
+            return (
+              <Circle key={`dot-${point.label}`} cx={coords.x} cy={coords.y} r={4} fill="#F6EBDD" />
+            );
           })}
 
           <Circle cx={RADAR_CENTER} cy={RADAR_CENTER} r={3} fill="rgba(242, 230, 216, 0.7)" />
@@ -164,12 +175,29 @@ export default function ForYouFeed({
   savedRecipeIds = new Set(),
   onRefineProfile,
 }: ForYouFeedProps) {
-  const { profile, getFeaturedCocktails, scoreCocktail, occasionMode, setOccasionMode, savedOccasionProfiles, saveOccasionProfile, loadOccasionProfile, deleteOccasionProfile } = usePersonalization();
+  const {
+    profile,
+    getFeaturedCocktails,
+    scoreCocktail,
+    occasionMode,
+    setOccasionMode,
+    savedOccasionProfiles,
+    saveOccasionProfile,
+    loadOccasionProfile,
+    deleteOccasionProfile,
+  } = usePersonalization();
   const { tier } = useUserTier();
   const { user } = useAuth();
   const { toggleSavedCocktail, isCocktailSaved } = useSavedItems();
-  const [selectedRecommendTab, setSelectedRecommendTab] = useState<'matched' | 'beginner' | 'challenge' | 'trending'>('matched');
-  const [tasteIdentity, setTasteIdentity] = useState<{ occasionMode: string; confidence: number; engagement: number; radar: any } | null>(null);
+  const [selectedRecommendTab, setSelectedRecommendTab] = useState<
+    'matched' | 'beginner' | 'challenge' | 'trending'
+  >('matched');
+  const [tasteIdentity, setTasteIdentity] = useState<{
+    occasionMode: string;
+    confidence: number;
+    engagement: number;
+    radar: any;
+  } | null>(null);
   const [predictiveMatches, setPredictiveMatches] = useState<any[]>([]);
   const [showProfileList, setShowProfileList] = useState(false);
   const tabTransitionAnim = useRef(new Animated.Value(1)).current;
@@ -194,7 +222,9 @@ export default function ForYouFeed({
     const actualCocktails = ALL_COCKTAILS.filter((cocktail) => {
       const category = String(cocktail.category || '').toLowerCase();
       const name = String(cocktail.name || '').toLowerCase();
-      return !category.includes('syrup') && !category.includes('ingredient') && !name.includes('syrup');
+      return (
+        !category.includes('syrup') && !category.includes('ingredient') && !name.includes('syrup')
+      );
     });
     // FREE tier: limit trending to 2 cocktails (to make room for feature previews)
     // PLUS/PRO tier: show 8 trending cocktails
@@ -229,33 +259,43 @@ export default function ForYouFeed({
         });
       } else {
         // Fallback to scoreCocktail if featured list not yet computed
-        const scoredCocktails = actualCocktails.map(cocktail => ({
-          cocktail,
-          score: scoreCocktail(cocktail)
-        }))
-        .sort((a, b) => b.score - a.score);
+        const scoredCocktails = actualCocktails
+          .map((cocktail) => ({
+            cocktail,
+            score: scoreCocktail(cocktail),
+          }))
+          .sort((a, b) => b.score - a.score);
 
         log.debug('ForYouFeed', 'Fallback: Top scored cocktails', {
-          top5: scoredCocktails.slice(0, 5).map(item => ({
+          top5: scoredCocktails.slice(0, 5).map((item) => ({
             name: item.cocktail.name,
             score: item.score,
             spirit: item.cocktail.base,
-            difficulty: item.cocktail.difficulty
-          }))
+            difficulty: item.cocktail.difficulty,
+          })),
         });
 
-        matched = scoredCocktails.slice(0, limit).map(item => item.cocktail);
+        matched = scoredCocktails.slice(0, limit).map((item) => item.cocktail);
       }
 
       // Beginner & Challenge tabs always use scoreCocktail for difficulty filtering
-      const scoredForTabs = actualCocktails.map(cocktail => ({
-        cocktail,
-        score: scoreCocktail(cocktail)
-      }))
-      .sort((a, b) => b.score - a.score);
+      const scoredForTabs = actualCocktails
+        .map((cocktail) => ({
+          cocktail,
+          score: scoreCocktail(cocktail),
+        }))
+        .sort((a, b) => b.score - a.score);
 
-      beginner = scoredForTabs.filter(item => item.cocktail.difficulty === 'Easy').slice(0, limit).map(item => item.cocktail);
-      challenge = scoredForTabs.filter(item => item.cocktail.difficulty === 'Hard' || item.cocktail.difficulty === 'Medium').slice(0, limit).map(item => item.cocktail);
+      beginner = scoredForTabs
+        .filter((item) => item.cocktail.difficulty === 'Easy')
+        .slice(0, limit)
+        .map((item) => item.cocktail);
+      challenge = scoredForTabs
+        .filter(
+          (item) => item.cocktail.difficulty === 'Hard' || item.cocktail.difficulty === 'Medium',
+        )
+        .slice(0, limit)
+        .map((item) => item.cocktail);
 
       log.debug('ForYouFeed', 'Recommendation counts', {
         matchedCount: matched.length,
@@ -269,12 +309,14 @@ export default function ForYouFeed({
       const limit = tier === 'FREE' ? 2 : 8;
       const shuffled = [...actualCocktails].sort(() => Math.random() - 0.5);
       matched = shuffled.slice(0, limit);
-      beginner = shuffled.filter(c => c.difficulty === 'Easy').slice(0, limit);
-      challenge = shuffled.filter(c => c.difficulty === 'Hard' || c.difficulty === 'Medium').slice(0, limit);
+      beginner = shuffled.filter((c) => c.difficulty === 'Easy').slice(0, limit);
+      challenge = shuffled
+        .filter((c) => c.difficulty === 'Hard' || c.difficulty === 'Medium')
+        .slice(0, limit);
 
       log.debug('ForYouFeed', 'Using random cocktails (no profile)', {
         matchedCount: matched.length,
-        sampleCocktails: matched.slice(0, 3).map(c => c.name)
+        sampleCocktails: matched.slice(0, 3).map((c) => c.name),
       });
     }
 
@@ -294,7 +336,14 @@ export default function ForYouFeed({
     if (tier !== 'FREE' && occasionMode !== 'casual') {
       if (occasionMode === 'hosting') {
         // Hosting: prefer crowd-pleaser, batch-friendly, classic, easy/medium
-        const hostingTags = new Set(['batch', 'crowd-pleaser', 'party', 'classic', 'simple', 'refreshing']);
+        const hostingTags = new Set([
+          'batch',
+          'crowd-pleaser',
+          'party',
+          'classic',
+          'simple',
+          'refreshing',
+        ]);
         const hostingFirst = matched.filter((c: any) => {
           const tags = Array.isArray(c.tags) ? c.tags.map((t: string) => t.toLowerCase()) : [];
           const diff = (c.difficulty || '').toLowerCase();
@@ -306,7 +355,13 @@ export default function ForYouFeed({
         const adventurousFirst = matched.filter((c: any) => {
           const diff = (c.difficulty || '').toLowerCase();
           const tags = Array.isArray(c.tags) ? c.tags.map((t: string) => t.toLowerCase()) : [];
-          return diff === 'hard' || diff === 'medium' || tags.includes('technique') || tags.includes('advanced') || tags.includes('rare');
+          return (
+            diff === 'hard' ||
+            diff === 'medium' ||
+            tags.includes('technique') ||
+            tags.includes('advanced') ||
+            tags.includes('rare')
+          );
         });
         if (adventurousFirst.length >= 3) matched = adventurousFirst;
       }
@@ -318,7 +373,16 @@ export default function ForYouFeed({
       challenge, // Medium/Hard difficulty
       trending, // Seasonal trending cocktails
     };
-  }, [getFeaturedCocktails, scoreCocktail, profile, hasProfile, tier, isPro, predictiveMatches, occasionMode]);
+  }, [
+    getFeaturedCocktails,
+    scoreCocktail,
+    profile,
+    hasProfile,
+    tier,
+    isPro,
+    predictiveMatches,
+    occasionMode,
+  ]);
 
   // Get current time for greeting
   const greeting = useMemo(() => {
@@ -360,7 +424,10 @@ export default function ForYouFeed({
         if (user?.id) {
           const dbProfile = await loadUserProfile(user.id).catch(() => null);
           if (dbProfile?.tasteProfile) {
-            const tasteGraph = initializeTasteGraph(dbProfile.tasteProfile);
+            // Hydrate the persisted graph — initializeTasteGraph() would re-stamp
+            // every timestamp as "now" and zero the interaction counts, which is
+            // what made decay and confidence permanent no-ops.
+            const tasteGraph = hydrateTasteGraph(dbProfile.tasteProfile)!;
             const radar = generateRadarChart(tasteGraph);
             if (!mounted) return;
             setTasteIdentity({
@@ -380,7 +447,7 @@ export default function ForYouFeed({
                 if (!mounted) return;
 
                 const inventory = (userInventory || []).map((item: any) =>
-                  toBottle(item, { subcategory: item.subcategory || undefined })
+                  toBottle(item, { subcategory: item.subcategory || undefined }),
                 );
 
                 const enhancedProfile = {
@@ -411,7 +478,7 @@ export default function ForYouFeed({
                   enhancedProfile as any,
                   tasteGraph,
                   context,
-                  8
+                  8,
                 );
                 if (mounted) setPredictiveMatches(predictions);
               } catch {
@@ -423,31 +490,33 @@ export default function ForYouFeed({
         }
 
         if (hasProfile) {
-          const radar = generateRadarChart(initializeTasteGraph({
-            flavorWeights: {
-              citrus: (profile?.flavorScores?.citrus || 35) / 100,
-              herbal: (profile?.flavorScores?.herbal || 35) / 100,
-              bitter: (profile?.flavorScores?.bitter || 35) / 100,
-              sweet: (profile?.flavorScores?.sweet || 35) / 100,
-              smoky: (profile?.flavorScores?.smoky || 35) / 100,
-              floral: (profile?.flavorScores?.floral || 35) / 100,
-              spiced: (profile?.flavorScores?.spiced || 35) / 100,
-            },
-            spiritWeights: {
-              tequila: (profile?.spiritScores?.tequila || 25) / 100,
-              whiskey: (profile?.spiritScores?.whiskey || 25) / 100,
-              rum: (profile?.spiritScores?.rum || 25) / 100,
-              gin: (profile?.spiritScores?.gin || 25) / 100,
-              vodka: (profile?.spiritScores?.vodka || 25) / 100,
-              brandy: (profile?.spiritScores?.brandy || 25) / 100,
-              liqueurs: (profile?.spiritScores?.liqueurs || 25) / 100,
-              'gin-alternative': 0,
-              'rum-alternative': 0,
-              none: 0,
-            },
-            preferredABV: { min: 0, max: 40 },
-            preferredComplexity: ((profile?.complexityScore || 55) / 100),
-          }));
+          const radar = generateRadarChart(
+            initializeTasteGraph({
+              flavorWeights: {
+                citrus: (profile?.flavorScores?.citrus || 35) / 100,
+                herbal: (profile?.flavorScores?.herbal || 35) / 100,
+                bitter: (profile?.flavorScores?.bitter || 35) / 100,
+                sweet: (profile?.flavorScores?.sweet || 35) / 100,
+                smoky: (profile?.flavorScores?.smoky || 35) / 100,
+                floral: (profile?.flavorScores?.floral || 35) / 100,
+                spiced: (profile?.flavorScores?.spiced || 35) / 100,
+              },
+              spiritWeights: {
+                tequila: (profile?.spiritScores?.tequila || 25) / 100,
+                whiskey: (profile?.spiritScores?.whiskey || 25) / 100,
+                rum: (profile?.spiritScores?.rum || 25) / 100,
+                gin: (profile?.spiritScores?.gin || 25) / 100,
+                vodka: (profile?.spiritScores?.vodka || 25) / 100,
+                brandy: (profile?.spiritScores?.brandy || 25) / 100,
+                liqueurs: (profile?.spiritScores?.liqueurs || 25) / 100,
+                'gin-alternative': 0,
+                'rum-alternative': 0,
+                none: 0,
+              },
+              preferredABV: { min: 0, max: 40 },
+              preferredComplexity: (profile?.complexityScore || 55) / 100,
+            }),
+          );
           setTasteIdentity({
             occasionMode: 'casual',
             confidence: Math.round(radar.dataConfidence * 100),
@@ -468,7 +537,10 @@ export default function ForYouFeed({
     };
   }, [user?.id, hasProfile, profile]);
 
-  const proSummary = useMemo(() => (tasteIdentity?.radar ? buildTasteSummary(tasteIdentity.radar) : null), [tasteIdentity]);
+  const proSummary = useMemo(
+    () => (tasteIdentity?.radar ? buildTasteSummary(tasteIdentity.radar) : null),
+    [tasteIdentity],
+  );
   const weeklyDrop = recommendedCocktails.matched[0] || null;
   const weeklyDropProfileTags = useMemo(() => {
     if (!hasProfile || !profile) return [];
@@ -506,7 +578,6 @@ export default function ForYouFeed({
     };
   }, [userProfile, isPlus]);
 
-
   useEffect(() => {
     tabTransitionAnim.setValue(0);
     Animated.timing(tabTransitionAnim, {
@@ -535,369 +606,402 @@ export default function ForYouFeed({
 
   return (
     <View style={styles.container}>
-        {/* Header with user info */}
-        <View style={styles.header}>
-          <View>
-            <View style={styles.inlineHeading}>
-              <Text style={styles.greeting}>{greeting}</Text>
-              <Ionicons name="hand-left-outline" size={22} color={colors.text} />
-            </View>
-            <Text style={styles.subtitle}>
-              {hasProfile && userProfile ? `${userProfile.favoriteSpirit} enthusiast` : 'Cocktail explorer'}
-            </Text>
+      {/* Header with user info */}
+      <View style={styles.header}>
+        <View>
+          <View style={styles.inlineHeading}>
+            <Text style={styles.greeting}>{greeting}</Text>
+            <Ionicons name="hand-left-outline" size={22} color={colors.text} />
           </View>
-          <View style={[
+          <Text style={styles.subtitle}>
+            {hasProfile && userProfile
+              ? `${userProfile.favoriteSpirit} enthusiast`
+              : 'Cocktail explorer'}
+          </Text>
+        </View>
+        <View
+          style={[
             styles.tierPill,
             tier === 'PRO' && styles.tierPillPro,
             tier === 'PLUS' && styles.tierPillPlus,
-          ]}>
-            <Ionicons
-              name={tier === 'PRO' ? 'diamond' : tier === 'PLUS' ? 'star' : 'person-outline'}
-              size={12}
-              color={tier === 'PRO' ? colors.accent : tier === 'PLUS' ? colors.gold : colors.subtext}
-            />
-            <Text style={[
+          ]}
+        >
+          <Ionicons
+            name={tier === 'PRO' ? 'diamond' : tier === 'PLUS' ? 'star' : 'person-outline'}
+            size={12}
+            color={tier === 'PRO' ? colors.accent : tier === 'PLUS' ? colors.gold : colors.subtext}
+          />
+          <Text
+            style={[
               styles.tierPillText,
               tier === 'PRO' && styles.tierPillTextPro,
               tier === 'PLUS' && styles.tierPillTextPlus,
-            ]}>{tier}</Text>
-          </View>
+            ]}
+          >
+            {tier}
+          </Text>
         </View>
+      </View>
 
-        {/* Occasion Mode Toggle — PLUS/PRO only */}
-        {tier !== 'FREE' && (
-          <View>
-            <View style={styles.occasionToggleRow}>
-              {(['casual', 'hosting', 'adventurous'] as const).map((mode) => {
-                const isActive = occasionMode === mode;
-                const labels = { casual: 'Casual', hosting: 'Hosting', adventurous: 'Adventurous' };
-                const icons = { casual: 'wine-outline', hosting: 'people-outline', adventurous: 'flask-outline' };
-                return (
-                  <TouchableOpacity
-                    key={mode}
-                    style={[styles.occasionChip, isActive && styles.occasionChipActive]}
-                    activeOpacity={0.75}
-                    onPress={withHaptic(() => setOccasionMode(mode), 'selection')}
+      {/* Occasion Mode Toggle — PLUS/PRO only */}
+      {tier !== 'FREE' && (
+        <View>
+          <View style={styles.occasionToggleRow}>
+            {(['casual', 'hosting', 'adventurous'] as const).map((mode) => {
+              const isActive = occasionMode === mode;
+              const labels = { casual: 'Casual', hosting: 'Hosting', adventurous: 'Adventurous' };
+              const icons = {
+                casual: 'wine-outline',
+                hosting: 'people-outline',
+                adventurous: 'flask-outline',
+              };
+              return (
+                <TouchableOpacity
+                  key={mode}
+                  style={[styles.occasionChip, isActive && styles.occasionChipActive]}
+                  activeOpacity={0.75}
+                  onPress={withHaptic(() => setOccasionMode(mode), 'selection')}
+                >
+                  <Ionicons
+                    name={icons[mode] as any}
+                    size={13}
+                    color={isActive ? colors.gold : colors.subtext}
+                  />
+                  <Text
+                    style={[styles.occasionChipText, isActive && styles.occasionChipTextActive]}
                   >
-                    <Ionicons name={icons[mode] as any} size={13} color={isActive ? colors.gold : colors.subtext} />
-                    <Text style={[styles.occasionChipText, isActive && styles.occasionChipTextActive]}>{labels[mode]}</Text>
-                  </TouchableOpacity>
-                );
-              })}
-              <TouchableOpacity
-                style={styles.occasionSaveBtn}
-                activeOpacity={0.7}
-                onPress={() => {
-                  Alert.prompt(
-                    'Save Profile',
-                    `Save "${occasionMode}" mode as a named profile?`,
-                    (name) => {
-                      if (name?.trim()) saveOccasionProfile(name.trim());
-                    },
-                    'plain-text',
-                    '',
-                    'default'
-                  );
-                }}
-              >
-                <Ionicons name="bookmark-outline" size={15} color={colors.subtext} />
-              </TouchableOpacity>
-            </View>
-
-            {/* Saved profiles row */}
-            {savedOccasionProfiles.length > 0 && (
-              <View style={styles.savedProfilesRow}>
-                <Text style={styles.savedProfilesLabel}>Saved:</Text>
-                {savedOccasionProfiles.map((p: OccasionProfile) => (
-                  <TouchableOpacity
-                    key={p.id}
-                    style={[styles.savedProfileChip, occasionMode === p.mode && styles.savedProfileChipActive]}
-                    activeOpacity={0.75}
-                    onPress={withHaptic(() => loadOccasionProfile(p.id), 'selection')}
-                    onLongPress={() =>
-                      Alert.alert('Remove Profile', `Remove "${p.name}"?`, [
-                        { text: 'Cancel', style: 'cancel' },
-                        { text: 'Remove', style: 'destructive', onPress: () => deleteOccasionProfile(p.id) },
-                      ])
-                    }
-                  >
-                    <Text style={styles.savedProfileChipText}>{p.name}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
-          </View>
-        )}
-
-        {/* Onboarding State - No Profile */}
-        {!hasProfile && onRefineProfile && (
-          <View style={styles.onboardingCard}>
-            <Ionicons name="compass-outline" size={26} color={colors.accent} />
-            <Text style={styles.onboardingTitle}>Create Your Taste Profile</Text>
-            <Text style={styles.onboardingDescription}>
-              Answer 3 quick questions to get personalized cocktail recommendations tailored to your preferences
-            </Text>
+                    {labels[mode]}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
             <TouchableOpacity
-              style={styles.onboardingButton}
-              onPress={withHaptic(onRefineProfile, 'selection')}
+              style={styles.occasionSaveBtn}
               activeOpacity={0.7}
+              onPress={() => {
+                Alert.prompt(
+                  'Save Profile',
+                  `Save "${occasionMode}" mode as a named profile?`,
+                  (name) => {
+                    if (name?.trim()) saveOccasionProfile(name.trim());
+                  },
+                  'plain-text',
+                  '',
+                  'default',
+                );
+              }}
             >
-              <Text style={styles.onboardingButtonText}>Get Started</Text>
-              <Ionicons name="arrow-forward" size={20} color={colors.white} />
+              <Ionicons name="bookmark-outline" size={15} color={colors.subtext} />
             </TouchableOpacity>
           </View>
-        )}
 
-        {hasProfile && userProfile && !isPro && preferenceSummary && (
-          <View style={styles.statsCard}>
-            <Text style={styles.statsEyebrow}>{preferenceSummary.eyebrow}</Text>
-            <Text style={styles.statsTitle}>{preferenceSummary.title}</Text>
-            <Text style={styles.statsNarrative}>{preferenceSummary.body}</Text>
-
-            <View style={styles.preferenceChipRow}>
-              {userProfile.spiritPreferences.slice(0, 2).map((item) => (
-                <View key={`spirit-${item}`} style={styles.preferenceChip}>
-                  <Text style={styles.preferenceChipText}>{formatLabel(item)}</Text>
-                </View>
+          {/* Saved profiles row */}
+          {savedOccasionProfiles.length > 0 && (
+            <View style={styles.savedProfilesRow}>
+              <Text style={styles.savedProfilesLabel}>Saved:</Text>
+              {savedOccasionProfiles.map((p: OccasionProfile) => (
+                <TouchableOpacity
+                  key={p.id}
+                  style={[
+                    styles.savedProfileChip,
+                    occasionMode === p.mode && styles.savedProfileChipActive,
+                  ]}
+                  activeOpacity={0.75}
+                  onPress={withHaptic(() => loadOccasionProfile(p.id), 'selection')}
+                  onLongPress={() =>
+                    Alert.alert('Remove Profile', `Remove "${p.name}"?`, [
+                      { text: 'Cancel', style: 'cancel' },
+                      {
+                        text: 'Remove',
+                        style: 'destructive',
+                        onPress: () => deleteOccasionProfile(p.id),
+                      },
+                    ])
+                  }
+                >
+                  <Text style={styles.savedProfileChipText}>{p.name}</Text>
+                </TouchableOpacity>
               ))}
-              {userProfile.flavorProfiles.slice(0, 2).map((item) => (
-                <View key={`flavor-${item}`} style={styles.preferenceChipAlt}>
-                  <Text style={styles.preferenceChipText}>{formatLabel(item)}</Text>
-                </View>
-              ))}
             </View>
+          )}
+        </View>
+      )}
 
-            <View style={styles.inlineHeading}>
-              <Ionicons name="sparkles-outline" size={14} color={colors.subtext} />
-              <Text style={styles.statsNote}>
-                Learns from what you save, open, make, and keep stocked.
-              </Text>
-            </View>
+      {/* Onboarding State - No Profile */}
+      {!hasProfile && onRefineProfile && (
+        <View style={styles.onboardingCard}>
+          <Ionicons name="compass-outline" size={26} color={colors.accent} />
+          <Text style={styles.onboardingTitle}>Create Your Taste Profile</Text>
+          <Text style={styles.onboardingDescription}>
+            Answer 3 quick questions to get personalized cocktail recommendations tailored to your
+            preferences
+          </Text>
+          <TouchableOpacity
+            style={styles.onboardingButton}
+            onPress={withHaptic(onRefineProfile, 'selection')}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.onboardingButtonText}>Get Started</Text>
+            <Ionicons name="arrow-forward" size={20} color={colors.white} />
+          </TouchableOpacity>
+        </View>
+      )}
 
-            {isPlus && weeklyDrop && (
-              <View style={styles.plusDropCard}>
-                <Text style={styles.plusDropEyebrow}>For You right now</Text>
-                <Text style={styles.plusDropTitle}>{weeklyDrop.name}</Text>
-                <Text style={styles.plusDropBody} numberOfLines={2}>
-                  {weeklyDrop.subtitle || weeklyDrop.description || 'A strong match based on your recent taste signals.'}
-                </Text>
+      {hasProfile && userProfile && !isPro && preferenceSummary && (
+        <View style={styles.statsCard}>
+          <Text style={styles.statsEyebrow}>{preferenceSummary.eyebrow}</Text>
+          <Text style={styles.statsTitle}>{preferenceSummary.title}</Text>
+          <Text style={styles.statsNarrative}>{preferenceSummary.body}</Text>
+
+          <View style={styles.preferenceChipRow}>
+            {userProfile.spiritPreferences.slice(0, 2).map((item) => (
+              <View key={`spirit-${item}`} style={styles.preferenceChip}>
+                <Text style={styles.preferenceChipText}>{formatLabel(item)}</Text>
               </View>
-            )}
-
-            {onRefineProfile && (
-              <TouchableOpacity
-                style={styles.refineButton}
-                onPress={withHaptic(onRefineProfile, 'selection')}
-                activeOpacity={0.7}
-              >
-                <Ionicons name="options-outline" size={18} color={colors.accent} />
-                <Text style={styles.refineButtonText}>{isPlus ? 'Refine Preferences' : 'Update Taste Profile'}</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        )}
-
-        {hasProfile && isPro && tasteIdentity && proSummary && (
-          <View style={styles.proIdentityCard}>
-            <View style={styles.inlineHeading}>
-              <Ionicons name="pulse-outline" size={18} color={colors.accent} />
-              <Text style={styles.proIdentityTitle}>Taste Graph</Text>
-            </View>
-            <Text style={styles.proIdentityEyebrow}>Live preference map</Text>
-
-            <View style={styles.proIdentityTopRow}>
-              <TasteRadar radar={tasteIdentity.radar} />
-
-              <View style={styles.proIdentityNarrativeColumn}>
-                <Text style={styles.proIdentityHeadline}>{proSummary.headline}</Text>
-                <Text style={styles.proIdentityBody}>{proSummary.support}</Text>
-
-                <View style={styles.proFlavorChipGroup}>
-                  {proSummary.flavorHighlights.map((item) => (
-                    <View key={item.label} style={styles.proFlavorChip}>
-                      <Text style={styles.proFlavorChipLabel}>{item.label}</Text>
-                      <Text style={styles.proFlavorChipValue}>{item.value}</Text>
-                    </View>
-                  ))}
-                </View>
-              </View>
-            </View>
-
-            <View style={styles.proMetricsRow}>
-              <View style={styles.proMetricCard}>
-                <Text style={styles.proMetricLabel}>Mode</Text>
-                <Text style={styles.proMetricValue}>{formatLabel(tasteIdentity.occasionMode)}</Text>
-              </View>
-              <View style={styles.proMetricCard}>
-                <Text style={styles.proMetricLabel}>Confidence</Text>
-                <Text style={styles.proMetricValue}>{tasteIdentity.confidence}%</Text>
-              </View>
-              <View style={styles.proMetricCard}>
-                <Text style={styles.proMetricLabel}>Signals</Text>
-                <Text style={styles.proMetricValue}>{tasteIdentity.engagement}</Text>
-              </View>
-            </View>
-
-            <Text style={styles.proIdentityMicrocopy}>
-              Your recommendations are being shaped by the strongest flavor axes above. Confidence grows as you save, view, make, and tune more drinks.
-            </Text>
-
-            {onRefineProfile && (
-              <TouchableOpacity
-                style={styles.proIdentityButton}
-                onPress={withHaptic(onRefineProfile, 'selection')}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.proIdentityButtonText}>Adjust Taste Graph</Text>
-                <Ionicons name="arrow-forward" size={16} color={colors.bg} />
-              </TouchableOpacity>
-            )}
-          </View>
-        )}
-
-        {isPro && weeklyDrops.length > 0 && (
-          <View style={styles.weeklyDropsSection}>
-            <View style={styles.inlineHeading}>
-              <Ionicons name="gift-outline" size={18} color={colors.accent} />
-              <Text style={styles.weeklyDropsTitle}>This Week&apos;s For You Drops</Text>
-            </View>
-            <Text style={styles.weeklyDropsSubtitle}>
-              Two editorial drops each week, ranked against your current taste signals.
-            </Text>
-
-            {weeklyDrops.slice(0, 2).map(({ drop, recipe }: any) => (
-              <View
-                key={drop.id}
-                style={styles.weeklyDropCard}
-              >
-                <View style={styles.weeklyDropHeader}>
-                  <View style={styles.weeklyDropPill}>
-                    <Text style={styles.weeklyDropPillText}>{drop.eyebrow}</Text>
-                  </View>
-                  <Text style={styles.weeklyDropSlot}>{formatLabel(drop.slot)}</Text>
-                </View>
-
-                <Text style={styles.weeklyDropName}>{drop.title}</Text>
-                <Text style={styles.weeklyDropRecipe}>{recipe.name}</Text>
-                <Text style={styles.weeklyDropReason}>{drop.reason}</Text>
-
-                <View style={styles.weeklyDropTags}>
-                  {drop.profileTags.slice(0, 4).map((tag: string) => (
-                    <View key={`${drop.id}-${tag}`} style={styles.weeklyDropTag}>
-                      <Text style={styles.weeklyDropTagText}>{formatLabel(tag)}</Text>
-                    </View>
-                  ))}
-                </View>
-
-                <View style={styles.weeklyDropActions}>
-                  <TouchableOpacity
-                    style={styles.weeklyDropOpenButton}
-                    activeOpacity={0.85}
-                    onPress={withHaptic(() => onCocktailPress(recipe))}
-                  >
-                    <Text style={styles.weeklyDropOpenText}>Open Drop</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[
-                      styles.weeklyDropClaimButton,
-                      isCocktailSaved(recipe.id) && styles.weeklyDropClaimedButton,
-                    ]}
-                    activeOpacity={0.85}
-                    onPress={withHaptic(() => handleClaimWeeklyDrop(recipe), 'medium')}
-                  >
-                    <Ionicons
-                      name={isCocktailSaved(recipe.id) ? 'checkmark-circle' : 'download-outline'}
-                      size={16}
-                      color={isCocktailSaved(recipe.id) ? colors.success : colors.bg}
-                    />
-                    <Text
-                      style={[
-                        styles.weeklyDropClaimText,
-                        isCocktailSaved(recipe.id) && styles.weeklyDropClaimedText,
-                      ]}
-                    >
-                      {isCocktailSaved(recipe.id) ? 'Saved To My Collection' : 'Claim Drop'}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
+            ))}
+            {userProfile.flavorProfiles.slice(0, 2).map((item) => (
+              <View key={`flavor-${item}`} style={styles.preferenceChipAlt}>
+                <Text style={styles.preferenceChipText}>{formatLabel(item)}</Text>
               </View>
             ))}
           </View>
-        )}
 
-        {/* Recommended Cocktails Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>
-            {hasProfile ? 'Recommended Cocktails' : 'Explore Cocktails'}
-          </Text>
-          {!hasProfile && (
-            <Text style={styles.sectionSubtitle}>
-              Popular cocktails to discover
+          <View style={styles.inlineHeading}>
+            <Ionicons name="sparkles-outline" size={14} color={colors.subtext} />
+            <Text style={styles.statsNote}>
+              Learns from what you save, open, make, and keep stocked.
             </Text>
-          )}
-
-          {/* Tab Bar */}
-          <View style={styles.tabBar}>
-            <InPageTabBar
-              scrollable
-              items={[
-                { key: 'matched', label: hasProfile ? 'Matched for You' : 'Popular', icon: 'star-outline' },
-                { key: 'beginner', label: 'Beginner Friendly', icon: 'leaf-outline' },
-                { key: 'challenge', label: 'Flavor Challenges', icon: 'flame-outline' },
-                { key: 'trending', label: `Trending ${seasonName}`, icon: 'trending-up-outline' },
-              ]}
-              activeKey={selectedRecommendTab}
-              onChange={(key) =>
-                setSelectedRecommendTab(key as 'matched' | 'beginner' | 'challenge' | 'trending')
-              }
-            />
           </View>
 
-          {/* Horizontal Cocktail Cards */}
-          <Animated.View
-            style={{
-              opacity: tabTransitionAnim,
-              transform: [{
+          {isPlus && weeklyDrop && (
+            <View style={styles.plusDropCard}>
+              <Text style={styles.plusDropEyebrow}>For You right now</Text>
+              <Text style={styles.plusDropTitle}>{weeklyDrop.name}</Text>
+              <Text style={styles.plusDropBody} numberOfLines={2}>
+                {weeklyDrop.subtitle ||
+                  weeklyDrop.description ||
+                  'A strong match based on your recent taste signals.'}
+              </Text>
+            </View>
+          )}
+
+          {onRefineProfile && (
+            <TouchableOpacity
+              style={styles.refineButton}
+              onPress={withHaptic(onRefineProfile, 'selection')}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="options-outline" size={18} color={colors.accent} />
+              <Text style={styles.refineButtonText}>
+                {isPlus ? 'Refine Preferences' : 'Update Taste Profile'}
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
+
+      {hasProfile && isPro && tasteIdentity && proSummary && (
+        <View style={styles.proIdentityCard}>
+          <View style={styles.inlineHeading}>
+            <Ionicons name="pulse-outline" size={18} color={colors.accent} />
+            <Text style={styles.proIdentityTitle}>Taste Graph</Text>
+          </View>
+          <Text style={styles.proIdentityEyebrow}>Live preference map</Text>
+
+          <View style={styles.proIdentityTopRow}>
+            <TasteRadar radar={tasteIdentity.radar} />
+
+            <View style={styles.proIdentityNarrativeColumn}>
+              <Text style={styles.proIdentityHeadline}>{proSummary.headline}</Text>
+              <Text style={styles.proIdentityBody}>{proSummary.support}</Text>
+
+              <View style={styles.proFlavorChipGroup}>
+                {proSummary.flavorHighlights.map((item) => (
+                  <View key={item.label} style={styles.proFlavorChip}>
+                    <Text style={styles.proFlavorChipLabel}>{item.label}</Text>
+                    <Text style={styles.proFlavorChipValue}>{item.value}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          </View>
+
+          <View style={styles.proMetricsRow}>
+            <View style={styles.proMetricCard}>
+              <Text style={styles.proMetricLabel}>Mode</Text>
+              <Text style={styles.proMetricValue}>{formatLabel(tasteIdentity.occasionMode)}</Text>
+            </View>
+            <View style={styles.proMetricCard}>
+              <Text style={styles.proMetricLabel}>Confidence</Text>
+              <Text style={styles.proMetricValue}>{tasteIdentity.confidence}%</Text>
+            </View>
+            <View style={styles.proMetricCard}>
+              <Text style={styles.proMetricLabel}>Signals</Text>
+              <Text style={styles.proMetricValue}>{tasteIdentity.engagement}</Text>
+            </View>
+          </View>
+
+          <Text style={styles.proIdentityMicrocopy}>
+            Your recommendations are being shaped by the strongest flavor axes above. Confidence
+            grows as you save, view, make, and tune more drinks.
+          </Text>
+
+          {onRefineProfile && (
+            <TouchableOpacity
+              style={styles.proIdentityButton}
+              onPress={withHaptic(onRefineProfile, 'selection')}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.proIdentityButtonText}>Adjust Taste Graph</Text>
+              <Ionicons name="arrow-forward" size={16} color={colors.bg} />
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
+
+      {isPro && weeklyDrops.length > 0 && (
+        <View style={styles.weeklyDropsSection}>
+          <View style={styles.inlineHeading}>
+            <Ionicons name="gift-outline" size={18} color={colors.accent} />
+            <Text style={styles.weeklyDropsTitle}>This Week&apos;s For You Drops</Text>
+          </View>
+          <Text style={styles.weeklyDropsSubtitle}>
+            Two editorial drops each week, ranked against your current taste signals.
+          </Text>
+
+          {weeklyDrops.slice(0, 2).map(({ drop, recipe }: any) => (
+            <View key={drop.id} style={styles.weeklyDropCard}>
+              <View style={styles.weeklyDropHeader}>
+                <View style={styles.weeklyDropPill}>
+                  <Text style={styles.weeklyDropPillText}>{drop.eyebrow}</Text>
+                </View>
+                <Text style={styles.weeklyDropSlot}>{formatLabel(drop.slot)}</Text>
+              </View>
+
+              <Text style={styles.weeklyDropName}>{drop.title}</Text>
+              <Text style={styles.weeklyDropRecipe}>{recipe.name}</Text>
+              <Text style={styles.weeklyDropReason}>{drop.reason}</Text>
+
+              <View style={styles.weeklyDropTags}>
+                {drop.profileTags.slice(0, 4).map((tag: string) => (
+                  <View key={`${drop.id}-${tag}`} style={styles.weeklyDropTag}>
+                    <Text style={styles.weeklyDropTagText}>{formatLabel(tag)}</Text>
+                  </View>
+                ))}
+              </View>
+
+              <View style={styles.weeklyDropActions}>
+                <TouchableOpacity
+                  style={styles.weeklyDropOpenButton}
+                  activeOpacity={0.85}
+                  onPress={withHaptic(() => onCocktailPress(recipe))}
+                >
+                  <Text style={styles.weeklyDropOpenText}>Open Drop</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.weeklyDropClaimButton,
+                    isCocktailSaved(recipe.id) && styles.weeklyDropClaimedButton,
+                  ]}
+                  activeOpacity={0.85}
+                  onPress={withHaptic(() => handleClaimWeeklyDrop(recipe), 'medium')}
+                >
+                  <Ionicons
+                    name={isCocktailSaved(recipe.id) ? 'checkmark-circle' : 'download-outline'}
+                    size={16}
+                    color={isCocktailSaved(recipe.id) ? colors.success : colors.bg}
+                  />
+                  <Text
+                    style={[
+                      styles.weeklyDropClaimText,
+                      isCocktailSaved(recipe.id) && styles.weeklyDropClaimedText,
+                    ]}
+                  >
+                    {isCocktailSaved(recipe.id) ? 'Saved To My Collection' : 'Claim Drop'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ))}
+        </View>
+      )}
+
+      {/* Recommended Cocktails Section */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>
+          {hasProfile ? 'Recommended Cocktails' : 'Explore Cocktails'}
+        </Text>
+        {!hasProfile && <Text style={styles.sectionSubtitle}>Popular cocktails to discover</Text>}
+
+        {/* Tab Bar */}
+        <View style={styles.tabBar}>
+          <InPageTabBar
+            scrollable
+            items={[
+              {
+                key: 'matched',
+                label: hasProfile ? 'Matched for You' : 'Popular',
+                icon: 'star-outline',
+              },
+              { key: 'beginner', label: 'Beginner Friendly', icon: 'leaf-outline' },
+              { key: 'challenge', label: 'Flavor Challenges', icon: 'flame-outline' },
+              { key: 'trending', label: `Trending ${seasonName}`, icon: 'trending-up-outline' },
+            ]}
+            activeKey={selectedRecommendTab}
+            onChange={(key) =>
+              setSelectedRecommendTab(key as 'matched' | 'beginner' | 'challenge' | 'trending')
+            }
+          />
+        </View>
+
+        {/* Horizontal Cocktail Cards */}
+        <Animated.View
+          style={{
+            opacity: tabTransitionAnim,
+            transform: [
+              {
                 translateX: tabTransitionAnim.interpolate({
                   inputRange: [0, 1],
                   outputRange: [16, 0],
                 }),
-              }],
+              },
+            ],
+          }}
+        >
+          <FlatList
+            horizontal
+            nestedScrollEnabled
+            data={recommendedCocktails[selectedRecommendTab]}
+            keyExtractor={(item) => item.id}
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.cocktailList}
+            renderItem={({ item }) => {
+              const showPredictiveReason =
+                isPro && selectedRecommendTab === 'matched' && !!item.predictionReason;
+              return (
+                <View style={styles.cocktailCardWrapper}>
+                  <RecipeCard
+                    recipe={{
+                      id: item.id,
+                      name: item.name,
+                      description: showPredictiveReason
+                        ? item.predictionReason
+                        : item.subtitle || item.description,
+                      image: getCocktailImage(item.id, item.image),
+                      difficulty: item.difficulty || 'Medium',
+                      time: item.time || '5 min',
+                    }}
+                    onPress={withHaptic(() => onCocktailPress(item))}
+                    onSave={onSaveCocktail}
+                    onAddToCart={onAddToCart}
+                    isSaved={savedRecipeIds.has(item.id)}
+                  />
+                </View>
+              );
             }}
-          >
-            <FlatList
-              horizontal
-              nestedScrollEnabled
-              data={recommendedCocktails[selectedRecommendTab]}
-              keyExtractor={(item) => item.id}
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.cocktailList}
-              renderItem={({ item }) => {
-                const showPredictiveReason = isPro && selectedRecommendTab === 'matched' && !!item.predictionReason;
-                return (
-                  <View style={styles.cocktailCardWrapper}>
-                    <RecipeCard
-                      recipe={{
-                        id: item.id,
-                        name: item.name,
-                        description: showPredictiveReason
-                          ? item.predictionReason
-                          : item.subtitle || item.description,
-                        image: getCocktailImage(item.id, item.image),
-                        difficulty: item.difficulty || 'Medium',
-                        time: item.time || '5 min',
-                      }}
-                      onPress={withHaptic(() => onCocktailPress(item))}
-                      onSave={onSaveCocktail}
-                      onAddToCart={onAddToCart}
-                      isSaved={savedRecipeIds.has(item.id)}
-                    />
-                  </View>
-                );
-              }}
-            />
-          </Animated.View>
-        </View>
+          />
+        </Animated.View>
+      </View>
     </View>
   );
 }

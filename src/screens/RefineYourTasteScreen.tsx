@@ -28,11 +28,17 @@ import {
   clearOverrides,
   generateRadarChart,
   getEffectiveTasteProfile,
+  hydrateTasteGraph,
   initializeTasteGraph,
   setFlavorOverride,
   setSpiritOverride,
+  toPersistedTasteProfile,
 } from '../services/tasteGraphService';
-import { detectSeason, detectTimeOfDay, getPredictiveRecommendations } from '../services/predictiveEngine';
+import {
+  detectSeason,
+  detectTimeOfDay,
+  getPredictiveRecommendations,
+} from '../services/predictiveEngine';
 import { loadUserProfile, updateUserProfileFields } from '../services/userProfileService';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'RefineYourTaste'>;
@@ -59,8 +65,16 @@ const SPIRIT_KEYS = [
 
 const OCCASION_MODES = [
   { key: 'casual', title: 'Casual', body: 'Easygoing picks for a normal night in.' },
-  { key: 'hosting', title: 'Hosting', body: 'Recommendations that play well for guests and shared menus.' },
-  { key: 'adventurous', title: 'Adventurous', body: 'Pushes the feed toward bolder, more surprising builds.' },
+  {
+    key: 'hosting',
+    title: 'Hosting',
+    body: 'Recommendations that play well for guests and shared menus.',
+  },
+  {
+    key: 'adventurous',
+    title: 'Adventurous',
+    body: 'Pushes the feed toward bolder, more surprising builds.',
+  },
 ];
 
 const ABV_MODES = [
@@ -91,7 +105,9 @@ function isZeroProofRecipe(recipe: any) {
   const subtitle = String(recipe?.subtitle || '').toLowerCase();
   const base = String(recipe?.base || recipe?.baseSpirit || '').toLowerCase();
   const recipeType = String(recipe?.recipeType || '').toLowerCase();
-  const tags = Array.isArray(recipe?.tags) ? recipe.tags.map((tag: string) => String(tag).toLowerCase()) : [];
+  const tags = Array.isArray(recipe?.tags)
+    ? recipe.tags.map((tag: string) => String(tag).toLowerCase())
+    : [];
   const abv = typeof recipe?.abv === 'number' ? recipe.abv : null;
 
   return (
@@ -110,10 +126,14 @@ function describeBias(label: string, value: number, isOverridden: boolean) {
   const percent = Math.round(value * 100);
   const prefix = isOverridden ? 'Manual bias.' : 'Learned signal.';
 
-  if (percent >= 80) return `${prefix} ${percent}% ${label.toLowerCase()} means KOOPE should lean hard into drinks where ${label.toLowerCase()} leads the experience.`;
-  if (percent >= 60) return `${prefix} ${percent}% ${label.toLowerCase()} means you consistently respond well when ${label.toLowerCase()} is a clear note, not just a background accent.`;
-  if (percent >= 40) return `${prefix} ${percent}% ${label.toLowerCase()} means you like some presence here, but it does not need to dominate the drink.`;
-  if (percent >= 20) return `${prefix} ${percent}% ${label.toLowerCase()} means this works best as a supporting note rather than the main identity.`;
+  if (percent >= 80)
+    return `${prefix} ${percent}% ${label.toLowerCase()} means KOOPE should lean hard into drinks where ${label.toLowerCase()} leads the experience.`;
+  if (percent >= 60)
+    return `${prefix} ${percent}% ${label.toLowerCase()} means you consistently respond well when ${label.toLowerCase()} is a clear note, not just a background accent.`;
+  if (percent >= 40)
+    return `${prefix} ${percent}% ${label.toLowerCase()} means you like some presence here, but it does not need to dominate the drink.`;
+  if (percent >= 20)
+    return `${prefix} ${percent}% ${label.toLowerCase()} means this works best as a supporting note rather than the main identity.`;
   return `${prefix} ${percent}% ${label.toLowerCase()} means KOOPE should keep this restrained unless the rest of the profile strongly supports it.`;
 }
 
@@ -151,7 +171,9 @@ export default function RefineYourTasteScreen({ navigation }: Props) {
   const { tier } = useUserTier();
   const [graphData, setGraphData] = useState<any | null>(null);
   const [occasionMode, setOccasionMode] = useState('casual');
-  const [abvPreference, setAbvPreference] = useState<'zero-proof' | 'low-abv' | 'alcoholic'>('alcoholic');
+  const [abvPreference, setAbvPreference] = useState<'zero-proof' | 'low-abv' | 'alcoholic'>(
+    'alcoholic',
+  );
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -162,10 +184,11 @@ export default function RefineYourTasteScreen({ navigation }: Props) {
       try {
         setLoading(true);
         const dbProfile = user?.id ? await loadUserProfile(user.id).catch(() => null) : null;
-        const baseGraph =
-          dbProfile?.tasteProfile
-            ? initializeTasteGraph(dbProfile.tasteProfile)
-            : buildGraphFromPersonalization(profile);
+        // Hydrate the persisted graph so the decay/confidence values the radar
+        // chart displays reflect real interaction history, not a fresh stamp.
+        const baseGraph = dbProfile?.tasteProfile
+          ? hydrateTasteGraph(dbProfile.tasteProfile)!
+          : buildGraphFromPersonalization(profile);
 
         if (!mounted) return;
         setGraphData(baseGraph);
@@ -173,7 +196,7 @@ export default function RefineYourTasteScreen({ navigation }: Props) {
         setAbvPreference(
           dbProfile?.tasteProfile?.preferredABV
             ? abvPreferenceFromRange(dbProfile.tasteProfile.preferredABV)
-            : (profile?.preferredABV || 'alcoholic')
+            : profile?.preferredABV || 'alcoholic',
         );
       } finally {
         if (mounted) setLoading(false);
@@ -186,7 +209,10 @@ export default function RefineYourTasteScreen({ navigation }: Props) {
   }, [profile, user?.id]);
 
   const radar = useMemo(() => (graphData ? generateRadarChart(graphData) : null), [graphData]);
-  const effectiveProfile = useMemo(() => (graphData ? getEffectiveTasteProfile(graphData) : null), [graphData]);
+  const effectiveProfile = useMemo(
+    () => (graphData ? getEffectiveTasteProfile(graphData) : null),
+    [graphData],
+  );
 
   const previewCocktails = useMemo(() => {
     if (!graphData || !effectiveProfile) return [];
@@ -214,12 +240,20 @@ export default function RefineYourTasteScreen({ navigation }: Props) {
         inventory: [],
         recentScans: [],
       },
-      8
+      8,
     );
 
     const ranked = predictions.slice().sort((a, b) => {
-      const aOccasionBoost = String(a.description || '').toLowerCase().includes(occasionMode) ? 1 : 0;
-      const bOccasionBoost = String(b.description || '').toLowerCase().includes(occasionMode) ? 1 : 0;
+      const aOccasionBoost = String(a.description || '')
+        .toLowerCase()
+        .includes(occasionMode)
+        ? 1
+        : 0;
+      const bOccasionBoost = String(b.description || '')
+        .toLowerCase()
+        .includes(occasionMode)
+        ? 1
+        : 0;
       return bOccasionBoost - aOccasionBoost;
     });
 
@@ -228,12 +262,12 @@ export default function RefineYourTasteScreen({ navigation }: Props) {
 
   const topFlavors = useMemo(
     () => (effectiveProfile ? orderedTopKeys(effectiveProfile.flavorWeights, 3) : []),
-    [effectiveProfile]
+    [effectiveProfile],
   );
 
   const topSpirits = useMemo(
     () => (effectiveProfile ? orderedTopKeys(effectiveProfile.spiritWeights, 3) : []),
-    [effectiveProfile]
+    [effectiveProfile],
   );
 
   const setFlavorValue = (flavor: string, value: number) => {
@@ -260,10 +294,16 @@ export default function RefineYourTasteScreen({ navigation }: Props) {
       const favoriteSpirits = orderedTopKeys(finalTasteProfile.spiritWeights, 3);
       const flavorPreferences = orderedTopKeys(finalTasteProfile.flavorWeights, 4);
       const flavorScores = Object.fromEntries(
-        Object.entries(finalTasteProfile.flavorWeights).map(([key, value]) => [key, Math.round((value as number) * 100)])
+        Object.entries(finalTasteProfile.flavorWeights).map(([key, value]) => [
+          key,
+          Math.round((value as number) * 100),
+        ]),
       );
       const spiritScores = Object.fromEntries(
-        Object.entries(finalTasteProfile.spiritWeights).map(([key, value]) => [key, Math.round((value as number) * 100)])
+        Object.entries(finalTasteProfile.spiritWeights).map(([key, value]) => [
+          key,
+          Math.round((value as number) * 100),
+        ]),
       );
 
       await updateProfile({
@@ -275,9 +315,19 @@ export default function RefineYourTasteScreen({ navigation }: Props) {
         complexityScore: Math.round(finalTasteProfile.preferredComplexity * 100),
       });
 
+      // Persist the graph metadata alongside the weights, or hydrateTasteGraph
+      // has nothing to find on the next load. Timestamps are refreshed because
+      // the user just explicitly curated these values — that is a fresh signal,
+      // and it also stops decay compounding across successive saves.
+      const refreshedGraph = {
+        ...initializeTasteGraph(finalTasteProfile as any),
+        interactionCounts: graphData.interactionCounts,
+        overrides: graphData.overrides,
+      };
+
       if (user?.id) {
         await updateUserProfileFields(user.id, {
-          tasteProfile: finalTasteProfile as any,
+          tasteProfile: toPersistedTasteProfile(refreshedGraph) as any,
           preferredABVRange: nextABV as any,
           favoriteSpirit: favoriteSpirits[0] as any,
           spiritPreferences: favoriteSpirits as any,
@@ -327,12 +377,17 @@ export default function RefineYourTasteScreen({ navigation }: Props) {
         </View>
       </View>
 
-      <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.content}
+        contentContainerStyle={styles.contentContainer}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.heroCard}>
           <Text style={styles.heroEyebrow}>KOOPE Pro</Text>
           <Text style={styles.heroTitle}>Shape how KOOPE thinks your palate works.</Text>
           <Text style={styles.heroBody}>
-            Adjust your flavor graph, choose the mode you are drinking for, and your For You feed will lean into that identity.
+            Adjust your flavor graph, choose the mode you are drinking for, and your For You feed
+            will lean into that identity.
           </Text>
           <View style={styles.heroStatsRow}>
             <View style={styles.heroStatCard}>
@@ -345,14 +400,18 @@ export default function RefineYourTasteScreen({ navigation }: Props) {
             </View>
             <View style={styles.heroStatCard}>
               <Text style={styles.heroStatLabel}>ABV Mode</Text>
-              <Text style={styles.heroStatValueSmall}>{ABV_MODES.find((item) => item.key === abvPreference)?.title}</Text>
+              <Text style={styles.heroStatValueSmall}>
+                {ABV_MODES.find((item) => item.key === abvPreference)?.title}
+              </Text>
             </View>
           </View>
         </View>
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Tonight's Mode</Text>
-          <Text style={styles.sectionSubtitle}>Use occasion modes to shift the tone of your recommendations before you even search.</Text>
+          <Text style={styles.sectionSubtitle}>
+            Use occasion modes to shift the tone of your recommendations before you even search.
+          </Text>
           {OCCASION_MODES.map((mode) => {
             const active = occasionMode === mode.key;
             return (
@@ -362,7 +421,9 @@ export default function RefineYourTasteScreen({ navigation }: Props) {
                 onPress={() => setOccasionMode(mode.key)}
               >
                 <View style={styles.modeHeader}>
-                  <Text style={[styles.modeTitle, active && styles.modeTitleActive]}>{mode.title}</Text>
+                  <Text style={[styles.modeTitle, active && styles.modeTitleActive]}>
+                    {mode.title}
+                  </Text>
                   {active && <Ionicons name="checkmark-circle" size={18} color={colors.accent} />}
                 </View>
                 <Text style={styles.modeBody}>{mode.body}</Text>
@@ -373,13 +434,19 @@ export default function RefineYourTasteScreen({ navigation }: Props) {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Flavor Sliders</Text>
-          <Text style={styles.sectionSubtitle}>Manual controls sit on top of what KOOPE has learned, so your graph stays personal instead of generic.</Text>
+          <Text style={styles.sectionSubtitle}>
+            Manual controls sit on top of what KOOPE has learned, so your graph stays personal
+            instead of generic.
+          </Text>
           {FLAVOR_KEYS.map((item) => {
-            const point = radar.flavorPoints.find((entry) => entry.label.toLowerCase() === item.label.toLowerCase());
+            const point = radar.flavorPoints.find(
+              (entry) => entry.label.toLowerCase() === item.label.toLowerCase(),
+            );
             const overrideValue = graphData?.overrides?.flavors?.[item.key];
-            const value = typeof overrideValue === 'number'
-              ? overrideValue
-              : (graphData?.rawProfile?.flavorWeights?.[item.key] || 0);
+            const value =
+              typeof overrideValue === 'number'
+                ? overrideValue
+                : graphData?.rawProfile?.flavorWeights?.[item.key] || 0;
             return (
               <View key={item.key} style={styles.sliderCard}>
                 <View style={styles.sliderHeader}>
@@ -387,7 +454,12 @@ export default function RefineYourTasteScreen({ navigation }: Props) {
                   <Text style={styles.sliderValue}>{Math.round(value * 100)}%</Text>
                 </View>
                 <View style={styles.sliderTrack}>
-                  <View style={[styles.sliderFill, { width: `${Math.max(6, Math.round(value * 100))}%` }]} />
+                  <View
+                    style={[
+                      styles.sliderFill,
+                      { width: `${Math.max(6, Math.round(value * 100))}%` },
+                    ]}
+                  />
                 </View>
                 <Slider
                   style={styles.sliderControl}
@@ -400,7 +472,9 @@ export default function RefineYourTasteScreen({ navigation }: Props) {
                   thumbTintColor={colors.accent}
                   onValueChange={(nextValue) => setFlavorValue(item.key, nextValue)}
                 />
-                <Text style={styles.sliderHint}>{describeBias(item.label, value, !!point?.isOverridden)}</Text>
+                <Text style={styles.sliderHint}>
+                  {describeBias(item.label, value, !!point?.isOverridden)}
+                </Text>
               </View>
             );
           })}
@@ -408,13 +482,18 @@ export default function RefineYourTasteScreen({ navigation }: Props) {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Spirit Bias</Text>
-          <Text style={styles.sectionSubtitle}>Give more weight to the spirits you want KOOPE to privilege in your feed.</Text>
+          <Text style={styles.sectionSubtitle}>
+            Give more weight to the spirits you want KOOPE to privilege in your feed.
+          </Text>
           {SPIRIT_KEYS.map((item) => {
-            const point = radar.spiritPoints.find((entry) => entry.label.toLowerCase() === item.label.toLowerCase());
+            const point = radar.spiritPoints.find(
+              (entry) => entry.label.toLowerCase() === item.label.toLowerCase(),
+            );
             const overrideValue = graphData?.overrides?.spirits?.[item.key];
-            const value = typeof overrideValue === 'number'
-              ? overrideValue
-              : (graphData?.rawProfile?.spiritWeights?.[item.key] || 0);
+            const value =
+              typeof overrideValue === 'number'
+                ? overrideValue
+                : graphData?.rawProfile?.spiritWeights?.[item.key] || 0;
             return (
               <View key={item.key} style={styles.sliderCard}>
                 <View style={styles.sliderHeader}>
@@ -422,7 +501,12 @@ export default function RefineYourTasteScreen({ navigation }: Props) {
                   <Text style={styles.sliderValue}>{Math.round(value * 100)}%</Text>
                 </View>
                 <View style={styles.sliderTrack}>
-                  <View style={[styles.sliderFill, { width: `${Math.max(6, Math.round(value * 100))}%` }]} />
+                  <View
+                    style={[
+                      styles.sliderFill,
+                      { width: `${Math.max(6, Math.round(value * 100))}%` },
+                    ]}
+                  />
                 </View>
                 <Slider
                   style={styles.sliderControl}
@@ -435,7 +519,9 @@ export default function RefineYourTasteScreen({ navigation }: Props) {
                   thumbTintColor={colors.accent}
                   onValueChange={(nextValue) => setSpiritValue(item.key, nextValue)}
                 />
-                <Text style={styles.sliderHint}>{describeBias(item.label, value, !!point?.isOverridden)}</Text>
+                <Text style={styles.sliderHint}>
+                  {describeBias(item.label, value, !!point?.isOverridden)}
+                </Text>
               </View>
             );
           })}
@@ -452,7 +538,9 @@ export default function RefineYourTasteScreen({ navigation }: Props) {
                   style={[styles.abvChip, active && styles.abvChipActive]}
                   onPress={() => setAbvPreference(item.key as any)}
                 >
-                  <Text style={[styles.abvChipText, active && styles.abvChipTextActive]}>{item.title}</Text>
+                  <Text style={[styles.abvChipText, active && styles.abvChipTextActive]}>
+                    {item.title}
+                  </Text>
                 </TouchableOpacity>
               );
             })}
@@ -462,17 +550,33 @@ export default function RefineYourTasteScreen({ navigation }: Props) {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Your Current Identity</Text>
           <View style={styles.identityCard}>
-            <Text style={styles.identityLine}>Top spirits: {topSpirits.map((item) => item.charAt(0).toUpperCase() + item.slice(1)).join(', ') || 'Still learning'}</Text>
-            <Text style={styles.identityLine}>Top flavors: {topFlavors.map((item) => item.charAt(0).toUpperCase() + item.slice(1)).join(', ') || 'Still learning'}</Text>
-            <Text style={styles.identityLine}>Occasion mode: {occasionMode.charAt(0).toUpperCase() + occasionMode.slice(1)}</Text>
+            <Text style={styles.identityLine}>
+              Top spirits:{' '}
+              {topSpirits.map((item) => item.charAt(0).toUpperCase() + item.slice(1)).join(', ') ||
+                'Still learning'}
+            </Text>
+            <Text style={styles.identityLine}>
+              Top flavors:{' '}
+              {topFlavors.map((item) => item.charAt(0).toUpperCase() + item.slice(1)).join(', ') ||
+                'Still learning'}
+            </Text>
+            <Text style={styles.identityLine}>
+              Occasion mode: {occasionMode.charAt(0).toUpperCase() + occasionMode.slice(1)}
+            </Text>
           </View>
         </View>
 
         {previewCocktails.length > 0 && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Preview Your Next For You Drop</Text>
-            <Text style={styles.sectionSubtitle}>These are the kinds of cocktails your current graph is pushing to the top.</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.previewScroll}>
+            <Text style={styles.sectionSubtitle}>
+              These are the kinds of cocktails your current graph is pushing to the top.
+            </Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.previewScroll}
+            >
               {(previewCocktails as any[]).map((cocktail, index) => (
                 <View key={cocktail.id || index} style={styles.previewCardWrap}>
                   <RecipeCard
@@ -490,7 +594,10 @@ export default function RefineYourTasteScreen({ navigation }: Props) {
         )}
 
         <View style={styles.footerActions}>
-          <TouchableOpacity style={styles.secondaryButton} onPress={() => setGraphData(clearOverrides(graphData))}>
+          <TouchableOpacity
+            style={styles.secondaryButton}
+            onPress={() => setGraphData(clearOverrides(graphData))}
+          >
             <Text style={styles.secondaryButtonText}>Reset Overrides</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.primaryButton} onPress={handleSave} disabled={saving}>
