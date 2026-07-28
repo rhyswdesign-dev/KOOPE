@@ -9,14 +9,11 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  FlatList,
   TouchableOpacity,
   Alert,
   Linking,
   Image,
   Modal,
-  TextInput,
-  ActivityIndicator,
   Share,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -44,7 +41,7 @@ import { supabase } from '../lib/supabase';
 import { InventoryService } from '../services/inventoryService';
 import { challengeProgressService } from '../services/challengeProgressService';
 import { useAuth } from '../contexts/AuthContext';
-import { sortByMatch, getMatchMessage } from '../utils/recipeMatching';
+import { sortByMatch } from '../utils/recipeMatching';
 import type { RecipeMatch } from '../utils/recipeMatching';
 import { RecipesRepository } from '../repos/supabase';
 import { useUserTier } from '../store/useUserTier';
@@ -58,9 +55,6 @@ import { useFeatureAccess } from '../hooks/useFeatureAccess';
 import type { UserInventoryItem } from '../types/database';
 import { BottleServeService } from '../services/bottleServeService';
 import { useEngagement } from '../store/useEngagement';
-import { getCocktailImage } from '../../assets/images/cocktails';
-import RecipeCard from '../components/RecipeCard';
-import LockedRecipeCard from '../components/LockedRecipeCard';
 import { ScanHistoryService } from '../services/scanHistoryService';
 import { trackEvent, ANALYTICS_EVENTS, ANALYTICS_PROPS } from '../lib/analytics';
 import { useWishlist, WISHLIST_FREE_CAP } from '../store/useWishlist';
@@ -72,6 +66,8 @@ import { logScanEvent, updateScanOutcome } from '../services/scanContextService'
 import SpiritEducationPanel from '../components/SpiritEducationPanel';
 import GiftModePanel from '../components/bottle/GiftModePanel';
 import TastePromptPanel from '../components/bottle/TastePromptPanel';
+import ScanFeedbackPanel from '../components/bottle/ScanFeedbackPanel';
+import CocktailHookRail from '../components/bottle/CocktailHookRail';
 import {
   computeGiftVerdict,
   filterRecipesForGift,
@@ -151,13 +147,14 @@ export default function BottleDetailScreen() {
   const [tasteSpiritHint, setTasteSpiritHint] = useState<string | undefined>(undefined);
   const [tasteFlavorHint, setTasteFlavorHint] = useState<FlavorProfile | undefined>(undefined);
   const [expanded, setExpanded] = useState(false);
-  // "See more" jump target from the truncated hero story line down to the
-  // full Tasting Notes section — that section is itself gated behind
-  // `expanded`, but the toggle above it stays at a fixed position whether
+  // "See more" jump target — used by the truncated hero story line (down to
+  // the full Tasting Notes) and by the low-confidence nudge (down to the
+  // scan-feedback panel). Everything below the fold is gated behind
+  // `expanded`, but the toggle itself sits at a fixed position whether
   // expanded or not, so it's safe to measure and scroll to immediately.
   const scrollViewRef = useRef<ScrollView>(null);
   const seeMoreRef = useRef<View>(null);
-  const scrollToTastingNotes = () => {
+  const openSeeMoreFold = () => {
     setExpanded(true);
     seeMoreRef.current?.measureLayout(
       scrollViewRef.current as unknown as number,
@@ -166,13 +163,6 @@ export default function BottleDetailScreen() {
       () => {},
     );
   };
-  // Stage 10 — scan feedback
-  const [feedbackState, setFeedbackState] = useState<
-    'pending' | 'confirmed' | 'correcting' | 'typing' | 'dismissed'
-  >('pending');
-  const [correctionName, setCorrectionName] = useState('');
-  const [correctionBrand, setCorrectionBrand] = useState('');
-  const [submittingCorrection, setSubmittingCorrection] = useState(false);
 
   // Phase 1.5: log the scan_events row once, on mount. Fire-and-forget —
   // doesn't block render, and no-ops if there's no signed-in user or
@@ -885,7 +875,6 @@ export default function BottleDetailScreen() {
   };
 
   const handleFeedbackYes = async () => {
-    setFeedbackState('confirmed');
     try {
       const lookupKey = (bottle.id || bottle.name)
         .toLowerCase()
@@ -934,28 +923,20 @@ export default function BottleDetailScreen() {
     }
   };
 
-  const handleFeedbackNo = () => {
-    // Show the 3-option correction picker
-    setFeedbackState('correcting');
-  };
-
-  const handleCorrectionBarcode = async () => {
+  // Re-scan the bottle. There is no "scan the barcode instead" variant — the
+  // scan screen has one mode, and its silent decoder will pick a barcode up on
+  // its own if one happens to be in frame (scanner spec A.0).
+  const handleCorrectionRescan = async () => {
     await invalidateCacheEntry();
-    setFeedbackState('dismissed');
-    navigation.navigate('SmartScan', { barcodeOnly: true });
+    navigation.navigate('SmartScan');
   };
 
   const handleCorrectionSearchLibrary = async () => {
     await invalidateCacheEntry();
-    setFeedbackState('dismissed');
     navigation.navigate('BottleSearch', { initialQuery: bottle.name });
   };
 
-  const handleCorrectionSubmit = async () => {
-    const name = correctionName.trim();
-    if (!name) return;
-
-    setSubmittingCorrection(true);
+  const handleCorrectionSubmit = async (name: string, correctionBrand: string) => {
     try {
       // 1. Invalidate the wrong cache entry so the next scan re-identifies cleanly
       await invalidateCacheEntry();
@@ -993,9 +974,6 @@ export default function BottleDetailScreen() {
     } catch {
       /* silent — correction is best-effort */
     }
-
-    setSubmittingCorrection(false);
-    setFeedbackState('dismissed');
   };
 
   return (
@@ -1082,7 +1060,7 @@ export default function BottleDetailScreen() {
               </View>
             </View>
 
-            <TouchableOpacity onPress={scrollToTastingNotes} activeOpacity={0.7}>
+            <TouchableOpacity onPress={openSeeMoreFold} activeOpacity={0.7}>
               <Text style={styles.heroStoryLine} numberOfLines={2}>
                 {storyLine}
               </Text>
@@ -1093,138 +1071,20 @@ export default function BottleDetailScreen() {
 
         {/* Body content — padded */}
         <View style={styles.bodyContent}>
-          {/* Stage 10 — Is this correct? feedback strip (only shown for scanned bottles) */}
-          {imageUri && feedbackState !== 'dismissed' && (
-            <View
-              style={[
-                styles.feedbackStrip,
-                isLowConfidence && styles.feedbackStripProminent,
-                (feedbackState === 'correcting' || feedbackState === 'typing') &&
-                  styles.feedbackStripCorrection,
-              ]}
+          {/* Low-confidence nudge — the full "is this right?" + correction
+              flow now lives below the fold (Answer Card spec §B.4), but a
+              best-match identification is worth flagging before the user
+              acts on it, so a one-line tap-target jumps down to it. */}
+          {imageUri && isLowConfidence && (
+            <TouchableOpacity
+              style={styles.lowConfidenceNudge}
+              onPress={openSeeMoreFold}
+              activeOpacity={0.8}
             >
-              {feedbackState === 'confirmed' ? (
-                <>
-                  <Ionicons name="checkmark-circle" size={18} color={colors.gold} />
-                  <Text style={styles.feedbackConfirmedText}>Thanks — noted!</Text>
-                </>
-              ) : feedbackState === 'correcting' ? (
-                <>
-                  <Text style={styles.correctionLabel}>Help us get it right</Text>
-                  <TouchableOpacity
-                    style={styles.correctionOption}
-                    onPress={handleCorrectionBarcode}
-                  >
-                    <View style={styles.correctionOptionIcon}>
-                      <Ionicons name="barcode-outline" size={20} color={colors.gold} />
-                    </View>
-                    <View style={styles.correctionOptionBody}>
-                      <Text style={styles.correctionOptionTitle}>Scan the barcode</Text>
-                      <Text style={styles.correctionOptionSub}>
-                        Fastest — point at the barcode on the bottle
-                      </Text>
-                    </View>
-                    <Ionicons name="chevron-forward" size={16} color={colors.subtext} />
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.correctionOption}
-                    onPress={handleCorrectionSearchLibrary}
-                  >
-                    <View style={styles.correctionOptionIcon}>
-                      <Ionicons name="search-outline" size={20} color={colors.accent} />
-                    </View>
-                    <View style={styles.correctionOptionBody}>
-                      <Text style={styles.correctionOptionTitle}>Search the library</Text>
-                      <Text style={styles.correctionOptionSub}>
-                        Find it by name from our database
-                      </Text>
-                    </View>
-                    <Ionicons name="chevron-forward" size={16} color={colors.subtext} />
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.correctionOption}
-                    onPress={() => setFeedbackState('typing')}
-                  >
-                    <View style={styles.correctionOptionIcon}>
-                      <Ionicons name="create-outline" size={20} color={colors.subtext} />
-                    </View>
-                    <View style={styles.correctionOptionBody}>
-                      <Text style={styles.correctionOptionTitle}>Type it in</Text>
-                      <Text style={styles.correctionOptionSub}>Enter the name manually</Text>
-                    </View>
-                    <Ionicons name="chevron-forward" size={16} color={colors.subtext} />
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.correctionCancel}
-                    onPress={() => setFeedbackState('dismissed')}
-                  >
-                    <Text style={styles.correctionCancelText}>Skip</Text>
-                  </TouchableOpacity>
-                </>
-              ) : feedbackState === 'typing' ? (
-                <>
-                  <Text style={styles.correctionLabel}>What's the right bottle?</Text>
-                  <TextInput
-                    style={styles.correctionInput}
-                    placeholder="Bottle name"
-                    placeholderTextColor={colors.subtext}
-                    value={correctionName}
-                    onChangeText={setCorrectionName}
-                    autoFocus
-                    returnKeyType="next"
-                  />
-                  <TextInput
-                    style={styles.correctionInput}
-                    placeholder="Brand (optional)"
-                    placeholderTextColor={colors.subtext}
-                    value={correctionBrand}
-                    onChangeText={setCorrectionBrand}
-                    returnKeyType="done"
-                    onSubmitEditing={handleCorrectionSubmit}
-                  />
-                  <View style={styles.correctionActions}>
-                    <TouchableOpacity
-                      style={[styles.correctionSubmit, !correctionName.trim() && { opacity: 0.5 }]}
-                      onPress={handleCorrectionSubmit}
-                      disabled={!correctionName.trim() || submittingCorrection}
-                    >
-                      {submittingCorrection ? (
-                        <ActivityIndicator size="small" color="#1A120D" />
-                      ) : (
-                        <Text style={styles.correctionSubmitText}>Submit</Text>
-                      )}
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={styles.correctionCancel}
-                      onPress={() => setFeedbackState('correcting')}
-                    >
-                      <Text style={styles.correctionCancelText}>Back</Text>
-                    </TouchableOpacity>
-                  </View>
-                </>
-              ) : (
-                <>
-                  <Text
-                    style={[
-                      styles.feedbackQuestion,
-                      isLowConfidence && styles.feedbackQuestionProminent,
-                    ]}
-                  >
-                    Is this the right bottle?
-                  </Text>
-                  <View style={styles.feedbackButtons}>
-                    <TouchableOpacity style={styles.feedbackYes} onPress={handleFeedbackYes}>
-                      <Ionicons name="thumbs-up-outline" size={15} color={colors.gold} />
-                      <Text style={styles.feedbackYesText}>Yes</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.feedbackNo} onPress={handleFeedbackNo}>
-                      <Ionicons name="thumbs-down-outline" size={15} color={colors.subtext} />
-                      <Text style={styles.feedbackNoText}>No</Text>
-                    </TouchableOpacity>
-                  </View>
-                </>
-              )}
-            </View>
+              <Ionicons name="help-circle-outline" size={16} color={colors.warning} />
+              <Text style={styles.lowConfidenceNudgeText}>Not this bottle? Fix it</Text>
+              <Ionicons name="chevron-down" size={14} color={colors.warning} />
+            </TouchableOpacity>
           )}
 
           {/* Identity — Flavor Profile (quick glance; full tasting notes live below the fold) */}
@@ -1279,82 +1139,20 @@ export default function BottleDetailScreen() {
             }}
           />
 
-          {/* The Hook — recipe unlock, promoted above serve guidance / full tasting notes */}
-          {!loadingCocktails && suggestedCocktails.length > 0 && (
-            <View style={styles.section}>
-              <View style={styles.cocktailsHeader}>
-                <Ionicons name="sparkles" size={24} color={colors.gold} />
-                <View style={styles.cocktailsHeaderCopy}>
-                  <Text style={styles.cocktailsTitle}>
-                    {giftMode && giftPreference.flavorHint
-                      ? `They could make ${giftFilteredCocktails.length} cocktails with this bottle`
-                      : tier === 'FREE' && lockedCocktailCount > 0
-                        ? `Owning this unlocks ${suggestedCocktails.length + lockedCocktailCount} cocktails with your shelf`
-                        : serveRecommendation.cocktailPlacement === 'secondary'
-                          ? 'Cocktails That Respect This Bottle'
-                          : 'Cocktails You Can Make'}
-                  </Text>
-                  <Text style={styles.cocktailsSubtitle}>
-                    {giftMode && giftPreference.flavorHint
-                      ? 'Matched to how they like it'
-                      : tier === 'FREE'
-                        ? lockedCocktailCount > 0
-                          ? `${ANSWER_CARD_FREE_RECIPE_COUNT} free now — the rest with KŌOPE+`
-                          : 'From your free and unlocked recipe pool.'
-                        : 'Best matches from your current recipe access.'}
-                  </Text>
-                </View>
-              </View>
-              <FlatList
-                horizontal
-                data={giftMode ? giftFilteredCocktails : suggestedCocktails}
-                keyExtractor={(cocktail) => cocktail.id}
-                renderItem={({ item: cocktail }) => {
-                  const displayRecipe = {
-                    ...cocktail,
-                    image: getCocktailImage(cocktail.id, cocktail.image),
-                    subtitle: cocktail.match?.canMake
-                      ? 'You can make this'
-                      : cocktail.match?.almostCanMake
-                        ? getMatchMessage(cocktail.match)
-                        : cocktail.subtitle || 'Worth a closer look',
-                  };
-
-                  return (
-                    <RecipeCard
-                      recipe={displayRecipe}
-                      onPress={() =>
-                        navigation.navigate('CocktailDetail', { cocktailId: cocktail.id })
-                      }
-                      showSaveButton={false}
-                      showCartButton={false}
-                      showDeleteButton={false}
-                      style={styles.discoveryRecipeCard}
-                    />
-                  );
-                }}
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.cocktailsRail}
-                ItemSeparatorComponent={() => <View style={styles.cocktailRailSeparator} />}
-                ListFooterComponent={
-                  tier === 'FREE' && lockedCocktailCount > 0 && lockedCocktailTeaser ? (
-                    <LockedRecipeCard
-                      image={getCocktailImage(lockedCocktailTeaser.id, lockedCocktailTeaser.image)}
-                      title={lockedCocktailTeaser.name}
-                      subtitle={
-                        lockedCocktailCount > 1
-                          ? `+${lockedCocktailCount - 1} more with KŌOPE+`
-                          : 'Unlock with KŌOPE+'
-                      }
-                      onPress={() => inventoryGate('T15')}
-                      style={styles.lockedRecipeCardInRail}
-                    />
-                  ) : null
-                }
-                nestedScrollEnabled
-                removeClippedSubviews={false}
-              />
-            </View>
+          {/* The Hook — recipe unlock, promoted above serve guidance / full
+              tasting notes. The paywalled recipe is a real 4th card inside
+              the row, not a footer teaser (spec §B.4 item 3). */}
+          {!loadingCocktails && (
+            <CocktailHookRail
+              cocktails={giftMode ? giftFilteredCocktails : suggestedCocktails}
+              lockedCount={lockedCocktailCount}
+              lockedTeaser={lockedCocktailTeaser}
+              showLockedCard={tier === 'FREE'}
+              hasGiftHint={giftMode && !!giftPreference.flavorHint}
+              respectFirst={serveRecommendation.cocktailPlacement === 'secondary'}
+              onPressRecipe={(cocktailId) => navigation.navigate('CocktailDetail', { cocktailId })}
+              onPressLocked={() => inventoryGate('T15')}
+            />
           )}
 
           {/* Actions row — three peers */}
@@ -1456,6 +1254,18 @@ export default function BottleDetailScreen() {
 
           {expanded && (
             <>
+              {/* Scan feedback + correction — real functionality, but it
+                  belongs under the decision content, not above it. */}
+              {imageUri && (
+                <ScanFeedbackPanel
+                  isLowConfidence={isLowConfidence}
+                  onConfirm={handleFeedbackYes}
+                  onCorrectViaRescan={handleCorrectionRescan}
+                  onCorrectViaLibrary={handleCorrectionSearchLibrary}
+                  onSubmitCorrection={handleCorrectionSubmit}
+                />
+              )}
+
               {/* Tasting Notes */}
               <View style={styles.infoCard}>
                 <View style={styles.infoCardHeaderRow}>

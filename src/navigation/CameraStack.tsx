@@ -11,7 +11,7 @@ import { withScreenTour } from '../components/tour/withScreenTour';
 
 export type CameraStackParamList = {
   CameraHub: undefined;
-  SmartScan: { barcodeOnly?: boolean } | undefined;
+  SmartScan: undefined;
   BottleDetail: {
     bottle: Spirit;
     imageUri?: string;
