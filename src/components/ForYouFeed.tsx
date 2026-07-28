@@ -731,7 +731,7 @@ export default function ForYouFeed({
       {!hasProfile && onRefineProfile && (
         <View style={styles.onboardingCard}>
           <Ionicons name="compass-outline" size={26} color={colors.accent} />
-          <Text style={styles.onboardingTitle}>Create Your Taste Profile</Text>
+          <Text style={styles.onboardingTitle}>Create Your Palate</Text>
           <Text style={styles.onboardingDescription}>
             Answer 3 quick questions to get personalized cocktail recommendations tailored to your
             preferences
@@ -793,7 +793,7 @@ export default function ForYouFeed({
             >
               <Ionicons name="options-outline" size={18} color={colors.accent} />
               <Text style={styles.refineButtonText}>
-                {isPlus ? 'Refine Preferences' : 'Update Taste Profile'}
+                {isPlus ? 'Refine Preferences' : 'Update Your Palate'}
               </Text>
             </TouchableOpacity>
           )}
@@ -804,7 +804,7 @@ export default function ForYouFeed({
         <View style={styles.proIdentityCard}>
           <View style={styles.inlineHeading}>
             <Ionicons name="pulse-outline" size={18} color={colors.accent} />
-            <Text style={styles.proIdentityTitle}>Taste Graph</Text>
+            <Text style={styles.proIdentityTitle}>Your Palate</Text>
           </View>
           <Text style={styles.proIdentityEyebrow}>Live preference map</Text>
 
@@ -852,7 +852,7 @@ export default function ForYouFeed({
               onPress={withHaptic(onRefineProfile, 'selection')}
               activeOpacity={0.7}
             >
-              <Text style={styles.proIdentityButtonText}>Adjust Taste Graph</Text>
+              <Text style={styles.proIdentityButtonText}>Tune Your Palate</Text>
               <Ionicons name="arrow-forward" size={16} color={colors.bg} />
             </TouchableOpacity>
           )}

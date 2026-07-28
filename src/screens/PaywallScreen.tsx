@@ -157,7 +157,7 @@ const FEATURES: FeatureBenefit[] = [
 ];
 
 const COMING_SOON: string[] = [
-  'Taste Match % — cocktail scores matched to your palate',
+  'Palate Match % — cocktail scores matched to your palate',
   'Mood suggestions — cocktails based on how you feel',
   'Enhanced AI bartender with memory',
 ];

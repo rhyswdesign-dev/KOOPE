@@ -369,7 +369,7 @@ export default function RefineYourTasteScreen({ navigation }: Props) {
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingWrap}>
           <ActivityIndicator size="large" color={colors.accent} />
-          <Text style={styles.loadingText}>Building your Taste Graph...</Text>
+          <Text style={styles.loadingText}>Building your palate...</Text>
         </View>
       </SafeAreaView>
     );
@@ -381,7 +381,7 @@ export default function RefineYourTasteScreen({ navigation }: Props) {
         <Pressable onPress={() => navigation.goBack()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color={colors.text} />
         </Pressable>
-        <Text style={styles.headerTitle}>Taste Graph</Text>
+        <Text style={styles.headerTitle}>Tune Your Palate</Text>
         <View style={styles.headerPill}>
           <Text style={styles.headerPillText}>{tier === 'PRO' ? 'Mixologist' : 'Profile'}</Text>
         </View>
@@ -615,7 +615,7 @@ export default function RefineYourTasteScreen({ navigation }: Props) {
               <ActivityIndicator size="small" color={colors.white} />
             ) : (
               <>
-                <Text style={styles.primaryButtonText}>Save Taste Graph</Text>
+                <Text style={styles.primaryButtonText}>Save Palate</Text>
                 <Ionicons name="arrow-forward" size={18} color={colors.white} />
               </>
             )}

@@ -185,14 +185,14 @@ export const FEATURE_REGISTRY: Record<FeatureKey, FeatureDefinition> = {
   },
   taste_match: {
     minTier: 'PLUS',
-    displayName: 'Taste Match %',
+    displayName: 'Palate Match %',
     description: 'See how well each cocktail matches your palate.',
     paywallTarget: 'plus',
     category: 'discovery',
   },
   taste_match_full_graph: {
     minTier: 'PLUS',
-    displayName: 'Full Taste Graph',
+    displayName: 'Full Palate',
     description: 'Deep taste intelligence with decay, memory, and manual controls.',
     paywallTarget: 'plus',
     category: 'discovery',
@@ -464,7 +464,7 @@ export const FEATURE_REGISTRY: Record<FeatureKey, FeatureDefinition> = {
   flavor_profile_dashboard: {
     minTier: 'PLUS',
     displayName: 'Flavor Dashboard',
-    description: 'Interactive radar chart of your taste profile.',
+    description: 'Interactive radar chart of your palate.',
     paywallTarget: 'plus',
     category: 'pro_builder',
   },
