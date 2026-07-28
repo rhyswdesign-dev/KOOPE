@@ -32,6 +32,7 @@ import {
 import { loadUserProfile, updateUserProfileFields } from './userProfileService';
 import { ALL_COCKTAILS } from '../data/cocktails';
 import { SPIRITS_DATABASE } from '../data/spiritsDatabase';
+import { useWishlist } from '../store/useWishlist';
 
 // Local catalogs keyed by id — the same fallback pattern makeLogService uses,
 // because only user-created recipes live in the `recipes` table.
@@ -48,8 +49,10 @@ const SPIRIT_BY_ID = new Map<string, any>(SPIRITS_DATABASE.map((s: any) => [s.id
 const SIGNAL_WEIGHTS: Record<string, number> = {
   made: 5,
   save: 3,
+  owned: 3,
   scan_owned: 2.5,
   thumbs_up: 2,
+  wanted: 1.5,
   scan_wanted: 1.5,
   scan: 0.5,
   view: 0.25,
@@ -172,6 +175,52 @@ function applyScanEvent(
 }
 
 /**
+ * Apply a bottle the user holds a standing position on — owns it, or wants it.
+ *
+ * Shelf and wishlist are read as STATE, not as events, and that is deliberate.
+ * Instrumenting the add-action would only ever capture bottles added from now
+ * on, and only via the paths we remembered to wire. Reading the standing list
+ * captures the whole shelf — including bottles added manually, imported, or
+ * added before any of this existed — so an established user gets a real
+ * profile immediately instead of starting from nothing.
+ *
+ * It is also the truer signal: that you still own a bottle today says more
+ * than the fact you once added it.
+ */
+function applyHoldingEvent(
+  acc: Accumulator,
+  bottleName: string,
+  category: string | null | undefined,
+  weightKey: 'owned' | 'wanted',
+  at: string,
+) {
+  const weight = SIGNAL_WEIGHTS[weightKey] ?? 0;
+  // Holdings decay far more slowly than a one-off interaction — a bottle on
+  // your shelf is a continuing statement, not a moment.
+  const effective = weight * Math.max(0.6, recencyWeight(at));
+  if (effective === 0) return;
+
+  // Resolve against the catalog by id or name; fall back to the free-text
+  // category so a manually typed "Laphroaig 10" still lands as whisky.
+  const bottle =
+    SPIRIT_BY_ID.get(bottleName) ??
+    SPIRITS_DATABASE.find(
+      (s: any) => String(s.name || '').toLowerCase() === String(bottleName || '').toLowerCase(),
+    );
+
+  if (bottle) {
+    for (const flavor of bottleFlavorsToCanonical(bottle.flavorProfile || [])) {
+      addFlavor(acc, flavor, effective, at);
+    }
+  }
+
+  const type = String(bottle?.type || category || '').toLowerCase();
+  if (type) addSpirit(acc, type, effective, at);
+
+  if (bottle || type) acc.total += 1;
+}
+
+/**
  * Normalise accumulated raw scores into 0-1 weights. Negative totals clamp to
  * zero — an actively disliked axis should sit at the floor, not go negative
  * and corrupt the cosine similarity in tasteMatchService.
@@ -217,7 +266,7 @@ export async function computeTasteVector(
   const acc = emptyAccumulator();
 
   try {
-    const [makes, scans, signals] = await Promise.all([
+    const [makes, scans, signals, inventory] = await Promise.all([
       supabase
         .from('made_events')
         .select('recipe_id, made_at, rating')
@@ -235,6 +284,14 @@ export async function computeTasteVector(
         .then(({ data, error }) => (error ? [] : (data ?? [])))
         .then((d) => d as any[]),
       getRecentRecipeSignals(userId, 200),
+      // Standing holdings, read as state. See applyHoldingEvent.
+      supabase
+        .from('user_inventory')
+        .select('item_name, category, added_at')
+        .eq('user_id', userId)
+        .limit(300)
+        .then(({ data, error }) => (error ? [] : (data ?? [])))
+        .then((d) => d as any[]),
     ]);
 
     for (const row of makes) {
@@ -249,6 +306,23 @@ export async function computeTasteVector(
     for (const sig of signals) {
       const weight = SIGNAL_WEIGHTS[sig.signal as RecipeSignal] ?? 0;
       applyRecipeEvent(acc, sig.recipeId, weight, sig.createdAt);
+    }
+
+    // The shelf. Previously invisible unless the bottle arrived via a scan —
+    // manually added bottles taught the profile nothing at all.
+    for (const row of inventory) {
+      applyHoldingEvent(acc, row.item_name, row.category, 'owned', row.added_at);
+    }
+
+    // The wishlist. Device-local (AsyncStorage, no server sync), so it is read
+    // from the store here rather than fetched — this runs client-side.
+    try {
+      for (const item of useWishlist.getState().items) {
+        applyHoldingEvent(acc, item.name, item.type, 'wanted', item.dateSaved);
+      }
+    } catch {
+      // Store unavailable (e.g. running outside the app) — holdings are
+      // additive, so skipping them degrades the profile rather than breaking it.
     }
   } catch (error) {
     log.error('tasteVectorService', 'Failed to read event streams', error as Error);
