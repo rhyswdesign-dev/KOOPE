@@ -22,12 +22,20 @@ import {
   SafeAreaView,
   Image,
 } from 'react-native';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, radii } from '../theme/tokens';
 import { SPIRITS_DATABASE, type Spirit, type SpiritType } from '../data/spiritsDatabase';
 import type { CameraStackParamList } from '../navigation/CameraStack';
+import { useAuth } from '../contexts/AuthContext';
+import { InventoryService } from '../services/inventoryService';
+import { HomeBarService } from '../services/homeBarService';
+
+interface OwnedMatch {
+  inventoryItemId: string;
+  name: string;
+}
 
 type Nav = NativeStackNavigationProp<CameraStackParamList, 'BottleSearch'>;
 
@@ -35,7 +43,7 @@ type Nav = NativeStackNavigationProp<CameraStackParamList, 'BottleSearch'>;
 
 type FilterKey = 'all' | SpiritType;
 
-const FILTERS: Array<{ key: FilterKey; label: string }> = [
+const FILTERS: { key: FilterKey; label: string }[] = [
   { key: 'all', label: 'All' },
   { key: 'gin', label: 'Gin' },
   { key: 'whiskey', label: 'Whiskey' },
@@ -86,8 +94,59 @@ function scoreSpirit(spirit: Spirit, query: string): number {
 export default function BottleSearchScreen() {
   const navigation = useNavigation<Nav>();
   const route = useRoute<any>();
+  const { user } = useAuth();
   const [query, setQuery] = useState<string>(() => (route?.params as any)?.initialQuery ?? '');
   const [activeFilter, setActiveFilter] = useState<FilterKey>('all');
+  // 2026-07-27: this screen used to be catalog-only, reached as a second
+  // step after a separate shelf-only search modal on the Bar screen. Now
+  // it's the one search screen — catalog results carry an "In Your Bar" tag
+  // when they match something already owned, so there's one merged list
+  // instead of two screens. Matching is name-containment, not exact, since
+  // a shelf item like "Malfy Gin" should tag a catalog entry named "Malfy
+  // Gin Con Limone".
+  const [ownedByName, setOwnedByName] = useState<Map<string, OwnedMatch>>(new Map());
+
+  const loadOwned = useCallback(async () => {
+    try {
+      const [remote, local] = await Promise.all([
+        user?.id ? InventoryService.getUserInventory(user.id) : Promise.resolve([]),
+        HomeBarService.getStoredIngredients(),
+      ]);
+      const map = new Map<string, OwnedMatch>();
+      for (const item of remote) {
+        const name = (item.item_name || '').trim();
+        if (name) map.set(name.toLowerCase(), { inventoryItemId: item.id, name });
+      }
+      for (const item of local) {
+        const name = (item.name || '').trim();
+        if (name && !map.has(name.toLowerCase())) {
+          map.set(name.toLowerCase(), { inventoryItemId: item.id, name });
+        }
+      }
+      setOwnedByName(map);
+    } catch {
+      // Non-fatal: search still works, items just won't show as owned.
+    }
+  }, [user?.id]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadOwned();
+    }, [loadOwned]),
+  );
+
+  const findOwnedMatch = useCallback(
+    (spirit: Spirit): OwnedMatch | undefined => {
+      const spiritName = spirit.name.toLowerCase();
+      for (const [ownedNameLower, match] of ownedByName) {
+        if (spiritName.includes(ownedNameLower) || ownedNameLower.includes(spiritName)) {
+          return match;
+        }
+      }
+      return undefined;
+    },
+    [ownedByName],
+  );
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -106,51 +165,81 @@ export default function BottleSearchScreen() {
       .map(({ spirit }) => spirit);
   }, [query, activeFilter]);
 
-  const handleSelect = useCallback((spirit: Spirit) => {
-    navigation.navigate('BottleDetail', { bottle: spirit });
-  }, [navigation]);
-
-  const renderItem = ({ item }: { item: Spirit }) => (
-    <TouchableOpacity
-      style={styles.card}
-      onPress={() => handleSelect(item)}
-      activeOpacity={0.82}
-    >
-      <View style={styles.cardImageWrap}>
-        <View style={styles.cardIconFallback}>
-          <Ionicons
-            name={CATEGORY_ICONS[item.type] as any ?? 'wine-outline'}
-            size={28}
-            color={colors.accent}
-          />
-        </View>
-      </View>
-
-      <View style={styles.cardBody}>
-        <Text style={styles.cardName} numberOfLines={2}>{item.name}</Text>
-        <Text style={styles.cardBrand} numberOfLines={1}>{item.brand}</Text>
-        <View style={styles.cardMeta}>
-          <View style={styles.cardChip}>
-            <Text style={styles.cardChipText}>
-              {item.type[0].toUpperCase() + item.type.slice(1)}
-            </Text>
-          </View>
-          {item.abv > 0 && (
-            <View style={styles.cardChip}>
-              <Text style={styles.cardChipText}>{item.abv}% ABV</Text>
-            </View>
-          )}
-          {item.flavorProfile.slice(0, 2).map((f) => (
-            <View key={f} style={styles.cardChip}>
-              <Text style={styles.cardChipText}>{f}</Text>
-            </View>
-          ))}
-        </View>
-      </View>
-
-      <Ionicons name="chevron-forward" size={16} color={colors.subtext} />
-    </TouchableOpacity>
+  const handleSelect = useCallback(
+    (spirit: Spirit) => {
+      const owned = findOwnedMatch(spirit);
+      if (owned) {
+        // Route back into the Bar tab's own bottle-management modal (Bar
+        // Note / Cellar Mode / Remove) rather than the read-only catalog
+        // detail view — an owned bottle should open to "manage it," not
+        // "here's what this is." HomeBarScreen's focus effect picks up
+        // openItemId and opens that item, then clears the param.
+        (navigation as any).navigate('Shelf', {
+          screen: 'HomeBarMain',
+          params: { openItemId: owned.inventoryItemId },
+        });
+        return;
+      }
+      navigation.navigate('BottleDetail', { bottle: spirit });
+    },
+    [navigation, findOwnedMatch],
   );
+
+  const renderItem = ({ item }: { item: Spirit }) => {
+    const owned = findOwnedMatch(item);
+    return (
+      <TouchableOpacity style={styles.card} onPress={() => handleSelect(item)} activeOpacity={0.82}>
+        <View style={styles.cardImageWrap}>
+          <View style={styles.cardIconFallback}>
+            <Ionicons
+              name={(CATEGORY_ICONS[item.type] as any) ?? 'wine-outline'}
+              size={28}
+              color={colors.accent}
+            />
+          </View>
+        </View>
+
+        <View style={styles.cardBody}>
+          <Text style={styles.cardName} numberOfLines={2}>
+            {item.name}
+          </Text>
+          <Text style={styles.cardBrand} numberOfLines={1}>
+            {item.brand}
+          </Text>
+          <View style={styles.cardMeta}>
+            {owned && (
+              <View style={[styles.cardChip, styles.cardChipOwned]}>
+                <Ionicons
+                  name="checkmark-circle"
+                  size={11}
+                  color={colors.bg}
+                  style={{ marginRight: 3 }}
+                />
+                <Text style={[styles.cardChipText, styles.cardChipOwnedText]}>In Your Bar</Text>
+              </View>
+            )}
+            <View style={styles.cardChip}>
+              <Text style={styles.cardChipText}>
+                {item.type[0].toUpperCase() + item.type.slice(1)}
+              </Text>
+            </View>
+            {item.abv > 0 && (
+              <View style={styles.cardChip}>
+                <Text style={styles.cardChipText}>{item.abv}% ABV</Text>
+              </View>
+            )}
+            {item.flavorProfile.slice(0, 2).map((f) => (
+              <View key={f} style={styles.cardChip}>
+                <Text style={styles.cardChipText}>{f}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+
+        <Ionicons name="chevron-forward" size={16} color={colors.subtext} />
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -193,7 +282,9 @@ export default function BottleSearchScreen() {
             style={[styles.filterChip, activeFilter === f.key && styles.filterChipActive]}
             onPress={() => setActiveFilter(f.key)}
           >
-            <Text style={[styles.filterChipText, activeFilter === f.key && styles.filterChipTextActive]}>
+            <Text
+              style={[styles.filterChipText, activeFilter === f.key && styles.filterChipTextActive]}
+            >
               {f.label}
             </Text>
           </TouchableOpacity>
@@ -225,7 +316,9 @@ export default function BottleSearchScreen() {
           results.length > 0 && !query ? (
             <Text style={styles.listHeader}>{results.length} bottles in library</Text>
           ) : results.length > 0 && query ? (
-            <Text style={styles.listHeader}>{results.length} result{results.length !== 1 ? 's' : ''}</Text>
+            <Text style={styles.listHeader}>
+              {results.length} result{results.length !== 1 ? 's' : ''}
+            </Text>
           ) : null
         }
       />
@@ -370,6 +463,16 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: colors.subtext,
     fontWeight: '500',
+  },
+  cardChipOwned: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
+  },
+  cardChipOwnedText: {
+    color: colors.bg,
+    fontWeight: '700',
   },
   empty: {
     alignItems: 'center',

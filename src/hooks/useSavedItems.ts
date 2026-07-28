@@ -61,12 +61,17 @@ export function useSavedItems() {
   const tier = useUserTier((state) => state.tier);
   const { user } = useAuth();
   const [savedItems, setSavedItems] = useState<SavedItemsState>(globalSavedItemsState);
+  // Lets a screen distinguish "genuinely no saved items" from "AsyncStorage
+  // hasn't answered yet" — without it, any screen gating a section on e.g.
+  // `savedCocktails.length === 0` shows the empty state first, then the real
+  // one once hydration finishes, which reads as the screen jumping.
+  const [isHydrated, setIsHydrated] = useState(hasHydratedSavedItems);
 
   // Load saved items from AsyncStorage on mount
   useEffect(() => {
     const subscriber = (next: SavedItemsState) => setSavedItems(next);
     savedItemsSubscribers.add(subscriber);
-    loadSavedItems();
+    loadSavedItems().finally(() => setIsHydrated(true));
     return () => {
       savedItemsSubscribers.delete(subscriber);
     };
@@ -323,6 +328,7 @@ export function useSavedItems() {
 
   return {
     savedItems,
+    isHydrated,
     toggleSavedBar,
     toggleSavedSpirit,
     toggleSavedCocktail,
