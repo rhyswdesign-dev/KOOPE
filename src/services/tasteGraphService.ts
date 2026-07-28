@@ -81,6 +81,60 @@ const DECAY_RATE = 0.005;
 const DECAY_FLOOR = 0.3;
 
 // ============================================================================
+// STEERING
+// ============================================================================
+//
+// The PRO sliders used to REPLACE the learned weight outright. That quietly
+// destroyed the thing they were built on top of: once a value was pinned, the
+// profile could no longer distinguish what the user actually likes from what
+// they once said they liked, and no amount of subsequent behaviour could move
+// it. Same failure as an onboarding answer that never yields to evidence,
+// one level up.
+//
+// So the model is now two layers:
+//   - the MIRROR   (rawProfile) — observed from behaviour, never user-edited.
+//   - the STEERING (below)      — an explicit "I want more of this" bias that
+//                                 tilts recommendations WITHOUT overwriting
+//                                 the mirror.
+//
+// Steering also fades. An aspiration is a phase ("I'm getting into agave"),
+// not a permanent fact, and one set eight months ago should not still be
+// bending the feed. The mirror underneath is untouched throughout, so when
+// the steering lapses the user is simply themselves again.
+
+/** How far a fully-active steer can pull a weight from its learned value. */
+const STEERING_STRENGTH = 0.6;
+/** Days after which a steer has faded to nothing. */
+const STEERING_FADE_DAYS = 90;
+
+/**
+ * How much influence a steer still has, 0-1, given when it was set.
+ * Fresh steers pull at full strength; older ones taper to zero.
+ */
+export function steeringInfluence(lastModified?: string): number {
+  if (!lastModified) return 0;
+  const days = getDaysSince(lastModified);
+  if (!Number.isFinite(days)) return 0;
+  if (days <= 0) return 1;
+  return Math.max(0, 1 - days / STEERING_FADE_DAYS);
+}
+
+/**
+ * Blend a steer toward its target without replacing the learned value.
+ * At full influence the result sits 60% of the way to the target — the
+ * mirror still shows through, which is the point.
+ */
+function applySteering(
+  learned: number,
+  target: number | null | undefined,
+  influence: number,
+): number {
+  if (target === undefined || target === null || influence <= 0) return learned;
+  const pull = STEERING_STRENGTH * influence;
+  return learned * (1 - pull) + target * pull;
+}
+
+// ============================================================================
 // CORE FUNCTIONS
 // ============================================================================
 
@@ -142,33 +196,31 @@ export function getEffectiveTasteProfile(graphData: TasteGraphData): TasteProfil
     'none',
   ];
 
-  // Apply decay to flavor weights
+  // Steering influence fades with age — see the STEERING block above.
+  const influence = steeringInfluence(graphData.overrides?.lastModified);
+
+  // Learned weight, decayed, then tilted by any active steer. The steer biases;
+  // it never replaces, so behaviour keeps moving the value underneath it.
   const decayedFlavors: Record<FlavorProfile, number> = {} as any;
   for (const flavor of allFlavors) {
     const raw = graphData.rawProfile.flavorWeights[flavor] ?? 0;
     const ts = graphData.timestamps.flavors[flavor];
-
-    // Check for manual override first (PRO)
-    const override = graphData.overrides?.flavors[flavor];
-    if (override !== undefined && override !== null) {
-      decayedFlavors[flavor] = override;
-    } else {
-      decayedFlavors[flavor] = applyDecay(raw, ts);
-    }
+    decayedFlavors[flavor] = applySteering(
+      applyDecay(raw, ts),
+      graphData.overrides?.flavors[flavor],
+      influence,
+    );
   }
 
-  // Apply decay to spirit weights
   const decayedSpirits: Record<Spirit, number> = {} as any;
   for (const spirit of allSpirits) {
     const raw = graphData.rawProfile.spiritWeights[spirit] ?? 0;
     const ts = graphData.timestamps.spirits[spirit];
-
-    const override = graphData.overrides?.spirits[spirit];
-    if (override !== undefined && override !== null) {
-      decayedSpirits[spirit] = override;
-    } else {
-      decayedSpirits[spirit] = applyDecay(raw, ts);
-    }
+    decayedSpirits[spirit] = applySteering(
+      applyDecay(raw, ts),
+      graphData.overrides?.spirits[spirit],
+      influence,
+    );
   }
 
   // Normalize
