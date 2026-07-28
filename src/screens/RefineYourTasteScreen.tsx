@@ -315,19 +315,29 @@ export default function RefineYourTasteScreen({ navigation }: Props) {
         complexityScore: Math.round(finalTasteProfile.preferredComplexity * 100),
       });
 
-      // Persist the graph metadata alongside the weights, or hydrateTasteGraph
-      // has nothing to find on the next load. Timestamps are refreshed because
-      // the user just explicitly curated these values — that is a fresh signal,
-      // and it also stops decay compounding across successive saves.
-      const refreshedGraph = {
-        ...initializeTasteGraph(finalTasteProfile as any),
-        interactionCounts: graphData.interactionCounts,
-        overrides: graphData.overrides,
+      // The mirror is preserved exactly as learned. Only the steering layer and
+      // the genuinely-declarative settings (ABV, complexity) are written from
+      // this screen.
+      //
+      // Saving `effectiveProfile` into rawProfile here is what used to make the
+      // sliders destructive: the steered values were baked in as though the user
+      // had behaved that way, and no later behaviour could undo it. Steering now
+      // rides alongside the mirror and fades on its own.
+      const savedGraph = {
+        ...graphData,
+        rawProfile: {
+          ...graphData.rawProfile,
+          preferredABV: nextABV,
+          preferredComplexity: finalTasteProfile.preferredComplexity,
+        },
+        overrides: graphData.overrides
+          ? { ...graphData.overrides, lastModified: new Date().toISOString() }
+          : undefined,
       };
 
       if (user?.id) {
         await updateUserProfileFields(user.id, {
-          tasteProfile: toPersistedTasteProfile(refreshedGraph) as any,
+          tasteProfile: toPersistedTasteProfile(savedGraph) as any,
           preferredABVRange: nextABV as any,
           favoriteSpirit: favoriteSpirits[0] as any,
           spiritPreferences: favoriteSpirits as any,

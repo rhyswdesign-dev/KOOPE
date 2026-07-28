@@ -15,6 +15,8 @@ import {
   initializeTasteGraph,
   generateRadarChart,
   applyDecay,
+  getEffectiveTasteProfile,
+  steeringInfluence,
   type TasteGraphData,
 } from '../tasteGraphService';
 import type { TasteProfile } from '../../types/userProfile';
@@ -144,6 +146,68 @@ describe('taste graph persistence', () => {
     expect(whiskey!.confidence).toBe(1);
     expect(radar.dataConfidence).toBeGreaterThan(0);
     expect(radar.engagementScore).toBeGreaterThan(0);
+  });
+
+  describe('steering vs the mirror', () => {
+    const steered = (value: number, setAt: string): TasteGraphData => ({
+      rawProfile: baseProfile,
+      timestamps: { flavors: {}, spirits: {} },
+      interactionCounts: { flavors: {}, spirits: {}, total: 0 },
+      overrides: { flavors: { citrus: value }, spirits: {}, lastModified: setAt },
+    });
+
+    it('biases a weight toward the steer without replacing it', () => {
+      // The old behaviour returned the steer verbatim (1.0), erasing the
+      // learned value entirely. It must now sit between the two.
+      const effective = getEffectiveTasteProfile(steered(1, daysAgo(0)));
+      const learnedCitrus = baseProfile.flavorWeights.citrus;
+
+      expect(effective.flavorWeights.citrus).toBeGreaterThan(0);
+      // Normalisation makes absolute comparison meaningless, so compare the
+      // steered graph against the same graph with no steer at all.
+      const unsteered = getEffectiveTasteProfile({
+        rawProfile: baseProfile,
+        timestamps: { flavors: {}, spirits: {} },
+        interactionCounts: { flavors: {}, spirits: {}, total: 0 },
+      });
+      expect(effective.flavorWeights.citrus).toBeGreaterThan(unsteered.flavorWeights.citrus);
+      expect(learnedCitrus).toBeLessThan(1);
+    });
+
+    it('never mutates the mirror', () => {
+      const graph = steered(1, daysAgo(0));
+      getEffectiveTasteProfile(graph);
+
+      // The whole point: behaviour stays recoverable underneath the steer.
+      expect(graph.rawProfile.flavorWeights.citrus).toBe(baseProfile.flavorWeights.citrus);
+    });
+
+    it('fades a steer as it ages', () => {
+      const fresh = getEffectiveTasteProfile(steered(1, daysAgo(0)));
+      const old = getEffectiveTasteProfile(steered(1, daysAgo(60)));
+
+      expect(fresh.flavorWeights.citrus).toBeGreaterThan(old.flavorWeights.citrus);
+    });
+
+    it('ignores a steer once it has fully lapsed', () => {
+      // An aspiration set eight months ago should not still bend the feed.
+      const lapsed = getEffectiveTasteProfile(steered(1, daysAgo(240)));
+      const none = getEffectiveTasteProfile({
+        rawProfile: baseProfile,
+        timestamps: { flavors: {}, spirits: {} },
+        interactionCounts: { flavors: {}, spirits: {}, total: 0 },
+      });
+
+      expect(lapsed.flavorWeights.citrus).toBeCloseTo(none.flavorWeights.citrus, 5);
+    });
+
+    it('reports influence between 1 and 0 over the fade window', () => {
+      expect(steeringInfluence(daysAgo(0))).toBeCloseTo(1, 2);
+      expect(steeringInfluence(daysAgo(45))).toBeGreaterThan(0);
+      expect(steeringInfluence(daysAgo(45))).toBeLessThan(1);
+      expect(steeringInfluence(daysAgo(200))).toBe(0);
+      expect(steeringInfluence(undefined)).toBe(0);
+    });
   });
 
   it('confidence stays zero for a freshly initialized graph', () => {
