@@ -1,9 +1,5 @@
 import * as React from 'react';
-import {
-  NavigationContainer,
-  DefaultTheme,
-  createNavigationContainerRef,
-} from '@react-navigation/native';
+import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { KeyboardAvoidingView, Platform, Keyboard, LayoutAnimation, UIManager } from 'react-native';
 import Constants from 'expo-constants';
 import RootNavigator from './src/navigation/RootNavigator';
@@ -30,7 +26,9 @@ import { OfflineBanner } from './src/components/OfflineBanner';
 import KeyboardDismissBar from './src/components/KeyboardDismissBar';
 import AppAlertRenderer, { installAppAlert } from './src/components/AppAlertRenderer';
 import { notificationService } from './src/services/notificationService';
+import NotificationPlannerRunner from './src/components/NotificationPlannerRunner';
 import { setupDeepLinking } from './src/lib/deepLinking';
+import { navigationRef, markNavigationReady } from './src/lib/navigationRef';
 import { useShareIntent } from 'expo-share-intent';
 import type { AgeVerificationPayload } from './src/services/ageVerificationService';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -151,7 +149,6 @@ const KOOPETheme = {
   },
 };
 
-const navigationRef = createNavigationContainerRef<any>();
 const HTTP_URL_PATTERN = /(https?:\/\/[^\s"'<>]+)/i;
 
 export default function App() {
@@ -228,6 +225,8 @@ function AppInner() {
     if (mixpanelToken) {
       initAnalyticsWithConsent(mixpanelToken).catch(() => {});
     }
+    // The 7-day L2/L3/L4 window is rebuilt by <NotificationPlannerRunner />
+    // once auth is available (it needs the user id to read made_events).
     notificationService.initialize().catch((error) => {
       console.warn('Notification service initialization failed', error);
     });
@@ -397,6 +396,10 @@ function AppInner() {
                     onReady={() => {
                       if (!navigationRef.isReady()) return;
 
+                      // Flush any navigation queued by a notification tap that
+                      // landed before the container mounted (cold start).
+                      markNavigationReady();
+
                       deepLinkCleanupRef.current?.();
                       deepLinkCleanupRef.current = setupDeepLinking({
                         navigate: (...args: any[]) => navigationRef.navigate(...(args as any)),
@@ -405,6 +408,9 @@ function AppInner() {
                   >
                     <RootNavigator />
                   </NavigationContainer>
+
+                  {/* Notification frequency governor — runs on open/foreground */}
+                  <NotificationPlannerRunner />
 
                   {/* Global Achievement Unlock Modal */}
                   <AchievementUnlockModal

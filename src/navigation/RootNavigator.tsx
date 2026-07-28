@@ -130,7 +130,9 @@ export type RootStackParamList = {
   CocktailDetail: { cocktailId: string };
   CocktailList: { title: string; cocktailIds: string[]; category: string };
   WhatCanIMake: undefined;
-  Hosting: undefined;
+  // `focus` is the hosting countdown's deep-link hint (T-72h -> shopping,
+  // T-24h -> prep, day-of -> menu). See notificationService.scheduleHostingCountdown.
+  Hosting: { focus?: 'shopping' | 'prep' | 'menu' } | undefined;
   GuestMenu: {
     cocktailName: string;
     ingredients: string[];

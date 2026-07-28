@@ -44,6 +44,8 @@ import { getSpiritSubstitutions } from '../utils/spiritSubstitutions';
 import { generateRecipeFromInventory, checkRateLimit } from '../services/aiRecipeGenerationService';
 import { supabase } from '../lib/supabase';
 import { FeedbackPromptModal } from '../components/FeedbackPromptModal';
+import { notificationService } from '../services/notificationService';
+import { notificationPlanner } from '../services/notificationPlanner';
 // BartenderAssistant removed in favor of full screen AI Chat
 
 type CocktailWithMatch = Cocktail & { match: RecipeMatch };
@@ -128,6 +130,43 @@ export default function WhatCanIMakeScreen() {
       matchCocktails();
     }
   }, [selectedItems, inventory, matchCocktails]);
+
+  // Notification Playbook §2: the ask lands *after* a first value moment,
+  // never on launch, and is framed as service tied to what just happened.
+  // A first non-empty What Can I Make result is exactly that moment.
+  const hasPrimedNotificationsRef = useRef(false);
+  useEffect(() => {
+    if (hasPrimedNotificationsRef.current) return;
+    if (!cocktails.some((c) => c.match.canMake)) return;
+    hasPrimedNotificationsRef.current = true;
+
+    notificationService
+      .hasPermission()
+      .then((granted) => {
+        if (granted) return;
+        Alert.alert(
+          'Want a nudge when your shelf can make something new?',
+          'One reminder on Friday afternoons, plus a heads-up before any party you plan. Nothing else.',
+          [
+            { text: 'No thanks', style: 'cancel' },
+            {
+              text: 'Yes, remind me',
+              onPress: () => {
+                notificationService
+                  .requestPermissionAtValueMoment('what_can_i_make_result')
+                  .then((ok) =>
+                    ok
+                      ? notificationPlanner.run({ userId: user?.id, reason: 'permission_granted' })
+                      : null,
+                  )
+                  .catch(() => {});
+              },
+            },
+          ],
+        );
+      })
+      .catch(() => {});
+  }, [cocktails, user?.id]);
 
   const loadData = async () => {
     if (!user) {
