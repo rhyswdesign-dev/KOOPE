@@ -8,21 +8,28 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import { computeTasteVector, recomputeAndPersistTasteVector } from '../tasteVectorService';
 
-const rowsByTable: Record<string, any[]> = { made_events: [], scan_events: [] };
+const rowsByTable: Record<string, any[]> = {
+  made_events: [],
+  scan_events: [],
+  user_inventory: [],
+};
 let signalRows: { recipeId: string; signal: string; createdAt: string }[] = [];
+let wishlistItems: { name: string; type: string; dateSaved: string }[] = [];
 
+// Supports both query shapes in use: .eq().order().limit() for the event
+// streams, and .eq().limit() for the inventory read.
 vi.mock('../../lib/supabase', () => ({
   supabase: {
-    from: (table: string) => ({
-      select: () => ({
-        eq: () => ({
-          order: () => ({
-            limit: () => Promise.resolve({ data: rowsByTable[table] ?? [], error: null }),
-          }),
-        }),
-      }),
-    }),
+    from: (table: string) => {
+      const result = () => Promise.resolve({ data: rowsByTable[table] ?? [], error: null });
+      const terminal = { limit: result, order: () => ({ limit: result }) };
+      return { select: () => ({ eq: () => terminal }) };
+    },
   },
+}));
+
+vi.mock('../../store/useWishlist', () => ({
+  useWishlist: { getState: () => ({ items: wishlistItems }) },
 }));
 
 vi.mock('../../lib/logger', () => ({
@@ -59,7 +66,9 @@ function daysAgo(n: number): string {
 beforeEach(() => {
   rowsByTable.made_events = [];
   rowsByTable.scan_events = [];
+  rowsByTable.user_inventory = [];
   signalRows = [];
+  wishlistItems = [];
   updateFieldsMock.mockClear();
 });
 
@@ -229,6 +238,69 @@ describe('computeTasteVector', () => {
     // A zero-proof user must not be silently converted to full-strength.
     expect(graph.rawProfile.preferredABV).toEqual({ min: 0, max: 0.5 });
     expect(graph.rawProfile.preferredComplexity).toBe(0.9);
+  });
+});
+
+describe('shelf and wishlist as standing holdings', () => {
+  it('learns from a bottle on the shelf that was never scanned', () => {
+    // The gap: a manually added bottle taught the profile nothing, because
+    // all bottle learning hung off the scan flow.
+    rowsByTable.user_inventory = [
+      { item_name: 'Islay Malt', category: 'whiskey', added_at: daysAgo(30) },
+    ];
+
+    return computeTasteVector('user-1').then((graph) => {
+      expect(graph).not.toBeNull();
+      expect(graph!.rawProfile.flavorWeights.smoky).toBeGreaterThan(0);
+      expect(graph!.rawProfile.spiritWeights.whiskey).toBeGreaterThan(0);
+    });
+  });
+
+  it('learns from the wishlist', async () => {
+    wishlistItems = [{ name: 'Islay Malt', type: 'whiskey', dateSaved: daysAgo(10) }];
+
+    const graph = (await computeTasteVector('user-1'))!;
+    expect(graph.rawProfile.flavorWeights.smoky).toBeGreaterThan(0);
+  });
+
+  it('weights owning a bottle above merely wanting it', async () => {
+    rowsByTable.user_inventory = [
+      { item_name: 'Islay Malt', category: 'whiskey', added_at: daysAgo(5) },
+    ];
+    const owned = (await computeTasteVector('user-1'))!;
+
+    rowsByTable.user_inventory = [];
+    wishlistItems = [{ name: 'Islay Malt', type: 'whiskey', dateSaved: daysAgo(5) }];
+    const wanted = (await computeTasteVector('user-1'))!;
+
+    expect(owned.interactionCounts.total).toBe(wanted.interactionCounts.total);
+    expect(owned.rawProfile.spiritWeights.whiskey).toBeGreaterThanOrEqual(
+      wanted.rawProfile.spiritWeights.whiskey,
+    );
+  });
+
+  it('still counts a bottle the catalog does not know, via its category', async () => {
+    // Manually typed bottles will not match the catalog — the category is the
+    // only thing we can trust, and it must not be discarded.
+    rowsByTable.user_inventory = [
+      { item_name: 'Some Obscure Bottling', category: 'gin', added_at: daysAgo(2) },
+    ];
+
+    const graph = (await computeTasteVector('user-1'))!;
+    expect(graph.rawProfile.spiritWeights.gin).toBeGreaterThan(0);
+  });
+
+  it('gives an established shelf an immediate profile with no other activity', async () => {
+    // The retroactive win: existing users with a stocked shelf stop starting
+    // from zero the moment this ships.
+    rowsByTable.user_inventory = [
+      { item_name: 'Islay Malt', category: 'whiskey', added_at: daysAgo(200) },
+      { item_name: 'Unknown Gin', category: 'gin', added_at: daysAgo(150) },
+    ];
+
+    const graph = (await computeTasteVector('user-1'))!;
+    expect(graph.interactionCounts.total).toBe(2);
+    expect(graph.rawProfile.spiritWeights.whiskey).toBeGreaterThan(0);
   });
 });
 
