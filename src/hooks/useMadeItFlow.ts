@@ -15,6 +15,7 @@ import {
   syncCompletionToSupabase,
 } from '../services/recipeCompletionService';
 import { logMadeIt } from '../services/makeLogService';
+import { recomputeAndPersistTasteVector } from '../services/tasteVectorService';
 import { loadUserProfile, updateUserProfileFields } from '../services/userProfileService';
 import type { RecipeCompletionDetails } from '../types/userProfile';
 import { log } from '../lib/logger';
@@ -202,7 +203,12 @@ export function useMadeItFlow({
           source: 'recipe_detail',
           substitutionsUsed: substitutions.trim() ? { notes: substitutions.trim() } : null,
         })
-          .then((result) => setTimesMade(result.timesMade))
+          .then((result) => {
+            setTimesMade(result.timesMade);
+            // A make is the strongest taste signal there is — recompute the
+            // canonical vector now rather than waiting for the next session.
+            recomputeAndPersistTasteVector(userId);
+          })
           .catch((error) =>
             log.warn('CocktailDetailScreen', 'logMadeIt failed (non-blocking)', { error }),
           );

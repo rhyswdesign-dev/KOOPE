@@ -5,19 +5,12 @@
  */
 
 import React, { useState } from 'react';
-import {
-  Modal,
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  ScrollView,
-  Alert,
-} from 'react-native';
+import { Modal, View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, radii, fonts } from '../theme/tokens';
 import { trackRecommendationRating } from '../services/recommendationTrackingService';
 import { updateProfileFromFeedback } from '../services/feedbackLearningService';
+import { logRecipeSignal } from '../services/recipeSignalService';
 import { usePersonalization } from '../store/usePersonalization';
 import { log } from '../lib/logger';
 
@@ -83,7 +76,7 @@ export default function RecommendationFeedbackModal({
 
   const toggleReason = (reasonId: string) => {
     if (selectedReasons.includes(reasonId)) {
-      setSelectedReasons(selectedReasons.filter(r => r !== reasonId));
+      setSelectedReasons(selectedReasons.filter((r) => r !== reasonId));
     } else {
       setSelectedReasons([...selectedReasons, reasonId]);
     }
@@ -92,11 +85,9 @@ export default function RecommendationFeedbackModal({
   const handleSubmit = async () => {
     // Require at least one reason for thumbs down
     if (liked === false && selectedReasons.length === 0) {
-      Alert.alert(
-        'Feedback Required',
-        'Please select at least one reason to help us improve.',
-        [{ text: 'OK' }]
-      );
+      Alert.alert('Feedback Required', 'Please select at least one reason to help us improve.', [
+        { text: 'OK' },
+      ]);
       return;
     }
 
@@ -108,14 +99,27 @@ export default function RecommendationFeedbackModal({
       const rating = liked ? 5 : 1;
 
       // Build feedback string from selected reasons
-      const feedbackText = selectedReasons.length > 0
-        ? selectedReasons.map(id => {
-            const option = liked
-              ? POSITIVE_FEEDBACK_OPTIONS.find(o => o.id === id)
-              : NEGATIVE_FEEDBACK_OPTIONS.find(o => o.id === id);
-            return option?.label || id;
-          }).join(', ')
-        : undefined;
+      const feedbackText =
+        selectedReasons.length > 0
+          ? selectedReasons
+              .map((id) => {
+                const option = liked
+                  ? POSITIVE_FEEDBACK_OPTIONS.find((o) => o.id === id)
+                  : NEGATIVE_FEEDBACK_OPTIONS.find((o) => o.id === id);
+                return option?.label || id;
+              })
+              .join(', ')
+          : undefined;
+
+      // Durable taste signal — the profile update below is in-memory only.
+      if (liked !== null) {
+        logRecipeSignal({
+          userId,
+          recipeId: recommendation.id,
+          signal: liked ? 'thumbs_up' : 'thumbs_down',
+          source: 'recommendation_feedback',
+        });
+      }
 
       // Update taste profile weights based on feedback (Phase 2 Enhancement #3)
       if (profile && liked !== null) {
@@ -124,30 +128,20 @@ export default function RecommendationFeedbackModal({
           profile,
           recommendation,
           liked,
-          selectedReasons
+          selectedReasons,
         );
         await updateProfile(profileUpdates);
         log.info('RecommendationFeedbackModal', 'Taste profile updated successfully');
       }
 
       // Track the feedback (Mixpanel via recommendationTrackingService)
-      await trackRecommendationRating(
-        userId,
-        recommendation,
-        rating,
-        feedbackText,
-        context
-      );
+      await trackRecommendationRating(userId, recommendation, rating, feedbackText, context);
 
       const message = liked
         ? "Thanks! We'll show you more cocktails like this."
         : "Thanks for the feedback! We'll improve your recommendations.";
 
-      Alert.alert(
-        'Feedback Received',
-        message,
-        [{ text: 'OK', onPress: handleClose }]
-      );
+      Alert.alert('Feedback Received', message, [{ text: 'OK', onPress: handleClose }]);
     } catch (error) {
       log.error('RecommendationFeedbackModal', 'Error submitting feedback', error);
       Alert.alert('Error', 'Failed to submit feedback. Please try again.');
@@ -162,28 +156,24 @@ export default function RecommendationFeedbackModal({
     onClose();
   };
 
-  const feedbackOptions = liked === true
-    ? POSITIVE_FEEDBACK_OPTIONS
-    : liked === false
-    ? NEGATIVE_FEEDBACK_OPTIONS
-    : [];
+  const feedbackOptions =
+    liked === true ? POSITIVE_FEEDBACK_OPTIONS : liked === false ? NEGATIVE_FEEDBACK_OPTIONS : [];
 
   const showFeedbackOptions = liked !== null;
   const canSubmit = liked !== null && (liked === true || selectedReasons.length > 0);
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="fade"
-      onRequestClose={handleClose}
-    >
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={handleClose}>
       <View style={styles.overlay}>
         <View style={styles.modal}>
           {/* Header */}
           <View style={styles.header}>
             <Text style={styles.title}>
-              {liked === null ? 'Rate this Recommendation' : liked ? 'What did you like?' : 'Help us improve'}
+              {liked === null
+                ? 'Rate this Recommendation'
+                : liked
+                  ? 'What did you like?'
+                  : 'Help us improve'}
             </Text>
             <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
               <Ionicons name="close" size={24} color={colors.text} />
@@ -214,10 +204,9 @@ export default function RecommendationFeedbackModal({
                   size={48}
                   color={liked === true ? colors.white : colors.subtext}
                 />
-                <Text style={[
-                  styles.thumbButtonText,
-                  liked === true && styles.thumbButtonTextSelected
-                ]}>
+                <Text
+                  style={[styles.thumbButtonText, liked === true && styles.thumbButtonTextSelected]}
+                >
                   Yes
                 </Text>
               </TouchableOpacity>
@@ -237,10 +226,12 @@ export default function RecommendationFeedbackModal({
                   size={48}
                   color={liked === false ? colors.white : colors.subtext}
                 />
-                <Text style={[
-                  styles.thumbButtonText,
-                  liked === false && styles.thumbButtonTextSelected
-                ]}>
+                <Text
+                  style={[
+                    styles.thumbButtonText,
+                    liked === false && styles.thumbButtonTextSelected,
+                  ]}
+                >
                   No
                 </Text>
               </TouchableOpacity>
@@ -274,18 +265,16 @@ export default function RecommendationFeedbackModal({
                         size={20}
                         color={isSelected ? colors.white : colors.text}
                       />
-                      <Text style={[
-                        styles.feedbackOptionText,
-                        isSelected && styles.feedbackOptionTextSelected
-                      ]}>
+                      <Text
+                        style={[
+                          styles.feedbackOptionText,
+                          isSelected && styles.feedbackOptionTextSelected,
+                        ]}
+                      >
                         {option.label}
                       </Text>
                       {isSelected && (
-                        <Ionicons
-                          name="checkmark-circle"
-                          size={20}
-                          color={colors.white}
-                        />
+                        <Ionicons name="checkmark-circle" size={20} color={colors.white} />
                       )}
                     </TouchableOpacity>
                   );

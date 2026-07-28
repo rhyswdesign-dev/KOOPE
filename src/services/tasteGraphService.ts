@@ -120,8 +120,27 @@ export function normalizeWeights(weights: Record<string, number>): Record<string
  * This is the profile used for all recommendations in PRO mode.
  */
 export function getEffectiveTasteProfile(graphData: TasteGraphData): TasteProfile {
-  const allFlavors: FlavorProfile[] = ['citrus', 'herbal', 'bitter', 'sweet', 'smoky', 'floral', 'spiced'];
-  const allSpirits: Spirit[] = ['tequila', 'whiskey', 'rum', 'gin', 'vodka', 'brandy', 'liqueurs', 'gin-alternative', 'rum-alternative', 'none'];
+  const allFlavors: FlavorProfile[] = [
+    'citrus',
+    'herbal',
+    'bitter',
+    'sweet',
+    'smoky',
+    'floral',
+    'spiced',
+  ];
+  const allSpirits: Spirit[] = [
+    'tequila',
+    'whiskey',
+    'rum',
+    'gin',
+    'vodka',
+    'brandy',
+    'liqueurs',
+    'gin-alternative',
+    'rum-alternative',
+    'none',
+  ];
 
   // Apply decay to flavor weights
   const decayedFlavors: Record<FlavorProfile, number> = {} as any;
@@ -169,17 +188,26 @@ export function getEffectiveTasteProfile(graphData: TasteGraphData): TasteProfil
  * PRO users see this as an interactive visualization.
  */
 export function generateRadarChart(graphData: TasteGraphData): FlavorRadarChart {
-  const allFlavors: FlavorProfile[] = ['citrus', 'herbal', 'bitter', 'sweet', 'smoky', 'floral', 'spiced'];
+  const allFlavors: FlavorProfile[] = [
+    'citrus',
+    'herbal',
+    'bitter',
+    'sweet',
+    'smoky',
+    'floral',
+    'spiced',
+  ];
   const displaySpirits: Spirit[] = ['tequila', 'whiskey', 'rum', 'gin', 'vodka', 'brandy'];
 
   const effective = getEffectiveTasteProfile(graphData);
 
   // Flavor points
-  const flavorPoints: RadarChartPoint[] = allFlavors.map(flavor => {
+  const flavorPoints: RadarChartPoint[] = allFlavors.map((flavor) => {
     const raw = graphData.rawProfile.flavorWeights[flavor] ?? 0;
     const eff = effective.flavorWeights[flavor] ?? 0;
-    const isOverridden = graphData.overrides?.flavors[flavor] !== undefined
-      && graphData.overrides?.flavors[flavor] !== null;
+    const isOverridden =
+      graphData.overrides?.flavors[flavor] !== undefined &&
+      graphData.overrides?.flavors[flavor] !== null;
     const count = graphData.interactionCounts.flavors[flavor] ?? 0;
 
     return {
@@ -192,11 +220,12 @@ export function generateRadarChart(graphData: TasteGraphData): FlavorRadarChart 
   });
 
   // Spirit points (exclude alternatives and 'none' for cleaner chart)
-  const spiritPoints: RadarChartPoint[] = displaySpirits.map(spirit => {
+  const spiritPoints: RadarChartPoint[] = displaySpirits.map((spirit) => {
     const raw = graphData.rawProfile.spiritWeights[spirit] ?? 0;
     const eff = effective.spiritWeights[spirit] ?? 0;
-    const isOverridden = graphData.overrides?.spirits[spirit] !== undefined
-      && graphData.overrides?.spirits[spirit] !== null;
+    const isOverridden =
+      graphData.overrides?.spirits[spirit] !== undefined &&
+      graphData.overrides?.spirits[spirit] !== null;
     const count = graphData.interactionCounts.spirits[spirit] ?? 0;
 
     return {
@@ -211,28 +240,31 @@ export function generateRadarChart(graphData: TasteGraphData): FlavorRadarChart 
   // Complexity
   const complexity = {
     value: effective.preferredComplexity,
-    label: effective.preferredComplexity < 0.33
-      ? 'Simple'
-      : effective.preferredComplexity < 0.66
-      ? 'Moderate'
-      : 'Complex',
+    label:
+      effective.preferredComplexity < 0.33
+        ? 'Simple'
+        : effective.preferredComplexity < 0.66
+          ? 'Moderate'
+          : 'Complex',
   };
 
   // ABV
   const abvRange = {
     ...effective.preferredABV,
-    label: effective.preferredABV.max <= 0.5
-      ? 'Zero-Proof'
-      : effective.preferredABV.max <= 15
-      ? 'Low ABV'
-      : 'Standard',
+    label:
+      effective.preferredABV.max <= 0.5
+        ? 'Zero-Proof'
+        : effective.preferredABV.max <= 15
+          ? 'Low ABV'
+          : 'Standard',
   };
 
   // Data confidence: average of all point confidences
-  const allConfidences = [...flavorPoints, ...spiritPoints].map(p => p.confidence);
-  const dataConfidence = allConfidences.length > 0
-    ? allConfidences.reduce((a, b) => a + b, 0) / allConfidences.length
-    : 0;
+  const allConfidences = [...flavorPoints, ...spiritPoints].map((p) => p.confidence);
+  const dataConfidence =
+    allConfidences.length > 0
+      ? allConfidences.reduce((a, b) => a + b, 0) / allConfidences.length
+      : 0;
 
   // Engagement score
   const engagementScore = Math.min(100, Math.round(graphData.interactionCounts.total * 2));
@@ -253,7 +285,7 @@ export function generateRadarChart(graphData: TasteGraphData): FlavorRadarChart 
 export function setFlavorOverride(
   graphData: TasteGraphData,
   flavor: FlavorProfile,
-  value: number | null
+  value: number | null,
 ): TasteGraphData {
   const overrides: ManualFlavorOverrides = graphData.overrides ?? {
     flavors: {},
@@ -277,7 +309,7 @@ export function setFlavorOverride(
 export function setSpiritOverride(
   graphData: TasteGraphData,
   spirit: Spirit,
-  value: number | null
+  value: number | null,
 ): TasteGraphData {
   const overrides: ManualFlavorOverrides = graphData.overrides ?? {
     flavors: {},
@@ -313,10 +345,10 @@ export function initializeTasteGraph(profile: TasteProfile): TasteGraphData {
     rawProfile: profile,
     timestamps: {
       flavors: Object.fromEntries(
-        Object.keys(profile.flavorWeights).map(k => [k, now])
+        Object.keys(profile.flavorWeights).map((k) => [k, now]),
       ) as Partial<Record<FlavorProfile, string>>,
       spirits: Object.fromEntries(
-        Object.keys(profile.spiritWeights).map(k => [k, now])
+        Object.keys(profile.spiritWeights).map((k) => [k, now]),
       ) as Partial<Record<Spirit, string>>,
       complexity: now,
     },
@@ -328,14 +360,88 @@ export function initializeTasteGraph(profile: TasteProfile): TasteGraphData {
   };
 }
 
+// ============================================================================
+// PERSISTENCE
+// ============================================================================
+//
+// The decay and confidence maths above only mean anything if `timestamps` and
+// `interactionCounts` survive between sessions. They did not: every read site
+// called initializeTasteGraph() on load, which stamps every timestamp as "now"
+// and zeroes every count — so decay never decayed and confidence was always ~0.
+//
+// The graph is persisted inside the existing `users_profiles.taste_profile`
+// JSONB column as sibling keys on the TasteProfile object, so no migration is
+// needed and every existing reader of .flavorWeights / .spiritWeights keeps
+// working untouched. Rows written before this change simply lack the sibling
+// keys and fall back to initializeTasteGraph().
+
+/** A TasteProfile plus the graph metadata stored alongside it. */
+export interface PersistedTasteProfile extends TasteProfile {
+  graphTimestamps?: WeightTimestamps;
+  graphInteractionCounts?: TasteGraphData['interactionCounts'];
+  graphOverrides?: ManualFlavorOverrides;
+}
+
+/**
+ * Rebuild a TasteGraphData from what was persisted.
+ *
+ * Use this instead of initializeTasteGraph() at every read site. Legacy rows
+ * (no graph metadata) degrade to initializeTasteGraph()'s behaviour, which is
+ * what those rows would have got anyway — no user loses data by this change.
+ */
+export function hydrateTasteGraph(
+  persisted: PersistedTasteProfile | TasteProfile | null | undefined,
+): TasteGraphData | null {
+  if (!persisted) return null;
+
+  const stored = persisted as PersistedTasteProfile;
+  const rawProfile: TasteProfile = {
+    flavorWeights: stored.flavorWeights,
+    spiritWeights: stored.spiritWeights,
+    preferredABV: stored.preferredABV,
+    preferredComplexity: stored.preferredComplexity,
+  };
+
+  if (!stored.graphTimestamps && !stored.graphInteractionCounts) {
+    // Legacy row — no graph metadata was ever written for this user.
+    return initializeTasteGraph(rawProfile);
+  }
+
+  return {
+    rawProfile,
+    timestamps: stored.graphTimestamps ?? { flavors: {}, spirits: {} },
+    overrides: stored.graphOverrides,
+    interactionCounts: stored.graphInteractionCounts ?? {
+      flavors: {},
+      spirits: {},
+      total: 0,
+    },
+  };
+}
+
+/**
+ * Flatten a TasteGraphData back into the shape written to
+ * `users_profiles.taste_profile`. The four TasteProfile fields stay at the top
+ * level so existing consumers are unaffected.
+ */
+export function toPersistedTasteProfile(graphData: TasteGraphData): PersistedTasteProfile {
+  return {
+    ...graphData.rawProfile,
+    graphTimestamps: graphData.timestamps,
+    graphInteractionCounts: graphData.interactionCounts,
+    graphOverrides: graphData.overrides,
+  };
+}
+
 /**
  * Record an interaction timestamp for a specific weight category.
- * Called by BehavioralLearning after updating raw weights.
+ * Used when mutating a graph in place; the bulk path is tasteVectorService,
+ * which derives timestamps directly from the event streams.
  */
 export function recordInteraction(
   graphData: TasteGraphData,
   flavors: FlavorProfile[],
-  spirit?: Spirit
+  spirit?: Spirit,
 ): TasteGraphData {
   const now = new Date().toISOString();
   const updated = { ...graphData };
