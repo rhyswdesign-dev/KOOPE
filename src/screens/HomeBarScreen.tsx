@@ -12,25 +12,24 @@ import {
   StyleSheet,
   SafeAreaView,
   TouchableOpacity,
-  Image,
   TextInput,
   Alert,
   Modal,
-  Keyboard,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { colors, spacing, radii, fonts, serif } from '../theme/tokens';
 import { Heading, MainPageHeader } from '../components/ui';
 import { Ionicons } from '@expo/vector-icons';
 import { FlavorIcon } from '../components/FlavorIcon';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useNavigation, useFocusEffect, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { HomeBar, BarIngredient, HomeBarService } from '../services/homeBarService';
 import { InventoryService } from '../services/inventoryService';
 import { challengeProgressService } from '../services/challengeProgressService';
-import { ShoppingListStore } from '../services/shoppingListStore';
 import EmptyState from '../components/EmptyState';
 import { log } from '../lib/logger';
 import { useAuth } from '../contexts/AuthContext';
@@ -97,6 +96,7 @@ const mockHomeBar: HomeBar = {
 
 export default function HomeBarScreen() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const route = useRoute<any>();
   const { tier } = useUserTier();
   const { gateWithTrigger: upgradeGate } = useFeatureAccess('inventory_unlimited');
   const { gateWithTrigger: hostingBasicGate } = useFeatureAccess('hosting_basic');
@@ -158,15 +158,18 @@ export default function HomeBarScreen() {
     [hostingBasicGate, optimizeMyBarGate, expiryAlertsGate, barHealthGate, nav],
   );
   const [cartFeedbackVisible, setCartFeedbackVisible] = useState(false);
-  const [showSearchModal, setShowSearchModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchModalQuery, setSearchModalQuery] = useState('');
-  const [searchHistory, setSearchHistory] = useState<string[]>([]);
   const [activeCategory, setActiveCategory] = useState<InventoryCategory | 'all'>('all');
   // Owned vs Want — top-level view switch (1.4c). Previously this was a
   // 'saved' sentinel inside activeCategory, one chip among Spirits/Mixers/etc.
   const [inventoryView, setInventoryView] = useState<'owned' | 'want'>('owned');
   const [homeBar, setHomeBar] = useState<HomeBar>({ ...mockHomeBar, ingredients: [] });
+  // True only until the first load resolves. Without this, `ingredients`
+  // starts at [] and sections gated on `ingredients.length > 0` (e.g. the
+  // Feature Cards row below) are indistinguishable from "bar is actually
+  // empty" during the fetch — they pop in once data arrives instead of
+  // being there from first paint, which reads as the screen jumping.
+  const [initialLoading, setInitialLoading] = useState(true);
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
   // Tracks a failed/broken image load for the detail modal — without this,
   // a stale or unreachable imageUrl just renders as an empty colored box
@@ -186,6 +189,12 @@ export default function HomeBarScreen() {
   >('full');
   const [savingCellarIntake, setSavingCellarIntake] = useState(false);
   const [editMode, setEditMode] = useState(false);
+  // Separate from editMode (which is rename-only: name/brand/category) — this
+  // gates Bar Note / Cellar Mode / Add to Shopping List / Remove from Bar,
+  // reached via the "..." icon rather than the pencil. Mutually exclusive
+  // with editMode so the modal only ever shows one extra concern at a time,
+  // not the full stack (that stacking was the original complaint).
+  const [showManageActions, setShowManageActions] = useState(false);
   const [editName, setEditName] = useState('');
   const [editBrand, setEditBrand] = useState('');
   const [editCategory, setEditCategory] = useState<BarIngredient['category']>('spirit');
@@ -209,8 +218,24 @@ export default function HomeBarScreen() {
       lastLoadTimeRef.current = now;
       loadStoredIngredients().finally(() => {
         isLoadingRef.current = false;
+        setInitialLoading(false);
       });
     }, []),
+  );
+
+  // Opens a bottle's manage modal when BottleSearchScreen routes here for an
+  // owned item (see BottleSearchScreen.tsx's handleSelect) — the combined
+  // search screen can't open this screen's local modal state directly, so it
+  // hands off via a route param instead. Cleared immediately so re-focusing
+  // this tab later (without a fresh param) doesn't reopen the same item.
+  useFocusEffect(
+    useCallback(() => {
+      const openItemId = route.params?.openItemId as string | undefined;
+      if (!openItemId) return;
+      nav.setParams({ openItemId: undefined } as any);
+      const item = homeBar.ingredients.find((i) => i.id === openItemId);
+      if (item) handleItemPress(item);
+    }, [route.params?.openItemId, homeBar.ingredients]),
   );
 
   const loadStoredIngredients = async () => {
@@ -386,130 +411,10 @@ export default function HomeBarScreen() {
 
   const { all } = getFilteredInventory();
 
-  const categoryDisplayMap: Record<string, string> = {
-    spirit: 'Spirit',
-    mixer: 'Mixer',
-    garnish: 'Garnish',
-    ingredient: 'Ingredient',
-    liqueur: 'Liqueur',
-    bitters: 'Bitters',
-    syrup: 'Syrup',
-    other: 'Other',
-  };
-  const normalizeSearchValue = (value: string | string[] | undefined) => {
-    if (!value) return '';
-    if (Array.isArray(value)) return value.join(' ').toLowerCase();
-    return value.toLowerCase();
-  };
-
-  const searchResults = useMemo(() => {
-    const query = searchModalQuery.trim().toLowerCase();
-    const terms = query.split(/\s+/).filter(Boolean);
-    if (!query) return [];
-
-    const scored = homeBar.ingredients
-      .map((item) => {
-        const name = normalizeSearchValue(item.name);
-        const brand = normalizeSearchValue(item.brand);
-        const category = normalizeSearchValue(categoryDisplayMap[item.category] || item.category);
-        const subcategory = normalizeSearchValue(item.subcategory);
-        const tags = normalizeSearchValue(item.tags);
-        const searchable = `${name} ${brand} ${category} ${subcategory} ${tags}`;
-        const matchesAll = terms.every((term) => searchable.includes(term));
-
-        if (!matchesAll) return null;
-
-        let score = 0;
-        if (name === query) score += 120;
-        else if (name.startsWith(query)) score += 90;
-        else if (name.includes(query)) score += 70;
-
-        if (brand === query) score += 45;
-        else if (brand.startsWith(query)) score += 30;
-        else if (brand.includes(query)) score += 20;
-
-        if (category.includes(query)) score += 18;
-        if (subcategory.includes(query)) score += 12;
-        if (tags.includes(query)) score += 8;
-        if (item.category === 'spirit') score += 2;
-
-        return { item, score };
-      })
-      .filter((entry): entry is { item: InventoryItem; score: number } => !!entry)
-      .sort((a, b) => b.score - a.score)
-      .map((entry) => entry.item);
-
-    return scored;
-  }, [searchModalQuery, homeBar.ingredients]);
-
-  const hasActiveSearch = searchModalQuery.trim().length > 0;
-
-  const popularInventoryItems = useMemo(() => {
-    return homeBar.ingredients
-      .slice()
-      .sort((a, b) => {
-        const favDiff = Number(b.isFavorite) - Number(a.isFavorite);
-        if (favDiff !== 0) return favDiff;
-        return a.name.localeCompare(b.name);
-      })
-      .slice(0, 12);
-  }, [homeBar.ingredients]);
-
-  const visibleSearchResults = useMemo(() => {
-    if (hasActiveSearch) return searchResults;
-    return popularInventoryItems;
-  }, [hasActiveSearch, searchResults, popularInventoryItems]);
-
-  const discoverLikeSuggestions = useMemo(() => {
-    const query = searchModalQuery.trim().toLowerCase();
-    const pool = Array.from(
-      new Set(
-        homeBar.ingredients.flatMap(
-          (item) =>
-            [item.name, item.brand, categoryDisplayMap[item.category], item.subcategory].filter(
-              Boolean,
-            ) as string[],
-        ),
-      ),
-    );
-
-    if (query.length > 0) {
-      const filtered = pool.filter((text) => text.toLowerCase().includes(query)).slice(0, 8);
-      return filtered.map((text) => ({ text, type: 'search' as const }));
-    }
-
-    const recent = searchHistory.slice(0, 4).map((text) => ({ text, type: 'history' as const }));
-    const trending = popularInventoryItems
-      .slice(0, 4)
-      .map((item) => ({ text: item.name, type: 'trending' as const }));
-    return [...recent, ...trending];
-  }, [searchModalQuery, homeBar.ingredients, searchHistory, popularInventoryItems]);
-
   const favoriteItems = useMemo(
     () => homeBar.ingredients.filter((item) => item.isFavorite).slice(0, 6),
     [homeBar.ingredients],
   );
-
-  const recordSearchHistory = (value: string) => {
-    const normalized = value.trim();
-    if (!normalized) return;
-    setSearchHistory((prev) =>
-      [normalized, ...prev.filter((item) => item.toLowerCase() !== normalized.toLowerCase())].slice(
-        0,
-        10,
-      ),
-    );
-  };
-
-  const openSearchModal = () => {
-    setSearchModalQuery('');
-    setShowSearchModal(true);
-  };
-
-  const closeSearchModal = () => {
-    setShowSearchModal(false);
-    setSearchModalQuery('');
-  };
 
   const handleSeeRecipes = () => {
     nav.navigate('WhatCanIMake');
@@ -529,6 +434,7 @@ export default function HomeBarScreen() {
     setDetailImageFailed(false);
     setItemNoteDraft(item.notes || '');
     setEditMode(false);
+    setShowManageActions(false);
     setEditName(item.name);
     setEditBrand(item.brand || '');
     setEditCategory((item.category as BarIngredient['category']) || 'spirit');
@@ -714,55 +620,6 @@ export default function HomeBarScreen() {
 
     setShowItemOptionsModal(false);
     setSelectedItem(null);
-  };
-
-  const handleAddToShoppingList = async () => {
-    if (!selectedItem) return;
-
-    try {
-      // Map BarIngredient category to GroceryItem category
-      const mapCategory = (
-        barCategory: string,
-      ): 'spirits_liquors' | 'mixers' | 'garnish' | 'bitters' | 'syrup' | 'other' => {
-        switch (barCategory) {
-          case 'spirit':
-          case 'liqueur':
-            return 'spirits_liquors';
-          case 'mixer':
-            return 'mixers';
-          case 'garnish':
-            return 'garnish';
-          case 'bitters':
-            return 'bitters';
-          case 'syrup':
-            return 'syrup';
-          default:
-            return 'other';
-        }
-      };
-
-      // Add to shopping list using the correct method
-      await ShoppingListStore.addItemToShoppingList(
-        {
-          name: selectedItem.name,
-          category: mapCategory(selectedItem.category),
-          subcategory: selectedItem.subcategory,
-          brand: selectedItem.brand,
-        },
-        'Inventory Restock',
-      );
-
-      setShowItemOptionsModal(false);
-      setSelectedItem(null);
-
-      Alert.alert(
-        'Added to Shopping List',
-        `${selectedItem.name} has been added to your shopping list`,
-      );
-    } catch (error) {
-      log.error('HomeBarScreen', 'Error adding item to shopping list', error);
-      Alert.alert('Error', 'Failed to add item to shopping list');
-    }
   };
 
   const getIngredientImage = (item: BarIngredient) => {
@@ -990,9 +847,14 @@ export default function HomeBarScreen() {
 
         <View style={styles.cardImageContainer}>
           {item.imageUrl ? (
-            <Image source={{ uri: item.imageUrl }} style={styles.cardImage} resizeMode="cover" />
+            <Image
+              source={{ uri: item.imageUrl }}
+              style={styles.cardImage}
+              contentFit="cover"
+              cachePolicy="memory-disk"
+            />
           ) : ingredientImage ? (
-            <Image source={ingredientImage as any} style={styles.cardImage} resizeMode="cover" />
+            <Image source={ingredientImage as any} style={styles.cardImage} contentFit="cover" />
           ) : (
             <View style={styles.cardIconWrap}>
               <Ionicons
@@ -1035,6 +897,17 @@ export default function HomeBarScreen() {
     );
   };
 
+  if (initialLoading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <MainPageHeader title="Your Shelf" subtitle=" " />
+        <View style={styles.initialLoadingContainer}>
+          <ActivityIndicator size="large" color={colors.gold} />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       <MainPageHeader
@@ -1048,7 +921,10 @@ export default function HomeBarScreen() {
         leftContent={
           <TouchableOpacity
             style={styles.headerSearchButton}
-            onPress={withHaptic(openSearchModal, 'selection')}
+            onPress={withHaptic(
+              () => (nav as any).navigate('BottleSearch', { initialQuery: '' }),
+              'selection',
+            )}
           >
             <Ionicons name="search" size={18} color={colors.text} />
           </TouchableOpacity>
@@ -1368,7 +1244,8 @@ export default function HomeBarScreen() {
                           <Image
                             source={{ uri: item.imageUri }}
                             style={styles.cardImage}
-                            resizeMode="cover"
+                            contentFit="cover"
+                            cachePolicy="memory-disk"
                           />
                         ) : (
                           <View style={styles.cardIconWrap}>
@@ -1562,6 +1439,7 @@ export default function HomeBarScreen() {
                   onPress={withHaptic(() => {
                     setShowItemOptionsModal(false);
                     setEditMode(false);
+                    setShowManageActions(false);
                   }, 'selection')}
                 >
                   <Ionicons name="close" size={24} color={colors.text} />
@@ -1573,36 +1451,53 @@ export default function HomeBarScreen() {
                 >
                   {editMode ? editName || selectedItem?.name : selectedItem?.name}
                 </Heading>
-                <TouchableOpacity
-                  onPress={withHaptic(() => {
-                    if (editMode) {
-                      handleSaveItemEdit();
-                    } else {
-                      setEditMode(true);
-                    }
-                  }, 'selection')}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                >
-                  {editMode ? (
-                    <Text style={styles.editDoneButton}>Done</Text>
-                  ) : (
-                    <Ionicons name="create-outline" size={22} color={colors.accent} />
+                <View style={styles.modalHeaderActions}>
+                  {!editMode && (
+                    <TouchableOpacity
+                      onPress={withHaptic(() => setShowManageActions((prev) => !prev), 'selection')}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    >
+                      <Ionicons
+                        name="ellipsis-horizontal-circle-outline"
+                        size={22}
+                        color={showManageActions ? colors.gold : colors.accent}
+                      />
+                    </TouchableOpacity>
                   )}
-                </TouchableOpacity>
+                  {!showManageActions && (
+                    <TouchableOpacity
+                      onPress={withHaptic(() => {
+                        if (editMode) {
+                          handleSaveItemEdit();
+                        } else {
+                          setEditMode(true);
+                        }
+                      }, 'selection')}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    >
+                      {editMode ? (
+                        <Text style={styles.editDoneButton}>Done</Text>
+                      ) : (
+                        <Ionicons name="create-outline" size={22} color={colors.accent} />
+                      )}
+                    </TouchableOpacity>
+                  )}
+                </View>
               </View>
 
               {selectedItem?.imageUrl && !detailImageFailed ? (
                 <Image
                   source={{ uri: selectedItem.imageUrl }}
                   style={styles.inventoryDetailImage}
-                  resizeMode="cover"
+                  contentFit="cover"
+                  cachePolicy="memory-disk"
                   onError={() => setDetailImageFailed(true)}
                 />
               ) : selectedItem && getIngredientImage(selectedItem) ? (
                 <Image
                   source={getIngredientImage(selectedItem) as any}
                   style={styles.inventoryDetailImage}
-                  resizeMode="cover"
+                  contentFit="cover"
                 />
               ) : (
                 selectedItem && (
@@ -1803,7 +1698,14 @@ export default function HomeBarScreen() {
                 </Text>
               </TouchableOpacity>
 
-              {!editMode && (
+              {/* Bar Note, Cellar Mode, Add to Shopping List, and Remove from
+                  Bar all used to render unconditionally here, so tapping any
+                  bottle opened one long scroll from "what is this bottle" info
+                  straight into bottle-management actions. Gated behind the
+                  "..." icon (showManageActions) — separate from the pencil
+                  (editMode), which is rename-only — so the default tap is
+                  just the clean detail view. */}
+              {showManageActions && (
                 <View style={styles.noteBlock}>
                   <Text style={styles.noteLabel}>Bar Note</Text>
                   <TextInput
@@ -1824,7 +1726,7 @@ export default function HomeBarScreen() {
                 </View>
               )}
 
-              {selectedItem && isCellarEligible(selectedItem) ? (
+              {showManageActions && selectedItem && isCellarEligible(selectedItem) ? (
                 <View style={styles.inventoryCellarCard}>
                   <View style={styles.inventoryCellarHeader}>
                     <View>
@@ -1908,39 +1810,33 @@ export default function HomeBarScreen() {
                 </View>
               ) : null}
 
-              <View style={styles.optionsContainer}>
-                <TouchableOpacity
-                  style={styles.optionButton}
-                  onPress={withHaptic(handleAddToShoppingList)}
-                >
-                  <View style={styles.optionIconContainer}>
-                    <Ionicons name="cart" size={28} color={colors.gold} />
-                  </View>
-                  <View style={styles.optionTextContainer}>
-                    <Heading level={3} style={styles.optionTitle}>
-                      Add to Shopping List
-                    </Heading>
-                    <Text style={styles.optionDescription}>Restock this ingredient</Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={20} color={colors.muted} />
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.optionButton, styles.deleteOptionButton]}
-                  onPress={withHaptic(handleDeleteItem)}
-                >
-                  <View style={[styles.optionIconContainer, styles.deleteIconContainer]}>
-                    <Ionicons name="trash" size={28} color={colors.error || '#ff4444'} />
-                  </View>
-                  <View style={styles.optionTextContainer}>
-                    <Heading level={3} style={[styles.optionTitle, styles.deleteOptionTitle]}>
-                      Remove from Bar
-                    </Heading>
-                    <Text style={styles.optionDescription}>Delete this ingredient</Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={20} color={colors.muted} />
-                </TouchableOpacity>
-              </View>
+              {/* "Add to Shopping List" was removed from here (2026-07-27):
+                  it wrote to ShoppingListStore under a hardcoded 'default'
+                  userId, and no screen anywhere in the app reads that store
+                  back — the cart icon in this screen's header opens a
+                  feedback-interest prompt, not a real list. It always showed
+                  a false-positive success alert for an item the user could
+                  never actually see again. Re-add once there's a real place
+                  to view a saved shopping list. */}
+              {showManageActions && (
+                <View style={styles.optionsContainer}>
+                  <TouchableOpacity
+                    style={[styles.optionButton, styles.deleteOptionButton]}
+                    onPress={withHaptic(handleDeleteItem)}
+                  >
+                    <View style={[styles.optionIconContainer, styles.deleteIconContainer]}>
+                      <Ionicons name="trash" size={28} color={colors.error || '#ff4444'} />
+                    </View>
+                    <View style={styles.optionTextContainer}>
+                      <Heading level={3} style={[styles.optionTitle, styles.deleteOptionTitle]}>
+                        Remove from Bar
+                      </Heading>
+                      <Text style={styles.optionDescription}>Delete this ingredient</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={20} color={colors.muted} />
+                  </TouchableOpacity>
+                </View>
+              )}
 
               <TouchableOpacity
                 style={styles.cancelButton}
@@ -2102,177 +1998,11 @@ export default function HomeBarScreen() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
-      {/* Search Modal */}
-      <Modal
-        visible={showSearchModal}
-        animationType="slide"
-        transparent={false}
-        onRequestClose={closeSearchModal}
-      >
-        <SafeAreaView style={styles.searchScreen}>
-          <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-            style={styles.searchScreen}
-          >
-            <View style={styles.searchScreenHeader}>
-              <Text style={styles.searchScreenTitle}>Search Your Shelf</Text>
-              <TouchableOpacity
-                style={styles.searchHeaderCloseButton}
-                onPress={withHaptic(closeSearchModal, 'selection')}
-              >
-                <Ionicons name="close" size={22} color={colors.text} />
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.searchScreenCard}>
-              <View style={styles.searchInputContainer}>
-                <Ionicons name="search" size={20} color={colors.muted} style={styles.searchIcon} />
-                <TextInput
-                  style={styles.searchInput}
-                  placeholder="Search by name, brand, or category..."
-                  placeholderTextColor={colors.muted}
-                  value={searchModalQuery}
-                  onChangeText={setSearchModalQuery}
-                  keyboardAppearance="dark"
-                  autoFocus={true}
-                  returnKeyType="search"
-                  onSubmitEditing={() => {
-                    recordSearchHistory(searchModalQuery);
-                    Keyboard.dismiss();
-                  }}
-                  blurOnSubmit={false}
-                />
-                {searchModalQuery.length > 0 && (
-                  <TouchableOpacity
-                    onPress={withHaptic(() => setSearchModalQuery(''), 'selection')}
-                  >
-                    <Ionicons name="close-circle" size={20} color={colors.muted} />
-                  </TouchableOpacity>
-                )}
-              </View>
-
-              <ScrollView style={styles.searchResults} showsVerticalScrollIndicator={false}>
-                {discoverLikeSuggestions.length > 0 && (
-                  <View style={styles.searchSectionWrap}>
-                    <Text style={styles.searchSectionTitle}>
-                      {hasActiveSearch ? 'Suggestions' : 'Recent & Popular'}
-                    </Text>
-                    <View style={styles.searchSuggestionList}>
-                      {discoverLikeSuggestions.map((suggestion, index) => (
-                        <TouchableOpacity
-                          key={`${suggestion.text}-${index}`}
-                          style={styles.searchSuggestionItem}
-                          onPress={withHaptic(() => {
-                            setSearchModalQuery(suggestion.text);
-                            recordSearchHistory(suggestion.text);
-                          }, 'selection')}
-                        >
-                          <Ionicons
-                            name={
-                              suggestion.type === 'history'
-                                ? 'time'
-                                : suggestion.type === 'trending'
-                                  ? 'trending-up'
-                                  : 'search'
-                            }
-                            size={16}
-                            color={colors.subtext}
-                          />
-                          <Text style={styles.searchSuggestionText}>{suggestion.text}</Text>
-                          {suggestion.type === 'trending' && (
-                            <View style={styles.searchTrendingBadge}>
-                              <Text style={styles.searchTrendingBadgeText}>Trending</Text>
-                            </View>
-                          )}
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                  </View>
-                )}
-
-                <View style={styles.searchSectionWrap}>
-                  <View style={styles.searchResultsHeader}>
-                    <Text style={styles.searchSectionTitle}>
-                      {hasActiveSearch ? `Results for "${searchModalQuery}"` : 'Popular & Trending'}
-                    </Text>
-                    {hasActiveSearch && (
-                      <TouchableOpacity
-                        onPress={withHaptic(() => setSearchModalQuery(''), 'selection')}
-                      >
-                        <Text style={styles.searchClearText}>Clear</Text>
-                      </TouchableOpacity>
-                    )}
-                  </View>
-
-                  {visibleSearchResults.length > 0 ? (
-                    visibleSearchResults.map((item) => (
-                      <TouchableOpacity
-                        key={item.id}
-                        style={styles.searchResultItem}
-                        onPress={withHaptic(() => {
-                          recordSearchHistory(item.name);
-                          handleItemPress(item);
-                          closeSearchModal();
-                        })}
-                      >
-                        <View style={styles.searchResultIcon}>
-                          <Ionicons
-                            name={getCategoryIcon(item.category, item.subcategory, item.name)}
-                            size={22}
-                            color={colors.gold}
-                          />
-                        </View>
-                        <View style={styles.searchResultInfo}>
-                          <Text style={styles.searchResultName}>{item.name}</Text>
-                          <Text style={styles.searchResultDetails}>
-                            {item.volume
-                              ? `${item.volume}ml`
-                              : categoryDisplayMap[item.category] || item.category}
-                            {item.brand ? ` • ${item.brand}` : ''}
-                          </Text>
-                        </View>
-                        <Ionicons name="chevron-forward" size={20} color={colors.muted} />
-                      </TouchableOpacity>
-                    ))
-                  ) : (
-                    <View style={styles.noResults}>
-                      <Ionicons name="search" size={48} color={colors.muted} />
-                      <Text style={styles.noResultsText}>No results found</Text>
-                      <Text style={styles.noResultsSubtext}>
-                        Try searching by name, brand, or category
-                      </Text>
-                    </View>
-                  )}
-                </View>
-
-                {/* This search only covers what's already on the shelf —
-                    it never searched the full catalog, which is what got
-                    flagged as missing. BottleSearch/BottleDetail are now
-                    also registered at the root navigator as a modal, so this
-                    opens them directly without switching to the Camera tab —
-                    no cross-tab jump, no returnTo hack needed to get back. */}
-                {hasActiveSearch && (
-                  <TouchableOpacity
-                    style={styles.searchLibraryCta}
-                    onPress={withHaptic(() => {
-                      recordSearchHistory(searchModalQuery);
-                      const query = searchModalQuery;
-                      closeSearchModal();
-                      (nav as any).navigate('BottleSearch', { initialQuery: query });
-                    }, 'selection')}
-                  >
-                    <Ionicons name="library-outline" size={18} color={colors.accent} />
-                    <Text style={styles.searchLibraryCtaText}>
-                      Not on your shelf? Search the full bottle library
-                    </Text>
-                    <Ionicons name="chevron-forward" size={16} color={colors.accent} />
-                  </TouchableOpacity>
-                )}
-              </ScrollView>
-            </View>
-          </KeyboardAvoidingView>
-        </SafeAreaView>
-      </Modal>
+      {/* The old in-screen "Search Your Shelf" modal (shelf-only search,
+          with a separate CTA to jump to the full-catalog BottleSearch
+          screen) was retired 2026-07-27 — the header search icon above now
+          navigates straight to BottleSearch, which merges shelf + full
+          catalog into one result list instead of requiring two screens. */}
 
       <FeedbackPromptModal
         featureKey="shopping_cart"
@@ -2371,6 +2101,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.bg,
+  },
+  initialLoadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   headerSearchButton: {
     width: 36,
@@ -2778,6 +2513,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: spacing(3),
+  },
+  modalHeaderActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(1.5),
   },
   modalTitle: {
     fontSize: 20,
@@ -3343,210 +3083,6 @@ const styles = StyleSheet.create({
   },
   searchModalContent: {
     maxHeight: '80%',
-  },
-  searchScreen: {
-    flex: 1,
-    backgroundColor: colors.bg,
-  },
-  searchScreenHeader: {
-    paddingHorizontal: spacing(3),
-    paddingTop: spacing(1),
-    paddingBottom: spacing(2),
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderBottomWidth: 1,
-    borderBottomColor: colors.line,
-  },
-  searchScreenTitle: {
-    fontSize: 26,
-    color: colors.text,
-    fontWeight: '700',
-    fontFamily: serif,
-    letterSpacing: 0.3,
-  },
-  searchHeaderCloseButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.line,
-  },
-  searchScreenCard: {
-    marginHorizontal: spacing(3),
-    marginTop: spacing(2.5),
-    marginBottom: spacing(2),
-    borderRadius: radii.xl,
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: `${colors.gold}26`,
-    padding: spacing(2),
-    flex: 1,
-  },
-  searchInputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.bg,
-    borderRadius: radii.lg,
-    paddingHorizontal: spacing(2),
-    paddingVertical: spacing(1.5),
-    marginBottom: spacing(1.25),
-    borderWidth: 1,
-    borderColor: `${colors.gold}2A`,
-  },
-  searchIcon: {
-    marginRight: spacing(1.5),
-  },
-  searchInput: {
-    flex: 1,
-    color: colors.text,
-    fontSize: 16,
-    paddingVertical: spacing(1),
-  },
-  searchResults: {
-    flex: 1,
-  },
-  searchSectionWrap: {
-    marginBottom: spacing(2),
-  },
-  searchSectionTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: colors.text,
-    marginBottom: spacing(1.25),
-    fontFamily: serif,
-  },
-  searchSuggestionList: {
-    gap: spacing(1),
-  },
-  searchSuggestionItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: spacing(1.5),
-    paddingHorizontal: spacing(1.5),
-    backgroundColor: colors.bg,
-    borderRadius: radii.md,
-    gap: spacing(1.5),
-    borderWidth: 1,
-    borderColor: colors.line,
-  },
-  searchSuggestionText: {
-    flex: 1,
-    fontSize: 15,
-    color: colors.text,
-    fontWeight: '500',
-  },
-  searchTrendingBadge: {
-    backgroundColor: colors.accent,
-    paddingHorizontal: spacing(1),
-    paddingVertical: spacing(0.25),
-    borderRadius: radii.sm,
-  },
-  searchTrendingBadgeText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: colors.bg,
-    textTransform: 'uppercase',
-  },
-  searchResultsHeader: {
-    marginBottom: spacing(1),
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  searchResultsTitle: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.subtext,
-    marginBottom: 0,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  searchClearText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.gold,
-  },
-  searchResultItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.card,
-    padding: spacing(2),
-    borderRadius: radii.md,
-    marginBottom: spacing(1.5),
-    borderWidth: 1,
-    borderColor: colors.line,
-  },
-  searchResultIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.bg,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: spacing(2),
-  },
-  searchResultInfo: {
-    flex: 1,
-  },
-  searchResultName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: spacing(0.5),
-  },
-  searchResultDetails: {
-    fontSize: 14,
-    color: colors.subtext,
-  },
-  noResults: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: spacing(8),
-  },
-  noResultsText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: colors.text,
-    marginTop: spacing(2),
-    marginBottom: spacing(1),
-  },
-  noResultsSubtext: {
-    fontSize: 14,
-    color: colors.subtext,
-  },
-  searchLibraryCta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing(1),
-    marginTop: spacing(2),
-    padding: spacing(1.5),
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: `${colors.accent}30`,
-    backgroundColor: `${colors.accent}10`,
-  },
-  searchLibraryCtaText: {
-    flex: 1,
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.accent,
-  },
-  searchHint: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
-    gap: spacing(1),
-    paddingTop: spacing(1.5),
-    paddingBottom: spacing(0.5),
-  },
-  searchHintText: {
-    fontSize: 12,
-    color: colors.subtext,
-    textAlign: 'center',
   },
   cellarQuantityRow: {
     flexDirection: 'row',

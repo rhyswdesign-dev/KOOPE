@@ -5,12 +5,13 @@ import {
   TextInput,
   TouchableOpacity,
   ScrollView,
-  Image,
   Keyboard,
   KeyboardAvoidingView,
   Platform,
   SafeAreaView,
+  ActivityIndicator,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -32,8 +33,13 @@ type Nav = NativeStackNavigationProp<RootStackParamList>;
 export default function DrinksScreen() {
   const navigation = useNavigation<Nav>();
   const { user } = useAuth();
-  const { savedItems, toggleSavedCocktail, isCocktailSaved } = useSavedItems();
-  const { recipes: userRecipes, loadRecipes } = useUserRecipes();
+  const {
+    savedItems,
+    isHydrated: savedItemsHydrated,
+    toggleSavedCocktail,
+    isCocktailSaved,
+  } = useSavedItems();
+  const { recipes: userRecipes, loadRecipes, isLoading: recipesLoading } = useUserRecipes();
   const { toast, showToast, hideToast } = useToast();
 
   const savedCocktails = savedItems.savedCocktails ?? [];
@@ -85,6 +91,24 @@ export default function DrinksScreen() {
       setUrlText('');
     }
   };
+
+  // Saved Cocktails, Made It History, and Imported Recipes each load from a
+  // different source (AsyncStorage, Supabase, the recipes store) and each
+  // gates its own section on its array's length. Left alone, each section
+  // pops in independently as its own fetch resolves — three separate jumps
+  // instead of one. Gate the whole screen on all three finishing together.
+  const initialLoading = !savedItemsHydrated || !historyLoaded || recipesLoading;
+
+  if (initialLoading) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
+        <MainPageHeader title="Drinks" subtitle=" " />
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+          <ActivityIndicator size="large" color={colors.gold} />
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
@@ -250,6 +274,8 @@ export default function DrinksScreen() {
                       <Image
                         source={{ uri: entry.recipeImage }}
                         style={{ width: 40, height: 40, borderRadius: radii.md }}
+                        contentFit="cover"
+                        cachePolicy="memory-disk"
                       />
                     ) : (
                       <View
@@ -404,6 +430,8 @@ export default function DrinksScreen() {
                     <Image
                       source={{ uri: recipe.thumbnailImage || recipe.image }}
                       style={{ width: 40, height: 40, borderRadius: radii.md }}
+                      contentFit="cover"
+                      cachePolicy="memory-disk"
                     />
                   ) : (
                     <View
