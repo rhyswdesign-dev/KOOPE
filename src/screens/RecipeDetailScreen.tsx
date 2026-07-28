@@ -680,7 +680,7 @@ export default function RecipeDetailScreen() {
               <Text
                 style={[styles.tasteMatchLabel, { color: getTasteMatchColor(tasteMatchPercent) }]}
               >
-                {tasteMatchPercent}% Taste Match
+                {tasteMatchPercent}% Palate Match
               </Text>
             </View>
             <Text style={styles.tasteMatchDesc}>

@@ -5,14 +5,7 @@
  */
 
 import React from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  Modal,
-  TouchableOpacity,
-  Pressable,
-} from 'react-native';
+import { View, Text, StyleSheet, Modal, TouchableOpacity, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, radii, fonts } from '../theme/tokens';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -31,12 +24,7 @@ export default function SurveyPromptModal({
   xpReward = 500,
 }: SurveyPromptModalProps) {
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="fade"
-      onRequestClose={onDismiss}
-    >
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onDismiss}>
       <View style={styles.overlay}>
         <Pressable style={styles.backdrop} onPress={onDismiss} />
 
@@ -52,9 +40,10 @@ export default function SurveyPromptModal({
           </LinearGradient>
 
           <View style={styles.content}>
-            <Text style={styles.title}>Complete Your Taste Profile</Text>
+            <Text style={styles.title}>Complete Your Palate</Text>
             <Text style={styles.subtitle}>
-              Help us personalize your experience! Answer a quick survey about your cocktail preferences and earn <Text style={styles.xpText}>{xpReward} XP</Text>.
+              Help us personalize your experience! Answer a quick survey about your cocktail
+              preferences and earn <Text style={styles.xpText}>{xpReward} XP</Text>.
             </Text>
 
             <View style={styles.benefits}>
@@ -76,20 +65,12 @@ export default function SurveyPromptModal({
           </View>
 
           <View style={styles.actions}>
-            <TouchableOpacity
-              style={styles.acceptButton}
-              onPress={onAccept}
-              activeOpacity={0.8}
-            >
+            <TouchableOpacity style={styles.acceptButton} onPress={onAccept} activeOpacity={0.8}>
               <Text style={styles.acceptButtonText}>Let's Do It!</Text>
               <Ionicons name="arrow-forward" size={20} color={colors.bg} />
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.dismissButton}
-              onPress={onDismiss}
-              activeOpacity={0.8}
-            >
+            <TouchableOpacity style={styles.dismissButton} onPress={onDismiss} activeOpacity={0.8}>
               <Text style={styles.dismissButtonText}>Maybe Later</Text>
             </TouchableOpacity>
           </View>

@@ -876,7 +876,7 @@ export default function RecipesScreen() {
           if (topPredictions.length > 0) {
             formattedSections.push({
               title: 'Top Picks For You',
-              reason: 'Predicted from your taste profile, scans, and inventory.',
+              reason: 'Predicted from your palate, scans, and inventory.',
               cocktails: topPredictions,
             });
           }
@@ -903,7 +903,7 @@ export default function RecipesScreen() {
           if (featured && featured.length > 0) {
             formattedSections.push({
               title: 'Top Picks For You',
-              reason: 'Based on your taste profile and preferences',
+              reason: 'Based on your palate and preferences',
               cocktails: featured.slice(0, 8),
             });
           }
