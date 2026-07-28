@@ -61,7 +61,6 @@ import { useWishlist, WISHLIST_FREE_CAP } from '../store/useWishlist';
 import { notificationService } from '../services/notificationService';
 import { useTasteModel } from '../store/useTasteModel';
 import type { FlavourTag } from '../store/useTasteModel';
-import { getTasteSignalLine } from '../utils/tasteSignal';
 import { logScanEvent, updateScanOutcome } from '../services/scanContextService';
 import SpiritEducationPanel from '../components/SpiritEducationPanel';
 import GiftModePanel from '../components/bottle/GiftModePanel';
@@ -248,15 +247,10 @@ export default function BottleDetailScreen() {
     AsyncStorage.setItem(TASTE_PROMPT_SHOWN_KEY, 'true');
   };
 
-  // Taste model
-  const {
-    recordScan,
-    recordThumbsUp,
-    recordThumbsDown,
-    totalScans,
-    dominantCluster,
-    profileVisible,
-  } = useTasteModel();
+  // Taste model — write-only now. Scans and ownership reach the unified
+  // profile via scan_events and the shelf read in tasteVectorService; the
+  // thumbs below are the one bottle signal that still lands only here.
+  const { recordScan, recordThumbsUp, recordThumbsDown } = useTasteModel();
   const [thumbsState, setThumbsState] = useState<'idle' | 'up' | 'down'>('idle');
   const [showCorrectionPills, setShowCorrectionPills] = useState(false);
   const [showCurrencyPicker, setShowCurrencyPicker] = useState(false);

@@ -48,8 +48,8 @@ import { useCurrencyPreference } from '../store/useCurrencyPreference';
 import { logSpottedPrice } from '../services/spottedPriceService';
 import { parseLocalePrice } from '../utils/priceInput';
 import { buyIngredient } from '../services/affiliateService';
-import { useTasteModel, ALL_FLAVOUR_TAGS } from '../store/useTasteModel';
-import { flavourTagLabel } from '../utils/tasteSignal';
+import { useTasteSummary, flavorLabel } from '../hooks/useTasteSummary';
+import { CANONICAL_FLAVORS } from '../utils/flavorTaxonomy';
 
 // Import images from assets
 import * as Images from '../../assets/images';
@@ -113,7 +113,7 @@ export default function HomeBarScreen() {
   );
   const spottedPriceEntries = useSpottedPrices((s) => s.entries);
   const { currency: userCurrency } = useCurrencyPreference();
-  const { dominantCluster, flavourScores, profileVisible } = useTasteModel();
+  const tasteSummary = useTasteSummary(user?.id);
   const [palateExpanded, setPalateExpanded] = useState(false);
   const [logPriceItem, setLogPriceItem] = useState<
     import('../store/useWishlist').WishlistItem | null
@@ -1104,8 +1104,10 @@ export default function HomeBarScreen() {
           </ScrollView>
         )}
 
-        {/* Your Palate — visible after 5 scans, shelf tabs only */}
-        {profileVisible && inventoryView === 'owned' && dominantCluster.length > 0 && (
+        {/* Your Palate — one unified read via useTasteSummary, shelf tabs only.
+            Previously rendered from a separate local scan-only store, which
+            could contradict the radar on For You. */}
+        {tasteSummary.ready && inventoryView === 'owned' && (
           <TouchableOpacity
             style={styles.palateCard}
             onPress={withHaptic(() => setPalateExpanded((p) => !p), 'selection')}
@@ -1113,9 +1115,9 @@ export default function HomeBarScreen() {
           >
             <View style={styles.palateHeader}>
               <View style={styles.palateTags}>
-                {dominantCluster.map((tag) => (
-                  <View key={tag} style={styles.palateTag}>
-                    <Text style={styles.palateTagText}>{flavourTagLabel(tag)}</Text>
+                {tasteSummary.topFlavors.map((flavor) => (
+                  <View key={flavor} style={styles.palateTag}>
+                    <Text style={styles.palateTagText}>{flavorLabel(flavor)}</Text>
                   </View>
                 ))}
               </View>
@@ -1125,17 +1127,22 @@ export default function HomeBarScreen() {
                 color={colors.subtext}
               />
             </View>
-            <Text style={styles.palateHint}>Built from your scans — no setup required.</Text>
+            <Text style={styles.palateHint}>
+              Built from your shelf and what you make — no setup required.
+            </Text>
 
             {palateExpanded && (
               <View style={styles.palateBars}>
-                {ALL_FLAVOUR_TAGS.map((tag) => ({ tag, score: flavourScores[tag] ?? 0 }))
+                {CANONICAL_FLAVORS.map((flavor) => ({
+                  flavor,
+                  score: tasteSummary.flavorScores[flavor] ?? 0,
+                }))
                   .filter(({ score }) => score > 0)
                   .sort((a, b) => b.score - a.score)
                   .slice(0, 5)
-                  .map(({ tag, score }) => (
-                    <View key={tag} style={styles.palateBarRow}>
-                      <Text style={styles.palateBarLabel}>{flavourTagLabel(tag)}</Text>
+                  .map(({ flavor, score }) => (
+                    <View key={flavor} style={styles.palateBarRow}>
+                      <Text style={styles.palateBarLabel}>{flavorLabel(flavor)}</Text>
                       <View style={styles.palateBarTrack}>
                         <View style={[styles.palateBarFill, { width: `${score}%` as any }]} />
                       </View>
