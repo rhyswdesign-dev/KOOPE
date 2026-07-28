@@ -1,18 +1,15 @@
 import React, { useCallback } from 'react';
-import {
-  View,
-  Text,
-  FlatList,
-  StyleSheet,
-  TouchableOpacity,
-  RefreshControl,
-} from 'react-native';
+import { View, Text, FlatList, StyleSheet, TouchableOpacity, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { colors, spacing, radii, fonts } from '../theme/tokens';
-import { useNotifications, AppNotification, NotificationType } from '../services/notificationService';
+import {
+  useNotifications,
+  AppNotification,
+  NotificationType,
+} from '../services/notificationService';
 import EmptyState from '../components/EmptyState';
 import Button from '../components/ui/Button';
 import type { RootStackParamList } from '../navigation/RootNavigator';
@@ -28,6 +25,16 @@ const NOTIFICATION_ICONS: Record<NotificationType, keyof typeof Ionicons.glyphMa
   event_reminder: 'calendar-outline',
   daily_challenge: 'ribbon-outline',
   hearts_refilled: 'heart',
+  low_stock: 'flask-outline',
+  trial: 'time-outline',
+  hosting_countdown: 'calendar-outline',
+  hosting_post_event: 'chatbubble-ellipses-outline',
+  friday_maker_prompt: 'wine-outline',
+  weekend_host_seed: 'people-outline',
+  weekly_drop: 'sparkles-outline',
+  onboarding: 'compass-outline',
+  winback: 'wine-outline',
+  seasonal: 'snow-outline',
 };
 
 // Format relative time
@@ -120,7 +127,9 @@ export default function NotificationCenterScreen() {
         // Parse the action URL and navigate
         // Format: "screen://ScreenName?param=value"
         try {
-          const [screenName, queryString] = notification.actionUrl.replace('screen://', '').split('?');
+          const [screenName, queryString] = notification.actionUrl
+            .replace('screen://', '')
+            .split('?');
           const params: Record<string, string> = {};
 
           if (queryString) {
@@ -137,7 +146,7 @@ export default function NotificationCenterScreen() {
         }
       }
     },
-    [markAsRead, navigation]
+    [markAsRead, navigation],
   );
 
   const onRefresh = useCallback(() => {
@@ -150,7 +159,7 @@ export default function NotificationCenterScreen() {
     ({ item }: { item: AppNotification }) => (
       <NotificationItem notification={item} onPress={() => handleNotificationPress(item)} />
     ),
-    [handleNotificationPress]
+    [handleNotificationPress],
   );
 
   const renderEmptyState = () => (
@@ -163,7 +172,7 @@ export default function NotificationCenterScreen() {
 
   const sortedNotifications = React.useMemo(
     () => [...notifications].sort((a, b) => b.timestamp - a.timestamp),
-    [notifications]
+    [notifications],
   );
 
   return (

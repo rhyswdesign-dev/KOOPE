@@ -8,6 +8,7 @@
 import { Linking } from 'react-native';
 import type { PolicyDeepLink } from '../types/consent';
 import { log } from './logger';
+import { navigateWhenReady } from './navigationRef';
 
 /**
  * Deep link URL patterns
@@ -16,6 +17,40 @@ const DEEP_LINK_PATTERNS = {
   POLICY: /^(?:.*:\/\/)?policy\?(.*)$/,
   APP_SCHEME: 'koope', // Updated to match app.json
 } as const;
+
+/**
+ * Legacy scheme retired when the app was renamed HomeGameAdvantage -> KŌOPE.
+ * Links persisted in old scheduled notifications still carry it, so the
+ * notification router normalizes it away rather than dropping the tap.
+ */
+const LEGACY_APP_SCHEME = 'homegameadvantage';
+
+/**
+ * Notification deep-link targets (Notification Playbook §1, law 2: every
+ * notification deep-links to exactly one action). The path is the contract —
+ * `actionUrl` values scheduled anywhere in the app must be one of these, and
+ * each maps to a route that exists in RootNavigator.
+ *
+ * Values are resolved lazily against the query string so a single path can
+ * carry a focus hint (e.g. `koope://hosting?focus=shopping`).
+ */
+type NotificationRoute = { name: string; params?: Record<string, any> };
+
+const NOTIFICATION_ROUTES: Record<string, (params: URLSearchParams) => NotificationRoute> = {
+  'what-can-i-make': () => ({ name: 'WhatCanIMake' }),
+  hosting: (params) => ({ name: 'Hosting', params: { focus: params.get('focus') ?? undefined } }),
+  'home-bar': () => ({ name: 'HomeBar' }),
+  profile: () => ({ name: 'Profile' }),
+  vault: () => ({ name: 'Vault' }),
+  paywall: () => ({ name: 'Paywall' }),
+  notifications: () => ({ name: 'NotificationCenter' }),
+  recipes: () => ({ name: 'Main', params: { screen: 'Recipes' } }),
+  shelf: () => ({ name: 'Main', params: { screen: 'Shelf' } }),
+  lessons: () => ({
+    name: 'Main',
+    params: { screen: 'Profile', params: { screen: 'Lessons' } },
+  }),
+};
 
 /**
  * Social media URL patterns for recipe import
@@ -118,10 +153,61 @@ export function generatePolicyDeepLink(params: PolicyDeepLink): string {
 }
 
 /**
+ * Resolve a notification `actionUrl` to a concrete navigator route.
+ * Returns null when the URL isn't one of the notification targets above —
+ * callers then fall through to the generic deep-link handler.
+ */
+export function resolveNotificationRoute(url: string): NotificationRoute | null {
+  if (!url) return null;
+
+  try {
+    const normalized = url.replace(
+      `${LEGACY_APP_SCHEME}://`,
+      `${DEEP_LINK_PATTERNS.APP_SCHEME}://`,
+    );
+
+    // Only our own scheme (or a bare path) routes here — an https:// link that
+    // happens to contain "/hosting" belongs to the web/share handlers below.
+    const schemeMatch = normalized.match(/^([a-z][a-z0-9+.-]*):\/\//i);
+    if (schemeMatch && schemeMatch[1].toLowerCase() !== DEEP_LINK_PATTERNS.APP_SCHEME) return null;
+
+    const withoutScheme = schemeMatch ? normalized.slice(schemeMatch[0].length) : normalized;
+    const [pathPart, queryPart = ''] = withoutScheme.split('?');
+    const segment = pathPart.split('/').filter(Boolean)[0];
+    if (!segment) return null;
+
+    const resolver = NOTIFICATION_ROUTES[segment];
+    if (!resolver) return null;
+
+    return resolver(new URLSearchParams(queryPart));
+  } catch (error) {
+    log.error('DeepLinking', 'Failed to resolve notification route', error, { url });
+    return null;
+  }
+}
+
+/**
+ * Navigate to a notification `actionUrl` using the app-wide navigation ref.
+ * Safe to call from a cold start — navigateWhenReady queues until the
+ * NavigationContainer mounts. Returns true if a route was matched.
+ */
+export function navigateToActionUrl(url: string): boolean {
+  const route = resolveNotificationRoute(url);
+  if (!route) {
+    log.warn('DeepLinking', 'No route for notification actionUrl', { url });
+    return false;
+  }
+
+  log.nav('DeepLinking', route.name, { url, params: route.params });
+  navigateWhenReady(route.name, route.params);
+  return true;
+}
+
+/**
  * Check if URL is a social media URL that could contain a recipe
  */
 export function isSocialMediaUrl(url: string): boolean {
-  return SOCIAL_MEDIA_PATTERNS.some(pattern => pattern.test(url));
+  return SOCIAL_MEDIA_PATTERNS.some((pattern) => pattern.test(url));
 }
 
 /**
@@ -152,6 +238,14 @@ export function handleDeepLink(url: string, navigation: any): boolean {
       }
     }
 
+    // Notification / in-app deep links (koope://hosting, koope://what-can-i-make, ...)
+    const notificationRoute = resolveNotificationRoute(url);
+    if (notificationRoute) {
+      log.info('DeepLinking', 'Notification deep link detected', { notificationRoute });
+      navigation.navigate(notificationRoute.name, notificationRoute.params);
+      return true;
+    }
+
     // Handle shared payloads and recipe links.
     const extractedRecipeUrl = extractRecipeUrlFromPayload(url);
     if (extractedRecipeUrl) {
@@ -175,7 +269,6 @@ export function handleDeepLink(url: string, navigation: any): boolean {
     // Add other deep link patterns here
     log.info('DeepLinking', 'Unhandled deep link pattern', { url });
     return false;
-
   } catch (error) {
     log.error('DeepLinking', 'Failed to handle deep link', error);
     return false;
@@ -259,8 +352,7 @@ export const DeepLinks = {
   /**
    * Link to terms & conditions
    */
-  terms: (anchor?: string, lang?: string) =>
-    generatePolicyDeepLink({ doc: 'terms', anchor, lang }),
+  terms: (anchor?: string, lang?: string) => generatePolicyDeepLink({ doc: 'terms', anchor, lang }),
 
   /**
    * Link to tracking technologies section
@@ -311,16 +403,19 @@ export function isValidLanguageCode(lang: string): boolean {
 }
 
 /**
- * URL scheme configuration for app.json/app.config.js
- * Add this to your Expo configuration:
+ * URL scheme configuration — mirrors app.json's `expo.scheme`.
  *
  * {
  *   "expo": {
- *     "scheme": "homegameadvantage",
+ *     "scheme": "koope",
  *     "web": {
  *       "bundler": "metro"
  *     }
  *   }
  * }
+ *
+ * The retired `homegameadvantage://` scheme is normalized to this one by
+ * resolveNotificationRoute so links baked into older scheduled notifications
+ * still land.
  */
 export const EXPO_CONFIG_SCHEME = DEEP_LINK_PATTERNS.APP_SCHEME;

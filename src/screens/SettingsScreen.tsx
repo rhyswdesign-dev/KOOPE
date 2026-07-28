@@ -1,7 +1,15 @@
 import React, { useState, useLayoutEffect } from 'react';
 import {
-  View, Text, ScrollView, Pressable, StyleSheet, Alert,
-  TouchableOpacity, Switch, Platform, Linking
+  View,
+  Text,
+  ScrollView,
+  Pressable,
+  StyleSheet,
+  Alert,
+  TouchableOpacity,
+  Switch,
+  Platform,
+  Linking,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -17,7 +25,11 @@ import { useXPSystem } from '../store/useXPSystem';
 import { useUser } from '../store/useUser';
 import { HomeBarService } from '../services/homeBarService';
 import { useNotifications } from '../services/notificationService';
-import { useCurrencyPreference, CURRENCY_META, type SupportedCurrency } from '../store/useCurrencyPreference';
+import {
+  useCurrencyPreference,
+  CURRENCY_META,
+  type SupportedCurrency,
+} from '../store/useCurrencyPreference';
 
 const serifFont = Platform.select({ ios: 'Georgia', android: 'serif', default: 'serif' });
 
@@ -38,7 +50,7 @@ export default function SettingsScreen() {
   });
 
   const toggleSection = (section: keyof typeof expandedSections) => {
-    setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));
+    setExpandedSections((prev) => ({ ...prev, [section]: !prev[section] }));
   };
 
   useLayoutEffect(() => {
@@ -63,32 +75,28 @@ export default function SettingsScreen() {
     Alert.alert(
       'Account Information',
       'Email: isaac.mckenzie@example.com\nMember since: March 2024\nAccount ID: HGA-2024-0312',
-      [{ text: 'OK' }]
+      [{ text: 'OK' }],
     );
   };
 
   const handleSignOut = () => {
-    Alert.alert(
-      'Sign Out',
-      'Are you sure you want to sign out of your account?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Sign Out',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await supabaseSignOut();
-              log.info('SettingsScreen', 'User signed out successfully');
-              // AuthContext will handle the state change and redirect automatically
-            } catch (error: any) {
-              log.error('SettingsScreen', 'Sign out error', error);
-              Alert.alert('Error', 'Failed to sign out. Please try again.');
-            }
+    Alert.alert('Sign Out', 'Are you sure you want to sign out of your account?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Sign Out',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await supabaseSignOut();
+            log.info('SettingsScreen', 'User signed out successfully');
+            // AuthContext will handle the state change and redirect automatically
+          } catch (error: any) {
+            log.error('SettingsScreen', 'Sign out error', error);
+            Alert.alert('Error', 'Failed to sign out. Please try again.');
           }
         },
-      ]
-    );
+      },
+    ]);
   };
 
   const handleDeleteAccount = () => {
@@ -120,9 +128,9 @@ export default function SettingsScreen() {
               log.error('SettingsScreen', 'Account deletion error', error);
               Alert.alert('Error', 'Failed to delete account. Please contact support.');
             }
-          }
+          },
         },
-      ]
+      ],
     );
   };
 
@@ -152,7 +160,6 @@ export default function SettingsScreen() {
     <LinearGradient colors={['rgba(0,0,0,0)', '#1A120D']} style={styles.container}>
       <SafeAreaView style={styles.container} edges={['left', 'right', 'bottom']}>
         <ScrollView contentContainerStyle={styles.scrollContent}>
-
           {/* Account Section */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Account</Text>
@@ -201,7 +208,7 @@ export default function SettingsScreen() {
             {/* Currency row */}
             <TouchableOpacity
               style={styles.settingItem}
-              onPress={() => setCurrencyPickerOpen(prev => !prev)}
+              onPress={() => setCurrencyPickerOpen((prev) => !prev)}
               activeOpacity={0.7}
             >
               <View style={styles.settingItemLeft}>
@@ -236,24 +243,35 @@ export default function SettingsScreen() {
                     >
                       <Text style={currencyStyles.optionFlag}>{CURRENCY_META[c].flag}</Text>
                       <View style={{ flex: 1 }}>
-                        <Text style={[currencyStyles.optionCode, isActive && currencyStyles.optionCodeActive]}>
+                        <Text
+                          style={[
+                            currencyStyles.optionCode,
+                            isActive && currencyStyles.optionCodeActive,
+                          ]}
+                        >
                           {c}
                         </Text>
                         <Text style={currencyStyles.optionLabel}>{CURRENCY_META[c].label}</Text>
                       </View>
-                      <Text style={[currencyStyles.optionSymbol, isActive && currencyStyles.optionSymbolActive]}>
+                      <Text
+                        style={[
+                          currencyStyles.optionSymbol,
+                          isActive && currencyStyles.optionSymbolActive,
+                        ]}
+                      >
                         {CURRENCY_META[c].symbol}
                       </Text>
-                      {isActive && (
-                        <Ionicons name="checkmark" size={16} color={colors.gold} />
-                      )}
+                      {isActive && <Ionicons name="checkmark" size={16} color={colors.gold} />}
                     </TouchableOpacity>
                   );
                 })}
                 {isUserOverride && (
                   <TouchableOpacity
                     style={currencyStyles.resetRow}
-                    onPress={() => { resetToLocale(); setCurrencyPickerOpen(false); }}
+                    onPress={() => {
+                      resetToLocale();
+                      setCurrencyPickerOpen(false);
+                    }}
                     activeOpacity={0.7}
                   >
                     <Text style={currencyStyles.resetText}>Reset to device default</Text>
@@ -363,7 +381,7 @@ export default function SettingsScreen() {
                 <Text style={styles.settingItemText}>Notification Settings</Text>
               </View>
               <Ionicons
-                name={expandedSections.notifications ? "chevron-up" : "chevron-down"}
+                name={expandedSections.notifications ? 'chevron-up' : 'chevron-down'}
                 size={20}
                 color={colors.subtext}
               />
@@ -371,18 +389,77 @@ export default function SettingsScreen() {
 
             {expandedSections.notifications && (
               <>
+                {/* The four user-facing groups from the Notification Playbook
+                    §2 — mapped onto the L1-L4 taxonomy, not one toggle per
+                    send. "Occasions & featured" defaults off. */}
+                <View style={styles.settingItem}>
+                  <View style={styles.settingItemLeft}>
+                    <Ionicons name="calendar-outline" size={22} color={colors.text} />
+                    <View>
+                      <Text style={styles.settingItemText}>My events</Text>
+                      <Text style={styles.settingItemSubtext}>
+                        Your party countdown: shopping list, prep, day-of
+                      </Text>
+                    </View>
+                  </View>
+                  <Switch
+                    value={notificationPrefs.myEvents}
+                    onValueChange={(value) => updatePreferences({ myEvents: value })}
+                    thumbColor={notificationPrefs.myEvents ? colors.white : colors.subtle}
+                    trackColor={{ true: colors.accent, false: colors.line }}
+                  />
+                </View>
+
+                <View style={styles.settingItem}>
+                  <View style={styles.settingItemLeft}>
+                    <Ionicons name="trending-up-outline" size={22} color={colors.text} />
+                    <View>
+                      <Text style={styles.settingItemText}>My progress</Text>
+                      <Text style={styles.settingItemSubtext}>
+                        Milestones, badges, and your Friday maker prompt
+                      </Text>
+                    </View>
+                  </View>
+                  <Switch
+                    value={notificationPrefs.myProgress}
+                    onValueChange={(value) => updatePreferences({ myProgress: value })}
+                    thumbColor={notificationPrefs.myProgress ? colors.white : colors.subtle}
+                    trackColor={{ true: colors.accent, false: colors.line }}
+                  />
+                </View>
+
                 <View style={styles.settingItem}>
                   <View style={styles.settingItemLeft}>
                     <Ionicons name="archive-outline" size={22} color={colors.text} />
                     <View>
-                      <Text style={styles.settingItemText}>Vault Updates</Text>
-                      <Text style={styles.settingItemSubtext}>Hearts refilled, XP milestones</Text>
+                      <Text style={styles.settingItemText}>Weekly drops</Text>
+                      <Text style={styles.settingItemSubtext}>
+                        New recipes picked against your shelf, Wednesdays
+                      </Text>
                     </View>
                   </View>
                   <Switch
-                    value={notificationPrefs.vault}
-                    onValueChange={(value) => updatePreferences({ vault: value })}
-                    thumbColor={notificationPrefs.vault ? colors.white : colors.subtle}
+                    value={notificationPrefs.weeklyDrops}
+                    onValueChange={(value) => updatePreferences({ weeklyDrops: value })}
+                    thumbColor={notificationPrefs.weeklyDrops ? colors.white : colors.subtle}
+                    trackColor={{ true: colors.accent, false: colors.line }}
+                  />
+                </View>
+
+                <View style={styles.settingItem}>
+                  <View style={styles.settingItemLeft}>
+                    <Ionicons name="sparkles-outline" size={22} color={colors.text} />
+                    <View>
+                      <Text style={styles.settingItemText}>Occasions & featured</Text>
+                      <Text style={styles.settingItemSubtext}>
+                        Seasonal ideas and featured bottles. Off by default.
+                      </Text>
+                    </View>
+                  </View>
+                  <Switch
+                    value={notificationPrefs.occasions}
+                    onValueChange={(value) => updatePreferences({ occasions: value })}
+                    thumbColor={notificationPrefs.occasions ? colors.white : colors.subtle}
                     trackColor={{ true: colors.accent, false: colors.line }}
                   />
                 </View>
@@ -404,7 +481,7 @@ export default function SettingsScreen() {
                 <Text style={styles.settingItemText}>Privacy Settings</Text>
               </View>
               <Ionicons
-                name={expandedSections.privacy ? "chevron-up" : "chevron-down"}
+                name={expandedSections.privacy ? 'chevron-up' : 'chevron-down'}
                 size={20}
                 color={colors.subtext}
               />
@@ -423,7 +500,6 @@ export default function SettingsScreen() {
                   </View>
                   <Ionicons name="chevron-forward" size={20} color={colors.subtext} />
                 </TouchableOpacity>
-
               </>
             )}
           </View>
@@ -457,7 +533,7 @@ export default function SettingsScreen() {
                 <Text style={styles.settingItemText}>Support Center</Text>
               </View>
               <Ionicons
-                name={expandedSections.support ? "chevron-up" : "chevron-down"}
+                name={expandedSections.support ? 'chevron-up' : 'chevron-down'}
                 size={20}
                 color={colors.subtext}
               />
@@ -506,7 +582,7 @@ export default function SettingsScreen() {
                 <Text style={styles.settingItemText}>Terms & Policies</Text>
               </View>
               <Ionicons
-                name={expandedSections.legal ? "chevron-up" : "chevron-down"}
+                name={expandedSections.legal ? 'chevron-up' : 'chevron-down'}
                 size={20}
                 color={colors.subtext}
               />
@@ -560,7 +636,12 @@ export default function SettingsScreen() {
 
           {/* Dev Tools - Only visible in development */}
           {__DEV__ && (
-            <View style={[styles.section, { borderTopWidth: 1, borderTopColor: colors.accent, marginTop: spacing(2) }]}>
+            <View
+              style={[
+                styles.section,
+                { borderTopWidth: 1, borderTopColor: colors.accent, marginTop: spacing(2) },
+              ]}
+            >
               <Text style={[styles.sectionTitle, { color: colors.accent }]}>Dev Tools</Text>
 
               <View style={[styles.settingItem, { backgroundColor: 'rgba(247, 198, 111, 0.1)' }]}>
@@ -599,16 +680,18 @@ export default function SettingsScreen() {
                         onPress: () => {
                           resetXPSystem();
                           Alert.alert('Reset Complete', 'XP system has been reset to 0');
-                        }
-                      }
-                    ]
+                        },
+                      },
+                    ],
                   );
                 }}
                 activeOpacity={0.7}
               >
                 <View style={styles.settingItemLeft}>
                   <Ionicons name="refresh-outline" size={22} color="#EF4444" />
-                  <Text style={[styles.settingItemText, { color: '#EF4444' }]}>Reset XP System</Text>
+                  <Text style={[styles.settingItemText, { color: '#EF4444' }]}>
+                    Reset XP System
+                  </Text>
                 </View>
                 <Ionicons name="chevron-forward" size={20} color="#EF4444" />
               </TouchableOpacity>
@@ -628,16 +711,18 @@ export default function SettingsScreen() {
                           resetXPSystem();
                           resetUser();
                           Alert.alert('Reset Complete', 'All progress has been reset');
-                        }
-                      }
-                    ]
+                        },
+                      },
+                    ],
                   );
                 }}
                 activeOpacity={0.7}
               >
                 <View style={styles.settingItemLeft}>
                   <Ionicons name="nuclear-outline" size={22} color="#EF4444" />
-                  <Text style={[styles.settingItemText, { color: '#EF4444' }]}>Reset All Progress</Text>
+                  <Text style={[styles.settingItemText, { color: '#EF4444' }]}>
+                    Reset All Progress
+                  </Text>
                 </View>
                 <Ionicons name="chevron-forward" size={20} color="#EF4444" />
               </TouchableOpacity>
@@ -663,109 +748,109 @@ const styles = StyleSheet.create({
     flex: 1,
     // Background handled by LinearGradient
   },
-    scrollContent: {
-      paddingBottom: spacing(8),
-    },
-    headerButton: {
-      width: 40,
-      height: 40,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    section: {
-      marginBottom: spacing(3),
-    },
-    sectionTitle: {
-      fontSize: 13,
-      fontWeight: '700',
-      color: colors.subtext,
-      textTransform: 'uppercase',
-      letterSpacing: 0.5,
-      paddingHorizontal: spacing(3),
-      paddingTop: spacing(3),
-      paddingBottom: spacing(1.5),
-      fontFamily: serifFont,
-    },
-    settingItem: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      backgroundColor: 'transparent',
-      paddingVertical: spacing(2),
-      paddingHorizontal: spacing(3),
-      borderBottomWidth: 0.5,
-      borderBottomColor: 'rgba(255, 255, 255, 0.06)',
-    },
-    settingItemLeft: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      flex: 1,
-      gap: spacing(2),
-    },
-    settingItemText: {
-      fontSize: 16,
-      fontWeight: '500',
-      color: colors.text,
-    },
-    settingItemSubtext: {
-      fontSize: 13,
-      color: colors.subtext,
-      marginTop: 2,
-    },
-    settingItemRight: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing(1),
-    },
-    settingItemBadge: {
-      fontSize: 11,
-      fontWeight: '600',
-      color: colors.accent,
-      backgroundColor: 'rgba(214, 138, 56, 0.15)',
-      paddingHorizontal: spacing(1),
-      paddingVertical: 2,
-      borderRadius: radii.sm,
-    },
-    collapsibleHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      backgroundColor: 'transparent',
-      paddingVertical: spacing(2),
-      paddingHorizontal: spacing(3),
-      borderBottomWidth: 0.5,
-      borderBottomColor: 'rgba(255, 255, 255, 0.06)',
-    },
-    dangerSection: {
-      marginTop: spacing(4),
-    },
-    dangerItem: {
-      backgroundColor: 'rgba(239, 68, 68, 0.03)',
-    },
-    versionSection: {
-      alignItems: 'center',
-      paddingVertical: spacing(6),
-      paddingTop: spacing(8),
-    },
-    versionText: {
-      fontSize: 13,
-      color: colors.subtle,
-      fontWeight: '500',
-    },
-    versionSubtext: {
-      fontSize: 11,
-      color: colors.subtle,
-      marginTop: 4,
-      opacity: 0.6,
-    },
-    ageNotice: {
-      fontSize: 11,
-      color: colors.subtle,
-      marginTop: spacing(2),
-      textAlign: 'center',
-      opacity: 0.6,
-    },
-  });
+  scrollContent: {
+    paddingBottom: spacing(8),
+  },
+  headerButton: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  section: {
+    marginBottom: spacing(3),
+  },
+  sectionTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.subtext,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    paddingHorizontal: spacing(3),
+    paddingTop: spacing(3),
+    paddingBottom: spacing(1.5),
+    fontFamily: serifFont,
+  },
+  settingItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'transparent',
+    paddingVertical: spacing(2),
+    paddingHorizontal: spacing(3),
+    borderBottomWidth: 0.5,
+    borderBottomColor: 'rgba(255, 255, 255, 0.06)',
+  },
+  settingItemLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: spacing(2),
+  },
+  settingItemText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: colors.text,
+  },
+  settingItemSubtext: {
+    fontSize: 13,
+    color: colors.subtext,
+    marginTop: 2,
+  },
+  settingItemRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(1),
+  },
+  settingItemBadge: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.accent,
+    backgroundColor: 'rgba(214, 138, 56, 0.15)',
+    paddingHorizontal: spacing(1),
+    paddingVertical: 2,
+    borderRadius: radii.sm,
+  },
+  collapsibleHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'transparent',
+    paddingVertical: spacing(2),
+    paddingHorizontal: spacing(3),
+    borderBottomWidth: 0.5,
+    borderBottomColor: 'rgba(255, 255, 255, 0.06)',
+  },
+  dangerSection: {
+    marginTop: spacing(4),
+  },
+  dangerItem: {
+    backgroundColor: 'rgba(239, 68, 68, 0.03)',
+  },
+  versionSection: {
+    alignItems: 'center',
+    paddingVertical: spacing(6),
+    paddingTop: spacing(8),
+  },
+  versionText: {
+    fontSize: 13,
+    color: colors.subtle,
+    fontWeight: '500',
+  },
+  versionSubtext: {
+    fontSize: 11,
+    color: colors.subtle,
+    marginTop: 4,
+    opacity: 0.6,
+  },
+  ageNotice: {
+    fontSize: 11,
+    color: colors.subtle,
+    marginTop: spacing(2),
+    textAlign: 'center',
+    opacity: 0.6,
+  },
+});
 
 const currencyStyles = StyleSheet.create({
   picker: {

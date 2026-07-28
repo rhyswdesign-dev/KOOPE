@@ -61,7 +61,8 @@ export interface PrepStep {
   canParallelize: boolean;
 }
 
-export type PrepTiming = 'day-before' | '2-hours-before' | '1-hour-before' | '30-min-before' | 'just-before' | 'during';
+export type PrepTiming =
+  'day-before' | '2-hours-before' | '1-hour-before' | '30-min-before' | 'just-before' | 'during';
 
 export interface ShoppingItem {
   name: string;
@@ -90,6 +91,13 @@ export interface GuestMenuOptions {
   eventName?: string;
 }
 
+/**
+ * AsyncStorage key for the user's saved hosting plans (written by
+ * HostingScreen). Shared so notificationPlanner can tell whether the user has
+ * ever hosted without importing a screen.
+ */
+export const HOSTING_PLANS_STORAGE_KEY = '@koope_hosting_plans';
+
 // ============================================================================
 // CORE FUNCTIONS
 // ============================================================================
@@ -99,10 +107,7 @@ export interface GuestMenuOptions {
  * PRO's crown jewel — takes guest count + inventory and produces
  * a complete menu, prep timeline, and shopping list.
  */
-export function generateHostingPlan(
-  allRecipes: Recipe[],
-  options: GuestMenuOptions
-): HostingPlan {
+export function generateHostingPlan(allRecipes: Recipe[], options: GuestMenuOptions): HostingPlan {
   const {
     guestCount,
     drinksPerGuest = 3,
@@ -119,7 +124,7 @@ export function generateHostingPlan(
     inventory,
     maxRecipes,
     preferMakeable,
-    includeNonAlcoholic
+    includeNonAlcoholic,
   );
 
   // Step 2: Create batch plan (scaling + consolidated shopping)
@@ -162,10 +167,10 @@ function selectRecipesForMenu(
   inventory: Bottle[],
   maxRecipes: number,
   preferMakeable: boolean,
-  includeNonAlcoholic: boolean
+  includeNonAlcoholic: boolean,
 ): Recipe[] {
   // Score each recipe for menu suitability
-  const scored = allRecipes.map(recipe => {
+  const scored = allRecipes.map((recipe) => {
     let score = 0;
 
     // Makeability: recipes the user can make get a big boost
@@ -205,7 +210,11 @@ function selectRecipesForMenu(
     if (selected.length >= maxRecipes) break;
 
     // Variety check: avoid duplicating base spirits unless needed
-    if (recipe.baseSpirit && usedSpirits.has(recipe.baseSpirit) && selected.length < maxRecipes - 1) {
+    if (
+      recipe.baseSpirit &&
+      usedSpirits.has(recipe.baseSpirit) &&
+      selected.length < maxRecipes - 1
+    ) {
       continue; // Skip duplicate spirits early, but allow at the end if needed
     }
 
@@ -215,9 +224,9 @@ function selectRecipesForMenu(
   }
 
   // If we need a non-alcoholic option and don't have one, add one
-  if (includeNonAlcoholic && !selected.some(r => r.recipeType === 'mocktail' || r.abv === 0)) {
-    const mocktail = scored.find(({ recipe }) =>
-      recipe.recipeType === 'mocktail' || recipe.abv === 0
+  if (includeNonAlcoholic && !selected.some((r) => r.recipeType === 'mocktail' || r.abv === 0)) {
+    const mocktail = scored.find(
+      ({ recipe }) => recipe.recipeType === 'mocktail' || recipe.abv === 0,
     );
     if (mocktail && selected.length < maxRecipes + 1) {
       selected.push(mocktail.recipe);
@@ -248,22 +257,24 @@ function buildMenuSummary(recipes: Recipe[]): MenuSummary {
     const cat = r.category || 'Other';
     catMap.set(cat, (catMap.get(cat) || 0) + 1);
   }
-  const recipesByCategory = Array.from(catMap.entries())
-    .map(([category, count]) => ({ category, count }));
+  const recipesByCategory = Array.from(catMap.entries()).map(([category, count]) => ({
+    category,
+    count,
+  }));
 
   // Flavor variety: how many unique flavors are represented?
   const allFlavors = new Set<string>();
   for (const r of recipes) {
-    r.flavorProfiles.forEach(f => allFlavors.add(f));
+    r.flavorProfiles.forEach((f) => allFlavors.add(f));
   }
   const maxPossibleFlavors = 7; // Total FlavorProfile options
   const flavorVariety = Math.round((allFlavors.size / maxPossibleFlavors) * 100);
 
   // Non-alcoholic check
-  const hasNonAlcoholic = recipes.some(r => r.recipeType === 'mocktail' || r.abv === 0);
+  const hasNonAlcoholic = recipes.some((r) => r.recipeType === 'mocktail' || r.abv === 0);
 
   // Display text
-  const lines = recipes.map(r => `  ${r.title}`);
+  const lines = recipes.map((r) => `  ${r.title}`);
   const displayText = `Menu (${recipes.length} cocktails):\n${lines.join('\n')}`;
 
   return { displayText, recipesByCategory, flavorVariety, hasNonAlcoholic };
@@ -286,9 +297,7 @@ function generatePrepTimeline(scaledRecipes: ScaledRecipe[]): PrepStep[] {
     const recipe = sr.recipe;
 
     // Check for syrups that could be made ahead
-    const hasSyrup = recipe.ingredients.some(i =>
-      i.name.toLowerCase().includes('syrup')
-    );
+    const hasSyrup = recipe.ingredients.some((i) => i.name.toLowerCase().includes('syrup'));
     if (hasSyrup) {
       steps.push({
         order: order++,
@@ -301,8 +310,8 @@ function generatePrepTimeline(scaledRecipes: ScaledRecipe[]): PrepStep[] {
     }
 
     // Check for juicing
-    const hasCitrus = recipe.ingredients.some(i =>
-      /lime|lemon|orange|grapefruit/i.test(i.name) && /juice/i.test(i.name)
+    const hasCitrus = recipe.ingredients.some(
+      (i) => /lime|lemon|orange|grapefruit/i.test(i.name) && /juice/i.test(i.name),
     );
     if (hasCitrus) {
       steps.push({
@@ -342,7 +351,8 @@ function generatePrepTimeline(scaledRecipes: ScaledRecipe[]): PrepStep[] {
 
   // 30-min-before: batch mix what can be pre-mixed
   for (const sr of scaledRecipes) {
-    const canPreBatch = sr.recipe.difficulty === 'beginner' || sr.recipe.difficulty === 'intermediate';
+    const canPreBatch =
+      sr.recipe.difficulty === 'beginner' || sr.recipe.difficulty === 'intermediate';
     if (canPreBatch && sr.servings > 2) {
       steps.push({
         order: order++,
@@ -372,12 +382,14 @@ function generatePrepTimeline(scaledRecipes: ScaledRecipe[]): PrepStep[] {
     '1-hour-before': 2,
     '30-min-before': 3,
     'just-before': 4,
-    'during': 5,
+    during: 5,
   };
   steps.sort((a, b) => timingOrder[a.timing] - timingOrder[b.timing]);
 
   // Re-number after sort
-  steps.forEach((step, i) => { step.order = i + 1; });
+  steps.forEach((step, i) => {
+    step.order = i + 1;
+  });
 
   return steps;
 }
@@ -387,11 +399,11 @@ function generatePrepTimeline(scaledRecipes: ScaledRecipe[]): PrepStep[] {
 // ============================================================================
 
 function buildShoppingList(batchPlan: BatchPlan, inventory: Bottle[]): ShoppingItem[] {
-  const invNames = inventory.map(b => b.name.toLowerCase());
+  const invNames = inventory.map((b) => b.name.toLowerCase());
 
-  return batchPlan.consolidatedIngredients.map(ci => {
-    const inInventory = invNames.some(inv =>
-      inv.includes(ci.name.toLowerCase()) || ci.name.toLowerCase().includes(inv)
+  return batchPlan.consolidatedIngredients.map((ci) => {
+    const inInventory = invNames.some(
+      (inv) => inv.includes(ci.name.toLowerCase()) || ci.name.toLowerCase().includes(inv),
     );
 
     return {
