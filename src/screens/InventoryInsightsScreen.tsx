@@ -60,7 +60,9 @@ function daysBetween(from: Date, to: Date): number {
   return Math.max(0, Math.floor((to.getTime() - from.getTime()) / (1000 * 60 * 60 * 24)));
 }
 
-function normalizeInventory(items: Array<{ name: string; category?: string; subcategory?: string; addedAt?: Date }>): InventoryLite[] {
+function normalizeInventory(
+  items: { name: string; category?: string; subcategory?: string; addedAt?: Date }[],
+): InventoryLite[] {
   return items
     .filter((i) => i.name)
     .map((i) => ({
@@ -77,8 +79,20 @@ function shelfLifeDaysFor(item: InventoryLite): number {
   const sub = item.subcategory || '';
 
   if (category === 'garnish') {
-    if (sub.includes('herb') || name.includes('mint') || name.includes('basil') || name.includes('rosemary')) return 4;
-    if (sub.includes('citrus') || name.includes('lemon') || name.includes('lime') || name.includes('orange')) return 10;
+    if (
+      sub.includes('herb') ||
+      name.includes('mint') ||
+      name.includes('basil') ||
+      name.includes('rosemary')
+    )
+      return 4;
+    if (
+      sub.includes('citrus') ||
+      name.includes('lemon') ||
+      name.includes('lime') ||
+      name.includes('orange')
+    )
+      return 10;
     if (name.includes('cherry') || name.includes('olive')) return 30;
     return 7;
   }
@@ -120,7 +134,13 @@ function getBartenderHacks(item: ExpiryCandidate): string[] {
   const category = item.category.toLowerCase();
   const sub = item.subcategory || '';
 
-  if (category === 'garnish' || sub.includes('herb') || name.includes('mint') || name.includes('basil') || name.includes('rosemary')) {
+  if (
+    category === 'garnish' ||
+    sub.includes('herb') ||
+    name.includes('mint') ||
+    name.includes('basil') ||
+    name.includes('rosemary')
+  ) {
     return [
       'Blanch herbs for 5 seconds, shock in ice water, then freeze for greener long-term garnish prep.',
       'Store fresh herbs upright in a small glass with water, loosely tented in the fridge.',
@@ -128,7 +148,13 @@ function getBartenderHacks(item: ExpiryCandidate): string[] {
     ];
   }
 
-  if (name.includes('lemon') || name.includes('lime') || name.includes('orange') || sub.includes('citrus') || name.includes('juice')) {
+  if (
+    name.includes('lemon') ||
+    name.includes('lime') ||
+    name.includes('orange') ||
+    sub.includes('citrus') ||
+    name.includes('juice')
+  ) {
     return [
       'Zest strips first and freeze them flat for garnish service.',
       'Freeze juice in measured cubes (0.5-1 oz each) for predictable batching.',
@@ -152,7 +178,10 @@ function getBartenderHacks(item: ExpiryCandidate): string[] {
     ];
   }
 
-  if (category === 'mixer' && (name.includes('cream') || name.includes('milk') || sub.includes('cream'))) {
+  if (
+    category === 'mixer' &&
+    (name.includes('cream') || name.includes('milk') || sub.includes('cream'))
+  ) {
     return [
       'Keep dairy on the coldest shelf, not the fridge door, for longer stability.',
       'Pre-batch cream components only same-day for service quality.',
@@ -167,7 +196,11 @@ function getBartenderHacks(item: ExpiryCandidate): string[] {
   ];
 }
 
-function buildCoverage(inventory: InventoryLite[]): { categories: CoverageCategory[]; healthScore: number; essentials: Array<{ name: string; unlocks: number }> } {
+function buildCoverage(inventory: InventoryLite[]): {
+  categories: CoverageCategory[];
+  healthScore: number;
+  essentials: { name: string; unlocks: number }[];
+} {
   const names = new Set(inventory.map((i) => i.name.toLowerCase()));
 
   const groups = [
@@ -224,7 +257,7 @@ function buildCoverage(inventory: InventoryLite[]): { categories: CoverageCatego
       category.missing.map((missing) => ({
         name: missing,
         unlocks: Math.max(3, Math.round((100 - category.pct) / 8)),
-      }))
+      })),
     )
     .slice(0, 5);
 
@@ -255,7 +288,12 @@ function ExpiryView({
   return (
     <>
       <View style={styles.heroCard}>
-        <View style={[styles.heroIconRing, { backgroundColor: 'rgba(244,67,54,0.12)', borderColor: 'rgba(244,67,54,0.25)' }]}>
+        <View
+          style={[
+            styles.heroIconRing,
+            { backgroundColor: 'rgba(244,67,54,0.12)', borderColor: 'rgba(244,67,54,0.25)' },
+          ]}
+        >
           <Ionicons name="time" size={26} color={colors.error} />
         </View>
         <View style={styles.heroTextBlock}>
@@ -267,7 +305,9 @@ function ExpiryView({
       <View style={styles.notifyRow}>
         <View style={{ flex: 1 }}>
           <Text style={styles.notifyTitle}>Notify Me</Text>
-          <Text style={styles.notifySubtitle}>Include soon-to-expire and expired items in notifications framework.</Text>
+          <Text style={styles.notifySubtitle}>
+            Include soon-to-expire and expired items in notifications framework.
+          </Text>
         </View>
         <Switch
           value={notifyEnabled}
@@ -282,9 +322,12 @@ function ExpiryView({
           <Ionicons name="sparkles-outline" size={16} color={colors.accent} />
           <Text style={styles.actionCardEyebrow}>Use-first move</Text>
         </View>
-        <Text style={styles.actionCardTitle}>Turn expiring ingredients into a small-host menu.</Text>
+        <Text style={styles.actionCardTitle}>
+          Turn expiring ingredients into a small-host menu.
+        </Text>
         <Text style={styles.actionCardBody}>
-          Use Hosting to build a 1-4 guest plan around what should be poured first, not forgotten in the back of the bar.
+          Use Hosting to build a 1-4 guest plan around what should be poured first, not forgotten in
+          the back of the bar.
         </Text>
       </Pressable>
 
@@ -308,8 +351,15 @@ function ExpiryView({
               <View style={styles.expiryTop}>
                 <Text style={styles.expiryName}>{item.name}</Text>
                 <View style={styles.expiryTopActions}>
-                  <View style={[styles.urgencyBadge, { backgroundColor: `${color}22`, borderColor: `${color}55` }]}>
-                    <Text style={[styles.urgencyBadgeText, { color }]}>{urgencyLabel(item.daysLeft)}</Text>
+                  <View
+                    style={[
+                      styles.urgencyBadge,
+                      { backgroundColor: `${color}22`, borderColor: `${color}55` },
+                    ]}
+                  >
+                    <Text style={[styles.urgencyBadgeText, { color }]}>
+                      {urgencyLabel(item.daysLeft)}
+                    </Text>
                   </View>
                   <TouchableOpacity
                     style={styles.expiryDeleteBtn}
@@ -323,7 +373,8 @@ function ExpiryView({
               </View>
               <Text style={styles.expiryCategory}>{item.category}</Text>
               <Text style={styles.entryDateText}>
-                Added {formatAddedDate(item.addedAt)} ({item.ageDays} day{item.ageDays === 1 ? '' : 's'} ago)
+                Added {formatAddedDate(item.addedAt)} ({item.ageDays} day
+                {item.ageDays === 1 ? '' : 's'} ago)
               </Text>
               {hasAccess && (
                 <Text style={styles.expirySuggestion}>
@@ -338,7 +389,9 @@ function ExpiryView({
       {!hasAccess && (
         <Pressable style={styles.upgradeCard} onPress={onUpgrade}>
           <Ionicons name="lock-closed" size={20} color={colors.accent} />
-          <Text style={styles.upgradeText}>Upgrade to PLUS to unlock full shelf-life guidance and suggestions.</Text>
+          <Text style={styles.upgradeText}>
+            Upgrade to PLUS to unlock full shelf-life guidance and suggestions.
+          </Text>
         </Pressable>
       )}
     </>
@@ -376,25 +429,48 @@ function HealthView({
           <Text style={styles.scoreLabel}>Bar Health Score</Text>
           <Text style={styles.scoreSubLabel}>Based on your current ingredient coverage</Text>
           <View style={styles.scoreBarTrack}>
-            <View style={[styles.scoreBarFill, { width: `${coverage.healthScore}%`, backgroundColor: healthColor(coverage.healthScore) }]} />
+            <View
+              style={[
+                styles.scoreBarFill,
+                {
+                  width: `${coverage.healthScore}%`,
+                  backgroundColor: healthColor(coverage.healthScore),
+                },
+              ]}
+            />
           </View>
         </View>
       </View>
 
       {topAddition && (
-        <Pressable style={styles.actionCard} onPress={hasAccess ? () => onAddPossibleAddition(topAddition.name) : onUpgrade}>
+        <Pressable
+          style={styles.actionCard}
+          onPress={hasAccess ? () => onAddPossibleAddition(topAddition.name) : onUpgrade}
+        >
           <View style={styles.actionCardHeader}>
             <Ionicons name="bar-chart-outline" size={16} color={colors.accent} />
             <Text style={styles.actionCardEyebrow}>Best next move</Text>
           </View>
-          <Text style={styles.actionCardTitle}>{topAddition.name} is your clearest reach unlock right now.</Text>
+          <Text style={styles.actionCardTitle}>
+            {topAddition.name} is your clearest reach unlock right now.
+          </Text>
           <Text style={styles.actionCardBody}>
             {hasAccess
               ? `Add it to your shopping list now and unlock roughly ${topAddition.unlocks} more recipe paths.`
               : 'KŌOPE+ shows which additions give your bar the biggest jump in cocktail reach.'}
           </Text>
           {hasAccess && (
-            <TouchableOpacity style={styles.actionInlineButton} onPress={onOpenOptimizer}>
+            <TouchableOpacity
+              style={styles.actionInlineButton}
+              onPress={(e) => {
+                // This button sits inside the card's own Pressable (which adds
+                // topAddition to the shopping list on tap) — without stopping
+                // propagation here, that outer handler was firing instead of
+                // (or as well as) navigating to the optimizer.
+                e.stopPropagation();
+                onOpenOptimizer();
+              }}
+            >
               <Ionicons name="arrow-forward-circle-outline" size={16} color={colors.accent} />
               <Text style={styles.actionInlineButtonText}>Open full optimizer</Text>
             </TouchableOpacity>
@@ -406,17 +482,26 @@ function HealthView({
       {coverage.categories.map((cat) => (
         <View key={cat.label} style={styles.coverageRow}>
           <View style={styles.coverageLeft}>
-            <View style={[styles.coverageIconWrap, { backgroundColor: `${healthColor(cat.pct)}18` }]}>
+            <View
+              style={[styles.coverageIconWrap, { backgroundColor: `${healthColor(cat.pct)}18` }]}
+            >
               <Ionicons name={cat.icon} size={16} color={healthColor(cat.pct)} />
             </View>
             <View>
               <Text style={styles.coverageLabel}>{cat.label}</Text>
-              {cat.missing.length > 0 && <Text style={styles.coverageMissing}>Missing: {cat.missing.join(', ')}</Text>}
+              {cat.missing.length > 0 && (
+                <Text style={styles.coverageMissing}>Missing: {cat.missing.join(', ')}</Text>
+              )}
             </View>
           </View>
           <View style={styles.coverageRight}>
             <View style={styles.coverageTrack}>
-              <View style={[styles.coverageFill, { width: `${cat.pct}%`, backgroundColor: healthColor(cat.pct) }]} />
+              <View
+                style={[
+                  styles.coverageFill,
+                  { width: `${cat.pct}%`, backgroundColor: healthColor(cat.pct) },
+                ]}
+              />
             </View>
             <Text style={[styles.coveragePct, { color: healthColor(cat.pct) }]}>{cat.pct}%</Text>
           </View>
@@ -447,7 +532,9 @@ function HealthView({
       {!hasAccess && (
         <Pressable style={styles.upgradeCard} onPress={onUpgrade}>
           <Ionicons name="lock-closed" size={20} color={colors.accent} />
-          <Text style={styles.upgradeText}>Upgrade to PLUS to unlock possible additions and full optimization.</Text>
+          <Text style={styles.upgradeText}>
+            Upgrade to PLUS to unlock possible additions and full optimization.
+          </Text>
         </Pressable>
       )}
     </>
@@ -460,8 +547,10 @@ export default function InventoryInsightsScreen() {
   const mode: InsightMode = route.params?.mode ?? 'health';
   const { user } = useAuth();
 
-  const { hasAccess: hasExpiryAccess, gateWithTrigger: expiryGate } = useFeatureAccess('expiry_alerts');
-  const { hasAccess: hasHealthAccess, gateWithTrigger: healthGate } = useFeatureAccess('bar_health_score');
+  const { hasAccess: hasExpiryAccess, gateWithTrigger: expiryGate } =
+    useFeatureAccess('expiry_alerts');
+  const { hasAccess: hasHealthAccess, gateWithTrigger: healthGate } =
+    useFeatureAccess('bar_health_score');
 
   const [loading, setLoading] = useState(true);
   const [inventory, setInventory] = useState<InventoryLite[]>([]);
@@ -487,7 +576,7 @@ export default function InventoryInsightsScreen() {
             category: item.category,
             subcategory: item.subcategory,
             addedAt: item.addedAt,
-          }))
+          })),
         );
 
         let normalizedRemote: InventoryLite[] = [];
@@ -499,7 +588,7 @@ export default function InventoryInsightsScreen() {
               category: item.category || item.item_type || 'other',
               subcategory: item.subcategory || undefined,
               addedAt: item.added_at ? new Date(item.added_at) : new Date(),
-            }))
+            })),
           );
         }
 
@@ -553,32 +642,43 @@ export default function InventoryInsightsScreen() {
           if (user?.id) {
             await InventoryService.removeFromInventory(user.id, item.name);
           }
-          await HomeBarService.removeIngredientByName(item.name, item.category).catch(() => undefined);
+          await HomeBarService.removeIngredientByName(item.name, item.category).catch(
+            () => undefined,
+          );
           setInventory((prev) =>
             prev.filter(
               (entry) =>
                 !(
                   entry.name.toLowerCase() === item.name.toLowerCase() &&
                   entry.category.toLowerCase() === item.category.toLowerCase()
-                )
-            )
+                ),
+            ),
           );
         },
       },
     ]);
   };
 
-  const inferShoppingCategory = (name: string): 'spirits_liquors' | 'mixers' | 'garnish' | 'bitters' | 'syrup' | 'other' => {
+  const inferShoppingCategory = (
+    name: string,
+  ): 'spirits_liquors' | 'mixers' | 'garnish' | 'bitters' | 'syrup' | 'other' => {
     const value = name.toLowerCase();
     if (value.includes('bitters')) return 'bitters';
     if (value.includes('syrup')) return 'syrup';
-    if (value.includes('lemon') || value.includes('lime') || value.includes('mint') || value.includes('olive')) return 'garnish';
+    if (
+      value.includes('lemon') ||
+      value.includes('lime') ||
+      value.includes('mint') ||
+      value.includes('olive')
+    )
+      return 'garnish';
     if (
       value.includes('juice') ||
       value.includes('tonic') ||
       value.includes('soda') ||
       value.includes('ginger beer')
-    ) return 'mixers';
+    )
+      return 'mixers';
     if (
       value.includes('vodka') ||
       value.includes('gin') ||
@@ -589,7 +689,8 @@ export default function InventoryInsightsScreen() {
       value.includes('amaro') ||
       value.includes('triple sec') ||
       value.includes('campari')
-    ) return 'spirits_liquors';
+    )
+      return 'spirits_liquors';
     return 'other';
   };
 
@@ -601,7 +702,7 @@ export default function InventoryInsightsScreen() {
           category: inferShoppingCategory(name),
         },
         'Bar Health',
-        user?.id || 'default'
+        user?.id || 'default',
       );
       Alert.alert('Added to Cart', `${name} was added to your shopping list.`);
     } catch {
@@ -610,7 +711,8 @@ export default function InventoryInsightsScreen() {
   };
 
   const title = mode === 'expiry' ? 'Expiry Alerts' : 'Bar Health Score';
-  const subtitle = mode === 'expiry' ? 'Prioritized by entry date' : 'Coverage and gaps at a glance';
+  const subtitle =
+    mode === 'expiry' ? 'Prioritized by entry date' : 'Coverage and gaps at a glance';
   const hasAccess = mode === 'expiry' ? hasExpiryAccess : hasHealthAccess;
 
   return (
@@ -633,7 +735,7 @@ export default function InventoryInsightsScreen() {
               hasAccess={hasAccess}
               candidates={expiryCandidates}
               notifyEnabled={notifyEnabled}
-            onToggleNotify={handleToggleNotify}
+              onToggleNotify={handleToggleNotify}
               onOpenHacks={(item) => setSelectedHackItem(item)}
               onRemoveItem={handleRemoveItem}
               onUpgrade={() => expiryGate('T4')}

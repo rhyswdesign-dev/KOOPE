@@ -42,6 +42,17 @@ vi.mock('../../store/useTasteModel', () => ({
   },
 }));
 
+// cocktails.ts has module-scope `require('*.png')` calls for real assets —
+// fine under Metro, a syntax error under Vitest's Node-based runner (no
+// asset loader for binary files). Stub with a fixture matching the shape
+// getMadeHistory's local-catalog fallback reads (id/name/image).
+vi.mock('../../data/cocktails', () => ({
+  ALL_COCKTAILS: [
+    { id: 'negroni', name: 'Negroni', image: 'https://example.com/negroni.jpg' },
+    { id: 'local-only-recipe', name: 'Local Only Recipe', image: 'https://example.com/local.jpg' },
+  ],
+}));
+
 // Chainable query-builder stub: every filter method returns `this`, and the
 // object is directly awaitable (mirrors Supabase's thenable PostgrestFilterBuilder).
 function chainableResult(result: Record<string, unknown>) {
