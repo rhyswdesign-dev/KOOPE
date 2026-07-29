@@ -80,6 +80,8 @@ import { curriculumData } from '../utils/curriculumAdapter';
 import { getCurriculumUnlockForRecipeId } from '../config/unlockContent';
 import { loadUserProfile } from '../services/userProfileService';
 import { hydrateTasteGraph } from '../services/tasteGraphService';
+import { CANONICAL_FLAVORS, CANONICAL_SPIRITS } from '../utils/flavorTaxonomy';
+import type { Spirit } from '../types/userProfile';
 import {
   detectSeason,
   detectTimeOfDay,
@@ -88,10 +90,7 @@ import {
 import { calculateTasteMatchPercent } from '../services/tasteMatchService';
 import { InventoryService } from '../services/inventoryService';
 import { toBottle } from '../types/database';
-import {
-  buildTasteProfileFromPersonalization,
-  buildEnhancedProfileFallback,
-} from '../services/enhancedProfileFallback';
+import { buildEnhancedProfileFallback } from '../services/enhancedProfileFallback';
 import { getTonightsPick } from '../services/tonightsPickService';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -251,18 +250,37 @@ export default function RecipesScreen() {
     loadRecipes();
   }, []);
 
-  // Compute taste match scores for PLUS/PRO users once recipes are loaded
+  // Compute taste match scores for PLUS/PRO users once recipes are loaded.
+  // Reads the canonical profile directly — buildTasteProfileFromPersonalization
+  // was a fallback for when this ran off the old 0-100 store, which no longer
+  // has any bearing on taste. The canonical model's confidence-blended priors
+  // mean there's always something sensible to score against, even for a
+  // brand-new user with zero interactions.
   useEffect(() => {
-    if (allRecipes.length === 0 || tier === 'FREE') return;
-    const tasteProfile = buildTasteProfileFromPersonalization(profile);
-    if (!tasteProfile) return;
+    if (allRecipes.length === 0 || tier === 'FREE' || !user?.id) return;
+    let cancelled = false;
 
-    const scores: Record<string, number> = {};
-    for (const recipe of allRecipes) {
-      scores[recipe.id] = calculateTasteMatchPercent(tasteProfile, recipe as any);
-    }
-    setTasteMatchScores(scores);
-  }, [allRecipes, tier, profile]);
+    loadUserProfile(user.id)
+      .then((dbProfile) => {
+        if (cancelled) return;
+        const graph = hydrateTasteGraph(dbProfile?.tasteProfile);
+        if (!graph) return;
+
+        const tasteProfile = graph.rawProfile;
+        const scores: Record<string, number> = {};
+        for (const recipe of allRecipes) {
+          scores[recipe.id] = calculateTasteMatchPercent(tasteProfile, recipe as any);
+        }
+        setTasteMatchScores(scores);
+      })
+      .catch((error) => {
+        log.warn('RecipesScreen', 'Failed to compute taste match scores', { error });
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [allRecipes, tier, user?.id]);
 
   // Pull-to-refresh handler
   const onRefresh = useCallback(async () => {
@@ -819,8 +837,22 @@ export default function RecipesScreen() {
           const loadedProfile = user?.id ? await loadUserProfile(user.id).catch(() => null) : null;
           const enhancedProfile =
             loadedProfile || buildEnhancedProfileFallback(user?.id, profile, savedItems);
-          enhancedProfile.tasteProfile =
-            enhancedProfile.tasteProfile || buildTasteProfileFromPersonalization(profile);
+          // Only reached if even the DB load failed — buildTasteProfileFromPersonalization
+          // used to fall back to the old 0-100 store here, which no longer has any
+          // bearing on taste. Fall back to the same flat neutral prior
+          // tasteVectorService seeds new users with instead.
+          enhancedProfile.tasteProfile = enhancedProfile.tasteProfile || {
+            flavorWeights: Object.fromEntries(CANONICAL_FLAVORS.map((f) => [f, 0.3])) as Record<
+              (typeof CANONICAL_FLAVORS)[number],
+              number
+            >,
+            spiritWeights: Object.fromEntries(CANONICAL_SPIRITS.map((s) => [s, 0.25])) as Record<
+              Spirit,
+              number
+            >,
+            preferredABV: { min: 0, max: 40 },
+            preferredComplexity: 0.5,
+          };
 
           let inventoryBottles: any[] = [];
           if (user?.id) {

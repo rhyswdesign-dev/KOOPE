@@ -1,10 +1,8 @@
 import { Alert } from 'react-native';
 import { getDetailedCocktail } from './cocktailDataTransformer';
-import { usePersonalization } from '../store/usePersonalization';
 import { log } from '../lib/logger';
 import { trackEvent, ANALYTICS_EVENTS, ANALYTICS_PROPS } from '../lib/analytics';
 import { getCocktailImage } from '../../assets/images/cocktails';
-import { dominantFlavors } from './flavorTaxonomy';
 import { logRecipeSignal } from '../services/recipeSignalService';
 import type { DetailedCocktail } from './cocktailDataTransformer';
 
@@ -65,17 +63,6 @@ export const handleRecipeView = (
     cocktail: recipe,
   });
 
-  // Record user behavior for AI learning
-  try {
-    const { recordInteraction } = usePersonalization.getState();
-    recordInteraction('cocktail_viewed', recipe.id, { recipe, source });
-  } catch (error) {
-    log.warn('recipeActions', 'Failed to record recipe view behavior', {
-      error,
-      recipeId: recipe.id,
-    });
-  }
-
   // Durable taste signal. This is the card-tap path into CocktailDetail;
   // RecipeDetailScreen logs its own view for the separate RecipeDetail route.
   logRecipeSignal({ recipeId: recipe.id, signal: 'view', source });
@@ -97,17 +84,6 @@ export const handleCreateShoppingList = (
 
   setSelectedRecipe(recipeToUse);
   setGroceryListVisible(true);
-
-  // Record behavior for personalization profile
-  try {
-    const { recordInteraction } = usePersonalization.getState();
-    recordInteraction('shopping_list_opened', recipe.id, { recipe });
-  } catch (error) {
-    log.warn('recipeActions', 'Failed to record shopping list behavior', {
-      error,
-      recipeId: recipe.id,
-    });
-  }
 };
 
 /**
@@ -160,35 +136,7 @@ export const handleSaveRecipe = (
   } else if (result === 'success') {
     logRecipeSignal({ recipeId: recipe.id, signal: 'save' });
   }
-
-  // Record user behavior for AI learning (only when saving, not unsaving)
-  if (!wasSaved && result === 'success') {
-    // Also record for personalization profile with spirit and flavor context
-    try {
-      const { recordInteraction } = usePersonalization.getState();
-      recordInteraction('cocktail_saved', recipe.id, {
-        recipe,
-        spirit: (recipe as any).base?.toLowerCase() || (recipe as any).spirit?.toLowerCase(),
-        flavors: extractFlavors(recipe),
-      });
-    } catch (error) {
-      log.warn('recipeActions', 'Failed to record personalization interaction', {
-        error,
-        recipeId: recipe.id,
-      });
-    }
-  }
 };
-
-/**
- * Extract a recipe's dominant flavours.
- *
- * Was a substring match over the description ("does the text contain the word
- * 'smoky'?"), which found nothing for most recipes and the wrong thing for
- * some. Now delegates to the canonical extractor, which prefers the recipe's
- * declared flavorProfiles and falls back to ingredient matching.
- */
-const extractFlavors = (recipe: Recipe): string[] => dominantFlavors(recipe as any);
 
 /**
  * Handle recipe deletion with confirmation

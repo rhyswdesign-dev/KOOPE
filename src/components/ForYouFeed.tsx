@@ -30,6 +30,8 @@ import {
   initializeTasteGraph,
   hydrateTasteGraph,
 } from '../services/tasteGraphService';
+import { CANONICAL_FLAVORS, CANONICAL_SPIRITS } from '../utils/flavorTaxonomy';
+import type { Spirit } from '../types/userProfile';
 import {
   getPredictiveRecommendations,
   detectTimeOfDay,
@@ -202,8 +204,19 @@ export default function ForYouFeed({
   const [showProfileList, setShowProfileList] = useState(false);
   const tabTransitionAnim = useRef(new Animated.Value(1)).current;
 
-  // Check if user has completed taste profile (must be declared before useMemo that depends on it)
-  const hasProfile = profile && profile.favoriteSpirits && profile.favoriteSpirits.length > 0;
+  // Check if user has completed taste profile (must be declared before useMemo that depends on it).
+  //
+  // Widened to also recognize the canonical model (tasteIdentity, set by the
+  // effect below from users_profiles.taste_profile). Nothing in the live app
+  // writes profile.favoriteSpirits anymore as of this session's cleanup —
+  // every real write path into it was either removed as redundant with the
+  // canonical model, or was already unreachable. Without this, hasProfile
+  // would be permanently false for every real user, silently hiding the
+  // Palate card, the personalized "matched" feed, and everything else gated
+  // on this flag.
+  const hasProfile =
+    (profile && profile.favoriteSpirits && profile.favoriteSpirits.length > 0) ||
+    tasteIdentity !== null;
   const isFree = tier === 'FREE';
   const isPlus = tier === 'PLUS';
   const isPro = tier === 'PRO';
@@ -489,44 +502,33 @@ export default function ForYouFeed({
           }
         }
 
-        if (hasProfile) {
-          const radar = generateRadarChart(
-            initializeTasteGraph({
-              flavorWeights: {
-                citrus: (profile?.flavorScores?.citrus || 35) / 100,
-                herbal: (profile?.flavorScores?.herbal || 35) / 100,
-                bitter: (profile?.flavorScores?.bitter || 35) / 100,
-                sweet: (profile?.flavorScores?.sweet || 35) / 100,
-                smoky: (profile?.flavorScores?.smoky || 35) / 100,
-                floral: (profile?.flavorScores?.floral || 35) / 100,
-                spiced: (profile?.flavorScores?.spiced || 35) / 100,
-              },
-              spiritWeights: {
-                tequila: (profile?.spiritScores?.tequila || 25) / 100,
-                whiskey: (profile?.spiritScores?.whiskey || 25) / 100,
-                rum: (profile?.spiritScores?.rum || 25) / 100,
-                gin: (profile?.spiritScores?.gin || 25) / 100,
-                vodka: (profile?.spiritScores?.vodka || 25) / 100,
-                brandy: (profile?.spiritScores?.brandy || 25) / 100,
-                liqueurs: (profile?.spiritScores?.liqueurs || 25) / 100,
-                'gin-alternative': 0,
-                'rum-alternative': 0,
-                none: 0,
-              },
-              preferredABV: { min: 0, max: 40 },
-              preferredComplexity: (profile?.complexityScore || 55) / 100,
-            }),
-          );
-          setTasteIdentity({
-            occasionMode: 'casual',
-            confidence: Math.round(radar.dataConfidence * 100),
-            engagement: radar.engagementScore,
-            radar,
-          });
-          return;
-        }
-
-        setTasteIdentity(null);
+        // Reached only when there's no persisted taste_profile yet (a truly
+        // new user with zero taste events — tasteVectorService never
+        // persists until it has at least one). Previously fell back to the
+        // old 0-100 personalization store, which no longer has any bearing
+        // on taste. Falls back to the same flat neutral prior
+        // tasteVectorService itself seeds new users with, so the card shows
+        // an honest "0% confidence" starting point instead of disappearing.
+        const radar = generateRadarChart(
+          initializeTasteGraph({
+            flavorWeights: Object.fromEntries(CANONICAL_FLAVORS.map((f) => [f, 0.3])) as Record<
+              (typeof CANONICAL_FLAVORS)[number],
+              number
+            >,
+            spiritWeights: Object.fromEntries(CANONICAL_SPIRITS.map((s) => [s, 0.25])) as Record<
+              Spirit,
+              number
+            >,
+            preferredABV: { min: 0, max: 40 },
+            preferredComplexity: 0.5,
+          }),
+        );
+        setTasteIdentity({
+          occasionMode: 'casual',
+          confidence: Math.round(radar.dataConfidence * 100),
+          engagement: radar.engagementScore,
+          radar,
+        });
       } catch {
         if (mounted) setTasteIdentity(null);
       }
@@ -535,7 +537,12 @@ export default function ForYouFeed({
     return () => {
       mounted = false;
     };
-  }, [user?.id, hasProfile, profile]);
+    // Deliberately NOT depending on hasProfile: this effect is what makes
+    // hasProfile true in the first place (it now factors in tasteIdentity),
+    // so including it here would re-run the effect every time tasteIdentity
+    // flips from null to set — one wasted extra round-trip on every load.
+    // Neither hasProfile nor profile is read inside this effect anymore.
+  }, [user?.id]);
 
   const proSummary = useMemo(
     () => (tasteIdentity?.radar ? buildTasteSummary(tasteIdentity.radar) : null),

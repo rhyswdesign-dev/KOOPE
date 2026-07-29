@@ -16,7 +16,7 @@
 
 import { useEffect, useState } from 'react';
 import { log } from '../lib/logger';
-import type { FlavorProfile } from '../types/userProfile';
+import type { FlavorProfile, Spirit } from '../types/userProfile';
 import { CANONICAL_FLAVORS } from '../utils/flavorTaxonomy';
 import { hydrateTasteGraph, generateRadarChart } from '../services/tasteGraphService';
 import { loadUserProfile } from '../services/userProfileService';
@@ -33,6 +33,8 @@ export interface TasteSummary {
   topFlavors: FlavorProfile[];
   /** 0-100 per axis, scaled so the strongest reads 100. For bars. */
   flavorScores: Partial<Record<FlavorProfile, number>>;
+  /** Strongest spirits first (tequila/whiskey/rum/gin/vodka/brandy only — the radar's display set). */
+  topSpirits: Spirit[];
   /** 0-100, how much the app actually knows. */
   confidence: number;
   /** Total interactions behind the profile. */
@@ -44,6 +46,7 @@ const EMPTY: TasteSummary = {
   loading: false,
   topFlavors: [],
   flavorScores: {},
+  topSpirits: [],
   confidence: 0,
   totalSignals: 0,
 };
@@ -95,11 +98,18 @@ export function useTasteSummary(userId?: string): TasteSummary {
           .slice(0, 3)
           .map((a) => a.flavor);
 
+        const topSpirits = [...radar.spiritPoints]
+          .filter((p) => p.value > 0)
+          .sort((a, b) => b.value - a.value)
+          .slice(0, 3)
+          .map((p) => p.label.toLowerCase() as Spirit);
+
         setSummary({
           ready: totalSignals >= MIN_SIGNALS_TO_DISPLAY && topFlavors.length > 0,
           loading: false,
           topFlavors,
           flavorScores,
+          topSpirits,
           confidence: Math.round(radar.dataConfidence * 100),
           totalSignals,
         });
