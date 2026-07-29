@@ -60,7 +60,6 @@ import { trackEvent, ANALYTICS_EVENTS, ANALYTICS_PROPS } from '../lib/analytics'
 import { useWishlist, WISHLIST_FREE_CAP } from '../store/useWishlist';
 import { notificationService } from '../services/notificationService';
 import { useTasteModel } from '../store/useTasteModel';
-import type { FlavourTag } from '../store/useTasteModel';
 import { logScanEvent, updateScanOutcome } from '../services/scanContextService';
 import SpiritEducationPanel from '../components/SpiritEducationPanel';
 import GiftModePanel from '../components/bottle/GiftModePanel';
@@ -248,11 +247,14 @@ export default function BottleDetailScreen() {
   };
 
   // Taste model — write-only now. Scans and ownership reach the unified
-  // profile via scan_events and the shelf read in tasteVectorService; the
-  // thumbs below are the one bottle signal that still lands only here.
-  const { recordScan, recordThumbsUp, recordThumbsDown } = useTasteModel();
-  const [thumbsState, setThumbsState] = useState<'idle' | 'up' | 'down'>('idle');
-  const [showCorrectionPills, setShowCorrectionPills] = useState(false);
+  // profile via scan_events and the shelf read in tasteVectorService.
+  //
+  // recordThumbsUp/recordThumbsDown existed on useTasteModel with no UI ever
+  // wired to them — no thumbs button has ever rendered on a bottle. Removed
+  // as dead scaffolding rather than built out, since a bottle-level thumbs
+  // affordance is a real product decision (mirroring the recipe thumbs flow),
+  // not a bug fix. Flagged as a follow-up, not built here.
+  const { recordScan } = useTasteModel();
   const [showCurrencyPicker, setShowCurrencyPicker] = useState(false);
 
   // Wishlist
