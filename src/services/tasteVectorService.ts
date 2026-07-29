@@ -20,6 +20,7 @@ import { log } from '../lib/logger';
 import type { FlavorProfile, Spirit, TasteProfile } from '../types/userProfile';
 import {
   CANONICAL_FLAVORS,
+  CANONICAL_SPIRITS,
   bottleFlavorsToCanonical,
   extractRecipeFlavorVector,
 } from '../utils/flavorTaxonomy';
@@ -235,19 +236,6 @@ function normalise(scores: Record<string, number>, keys: string[]): Record<strin
   return out;
 }
 
-const ALL_SPIRITS: Spirit[] = [
-  'tequila',
-  'whiskey',
-  'rum',
-  'gin',
-  'vodka',
-  'brandy',
-  'liqueurs',
-  'gin-alternative',
-  'rum-alternative',
-  'none',
-];
-
 /**
  * Compute a TasteGraphData from the user's event history.
  *
@@ -332,7 +320,7 @@ export async function computeTasteVector(
   if (acc.total === 0) return null; // No behaviour yet — leave the prior alone.
 
   const learnedFlavors = normalise(acc.flavors, CANONICAL_FLAVORS);
-  const learnedSpirits = normalise(acc.spirits, ALL_SPIRITS);
+  const learnedSpirits = normalise(acc.spirits, CANONICAL_SPIRITS);
 
   // Confidence-blended priors: prior * (1 - c) + learned * c.
   //
@@ -357,7 +345,7 @@ export async function computeTasteVector(
   }
 
   const spiritWeights = {} as Record<Spirit, number>;
-  for (const spirit of ALL_SPIRITS) {
+  for (const spirit of CANONICAL_SPIRITS) {
     const prior = priorProfile?.spiritWeights?.[spirit] ?? 0.25;
     spiritWeights[spirit] = blend(prior, learnedSpirits[spirit] ?? 0);
   }

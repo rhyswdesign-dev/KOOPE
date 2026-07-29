@@ -9,9 +9,7 @@ import { Modal, View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert } fr
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, radii, fonts } from '../theme/tokens';
 import { trackRecommendationRating } from '../services/recommendationTrackingService';
-import { updateProfileFromFeedback } from '../services/feedbackLearningService';
 import { logRecipeSignal } from '../services/recipeSignalService';
-import { usePersonalization } from '../store/usePersonalization';
 import { log } from '../lib/logger';
 
 interface RecommendationFeedbackModalProps {
@@ -62,8 +60,6 @@ export default function RecommendationFeedbackModal({
   const [selectedReasons, setSelectedReasons] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { profile, updateProfile } = usePersonalization();
-
   const handleThumbsUp = () => {
     setLiked(true);
     setSelectedReasons([]); // Clear any previous selections
@@ -111,7 +107,10 @@ export default function RecommendationFeedbackModal({
               .join(', ')
           : undefined;
 
-      // Durable taste signal — the profile update below is in-memory only.
+      // Durable taste signal, feeding the canonical model via
+      // tasteVectorService — replaces the old direct write into
+      // usePersonalization (updateProfileFromFeedback), which wrote the same
+      // event into a store nothing reads for taste anymore.
       if (liked !== null) {
         logRecipeSignal({
           userId,
@@ -119,19 +118,6 @@ export default function RecommendationFeedbackModal({
           signal: liked ? 'thumbs_up' : 'thumbs_down',
           source: 'recommendation_feedback',
         });
-      }
-
-      // Update taste profile weights based on feedback (Phase 2 Enhancement #3)
-      if (profile && liked !== null) {
-        log.info('RecommendationFeedbackModal', 'Updating taste profile from feedback');
-        const profileUpdates = updateProfileFromFeedback(
-          profile,
-          recommendation,
-          liked,
-          selectedReasons,
-        );
-        await updateProfile(profileUpdates);
-        log.info('RecommendationFeedbackModal', 'Taste profile updated successfully');
       }
 
       // Track the feedback (Mixpanel via recommendationTrackingService)

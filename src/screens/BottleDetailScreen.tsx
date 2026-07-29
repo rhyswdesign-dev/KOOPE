@@ -61,6 +61,7 @@ import { useWishlist, WISHLIST_FREE_CAP } from '../store/useWishlist';
 import { notificationService } from '../services/notificationService';
 import { useTasteModel } from '../store/useTasteModel';
 import { logScanEvent, updateScanOutcome } from '../services/scanContextService';
+import { log } from '../lib/logger';
 import SpiritEducationPanel from '../components/SpiritEducationPanel';
 import GiftModePanel from '../components/bottle/GiftModePanel';
 import TastePromptPanel from '../components/bottle/TastePromptPanel';
@@ -72,8 +73,15 @@ import {
   type GiftPreference,
 } from '../services/giftVerdictService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { usePersonalization } from '../store/usePersonalization';
-import type { FlavorProfile } from '../types/userProfile';
+import type { FlavorProfile, Spirit } from '../types/userProfile';
+import { useTasteSummary } from '../hooks/useTasteSummary';
+import {
+  hydrateTasteGraph,
+  initializeTasteGraph,
+  toPersistedTasteProfile,
+} from '../services/tasteGraphService';
+import { loadUserProfile, updateUserProfileFields } from '../services/userProfileService';
+import { CANONICAL_FLAVORS, CANONICAL_SPIRITS } from '../utils/flavorTaxonomy';
 import ValueLine from '../components/bottle/ValueLine';
 import CurrencyPickerModal from '../components/CurrencyPickerModal';
 import PriceSpottedPromptModal from '../components/PriceSpottedPromptModal';
@@ -109,8 +117,7 @@ export default function BottleDetailScreen() {
   const { earnScanXP, isCocktailUnlockedWithXP } = useXPSystem();
   const { isRecipeUnlocked: isRecipeUnlockedWithEngagement } = useEngagement();
   const { user } = useAuth();
-  const { profile: personalizationProfile, updateProfile: updatePersonalizationProfile } =
-    usePersonalization();
+  const tasteSummary = useTasteSummary(user?.id);
   const { tier } = useUserTier();
   const { gateWithTrigger: inventoryGate } = useFeatureAccess('inventory_unlimited');
   const { hasAccess: hasPremiumServeEducation } = useFeatureAccess('premium_serve_education');
@@ -210,15 +217,17 @@ export default function BottleDetailScreen() {
 
   // Phase 1.6: offer the free taste prompt once, right after the first
   // suggested-recipes moment — only for users with no taste signal yet
-  // (so it doesn't re-nag someone who's already done onboarding/
-  // RefineYourTaste), and never alongside Gift mode's own panel.
+  // (so it doesn't re-nag someone who's already built up a profile from
+  // behavior or RefineYourTaste), and never alongside Gift mode's own panel.
+  //
+  // This is currently the ONLY taste-onboarding input anywhere in the app —
+  // real onboarding asks zero questions by design. What's picked here is
+  // written as a one-time, low-confidence PRIOR straight into the canonical
+  // profile (see handleTasteSpiritSelect/handleTasteFlavorSelect below), not
+  // into the old personalization store.
   useEffect(() => {
     if (loadingCocktails || suggestedCocktails.length === 0 || giftMode) return;
-    if (!personalizationProfile) return;
-    const hasTasteSignal =
-      (personalizationProfile.favoriteSpirits?.length ?? 0) > 0 ||
-      (personalizationProfile.flavorPreferences?.length ?? 0) > 0;
-    if (hasTasteSignal) return;
+    if (tasteSummary.loading || tasteSummary.ready) return;
 
     let cancelled = false;
     AsyncStorage.getItem(TASTE_PROMPT_SHOWN_KEY).then((shown) => {
@@ -227,22 +236,78 @@ export default function BottleDetailScreen() {
     return () => {
       cancelled = true;
     };
-  }, [loadingCocktails, suggestedCocktails.length, giftMode, personalizationProfile]);
+  }, [
+    loadingCocktails,
+    suggestedCocktails.length,
+    giftMode,
+    tasteSummary.loading,
+    tasteSummary.ready,
+  ]);
 
   const dismissTastePrompt = () => {
     setShowTastePrompt(false);
     AsyncStorage.setItem(TASTE_PROMPT_SHOWN_KEY, 'true');
   };
 
+  /**
+   * Seed a single flavor/spirit pick into the canonical profile as a low
+   * weight prior — the same role an onboarding answer used to play. Not a
+   * mirror overwrite (this only ever fires once, before any real behavior
+   * exists) and not steering (there's nothing to bias yet). Merges into
+   * whatever graph already exists rather than clobbering it, since a user
+   * with e.g. a scan or two already has a thin real profile to build on.
+   */
+  const seedTastePrior = async (patch: { flavor?: FlavorProfile; spirit?: string }) => {
+    if (!user?.id) return;
+    try {
+      const existing = await loadUserProfile(user.id).catch(() => null);
+      const graph =
+        hydrateTasteGraph(existing?.tasteProfile) ??
+        initializeTasteGraph({
+          flavorWeights: Object.fromEntries(CANONICAL_FLAVORS.map((f) => [f, 0])) as Record<
+            (typeof CANONICAL_FLAVORS)[number],
+            number
+          >,
+          spiritWeights: Object.fromEntries(CANONICAL_SPIRITS.map((s) => [s, 0])) as Record<
+            Spirit,
+            number
+          >,
+          preferredABV: { min: 0, max: 40 },
+          preferredComplexity: 0.5,
+        });
+
+      const SEED_WEIGHT = 0.45; // a nudge, not a declaration — behavior still dominates from here
+      if (patch.flavor) {
+        graph.rawProfile.flavorWeights[patch.flavor] = Math.max(
+          graph.rawProfile.flavorWeights[patch.flavor] ?? 0,
+          SEED_WEIGHT,
+        );
+      }
+      if (patch.spirit) {
+        const spiritKey = patch.spirit as keyof typeof graph.rawProfile.spiritWeights;
+        graph.rawProfile.spiritWeights[spiritKey] = Math.max(
+          graph.rawProfile.spiritWeights[spiritKey] ?? 0,
+          SEED_WEIGHT,
+        );
+      }
+
+      await updateUserProfileFields(user.id, {
+        tasteProfile: toPersistedTasteProfile(graph) as any,
+      });
+    } catch (error) {
+      log.warn('BottleDetailScreen', 'Failed to seed taste prior from prompt', { error });
+    }
+  };
+
   const handleTasteSpiritSelect = (value: string | undefined) => {
     setTasteSpiritHint(value);
-    updatePersonalizationProfile({ favoriteSpirits: value ? [value] : [] });
+    if (value) seedTastePrior({ spirit: value });
     AsyncStorage.setItem(TASTE_PROMPT_SHOWN_KEY, 'true');
   };
 
   const handleTasteFlavorSelect = (value: FlavorProfile | undefined) => {
     setTasteFlavorHint(value);
-    updatePersonalizationProfile({ flavorPreferences: value ? [value] : [] });
+    if (value) seedTastePrior({ flavor: value });
     AsyncStorage.setItem(TASTE_PROMPT_SHOWN_KEY, 'true');
   };
 

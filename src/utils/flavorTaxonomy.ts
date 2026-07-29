@@ -20,7 +20,7 @@
  * each other (see extractRecipeFlavorVector below).
  */
 
-import type { FlavorProfile } from '../types/userProfile';
+import type { FlavorProfile, Spirit } from '../types/userProfile';
 import type { Recipe, FlavorVector, Ingredient } from '../types/recipe';
 import { computeFlavorVector } from '../types/recipe';
 import type { FlavourTag } from '../store/useTasteModel';
@@ -34,6 +34,23 @@ export const CANONICAL_FLAVORS: FlavorProfile[] = [
   'smoky',
   'floral',
   'spiced',
+];
+
+/** The full Spirit union as a literal array — was independently redefined in
+ * three places (tasteVectorService, BottleDetailScreen, RecipesScreen)
+ * whenever a complete TasteProfile.spiritWeights needed building from
+ * scratch. One source, same reasoning as CANONICAL_FLAVORS above. */
+export const CANONICAL_SPIRITS: Spirit[] = [
+  'tequila',
+  'whiskey',
+  'rum',
+  'gin',
+  'vodka',
+  'brandy',
+  'liqueurs',
+  'gin-alternative',
+  'rum-alternative',
+  'none',
 ];
 
 // ── 18-tag scan vocabulary → 7-axis ──────────────────────────────────────────
@@ -109,6 +126,26 @@ export function onboardingKeysToCanonical(keys: string[]): FlavorProfile[] {
   return Array.from(out);
 }
 
+// ── RecipePreferencesModal vocabulary → 7-axis ───────────────────────────────
+// A fourth, independent vocabulary found in RecipePreferencesModal.tsx's
+// settings UI (sweet/sour/bitter/spicy/fruity/herbaceous) — not canonical,
+// not any of the other three. Mapped down the same way as the others rather
+// than left as its own island.
+
+const RECIPE_PREFS_FLAVOR_TO_AXIS: Record<string, FlavorProfile> = {
+  sweet: 'sweet',
+  sour: 'citrus',
+  bitter: 'bitter',
+  spicy: 'spiced',
+  fruity: 'sweet',
+  herbaceous: 'herbal',
+};
+
+/** Map RecipePreferencesModal's flavor keys onto canonical axes. */
+export function recipePrefsFlavorToCanonical(key: string): FlavorProfile | null {
+  return RECIPE_PREFS_FLAVOR_TO_AXIS[key.toLowerCase()] ?? null;
+}
+
 // ── The one recipe flavour extractor ─────────────────────────────────────────
 
 function emptyVector(): FlavorVector {
@@ -126,12 +163,17 @@ function emptyVector(): FlavorVector {
  *   2. `recipe.flavorProfiles` — the recipe's own declared axes (authoritative).
  *   3. Ingredient keyword matching via computeFlavorVector — the fallback.
  *
- * Replaces three disagreeing implementations:
+ * Originally replaced three disagreeing implementations, two now deleted
+ * outright rather than left calling through to this:
  *   - feedbackLearningService.extractCocktailMetadata, which substring-matched
  *     the cocktail's *name* (a "Last Word" taught it nothing; a "Smoky
- *     Margarita" taught it the wrong thing).
- *   - recipeActions.extractFlavors, which substring-matched the description.
- *   - direct computeFlavorVector calls, which ignored declared flavorProfiles.
+ *     Margarita" taught it the wrong thing). The whole service became dead
+ *     once its caller (RecommendationFeedbackModal) switched to logging a
+ *     real recipe_signals event instead of writing into usePersonalization.
+ *   - recipeActions.extractFlavors, similarly deleted once its only caller
+ *     (the usePersonalization write path) was removed.
+ *   - direct computeFlavorVector calls, which ignored declared flavorProfiles
+ *     — this is the one still in active use, as the fallback below.
  *
  * Accepts a loose shape because callers hold several different recipe/cocktail
  * representations (Recipe, DetailedCocktail, raw card data).

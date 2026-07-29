@@ -26,7 +26,7 @@ vi.mock('../userProfileService', () => ({
 }));
 
 vi.mock('../tasteGraphService', () => ({
-  initializeTasteGraph: vi.fn(() => ({})),
+  hydrateTasteGraph: vi.fn(() => ({})),
 }));
 
 const getPredictiveRecommendationsMock = vi.fn();
@@ -38,7 +38,6 @@ vi.mock('../predictiveEngine', () => ({
 
 vi.mock('../enhancedProfileFallback', () => ({
   buildEnhancedProfileFallback: vi.fn(() => ({ tasteProfile: null })),
-  buildTasteProfileFromPersonalization: vi.fn(() => ({})),
 }));
 
 const getAllRecipesMock = vi.fn();
