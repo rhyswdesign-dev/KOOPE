@@ -33,11 +33,6 @@ import VaultScreen from '../screens/vault/VaultScreen';
 import VaultCategoryScreen from '../screens/vault/VaultCategoryScreen';
 import CategoriesListScreen from '../screens/CategoriesListScreen';
 import CategoryDetailScreen from '../screens/CategoryDetailScreen';
-// Onboarding screens
-import WelcomeScreen from '../screens/onboarding/WelcomeScreen';
-import ConsentScreen from '../screens/onboarding/ConsentScreen';
-import SurveyScreen from '../screens/onboarding/SurveyScreen';
-import SurveyResultsScreen from '../screens/onboarding/SurveyResultsScreen';
 import RefineYourTasteScreen from '../screens/RefineYourTasteScreen';
 import OnboardingPreviewScreen from '../screens/onboarding/OnboardingPreviewScreen';
 // Commerce screens
@@ -154,10 +149,6 @@ export type RootStackParamList = {
   CategoryDetail: { categoryId: string; categoryName: string };
   FeaturedBar: { barId: string };
   // Onboarding screens
-  Welcome: undefined;
-  Consent: undefined;
-  Survey: undefined;
-  SurveyResults: { answers: any };
   RefineYourTaste: undefined;
   OnboardingPreview: { preview?: boolean } | undefined;
   // Commerce screens
@@ -609,15 +600,6 @@ export default function RootNavigator({ initialRouteName = 'Main' }: RootNavigat
           name="FeaturedBar"
           component={LegacyRemovedContentScreen}
           options={{ headerShown: true, title: 'Featured Bar' }}
-        />
-        {/* Onboarding screens */}
-        <Stack.Screen name="Welcome" component={WelcomeScreen} options={{ headerShown: false }} />
-        <Stack.Screen name="Consent" component={ConsentScreen} options={{ headerShown: false }} />
-        <Stack.Screen name="Survey" component={SurveyScreen} options={{ headerShown: false }} />
-        <Stack.Screen
-          name="SurveyResults"
-          component={SurveyResultsScreen}
-          options={{ headerShown: false }}
         />
         <Stack.Screen
           name="RefineYourTaste"
