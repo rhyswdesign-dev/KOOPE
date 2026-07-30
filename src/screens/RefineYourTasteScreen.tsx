@@ -24,6 +24,8 @@ import { ALL_COCKTAILS } from '../data/cocktails';
 import RecipeCard from '../components/RecipeCard';
 import { createRecipeCardProps, handleRecipeView } from '../utils/recipeActions';
 import { createDefaultUserProfile, getABVRangeForPreference } from '../types/userProfile';
+import type { Spirit } from '../types/userProfile';
+import { CANONICAL_FLAVORS, CANONICAL_SPIRITS } from '../utils/flavorTaxonomy';
 import {
   clearOverrides,
   generateRadarChart,
@@ -137,36 +139,29 @@ function describeBias(label: string, value: number, isOverridden: boolean) {
   return `${prefix} ${percent}% ${label.toLowerCase()} means KOOPE should keep this restrained unless the rest of the profile strongly supports it.`;
 }
 
+// Only reached when there's no persisted taste_profile yet (a brand-new PRO
+// user who hasn't scanned, saved, or made anything). Used to read the old
+// 0-100 personalization store, which no longer has any bearing on taste —
+// falls back to the same flat neutral prior tasteVectorService seeds new
+// users with instead, so the radar shows an honest 0%-confidence starting
+// point rather than numbers derived from a store nothing writes to anymore.
 function buildGraphFromPersonalization(profile: any) {
   return initializeTasteGraph({
-    flavorWeights: {
-      citrus: (profile?.flavorScores?.citrus || 35) / 100,
-      herbal: (profile?.flavorScores?.herbal || 35) / 100,
-      bitter: (profile?.flavorScores?.bitter || 35) / 100,
-      sweet: (profile?.flavorScores?.sweet || 35) / 100,
-      smoky: (profile?.flavorScores?.smoky || 35) / 100,
-      floral: (profile?.flavorScores?.floral || 35) / 100,
-      spiced: (profile?.flavorScores?.spiced || 35) / 100,
-    },
-    spiritWeights: {
-      tequila: (profile?.spiritScores?.tequila || 25) / 100,
-      whiskey: (profile?.spiritScores?.whiskey || 25) / 100,
-      rum: (profile?.spiritScores?.rum || 25) / 100,
-      gin: (profile?.spiritScores?.gin || 25) / 100,
-      vodka: (profile?.spiritScores?.vodka || 25) / 100,
-      brandy: (profile?.spiritScores?.brandy || 25) / 100,
-      liqueurs: (profile?.spiritScores?.liqueurs || 25) / 100,
-      'gin-alternative': 0,
-      'rum-alternative': 0,
-      none: 0,
-    },
+    flavorWeights: Object.fromEntries(CANONICAL_FLAVORS.map((f) => [f, 0.3])) as Record<
+      (typeof CANONICAL_FLAVORS)[number],
+      number
+    >,
+    spiritWeights: Object.fromEntries(CANONICAL_SPIRITS.map((s) => [s, 0.25])) as Record<
+      Spirit,
+      number
+    >,
     preferredABV: getABVRangeForPreference(profile?.preferredABV || 'alcoholic'),
-    preferredComplexity: clamp((profile?.complexityScore || 55) / 100),
+    preferredComplexity: 0.5,
   });
 }
 
 export default function RefineYourTasteScreen({ navigation }: Props) {
-  const { profile, updateProfile } = usePersonalization();
+  const { profile } = usePersonalization();
   const { user } = useAuth();
   const { tier } = useUserTier();
   const [graphData, setGraphData] = useState<any | null>(null);
@@ -293,27 +288,17 @@ export default function RefineYourTasteScreen({ navigation }: Props) {
 
       const favoriteSpirits = orderedTopKeys(finalTasteProfile.spiritWeights, 3);
       const flavorPreferences = orderedTopKeys(finalTasteProfile.flavorWeights, 4);
-      const flavorScores = Object.fromEntries(
-        Object.entries(finalTasteProfile.flavorWeights).map(([key, value]) => [
-          key,
-          Math.round((value as number) * 100),
-        ]),
-      );
-      const spiritScores = Object.fromEntries(
-        Object.entries(finalTasteProfile.spiritWeights).map(([key, value]) => [
-          key,
-          Math.round((value as number) * 100),
-        ]),
-      );
 
-      await updateProfile({
-        favoriteSpirits,
-        flavorPreferences,
-        flavorScores,
-        spiritScores,
-        preferredABV: abvPreference,
-        complexityScore: Math.round(finalTasteProfile.preferredComplexity * 100),
-      });
+      // No longer writes flavorScores/spiritScores/favoriteSpirits into
+      // usePersonalization here. That write was redundant with the canonical
+      // save below, and worse: it baked the STEERED (effectiveProfile)
+      // values into the old store as if they were the user's permanent
+      // taste, on every save — quietly recreating the exact "mirror gets
+      // overwritten by a manual edit" problem the mirror/steering split
+      // above exists to prevent, one store removed. favoriteSpirits and
+      // flavorPreferences are still computed here because the canonical
+      // write below (favoriteSpirit, spiritPreferences, flavorProfiles) and
+      // the analytics event both need them.
 
       // The mirror is preserved exactly as learned. Only the steering layer and
       // the genuinely-declarative settings (ABV, complexity) are written from

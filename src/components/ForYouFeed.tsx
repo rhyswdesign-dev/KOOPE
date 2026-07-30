@@ -79,10 +79,6 @@ function buildTasteSummary(radar: any) {
   };
 }
 
-function isZeroProofPreference(profile: any) {
-  return profile?.preferredABV === 'zero-proof';
-}
-
 function TasteRadar({ radar }: { radar: any }) {
   const points = FLAVOR_ORDER.map(
     (label) =>
@@ -406,26 +402,43 @@ export default function ForYouFeed({
     return 'Good night';
   }, []);
 
-  // User profile data - only use real data, no fake defaults
+  // User profile data for the PLUS-tier preference summary card and the
+  // "___ enthusiast" headline. Prefers the canonical model (tasteIdentity,
+  // set below from users_profiles.taste_profile) — profile.favoriteSpirits/
+  // flavorPreferences is nothing writes to anymore after this session's
+  // cleanup, so reading it as primary would silently freeze this card on
+  // its hardcoded defaults for every real user. Falls back to the old
+  // store's fields only in the brief window before tasteIdentity has
+  // loaded, or for legacy cached data.
   const userProfile = useMemo(() => {
     if (!hasProfile) {
       return null;
     }
 
-    const favoriteSpirit = profile.favoriteSpirits?.[0] || 'whiskey';
-    log.debug('ForYouFeed', 'User profile updated', {
-      favoriteSpirit,
-      allSpirits: profile.favoriteSpirits,
-      profileTimestamp: profile.lastSurveyUpdate,
-    });
+    const flavorPoints = tasteIdentity?.radar?.flavorPoints;
+    const spiritPoints = tasteIdentity?.radar?.spiritPoints;
+
+    const topSpirits = spiritPoints
+      ? [...spiritPoints]
+          .filter((p: any) => p.value > 0)
+          .sort((a: any, b: any) => b.value - a.value)
+          .map((p: any) => p.label.toLowerCase())
+      : profile?.favoriteSpirits || [];
+
+    const topFlavors = flavorPoints
+      ? [...flavorPoints]
+          .filter((p: any) => p.value > 0)
+          .sort((a: any, b: any) => b.value - a.value)
+          .map((p: any) => p.label.toLowerCase())
+      : profile?.flavorPreferences || [];
 
     return {
-      favoriteSpirit,
-      skillLevel: profile.skillLevel || 'beginner',
-      flavorProfiles: profile.flavorPreferences?.slice(0, 2) || ['citrus', 'sweet'],
-      spiritPreferences: profile.favoriteSpirits || ['whiskey'],
+      favoriteSpirit: topSpirits[0] || 'whiskey',
+      skillLevel: profile?.skillLevel || 'beginner',
+      flavorProfiles: topFlavors.length ? topFlavors.slice(0, 2) : ['citrus', 'sweet'],
+      spiritPreferences: topSpirits.length ? topSpirits : ['whiskey'],
     };
-  }, [profile, hasProfile]);
+  }, [profile, hasProfile, tasteIdentity]);
 
   useEffect(() => {
     let mounted = true;
@@ -549,15 +562,19 @@ export default function ForYouFeed({
     [tasteIdentity],
   );
   const weeklyDrop = recommendedCocktails.matched[0] || null;
+  // Reads userProfile (already canonical-model-first, see above) rather than
+  // profile/isZeroProofPreference(profile) directly — both depended on old
+  // store fields nothing writes anymore (preferredABV was only ever set by
+  // RefineYourTasteScreen's save, which no longer writes it either).
   const weeklyDropProfileTags = useMemo(() => {
-    if (!hasProfile || !profile) return [];
+    if (!hasProfile || !userProfile) return [];
     return [
-      ...(profile.favoriteSpirits || []),
-      ...(profile.flavorPreferences || []),
-      ...(isZeroProofPreference(profile) ? ['zero-proof'] : []),
+      ...userProfile.spiritPreferences,
+      ...userProfile.flavorProfiles,
+      ...(tasteIdentity?.radar?.abvRange?.label === 'Zero-Proof' ? ['zero-proof'] : []),
       ...(tasteIdentity?.occasionMode ? [tasteIdentity.occasionMode] : []),
     ].filter(Boolean);
-  }, [hasProfile, profile, tasteIdentity?.occasionMode]);
+  }, [hasProfile, userProfile, tasteIdentity?.radar?.abvRange?.label, tasteIdentity?.occasionMode]);
   const weeklyDrops = useMemo(() => {
     if (!isPro || !hasProfile) return [];
     return getWeeklyDropsForProfile(weeklyDropProfileTags, new Date(), 'PRO')
