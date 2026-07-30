@@ -138,13 +138,11 @@ export default function RecipesScreen() {
     savedCocktailCount,
     canSaveMoreCocktails,
   } = useSavedItems();
-  const {
-    getPersonalizedMoodOrder,
-    getFeaturedCocktails,
-    scoreMoodCategory,
-    recordInteraction,
-    profile,
-  } = usePersonalization();
+  // getPersonalizedMoodOrder/getFeaturedCocktails were removed from this
+  // destructuring when the PLUS-tier recommendations below switched to
+  // tasteMatchScores. scoreMoodCategory/recordInteraction were already dead
+  // (destructured, never called) before this session's changes.
+  const { profile } = usePersonalization();
   const { recipes: userRecipes, loadRecipes } = useUserRecipes();
   const { toast, showToast, hideToast } = useToast();
   const onScrollHaptic = useScrollHaptic('selection', 800);
@@ -929,10 +927,18 @@ export default function RecipesScreen() {
             });
           }
         } else {
-          const featured = getFeaturedCocktails();
-          const moodOrder = getPersonalizedMoodOrder();
+          // PLUS tier — was getFeaturedCocktails()/getPersonalizedMoodOrder(),
+          // both fed by usePersonalization's separate, cruder scoring engine
+          // (built from a handful of onboarding-survey answers). Nothing has
+          // written to that engine's inputs since this session's taste-model
+          // cleanup, so both silently went flat/empty. Reuses tasteMatchScores
+          // instead — already computed above from the same canonical model
+          // driving PRO's recommendations, not a second system.
+          const featured = [...allRecipes]
+            .filter((r) => (tasteMatchScores[r.id] ?? 0) > 0)
+            .sort((a, b) => (tasteMatchScores[b.id] ?? 0) - (tasteMatchScores[a.id] ?? 0));
 
-          if (featured && featured.length > 0) {
+          if (featured.length > 0) {
             formattedSections.push({
               title: 'Top Picks For You',
               reason: 'Based on your palate and preferences',
@@ -940,25 +946,33 @@ export default function RecipesScreen() {
             });
           }
 
-          if (moodOrder && moodOrder.length > 0) {
-            moodOrder.slice(0, 3).forEach((moodTitle) => {
-              const mood = COCKTAIL_MOODS.find((m) => m.title === moodTitle);
-              if (mood) {
-                const cocktails = mood.cocktails
-                  .slice(0, 6)
-                  .map((id) => ALL_COCKTAILS.find((c) => c.id === id))
-                  .filter(Boolean);
+          const moodOrder = COCKTAIL_MOODS.map((mood) => {
+            const scores = mood.cocktails
+              .map((id) => tasteMatchScores[id])
+              .filter((score): score is number => typeof score === 'number');
+            const avgScore = scores.length
+              ? scores.reduce((sum, s) => sum + s, 0) / scores.length
+              : 0;
+            return { mood, avgScore };
+          })
+            .filter((entry) => entry.avgScore > 0)
+            .sort((a, b) => b.avgScore - a.avgScore)
+            .slice(0, 3);
 
-                if (cocktails.length > 0) {
-                  formattedSections.push({
-                    title: `${moodTitle} Favorites`,
-                    reason: `Based on your preference for ${moodTitle.toLowerCase()} cocktails`,
-                    cocktails,
-                  });
-                }
-              }
-            });
-          }
+          moodOrder.forEach(({ mood }) => {
+            const cocktails = mood.cocktails
+              .slice(0, 6)
+              .map((id) => ALL_COCKTAILS.find((c) => c.id === id))
+              .filter(Boolean);
+
+            if (cocktails.length > 0) {
+              formattedSections.push({
+                title: `${mood.title} Favorites`,
+                reason: `Based on your preference for ${mood.title.toLowerCase()} cocktails`,
+                cocktails,
+              });
+            }
+          });
         }
 
         if (formattedSections.length === 0) {
@@ -991,16 +1005,7 @@ export default function RecipesScreen() {
     return () => {
       cancelled = true;
     };
-  }, [
-    viewMode,
-    tier,
-    user?.id,
-    profile,
-    savedItems,
-    ALL_COCKTAILS,
-    getFeaturedCocktails,
-    getPersonalizedMoodOrder,
-  ]);
+  }, [viewMode, tier, user?.id, profile, savedItems, ALL_COCKTAILS, allRecipes, tasteMatchScores]);
 
   // Get current displayed recipes
   const getCurrentRecipes = () => {
