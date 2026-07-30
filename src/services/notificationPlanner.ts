@@ -34,7 +34,6 @@ import {
 } from './notificationBudget';
 import { notificationService, type NotificationType } from './notificationService';
 import { HomeBarService, type BarIngredient } from './homeBarService';
-import { streakService } from './streakService';
 import { hasMadeSomethingThisWeek } from './makeLogService';
 import { HOSTING_PLANS_STORAGE_KEY } from './hostingPlannerService';
 
@@ -60,8 +59,6 @@ export interface PlannerState {
   activeDays: string[];
   /** made_events says the user has logged a make since Monday. */
   madeSomethingThisWeek: boolean;
-  /** Current lesson streak — the protector only fires at >= 3. */
-  currentStreak: number;
   /** Has the user ever saved a hosting plan? Gates the weekend host seed. */
   hasHosted: boolean;
   /** The user's shelf, for the Friday prompt's personalization. */
@@ -240,20 +237,13 @@ export function buildCandidates(state: PlannerState): PlannedSend[] {
     });
   }
 
-  // Streak protector — only worth guarding at 3+ days. Playbook §4 rewrite of
-  // "🔥 Don't break your streak!": pride and momentum, not loss-aversion guilt.
-  if (state.currentStreak >= 3) {
-    candidates.push({
-      key: `${PLAN_PREFIX}streak_protector`,
-      type: 'streak_reminder',
-      layer: 'L2',
-      slot: 'evening_1900',
-      fireAt: nextTimeOfDay(state.now, 19, 0),
-      title: `Day ${state.currentStreak}`,
-      body: "The Old Fashioned isn't going to stir itself.",
-      actionUrl: 'koope://lessons',
-    });
-  }
+  // Streak protector removed per KOOPE-MASTER-PLAN.md: "Kill: ... daily
+  // streaks (daily mechanics on an alcohol app are an ethical and App Store
+  // error — weekly rituals only)." The Notification Playbook had designed
+  // this with softer copy (Playbook §4 rewrite of "Don't break your streak!"),
+  // but the Playbook itself defers product priority to the Master Plan, and
+  // rewritten copy on a daily-cadence mechanic doesn't resolve what the
+  // Master Plan actually objects to — the daily cadence itself.
 
   return candidates;
 }
@@ -351,14 +341,7 @@ class NotificationPlanner {
       madeSomethingThisWeek = await hasMadeSomethingThisWeek(userId).catch(() => false);
     }
 
-    let currentStreak = 0;
-    try {
-      currentStreak = streakService.getCurrentStreak();
-    } catch {
-      currentStreak = 0;
-    }
-
-    return { now, firstOpenAt, activeDays, madeSomethingThisWeek, currentStreak, hasHosted, shelf };
+    return { now, firstOpenAt, activeDays, madeSomethingThisWeek, hasHosted, shelf };
   }
 
   /**
