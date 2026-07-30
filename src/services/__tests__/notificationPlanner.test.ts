@@ -34,7 +34,6 @@ vi.mock('../notificationService', () => ({
 }));
 
 vi.mock('../homeBarService', () => ({ HomeBarService: { getStoredIngredients: async () => [] } }));
-vi.mock('../streakService', () => ({ streakService: { getCurrentStreak: () => 0 } }));
 vi.mock('../makeLogService', () => ({ hasMadeSomethingThisWeek: async () => false }));
 vi.mock('../hostingPlannerService', () => ({ HOSTING_PLANS_STORAGE_KEY: '@koope_hosting_plans' }));
 
@@ -49,7 +48,6 @@ function state(overrides: Partial<PlannerState> = {}): PlannerState {
     firstOpenAt: MONDAY_9AM - 60 * DAY_MS,
     activeDays: [],
     madeSomethingThisWeek: false,
-    currentStreak: 0,
     hasHosted: false,
     shelf: [],
     ...overrides,
@@ -114,19 +112,17 @@ describe('buildCandidates', () => {
     ).toBe(true);
   });
 
-  it('only guards a streak worth guarding (>= 3 days)', () => {
-    expect(
-      buildCandidates(state({ currentStreak: 2 })).some((c) => c.type === 'streak_reminder'),
-    ).toBe(false);
-    expect(
-      buildCandidates(state({ currentStreak: 5 })).some((c) => c.type === 'streak_reminder'),
-    ).toBe(true);
+  it('never emits streak_reminder — removed per KOOPE-MASTER-PLAN.md (daily mechanics on an alcohol app are an ethical and App Store error)', () => {
+    const candidates = buildCandidates(
+      state({ hasHosted: true, shelf: ['gin', 'campari', 'sweet vermouth'] }),
+    );
+    expect(candidates.some((c) => c.type === 'streak_reminder')).toBe(false);
   });
 
   it('never emits banned copy moves (guilt, streak-shaming, fake urgency)', () => {
-    const banned = /don't break|we miss you|last chance|🔥/i;
+    const banned = /don't break|we miss you|last chance|🔥|streak/i;
     const candidates = buildCandidates(
-      state({ currentStreak: 12, hasHosted: true, shelf: ['gin', 'campari', 'sweet vermouth'] }),
+      state({ hasHosted: true, shelf: ['gin', 'campari', 'sweet vermouth'] }),
     );
 
     expect(candidates.length).toBeGreaterThan(0);
@@ -136,7 +132,7 @@ describe('buildCandidates', () => {
   });
 
   it('gives every candidate a deep link — no "come back!" pings', () => {
-    const candidates = buildCandidates(state({ currentStreak: 4, hasHosted: true }));
+    const candidates = buildCandidates(state({ hasHosted: true }));
     for (const c of candidates) {
       expect(c.actionUrl).toMatch(/^koope:\/\//);
     }

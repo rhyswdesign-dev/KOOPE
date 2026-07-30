@@ -3,7 +3,19 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Pressable, ScrollView, Alert, SafeAreaView, useWindowDimensions, Animated, TouchableOpacity, ActivityIndicator } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Pressable,
+  ScrollView,
+  Alert,
+  SafeAreaView,
+  useWindowDimensions,
+  Animated,
+  TouchableOpacity,
+  ActivityIndicator,
+} from 'react-native';
 import { CompositeNavigationProp, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/RootNavigator';
@@ -41,7 +53,10 @@ type NavigationProp = CompositeNavigationProp<
   NativeStackNavigationProp<RootStackParamList>
 >;
 
-const MODULE_VISUALS: Record<string, { icon: keyof typeof Ionicons.glyphMap; tint: string; label: string; glow: string }> = {
+const MODULE_VISUALS: Record<
+  string,
+  { icon: keyof typeof Ionicons.glyphMap; tint: string; label: string; glow: string }
+> = {
   'ch1-bartending-basics': {
     icon: 'sparkles-outline',
     tint: '#E2A14A',
@@ -113,23 +128,20 @@ const renderScene = SceneMap({
 
 // Challenges component - Original Design with Supabase Data
 function ChallengesView() {
-  const { user } = useAuth();
-  const { challenges, isLoading, refreshChallenges, claimReward: claimChallengeReward } = useChallenges();
+  const {
+    challenges,
+    isLoading,
+    refreshChallenges,
+    claimReward: claimChallengeReward,
+  } = useChallenges();
   const [selectedChallenge, setSelectedChallenge] = useState<Challenge | null>(null);
   const [claiming, setClaiming] = useState(false);
-  const [liveStreak, setLiveStreak] = useState(streakService.getCurrentStreak());
   const [claimedXP, setClaimedXP] = useState<number | null>(null);
   const toastAnim = useRef(new Animated.Value(-80)).current;
 
-  useEffect(() => {
-    const unsubscribe = streakService.addStreakListener((next) => setLiveStreak(next));
-    setLiveStreak(streakService.getCurrentStreak());
-    return unsubscribe;
-  }, []);
-
-  const dailyChallenges = challenges.filter(c => c.frequency === 'daily');
-  const weeklyChallenges = challenges.filter(c => c.frequency === 'weekly');
-  const monthlyChallenges = challenges.filter(c => c.frequency === 'monthly');
+  const dailyChallenges = challenges.filter((c) => c.frequency === 'daily');
+  const weeklyChallenges = challenges.filter((c) => c.frequency === 'weekly');
+  const monthlyChallenges = challenges.filter((c) => c.frequency === 'monthly');
 
   const handleClaimReward = async () => {
     if (!selectedChallenge) return;
@@ -137,12 +149,15 @@ function ChallengesView() {
     try {
       const reward = await claimChallengeReward(selectedChallenge.id);
       if (reward) {
-        await streakService.recordActivity('challenge_completed', user?.id);
-        setLiveStreak(streakService.getCurrentStreak());
         setSelectedChallenge(null);
         setClaimedXP(reward.xp);
         Animated.sequence([
-          Animated.spring(toastAnim, { toValue: 0, tension: 100, friction: 8, useNativeDriver: true }),
+          Animated.spring(toastAnim, {
+            toValue: 0,
+            tension: 100,
+            friction: 8,
+            useNativeDriver: true,
+          }),
           Animated.delay(2200),
           Animated.timing(toastAnim, { toValue: -80, duration: 300, useNativeDriver: true }),
         ]).start(() => setClaimedXP(null));
@@ -164,7 +179,10 @@ function ChallengesView() {
   );
 
   const renderChallenge = (challenge: Challenge) => {
-    const progressPercent = Math.min(((challenge.currentProgress || 0) / challenge.requirementCount) * 100, 100);
+    const progressPercent = Math.min(
+      ((challenge.currentProgress || 0) / challenge.requirementCount) * 100,
+      100,
+    );
     const isCompleted = challenge.isCompleted || false;
     const stripe = challenge.color || colors.accent;
 
@@ -176,29 +194,40 @@ function ChallengesView() {
           isCompleted && styles.cvCardDone,
           pressed && { opacity: 0.88 },
         ]}
-        onPress={() => isCompleted ? setSelectedChallenge(challenge) : undefined}
+        onPress={() => (isCompleted ? setSelectedChallenge(challenge) : undefined)}
       >
         {/* Left stripe */}
         <View style={[styles.cvStripe, { backgroundColor: stripe }]} />
 
         {/* Icon */}
-        <View style={[styles.cvIconCircle, { backgroundColor: stripe + '22', borderColor: stripe + '44' }]}>
-          {isCompleted
-            ? <MaterialCommunityIcons name="check" size={18} color={stripe} />
-            : <Ionicons name={(challenge.icon as any) || 'trophy-outline'} size={18} color={stripe} />
-          }
+        <View
+          style={[
+            styles.cvIconCircle,
+            { backgroundColor: stripe + '22', borderColor: stripe + '44' },
+          ]}
+        >
+          {isCompleted ? (
+            <MaterialCommunityIcons name="check" size={18} color={stripe} />
+          ) : (
+            <Ionicons name={(challenge.icon as any) || 'trophy-outline'} size={18} color={stripe} />
+          )}
         </View>
 
         {/* Body */}
         <View style={styles.cvCardBody}>
           <View style={styles.cvCardTitleRow}>
-            <Text style={[styles.cvCardTitle, isCompleted && { color: colors.gold }]} numberOfLines={1}>
+            <Text
+              style={[styles.cvCardTitle, isCompleted && { color: colors.gold }]}
+              numberOfLines={1}
+            >
               {challenge.title}
             </Text>
             <Text style={styles.cvDiffBadge}>{challenge.difficulty?.toUpperCase()}</Text>
           </View>
 
-          <Text style={styles.cvCardDesc} numberOfLines={2}>{challenge.description}</Text>
+          <Text style={styles.cvCardDesc} numberOfLines={2}>
+            {challenge.description}
+          </Text>
 
           {/* Progress */}
           <View style={styles.cvProgressRow}>
@@ -206,7 +235,8 @@ function ChallengesView() {
               <ChallengeProgressBar progressPercent={progressPercent} color={stripe} />
             </View>
             <Text style={styles.cvProgressCount}>
-              {challenge.currentProgress || 0}<Text style={styles.cvProgressTotal}>/{challenge.requirementCount}</Text>
+              {challenge.currentProgress || 0}
+              <Text style={styles.cvProgressTotal}>/{challenge.requirementCount}</Text>
             </Text>
           </View>
 
@@ -238,8 +268,11 @@ function ChallengesView() {
 
   return (
     <>
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false} contentContainerStyle={styles.cvScrollPad}>
-
+      <ScrollView
+        style={styles.content}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.cvScrollPad}
+      >
         {dailyChallenges.length > 0 && (
           <>
             {renderDivider('DAILY')}
@@ -286,7 +319,11 @@ function ChallengesView() {
 
       <RewardClaimModal
         visible={!!selectedChallenge}
-        reward={selectedChallenge ? { xp: selectedChallenge.xpReward, badge: selectedChallenge.badgeReward } : null}
+        reward={
+          selectedChallenge
+            ? { xp: selectedChallenge.xpReward, badge: selectedChallenge.badgeReward }
+            : null
+        }
         challengeTitle={selectedChallenge?.title || ''}
         onClaim={handleClaimReward}
         onClose={() => setSelectedChallenge(null)}
@@ -296,7 +333,13 @@ function ChallengesView() {
   );
 }
 
-function ChallengeProgressBar({ progressPercent, color }: { progressPercent: number; color: string }) {
+function ChallengeProgressBar({
+  progressPercent,
+  color,
+}: {
+  progressPercent: number;
+  color: string;
+}) {
   const widthAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -329,7 +372,12 @@ function ChallengeProgressBar({ progressPercent, color }: { progressPercent: num
 // Challenges 2 - Real Supabase Data with Reward Claiming
 function Challenges2View() {
   const { user } = useAuth();
-  const { challenges, isLoading, refreshChallenges, claimReward: claimChallengeReward } = useChallenges();
+  const {
+    challenges,
+    isLoading,
+    refreshChallenges,
+    claimReward: claimChallengeReward,
+  } = useChallenges();
   const { completedLessons } = useUser();
   const { balance: totalXP } = useXPSystem();
   const engagement = useEngagement();
@@ -346,9 +394,9 @@ function Challenges2View() {
   }, []);
 
   // Group challenges by frequency
-  const dailyChallenges = challenges.filter(c => c.frequency === 'daily');
-  const weeklyChallenges = challenges.filter(c => c.frequency === 'weekly');
-  const monthlyChallenges = challenges.filter(c => c.frequency === 'monthly');
+  const dailyChallenges = challenges.filter((c) => c.frequency === 'daily');
+  const weeklyChallenges = challenges.filter((c) => c.frequency === 'weekly');
+  const monthlyChallenges = challenges.filter((c) => c.frequency === 'monthly');
 
   // Calculate progress for each unlock method
   const getMethodProgress = (type: string, required: number) => {
@@ -361,7 +409,7 @@ function Challenges2View() {
         current = completedLessons.length;
         break;
       case 'challenges':
-        current = challenges.filter(c => c.isCompleted).length;
+        current = challenges.filter((c) => c.isCompleted).length;
         break;
       case 'xp':
         current = totalXP;
@@ -397,11 +445,18 @@ function Challenges2View() {
       if (reward) {
         await streakService.recordActivity('challenge_completed', user?.id);
         setLiveStreak(streakService.getCurrentStreak());
-        log.info('Challenges2View', 'Reward claimed successfully', { challengeId: selectedChallenge.id });
+        log.info('Challenges2View', 'Reward claimed successfully', {
+          challengeId: selectedChallenge.id,
+        });
         setSelectedChallenge(null);
         setClaimedXP(reward.xp);
         Animated.sequence([
-          Animated.spring(toastAnim, { toValue: 0, tension: 100, friction: 8, useNativeDriver: true }),
+          Animated.spring(toastAnim, {
+            toValue: 0,
+            tension: 100,
+            friction: 8,
+            useNativeDriver: true,
+          }),
           Animated.delay(2200),
           Animated.timing(toastAnim, { toValue: -80, duration: 300, useNativeDriver: true }),
         ]).start(() => setClaimedXP(null));
@@ -422,7 +477,10 @@ function Challenges2View() {
     const isCompleted = challenge.isCompleted || false;
 
     return (
-      <View key={challenge.id} style={[styles.challenge2Card, isCompleted && styles.challenge2CardCompleted]}>
+      <View
+        key={challenge.id}
+        style={[styles.challenge2Card, isCompleted && styles.challenge2CardCompleted]}
+      >
         {/* Icon badge */}
         <View style={[styles.challenge2Icon, { backgroundColor: challenge.color }]}>
           <Ionicons name={challenge.icon as any} size={28} color="#FFF" />
@@ -430,7 +488,10 @@ function Challenges2View() {
 
         {/* Content */}
         <View style={styles.challenge2Content}>
-          <Heading level={3} style={[styles.challenge2Title, isCompleted && styles.challenge2Completed]}>
+          <Heading
+            level={3}
+            style={[styles.challenge2Title, isCompleted && styles.challenge2Completed]}
+          >
             {challenge.title}
           </Heading>
           <Text style={[styles.challenge2Description, isCompleted && styles.challenge2Completed]}>
@@ -455,10 +516,7 @@ function Challenges2View() {
 
           {/* Claim Button */}
           {isCompleted && (
-            <Pressable
-              style={styles.claimButton}
-              onPress={() => setSelectedChallenge(challenge)}
-            >
+            <Pressable style={styles.claimButton} onPress={() => setSelectedChallenge(challenge)}>
               <MaterialCommunityIcons name="gift" size={20} color="#FFF" />
               <Text style={styles.claimButtonText}>Claim Reward</Text>
             </Pressable>
@@ -487,7 +545,9 @@ function Challenges2View() {
     <>
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.section}>
-          <Text style={styles.sectionSubtitle}>Challenge completion updates your streak and XP progress.</Text>
+          <Text style={styles.sectionSubtitle}>
+            Challenge completion updates your streak and XP progress.
+          </Text>
         </View>
 
         {/* Daily section */}
@@ -495,7 +555,9 @@ function Challenges2View() {
           <View style={styles.section}>
             <View style={styles.sectionHeaderRow}>
               <View>
-                <Heading level={2} style={styles.sectionTitle}>Daily Challenges</Heading>
+                <Heading level={2} style={styles.sectionTitle}>
+                  Daily Challenges
+                </Heading>
                 <Text style={styles.sectionSubtitle}>Resets daily at midnight</Text>
               </View>
               <View style={styles.frequencyBadge}>
@@ -511,7 +573,9 @@ function Challenges2View() {
           <View style={styles.section}>
             <View style={styles.sectionHeaderRow}>
               <View>
-                <Heading level={2} style={styles.sectionTitle}>Weekly Challenges</Heading>
+                <Heading level={2} style={styles.sectionTitle}>
+                  Weekly Challenges
+                </Heading>
                 <Text style={styles.sectionSubtitle}>Resets every Monday</Text>
               </View>
               <View style={styles.frequencyBadge}>
@@ -527,7 +591,9 @@ function Challenges2View() {
           <View style={styles.section}>
             <View style={styles.sectionHeaderRow}>
               <View>
-                <Heading level={2} style={styles.sectionTitle}>Monthly Challenges</Heading>
+                <Heading level={2} style={styles.sectionTitle}>
+                  Monthly Challenges
+                </Heading>
                 <Text style={styles.sectionSubtitle}>Resets on the 1st</Text>
               </View>
               <View style={styles.frequencyBadge}>
@@ -541,7 +607,9 @@ function Challenges2View() {
         {challenges.length === 0 && (
           <View style={[styles.section, styles.centered]}>
             <MaterialCommunityIcons name="trophy-outline" size={64} color={colors.textMuted} />
-            <Heading level={2} style={styles.sectionTitle}>No Active Challenges</Heading>
+            <Heading level={2} style={styles.sectionTitle}>
+              No Active Challenges
+            </Heading>
             <Text style={styles.sectionSubtitle}>Check back soon for new challenges!</Text>
           </View>
         )}
@@ -562,10 +630,14 @@ function Challenges2View() {
       {/* Reward Claim Modal */}
       <RewardClaimModal
         visible={!!selectedChallenge}
-        reward={selectedChallenge ? {
-          xp: selectedChallenge.xpReward,
-          badge: selectedChallenge.badgeReward
-        } : null}
+        reward={
+          selectedChallenge
+            ? {
+                xp: selectedChallenge.xpReward,
+                badge: selectedChallenge.badgeReward,
+              }
+            : null
+        }
         challengeTitle={selectedChallenge?.title || ''}
         onClaim={handleClaimReward}
         onClose={() => setSelectedChallenge(null)}
@@ -578,9 +650,15 @@ function Challenges2View() {
 // Lessons component (extracted from main component)
 function LessonsView() {
   const navigation = useNavigation<NavigationProp>();
-  const { lives, completedLessons, checkLifeRefresh, completeLesson: completeUserLesson } = useUser();
+  const {
+    lives,
+    completedLessons,
+    checkLifeRefresh,
+    completeLesson: completeUserLesson,
+  } = useUser();
   const tier = useUserTier((s) => s.tier);
-  const { hasAccess: hasMasteryAccess, gateWithTrigger: masteryGate } = useFeatureAccess('mastery_lessons');
+  const { hasAccess: hasMasteryAccess, gateWithTrigger: masteryGate } =
+    useFeatureAccess('mastery_lessons');
   // lessons_unlimited is coming later — locked for all tiers
   const [lessonsFeedbackVisible, setLessonsFeedbackVisible] = useState(false);
   const [lessonsFeedbackAnswer, setLessonsFeedbackAnswer] = useState<'yes' | 'no' | null>(null);
@@ -601,12 +679,12 @@ function LessonsView() {
   const [selectedModule, setSelectedModule] = useState<any | null>(null);
   const [moduleLessons, setModuleLessons] = useState<any[]>([]);
   const [briefTarget, setBriefTarget] = useState<
-    | { mode: 'module'; module: any }
-    | { mode: 'lesson'; lesson: any; module?: any }
-    | null
+    { mode: 'module'; module: any } | { mode: 'lesson'; lesson: any; module?: any } | null
   >(null);
-  const isTipsLesson = (lesson: any): boolean => Array.isArray(lesson.tags) && lesson.tags.includes('tips_lesson');
-  const hasPlayableContent = (lesson: any): boolean => isTipsLesson(lesson) || (lesson.itemIds?.length || 0) > 0;
+  const isTipsLesson = (lesson: any): boolean =>
+    Array.isArray(lesson.tags) && lesson.tags.includes('tips_lesson');
+  const hasPlayableContent = (lesson: any): boolean =>
+    isTipsLesson(lesson) || (lesson.itemIds?.length || 0) > 0;
   const getModuleGate = (module: any) => {
     // Lessons are coming later — lock everything except always-open modules for all tiers
     if (!ALWAYS_OPEN_MODULE_IDS.has(module.id)) {
@@ -654,7 +732,9 @@ function LessonsView() {
     });
 
     const visibleModules = sortedBaseModules.filter((module) => !MASTERY_MODULE_IDS.has(module.id));
-    const firstVisibleContentModuleId = visibleModules.find((module) => moduleHasContent.get(module.id))?.id;
+    const firstVisibleContentModuleId = visibleModules.find((module) =>
+      moduleHasContent.get(module.id),
+    )?.id;
 
     const sortedModules = visibleModules.map((module) => ({
       ...module,
@@ -662,18 +742,18 @@ function LessonsView() {
       paywallLabel: getModuleGate(module).label,
       locked: ALWAYS_OPEN_MODULE_IDS.has(module.id)
         ? false
-        : (
-          getModuleGate(module).locked ||
-          (firstVisibleContentModuleId ? module.id !== firstVisibleContentModuleId : module.chapterIndex > 1)
-        ),
+        : getModuleGate(module).locked ||
+          (firstVisibleContentModuleId
+            ? module.id !== firstVisibleContentModuleId
+            : module.chapterIndex > 1),
     }));
 
     setModules(sortedModules);
   }, [checkLifeRefresh, tier]);
 
   const openModule = (module: any) => {
-    const lessons = curriculumData.lessons.filter(lesson => lesson.moduleId === module.id);
-    const availableLessons = lessons.filter(lesson => hasPlayableContent(lesson));
+    const lessons = curriculumData.lessons.filter((lesson) => lesson.moduleId === module.id);
+    const availableLessons = lessons.filter((lesson) => hasPlayableContent(lesson));
     if (availableLessons.length === 0) {
       Alert.alert('Chapter Unavailable', 'This chapter has no published lessons in this build.');
       return;
@@ -687,7 +767,8 @@ function LessonsView() {
     const hasContent = hasPlayableContent(lesson);
     const isTips = isTipsLesson(lesson);
     const previousLesson = lessonIndex > 0 ? moduleLessons[lessonIndex - 1] : null;
-    const sequenceLocked = lessonIndex > 0 && previousLesson ? !completedLessons.includes(previousLesson.id) : false;
+    const sequenceLocked =
+      lessonIndex > 0 && previousLesson ? !completedLessons.includes(previousLesson.id) : false;
     const isMasteryLesson = MASTERY_MODULE_IDS.has(lesson.moduleId);
     const tierLocked = isMasteryLesson && tier !== 'PRO';
     const outOfLives = lives <= 0 && !isTips;
@@ -703,7 +784,8 @@ function LessonsView() {
   };
 
   const openLesson = (lesson: any) => {
-    const { hasContent, isTips, sequenceLocked, tierLocked, outOfLives } = getLessonLockState(lesson);
+    const { hasContent, isTips, sequenceLocked, tierLocked, outOfLives } =
+      getLessonLockState(lesson);
 
     if (tierLocked) {
       masteryGate('T10');
@@ -733,11 +815,15 @@ function LessonsView() {
         `${lesson.description || 'Review this lesson for practical tips and workflows.'}\n\nReward: +${xpReward} XP`,
         [
           { text: 'Close', style: 'cancel' },
-          ...(canClaimXP ? [{
-            text: `Mark Complete (+${xpReward} XP)`,
-            onPress: () => completeUserLesson(lesson.id, xpReward),
-          }] : []),
-        ]
+          ...(canClaimXP
+            ? [
+                {
+                  text: `Mark Complete (+${xpReward} XP)`,
+                  onPress: () => completeUserLesson(lesson.id, xpReward),
+                },
+              ]
+            : []),
+        ],
       );
       return;
     }
@@ -745,7 +831,7 @@ function LessonsView() {
     log.nav('LessonsScreen', 'LessonEngine', { lessonId: lesson.id, title: lesson.title });
     navigation.navigate('LessonEngine', {
       lessonId: lesson.id,
-      isFirstLesson: false
+      isFirstLesson: false,
     });
   };
 
@@ -779,7 +865,9 @@ function LessonsView() {
       return;
     }
 
-    const masteryModule = curriculumData.modules.find((module) => MASTERY_MODULE_IDS.has(module.id));
+    const masteryModule = curriculumData.modules.find((module) =>
+      MASTERY_MODULE_IDS.has(module.id),
+    );
     if (!masteryModule) {
       Alert.alert('Mastery Unavailable', 'Mastery lessons are not available in this build.');
       return;
@@ -829,17 +917,21 @@ function LessonsView() {
       <View key={module.id} style={styles.timelineRow}>
         {/* Timeline Container */}
         <View style={styles.timelineColumn}>
-          <View style={[
-            styles.timelineNode,
-            isCompleted && styles.nodeCompleted,
-            isNext && styles.nodeNext,
-            isLocked && styles.nodeLocked
-          ]}>
+          <View
+            style={[
+              styles.timelineNode,
+              isCompleted && styles.nodeCompleted,
+              isNext && styles.nodeNext,
+              isLocked && styles.nodeLocked,
+            ]}
+          >
             {isCompleted && <MaterialCommunityIcons name="check" size={16} color="#FFF" />}
             {isNext && <MaterialCommunityIcons name="star-outline" size={16} color="#FFF" />}
             {isLocked && <MaterialCommunityIcons name="lock-outline" size={14} color="#FFF" />}
           </View>
-          {!isLast && <View style={[styles.timelineLine, (isCompleted || isNext) && styles.lineActive]} />}
+          {!isLast && (
+            <View style={[styles.timelineLine, (isCompleted || isNext) && styles.lineActive]} />
+          )}
         </View>
 
         {/* Content Container */}
@@ -850,28 +942,37 @@ function LessonsView() {
             {
               borderColor: isLocked ? 'rgba(255,255,255,0.06)' : visual.glow,
               backgroundColor: isLocked ? 'rgba(255,255,255,0.02)' : visual.glow,
-            }
+            },
           ]}
           disabled={module.locked && !module.paywallLocked}
           onPress={() => handleModulePress(module)}
         >
           <View style={styles.moduleTimelineHeader}>
-            <View style={[styles.moduleIconChip, { borderColor: visual.glow, backgroundColor: 'rgba(15,10,8,0.52)' }]}>
+            <View
+              style={[
+                styles.moduleIconChip,
+                { borderColor: visual.glow, backgroundColor: 'rgba(15,10,8,0.52)' },
+              ]}
+            >
               <Ionicons name={visual.icon} size={16} color={visual.tint} />
-              <Text style={[styles.moduleIconChipText, { color: visual.tint }]}>{visual.label}</Text>
+              <Text style={[styles.moduleIconChipText, { color: visual.tint }]}>
+                {visual.label}
+              </Text>
             </View>
             <Text style={styles.moduleChapterIndex}>Chapter {module.chapterIndex}</Text>
           </View>
           <Text style={[styles.timelineTitle, isLocked && styles.timelineTitleLocked]}>
             {module.title}
           </Text>
-          <Text style={[
-            styles.timelineSubtitle,
-            module.paywallLocked ? styles.subtitlePaywall : undefined,
-            !module.paywallLocked && isCompleted && styles.subtitleCompleted,
-            !module.paywallLocked && isNext && styles.subtitleNext,
-            !module.paywallLocked && isLocked && styles.subtitleLocked
-          ]}>
+          <Text
+            style={[
+              styles.timelineSubtitle,
+              module.paywallLocked ? styles.subtitlePaywall : undefined,
+              !module.paywallLocked && isCompleted && styles.subtitleCompleted,
+              !module.paywallLocked && isNext && styles.subtitleNext,
+              !module.paywallLocked && isLocked && styles.subtitleLocked,
+            ]}
+          >
             {statusText}
           </Text>
         </Pressable>
@@ -896,7 +997,7 @@ function LessonsView() {
       statusText = 'Completed';
       subtitleStyle = styles.subtitleCompleted;
     } else if (isNext) {
-      statusText = isTips ? 'Tip Lesson' : (outOfLives ? 'Out of Lives' : 'In Progress');
+      statusText = isTips ? 'Tip Lesson' : outOfLives ? 'Out of Lives' : 'In Progress';
       subtitleStyle = outOfLives ? { color: colors.error, opacity: 0.8 } : styles.subtitleNext;
     }
 
@@ -904,19 +1005,27 @@ function LessonsView() {
       <View key={lesson.id} style={styles.timelineRow}>
         {/* Timeline Container */}
         <View style={styles.timelineColumn}>
-          <View style={[
-            styles.timelineNode,
-            isCompleted && styles.nodeCompleted,
-            isNext && styles.nodeNext,
-            isLocked && styles.nodeLocked,
-            (isNext && outOfLives) && { borderColor: colors.error }
-          ]}>
+          <View
+            style={[
+              styles.timelineNode,
+              isCompleted && styles.nodeCompleted,
+              isNext && styles.nodeNext,
+              isLocked && styles.nodeLocked,
+              isNext && outOfLives && { borderColor: colors.error },
+            ]}
+          >
             {isCompleted && <MaterialCommunityIcons name="check" size={16} color="#FFF" />}
-            {isNext && !outOfLives && <MaterialCommunityIcons name="star-outline" size={16} color="#FFF" />}
-            {isNext && outOfLives && <MaterialCommunityIcons name="heart-broken" size={16} color="#FF6B6B" />}
+            {isNext && !outOfLives && (
+              <MaterialCommunityIcons name="star-outline" size={16} color="#FFF" />
+            )}
+            {isNext && outOfLives && (
+              <MaterialCommunityIcons name="heart-broken" size={16} color="#FF6B6B" />
+            )}
             {isLocked && <MaterialCommunityIcons name="lock-outline" size={14} color="#FFF" />}
           </View>
-          {!isLast && <View style={[styles.timelineLine, (isCompleted || isNext) && styles.lineActive]} />}
+          {!isLast && (
+            <View style={[styles.timelineLine, (isCompleted || isNext) && styles.lineActive]} />
+          )}
         </View>
 
         {/* Content Container */}
@@ -928,9 +1037,7 @@ function LessonsView() {
           <Text style={[styles.timelineTitle, isLocked && styles.timelineTitleLocked]}>
             {lesson.title}
           </Text>
-          <Text style={[styles.timelineSubtitle, subtitleStyle]}>
-            {statusText}
-          </Text>
+          <Text style={[styles.timelineSubtitle, subtitleStyle]}>{statusText}</Text>
 
           {lesson.showLessonBrief && (
             <Pressable
@@ -938,15 +1045,21 @@ function LessonsView() {
               disabled={isLocked}
               onPress={() => setBriefTarget({ mode: 'lesson', lesson, module: selectedModule })}
             >
-              <Ionicons name="information-circle-outline" size={12} color={isLocked ? 'rgba(242,229,213,0.36)' : colors.accent} />
-              <Text style={[styles.whyChipText, isLocked && styles.whyChipTextDisabled]}>Why This Matters</Text>
+              <Ionicons
+                name="information-circle-outline"
+                size={12}
+                color={isLocked ? 'rgba(242,229,213,0.36)' : colors.accent}
+              />
+              <Text style={[styles.whyChipText, isLocked && styles.whyChipTextDisabled]}>
+                Why This Matters
+              </Text>
             </Pressable>
           )}
 
           {/* Optional: Show Duration if not locked */}
           {!isLocked && (
             <Text style={{ fontSize: 12, color: colors.subtext, marginTop: 2, opacity: 0.6 }}>
-              {lesson.estimatedMinutes} min • {isTips ? 'tips' : (lesson.types?.[0] || 'lesson')}
+              {lesson.estimatedMinutes} min • {isTips ? 'tips' : lesson.types?.[0] || 'lesson'}
             </Text>
           )}
         </Pressable>
@@ -987,7 +1100,8 @@ function LessonsView() {
               </View>
               <Text style={styles.lessonsFeedbackTitle}>Lessons are coming to KŌOPE</Text>
               <Text style={styles.lessonsFeedbackBody}>
-                A full bartending curriculum — technique, history, and spirit knowledge — built for home enthusiasts who want to go deeper.
+                A full bartending curriculum — technique, history, and spirit knowledge — built for
+                home enthusiasts who want to go deeper.
               </Text>
               {lessonsFeedbackAnswer ? (
                 <Text style={styles.lessonsFeedbackThanks}>
@@ -1003,7 +1117,10 @@ function LessonsView() {
                       style={styles.lessonsFeedbackYes}
                       onPress={async () => {
                         await AsyncStorage.setItem('@KOOPE:feature_feedback_lessons', 'yes');
-                        trackEvent('Feature Interest Response', { feature: 'lessons', response: 'yes' });
+                        trackEvent('Feature Interest Response', {
+                          feature: 'lessons',
+                          response: 'yes',
+                        });
                         setLessonsFeedbackAnswer('yes');
                       }}
                       activeOpacity={0.85}
@@ -1014,7 +1131,10 @@ function LessonsView() {
                       style={styles.lessonsFeedbackNo}
                       onPress={async () => {
                         await AsyncStorage.setItem('@KOOPE:feature_feedback_lessons', 'no');
-                        trackEvent('Feature Interest Response', { feature: 'lessons', response: 'no' });
+                        trackEvent('Feature Interest Response', {
+                          feature: 'lessons',
+                          response: 'no',
+                        });
                         setLessonsFeedbackAnswer('no');
                       }}
                       activeOpacity={0.7}
@@ -1040,20 +1160,39 @@ function LessonsView() {
                 {
                   borderColor: getModuleVisual(selectedModule.id).glow,
                   backgroundColor: getModuleVisual(selectedModule.id).glow,
-                }
+                },
               ]}
             >
               <View style={styles.selectedModuleHeroHeader}>
-                <View style={[styles.moduleIconChip, { borderColor: getModuleVisual(selectedModule.id).glow, backgroundColor: 'rgba(15,10,8,0.55)' }]}>
-                  <Ionicons name={getModuleVisual(selectedModule.id).icon} size={16} color={getModuleVisual(selectedModule.id).tint} />
-                  <Text style={[styles.moduleIconChipText, { color: getModuleVisual(selectedModule.id).tint }]}>
+                <View
+                  style={[
+                    styles.moduleIconChip,
+                    {
+                      borderColor: getModuleVisual(selectedModule.id).glow,
+                      backgroundColor: 'rgba(15,10,8,0.55)',
+                    },
+                  ]}
+                >
+                  <Ionicons
+                    name={getModuleVisual(selectedModule.id).icon}
+                    size={16}
+                    color={getModuleVisual(selectedModule.id).tint}
+                  />
+                  <Text
+                    style={[
+                      styles.moduleIconChipText,
+                      { color: getModuleVisual(selectedModule.id).tint },
+                    ]}
+                  >
                     {getModuleVisual(selectedModule.id).label}
                   </Text>
                 </View>
                 <Text style={styles.moduleChapterIndex}>Chapter {selectedModule.chapterIndex}</Text>
               </View>
               <Text style={styles.sectionTitle}>{selectedModule.title}</Text>
-              {(selectedModule.brief || selectedModule.contextBrief || selectedModule.whyItMatters) && (
+              {(selectedModule.brief ||
+                selectedModule.contextBrief ||
+                selectedModule.whyItMatters) && (
                 <View style={styles.moduleChipRow}>
                   <Pressable
                     style={styles.moduleWhyChip}
@@ -1066,7 +1205,8 @@ function LessonsView() {
               )}
             </View>
             <Text style={styles.sectionSubtitle}>
-              Chapter {selectedModule.chapterIndex} • {moduleLessons.length} lessons • {selectedModule.estimatedMinutes} min
+              Chapter {selectedModule.chapterIndex} • {moduleLessons.length} lessons •{' '}
+              {selectedModule.estimatedMinutes} min
             </Text>
             {moduleLessons.map(renderLesson)}
           </View>
@@ -1076,18 +1216,42 @@ function LessonsView() {
       <ContextBriefModal
         visible={!!briefTarget}
         mode={briefTarget?.mode || 'module'}
-        title={briefTarget?.mode === 'module' ? briefTarget.module.title : briefTarget?.lesson?.title || ''}
-        estimatedMinutes={briefTarget?.mode === 'module' ? briefTarget.module.estimatedMinutes : briefTarget?.lesson?.estimatedMinutes}
-        label={briefTarget?.mode === 'module'
-          ? `Chapter ${briefTarget.module.chapterIndex}`
-          : briefTarget?.module?.title}
-        brief={briefTarget?.mode === 'module' ? briefTarget.module.brief : briefTarget?.lesson?.brief}
-        whyItMatters={briefTarget?.mode === 'module' ? briefTarget.module.whyItMatters : briefTarget?.lesson?.description}
+        title={
+          briefTarget?.mode === 'module'
+            ? briefTarget.module.title
+            : briefTarget?.lesson?.title || ''
+        }
+        estimatedMinutes={
+          briefTarget?.mode === 'module'
+            ? briefTarget.module.estimatedMinutes
+            : briefTarget?.lesson?.estimatedMinutes
+        }
+        label={
+          briefTarget?.mode === 'module'
+            ? `Chapter ${briefTarget.module.chapterIndex}`
+            : briefTarget?.module?.title
+        }
+        brief={
+          briefTarget?.mode === 'module' ? briefTarget.module.brief : briefTarget?.lesson?.brief
+        }
+        whyItMatters={
+          briefTarget?.mode === 'module'
+            ? briefTarget.module.whyItMatters
+            : briefTarget?.lesson?.description
+        }
         unlockReward={briefTarget?.mode === 'module' ? briefTarget.module.unlockReward : undefined}
         bestFor={briefTarget?.mode === 'module' ? briefTarget.module.bestFor : undefined}
-        practiceFocus={briefTarget?.mode === 'lesson' ? briefTarget.lesson.practiceFocus : undefined}
-        commonMistake={briefTarget?.mode === 'lesson' ? briefTarget.lesson.commonMistake : undefined}
-        contextBrief={briefTarget?.mode === 'module' ? briefTarget.module.contextBrief : briefTarget?.lesson?.contextBrief}
+        practiceFocus={
+          briefTarget?.mode === 'lesson' ? briefTarget.lesson.practiceFocus : undefined
+        }
+        commonMistake={
+          briefTarget?.mode === 'lesson' ? briefTarget.lesson.commonMistake : undefined
+        }
+        contextBrief={
+          briefTarget?.mode === 'module'
+            ? briefTarget.module.contextBrief
+            : briefTarget?.lesson?.contextBrief
+        }
         onClose={() => setBriefTarget(null)}
         onSkip={() => setBriefTarget(null)}
         startDisabled={
@@ -1125,7 +1289,6 @@ function LessonsView() {
           openLesson(lessonToOpen);
         }}
       />
-
     </SafeAreaView>
   );
 }
@@ -1136,7 +1299,6 @@ export default function LessonsScreen() {
   const { balance: xpBalance } = useXPSystem();
   const navigation = useNavigation<NavigationProp>();
   const { showTooltip, dismissTooltip } = useFeatureTooltip('lessons');
-  const [liveStreak, setLiveStreak] = useState(streakService.getCurrentStreak());
   const [xpBalanceModalVisible, setXpBalanceModalVisible] = useState(false);
 
   const [index, setIndex] = useState(0);
@@ -1150,22 +1312,14 @@ export default function LessonsScreen() {
       Animated.sequence([
         Animated.timing(vaultPulse, { toValue: 1.25, duration: 700, useNativeDriver: true }),
         Animated.timing(vaultPulse, { toValue: 1, duration: 700, useNativeDriver: true }),
-      ])
+      ]),
     ).start();
   }, [vaultPulse]);
 
-  useEffect(() => {
-    const unsubscribe = streakService.addStreakListener((next) => setLiveStreak(next));
-    setLiveStreak(streakService.getCurrentStreak());
-    return unsubscribe;
-  }, []);
-
   const handleLivesPress = () => {
-    Alert.alert(
-      'Lives',
-      `You currently have ${lives} ${lives === 1 ? 'life' : 'lives'}.`,
-      [{ text: 'OK' }]
-    );
+    Alert.alert('Lives', `You currently have ${lives} ${lives === 1 ? 'life' : 'lives'}.`, [
+      { text: 'OK' },
+    ]);
   };
 
   return (
@@ -1183,10 +1337,6 @@ export default function LessonsScreen() {
               <Text style={styles.headerMetricValue}>{xpBalance}</Text>
               <Text style={styles.headerMetricLabel}>XP</Text>
             </Pressable>
-            <View style={styles.headerMetric}>
-              <Text style={styles.headerMetricValue}>{liveStreak}</Text>
-              <Text style={styles.headerMetricLabel}>Streak</Text>
-            </View>
           </View>
         }
         rightContent={
@@ -1220,29 +1370,17 @@ export default function LessonsScreen() {
       <View style={styles.segmentedTabs}>
         <Pressable
           onPress={() => setIndex(0)}
-          style={[
-            styles.segmentedTabButton,
-            index === 0 && styles.segmentedTabButtonActive,
-          ]}
+          style={[styles.segmentedTabButton, index === 0 && styles.segmentedTabButtonActive]}
         >
-          <Text style={[
-            styles.segmentedTabText,
-            index === 0 && styles.segmentedTabTextActive,
-          ]}>
+          <Text style={[styles.segmentedTabText, index === 0 && styles.segmentedTabTextActive]}>
             Challenges
           </Text>
         </Pressable>
         <Pressable
           onPress={() => setIndex(1)}
-          style={[
-            styles.segmentedTabButton,
-            index === 1 && styles.segmentedTabButtonActive,
-          ]}
+          style={[styles.segmentedTabButton, index === 1 && styles.segmentedTabButtonActive]}
         >
-          <Text style={[
-            styles.segmentedTabText,
-            index === 1 && styles.segmentedTabTextActive,
-          ]}>
+          <Text style={[styles.segmentedTabText, index === 1 && styles.segmentedTabTextActive]}>
             Lessons
           </Text>
         </Pressable>
@@ -1268,17 +1406,12 @@ export default function LessonsScreen() {
           {
             from: { x: layout.width / 2, y: layout.height * 0.5 },
             to: { x: layout.width - 60, y: 100 },
-            label: '❤️ Lives'
-          },
-          {
-            from: { x: layout.width / 2 - 60, y: layout.height * 0.5 },
-            to: { x: layout.width / 2 + 20, y: 100 },
-            label: '🔥 Streak'
+            label: '❤️ Lives',
           },
           {
             from: { x: layout.width / 2 + 80, y: layout.height * 0.5 },
             to: { x: layout.width - 20, y: 100 },
-            label: '👤 Profile'
+            label: '👤 Profile',
           },
         ]}
       />
@@ -1289,7 +1422,7 @@ export default function LessonsScreen() {
       />
     </SafeAreaView>
   );
-};
+}
 
 const styles = StyleSheet.create({
   container: {

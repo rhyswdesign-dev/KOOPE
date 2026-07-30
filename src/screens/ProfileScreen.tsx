@@ -31,7 +31,6 @@ import {
   levelForXP,
   xpForLevel,
 } from '../services/achievementService';
-import { streakService, StreakData } from '../services/streakService';
 import { useXPSystem } from '../store/useXPSystem';
 import { useUser } from '../store/useUser';
 import { useUserTier } from '../store/useUserTier';
@@ -57,7 +56,6 @@ export default function ProfileScreen() {
   const { tier } = useUserTier();
   const { completedLessons } = useUser();
   const [achievements, setAchievements] = useState<Achievement[]>([]);
-  const [streakData, setStreakData] = useState<StreakData>(streakService.getStreakData());
   const [certUnlockModalVisible, setCertUnlockModalVisible] = useState(false);
   const [newlyEarnedCert, setNewlyEarnedCert] = useState<{ title: string; body: string } | null>(
     null,
@@ -228,18 +226,6 @@ export default function ProfileScreen() {
 
   const showAuthenticatedView = isAuthenticated;
 
-  useEffect(() => {
-    setStreakData(streakService.getStreakData());
-
-    const unsubscribe = streakService.addStreakListener(() => {
-      setStreakData(streakService.getStreakData());
-    });
-
-    return () => {
-      unsubscribe();
-    };
-  }, []);
-
   // Milestones are a pure function of the real XP balance now (Phase 0.6) —
   // recompute whenever it changes rather than re-fetching from a service.
   useEffect(() => {
@@ -248,7 +234,6 @@ export default function ProfileScreen() {
 
   useFocusEffect(
     React.useCallback(() => {
-      setStreakData(streakService.getStreakData());
       ScanHistoryService.getScanHistory()
         .then(setScanHistory)
         .catch(() => {});
@@ -346,13 +331,9 @@ export default function ProfileScreen() {
               <Text style={styles.userTitle}>
                 Level {currentLevel} | {totalXP.toLocaleString()} XP
               </Text>
-              <View style={styles.streakBadge}>
-                <Ionicons name="flame" size={14} color={colors.accent} />
-                <Text style={styles.streakText}>
-                  {streakData.currentStreak} Day Streak
-                  {streakData.currentStreak > 0 ? ' — Keep it Going!' : ''}
-                </Text>
-              </View>
+              {/* Daily streak badge removed per KOOPE-MASTER-PLAN.md:
+                  "Kill: ... daily streaks (daily mechanics on an alcohol app
+                  are an ethical and App Store error — weekly rituals only)." */}
             </View>
 
             {/* Level Progress Bar */}
@@ -463,10 +444,6 @@ export default function ProfileScreen() {
                 <View style={styles.statBox}>
                   <Text style={styles.statBoxLabel}>Saved{'\n'}Drinks</Text>
                   <Text style={styles.statValue}>{savedTotalCount}</Text>
-                </View>
-                <View style={styles.statBox}>
-                  <Text style={styles.statBoxLabel}>Best{'\n'}Streak</Text>
-                  <Text style={styles.statValue}>{streakData.longestStreak}</Text>
                 </View>
                 <View style={styles.statBox}>
                   <Text style={styles.statBoxLabel}>Achievements</Text>
@@ -798,22 +775,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.subtext,
     marginBottom: spacing(1.5),
-  },
-  streakBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.card,
-    paddingHorizontal: spacing(2),
-    paddingVertical: spacing(0.75),
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: colors.line,
-    gap: spacing(0.5),
-  },
-  streakText: {
-    fontSize: 12,
-    color: colors.accent,
-    fontWeight: '600',
   },
   levelSection: {
     marginBottom: spacing(3),
