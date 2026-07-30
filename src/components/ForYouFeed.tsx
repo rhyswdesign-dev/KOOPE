@@ -29,8 +29,10 @@ import {
   generateRadarChart,
   initializeTasteGraph,
   hydrateTasteGraph,
+  getEffectiveTasteProfile,
 } from '../services/tasteGraphService';
 import { CANONICAL_FLAVORS, CANONICAL_SPIRITS } from '../utils/flavorTaxonomy';
+import { calculateTasteMatchPercent } from '../services/tasteMatchService';
 import type { Spirit } from '../types/userProfile';
 import {
   getPredictiveRecommendations,
@@ -175,7 +177,6 @@ export default function ForYouFeed({
 }: ForYouFeedProps) {
   const {
     profile,
-    getFeaturedCocktails,
     scoreCocktail,
     occasionMode,
     setOccasionMode,
@@ -195,6 +196,10 @@ export default function ForYouFeed({
     confidence: number;
     engagement: number;
     radar: any;
+    // Decay + steering + normalization already applied — the profile to
+    // actually score recipes against, as opposed to radar's rounded/labeled
+    // display points. See recommendedCocktails below.
+    effectiveProfile: any;
   } | null>(null);
   const [predictiveMatches, setPredictiveMatches] = useState<any[]>([]);
   const [showProfileList, setShowProfileList] = useState(false);
@@ -225,8 +230,6 @@ export default function ForYouFeed({
   const recommendedCocktails = useMemo(() => {
     log.debug('ForYouFeed', 'Building recommendations with tier', { tier });
 
-    const featured = getFeaturedCocktails();
-    const hasPersonalizedContent = featured && featured.length > 0;
     // Filter out syrups and ingredient-only entries from all recommendation tabs.
     const actualCocktails = ALL_COCKTAILS.filter((cocktail) => {
       const category = String(cocktail.category || '').toLowerCase();
@@ -241,53 +244,55 @@ export default function ForYouFeed({
     const trending = getTrendingCocktails(actualCocktails, trendingLimit);
 
     log.debug('ForYouFeed', 'Building recommended cocktails', {
-      featuredCount: featured?.length || 0,
-      hasPersonalizedContent,
       hasProfile,
+      hasEffectiveProfile: !!tasteIdentity?.effectiveProfile,
       trendingCount: trending.length,
       actualCocktailsCount: actualCocktails.length,
-      userSpirits: profile?.favoriteSpirits,
-      userFlavors: profile?.flavorPreferences,
     });
 
     let matched, beginner, challenge;
 
-    if (hasProfile) {
-      // FREE tier: limit to 2 cocktails per category (to make room for feature previews)
-      // PLUS/PRO tier: show 8 cocktails per category
+    if (tasteIdentity?.effectiveProfile) {
+      // The canonical model — same one driving the PRO radar and match
+      // scores, and PLUS's RecipesScreen recommendations. Replaces
+      // getFeaturedCocktails()/scoreCocktail(), both fed by
+      // usePersonalization's separate, cruder scoring engine, whose inputs
+      // nothing has written to since this session's taste-model cleanup
+      // (scoreCocktail in particular defaulted every cocktail to the same
+      // flat score once profile.spiritScores/flavorScores went empty — even
+      // its own "fallback" path was silently non-personalized).
       const limit = tier === 'FREE' ? 2 : 8;
+      const scored = actualCocktails
+        .map((cocktail) => ({
+          cocktail,
+          score: calculateTasteMatchPercent(tasteIdentity.effectiveProfile, cocktail as any),
+        }))
+        .sort((a, b) => b.score - a.score);
 
-      // Use pre-computed featured cocktails for "Matched" tab when available
-      // This is the same list shown during onboarding, ensuring consistency
-      if (hasPersonalizedContent) {
-        matched = featured.slice(0, limit);
+      matched = scored.slice(0, limit).map((item) => item.cocktail);
+      beginner = scored
+        .filter((item) => item.cocktail.difficulty === 'Easy')
+        .slice(0, limit)
+        .map((item) => item.cocktail);
+      challenge = scored
+        .filter(
+          (item) => item.cocktail.difficulty === 'Hard' || item.cocktail.difficulty === 'Medium',
+        )
+        .slice(0, limit)
+        .map((item) => item.cocktail);
 
-        log.debug('ForYouFeed', 'Using getFeaturedCocktails for matched tab', {
-          matchedCount: matched.length,
-          matchedNames: matched.slice(0, 5).map((c: any) => c.name),
-        });
-      } else {
-        // Fallback to scoreCocktail if featured list not yet computed
-        const scoredCocktails = actualCocktails
-          .map((cocktail) => ({
-            cocktail,
-            score: scoreCocktail(cocktail),
-          }))
-          .sort((a, b) => b.score - a.score);
-
-        log.debug('ForYouFeed', 'Fallback: Top scored cocktails', {
-          top5: scoredCocktails.slice(0, 5).map((item) => ({
-            name: item.cocktail.name,
-            score: item.score,
-            spirit: item.cocktail.base,
-            difficulty: item.cocktail.difficulty,
-          })),
-        });
-
-        matched = scoredCocktails.slice(0, limit).map((item) => item.cocktail);
-      }
-
-      // Beginner & Challenge tabs always use scoreCocktail for difficulty filtering
+      log.debug('ForYouFeed', 'Recommendation counts (canonical model)', {
+        matchedCount: matched.length,
+        beginnerCount: beginner.length,
+        challengeCount: challenge.length,
+      });
+    } else if (hasProfile) {
+      // Loading-window fallback: hasProfile is true (legacy store still had
+      // favoriteSpirits) but tasteIdentity hasn't resolved yet. Unchanged
+      // from before — scoreCocktail degrades gracefully to a flat score when
+      // profile.spiritScores/flavorScores are empty, same as the no-profile
+      // branch below, just via a different code path.
+      const limit = tier === 'FREE' ? 2 : 8;
       const scoredForTabs = actualCocktails
         .map((cocktail) => ({
           cocktail,
@@ -295,6 +300,7 @@ export default function ForYouFeed({
         }))
         .sort((a, b) => b.score - a.score);
 
+      matched = scoredForTabs.slice(0, limit).map((item) => item.cocktail);
       beginner = scoredForTabs
         .filter((item) => item.cocktail.difficulty === 'Easy')
         .slice(0, limit)
@@ -305,12 +311,6 @@ export default function ForYouFeed({
         )
         .slice(0, limit)
         .map((item) => item.cocktail);
-
-      log.debug('ForYouFeed', 'Recommendation counts', {
-        matchedCount: matched.length,
-        beginnerCount: beginner.length,
-        challengeCount: challenge.length,
-      });
     } else {
       // No profile - show random selection of actual cocktails
       // FREE tier: limit to 2 cocktails per category (to make room for feature previews)
@@ -383,10 +383,10 @@ export default function ForYouFeed({
       trending, // Seasonal trending cocktails
     };
   }, [
-    getFeaturedCocktails,
     scoreCocktail,
     profile,
     hasProfile,
+    tasteIdentity?.effectiveProfile,
     tier,
     isPro,
     predictiveMatches,
@@ -461,6 +461,7 @@ export default function ForYouFeed({
               confidence: Math.round(radar.dataConfidence * 100),
               engagement: radar.engagementScore,
               radar,
+              effectiveProfile: getEffectiveTasteProfile(tasteGraph),
             });
 
             // PRO only: run predictive engine to power the matched tab
@@ -522,25 +523,27 @@ export default function ForYouFeed({
         // on taste. Falls back to the same flat neutral prior
         // tasteVectorService itself seeds new users with, so the card shows
         // an honest "0% confidence" starting point instead of disappearing.
-        const radar = generateRadarChart(
-          initializeTasteGraph({
-            flavorWeights: Object.fromEntries(CANONICAL_FLAVORS.map((f) => [f, 0.3])) as Record<
-              (typeof CANONICAL_FLAVORS)[number],
-              number
-            >,
-            spiritWeights: Object.fromEntries(CANONICAL_SPIRITS.map((s) => [s, 0.25])) as Record<
-              Spirit,
-              number
-            >,
-            preferredABV: { min: 0, max: 40 },
-            preferredComplexity: 0.5,
-          }),
-        );
+        const flatNeutralProfile = {
+          flavorWeights: Object.fromEntries(CANONICAL_FLAVORS.map((f) => [f, 0.3])) as Record<
+            (typeof CANONICAL_FLAVORS)[number],
+            number
+          >,
+          spiritWeights: Object.fromEntries(CANONICAL_SPIRITS.map((s) => [s, 0.25])) as Record<
+            Spirit,
+            number
+          >,
+          preferredABV: { min: 0, max: 40 },
+          preferredComplexity: 0.5,
+        };
+        const radar = generateRadarChart(initializeTasteGraph(flatNeutralProfile));
         setTasteIdentity({
           occasionMode: 'casual',
           confidence: Math.round(radar.dataConfidence * 100),
           engagement: radar.engagementScore,
           radar,
+          // No decay to apply on a graph with no interaction history — the
+          // flat profile itself is already the "effective" one here.
+          effectiveProfile: flatNeutralProfile,
         });
       } catch {
         if (mounted) setTasteIdentity(null);
