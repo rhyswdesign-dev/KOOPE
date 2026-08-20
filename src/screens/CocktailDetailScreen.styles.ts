@@ -383,13 +383,27 @@ export const styles = StyleSheet.create({
     paddingBottom: spacing(0.5),
   },
   referenceRecipeEditorialInner: {
+    // Ingredients gets its own visible card (referenceSpecTable) below, so
+    // this wrapper is layout-only now — no background/border of its own,
+    // otherwise it reads as a second, barely-visible card behind the real one.
     paddingHorizontal: rs(14),
     paddingTop: rs(8),
     paddingBottom: rs(16),
+  },
+  // Shared "sibling block" spacing/card treatment applied to Method and
+  // Taste & Fit so every top-level block (Ingredients, Method, Taste & Fit,
+  // Notes) reads as the same kind of container with the same rhythm.
+  referenceSectionGap: {
+    marginTop: rs(16),
+  },
+  referenceSectionCard: {
     borderRadius: rs(22),
-    backgroundColor: '#1A1310',
+    backgroundColor: '#261A15',
     borderWidth: 1,
-    borderColor: 'rgba(214,165,102,0.035)',
+    borderColor: 'rgba(214,165,102,0.08)',
+    paddingHorizontal: rs(14),
+    paddingTop: rs(12),
+    paddingBottom: rs(16),
   },
   referenceSectionHeaderRow: {
     flexDirection: 'row',
@@ -444,29 +458,105 @@ export const styles = StyleSheet.create({
     backgroundColor: '#261A15',
     borderColor: 'rgba(214,165,102,0.08)',
   },
+  // Ingredient row: category icon, name, dotted leader line, amount, and
+  // (if owned) a trailing check-circle. Rows are not individually boxed —
+  // they sit inside the outer specTable/referenceSpecTable card, separated
+  // by a hairline divider (specRowLast removes it on the final row).
   specRow: {
-    minHeight: 92,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing(2),
     paddingHorizontal: spacing(1.95),
+    paddingVertical: spacing(1.5),
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(229, 209, 189, 0.06)',
   },
-  specRowOwned: {
-    backgroundColor: 'rgba(74, 122, 89, 0.08)',
-  },
   referenceSpecRow: {
-    minHeight: rs(66),
     paddingHorizontal: rs(14),
+    paddingVertical: rs(11),
     borderBottomColor: 'rgba(214,165,102,0.06)',
-  },
-  referenceSpecRowOwned: {
-    backgroundColor: 'rgba(74, 122, 89, 0.1)',
   },
   specRowLast: {
     borderBottomWidth: 0,
+  },
+  specLeaderIcon: {
+    marginRight: spacing(1.25),
+  },
+  referenceSpecLeaderIcon: {
+    marginRight: rs(8),
+  },
+  specName: {
+    flexShrink: 1,
+    color: '#F5EBDC',
+    fontSize: 21,
+    lineHeight: 26,
+    fontWeight: '600',
+  },
+  referenceSpecName: {
+    fontSize: rs(16),
+    lineHeight: rs(20),
+    color: '#EADDCF',
+    fontWeight: '600',
+  },
+  // The dot-leader fills the gap between name and amount. flex:1 lets it
+  // grow into the remaining space; numberOfLines/ellipsizeMode="clip" (set
+  // in the JSX) clips the long repeated-dot string to exactly that width,
+  // producing a table-of-contents-style leader line.
+  specLeaderDots: {
+    flex: 1,
+    flexShrink: 1,
+    marginHorizontal: spacing(1),
+    color: 'rgba(229, 209, 189, 0.22)',
+    fontSize: 21,
+    lineHeight: 26,
+    fontWeight: '600',
+    letterSpacing: 2,
+  },
+  referenceSpecLeaderDots: {
+    fontSize: rs(16),
+    lineHeight: rs(20),
+    marginHorizontal: rs(6),
+    letterSpacing: 1.5,
+    color: 'rgba(214,165,102,0.18)',
+  },
+  // Amount is secondary information — kept lighter weight and smaller than
+  // the ingredient name so the name reads first.
+  specAmount: {
+    flexShrink: 0,
+    color: '#D8C7B3',
+    fontSize: 17,
+    lineHeight: 24,
+    fontWeight: '500',
+    textAlign: 'right',
+  },
+  referenceSpecAmount: {
+    fontSize: rs(14),
+    lineHeight: rs(18),
+    color: '#C9B8A6',
+    fontWeight: '500',
+  },
+  specRowCheckIcon: {
+    marginLeft: spacing(1),
+  },
+  referenceSpecRowCheckIcon: {
+    marginLeft: rs(6),
+  },
+  // --- Unused, kept intentionally (not deleted) ---
+  // These belonged to the previous two-column ingredient-row layout
+  // (name+amount with an owned-row tint/left-accent-bar) that this file's
+  // row rendering no longer uses now that rows follow the icon + dotted
+  // leader + amount + trailing check-circle pattern. Left in place pending
+  // an explicit go-ahead to remove them.
+  specRowOwned: {
+    backgroundColor: 'rgba(74, 122, 89, 0.14)',
+    borderLeftWidth: 3,
+    borderLeftColor: '#4A9E63',
+    paddingLeft: spacing(1.95) - 3,
+  },
+  referenceSpecRowOwned: {
+    backgroundColor: 'rgba(74, 122, 89, 0.16)',
+    borderLeftWidth: 3,
+    borderLeftColor: '#4A9E63',
+    paddingLeft: rs(14) - 3,
   },
   specNameWrap: {
     flex: 1,
@@ -484,41 +574,17 @@ export const styles = StyleSheet.create({
   specOwnedIcon: {
     marginTop: 1,
   },
-  specName: {
-    flexShrink: 1,
-    color: '#F5EBDC',
-    fontSize: 21,
-    lineHeight: 28,
-    fontWeight: '400',
-  },
   specNameOwned: {
     color: '#DDF3E1',
-  },
-  referenceSpecName: {
-    fontSize: rs(18),
-    lineHeight: rs(22),
-    color: '#EADDCF',
   },
   referenceSpecNameOwned: {
     color: '#E2F4E6',
   },
-  specAmount: {
-    color: '#F5EBDC',
-    fontSize: 21,
-    lineHeight: 28,
-    fontWeight: '800',
-    textAlign: 'right',
-  },
   specAmountOwned: {
-    color: '#DDF3E1',
-  },
-  referenceSpecAmount: {
-    fontSize: rs(18),
-    lineHeight: rs(22),
-    color: '#F0E4D6',
+    color: '#B9DFC0',
   },
   referenceSpecAmountOwned: {
-    color: '#E2F4E6',
+    color: '#B9DFC0',
   },
   emptyRecipeCardText: {
     color: '#D6C3AE',
@@ -529,16 +595,25 @@ export const styles = StyleSheet.create({
   methodList: {
     gap: spacing(2.5),
   },
+  // Reference layout renders steps as a connected vertical timeline, so
+  // the list has no inter-row gap of its own — spacing between steps
+  // comes from referenceMethodRow's paddingBottom instead, keeping each
+  // step's connector line touching the next step's marker with no break.
   referenceMethodList: {
-    gap: rs(10),
+    gap: 0,
   },
   methodRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: spacing(1.7),
   },
+  // alignItems: 'stretch' (overriding methodRow's flex-start) lets the
+  // marker column stretch to the row's full height so its connector
+  // (flex: 1 below the fixed-size badge) reaches down to the next row.
   referenceMethodRow: {
+    alignItems: 'stretch',
     gap: rs(12),
+    paddingBottom: rs(14),
   },
   methodIndex: {
     width: 44,
@@ -561,9 +636,37 @@ export const styles = StyleSheet.create({
     fontWeight: '400',
   },
   referenceMethodText: {
+    flex: 1,
     fontSize: rs(16),
     lineHeight: rs(22),
     color: '#DDD0C1',
+  },
+  // Circular step-number badge for the reference-layout timeline. Filled
+  // with a low-opacity wash of the same gold used elsewhere (specLeaderDots,
+  // referenceSectionEyebrow) plus a slightly stronger border so it reads
+  // as a marker, not just numbered text.
+  referenceMethodMarker: {
+    width: rs(26),
+    height: rs(26),
+    borderRadius: rs(13),
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(214,165,102,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(214,165,102,0.4)',
+  },
+  referenceMethodMarkerText: {
+    fontSize: rs(11),
+    lineHeight: rs(14),
+    fontWeight: '700',
+    color: '#C98E4B',
+  },
+  // Hairline connector between markers — same low-opacity gold used for
+  // referenceSectionRule/specRow's hairline dividers, not a bold line.
+  referenceMethodConnector: {
+    width: 1,
+    marginTop: rs(2),
+    backgroundColor: 'rgba(214,165,102,0.1)',
   },
   tastingNoteText: {
     color: '#E7D7C7',
@@ -594,10 +697,91 @@ export const styles = StyleSheet.create({
     letterSpacing: 0.8,
   },
 
+  // Taste Profile card — four icon + horizontal-track slider rows (Spirit
+  // Forward, Sweetness, Acidity, Finish) estimated from ingredient
+  // composition (see utils/tasteProfileAxes.ts), followed by a single
+  // LOW/BALANCED/HIGH scale caption shared across all four rows.
+  tasteAxisGroup: {
+    gap: rs(14),
+  },
+  tasteAxisRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: rs(10),
+  },
+  tasteAxisIconWrap: {
+    width: rs(26),
+    height: rs(26),
+    borderRadius: rs(13),
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(214,165,102,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(214,165,102,0.3)',
+  },
+  tasteAxisLabel: {
+    width: rs(92),
+    fontSize: rs(13),
+    lineHeight: rs(17),
+    fontWeight: '600',
+    color: '#EADDCF',
+  },
+  tasteAxisTrackWrap: {
+    flex: 1,
+    height: rs(16),
+    justifyContent: 'center',
+  },
+  tasteAxisTrack: {
+    height: rs(4),
+    borderRadius: rs(2),
+    backgroundColor: 'rgba(214,165,102,0.14)',
+    overflow: 'hidden',
+  },
+  tasteAxisTrackFill: {
+    height: '100%',
+    borderRadius: rs(2),
+    backgroundColor: 'rgba(214,165,102,0.4)',
+  },
+  tasteAxisDot: {
+    position: 'absolute',
+    top: '50%',
+    width: rs(12),
+    height: rs(12),
+    borderRadius: rs(6),
+    marginTop: -rs(6),
+    marginLeft: -rs(6),
+    backgroundColor: '#D59C58',
+    borderWidth: 2,
+    borderColor: '#1A120D',
+  },
+  // Left offset mirrors the icon (26) + row gap (10) + label (92) + row gap
+  // (10) that precede the track in tasteAxisRow, so the scale caption lines
+  // up under the tracks rather than the full row.
+  tasteAxisScaleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: rs(4),
+    paddingLeft: rs(26 + 10 + 92 + 10),
+  },
+  tasteAxisScaleText: {
+    fontSize: rs(9),
+    lineHeight: rs(12),
+    letterSpacing: 0.8,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    color: 'rgba(214,165,102,0.45)',
+  },
+
   // Section
   section: {
     paddingHorizontal: spacing(3),
     marginTop: spacing(4),
+  },
+  // Reference-layout override: matches the uniform gap used between
+  // Ingredients/Method/Taste & Fit (referenceSectionGap) so Notes reads as
+  // the same rhythm rather than a separate spacing system.
+  referenceSection: {
+    marginTop: rs(16),
   },
   sectionEyebrow: {
     fontSize: 11,

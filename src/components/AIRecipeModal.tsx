@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, radii, fonts } from '../theme/tokens';
 import { FormattedRecipe } from '../services/aiRecipeFormatter';
 import GroceryListModal from './GroceryListModal';
+import IngredientLeaderRow from './recipe/IngredientLeaderRow';
 
 interface AIRecipeModalProps {
   visible: boolean;
@@ -27,7 +28,7 @@ export default function AIRecipeModal({
   onClose,
   recipe,
   onSave,
-  navigation
+  navigation,
 }: AIRecipeModalProps) {
   const [groceryListVisible, setGroceryListVisible] = useState(false);
 
@@ -37,11 +38,9 @@ export default function AIRecipeModal({
     if (onSave) {
       onSave(recipe);
     }
-    Alert.alert(
-      'Recipe Saved',
-      'This AI-generated recipe has been saved to your collection.',
-      [{ text: 'OK' }]
-    );
+    Alert.alert('Recipe Saved', 'This AI-generated recipe has been saved to your collection.', [
+      { text: 'OK' },
+    ]);
   };
 
   const handleMakeRecipe = () => {
@@ -57,20 +56,20 @@ export default function AIRecipeModal({
 
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty.toLowerCase()) {
-      case 'easy': return colors.success || '#22c55e';
-      case 'medium': return colors.warning || '#f59e0b';
-      case 'hard': return colors.error || '#ef4444';
-      default: return colors.accent;
+      case 'easy':
+        return colors.success || '#22c55e';
+      case 'medium':
+        return colors.warning || '#f59e0b';
+      case 'hard':
+        return colors.error || '#ef4444';
+      default:
+        return colors.accent;
     }
   };
 
   return (
     <>
-      <Modal
-        visible={visible}
-        animationType="slide"
-        presentationStyle="pageSheet"
-      >
+      <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
         <SafeAreaView style={styles.container}>
           {/* Header */}
           <View style={styles.header}>
@@ -101,8 +100,19 @@ export default function AIRecipeModal({
                   <Ionicons name="wine-outline" size={16} color={colors.muted} />
                   <Text style={styles.metaText}>{recipe.glassware}</Text>
                 </View>
-                <View style={[styles.metaItem, styles.difficultyBadge, { backgroundColor: getDifficultyColor(recipe.difficulty || 'Medium') + '20' }]}>
-                  <Text style={[styles.metaText, { color: getDifficultyColor(recipe.difficulty || 'Medium') }]}>
+                <View
+                  style={[
+                    styles.metaItem,
+                    styles.difficultyBadge,
+                    { backgroundColor: getDifficultyColor(recipe.difficulty || 'Medium') + '20' },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.metaText,
+                      { color: getDifficultyColor(recipe.difficulty || 'Medium') },
+                    ]}
+                  >
                     {recipe.difficulty}
                   </Text>
                 </View>
@@ -113,15 +123,30 @@ export default function AIRecipeModal({
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Ingredients</Text>
               {recipe.ingredients.map((ingredient, index) => (
-                <View key={index} style={styles.ingredientItem}>
-                  <View style={styles.ingredientDot} />
-                  <View style={styles.ingredientContent}>
-                    <Text style={styles.ingredientAmount}>{ingredient.amount}</Text>
-                    <Text style={styles.ingredientName}>{ingredient.name}</Text>
-                    {ingredient.notes && (
-                      <Text style={styles.ingredientNotes}>💡 {ingredient.notes}</Text>
-                    )}
-                  </View>
+                <View
+                  key={index}
+                  style={[
+                    styles.ingredientBlock,
+                    index === recipe.ingredients.length - 1 && styles.ingredientBlockLast,
+                  ]}
+                >
+                  <IngredientLeaderRow
+                    name={ingredient.name}
+                    amount={ingredient.amount}
+                    iconSize={16}
+                    iconColor={colors.muted}
+                    trailingIcon={null}
+                    rowStyle={styles.ingredientRow}
+                    iconStyle={styles.ingredientLeaderIcon}
+                    nameStyle={styles.ingredientName}
+                    dotsStyle={styles.ingredientLeaderDots}
+                    amountStyle={styles.ingredientAmount}
+                  />
+                  {/* Notes stay a footnote under the row rather than row
+                      content — they are prose, not part of the spec line. */}
+                  {ingredient.notes && (
+                    <Text style={styles.ingredientNotes}>💡 {ingredient.notes}</Text>
+                  )}
                 </View>
               ))}
             </View>
@@ -179,9 +204,7 @@ export default function AIRecipeModal({
               onPress={handleMakeRecipe}
             >
               <Ionicons name="play" size={20} color={colors.white} />
-              <Text style={[styles.actionButtonText, styles.primaryButtonText]}>
-                Make Recipe
-              </Text>
+              <Text style={[styles.actionButtonText, styles.primaryButtonText]}>Make Recipe</Text>
             </TouchableOpacity>
           </View>
         </SafeAreaView>
@@ -192,7 +215,7 @@ export default function AIRecipeModal({
         visible={groceryListVisible}
         onClose={() => setGroceryListVisible(false)}
         recipeName={recipe.title}
-        ingredients={recipe.ingredients.map(ing => ({ name: ing.name, note: ing.notes }))}
+        ingredients={recipe.ingredients.map((ing) => ({ name: ing.name, note: ing.notes }))}
         recipeId={`ai-recipe-${Date.now()}`}
       />
     </>
@@ -282,6 +305,9 @@ const styles = StyleSheet.create({
     color: colors.text,
     marginBottom: spacing(2),
   },
+  // --- Unused, kept intentionally (not deleted) ---
+  // The previous bullet-dot + stacked amount/name ingredient layout, replaced
+  // by the shared icon + dot-leader row below.
   ingredientItem: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -298,21 +324,49 @@ const styles = StyleSheet.create({
   ingredientContent: {
     flex: 1,
   },
+  // --- Dot-leader ingredient rows ---
+  // The divider lives on the wrapper block, not the row, so an ingredient
+  // with a note keeps its note above the hairline rather than below it.
+  ingredientBlock: {
+    borderBottomWidth: 1,
+    borderBottomColor: colors.line,
+  },
+  ingredientBlockLast: {
+    borderBottomWidth: 0,
+  },
+  ingredientRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing(1.5),
+  },
+  ingredientLeaderIcon: {
+    marginRight: spacing(1),
+  },
+  ingredientLeaderDots: {
+    flex: 1,
+    flexShrink: 1,
+    marginHorizontal: spacing(1),
+    fontSize: fonts.body,
+    letterSpacing: 1.5,
+    color: colors.line,
+  },
   ingredientAmount: {
+    flexShrink: 0,
     fontSize: fonts.body,
     fontWeight: '600',
     color: colors.accent,
   },
   ingredientName: {
+    flexShrink: 1,
     fontSize: fonts.body,
     color: colors.text,
-    marginTop: 2,
   },
   ingredientNotes: {
     fontSize: 14,
     color: colors.muted,
     fontStyle: 'italic',
     marginTop: 4,
+    marginBottom: spacing(1.5),
   },
   instructionItem: {
     flexDirection: 'row',

@@ -79,6 +79,9 @@ import {
   enhanceTips,
 } from '../utils/cocktailDetailCopy';
 import { cocktailData, getNonAlcoholicRecipeData } from '../utils/cocktailDetailFallbackData';
+import { getIngredientCategoryIcon } from '../utils/ingredientCategoryIcon';
+import { IngredientLeaderList } from '../components/recipe/IngredientLeaderRow';
+import TasteProfileCard from '../components/recipe/TasteProfileCard';
 
 type CocktailDetailScreenRouteProp = {
   params: {
@@ -765,6 +768,20 @@ export default function CocktailDetailScreen() {
     if (!bestFor) return '';
     return isFreeTier ? trimSentence(bestFor, 120) : bestFor;
   }, [isFreeTier, bestFor]);
+  // Flattened to the shape the shared IngredientLeaderList renders: name,
+  // right-hand value (amount, falling back to the note) and the category
+  // icon. `matchName` rides along so the trailing check-circle can test
+  // ownership without re-deriving it.
+  const leaderIngredients = React.useMemo(
+    () =>
+      (parsedIngredients || []).map((ingredient) => ({
+        name: String(ingredient.name || ''),
+        amount: String(ingredient.amount || ingredient.note || '').trim(),
+        icon: getIngredientCategoryIcon(ingredient.name || ingredient.matchName || ''),
+        matchName: String(ingredient.matchName || ingredient.name || ''),
+      })),
+    [parsedIngredients],
+  );
 
   const handleShare = async () => {
     if (!cocktail) return;
@@ -1193,69 +1210,43 @@ export default function CocktailDetailScreen() {
                   <View style={styles.referenceSectionRule} />
                 </View>
               ) : null}
-              <View style={[styles.specTable, useRecipeCardLayout && styles.referenceSpecTable]}>
-                {parsedIngredients && parsedIngredients.length > 0 ? (
-                  parsedIngredients.map((ingredient, index) => {
-                    const isOwnedIngredient = ownedIngredientNames.has(
-                      String(ingredient.matchName || ingredient.name || ''),
-                    );
-                    const rightSideValue = String(
-                      ingredient.amount || ingredient.note || '',
-                    ).trim();
-                    return (
-                      <View
-                        key={`ingredient-${index}`}
-                        style={[
-                          styles.specRow,
-                          useRecipeCardLayout && styles.referenceSpecRow,
-                          isOwnedIngredient && styles.specRowOwned,
-                          isOwnedIngredient && useRecipeCardLayout && styles.referenceSpecRowOwned,
-                          index === parsedIngredients.length - 1 && styles.specRowLast,
-                        ]}
-                      >
-                        <View style={styles.specNameWrap}>
-                          <Text
-                            style={[
-                              styles.specName,
-                              useRecipeCardLayout && styles.referenceSpecName,
-                              isOwnedIngredient && styles.specNameOwned,
-                              isOwnedIngredient &&
-                                useRecipeCardLayout &&
-                                styles.referenceSpecNameOwned,
-                            ]}
-                          >
-                            {ingredient.name}
-                          </Text>
-                          {isOwnedIngredient ? (
-                            <MaterialCommunityIcons
-                              name="check-circle"
-                              size={16}
-                              color={colors.success}
-                              style={styles.specOwnedIcon}
-                            />
-                          ) : null}
-                        </View>
-                        <View style={styles.specAmountWrap}>
-                          <Text
-                            style={[
-                              styles.specAmount,
-                              useRecipeCardLayout && styles.referenceSpecAmount,
-                              isOwnedIngredient && styles.specAmountOwned,
-                              isOwnedIngredient &&
-                                useRecipeCardLayout &&
-                                styles.referenceSpecAmountOwned,
-                            ]}
-                          >
-                            {rightSideValue}
-                          </Text>
-                        </View>
-                      </View>
-                    );
-                  })
-                ) : (
+              <IngredientLeaderList
+                containerStyle={[
+                  styles.specTable,
+                  useRecipeCardLayout && styles.referenceSpecTable,
+                ]}
+                items={leaderIngredients}
+                emptyContent={
                   <Text style={styles.emptyRecipeCardText}>No ingredients listed.</Text>
-                )}
-              </View>
+                }
+                iconSize={useRecipeCardLayout ? 16 : 18}
+                iconColor={colors.subtext}
+                rowStyle={[styles.specRow, useRecipeCardLayout && styles.referenceSpecRow]}
+                lastRowStyle={styles.specRowLast}
+                iconStyle={[
+                  styles.specLeaderIcon,
+                  useRecipeCardLayout && styles.referenceSpecLeaderIcon,
+                ]}
+                nameStyle={[styles.specName, useRecipeCardLayout && styles.referenceSpecName]}
+                dotsStyle={[
+                  styles.specLeaderDots,
+                  useRecipeCardLayout && styles.referenceSpecLeaderDots,
+                ]}
+                amountStyle={[styles.specAmount, useRecipeCardLayout && styles.referenceSpecAmount]}
+                renderTrailingIcon={(item) =>
+                  ownedIngredientNames.has(item.matchName) ? (
+                    <MaterialCommunityIcons
+                      name="check-circle"
+                      size={16}
+                      color={colors.success}
+                      style={[
+                        styles.specRowCheckIcon,
+                        useRecipeCardLayout && styles.referenceSpecRowCheckIcon,
+                      ]}
+                    />
+                  ) : null
+                }
+              />
 
               {(methodRenderMode === 'spec'
                 ? methodSpecLine.length > 0
@@ -1266,15 +1257,17 @@ export default function CocktailDetailScreen() {
                   specLine={methodSpecLine}
                   showEscapeHatch={!isFreeTier && methodRenderMode !== 'full'}
                   onShowEverything={() => setShowFullMethod(true)}
-                  sectionStyle={[
-                    styles.recipeEditorialSection,
-                    useRecipeCardLayout && styles.referenceRecipeEditorialSection,
-                  ]}
-                  titleStyle={[
-                    styles.recipeEditorialTitle,
-                    { fontFamily: useRecipeCardLayout ? referenceSerifFont : serifFont },
-                    useRecipeCardLayout && styles.referenceRecipeEditorialTitle,
-                  ]}
+                  sectionStyle={
+                    useRecipeCardLayout
+                      ? [styles.referenceSectionGap, styles.referenceSectionCard]
+                      : styles.recipeEditorialSection
+                  }
+                  titleStyle={[styles.recipeEditorialTitle, { fontFamily: serifFont }]}
+                  headerRowStyle={
+                    useRecipeCardLayout ? styles.referenceSectionHeaderRow : undefined
+                  }
+                  eyebrowStyle={useRecipeCardLayout ? styles.referenceSectionEyebrow : undefined}
+                  ruleStyle={useRecipeCardLayout ? styles.referenceSectionRule : undefined}
                   listStyle={[styles.methodList, useRecipeCardLayout && styles.referenceMethodList]}
                   rowStyle={[styles.methodRow, useRecipeCardLayout && styles.referenceMethodRow]}
                   indexStyle={[
@@ -1283,20 +1276,58 @@ export default function CocktailDetailScreen() {
                     useRecipeCardLayout && styles.referenceMethodIndex,
                   ]}
                   textStyle={[styles.methodText, useRecipeCardLayout && styles.referenceMethodText]}
+                  markerStyle={useRecipeCardLayout ? styles.referenceMethodMarker : undefined}
+                  markerTextStyle={
+                    useRecipeCardLayout
+                      ? [styles.referenceMethodMarkerText, { fontFamily: referenceDisplayFont }]
+                      : undefined
+                  }
+                  connectorStyle={useRecipeCardLayout ? styles.referenceMethodConnector : undefined}
                 />
               )}
 
+              <TasteProfileCard
+                ingredients={parsedIngredients}
+                headerVariant={useRecipeCardLayout ? 'eyebrow' : 'title'}
+                containerStyle={
+                  useRecipeCardLayout
+                    ? [styles.referenceSectionGap, styles.referenceSectionCard]
+                    : styles.recipeEditorialSection
+                }
+                headerRowStyle={styles.referenceSectionHeaderRow}
+                eyebrowStyle={styles.referenceSectionEyebrow}
+                ruleStyle={styles.referenceSectionRule}
+                titleStyle={[styles.recipeEditorialTitle, { fontFamily: serifFont }]}
+                groupStyle={styles.tasteAxisGroup}
+                rowStyle={styles.tasteAxisRow}
+                iconWrapStyle={styles.tasteAxisIconWrap}
+                labelStyle={styles.tasteAxisLabel}
+                trackWrapStyle={styles.tasteAxisTrackWrap}
+                trackStyle={styles.tasteAxisTrack}
+                trackFillStyle={styles.tasteAxisTrackFill}
+                dotStyle={styles.tasteAxisDot}
+                scaleRowStyle={styles.tasteAxisScaleRow}
+                scaleTextStyle={styles.tasteAxisScaleText}
+              />
+
               {displayedTastingNote || displayedBestFor ? (
-                <View style={[styles.recipeEditorialSection, styles.recipeEditorialSectionLast]}>
-                  <Text
-                    style={[
-                      styles.recipeEditorialTitle,
-                      { fontFamily: useRecipeCardLayout ? referenceSerifFont : serifFont },
-                      useRecipeCardLayout && styles.referenceRecipeEditorialTitle,
-                    ]}
-                  >
-                    Taste & Fit
-                  </Text>
+                <View
+                  style={
+                    useRecipeCardLayout
+                      ? [styles.referenceSectionGap, styles.referenceSectionCard]
+                      : [styles.recipeEditorialSection, styles.recipeEditorialSectionLast]
+                  }
+                >
+                  {useRecipeCardLayout ? (
+                    <View style={styles.referenceSectionHeaderRow}>
+                      <Text style={styles.referenceSectionEyebrow}>Tasting Notes</Text>
+                      <View style={styles.referenceSectionRule} />
+                    </View>
+                  ) : (
+                    <Text style={[styles.recipeEditorialTitle, { fontFamily: serifFont }]}>
+                      Tasting Notes
+                    </Text>
+                  )}
                   {displayedTastingNote ? (
                     <>
                       <Text
@@ -1339,13 +1370,33 @@ export default function CocktailDetailScreen() {
                   ) : null}
                 </View>
               ) : null}
+
+              {/* --- Pro Tips --- */}
+              {/* Nested inside the same editorial shell/inner wrapper as
+                  Method/Taste Profile/Notes above so it picks up the same
+                  horizontal inset — moved from a ScrollView-level sibling
+                  (its border used to render flush to the screen edges
+                  instead of matching the other cards' inset border). */}
+              {showProTips && parsedTips.length > 0 && useRecipeCardLayout && (
+                <View style={[styles.referenceSectionGap, styles.referenceSectionCard]}>
+                  <View style={styles.referenceSectionHeaderRow}>
+                    <Text style={styles.referenceSectionEyebrow}>
+                      {cocktail.isNonAlcoholic ? 'Flavor Profile' : 'Pro Tips'}
+                    </Text>
+                    <View style={styles.referenceSectionRule} />
+                  </View>
+                  {parsedTips.map((tip, idx) => (
+                    <Text key={idx} style={styles.proTipsText}>
+                      • {tip}
+                    </Text>
+                  ))}
+                </View>
+              )}
             </View>
           </View>
         </View>
-
-        {/* --- Pro Tips --- */}
-        {showProTips && parsedTips.length > 0 && (
-          <View style={styles.section}>
+        {showProTips && parsedTips.length > 0 && !useRecipeCardLayout && (
+          <View style={[styles.section, useRecipeCardLayout && styles.referenceSection]}>
             <Text style={styles.sectionEyebrow}>Notes</Text>
             <View style={styles.proTipsContainer}>
               <View

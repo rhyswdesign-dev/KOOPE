@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, radii, serif } from '../../theme/tokens';
+import { onboardingPalette } from '../../theme/onboardingPalette';
 import { PRICING_DISPLAY } from '../../constants/subscriptions';
 import { useUserTier } from '../../store/useUserTier';
 import { useXPSystem } from '../../store/useXPSystem';
@@ -81,7 +82,9 @@ function PreviewModeBanner() {
   return (
     <View style={styles.previewBanner}>
       <Ionicons name="eye-outline" size={14} color={colors.accent} />
-      <Text style={styles.previewBannerText}>Preview Mode: no progress, profile, or trial changes will be saved.</Text>
+      <Text style={styles.previewBannerText}>
+        Preview Mode: no progress, profile, or trial changes will be saved.
+      </Text>
     </View>
   );
 }
@@ -105,7 +108,7 @@ function ProgressPhoneMock() {
         Animated.timing(cycle, { toValue: 1, duration: 2400, useNativeDriver: true }),
         Animated.timing(cycle, { toValue: 2, duration: 2400, useNativeDriver: true }),
         Animated.timing(cycle, { toValue: 0, duration: 2400, useNativeDriver: true }),
-      ])
+      ]),
     );
     animation.start();
     return () => animation.stop();
@@ -116,7 +119,7 @@ function ProgressPhoneMock() {
       Animated.sequence([
         Animated.timing(scanPulse, { toValue: 1.03, duration: 1400, useNativeDriver: true }),
         Animated.timing(scanPulse, { toValue: 0.96, duration: 1400, useNativeDriver: true }),
-      ])
+      ]),
     );
     pulse.start();
     return () => pulse.stop();
@@ -146,7 +149,12 @@ function ProgressPhoneMock() {
         <View style={styles.mockFrameCornerTopLeft} />
         <View style={styles.mockFrameCornerTopRight} />
         <View style={styles.mockPlate}>
-          <Animated.View style={[styles.mockBottleWrap, { opacity: bottleOpacity, transform: [{ rotate: '-10deg' }] }]}>
+          <Animated.View
+            style={[
+              styles.mockBottleWrap,
+              { opacity: bottleOpacity, transform: [{ rotate: '-10deg' }] },
+            ]}
+          >
             <View style={styles.mockBottleNeck} />
             <View style={styles.mockBottleBody} />
             <View style={styles.mockBottleLabelBand} />
@@ -159,7 +167,12 @@ function ProgressPhoneMock() {
             <View style={styles.mockMenuLineLong} />
             <View style={styles.mockMenuChip} />
           </Animated.View>
-          <Animated.View style={[styles.mockIngredientsCard, { opacity: ingredientsOpacity, transform: [{ rotate: '8deg' }] }]}>
+          <Animated.View
+            style={[
+              styles.mockIngredientsCard,
+              { opacity: ingredientsOpacity, transform: [{ rotate: '8deg' }] },
+            ]}
+          >
             <View style={styles.mockIngredientBoard} />
             <View style={styles.mockIngredientBottle} />
             <View style={styles.mockIngredientCitrus} />
@@ -172,15 +185,15 @@ function ProgressPhoneMock() {
         <View style={styles.mockGlass} />
         <View style={styles.mockDetectedRow}>
           <Animated.View style={[styles.mockDetectedChip, { opacity: bottleLabelOpacity }]}>
-            <Ionicons name="checkmark-circle" size={12} color="#1A120D" />
+            <Ionicons name="checkmark-circle" size={12} color={colors.bg} />
             <Text style={styles.mockDetectedText}>Bottle identified</Text>
           </Animated.View>
           <Animated.View style={[styles.mockDetectedChip, { opacity: menuLabelOpacity }]}>
-            <Ionicons name="checkmark-circle" size={12} color="#1A120D" />
+            <Ionicons name="checkmark-circle" size={12} color={colors.bg} />
             <Text style={styles.mockDetectedText}>Menu recognized</Text>
           </Animated.View>
           <Animated.View style={[styles.mockDetectedChip, { opacity: ingredientsLabelOpacity }]}>
-            <Ionicons name="checkmark-circle" size={12} color="#1A120D" />
+            <Ionicons name="checkmark-circle" size={12} color={colors.bg} />
             <Text style={styles.mockDetectedText}>Ingredients parsed</Text>
           </Animated.View>
         </View>
@@ -194,13 +207,7 @@ function ProgressPhoneMock() {
   );
 }
 
-function RatingStars({
-  value,
-  onChange,
-}: {
-  value: number;
-  onChange: (next: number) => void;
-}) {
+function RatingStars({ value, onChange }: { value: number; onChange: (next: number) => void }) {
   return (
     <View style={styles.ratingStarsRow}>
       {[1, 2, 3, 4, 5].map((star) => {
@@ -214,7 +221,7 @@ function RatingStars({
             <Ionicons
               name={selected ? 'star' : 'star-outline'}
               size={26}
-              color={selected ? '#1A120D' : colors.accent}
+              color={selected ? colors.bg : colors.accent}
             />
           </Pressable>
         );
@@ -257,7 +264,10 @@ function PaywallPrimerScreen({
         </Pressable>
       </View>
 
-      <ScrollView contentContainerStyle={styles.paywallScrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.paywallScrollContent}
+        showsVerticalScrollIndicator={false}
+      >
         {previewMode ? <PreviewModeBanner /> : null}
 
         <View style={styles.paywallHeadlineWrap}>
@@ -268,19 +278,28 @@ function PaywallPrimerScreen({
         {variant === 'value' ? (
           <View style={styles.paywallVisualWrap}>
             <View style={styles.valueIntroPill}>
-              <Text style={styles.valueIntroPillText}>{ONBOARDING_TRIAL_DAYS}-day KOOPE+ trial</Text>
+              <Text style={styles.valueIntroPillText}>
+                {ONBOARDING_TRIAL_DAYS}-day KOOPE+ trial
+              </Text>
             </View>
             <ProgressPhoneMock />
             <View style={styles.paywallCaptionRow}>
-              <Ionicons name="pricetag-outline" size={18} color="#111111" />
-              <Text style={styles.paywallCaptionText}>{ONBOARDING_TRIAL_DAYS} days free, then {ONBOARDING_YEARLY_PRICE}/year ({ONBOARDING_YEARLY_PER_MONTH}/mo)</Text>
+              <Ionicons name="pricetag-outline" size={18} color={onboardingPalette.pricetagIcon} />
+              <Text style={styles.paywallCaptionText}>
+                {ONBOARDING_TRIAL_DAYS} days free, then {ONBOARDING_YEARLY_PRICE}/year (
+                {ONBOARDING_YEARLY_PER_MONTH}/mo)
+              </Text>
             </View>
           </View>
         ) : (
           <View style={styles.reminderVisualWrap}>
             <View style={styles.reminderTrustCard}>
               <View style={styles.reminderBellCard}>
-                <Ionicons name="notifications-outline" size={66} color="#F1EADF" />
+                <Ionicons
+                  name="notifications-outline"
+                  size={66}
+                  color={onboardingPalette.reminderBellIcon}
+                />
                 <View style={styles.reminderBadge}>
                   <Text style={styles.reminderBadgeText}>1</Text>
                 </View>
@@ -325,9 +344,15 @@ const REQUIRED_STEPS: Step[] = [
   'q7_alcohol_free',
 ];
 
-const OPTIONAL_STEPS: Step[] = ['q8_occasions', 'q9_budget', 'q10_bottles', 'q11_complexity', 'q12_goal_30'];
+const OPTIONAL_STEPS: Step[] = [
+  'q8_occasions',
+  'q9_budget',
+  'q10_bottles',
+  'q11_complexity',
+  'q12_goal_30',
+];
 
-const GOAL_OPTIONS: Array<{ value: OnboardingGoal; label: string; icon: string }> = [
+const GOAL_OPTIONS: { value: OnboardingGoal; label: string; icon: string }[] = [
   { value: 'learn_bartending', label: 'Learn bartending', icon: 'school-outline' },
   { value: 'make_better_drinks', label: 'Make better drinks at home', icon: 'home-outline' },
   { value: 'host_parties', label: 'Host parties & events', icon: 'people-outline' },
@@ -335,13 +360,13 @@ const GOAL_OPTIONS: Array<{ value: OnboardingGoal; label: string; icon: string }
   { value: 'explore_spirits', label: 'Explore & discover new spirits', icon: 'compass-outline' },
 ];
 
-const SKILL_OPTIONS: Array<{ value: SkillLevel; label: string; sub: string }> = [
+const SKILL_OPTIONS: { value: SkillLevel; label: string; sub: string }[] = [
   { value: 'beginner', label: 'Beginner', sub: "I'm just starting out" },
   { value: 'intermediate', label: 'Intermediate', sub: 'I make drinks regularly' },
   { value: 'advanced', label: 'Advanced', sub: 'I know techniques & theory' },
 ];
 
-const FLAVOR_OPTIONS: Array<{ value: FlavorKey; label: string; emoji: string }> = [
+const FLAVOR_OPTIONS: { value: FlavorKey; label: string; emoji: string }[] = [
   { value: 'citrus', label: 'Citrus & Bright', emoji: '🍋' },
   { value: 'sweet', label: 'Sweet & Fruity', emoji: '🍓' },
   { value: 'bitter', label: 'Bitter & Herbal', emoji: '🌿' },
@@ -352,7 +377,7 @@ const FLAVOR_OPTIONS: Array<{ value: FlavorKey; label: string; emoji: string }> 
   { value: 'creamy', label: 'Creamy & Rich', emoji: '🥥' },
 ];
 
-const SPIRIT_OPTIONS: Array<{ value: SpiritKey; label: string; emoji: string }> = [
+const SPIRIT_OPTIONS: { value: SpiritKey; label: string; emoji: string }[] = [
   { value: 'vodka', label: 'Vodka', emoji: '🍸' },
   { value: 'gin', label: 'Gin', emoji: '🌿' },
   { value: 'rum', label: 'Rum', emoji: '🥃' },
@@ -376,14 +401,14 @@ const DISLIKE_OPTIONS = [
   'None of the above',
 ];
 
-const FREQUENCY_OPTIONS: Array<{ value: Frequency; label: string; sub: string }> = [
+const FREQUENCY_OPTIONS: { value: Frequency; label: string; sub: string }[] = [
   { value: 'rare', label: 'Rarely', sub: 'Less than once a week' },
   { value: 'casual', label: 'Casually', sub: '1–2 per week' },
   { value: 'regular', label: 'Regularly', sub: '3–5 per week' },
   { value: 'daily', label: 'Daily', sub: 'Near-daily ritual' },
 ];
 
-const ALCOHOL_FREE_OPTIONS: Array<{ value: AlcoholFree; label: string; sub: string }> = [
+const ALCOHOL_FREE_OPTIONS: { value: AlcoholFree; label: string; sub: string }[] = [
   { value: 'yes', label: 'Yes, show mocktails too', sub: 'Include zero-proof options' },
   { value: 'no', label: 'Alcoholic only', sub: 'No mocktails please' },
   { value: 'both', label: 'Both', sub: 'I like variety' },
@@ -398,7 +423,7 @@ const OCCASION_OPTIONS = [
   'Special celebrations',
 ];
 
-const BUDGET_OPTIONS: Array<{ value: BudgetRange; label: string; sub: string }> = [
+const BUDGET_OPTIONS: { value: BudgetRange; label: string; sub: string }[] = [
   { value: 'budget', label: 'Budget-conscious', sub: 'Under $25 per bottle' },
   { value: 'mid', label: 'Mid-range', sub: '$25–50 per bottle' },
   { value: 'premium', label: 'Premium', sub: '$50–100 per bottle' },
@@ -406,15 +431,15 @@ const BUDGET_OPTIONS: Array<{ value: BudgetRange; label: string; sub: string }> 
   { value: 'varies', label: 'It varies', sub: 'No preference' },
 ];
 
-const BOTTLE_OPTIONS: Array<{ value: BottleCountRange; label: string; sub: string }> = [
-  { value: 'none', label: "None yet", sub: "I'm just starting" },
+const BOTTLE_OPTIONS: { value: BottleCountRange; label: string; sub: string }[] = [
+  { value: 'none', label: 'None yet', sub: "I'm just starting" },
   { value: '1_5', label: '1–5 bottles', sub: 'Getting started' },
   { value: '6_15', label: '6–15 bottles', sub: 'Decent home bar' },
   { value: '16_30', label: '16–30 bottles', sub: 'Well-stocked' },
   { value: '30_plus', label: '30+ bottles', sub: 'Serious collection' },
 ];
 
-const COMPLEXITY_OPTIONS: Array<{ value: ComplexityPreference; label: string; sub: string }> = [
+const COMPLEXITY_OPTIONS: { value: ComplexityPreference; label: string; sub: string }[] = [
   { value: 'simple', label: 'Simple & quick', sub: '2–4 ingredients' },
   { value: 'moderate', label: 'Moderate', sub: '5–7 ingredients' },
   { value: 'advanced', label: 'Advanced craft', sub: 'I love the craft' },
@@ -429,7 +454,11 @@ const GOAL_30_OPTIONS = [
   'Discover new spirits & expand my palate',
 ];
 
-const DISCOVERY_OPTIONS: Array<{ value: DiscoverySource; label: string; icon: keyof typeof Ionicons.glyphMap }> = [
+const DISCOVERY_OPTIONS: {
+  value: DiscoverySource;
+  label: string;
+  icon: keyof typeof Ionicons.glyphMap;
+}[] = [
   { value: 'tiktok', label: 'TikTok', icon: 'musical-notes-outline' },
   { value: 'instagram', label: 'Instagram', icon: 'camera-outline' },
   { value: 'youtube', label: 'YouTube', icon: 'play-circle-outline' },
@@ -544,11 +573,16 @@ function PayoffScreen({
           <Ionicons name="flame" size={40} color={colors.accent} />
         </Animated.View>
 
-        <Animated.View style={{ opacity: fade, alignItems: 'center', width: '100%', gap: spacing(2) }}>
-          <Text style={[styles.title, { textAlign: 'center' }]}>Your cocktail profile is ready</Text>
+        <Animated.View
+          style={{ opacity: fade, alignItems: 'center', width: '100%', gap: spacing(2) }}
+        >
+          <Text style={[styles.title, { textAlign: 'center' }]}>
+            Your cocktail profile is ready
+          </Text>
 
           <Text style={[styles.subtitle, { textAlign: 'center', marginBottom: 0 }]}>
-            KOOPE matched drinks to your taste and built a starting path around what you want to make.
+            KOOPE matched drinks to your taste and built a starting path around what you want to
+            make.
           </Text>
 
           <View style={styles.statRow}>
@@ -577,8 +611,8 @@ function PayoffScreen({
             {previewMode
               ? 'Preview mode only. You can keep exploring the onboarding without saving any account or trial changes.'
               : startedTrial
-              ? 'Your 7-day trial is active. Cancel anytime from settings.'
-              : 'You can start a free trial anytime from your profile.'}
+                ? 'Your 7-day trial is active. Cancel anytime from settings.'
+                : 'You can start a free trial anytime from your profile.'}
           </Text>
 
           <Pressable style={[styles.primaryButton, { width: '100%' }]} onPress={onNext}>
@@ -592,7 +626,11 @@ function PayoffScreen({
 
 // ─── Main component ──────────────────────────────────────────────────────────
 
-export default function OnboardingQuestionnaireScreen({ onComplete, previewMode = false, onViewMasteryLessons }: Props) {
+export default function OnboardingQuestionnaireScreen({
+  onComplete,
+  previewMode = false,
+  onViewMasteryLessons,
+}: Props) {
   const [step, setStep] = useState<Step>('q1_goal');
   const [optionalEnabled, setOptionalEnabled] = useState(false);
   const [startedTrial, setStartedTrial] = useState(false);
@@ -612,7 +650,8 @@ export default function OnboardingQuestionnaireScreen({ onComplete, previewMode 
   const inferredFlavorPreview = useMemo(() => {
     const flavors = answers.flavors || [];
     if (flavors.includes('citrus')) return ['Margarita', 'Daiquiri', 'Whiskey Sour', 'Paloma'];
-    if (flavors.includes('spirit_forward')) return ['Old Fashioned', 'Martini', 'Manhattan', 'Negroni'];
+    if (flavors.includes('spirit_forward'))
+      return ['Old Fashioned', 'Martini', 'Manhattan', 'Negroni'];
     if (flavors.includes('sweet')) return ['Mai Tai', 'Amaretto Sour', 'French 75', 'Clover Club'];
     return ['Mojito', 'Tom Collins', 'Gin Fizz', 'Sidecar'];
   }, [answers.flavors]);
@@ -677,14 +716,14 @@ export default function OnboardingQuestionnaireScreen({ onComplete, previewMode 
 
   const setAnswer = <K extends keyof OnboardingQuestionnaireAnswers>(
     key: K,
-    value: OnboardingQuestionnaireAnswers[K]
+    value: OnboardingQuestionnaireAnswers[K],
   ) => {
     setAnswers((prev) => ({ ...prev, [key]: value }));
   };
 
   const toggleSingleAnswer = <K extends keyof OnboardingQuestionnaireAnswers>(
     key: K,
-    value: NonNullable<OnboardingQuestionnaireAnswers[K]>
+    value: NonNullable<OnboardingQuestionnaireAnswers[K]>,
   ) => {
     setAnswers((prev) => ({
       ...prev,
@@ -692,10 +731,7 @@ export default function OnboardingQuestionnaireScreen({ onComplete, previewMode 
     }));
   };
 
-  const toggleMulti = <T extends string>(
-    current: T[] | undefined,
-    value: T
-  ) => {
+  const toggleMulti = <T extends string>(current: T[] | undefined, value: T) => {
     const list = current || [];
     if (list.includes(value)) {
       return list.filter((v) => v !== value);
@@ -705,21 +741,36 @@ export default function OnboardingQuestionnaireScreen({ onComplete, previewMode 
 
   const canContinue = (): boolean => {
     switch (step) {
-      case 'q1_goal': return !!answers.goal;
-      case 'q2_skill': return !!answers.skillLevel;
-      case 'q4_flavors': return (answers.flavors || []).length >= 2;
-      case 'q3_spirits': return (answers.spirits || []).length >= 1;
-      case 'q5_dislikes': return true;
-      case 'q6_frequency': return !!answers.frequency;
-      case 'q7_alcohol_free': return !!answers.alcoholFree;
-      case 'q8_occasions': return true;
-      case 'q9_budget': return !!answers.budgetRange;
-      case 'q10_bottles': return !!answers.currentBottleCount;
-      case 'q11_complexity': return !!answers.complexityPreference;
-      case 'q12_goal_30': return !!answers.thirtyDayGoal;
-      case 'q13_discovery': return !!answers.heardAboutUs;
-      case 'q14_rating': return (answers.appRating || 0) > 0;
-      default: return true;
+      case 'q1_goal':
+        return !!answers.goal;
+      case 'q2_skill':
+        return !!answers.skillLevel;
+      case 'q4_flavors':
+        return (answers.flavors || []).length >= 2;
+      case 'q3_spirits':
+        return (answers.spirits || []).length >= 1;
+      case 'q5_dislikes':
+        return true;
+      case 'q6_frequency':
+        return !!answers.frequency;
+      case 'q7_alcohol_free':
+        return !!answers.alcoholFree;
+      case 'q8_occasions':
+        return true;
+      case 'q9_budget':
+        return !!answers.budgetRange;
+      case 'q10_bottles':
+        return !!answers.currentBottleCount;
+      case 'q11_complexity':
+        return !!answers.complexityPreference;
+      case 'q12_goal_30':
+        return !!answers.thirtyDayGoal;
+      case 'q13_discovery':
+        return !!answers.heardAboutUs;
+      case 'q14_rating':
+        return (answers.appRating || 0) > 0;
+      default:
+        return true;
     }
   };
 
@@ -741,7 +792,7 @@ export default function OnboardingQuestionnaireScreen({ onComplete, previewMode 
         .map((s) => s.trim())
         .filter(Boolean);
       const mergedDislikes = Array.from(
-        new Set([...(answers.dislikes || []), ...dislikesFromText])
+        new Set([...(answers.dislikes || []), ...dislikesFromText]),
       );
       const finalized: OnboardingQuestionnaireAnswers = {
         goal: answers.goal as OnboardingGoal,
@@ -768,7 +819,11 @@ export default function OnboardingQuestionnaireScreen({ onComplete, previewMode 
       await usePersonalization.getState().updateProfile(patch);
       markProfileComplete();
     } catch (error) {
-      log.error('OnboardingQuestionnaireScreen', 'Failed to persist onboarding questionnaire', error);
+      log.error(
+        'OnboardingQuestionnaireScreen',
+        'Failed to persist onboarding questionnaire',
+        error,
+      );
     } finally {
       setIsSaving(false);
     }
@@ -810,11 +865,7 @@ export default function OnboardingQuestionnaireScreen({ onComplete, previewMode 
         {Array.from({ length: total }).map((_, i) => (
           <View
             key={i}
-            style={[
-              styles.dot,
-              i < current && styles.dotDone,
-              i === current && styles.dotCurrent,
-            ]}
+            style={[styles.dot, i < current && styles.dotDone, i === current && styles.dotCurrent]}
           />
         ))}
       </View>
@@ -828,9 +879,13 @@ export default function OnboardingQuestionnaireScreen({ onComplete, previewMode 
     selected: boolean,
     onPress: () => void,
     sub?: string,
-    icon?: string
+    icon?: string,
   ) => (
-    <Pressable key={label} onPress={onPress} style={[styles.optionCard, selected && styles.optionCardSelected]}>
+    <Pressable
+      key={label}
+      onPress={onPress}
+      style={[styles.optionCard, selected && styles.optionCardSelected]}
+    >
       {icon ? (
         <Ionicons
           name={icon as any}
@@ -841,23 +896,25 @@ export default function OnboardingQuestionnaireScreen({ onComplete, previewMode 
       ) : null}
       <View style={{ flex: 1 }}>
         <Text style={[styles.optionLabel, selected && styles.optionLabelSelected]}>{label}</Text>
-        {sub ? <Text style={[styles.optionSub, selected && styles.optionSubSelected]}>{sub}</Text> : null}
+        {sub ? (
+          <Text style={[styles.optionSub, selected && styles.optionSubSelected]}>{sub}</Text>
+        ) : null}
       </View>
-      {selected && (
-        <Ionicons name="checkmark-circle" size={18} color={colors.accent} />
-      )}
+      {selected && <Ionicons name="checkmark-circle" size={18} color={colors.accent} />}
     </Pressable>
   );
 
-  const renderGridPill = (
-    label: string,
-    emoji: string,
-    selected: boolean,
-    onPress: () => void
-  ) => (
-    <Pressable key={label} onPress={onPress} style={[styles.gridPill, selected && styles.gridPillSelected]}>
+  const renderGridPill = (label: string, emoji: string, selected: boolean, onPress: () => void) => (
+    <Pressable
+      key={label}
+      onPress={onPress}
+      style={[styles.gridPill, selected && styles.gridPillSelected]}
+    >
       <Text style={styles.gridPillEmoji}>{emoji}</Text>
-      <Text style={[styles.gridPillLabel, selected && styles.gridPillLabelSelected]} numberOfLines={2}>
+      <Text
+        style={[styles.gridPillLabel, selected && styles.gridPillLabelSelected]}
+        numberOfLines={2}
+      >
         {label}
       </Text>
     </Pressable>
@@ -870,14 +927,18 @@ export default function OnboardingQuestionnaireScreen({ onComplete, previewMode 
     subtitle: string | undefined,
     content: React.ReactNode,
     extra?: React.ReactNode,
-    isOptional?: boolean
+    isOptional?: boolean,
   ) => {
     const isOpt = optionalIndex >= 0 || isOptional;
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.shellHeader}>
           <View style={styles.shellHeaderMain}>
-            {step !== 'q1_goal' ? <HeaderBackButton onPress={goBack} /> : <View style={styles.headerBackSpacer} />}
+            {step !== 'q1_goal' ? (
+              <HeaderBackButton onPress={goBack} />
+            ) : (
+              <View style={styles.headerBackSpacer} />
+            )}
             {isOpt
               ? renderProgressDots(OPTIONAL_STEPS.length, optionalIndex, 'BONUS')
               : renderProgressDots(REQUIRED_STEPS.length, requiredIndex, 'REQUIRED')}
@@ -890,7 +951,10 @@ export default function OnboardingQuestionnaireScreen({ onComplete, previewMode 
           )}
         </View>
 
-        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
           {previewMode ? <PreviewModeBanner /> : null}
           <Text style={styles.title}>{title}</Text>
           {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
@@ -905,7 +969,7 @@ export default function OnboardingQuestionnaireScreen({ onComplete, previewMode 
             onPress={goNext}
           >
             <Text style={styles.primaryButtonText}>Continue</Text>
-            <Ionicons name="arrow-forward" size={16} color="#1A120D" style={{ marginLeft: 6 }} />
+            <Ionicons name="arrow-forward" size={16} color={colors.bg} style={{ marginLeft: 6 }} />
           </Pressable>
         </View>
       </SafeAreaView>
@@ -924,9 +988,9 @@ export default function OnboardingQuestionnaireScreen({ onComplete, previewMode 
           answers.goal === opt.value,
           () => toggleSingleAnswer('goal', opt.value),
           undefined,
-          opt.icon
-        )
-      )
+          opt.icon,
+        ),
+      ),
     );
   }
 
@@ -939,9 +1003,9 @@ export default function OnboardingQuestionnaireScreen({ onComplete, previewMode 
           opt.label,
           answers.skillLevel === opt.value,
           () => toggleSingleAnswer('skillLevel', opt.value),
-          opt.sub
-        )
-      )
+          opt.sub,
+        ),
+      ),
     );
   }
 
@@ -951,12 +1015,9 @@ export default function OnboardingQuestionnaireScreen({ onComplete, previewMode 
       'Select at least 2',
       <View style={styles.gridWrap}>
         {FLAVOR_OPTIONS.map((opt) =>
-          renderGridPill(
-            opt.label,
-            opt.emoji,
-            (answers.flavors || []).includes(opt.value),
-            () => setAnswer('flavors', toggleMulti(answers.flavors, opt.value) as FlavorKey[])
-          )
+          renderGridPill(opt.label, opt.emoji, (answers.flavors || []).includes(opt.value), () =>
+            setAnswer('flavors', toggleMulti(answers.flavors, opt.value) as FlavorKey[]),
+          ),
         )}
       </View>,
       (answers.flavors || []).length >= 2 ? (
@@ -970,7 +1031,7 @@ export default function OnboardingQuestionnaireScreen({ onComplete, previewMode 
             ))}
           </View>
         </View>
-      ) : null
+      ) : null,
     );
   }
 
@@ -980,14 +1041,11 @@ export default function OnboardingQuestionnaireScreen({ onComplete, previewMode 
       'Select at least 1',
       <View style={styles.gridWrap}>
         {SPIRIT_OPTIONS.map((opt) =>
-          renderGridPill(
-            opt.label,
-            opt.emoji,
-            (answers.spirits || []).includes(opt.value),
-            () => setAnswer('spirits', toggleMulti(answers.spirits, opt.value) as SpiritKey[])
-          )
+          renderGridPill(opt.label, opt.emoji, (answers.spirits || []).includes(opt.value), () =>
+            setAnswer('spirits', toggleMulti(answers.spirits, opt.value) as SpiritKey[]),
+          ),
         )}
-      </View>
+      </View>,
     );
   }
 
@@ -997,11 +1055,9 @@ export default function OnboardingQuestionnaireScreen({ onComplete, previewMode 
       'Optional — helps us filter recommendations',
       <>
         {DISLIKE_OPTIONS.map((label) =>
-          renderListOption(
-            label,
-            (answers.dislikes || []).includes(label),
-            () => setAnswer('dislikes', toggleMulti(answers.dislikes, label) as string[])
-          )
+          renderListOption(label, (answers.dislikes || []).includes(label), () =>
+            setAnswer('dislikes', toggleMulti(answers.dislikes, label) as string[]),
+          ),
         )}
         <TextInput
           style={styles.input}
@@ -1010,7 +1066,7 @@ export default function OnboardingQuestionnaireScreen({ onComplete, previewMode 
           value={dislikeText}
           onChangeText={setDislikeText}
         />
-      </>
+      </>,
     );
   }
 
@@ -1023,9 +1079,9 @@ export default function OnboardingQuestionnaireScreen({ onComplete, previewMode 
           opt.label,
           answers.frequency === opt.value,
           () => toggleSingleAnswer('frequency', opt.value),
-          opt.sub
-        )
-      )
+          opt.sub,
+        ),
+      ),
     );
   }
 
@@ -1038,9 +1094,9 @@ export default function OnboardingQuestionnaireScreen({ onComplete, previewMode 
           opt.label,
           answers.alcoholFree === opt.value,
           () => toggleSingleAnswer('alcoholFree', opt.value),
-          opt.sub
-        )
-      )
+          opt.sub,
+        ),
+      ),
     );
   }
 
@@ -1048,7 +1104,10 @@ export default function OnboardingQuestionnaireScreen({ onComplete, previewMode 
     return (
       <GateScreen
         onBack={goBack}
-        onYes={() => { setOptionalEnabled(true); setStep('q8_occasions'); }}
+        onYes={() => {
+          setOptionalEnabled(true);
+          setStep('q8_occasions');
+        }}
         onSkip={goToPaywallFlow}
       />
     );
@@ -1060,13 +1119,11 @@ export default function OnboardingQuestionnaireScreen({ onComplete, previewMode 
       'Select all that apply',
       <>
         {OCCASION_OPTIONS.map((label) =>
-          renderListOption(
-            label,
-            (answers.occasions || []).includes(label),
-            () => setAnswer('occasions', toggleMulti(answers.occasions, label) as string[])
-          )
+          renderListOption(label, (answers.occasions || []).includes(label), () =>
+            setAnswer('occasions', toggleMulti(answers.occasions, label) as string[]),
+          ),
         )}
-      </>
+      </>,
     );
   }
 
@@ -1079,9 +1136,9 @@ export default function OnboardingQuestionnaireScreen({ onComplete, previewMode 
           opt.label,
           answers.budgetRange === opt.value,
           () => toggleSingleAnswer('budgetRange', opt.value),
-          opt.sub
-        )
-      )
+          opt.sub,
+        ),
+      ),
     );
   }
 
@@ -1094,9 +1151,9 @@ export default function OnboardingQuestionnaireScreen({ onComplete, previewMode 
           opt.label,
           answers.currentBottleCount === opt.value,
           () => toggleSingleAnswer('currentBottleCount', opt.value),
-          opt.sub
-        )
-      )
+          opt.sub,
+        ),
+      ),
     );
   }
 
@@ -1109,23 +1166,21 @@ export default function OnboardingQuestionnaireScreen({ onComplete, previewMode 
           opt.label,
           answers.complexityPreference === opt.value,
           () => toggleSingleAnswer('complexityPreference', opt.value),
-          opt.sub
-        )
-      )
+          opt.sub,
+        ),
+      ),
     );
   }
 
   if (step === 'q12_goal_30') {
     return renderShell(
-      "Your main goal in the next 30 days?",
+      'Your main goal in the next 30 days?',
       undefined,
       GOAL_30_OPTIONS.map((label) =>
-        renderListOption(
-          label,
-          answers.thirtyDayGoal === label,
-          () => toggleSingleAnswer('thirtyDayGoal', label)
-        )
-      )
+        renderListOption(label, answers.thirtyDayGoal === label, () =>
+          toggleSingleAnswer('thirtyDayGoal', label),
+        ),
+      ),
     );
   }
 
@@ -1139,9 +1194,9 @@ export default function OnboardingQuestionnaireScreen({ onComplete, previewMode 
           answers.heardAboutUs === opt.value,
           () => toggleSingleAnswer('heardAboutUs', opt.value),
           undefined,
-          opt.icon
-        )
-      )
+          opt.icon,
+        ),
+      ),
     );
   }
 
@@ -1151,7 +1206,9 @@ export default function OnboardingQuestionnaireScreen({ onComplete, previewMode 
       'Your feedback helps us improve before we show your plan options.',
       <View style={styles.ratingCard}>
         <Text style={styles.ratingCardTitle}>
-          {answers.appRating && answers.appRating >= 4 ? 'Love that. We are building this for people like you.' : 'A quick rating before your personalized unlock.'}
+          {answers.appRating && answers.appRating >= 4
+            ? 'Love that. We are building this for people like you.'
+            : 'A quick rating before your personalized unlock.'}
         </Text>
         <RatingStars
           value={answers.appRating || 0}
@@ -1162,7 +1219,7 @@ export default function OnboardingQuestionnaireScreen({ onComplete, previewMode 
             ? `${answers.appRating}/5 selected`
             : 'Tap a star to rate your experience'}
         </Text>
-      </View>
+      </View>,
     );
   }
 
@@ -1206,9 +1263,11 @@ export default function OnboardingQuestionnaireScreen({ onComplete, previewMode 
     const headline = getTrialHeadline(goal);
     const rating = answers.appRating || 0;
     const ratingLabel =
-      rating >= 5 ? 'Rated 5/5 by you just now' :
-      rating >= 4 ? 'You are already seeing the value' :
-      'Your best experience unlocks with premium tools';
+      rating >= 5
+        ? 'Rated 5/5 by you just now'
+        : rating >= 4
+          ? 'You are already seeing the value'
+          : 'Your best experience unlocks with premium tools';
 
     return (
       <SafeAreaView style={styles.paywallScreen}>
@@ -1219,7 +1278,10 @@ export default function OnboardingQuestionnaireScreen({ onComplete, previewMode 
           </Pressable>
         </View>
 
-        <ScrollView contentContainerStyle={styles.paywallScrollContent} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          contentContainerStyle={styles.paywallScrollContent}
+          showsVerticalScrollIndicator={false}
+        >
           {previewMode ? <PreviewModeBanner /> : null}
 
           <View style={styles.paywallHeadlineWrap}>
@@ -1234,11 +1296,13 @@ export default function OnboardingQuestionnaireScreen({ onComplete, previewMode 
           <View style={styles.timelineCard}>
             <View style={styles.timelineRow}>
               <View style={[styles.timelineDot, styles.timelineDotActive]}>
-                <Ionicons name="lock-closed" size={14} color="#FFFFFF" />
+                <Ionicons name="lock-closed" size={14} color={colors.white} />
               </View>
               <View style={styles.timelineContent}>
                 <Text style={styles.timelineTitle}>Today</Text>
-                <Text style={styles.timelineBody}>Unlock smart scanning, tailored recipes, and your full bar plan instantly.</Text>
+                <Text style={styles.timelineBody}>
+                  Unlock smart scanning, tailored recipes, and your full bar plan instantly.
+                </Text>
               </View>
             </View>
 
@@ -1246,11 +1310,13 @@ export default function OnboardingQuestionnaireScreen({ onComplete, previewMode 
 
             <View style={styles.timelineRow}>
               <View style={[styles.timelineDot, styles.timelineDotWarm]}>
-                <Ionicons name="notifications" size={14} color="#FFFFFF" />
+                <Ionicons name="notifications" size={14} color={colors.white} />
               </View>
               <View style={styles.timelineContent}>
                 <Text style={styles.timelineTitle}>In 6 Days</Text>
-                <Text style={styles.timelineBody}>We will send a reminder before your 7-day trial ends.</Text>
+                <Text style={styles.timelineBody}>
+                  We will send a reminder before your 7-day trial ends.
+                </Text>
               </View>
             </View>
 
@@ -1258,11 +1324,13 @@ export default function OnboardingQuestionnaireScreen({ onComplete, previewMode 
 
             <View style={styles.timelineRow}>
               <View style={[styles.timelineDot, styles.timelineDotMuted]}>
-                <Ionicons name="card-outline" size={14} color="#FFFFFF" />
+                <Ionicons name="card-outline" size={14} color={colors.white} />
               </View>
               <View style={styles.timelineContent}>
                 <Text style={styles.timelineTitle}>In 7 Days</Text>
-                <Text style={styles.timelineBody}>Billing starts only if you choose to keep premium access.</Text>
+                <Text style={styles.timelineBody}>
+                  Billing starts only if you choose to keep premium access.
+                </Text>
               </View>
             </View>
           </View>
@@ -1272,7 +1340,10 @@ export default function OnboardingQuestionnaireScreen({ onComplete, previewMode 
             onPress={() =>
               setShowFoundersPricing((prev) => {
                 const next = !prev;
-                trackEvent(ANALYTICS_EVENTS.PAYWALL_FOUNDERS_TOGGLED, { expanded: next, preview: previewMode });
+                trackEvent(ANALYTICS_EVENTS.PAYWALL_FOUNDERS_TOGGLED, {
+                  expanded: next,
+                  preview: previewMode,
+                });
                 return next;
               })
             }
@@ -1280,7 +1351,9 @@ export default function OnboardingQuestionnaireScreen({ onComplete, previewMode 
             <View style={styles.offerFoundersRow}>
               <View style={styles.offerFoundersHeader}>
                 <Text style={styles.offerFoundersEyebrow}>Founders pricing</Text>
-                <Text style={styles.offerFoundersTitle}>Early-member rate for the first 300 people</Text>
+                <Text style={styles.offerFoundersTitle}>
+                  Early-member rate for the first 300 people
+                </Text>
                 <Text style={styles.offerFoundersSummary}>
                   {showFoundersPricing
                     ? `Founders ${ONBOARDING_YEARLY_PRICE}/year • Regular ${ONBOARDING_YEARLY_REGULAR_PRICE}/year`
@@ -1290,16 +1363,18 @@ export default function OnboardingQuestionnaireScreen({ onComplete, previewMode 
               <Ionicons
                 name={showFoundersPricing ? 'chevron-up' : 'chevron-down'}
                 size={18}
-                color="#7B5D2E"
+                color={onboardingPalette.foundersChevronIcon}
               />
             </View>
             {showFoundersPricing ? (
               <View style={styles.offerFoundersExpanded}>
                 <Text style={styles.offerFoundersBody}>
-                  Start with a {ONBOARDING_TRIAL_DAYS}-day free trial, then keep your founders rate of {ONBOARDING_YEARLY_PRICE}/year ({ONBOARDING_YEARLY_PER_MONTH}/mo).
+                  Start with a {ONBOARDING_TRIAL_DAYS}-day free trial, then keep your founders rate
+                  of {ONBOARDING_YEARLY_PRICE}/year ({ONBOARDING_YEARLY_PER_MONTH}/mo).
                 </Text>
                 <Text style={styles.offerFoundersMeta}>
-                  Regular price returns to {ONBOARDING_YEARLY_REGULAR_PRICE}/year ({ONBOARDING_YEARLY_REGULAR_PER_MONTH}/mo) after the founders window closes.
+                  Regular price returns to {ONBOARDING_YEARLY_REGULAR_PRICE}/year (
+                  {ONBOARDING_YEARLY_REGULAR_PER_MONTH}/mo) after the founders window closes.
                 </Text>
               </View>
             ) : null}
@@ -1307,7 +1382,10 @@ export default function OnboardingQuestionnaireScreen({ onComplete, previewMode 
 
           <View style={styles.planChoiceRow}>
             <Pressable
-              style={[styles.offerPlanCard, selectedOfferPeriod === 'monthly' && styles.offerPlanCardSelected]}
+              style={[
+                styles.offerPlanCard,
+                selectedOfferPeriod === 'monthly' && styles.offerPlanCardSelected,
+              ]}
               onPress={() => handleOfferSelect('monthly')}
             >
               <Text style={styles.offerPlanTitle}>Monthly</Text>
@@ -1316,7 +1394,10 @@ export default function OnboardingQuestionnaireScreen({ onComplete, previewMode 
             </Pressable>
 
             <Pressable
-              style={[styles.offerPlanCard, selectedOfferPeriod === 'yearly' && styles.offerPlanCardSelectedStrong]}
+              style={[
+                styles.offerPlanCard,
+                selectedOfferPeriod === 'yearly' && styles.offerPlanCardSelectedStrong,
+              ]}
               onPress={() => handleOfferSelect('yearly')}
             >
               <Text style={styles.offerPlanTitle}>Yearly</Text>
@@ -1351,7 +1432,7 @@ export default function OnboardingQuestionnaireScreen({ onComplete, previewMode 
           ) : null}
 
           <View style={styles.paywallMiniProof}>
-            <Ionicons name="star" size={14} color="#111111" />
+            <Ionicons name="star" size={14} color={onboardingPalette.ratingStarIcon} />
             <Text style={styles.paywallMiniProofText}>{ratingLabel}</Text>
           </View>
 
@@ -1369,14 +1450,18 @@ export default function OnboardingQuestionnaireScreen({ onComplete, previewMode 
 
         <View style={styles.paywallStickyFooter}>
           <View style={styles.paywallCaptionRow}>
-            <Ionicons name="checkmark" size={18} color="#111111" />
+            <Ionicons name="checkmark" size={18} color={onboardingPalette.footerCheckmarkIcon} />
             <Text style={styles.paywallCaptionText}>
-              {selectedOfferPeriod === 'yearly' ? 'No payment due now' : 'Switch anytime from settings'}
+              {selectedOfferPeriod === 'yearly'
+                ? 'No payment due now'
+                : 'Switch anytime from settings'}
             </Text>
           </View>
           <Pressable style={styles.paywallPrimaryButton} onPress={handleStartTrial}>
             <Text style={styles.paywallPrimaryButtonText}>
-              {selectedOfferPeriod === 'yearly' ? `Start My ${ONBOARDING_TRIAL_DAYS}-Day Free Trial` : 'Continue with Monthly'}
+              {selectedOfferPeriod === 'yearly'
+                ? `Start My ${ONBOARDING_TRIAL_DAYS}-Day Free Trial`
+                : 'Continue with Monthly'}
             </Text>
           </Pressable>
           <Text style={styles.paywallFooterText}>
@@ -1395,9 +1480,14 @@ export default function OnboardingQuestionnaireScreen({ onComplete, previewMode 
   if (step === 'payoff') {
     const finalized = answers as OnboardingQuestionnaireAnswers;
     const recipeMatches = estimateRecipeMatchCount(finalized);
-    const goalLabel = GOAL_OPTIONS.find((option) => option.value === finalized.goal)?.label || 'Personalized bartending';
-    const spiritLabel = SPIRIT_OPTIONS.find((option) => option.value === finalized.spirits?.[0])?.label || 'Your bar';
-    const flavorLabel = FLAVOR_OPTIONS.find((option) => option.value === finalized.flavors?.[0])?.label || 'Your taste';
+    const goalLabel =
+      GOAL_OPTIONS.find((option) => option.value === finalized.goal)?.label ||
+      'Personalized bartending';
+    const spiritLabel =
+      SPIRIT_OPTIONS.find((option) => option.value === finalized.spirits?.[0])?.label || 'Your bar';
+    const flavorLabel =
+      FLAVOR_OPTIONS.find((option) => option.value === finalized.flavors?.[0])?.label ||
+      'Your taste';
     return (
       <PayoffScreen
         recipeMatches={recipeMatches}
@@ -1434,7 +1524,7 @@ export default function OnboardingQuestionnaireScreen({ onComplete, previewMode 
           disabled={isSaving}
           onPress={() => onComplete('scan')}
         >
-          <Ionicons name="camera" size={16} color="#1A120D" style={{ marginRight: 6 }} />
+          <Ionicons name="camera" size={16} color={colors.bg} style={{ marginRight: 6 }} />
           <Text style={styles.primaryButtonText}>Open Camera to Scan</Text>
         </Pressable>
         {previewMode && onViewMasteryLessons ? (
@@ -1443,7 +1533,12 @@ export default function OnboardingQuestionnaireScreen({ onComplete, previewMode 
             disabled={isSaving}
             onPress={onViewMasteryLessons}
           >
-            <Ionicons name="school-outline" size={16} color={colors.text} style={{ marginRight: 6 }} />
+            <Ionicons
+              name="school-outline"
+              size={16}
+              color={colors.text}
+              style={{ marginRight: 6 }}
+            />
             <Text style={styles.secondaryButtonText}>Preview Mastery Lessons</Text>
           </Pressable>
         ) : null}
@@ -1646,7 +1741,7 @@ const styles = StyleSheet.create({
   // Flavor preview card
   previewCard: {
     marginTop: spacing(2),
-    backgroundColor: '#201510',
+    backgroundColor: onboardingPalette.previewCard,
     borderRadius: radii.lg,
     borderWidth: 1,
     borderColor: colors.accent + '30',
@@ -1695,7 +1790,7 @@ const styles = StyleSheet.create({
   },
 
   ratingCard: {
-    backgroundColor: '#201510',
+    backgroundColor: onboardingPalette.ratingCard,
     borderRadius: radii.lg,
     borderWidth: 1,
     borderColor: colors.accent + '30',
@@ -1737,7 +1832,7 @@ const styles = StyleSheet.create({
 
   paywallScreen: {
     flex: 1,
-    backgroundColor: '#FCFBF8',
+    backgroundColor: onboardingPalette.paywallScreen,
   },
   paywallTopBar: {
     flexDirection: 'row',
@@ -1748,7 +1843,7 @@ const styles = StyleSheet.create({
     paddingBottom: spacing(1),
   },
   paywallRestoreText: {
-    color: '#B7B1A8',
+    color: onboardingPalette.paywallRestoreText,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -1766,7 +1861,7 @@ const styles = StyleSheet.create({
     fontFamily: serif,
     fontSize: 31,
     lineHeight: 38,
-    color: '#111111',
+    color: onboardingPalette.paywallHeadline,
     textAlign: 'center',
     fontWeight: '900',
     marginBottom: spacing(1),
@@ -1774,7 +1869,7 @@ const styles = StyleSheet.create({
   paywallSubheadline: {
     fontSize: 16,
     lineHeight: 23,
-    color: '#6D675F',
+    color: onboardingPalette.paywallSubheadline,
     textAlign: 'center',
     maxWidth: 320,
   },
@@ -1783,14 +1878,14 @@ const styles = StyleSheet.create({
     marginBottom: spacing(3),
   },
   valueIntroPill: {
-    backgroundColor: '#2B1F17',
+    backgroundColor: colors.card,
     borderRadius: 999,
     paddingHorizontal: spacing(1.75),
     paddingVertical: spacing(1),
     marginBottom: spacing(1.5),
   },
   valueIntroPillText: {
-    color: '#F7ECDD',
+    color: onboardingPalette.valueIntroPillText,
     fontSize: 12,
     fontWeight: '700',
     letterSpacing: 0.3,
@@ -1799,10 +1894,10 @@ const styles = StyleSheet.create({
     width: 240,
     height: 430,
     borderRadius: 32,
-    backgroundColor: '#0F0F0F',
+    backgroundColor: onboardingPalette.phoneMockBg,
     padding: 12,
     marginBottom: spacing(2),
-    shadowColor: '#000000',
+    shadowColor: onboardingPalette.phoneMockShadow,
     shadowOpacity: 0.18,
     shadowOffset: { width: 0, height: 18 },
     shadowRadius: 30,
@@ -1815,13 +1910,13 @@ const styles = StyleSheet.create({
     width: 96,
     height: 18,
     borderRadius: 10,
-    backgroundColor: '#0A0A0A',
+    backgroundColor: onboardingPalette.phoneNotch,
     zIndex: 2,
   },
   phoneViewport: {
     flex: 1,
     borderRadius: 24,
-    backgroundColor: '#4B372C',
+    backgroundColor: onboardingPalette.phoneViewport,
     overflow: 'hidden',
     justifyContent: 'center',
     alignItems: 'center',
@@ -1842,7 +1937,7 @@ const styles = StyleSheet.create({
     height: 28,
     borderTopWidth: 3,
     borderLeftWidth: 3,
-    borderColor: '#FFFFFF',
+    borderColor: colors.white,
     borderTopLeftRadius: 8,
   },
   mockFrameCornerTopRight: {
@@ -1853,7 +1948,7 @@ const styles = StyleSheet.create({
     height: 28,
     borderTopWidth: 3,
     borderRightWidth: 3,
-    borderColor: '#FFFFFF',
+    borderColor: colors.white,
     borderTopRightRadius: 8,
   },
   mockFrameCornerBottomLeft: {
@@ -1864,7 +1959,7 @@ const styles = StyleSheet.create({
     height: 28,
     borderBottomWidth: 3,
     borderLeftWidth: 3,
-    borderColor: '#FFFFFF',
+    borderColor: colors.white,
     borderBottomLeftRadius: 8,
   },
   mockFrameCornerBottomRight: {
@@ -1875,17 +1970,17 @@ const styles = StyleSheet.create({
     height: 28,
     borderBottomWidth: 3,
     borderRightWidth: 3,
-    borderColor: '#FFFFFF',
+    borderColor: colors.white,
     borderBottomRightRadius: 8,
   },
   mockPlate: {
     width: 120,
     height: 120,
     borderRadius: 60,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.white,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000000',
+    shadowColor: onboardingPalette.mockPlate,
     shadowOpacity: 0.15,
     shadowOffset: { width: 0, height: 6 },
     shadowRadius: 10,
@@ -1900,9 +1995,9 @@ const styles = StyleSheet.create({
     width: 52,
     height: 92,
     borderRadius: 16,
-    backgroundColor: '#7C4727',
+    backgroundColor: onboardingPalette.mockBottleBodyBg,
     borderWidth: 2,
-    borderColor: '#B98558',
+    borderColor: onboardingPalette.mockBottleBodyBorder,
   },
   mockBottleNeck: {
     position: 'absolute',
@@ -1910,7 +2005,7 @@ const styles = StyleSheet.create({
     width: 18,
     height: 24,
     borderRadius: 8,
-    backgroundColor: '#A96B3F',
+    backgroundColor: onboardingPalette.mockBottleNeck,
   },
   mockBottleLabelBand: {
     position: 'absolute',
@@ -1918,7 +2013,7 @@ const styles = StyleSheet.create({
     width: 38,
     height: 26,
     borderRadius: 10,
-    backgroundColor: '#F3E5C9',
+    backgroundColor: onboardingPalette.mockBottleLabelBand,
   },
   mockBottleCap: {
     position: 'absolute',
@@ -1926,7 +2021,7 @@ const styles = StyleSheet.create({
     width: 16,
     height: 12,
     borderRadius: 5,
-    backgroundColor: '#E0A24A',
+    backgroundColor: onboardingPalette.mockBottleCap,
   },
   mockMenuCard: {
     position: 'absolute',
@@ -1934,11 +2029,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 14,
     borderRadius: 16,
-    backgroundColor: '#F6EDE1',
+    backgroundColor: onboardingPalette.mockMenuCardBg,
     borderWidth: 1,
-    borderColor: '#E2D4C4',
+    borderColor: onboardingPalette.mockMenuCardBorder,
     gap: 8,
-    shadowColor: '#000000',
+    shadowColor: onboardingPalette.mockMenuCardShadow,
     shadowOpacity: 0.12,
     shadowOffset: { width: 0, height: 8 },
     shadowRadius: 12,
@@ -1948,25 +2043,25 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 46,
     borderRadius: 10,
-    backgroundColor: '#D9A15D',
+    backgroundColor: onboardingPalette.mockMenuThumb,
   },
   mockMenuLineLong: {
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#3E2B20',
+    backgroundColor: onboardingPalette.mockMenuLineLong,
   },
   mockMenuLineShort: {
     width: '72%',
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#A88C74',
+    backgroundColor: onboardingPalette.mockMenuLineShort,
   },
   mockMenuChip: {
     marginTop: 2,
     width: 46,
     height: 18,
     borderRadius: 9,
-    backgroundColor: '#2B1F17',
+    backgroundColor: colors.card,
   },
   mockIngredientsCard: {
     position: 'absolute',
@@ -1980,10 +2075,10 @@ const styles = StyleSheet.create({
     width: 102,
     height: 102,
     borderRadius: 22,
-    backgroundColor: '#F1E2CB',
+    backgroundColor: onboardingPalette.mockIngredientBoardBg,
     borderWidth: 1,
-    borderColor: '#DFC8A7',
-    shadowColor: '#000000',
+    borderColor: onboardingPalette.mockIngredientBoardBorder,
+    shadowColor: onboardingPalette.mockIngredientBoardShadow,
     shadowOpacity: 0.1,
     shadowOffset: { width: 0, height: 8 },
     shadowRadius: 12,
@@ -1994,29 +2089,29 @@ const styles = StyleSheet.create({
     width: 22,
     height: 48,
     borderRadius: 10,
-    backgroundColor: '#A35E2E',
+    backgroundColor: onboardingPalette.mockIngredientBottleBg,
     top: 20,
     left: 14,
     borderWidth: 1,
-    borderColor: '#7A411E',
+    borderColor: onboardingPalette.mockIngredientBottleBorder,
   },
   mockIngredientCitrus: {
     position: 'absolute',
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: '#F0C24B',
+    backgroundColor: onboardingPalette.mockIngredientCitrusBg,
     right: 18,
     top: 22,
     borderWidth: 2,
-    borderColor: '#FFE3A1',
+    borderColor: onboardingPalette.mockIngredientCitrusBorder,
   },
   mockIngredientHerb: {
     position: 'absolute',
     width: 36,
     height: 14,
     borderRadius: 8,
-    backgroundColor: '#7FA15A',
+    backgroundColor: onboardingPalette.mockIngredientHerb,
     bottom: 20,
     left: 16,
     transform: [{ rotate: '-18deg' }],
@@ -2026,20 +2121,20 @@ const styles = StyleSheet.create({
     width: 20,
     height: 20,
     borderRadius: 6,
-    backgroundColor: '#DCE7EF',
+    backgroundColor: onboardingPalette.mockIngredientIceBg,
     right: 18,
     bottom: 18,
     borderWidth: 1,
-    borderColor: '#BDD0DC',
+    borderColor: onboardingPalette.mockIngredientIceBorder,
   },
   mockIngredientJar: {
     position: 'absolute',
     width: 22,
     height: 30,
     borderRadius: 10,
-    backgroundColor: '#F3E5C9',
+    backgroundColor: onboardingPalette.mockIngredientJarBg,
     borderWidth: 1,
-    borderColor: '#D6BFA5',
+    borderColor: onboardingPalette.mockIngredientJarBorder,
     top: 46,
     right: 34,
   },
@@ -2048,7 +2143,7 @@ const styles = StyleSheet.create({
     width: 14,
     height: 14,
     borderRadius: 7,
-    backgroundColor: '#B23A48',
+    backgroundColor: onboardingPalette.mockIngredientBerry,
     bottom: 28,
     right: 38,
   },
@@ -2067,15 +2162,15 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 26,
     alignSelf: 'center',
-    backgroundColor: '#F8F1E8',
+    backgroundColor: onboardingPalette.mockControlBarBg,
     borderRadius: 999,
     paddingHorizontal: spacing(2),
     paddingVertical: spacing(1),
     borderWidth: 1,
-    borderColor: '#E5D8C6',
+    borderColor: onboardingPalette.mockControlBarBorder,
   },
   mockControlText: {
-    color: '#1A120D',
+    color: colors.bg,
     fontSize: 11,
     fontWeight: '700',
   },
@@ -2092,13 +2187,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: '#F3B648',
+    backgroundColor: onboardingPalette.mockDetectedChip,
     borderRadius: 999,
     paddingHorizontal: 10,
     paddingVertical: 6,
   },
   mockDetectedText: {
-    color: '#1A120D',
+    color: colors.bg,
     fontSize: 11,
     fontWeight: '800',
   },
@@ -2108,10 +2203,10 @@ const styles = StyleSheet.create({
   },
   reminderTrustCard: {
     width: '100%',
-    backgroundColor: '#FFF7EC',
+    backgroundColor: onboardingPalette.reminderTrustCardBg,
     borderRadius: 26,
     borderWidth: 1,
-    borderColor: '#E9D8BE',
+    borderColor: onboardingPalette.reminderTrustCardBorder,
     paddingHorizontal: spacing(2.25),
     paddingVertical: spacing(2.25),
     alignItems: 'center',
@@ -2121,7 +2216,7 @@ const styles = StyleSheet.create({
     width: 118,
     height: 118,
     borderRadius: 59,
-    backgroundColor: '#2B1F17',
+    backgroundColor: colors.card,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing(2),
@@ -2133,14 +2228,14 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: '#E33C2F',
+    backgroundColor: onboardingPalette.reminderBadgeBg,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 3,
-    borderColor: '#FCFBF8',
+    borderColor: onboardingPalette.reminderBadgeBorder,
   },
   reminderBadgeText: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 24,
     fontWeight: '800',
     fontStyle: 'italic',
@@ -2150,14 +2245,14 @@ const styles = StyleSheet.create({
     gap: spacing(1),
   },
   reminderTrustTitle: {
-    color: '#1A120D',
+    color: colors.bg,
     fontFamily: serif,
     fontSize: 24,
     fontWeight: '800',
     textAlign: 'center',
   },
   reminderTrustText: {
-    color: '#6A6057',
+    color: onboardingPalette.reminderTrustText,
     fontSize: 15,
     lineHeight: 22,
     textAlign: 'center',
@@ -2166,13 +2261,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: '#F3E5CC',
+    backgroundColor: onboardingPalette.reminderTrustRow,
     borderRadius: 999,
     paddingHorizontal: spacing(1.5),
     paddingVertical: spacing(1),
   },
   reminderTrustMeta: {
-    color: '#3A2A1F',
+    color: onboardingPalette.reminderTrustMeta,
     fontSize: 12,
     fontWeight: '700',
   },
@@ -2183,15 +2278,15 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   paywallCaptionText: {
-    color: '#111111',
+    color: onboardingPalette.paywallCaptionText,
     fontSize: 16,
     fontWeight: '700',
   },
   timelineCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.white,
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: '#ECE5DA',
+    borderColor: onboardingPalette.timelineCard,
     padding: spacing(2.5),
     marginBottom: spacing(3),
   },
@@ -2209,18 +2304,18 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   timelineDotActive: {
-    backgroundColor: '#F5A524',
+    backgroundColor: onboardingPalette.timelineDotActive,
   },
   timelineDotWarm: {
-    backgroundColor: '#FFB648',
+    backgroundColor: onboardingPalette.timelineDotWarm,
   },
   timelineDotMuted: {
-    backgroundColor: '#151515',
+    backgroundColor: onboardingPalette.timelineDotMuted,
   },
   timelineLine: {
     width: 4,
     height: 30,
-    backgroundColor: '#FFCD73',
+    backgroundColor: onboardingPalette.timelineLine,
     marginLeft: 14,
     marginVertical: 6,
     borderRadius: 2,
@@ -2228,7 +2323,7 @@ const styles = StyleSheet.create({
   timelineLineMuted: {
     width: 4,
     height: 30,
-    backgroundColor: '#A2A2A2',
+    backgroundColor: onboardingPalette.timelineLineMuted,
     marginLeft: 14,
     marginVertical: 6,
     borderRadius: 2,
@@ -2237,13 +2332,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   timelineTitle: {
-    color: '#111111',
+    color: onboardingPalette.timelineTitle,
     fontSize: 16,
     fontWeight: '800',
     marginBottom: 4,
   },
   timelineBody: {
-    color: '#8D857C',
+    color: onboardingPalette.timelineBody,
     fontSize: 14,
     lineHeight: 20,
   },
@@ -2253,10 +2348,10 @@ const styles = StyleSheet.create({
     marginBottom: spacing(2),
   },
   offerFoundersCard: {
-    backgroundColor: '#FFF7E8',
+    backgroundColor: onboardingPalette.offerFoundersCardBg,
     borderRadius: 22,
     borderWidth: 1,
-    borderColor: '#F0D39B',
+    borderColor: onboardingPalette.offerFoundersCardBorder,
     padding: spacing(2),
     marginBottom: spacing(2),
   },
@@ -2271,20 +2366,20 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   offerFoundersEyebrow: {
-    color: '#A56400',
+    color: onboardingPalette.offerFoundersEyebrow,
     fontSize: 11,
     fontWeight: '900',
     letterSpacing: 0.8,
     textTransform: 'uppercase',
   },
   offerFoundersTitle: {
-    color: '#111111',
+    color: onboardingPalette.offerFoundersTitle,
     fontSize: 18,
     fontWeight: '800',
     lineHeight: 24,
   },
   offerFoundersSummary: {
-    color: '#8A735A',
+    color: onboardingPalette.offerFoundersSummary,
     fontSize: 13,
     fontWeight: '600',
     lineHeight: 18,
@@ -2294,16 +2389,16 @@ const styles = StyleSheet.create({
     marginTop: spacing(1.25),
     paddingTop: spacing(1.25),
     borderTopWidth: 1,
-    borderTopColor: '#F0D39B',
+    borderTopColor: onboardingPalette.offerFoundersExpanded,
   },
   offerFoundersBody: {
-    color: '#3A2A1B',
+    color: onboardingPalette.offerFoundersBody,
     fontSize: 14,
     fontWeight: '600',
     lineHeight: 20,
   },
   offerFoundersMeta: {
-    color: '#8A735A',
+    color: onboardingPalette.offerFoundersMeta,
     fontSize: 13,
     fontWeight: '600',
     lineHeight: 18,
@@ -2313,35 +2408,35 @@ const styles = StyleSheet.create({
     minHeight: 118,
     borderRadius: 22,
     borderWidth: 2,
-    borderColor: '#D9D3C8',
-    backgroundColor: '#FFFFFF',
+    borderColor: onboardingPalette.offerPlanCard,
+    backgroundColor: colors.white,
     padding: spacing(2),
     justifyContent: 'center',
   },
   offerPlanCardSelected: {
-    borderColor: '#2B1F17',
+    borderColor: colors.card,
   },
   offerPlanCardSelectedStrong: {
-    borderColor: '#111111',
-    shadowColor: '#000000',
+    borderColor: onboardingPalette.offerPlanCardSelectedStrongBorder,
+    shadowColor: onboardingPalette.offerPlanCardSelectedStrongShadow,
     shadowOpacity: 0.08,
     shadowOffset: { width: 0, height: 8 },
     shadowRadius: 16,
     elevation: 4,
   },
   offerPlanTitle: {
-    color: '#111111',
+    color: onboardingPalette.offerPlanTitle,
     fontSize: 15,
     fontWeight: '700',
     marginBottom: 6,
   },
   offerPlanPrice: {
-    color: '#111111',
+    color: onboardingPalette.offerPlanPrice,
     fontSize: 24,
     fontWeight: '900',
   },
   offerPlanCaption: {
-    color: '#8D857C',
+    color: onboardingPalette.offerPlanCaption,
     fontSize: 12,
     fontWeight: '600',
     marginTop: 6,
@@ -2351,14 +2446,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     alignSelf: 'center',
     gap: 6,
-    backgroundColor: '#FFE6A8',
+    backgroundColor: onboardingPalette.paywallMiniProof,
     borderRadius: 999,
     paddingHorizontal: spacing(1.5),
     paddingVertical: 8,
     marginBottom: spacing(2),
   },
   paywallMiniProofText: {
-    color: '#111111',
+    color: onboardingPalette.paywallMiniProofText,
     fontSize: 12,
     fontWeight: '700',
   },
@@ -2368,13 +2463,13 @@ const styles = StyleSheet.create({
     gap: spacing(0.75),
   },
   proNote: {
-    color: '#6A6057',
+    color: onboardingPalette.proNote,
     fontSize: 12,
     fontWeight: '700',
     letterSpacing: 0.2,
   },
   proPricingLabel: {
-    color: '#6A6057',
+    color: onboardingPalette.proPricingLabel,
     fontSize: 13,
     fontWeight: '700',
   },
@@ -2383,17 +2478,17 @@ const styles = StyleSheet.create({
   },
   proCard: {
     width: 180,
-    backgroundColor: '#F3EDE2',
+    backgroundColor: onboardingPalette.proCardBg,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: '#E3D7C4',
+    borderColor: onboardingPalette.proCardBorder,
     padding: spacing(1.25),
     gap: spacing(0.25),
   },
   proBadge: {
     alignSelf: 'flex-start',
-    backgroundColor: '#111111',
-    color: '#FFFFFF',
+    backgroundColor: onboardingPalette.proBadge,
+    color: colors.white,
     fontSize: 11,
     fontWeight: '900',
     letterSpacing: 0.4,
@@ -2404,27 +2499,27 @@ const styles = StyleSheet.create({
   },
   paywallStickyFooter: {
     borderTopWidth: 1,
-    borderTopColor: '#ECE5DA',
-    backgroundColor: '#FCFBF8',
+    borderTopColor: onboardingPalette.paywallStickyFooterBorderTop,
+    backgroundColor: onboardingPalette.paywallStickyFooterBg,
     paddingHorizontal: spacing(3),
     paddingTop: spacing(1.5),
     paddingBottom: spacing(2.5),
     gap: spacing(1),
   },
   paywallPrimaryButton: {
-    backgroundColor: '#111111',
+    backgroundColor: onboardingPalette.paywallPrimaryButton,
     borderRadius: 18,
     minHeight: 58,
     alignItems: 'center',
     justifyContent: 'center',
   },
   paywallPrimaryButtonText: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 18,
     fontWeight: '800',
   },
   paywallFooterText: {
-    color: '#9E978D',
+    color: onboardingPalette.paywallFooterText,
     fontSize: 14,
     textAlign: 'center',
     fontWeight: '600',
@@ -2434,7 +2529,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing(0.5),
   },
   paywallSecondaryActionText: {
-    color: '#7A736A',
+    color: onboardingPalette.paywallSecondaryActionText,
     fontSize: 14,
     fontWeight: '700',
   },
@@ -2454,7 +2549,7 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   primaryButtonText: {
-    color: '#1A120D',
+    color: colors.bg,
     fontSize: 16,
     fontWeight: '800',
     letterSpacing: 0.2,
@@ -2595,7 +2690,7 @@ const styles = StyleSheet.create({
   },
   benefitsCard: {
     width: '100%',
-    backgroundColor: '#201510',
+    backgroundColor: onboardingPalette.benefitsCard,
     borderRadius: radii.lg,
     borderWidth: 1,
     borderColor: colors.line,
@@ -2651,7 +2746,7 @@ const styles = StyleSheet.create({
   },
   statCard: {
     flex: 1,
-    backgroundColor: '#201510',
+    backgroundColor: onboardingPalette.statCard,
     borderRadius: radii.lg,
     borderWidth: 1,
     borderColor: colors.line,
@@ -2682,7 +2777,7 @@ const styles = StyleSheet.create({
   },
   profileSummaryCard: {
     width: '100%',
-    backgroundColor: '#201510',
+    backgroundColor: onboardingPalette.profileSummaryCard,
     borderRadius: radii.lg,
     borderWidth: 1,
     borderColor: colors.line,

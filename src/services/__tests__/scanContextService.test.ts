@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { logScanEvent, updateScanOutcome } from '../scanContextService';
+import { logScanEvent, updateScanOutcome, shouldRecordPassOnExit } from '../scanContextService';
 
 const insertMock = vi.fn();
 const updateMock = vi.fn();
@@ -111,6 +111,34 @@ describe('scanContextService.logScanEvent', () => {
     const result = await logScanEvent({ userId: 'user-1', bottleName: 'Negroni' });
 
     expect(result).toBeNull();
+  });
+});
+
+describe('scanContextService.shouldRecordPassOnExit', () => {
+  const base = {
+    hasScanEvent: true,
+    outcomeAlreadyRecorded: false,
+    wasWishlistedOnEntry: false,
+  };
+
+  it('records a pass when the user leaves without acting on a fresh bottle', () => {
+    expect(shouldRecordPassOnExit(base)).toBe(true);
+  });
+
+  it('does NOT record a pass once an outcome is already recorded', () => {
+    // The want-conversion bug: tapping "Want it" now sets this immediately,
+    // so dismissing the optional price prompt and backing out leaves the
+    // row as 'wanted'. It used to fall through to 'passed'.
+    expect(shouldRecordPassOnExit({ ...base, outcomeAlreadyRecorded: true })).toBe(false);
+  });
+
+  it('does NOT record a pass when the bottle was already want-listed on entry', () => {
+    // Re-opening a bottle from the Shelf/Want grid is browsing, not passing.
+    expect(shouldRecordPassOnExit({ ...base, wasWishlistedOnEntry: true })).toBe(false);
+  });
+
+  it('does nothing without a scan_events row to update', () => {
+    expect(shouldRecordPassOnExit({ ...base, hasScanEvent: false })).toBe(false);
   });
 });
 

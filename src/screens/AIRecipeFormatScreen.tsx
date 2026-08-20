@@ -19,17 +19,26 @@ import { colors, spacing, radii, serif } from '../theme/tokens';
 import { AIRecipeFormatter, FormattedRecipe } from '../services/aiRecipeFormatter';
 import { useUserRecipes } from '../store/useUserRecipes';
 import { log } from '../lib/logger';
+import { IngredientLeaderList } from '../components/recipe/IngredientLeaderRow';
 
 const glasswareOptions = [
-  'Rocks Glass', 'Highball Glass', 'Coupe Glass', 'Martini Glass',
-  'Copa Glass', 'Champagne Flute', 'Hurricane Glass', 'Copper Mug',
-  'Wine Glass', 'Collins Glass', 'Nick & Nora Glass',
+  'Rocks Glass',
+  'Highball Glass',
+  'Coupe Glass',
+  'Martini Glass',
+  'Copa Glass',
+  'Champagne Flute',
+  'Hurricane Glass',
+  'Copper Mug',
+  'Wine Glass',
+  'Collins Glass',
+  'Nick & Nora Glass',
 ];
 
 type EditableRecipe = {
   title: string;
   description: string;
-  ingredients: Array<{ name: string; amount: string }>;
+  ingredients: { name: string; amount: string }[];
   instructions: string[];
   garnish: string;
   glassware: string;
@@ -86,13 +95,17 @@ export default function AIRecipeFormatScreen() {
   //   Measured:  "2 oz Tanqueray Gin, 0.5 oz Aperol" (standard recipe)
   //   Menu-style: "Tanqueray Gin, Aperol, Sherry Fino, rosemary" (comma-separated, no measurements)
   const parseOCRFallback = (text: string): EditableRecipe => {
-    const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
-    const MEASURE_RE = /\d+(\.\d+)?\s*(oz|ml|dash|dashes|tsp|tbsp|cl|cup|part|parts|barspoon|drop|drops|rinse)/i;
+    const lines = text
+      .split('\n')
+      .map((l) => l.trim())
+      .filter(Boolean);
+    const MEASURE_RE =
+      /\d+(\.\d+)?\s*(oz|ml|dash|dashes|tsp|tbsp|cl|cup|part|parts|barspoon|drop|drops|rinse)/i;
     const PRICE_RE = /\$[\d.]+/;
     const NOISE_RE = /^[A-Z][A-Z\s]{3,}$/;
 
     let title = '';
-    const measuredIngredients: Array<{ name: string; amount: string }> = [];
+    const measuredIngredients: { name: string; amount: string }[] = [];
     const instructions: string[] = [];
     let menuIngredientLine = '';
 
@@ -121,13 +134,19 @@ export default function AIRecipeFormatScreen() {
     });
 
     // Parse menu-style comma list into individual ingredients
-    const menuIngredients: Array<{ name: string; amount: string }> = menuIngredientLine
-      ? menuIngredientLine.split(',').map(s => s.trim()).filter(Boolean).map(name => ({ name, amount: '' }))
+    const menuIngredients: { name: string; amount: string }[] = menuIngredientLine
+      ? menuIngredientLine
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean)
+          .map((name) => ({ name, amount: '' }))
       : [];
 
-    const ingredients = measuredIngredients.length ? measuredIngredients
-      : menuIngredients.length ? menuIngredients
-      : [{ name: '', amount: '' }];
+    const ingredients = measuredIngredients.length
+      ? measuredIngredients
+      : menuIngredients.length
+        ? menuIngredients
+        : [{ name: '', amount: '' }];
 
     return {
       title: title || 'Scanned Recipe',
@@ -155,7 +174,7 @@ export default function AIRecipeFormatScreen() {
       setRecipe({
         title: result.title || '',
         description: result.description || '',
-        ingredients: (result.ingredients || []).map(i => ({
+        ingredients: (result.ingredients || []).map((i) => ({
           name: i.name || '',
           amount: i.amount || '',
         })),
@@ -166,7 +185,9 @@ export default function AIRecipeFormatScreen() {
         servings: result.servings || 1,
       });
     } catch (err: any) {
-      log.warn('AIRecipeFormatScreen', 'AI format failed, falling back to OCR parse', { message: err?.message });
+      log.warn('AIRecipeFormatScreen', 'AI format failed, falling back to OCR parse', {
+        message: err?.message,
+      });
       // Fall back to parsing raw OCR text — never show an error screen
       setAiFailed(true);
       if (sourceRecipe?.extractedText) {
@@ -226,9 +247,9 @@ export default function AIRecipeFormatScreen() {
         type: 'created',
         description: recipe.description.trim() || '',
         ingredients: recipe.ingredients
-          .filter(i => i.name.trim())
-          .map(i => ({ name: i.name.trim(), amount: i.amount.trim(), unit: '' })),
-        instructions: recipe.instructions.filter(s => s.trim()),
+          .filter((i) => i.name.trim())
+          .map((i) => ({ name: i.name.trim(), amount: i.amount.trim(), unit: '' })),
+        instructions: recipe.instructions.filter((s) => s.trim()),
         tags: [],
         difficulty: 'Easy',
         prepTime: parseInt(recipe.time) || 5,
@@ -238,7 +259,9 @@ export default function AIRecipeFormatScreen() {
         notes: [
           recipe.garnish ? `Garnish: ${recipe.garnish}` : '',
           recipe.glassware ? `Glass: ${recipe.glassware}` : '',
-        ].filter(Boolean).join(', '),
+        ]
+          .filter(Boolean)
+          .join(', '),
       });
 
       Alert.alert('Saved!', 'Recipe added to your collection.', [
@@ -267,7 +290,6 @@ export default function AIRecipeFormatScreen() {
     );
   }
 
-
   // ── Form ─────────────────────────────────────────────────────────────────────
   return (
     <SafeAreaView style={styles.container}>
@@ -280,7 +302,11 @@ export default function AIRecipeFormatScreen() {
         {/* AI banner */}
         {!startWithManual && (
           <View style={[styles.aiBanner, aiFailed && styles.aiBannerFallback]}>
-            <Ionicons name={aiFailed ? 'create-outline' : 'sparkles'} size={13} color={aiFailed ? colors.subtext : colors.gold} />
+            <Ionicons
+              name={aiFailed ? 'create-outline' : 'sparkles'}
+              size={13}
+              color={aiFailed ? colors.subtext : colors.gold}
+            />
             <Text style={[styles.aiBannerText, aiFailed && styles.aiBannerTextFallback]}>
               {aiFailed
                 ? 'Extracted from scan · Review and edit before saving'
@@ -292,7 +318,11 @@ export default function AIRecipeFormatScreen() {
         {/* Scanned image thumbnail */}
         {sourceRecipe?.imageUrl ? (
           <View style={styles.imageThumb}>
-            <Image source={{ uri: sourceRecipe.imageUrl }} style={styles.imageThumbImg} resizeMode="cover" />
+            <Image
+              source={{ uri: sourceRecipe.imageUrl }}
+              style={styles.imageThumbImg}
+              resizeMode="cover"
+            />
           </View>
         ) : null}
 
@@ -302,7 +332,7 @@ export default function AIRecipeFormatScreen() {
           placeholder="Recipe Name"
           placeholderTextColor={colors.muted}
           value={recipe.title}
-          onChangeText={t => setRecipe({ ...recipe, title: t })}
+          onChangeText={(t) => setRecipe({ ...recipe, title: t })}
           keyboardAppearance="dark"
         />
 
@@ -310,7 +340,9 @@ export default function AIRecipeFormatScreen() {
         <View style={styles.metaRow}>
           <TouchableOpacity style={styles.metaItem} onPress={() => setShowGlasswareModal(true)}>
             <Text style={styles.metaLabel}>Glass</Text>
-            <Text style={styles.metaValue} numberOfLines={1}>{recipe.glassware}</Text>
+            <Text style={styles.metaValue} numberOfLines={1}>
+              {recipe.glassware}
+            </Text>
           </TouchableOpacity>
           <View style={styles.metaDivider} />
           <View style={styles.metaItem}>
@@ -319,7 +351,7 @@ export default function AIRecipeFormatScreen() {
               <TextInput
                 style={styles.metaInput}
                 value={recipe.time}
-                onChangeText={t => setRecipe({ ...recipe, time: t })}
+                onChangeText={(t) => setRecipe({ ...recipe, time: t })}
                 keyboardType="number-pad"
                 keyboardAppearance="dark"
                 placeholder="5"
@@ -335,7 +367,7 @@ export default function AIRecipeFormatScreen() {
               <TextInput
                 style={styles.metaInput}
                 value={String(recipe.servings)}
-                onChangeText={t => setRecipe({ ...recipe, servings: parseInt(t) || 1 })}
+                onChangeText={(t) => setRecipe({ ...recipe, servings: parseInt(t) || 1 })}
                 keyboardType="number-pad"
                 keyboardAppearance="dark"
                 placeholder="1"
@@ -351,7 +383,7 @@ export default function AIRecipeFormatScreen() {
           placeholder="Describe this recipe..."
           placeholderTextColor={colors.muted}
           value={recipe.description}
-          onChangeText={t => setRecipe({ ...recipe, description: t })}
+          onChangeText={(t) => setRecipe({ ...recipe, description: t })}
           multiline
           numberOfLines={2}
           keyboardAppearance="dark"
@@ -361,33 +393,34 @@ export default function AIRecipeFormatScreen() {
 
         {/* Ingredients */}
         <Text style={styles.sectionTitle}>Ingredients</Text>
-        {recipe.ingredients.map((ing, i) => (
-          <View key={i} style={styles.ingredientRow}>
-            <View style={styles.amountWrap}>
-              <TextInput
-                style={styles.amountInput}
-                value={ing.amount}
-                onChangeText={t => updateIngredient(i, 'amount', t)}
-                placeholder="2 oz"
-                placeholderTextColor={colors.muted}
-                keyboardAppearance="dark"
-              />
-            </View>
-            <TextInput
-              style={styles.nameInput}
-              value={ing.name}
-              onChangeText={t => updateIngredient(i, 'name', t)}
-              placeholder="Ingredient"
-              placeholderTextColor={colors.muted}
-              keyboardAppearance="dark"
-            />
-            {recipe.ingredients.length > 1 && (
-              <TouchableOpacity onPress={() => removeIngredient(i)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+        <IngredientLeaderList
+          items={recipe.ingredients}
+          readOnly={false}
+          keyPrefix="ai-ingredient"
+          iconSize={16}
+          iconColor={colors.muted}
+          namePlaceholder="Ingredient"
+          amountPlaceholder="2 oz"
+          placeholderTextColor={colors.muted}
+          rowStyle={styles.ingredientRow}
+          iconStyle={styles.ingredientLeaderIcon}
+          nameStyle={styles.nameInput}
+          dotsStyle={styles.ingredientLeaderDots}
+          amountStyle={styles.amountInput}
+          onChangeName={(i, t) => updateIngredient(i, 'name', t)}
+          onChangeAmount={(i, t) => updateIngredient(i, 'amount', t)}
+          renderRemoveAction={(_item, i) =>
+            recipe.ingredients.length > 1 ? (
+              <TouchableOpacity
+                onPress={() => removeIngredient(i)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                style={styles.ingredientRemoveButton}
+              >
                 <Ionicons name="remove-circle-outline" size={20} color={colors.muted} />
               </TouchableOpacity>
-            )}
-          </View>
-        ))}
+            ) : null
+          }
+        />
         <TouchableOpacity onPress={addIngredient} style={styles.addLink}>
           <Ionicons name="add" size={16} color={colors.gold} />
           <Text style={styles.addLinkText}>Add ingredient</Text>
@@ -404,7 +437,7 @@ export default function AIRecipeFormatScreen() {
               <TextInput
                 style={styles.stepInput}
                 value={step}
-                onChangeText={t => updateInstruction(i, t)}
+                onChangeText={(t) => updateInstruction(i, t)}
                 placeholder="Describe this step..."
                 placeholderTextColor={colors.muted}
                 multiline
@@ -430,7 +463,7 @@ export default function AIRecipeFormatScreen() {
         <TextInput
           style={styles.garnishInput}
           value={recipe.garnish}
-          onChangeText={t => setRecipe({ ...recipe, garnish: t })}
+          onChangeText={(t) => setRecipe({ ...recipe, garnish: t })}
           placeholder="e.g., Orange twist, cherry (optional)"
           placeholderTextColor={colors.muted}
           keyboardAppearance="dark"
@@ -443,10 +476,11 @@ export default function AIRecipeFormatScreen() {
           disabled={saving}
           activeOpacity={0.85}
         >
-          {saving
-            ? <ActivityIndicator size="small" color={colors.bg} />
-            : <Ionicons name="checkmark-circle" size={22} color={colors.bg} />
-          }
+          {saving ? (
+            <ActivityIndicator size="small" color={colors.bg} />
+          ) : (
+            <Ionicons name="checkmark-circle" size={22} color={colors.bg} />
+          )}
           <Text style={styles.saveBtnText}>{saving ? 'Saving...' : 'Save Recipe'}</Text>
         </TouchableOpacity>
 
@@ -454,7 +488,12 @@ export default function AIRecipeFormatScreen() {
       </ScrollView>
 
       {/* Glassware modal */}
-      <Modal visible={showGlasswareModal} transparent animationType="slide" onRequestClose={() => setShowGlasswareModal(false)}>
+      <Modal
+        visible={showGlasswareModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowGlasswareModal(false)}
+      >
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <View style={styles.modalHeader}>
@@ -464,14 +503,29 @@ export default function AIRecipeFormatScreen() {
               </TouchableOpacity>
             </View>
             <ScrollView showsVerticalScrollIndicator={false}>
-              {glasswareOptions.map(item => (
+              {glasswareOptions.map((item) => (
                 <TouchableOpacity
                   key={item}
-                  style={[styles.modalOption, recipe.glassware === item && styles.modalOptionSelected]}
-                  onPress={() => { setRecipe({ ...recipe, glassware: item }); setShowGlasswareModal(false); }}
+                  style={[
+                    styles.modalOption,
+                    recipe.glassware === item && styles.modalOptionSelected,
+                  ]}
+                  onPress={() => {
+                    setRecipe({ ...recipe, glassware: item });
+                    setShowGlasswareModal(false);
+                  }}
                 >
-                  <Text style={[styles.modalOptionText, recipe.glassware === item && styles.modalOptionTextSelected]}>{item}</Text>
-                  {recipe.glassware === item && <Ionicons name="checkmark" size={18} color={colors.gold} />}
+                  <Text
+                    style={[
+                      styles.modalOptionText,
+                      recipe.glassware === item && styles.modalOptionTextSelected,
+                    ]}
+                  >
+                    {item}
+                  </Text>
+                  {recipe.glassware === item && (
+                    <Ionicons name="checkmark" size={18} color={colors.gold} />
+                  )}
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -488,20 +542,37 @@ const styles = StyleSheet.create({
   scrollContent: { paddingHorizontal: spacing(3), paddingTop: spacing(2) },
 
   // Loading / error
-  loadingWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing(4), gap: spacing(1.5) },
+  loadingWrap: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing(4),
+    gap: spacing(1.5),
+  },
   loadingIconRing: {
-    width: 80, height: 80, borderRadius: 40,
-    backgroundColor: `${colors.gold}15`, borderWidth: 1, borderColor: `${colors.gold}30`,
-    alignItems: 'center', justifyContent: 'center', marginBottom: spacing(1),
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: `${colors.gold}15`,
+    borderWidth: 1,
+    borderColor: `${colors.gold}30`,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing(1),
   },
   loadingTitle: { fontFamily: serif, fontSize: 20, fontWeight: '700', color: colors.text },
   loadingSubtitle: { fontSize: 14, color: colors.subtext, textAlign: 'center' },
   // AI banner
   aiBanner: {
-    flexDirection: 'row', alignItems: 'center', gap: spacing(1),
-    backgroundColor: `${colors.gold}12`, borderRadius: radii.md,
-    borderWidth: 1, borderColor: `${colors.gold}25`,
-    paddingHorizontal: spacing(1.5), paddingVertical: spacing(1),
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(1),
+    backgroundColor: `${colors.gold}12`,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: `${colors.gold}25`,
+    paddingHorizontal: spacing(1.5),
+    paddingVertical: spacing(1),
     marginBottom: spacing(2),
   },
   aiBannerFallback: {
@@ -513,35 +584,56 @@ const styles = StyleSheet.create({
 
   // Thumbnail
   imageThumb: {
-    height: 120, borderRadius: radii.lg, overflow: 'hidden',
-    marginBottom: spacing(2.5), borderWidth: 1, borderColor: colors.line,
+    height: 120,
+    borderRadius: radii.lg,
+    overflow: 'hidden',
+    marginBottom: spacing(2.5),
+    borderWidth: 1,
+    borderColor: colors.line,
   },
   imageThumbImg: { width: '100%', height: '100%' },
 
   // Title
   titleInput: {
-    fontSize: 28, fontWeight: '700', color: colors.text,
-    marginBottom: spacing(2), paddingHorizontal: 0,
+    fontSize: 28,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: spacing(2),
+    paddingHorizontal: 0,
   },
 
   // Meta row
   metaRow: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: colors.card, borderRadius: radii.lg,
-    borderWidth: 1, borderColor: colors.line,
-    paddingVertical: spacing(1.5), marginBottom: spacing(2.5),
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.card,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.line,
+    paddingVertical: spacing(1.5),
+    marginBottom: spacing(2.5),
   },
   metaItem: { flex: 1, alignItems: 'center' },
   metaLabel: { fontSize: 11, color: colors.subtext, marginBottom: 3 },
   metaValue: { fontSize: 14, fontWeight: '600', color: colors.text, maxWidth: 90 },
-  metaInput: { fontSize: 14, fontWeight: '600', color: colors.text, padding: 0, width: 28, textAlign: 'center' },
+  metaInput: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+    padding: 0,
+    width: 28,
+    textAlign: 'center',
+  },
   metaUnit: { fontSize: 12, color: colors.subtext },
   metaDivider: { width: 1, height: 30, backgroundColor: colors.line },
 
   // Description
   descInput: {
-    fontSize: 15, color: colors.subtext, fontStyle: 'italic',
-    marginBottom: spacing(2), paddingHorizontal: 0,
+    fontSize: 15,
+    color: colors.subtext,
+    fontStyle: 'italic',
+    marginBottom: spacing(2),
+    paddingHorizontal: 0,
   },
 
   divider: { height: 1, backgroundColor: colors.line, marginVertical: spacing(3) },
@@ -549,35 +641,79 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 18, fontWeight: '700', color: colors.text, marginBottom: spacing(2) },
 
   // Ingredients
+  // No `gap` here: the dot leader is what fills the row, so the pieces rely
+  // on their own margins instead.
   ingredientRow: {
-    flexDirection: 'row', alignItems: 'center', gap: spacing(2), marginBottom: spacing(2),
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing(2),
   },
+  ingredientLeaderIcon: { marginRight: spacing(1) },
+  ingredientLeaderDots: {
+    flex: 1,
+    flexShrink: 1,
+    marginHorizontal: spacing(1),
+    fontSize: 15,
+    letterSpacing: 1.5,
+    color: colors.line,
+  },
+  ingredientRemoveButton: { marginLeft: spacing(1) },
+  // Unused, kept intentionally: the fixed-width wrapper the amount field sat
+  // in before the amount input took its own width.
   amountWrap: { width: 76 },
   amountInput: {
-    fontSize: 15, color: colors.text, padding: 0,
-    borderBottomWidth: 1, borderBottomColor: colors.line, paddingBottom: spacing(1),
+    width: 76,
+    textAlign: 'right',
+    fontSize: 15,
+    color: colors.text,
+    padding: 0,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.line,
+    paddingBottom: spacing(1),
   },
   nameInput: {
-    flex: 1, fontSize: 15, color: colors.text, padding: 0,
-    borderBottomWidth: 1, borderBottomColor: colors.line, paddingBottom: spacing(1),
+    flexShrink: 1,
+    fontSize: 15,
+    color: colors.text,
+    padding: 0,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.line,
+    paddingBottom: spacing(1),
   },
 
   // Instructions
   instructionRow: { marginBottom: spacing(2.5) },
-  stepLabel: { fontSize: 11, fontWeight: '700', color: colors.gold, letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: spacing(0.75) },
+  stepLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.gold,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+    marginBottom: spacing(0.75),
+  },
   stepContent: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing(1.5) },
   stepInput: {
-    flex: 1, fontSize: 15, color: colors.text,
-    backgroundColor: colors.card, borderRadius: radii.md,
-    borderWidth: 1, borderColor: colors.line,
-    padding: spacing(1.5), minHeight: 52, textAlignVertical: 'top',
+    flex: 1,
+    fontSize: 15,
+    color: colors.text,
+    backgroundColor: colors.card,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: colors.line,
+    padding: spacing(1.5),
+    minHeight: 52,
+    textAlignVertical: 'top',
   },
   stepRemove: { paddingTop: spacing(1.5) },
 
   // Garnish
   garnishInput: {
-    fontSize: 15, color: colors.text, padding: 0,
-    borderBottomWidth: 1, borderBottomColor: colors.line, paddingBottom: spacing(1),
+    fontSize: 15,
+    color: colors.text,
+    padding: 0,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.line,
+    paddingBottom: spacing(1),
     marginBottom: spacing(1),
   },
 
@@ -587,9 +723,14 @@ const styles = StyleSheet.create({
 
   // Save button
   saveBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing(1.25),
-    backgroundColor: colors.gold, borderRadius: radii.pill,
-    paddingVertical: spacing(2.25), marginTop: spacing(4),
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing(1.25),
+    backgroundColor: colors.gold,
+    borderRadius: radii.pill,
+    paddingVertical: spacing(2.25),
+    marginTop: spacing(4),
   },
   saveBtnDisabled: { opacity: 0.6 },
   saveBtnText: { fontSize: 17, fontWeight: '700', color: colors.bg },
@@ -597,15 +738,28 @@ const styles = StyleSheet.create({
   // Glassware modal
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
   modalCard: {
-    backgroundColor: colors.card, borderTopLeftRadius: 24, borderTopRightRadius: 24,
-    paddingHorizontal: spacing(3), paddingTop: spacing(2.5), paddingBottom: spacing(4),
+    backgroundColor: colors.card,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: spacing(3),
+    paddingTop: spacing(2.5),
+    paddingBottom: spacing(4),
     maxHeight: '60%',
   },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing(2) },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing(2),
+  },
   modalTitle: { fontSize: 18, fontWeight: '700', color: colors.text },
   modalOption: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingVertical: spacing(1.75), borderBottomWidth: 1, borderBottomColor: colors.line,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: spacing(1.75),
+    borderBottomWidth: 1,
+    borderBottomColor: colors.line,
   },
   modalOptionSelected: {},
   modalOptionText: { fontSize: 16, color: colors.text },

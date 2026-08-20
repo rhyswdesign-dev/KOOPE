@@ -334,7 +334,11 @@ function mapItemToBarIngredient(item: any, index: number): BarIngredient {
                 ? 'syrup'
                 : item?.category === 'liqueur'
                   ? 'liqueur'
-                  : 'ingredient',
+                  : item?.category === 'wine'
+                    ? 'wine'
+                    : item?.category === 'ingredient'
+                      ? 'ingredient'
+                      : 'other',
     subcategory: item?.subcategory || undefined,
     brand: item?.brand || undefined,
     addedAt: item?.added_at ? new Date(item.added_at) : new Date(),

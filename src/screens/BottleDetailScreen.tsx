@@ -60,7 +60,11 @@ import { trackEvent, ANALYTICS_EVENTS, ANALYTICS_PROPS } from '../lib/analytics'
 import { useWishlist, WISHLIST_FREE_CAP } from '../store/useWishlist';
 import { notificationService } from '../services/notificationService';
 import { useTasteModel } from '../store/useTasteModel';
-import { logScanEvent, updateScanOutcome } from '../services/scanContextService';
+import {
+  logScanEvent,
+  updateScanOutcome,
+  shouldRecordPassOnExit,
+} from '../services/scanContextService';
 import { log } from '../lib/logger';
 import SpiritEducationPanel from '../components/SpiritEducationPanel';
 import GiftModePanel from '../components/bottle/GiftModePanel';
@@ -114,7 +118,7 @@ export default function BottleDetailScreen() {
   const navigation = useNavigation<BottleDetailScreenNavigationProp>();
   const route = useRoute<RouteProp<CameraStackParamList, 'BottleDetail'>>();
   const insets = useSafeAreaInsets();
-  const { earnScanXP, isCocktailUnlockedWithXP } = useXPSystem();
+  const { earnScanXP, earnScanCorrectedXP, isCocktailUnlockedWithXP } = useXPSystem();
   const { isRecipeUnlocked: isRecipeUnlockedWithEngagement } = useEngagement();
   const { user } = useAuth();
   const tasteSummary = useTasteSummary(user?.id);
@@ -146,6 +150,23 @@ export default function BottleDetailScreen() {
   // via the beforeRemove listener further down).
   const [scanEventId, setScanEventId] = useState<string | null>(null);
   const scanOutcomeRecordedRef = useRef(false);
+  // True when this bottle was ALREADY on the want-list when the screen
+  // opened (e.g. re-opened from the Shelf/Want grid). Browsing your own
+  // want-list is not a fresh purchase decision, so the exit listener below
+  // must not resolve that visit to 'passed' — doing so overwrote real
+  // 'wanted' signal with noise and inverted the want-conversion metric.
+  const wasWishlistedOnEntryRef = useRef(false);
+  // The base scan reward is paid once per Answer Card visit, when the scan
+  // resolves — whatever the outcome. It used to fire only from the
+  // shelf-add handler, so wanting or price-checking a bottle paid 0 XP even
+  // though the scan itself had already happened. Owning still carries the
+  // bigger downstream reward; this is just the acknowledgement of the scan.
+  const scanXPAwardedRef = useRef(false);
+  const awardScanXPOnce = () => {
+    if (scanXPAwardedRef.current) return;
+    scanXPAwardedRef.current = true;
+    earnScanXP(bottle.id);
+  };
   // Phase 1.6: free, one-time "what do you like" prompt (see
   // TastePromptPanel) — mutually exclusive with Gift mode's own panel.
   const [showTastePrompt, setShowTastePrompt] = useState(false);
@@ -192,13 +213,26 @@ export default function BottleDetailScreen() {
   // If the user leaves the Answer Card without Add-to-Bar/Want-it ever
   // firing, the scan resolves to 'passed' — every scan eventually gets
   // exactly one of owned/wanted/passed.
+  //
+  // Two exceptions, both of which used to poison the want-conversion metric:
+  //   - an outcome was already recorded on this visit (scanOutcomeRecordedRef)
+  //   - the bottle was already want-listed when the screen opened
+  //     (wasWishlistedOnEntryRef) — re-opening a bottle you already want is
+  //     not a pass, and logging it as one buried the real signal.
   useEffect(() => {
     const unsubscribe = navigation.addListener('beforeRemove', () => {
-      if (scanEventId && !scanOutcomeRecordedRef.current) {
+      const shouldPass = shouldRecordPassOnExit({
+        hasScanEvent: !!scanEventId,
+        outcomeAlreadyRecorded: scanOutcomeRecordedRef.current,
+        wasWishlistedOnEntry: wasWishlistedOnEntryRef.current,
+      });
+      if (scanEventId && shouldPass) {
         updateScanOutcome({ scanEventId, outcome: 'passed' });
+        awardScanXPOnce();
       }
     });
     return unsubscribe;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigation, scanEventId]);
 
   // returnTo === 'shelf' means this screen was entered cross-tab (from the
@@ -327,6 +361,13 @@ export default function BottleDetailScreen() {
   const bottleWishlistId =
     bottle.id || `${bottle.name}_${bottle.brand}`.toLowerCase().replace(/\s+/g, '_');
   const [wishlisted, setWishlisted] = useState(() => isWishlisted(bottleWishlistId));
+  // Snapshot the entry state once (see wasWishlistedOnEntryRef above). Reads
+  // `wishlisted`'s lazy initial value, so it's the value at mount, not after
+  // a Want-it tap during this visit.
+  useEffect(() => {
+    wasWishlistedOnEntryRef.current = isWishlisted(bottleWishlistId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [showPricePrompt, setShowPricePrompt] = useState(false);
   const [priceInput, setPriceInput] = useState('');
   const [locationInput, setLocationInput] = useState('');
@@ -710,11 +751,29 @@ export default function BottleDetailScreen() {
       }
     }
 
+    // bottle.type only carries the catalog's SpiritType union (gin/vodka/
+    // rum/whiskey/tequila/mezcal/brandy/liqueur/other) — it has no 'wine'
+    // option at all, so a straight `=== 'liqueur'` check silently wrote
+    // every vermouth, amaro, and champagne to the shelf as category
+    // 'spirit'. Check the name/type text for the wine and liqueur families
+    // this catalog can't express before falling back to spirit.
+    const shelfHaystack = `${bottle.type || ''} ${bottle.name || ''}`.toLowerCase();
+    const shelfCategory = /(vermouth|champagne|prosecco|cava|sparkling wine|sherry|port wine)/.test(
+      shelfHaystack,
+    )
+      ? 'wine'
+      : bottle.type === 'liqueur' ||
+          /(liqueur|triple sec|cointreau|campari|aperol|amaretto|chartreuse|kahl[uú]a|fernet|cynar|amaro)/.test(
+            shelfHaystack,
+          )
+        ? 'liqueur'
+        : 'spirit';
+
     const result = await InventoryService.addToInventory({
       userId: user.id,
       itemType: 'spirit',
       itemName: bottle.name,
-      category: bottle.type === 'liqueur' ? 'liqueur' : 'spirit',
+      category: shelfCategory,
       imageUrl: persistedImageUri || imageUri || undefined,
       subcategory: bottle.type,
       brand: bottle.brand,
@@ -730,8 +789,9 @@ export default function BottleDetailScreen() {
     if (result.duplicate) {
       // Already there — just reflect that in state silently
       setInventoryItem({ id: 'existing', item_name: bottle.name } as any);
+      scanOutcomeRecordedRef.current = true;
+      awardScanXPOnce();
       if (scanEventId) {
-        scanOutcomeRecordedRef.current = true;
         updateScanOutcome({ scanEventId, outcome: 'owned', context: 'home' });
       }
       return;
@@ -745,9 +805,9 @@ export default function BottleDetailScreen() {
     // Silently update shelf state — no modal, no XP celebration
     setInventoryItem({ id: 'added', item_name: bottle.name } as any);
     challengeProgressService.trackAddToInventory(user.id, bottle.id || bottle.name);
-    earnScanXP(bottle.id);
+    scanOutcomeRecordedRef.current = true;
+    awardScanXPOnce();
     if (scanEventId) {
-      scanOutcomeRecordedRef.current = true;
       updateScanOutcome({ scanEventId, outcome: 'owned', context: 'home' });
     }
     // Boost taste model with shelf signal
@@ -789,6 +849,18 @@ export default function BottleDetailScreen() {
       return;
     }
     setWishlisted(true);
+
+    // The want-conversion signal is recorded HERE, on the tap — not inside
+    // handleSavePriceEntry. It used to live there, which meant dismissing
+    // the price prompt (the common case) left the scan to resolve to
+    // 'passed' via the exit listener: the metric was inverted. The price
+    // prompt below is now purely an optional enrichment.
+    scanOutcomeRecordedRef.current = true;
+    awardScanXPOnce();
+    if (scanEventId) {
+      updateScanOutcome({ scanEventId, outcome: 'wanted', context: 'store' });
+    }
+
     setShowPricePrompt(true);
   };
 
@@ -822,10 +894,12 @@ export default function BottleDetailScreen() {
       capturePoint: 'post_wishlist',
       userId: user?.id,
     });
-    // Phase 1.5: price-capture present -> store context, wanted outcome.
+    // Enrichment only — the 'wanted' outcome was already written when the
+    // user tapped Want it (handleSaveToWishlist). All this adds is the price
+    // they saw and the store context that a price sighting implies.
     if (scanEventId) {
       scanOutcomeRecordedRef.current = true;
-      updateScanOutcome({ scanEventId, outcome: 'wanted', context: 'store', priceSeen: price });
+      updateScanOutcome({ scanEventId, context: 'store', priceSeen: price });
     }
     setPriceInput('');
     setLocationInput('');
@@ -1032,6 +1106,12 @@ export default function BottleDetailScreen() {
           },
         });
       }
+
+      // 5. Reward it. scanCorrected (75 XP) has been defined since the
+      // monetization spec with zero call sites — this is the flow it was
+      // written for, and correcting a bad identification is the single most
+      // useful thing a user can do for the scan model.
+      earnScanCorrectedXP();
     } catch {
       /* silent — correction is best-effort */
     }
@@ -1178,11 +1258,15 @@ export default function BottleDetailScreen() {
             spotted={spottedForBottle}
             giftMode={giftMode}
             onOpenCurrencyPicker={() => setShowCurrencyPicker(true)}
-            onLogPrice={(price) =>
+            onLogPrice={(price, locationLabel) =>
               logSpottedPrice({
                 bottleId: bottleWishlistId,
                 price,
                 currency: userCurrency,
+                // Optional at this capture point by design — see ValueLine's
+                // docblock. Previously always null here, which threw away the
+                // most commercially useful column in spotted_prices.
+                locationLabel,
                 capturePoint: 'at_scan',
                 userId: user?.id,
               })
@@ -1472,6 +1556,8 @@ export default function BottleDetailScreen() {
       {/* Price prompt — appears after saving to wishlist */}
       <PriceSpottedPromptModal
         visible={showPricePrompt}
+        // Just closes a modal. Dismissing it does NOT change the scan
+        // outcome — 'wanted' was already recorded on the Want-it tap.
         onClose={() => setShowPricePrompt(false)}
         currency={userCurrency}
         priceInput={priceInput}

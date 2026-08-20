@@ -923,9 +923,9 @@ export const cocktailData = {
     time: '2 min',
     ingredients: [
       { name: '1 1/2 oz Vodka', note: 'Premium vodka preferred' },
-      { name: '1/2 oz Orange Liqueur', note: 'Cointreau or Triple Sec' },
+      { name: '1 oz Orange Liqueur', note: 'Cointreau or Triple Sec' },
+      { name: '1 oz Cranberry Juice', note: 'For color and flavor' },
       { name: '1/2 oz Fresh Lime Juice', note: 'Freshly squeezed' },
-      { name: '1/2 oz Cranberry Juice', note: 'For color and flavor' },
       { name: 'Lime Wheel', note: 'For garnish' },
     ],
     instructions: [

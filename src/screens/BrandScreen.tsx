@@ -1,17 +1,17 @@
 import { View, StyleSheet } from 'react-native';
 import { useRoute, RouteProp } from '@react-navigation/native';
 import { colors } from '../theme/tokens';
-import EmptyState from '../components/states/EmptyState';
+import EmptyState from '../components/EmptyState';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 
 export default function BrandScreen() {
-  const { params } = useRoute<RouteProp<RootStackParamList,'Brand'>>();
+  const { params } = useRoute<RouteProp<RootStackParamList, 'Brand'>>();
   return (
     <View style={styles.container}>
       <EmptyState
-        variant="noContent"
+        icon="file-document-outline"
         title={params.brand}
-        description="Brand stories and featured products are not available in this build."
+        message="Brand stories and featured products are not available in this build."
       />
     </View>
   );

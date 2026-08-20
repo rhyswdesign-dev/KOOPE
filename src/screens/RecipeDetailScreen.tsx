@@ -22,6 +22,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import GroceryListModal from '../components/GroceryListModal';
+import PressableScale from '../components/animations/PressableScale';
 import { useChallengeProgress } from '../hooks/useChallengeProgress';
 import { useUserTier } from '../store/useUserTier';
 import { useXPSystem } from '../store/useXPSystem';
@@ -48,6 +49,11 @@ import {
   RatioEditorState,
   RatioProfile,
 } from '../utils/ratioEngine';
+import { getMissingWithSubstitutions, getSubstitutionMessage } from '../utils/spiritSubstitutions';
+import { isLikelySpiritIngredient } from '../utils/cocktailDetailCopy';
+import SubstituteIngredientsModal, {
+  type SubstituteRow,
+} from '../components/SubstituteIngredientsModal';
 
 interface RecipeIngredientEntry {
   key: string;
@@ -163,6 +169,8 @@ export default function RecipeDetailScreen() {
   const [timesMade, setTimesMade] = useState(0);
   const [isSavingRatios, setIsSavingRatios] = useState(false);
   const [inventoryOptions, setInventoryOptions] = useState<string[]>([]);
+  const [substituteRows, setSubstituteRows] = useState<SubstituteRow[]>([]);
+  const [substituteModalVisible, setSubstituteModalVisible] = useState(false);
   const [brandSelections, setBrandSelections] = useState<Record<string, string>>({});
   const [substitutions, setSubstitutions] = useState('');
   const [techniqueVariations, setTechniqueVariations] = useState('');
@@ -211,6 +219,37 @@ export default function RecipeDetailScreen() {
     [recipe],
   );
 
+  // Which recipe ingredients the user's shelf already covers, for the
+  // substitute-finder below. Uses the same substring match already used by
+  // getSuggestionsForIngredient/handleFindSubstitutes — this screen only
+  // keeps inventory as a flat name list (inventoryOptions), not the full
+  // UserInventoryItem rows CocktailDetailScreen's hasIngredient() expects.
+  const ingredientStats = useMemo(() => {
+    if (!recipeIngredients.length) {
+      return { owned: 0, total: 0, missing: [] as string[] };
+    }
+
+    const inventoryLower = inventoryOptions.map((name) => name.toLowerCase());
+    let owned = 0;
+    const missing: string[] = [];
+
+    recipeIngredients.forEach((ingredient) => {
+      const name = ingredient.name.trim();
+      if (!name) return;
+      const nameLower = name.toLowerCase();
+      const hasIt = inventoryLower.some(
+        (option) => option.includes(nameLower) || nameLower.includes(option),
+      );
+      if (hasIt) {
+        owned++;
+      } else {
+        missing.push(name);
+      }
+    });
+
+    return { owned, total: recipeIngredients.length, missing };
+  }, [recipeIngredients, inventoryOptions]);
+
   const tasteMatchPercent: number | undefined = recipe?.tasteMatchPercent;
   const proTips = useMemo(() => getRecipeProTips(recipe), [recipe]);
 
@@ -234,6 +273,13 @@ export default function RecipeDetailScreen() {
       });
     }
   }, [recipe?.id]);
+
+  // Load shelf inventory up front so "Find Ingredient Substitutes" has
+  // something to rank against the first time it's tapped, without waiting
+  // on the Made-It flow (which also refreshes this list on open).
+  useEffect(() => {
+    loadInventoryOptions();
+  }, [user?.id]);
 
   if (!recipe) {
     return (
@@ -349,6 +395,83 @@ export default function RecipeDetailScreen() {
         return tokens.some((token) => token.length >= 3 && normalizedOption.includes(token));
       })
       .slice(0, 5);
+  };
+
+  const handleFindSubstitutes = () => {
+    if (!recipeIngredients.length) {
+      Alert.alert('Substitutes', 'No ingredients listed for this recipe yet.');
+      return;
+    }
+
+    const missing = ingredientStats.missing;
+    const available = inventoryOptions;
+    const availableLower = available.map((name) => name.toLowerCase());
+    const targetIngredients = missing.length
+      ? missing
+      : recipeIngredients.map((ingredient) => ingredient.name.trim()).filter(Boolean);
+    const suggestions = getMissingWithSubstitutions(targetIngredients, available);
+
+    const rows: SubstituteRow[] = suggestions.map((entry) => {
+      if (!entry.substitutions || entry.substitutions.substitutes.length === 0) {
+        const shelfIdeas = getSuggestionsForIngredient(entry.ingredient);
+        if (shelfIdeas.length > 0) {
+          return {
+            ingredient: entry.ingredient,
+            suggestion: shelfIdeas[0],
+            note: 'Closest match from your shelf.',
+            confidence: 'low',
+            inInventory: true,
+            isSpirit: isLikelySpiritIngredient(entry.ingredient),
+            alternatives: shelfIdeas.slice(1, 3).join(', ') || undefined,
+          };
+        }
+        return {
+          ingredient: entry.ingredient,
+          suggestion: null,
+          note: 'Use original ingredient when possible.',
+          confidence: 'low',
+          inInventory: false,
+          isSpirit: isLikelySpiritIngredient(entry.ingredient),
+        };
+      }
+
+      const ranked = [...entry.substitutions.substitutes].sort((a, b) => {
+        const aIn = availableLower.some(
+          (name) => name.includes(a.name.toLowerCase()) || a.name.toLowerCase().includes(name),
+        );
+        const bIn = availableLower.some(
+          (name) => name.includes(b.name.toLowerCase()) || b.name.toLowerCase().includes(name),
+        );
+        if (aIn !== bIn) return aIn ? -1 : 1;
+        const score = { high: 0, medium: 1, low: 2 } as const;
+        return score[a.confidence] - score[b.confidence];
+      });
+
+      const top = ranked[0];
+      const inInventory = availableLower.some(
+        (name) => name.includes(top.name.toLowerCase()) || top.name.toLowerCase().includes(name),
+      );
+      const alternatives = ranked
+        .slice(1, 3)
+        .map((sub) => sub.name)
+        .join(', ');
+
+      return {
+        ingredient: entry.ingredient,
+        suggestion: top.name,
+        note: getSubstitutionMessage(entry.ingredient, [top]).replace(
+          /^Try\s+.+?\s+instead\s+-\s+/i,
+          '',
+        ),
+        confidence: top.confidence,
+        inInventory,
+        isSpirit: isLikelySpiritIngredient(entry.ingredient),
+        alternatives: alternatives || undefined,
+      };
+    });
+
+    setSubstituteRows(rows);
+    setSubstituteModalVisible(true);
   };
 
   const syncRecipeCompletionToProfile = async (
@@ -660,15 +783,17 @@ export default function RecipeDetailScreen() {
             madeLabel={timesMade > 1 ? `Made ${timesMade}×` : 'You Made It!'}
           />
           {ratioProfile ? (
-            <TouchableOpacity
+            <PressableScale
               style={styles.secondaryButton}
               onPress={() => setShowRatioEditor(true)}
               disabled={isSavingRatios}
+              scaleTo={0.97}
+              haptic="light"
             >
               <Text style={styles.secondaryButtonText}>
                 {ratioEstimated ? 'Adjust Estimated Ratio' : 'Edit Ratio Balance'}
               </Text>
-            </TouchableOpacity>
+            </PressableScale>
           ) : null}
         </View>
 
@@ -898,7 +1023,7 @@ export default function RecipeDetailScreen() {
         <View style={styles.aiSupportSection}>
           <Text style={styles.aiSupportHeader}>AI SUPPORT</Text>
           <View style={styles.aiButtonsRow}>
-            <TouchableOpacity style={styles.aiButton}>
+            <TouchableOpacity style={styles.aiButton} onPress={handleFindSubstitutes}>
               <MaterialCommunityIcons name="swap-horizontal" size={20} color={colors.accent} />
               <Text style={styles.aiButtonTitle}>Find Ingredient Substitutes</Text>
             </TouchableOpacity>
@@ -928,6 +1053,14 @@ export default function RecipeDetailScreen() {
           recipeId={recipe.id}
         />
       )}
+
+      <SubstituteIngredientsModal
+        visible={substituteModalVisible}
+        onClose={() => setSubstituteModalVisible(false)}
+        hasMissingIngredients={ingredientStats.missing.length > 0}
+        spiritRows={substituteRows.filter((row) => row.isSpirit)}
+        otherRows={substituteRows.filter((row) => !row.isSpirit)}
+      />
 
       <Modal
         visible={makeFlowVisible}
@@ -1104,9 +1237,13 @@ export default function RecipeDetailScreen() {
               >
                 <Text style={styles.modalSecondaryButtonText}>Skip</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.modalPrimaryButton} onPress={handleSaveRating}>
+              <PressableScale
+                style={styles.modalPrimaryButton}
+                onPress={handleSaveRating}
+                scaleTo={0.97}
+              >
                 <Text style={styles.modalPrimaryButtonText}>Save Feedback</Text>
-              </TouchableOpacity>
+              </PressableScale>
             </View>
           </View>
         </View>

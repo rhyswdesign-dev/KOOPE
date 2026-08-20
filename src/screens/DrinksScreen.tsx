@@ -21,24 +21,136 @@ import { Heading, MainPageHeader } from '../components/ui';
 import { useAuth } from '../contexts/AuthContext';
 import { useSavedItems } from '../hooks/useSavedItems';
 import { useUserRecipes } from '../store/useUserRecipes';
-import { createRecipeCardProps, handleRecipeView } from '../utils/recipeActions';
-import RecipeCard from '../components/RecipeCard';
+import { handleRecipeView } from '../utils/recipeActions';
+import { getCocktailImage } from '../../assets/images/cocktails';
 import { getMadeHistory, type MadeHistoryEntry } from '../services/makeLogService';
 import { useToast } from '../hooks/useToast';
 import Toast from '../components/Toast';
 import { withHaptic } from '../lib/haptics';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
+type DrinksTab = 'saved' | 'made' | 'imported';
+
+function EmptyStateCard({
+  icon,
+  title,
+  body,
+  ctaLabel,
+  onPressCta,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  title: string;
+  body: string;
+  ctaLabel?: string;
+  onPressCta?: () => void;
+}) {
+  return (
+    <View
+      style={{
+        marginHorizontal: spacing(2),
+        backgroundColor: colors.card,
+        borderRadius: radii.lg,
+        borderWidth: 1,
+        borderColor: colors.line,
+        padding: spacing(2.5),
+        alignItems: 'center',
+      }}
+    >
+      <Ionicons name={icon} size={40} color={colors.accent} style={{ marginBottom: spacing(1) }} />
+      <Text
+        style={{
+          fontSize: 16,
+          fontWeight: '700',
+          color: colors.text,
+          fontFamily: serif,
+          marginBottom: spacing(0.5),
+        }}
+      >
+        {title}
+      </Text>
+      <Text
+        style={{
+          fontSize: 13,
+          color: colors.subtext,
+          textAlign: 'center',
+          marginBottom: ctaLabel ? spacing(1.5) : 0,
+        }}
+      >
+        {body}
+      </Text>
+      {ctaLabel && onPressCta && (
+        <TouchableOpacity
+          style={{
+            backgroundColor: colors.gold,
+            borderRadius: radii.pill,
+            paddingHorizontal: spacing(2.5),
+            paddingVertical: spacing(1),
+          }}
+          onPress={withHaptic(onPressCta, 'selection')}
+        >
+          <Text style={{ color: colors.goldText, fontWeight: '700', fontSize: 13 }}>
+            {ctaLabel}
+          </Text>
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+}
+
+// 2-column grid tile for the Saved Cocktails tab — real cocktail photo, name,
+// and a short ingredient subtitle, matching the "richer cocktail card"
+// direction chosen for this redesign (concept B) over the plain list rows
+// the screen used before.
+function SavedCocktailGridCard({ cocktail, navigation }: { cocktail: any; navigation: Nav }) {
+  const resolvedImage = getCocktailImage(
+    cocktail.id,
+    typeof cocktail.image === 'string' ? cocktail.image : cocktail.imageUrl,
+  );
+  const subtitle = (cocktail.ingredients || [])
+    .slice(0, 3)
+    .map((ingredient: any) => ingredient.name)
+    .join(', ');
+
+  return (
+    <TouchableOpacity
+      style={{
+        width: '48%',
+        backgroundColor: colors.card,
+        borderRadius: radii.lg,
+        borderWidth: 1,
+        borderColor: colors.line,
+        marginBottom: spacing(2),
+        overflow: 'hidden',
+      }}
+      onPress={withHaptic(() => handleRecipeView(cocktail, navigation, 'saved'), 'selection')}
+      activeOpacity={0.82}
+    >
+      <View style={{ width: '100%', aspectRatio: 1 }}>
+        <Image
+          source={typeof resolvedImage === 'string' ? { uri: resolvedImage } : resolvedImage}
+          style={{ width: '100%', height: '100%' }}
+          contentFit="cover"
+          cachePolicy="memory-disk"
+        />
+      </View>
+      <View style={{ padding: spacing(1.25) }}>
+        <Text numberOfLines={1} style={{ fontSize: 14, fontWeight: '700', color: colors.text }}>
+          {cocktail.title || cocktail.name}
+        </Text>
+        {!!subtitle && (
+          <Text numberOfLines={1} style={{ fontSize: 11, color: colors.subtext, marginTop: 2 }}>
+            {subtitle}
+          </Text>
+        )}
+      </View>
+    </TouchableOpacity>
+  );
+}
 
 export default function DrinksScreen() {
   const navigation = useNavigation<Nav>();
   const { user } = useAuth();
-  const {
-    savedItems,
-    isHydrated: savedItemsHydrated,
-    toggleSavedCocktail,
-    isCocktailSaved,
-  } = useSavedItems();
+  const { savedItems, isHydrated: savedItemsHydrated } = useSavedItems();
   const { recipes: userRecipes, loadRecipes, isLoading: recipesLoading } = useUserRecipes();
   const { toast, showToast, hideToast } = useToast();
 
@@ -71,6 +183,8 @@ export default function DrinksScreen() {
       };
     }, [user?.id]),
   );
+
+  const [activeTab, setActiveTab] = useState<DrinksTab>('saved');
 
   // Import from URL
   const [showUrlInput, setShowUrlInput] = useState(false);
@@ -110,9 +224,30 @@ export default function DrinksScreen() {
     );
   }
 
+  const tabCount: Record<DrinksTab, number> = {
+    saved: savedCocktails.length,
+    made: history.length,
+    imported: importedRecipes.length,
+  };
+  const tabLabel: Record<DrinksTab, string> = {
+    saved: 'saved',
+    made: 'made',
+    imported: 'imported',
+  };
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
-      <MainPageHeader title="Drinks" subtitle={`${savedCocktails.length} saved`} />
+      <MainPageHeader
+        title="Drinks"
+        subtitle={`${tabCount[activeTab]} ${tabLabel[activeTab]}`}
+        rightActions={[
+          {
+            icon: 'add-circle-outline',
+            onPress: () => setShowUrlInput(true),
+            accessibilityLabel: 'Import a recipe',
+          },
+        ]}
+      />
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -123,211 +258,252 @@ export default function DrinksScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Saved Cocktails */}
-          <View style={{ marginTop: spacing(2) }}>
-            <View style={{ paddingHorizontal: spacing(2), marginBottom: spacing(1) }}>
-              <Heading level={2}>Saved Cocktails</Heading>
-            </View>
-            {savedCocktails.length === 0 ? (
-              <View
+          {/* Saved / Made / Imported — tabbed collections (redesign concept B) */}
+          <View
+            style={{
+              flexDirection: 'row',
+              marginHorizontal: spacing(2),
+              marginTop: spacing(2),
+              marginBottom: spacing(2),
+              backgroundColor: colors.card,
+              borderRadius: radii.pill,
+              borderWidth: 1,
+              borderColor: colors.line,
+              padding: 4,
+            }}
+          >
+            {(['saved', 'made', 'imported'] as DrinksTab[]).map((tab) => (
+              <TouchableOpacity
+                key={tab}
                 style={{
-                  marginHorizontal: spacing(2),
-                  backgroundColor: colors.card,
-                  borderRadius: radii.lg,
-                  borderWidth: 1,
-                  borderColor: colors.line,
-                  padding: spacing(2.5),
+                  flex: 1,
+                  paddingVertical: spacing(1),
+                  borderRadius: radii.pill,
                   alignItems: 'center',
+                  backgroundColor: activeTab === tab ? colors.gold : 'transparent',
                 }}
+                onPress={withHaptic(() => setActiveTab(tab), 'selection')}
               >
-                <Ionicons
-                  name="bookmark-outline"
-                  size={40}
-                  color={colors.accent}
-                  style={{ marginBottom: spacing(1) }}
-                />
-                <Text
-                  style={{
-                    fontSize: 16,
-                    fontWeight: '700',
-                    color: colors.text,
-                    fontFamily: serif,
-                    marginBottom: spacing(0.5),
-                  }}
-                >
-                  No saved cocktails yet
-                </Text>
                 <Text
                   style={{
                     fontSize: 13,
-                    color: colors.subtext,
-                    textAlign: 'center',
-                    marginBottom: spacing(1.5),
+                    fontWeight: activeTab === tab ? '700' : '600',
+                    color: activeTab === tab ? colors.goldText : colors.muted,
+                    textTransform: 'capitalize',
                   }}
                 >
-                  Recipes you save from Tonight live here.
+                  {tab}
                 </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {activeTab === 'saved' && (
+            <View>
+              <View style={{ paddingHorizontal: spacing(2), marginBottom: spacing(1) }}>
+                <Heading level={2}>Saved Cocktails</Heading>
+              </View>
+              {savedCocktails.length === 0 ? (
+                <EmptyStateCard
+                  icon="bookmark-outline"
+                  title="No saved cocktails yet"
+                  body="Recipes you save from Tonight live here."
+                  ctaLabel="Browse Recipes"
+                  onPressCta={() => navigation.navigate('Recipes' as any)}
+                />
+              ) : (
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    flexWrap: 'wrap',
+                    justifyContent: 'space-between',
+                    paddingHorizontal: spacing(2),
+                  }}
+                >
+                  {savedCocktails.map((cocktail: any) => (
+                    <SavedCocktailGridCard
+                      key={cocktail.id}
+                      cocktail={cocktail}
+                      navigation={navigation}
+                    />
+                  ))}
+                </View>
+              )}
+              {savedCocktails.length > 0 && (
                 <TouchableOpacity
                   style={{
+                    marginHorizontal: spacing(2),
+                    marginTop: spacing(0.5),
                     backgroundColor: colors.gold,
                     borderRadius: radii.pill,
-                    paddingHorizontal: spacing(2.5),
-                    paddingVertical: spacing(1),
+                    paddingVertical: spacing(1.5),
+                    alignItems: 'center',
                   }}
                   onPress={withHaptic(() => navigation.navigate('Recipes' as any), 'selection')}
                 >
-                  <Text style={{ color: colors.goldText, fontWeight: '700', fontSize: 13 }}>
-                    Browse Recipes
+                  <Text style={{ color: colors.goldText, fontWeight: '700', fontSize: 14 }}>
+                    Browse More Recipes
                   </Text>
                 </TouchableOpacity>
-              </View>
-            ) : (
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                style={{ paddingLeft: spacing(2) }}
-              >
-                {savedCocktails.map((cocktail: any) => {
-                  const cardProps = createRecipeCardProps(cocktail, navigation, {
-                    toggleSavedCocktail,
-                    isCocktailSaved,
-                    showToast,
-                    showSaveButton: true,
-                    showCartButton: false,
-                    source: 'saved',
-                  });
-                  return (
-                    <RecipeCard
-                      key={cocktail.id}
-                      {...cardProps}
-                      style={{ width: 240, marginRight: 16 }}
-                    />
-                  );
-                })}
-              </ScrollView>
-            )}
-          </View>
-
-          {/* Made-It History */}
-          <View style={{ marginTop: spacing(3) }}>
-            <View style={{ paddingHorizontal: spacing(2), marginBottom: spacing(1) }}>
-              <Heading level={2}>Made-It History</Heading>
+              )}
             </View>
-            {!historyLoaded ? null : history.length === 0 ? (
-              <View
-                style={{
-                  marginHorizontal: spacing(2),
-                  backgroundColor: colors.card,
-                  borderRadius: radii.lg,
-                  borderWidth: 1,
-                  borderColor: colors.line,
-                  padding: spacing(2.5),
-                  alignItems: 'center',
-                }}
-              >
-                <Ionicons
-                  name="checkmark-done-outline"
-                  size={40}
-                  color={colors.accent}
-                  style={{ marginBottom: spacing(1) }}
+          )}
+
+          {activeTab === 'made' && (
+            <View>
+              <View style={{ paddingHorizontal: spacing(2), marginBottom: spacing(1) }}>
+                <Heading level={2}>Made-It History</Heading>
+              </View>
+              {history.length === 0 ? (
+                <EmptyStateCard
+                  icon="checkmark-done-outline"
+                  title="Nothing made yet"
+                  body="Cocktails you log as made show up here."
                 />
-                <Text
+              ) : (
+                <View
                   style={{
-                    fontSize: 16,
-                    fontWeight: '700',
-                    color: colors.text,
-                    fontFamily: serif,
-                    marginBottom: spacing(0.5),
+                    marginHorizontal: spacing(2),
+                    backgroundColor: colors.card,
+                    borderRadius: radii.lg,
+                    borderWidth: 1,
+                    borderColor: colors.line,
+                    padding: spacing(1.5),
                   }}
                 >
-                  Nothing made yet
-                </Text>
-                <Text style={{ fontSize: 13, color: colors.subtext, textAlign: 'center' }}>
-                  Cocktails you log as made show up here.
-                </Text>
-              </View>
-            ) : (
-              <View
-                style={{
-                  marginHorizontal: spacing(2),
-                  backgroundColor: colors.card,
-                  borderRadius: radii.lg,
-                  borderWidth: 1,
-                  borderColor: colors.line,
-                  padding: spacing(1.5),
-                }}
-              >
-                {history.slice(0, 5).map((entry) => (
-                  <TouchableOpacity
-                    key={entry.id}
-                    style={{
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      paddingVertical: spacing(1),
-                    }}
-                    onPress={withHaptic(
-                      () => navigation.navigate('CocktailDetail', { cocktailId: entry.recipeId }),
-                      'selection',
-                    )}
-                  >
-                    {entry.recipeImage ? (
-                      <Image
-                        source={{ uri: entry.recipeImage }}
-                        style={{ width: 40, height: 40, borderRadius: radii.md }}
-                        contentFit="cover"
-                        cachePolicy="memory-disk"
-                      />
-                    ) : (
-                      <View
-                        style={{
-                          width: 40,
-                          height: 40,
-                          borderRadius: radii.md,
-                          backgroundColor: colors.bg,
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                        }}
-                      >
-                        <Ionicons name="wine-outline" size={18} color={colors.accent} />
+                  {history.map((entry) => (
+                    <TouchableOpacity
+                      key={entry.id}
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        paddingVertical: spacing(1),
+                      }}
+                      onPress={withHaptic(
+                        () => navigation.navigate('CocktailDetail', { cocktailId: entry.recipeId }),
+                        'selection',
+                      )}
+                    >
+                      {entry.recipeImage ? (
+                        <Image
+                          source={{ uri: entry.recipeImage }}
+                          style={{ width: 40, height: 40, borderRadius: radii.md }}
+                          contentFit="cover"
+                          cachePolicy="memory-disk"
+                        />
+                      ) : (
+                        <View
+                          style={{
+                            width: 40,
+                            height: 40,
+                            borderRadius: radii.md,
+                            backgroundColor: colors.bg,
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}
+                        >
+                          <Ionicons name="wine-outline" size={18} color={colors.accent} />
+                        </View>
+                      )}
+                      <View style={{ flex: 1, marginLeft: spacing(1.5) }}>
+                        <Text
+                          style={{ fontSize: 14, fontWeight: '600', color: colors.text }}
+                          numberOfLines={1}
+                        >
+                          {entry.recipeName}
+                        </Text>
+                        <Text style={{ fontSize: 12, color: colors.subtext }}>
+                          {entry.source}
+                          {entry.rating ? ` · ★ ${entry.rating}` : ''}
+                        </Text>
                       </View>
-                    )}
-                    <View style={{ flex: 1, marginLeft: spacing(1.5) }}>
+                      <Text style={{ fontSize: 12, color: colors.subtext }}>
+                        {new Date(entry.madeAt).toLocaleDateString(undefined, {
+                          month: 'short',
+                          day: 'numeric',
+                        })}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+            </View>
+          )}
+
+          {activeTab === 'imported' && (
+            <View>
+              <View style={{ paddingHorizontal: spacing(2), marginBottom: spacing(1) }}>
+                <Heading level={2}>Imported Recipes</Heading>
+              </View>
+              {importedRecipes.length === 0 ? (
+                <EmptyStateCard
+                  icon="download-outline"
+                  title="No imported recipes yet"
+                  body="Paste a link below to import one."
+                />
+              ) : (
+                <View style={{ marginHorizontal: spacing(2) }}>
+                  {importedRecipes.map((recipe) => (
+                    <TouchableOpacity
+                      key={recipe.id}
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        backgroundColor: colors.card,
+                        borderRadius: radii.lg,
+                        borderWidth: 1,
+                        borderColor: colors.line,
+                        padding: spacing(1.25),
+                        marginBottom: spacing(1),
+                      }}
+                      onPress={withHaptic(
+                        () => handleRecipeView(recipe as any, navigation, 'saved'),
+                        'selection',
+                      )}
+                    >
+                      {recipe.image || recipe.thumbnailImage ? (
+                        <Image
+                          source={{ uri: recipe.thumbnailImage || recipe.image }}
+                          style={{ width: 40, height: 40, borderRadius: radii.md }}
+                          contentFit="cover"
+                          cachePolicy="memory-disk"
+                        />
+                      ) : (
+                        <View
+                          style={{
+                            width: 40,
+                            height: 40,
+                            borderRadius: radii.md,
+                            backgroundColor: colors.bg,
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}
+                        >
+                          <Ionicons name="download-outline" size={18} color={colors.accent} />
+                        </View>
+                      )}
                       <Text
-                        style={{ fontSize: 14, fontWeight: '600', color: colors.text }}
+                        style={{
+                          flex: 1,
+                          marginLeft: spacing(1.5),
+                          fontSize: 14,
+                          fontWeight: '600',
+                          color: colors.text,
+                        }}
                         numberOfLines={1}
                       >
-                        {entry.recipeName}
+                        {recipe.name}
                       </Text>
-                      <Text style={{ fontSize: 12, color: colors.subtext }}>
-                        {entry.source}
-                        {entry.rating ? ` · ★ ${entry.rating}` : ''}
-                      </Text>
-                    </View>
-                    <Text style={{ fontSize: 12, color: colors.subtext }}>
-                      {new Date(entry.madeAt).toLocaleDateString(undefined, {
-                        month: 'short',
-                        day: 'numeric',
-                      })}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-                {history.length > 5 && (
-                  <Text
-                    style={{
-                      fontSize: 12,
-                      color: colors.subtext,
-                      textAlign: 'center',
-                      marginTop: spacing(0.5),
-                    }}
-                  >
-                    +{history.length - 5} more in history
-                  </Text>
-                )}
-              </View>
-            )}
-          </View>
+                      <Ionicons name="chevron-forward" size={18} color={colors.subtext} />
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+            </View>
+          )}
 
-          {/* Import from URL */}
+          {/* Import from URL — persistent utility action, available regardless
+              of which collection tab is active. */}
           <View style={{ marginTop: spacing(3), marginHorizontal: spacing(2) }}>
             <TouchableOpacity
               style={{
@@ -404,66 +580,6 @@ export default function DrinksScreen() {
               </View>
             )}
           </View>
-
-          {/* Imported Recipes */}
-          {importedRecipes.length > 0 && (
-            <View style={{ marginTop: spacing(2), marginHorizontal: spacing(2) }}>
-              {importedRecipes.map((recipe) => (
-                <TouchableOpacity
-                  key={recipe.id}
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    backgroundColor: colors.card,
-                    borderRadius: radii.lg,
-                    borderWidth: 1,
-                    borderColor: colors.line,
-                    padding: spacing(1.25),
-                    marginTop: spacing(1),
-                  }}
-                  onPress={withHaptic(
-                    () => handleRecipeView(recipe as any, navigation, 'saved'),
-                    'selection',
-                  )}
-                >
-                  {recipe.image || recipe.thumbnailImage ? (
-                    <Image
-                      source={{ uri: recipe.thumbnailImage || recipe.image }}
-                      style={{ width: 40, height: 40, borderRadius: radii.md }}
-                      contentFit="cover"
-                      cachePolicy="memory-disk"
-                    />
-                  ) : (
-                    <View
-                      style={{
-                        width: 40,
-                        height: 40,
-                        borderRadius: radii.md,
-                        backgroundColor: colors.bg,
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}
-                    >
-                      <Ionicons name="download-outline" size={18} color={colors.accent} />
-                    </View>
-                  )}
-                  <Text
-                    style={{
-                      flex: 1,
-                      marginLeft: spacing(1.5),
-                      fontSize: 14,
-                      fontWeight: '600',
-                      color: colors.text,
-                    }}
-                    numberOfLines={1}
-                  >
-                    {recipe.name}
-                  </Text>
-                  <Ionicons name="chevron-forward" size={18} color={colors.subtext} />
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
         </ScrollView>
       </KeyboardAvoidingView>
       <Toast message={toast.message} type={toast.type} visible={toast.visible} onHide={hideToast} />

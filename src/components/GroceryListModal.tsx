@@ -10,6 +10,7 @@ import {
   Share,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { colors } from '../theme/tokens';
 import { GroceryListService, GroceryList, GroceryItem } from '../services/groceryListService';
 import { ShoppingListStore } from '../services/shoppingListStore';
 import { buyIngredient } from '../services/affiliateService';
@@ -250,7 +251,7 @@ export default function GroceryListModal({
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-            <Ionicons name="close" size={28} color="#F5ECDF" />
+            <Ionicons name="close" size={28} color={colors.secondaryText} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Add Ingredients to Cart</Text>
           <TouchableOpacity onPress={handleShare} style={styles.shareButton}>
@@ -434,7 +435,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#F5ECDF',
+    color: colors.secondaryText,
     flex: 1,
     textAlign: 'center',
   },
@@ -461,7 +462,7 @@ const styles = StyleSheet.create({
   },
   progressBar: {
     height: 6,
-    backgroundColor: '#3A2A1F', // Chip background
+    backgroundColor: colors.chipBg, // Chip background
     borderRadius: 3,
     overflow: 'hidden',
   },
@@ -491,7 +492,7 @@ const styles = StyleSheet.create({
   categoryTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#F5ECDF', // Text color
+    color: colors.secondaryText, // Text color
     marginBottom: 16,
   },
   itemContainer: {
@@ -533,7 +534,7 @@ const styles = StyleSheet.create({
   itemName: {
     fontSize: 15,
     fontWeight: '500',
-    color: '#F5ECDF', // Text color
+    color: colors.secondaryText, // Text color
     marginBottom: 4,
   },
   itemNameChecked: {
@@ -620,7 +621,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#3A2A1F', // Chip background
+    backgroundColor: colors.chipBg, // Chip background
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 8,

@@ -241,8 +241,12 @@ function AppInner() {
       .recordActivity('app_open')
       .then((result) => {
         if (result.streakIncreased) {
-          // First app open of the day — award 10 XP daily login bonus
-          useXPSystem.getState().earnXP(10, 'daily-login', 'Daily login bonus');
+          // First app open of the day. checkDailyLogin() rather than a raw
+          // earnXP: it carries the once-per-calendar-day dedupe, and this is
+          // now the ONLY daily-login call site (RecipesScreen's duplicate
+          // call was removed in the 2026-08 XP-funnel pass — between them
+          // the bonus could be paid twice on the same day).
+          useXPSystem.getState().checkDailyLogin();
           console.log(`🔥 Streak increased to ${result.currentStreak} days!`);
           if (result.isNewRecord) {
             console.log(`🎉 New record streak!`);

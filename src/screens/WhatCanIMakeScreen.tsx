@@ -4,7 +4,7 @@
  * Allows filtering by selected ingredients
  */
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -80,8 +80,35 @@ export default function WhatCanIMakeScreen() {
   const [selectedDifficulty, setSelectedDifficulty] = useState<
     'beginner' | 'intermediate' | 'expert' | null
   >(null);
+  // Spirit/method/flavor default to the same values the service used to have
+  // hardcoded ('any' / 'shake' / 'refreshing') so existing behavior is
+  // unchanged until the user actually taps a different chip.
+  const [selectedSpirit, setSelectedSpirit] = useState('any');
+  const [selectedMethod, setSelectedMethod] = useState<'shake' | 'stir' | 'build'>('shake');
+  const [selectedFlavorProfile, setSelectedFlavorProfile] = useState('refreshing');
   const [generatingRecipe, setGeneratingRecipe] = useState(false);
   const [aiRecipes, setAiRecipes] = useState<CocktailWithMatch[]>([]);
+
+  // Spirit chips are limited to what's actually among the checked ingredients
+  // — offering a base spirit the AI can't actually use (because it's not in
+  // the selected inventory list passed to the prompt) would just produce a
+  // recipe that silently ignores the choice.
+  const availableSpiritOptions = useMemo(() => {
+    const spiritNames = inventory
+      .filter((item) => selectedItems.has(item.item_name) && item.category === 'spirit')
+      .map((item) => (item.subcategory || item.item_name || '').trim())
+      .filter(Boolean);
+    const deduped = Array.from(new Set(spiritNames.map((s) => s.toLowerCase())));
+    return ['any', ...deduped];
+  }, [inventory, selectedItems]);
+
+  // Reset back to 'any' if the previously selected spirit falls out of the
+  // checked ingredients (e.g. the user unchecks that bottle).
+  useEffect(() => {
+    if (!availableSpiritOptions.includes(selectedSpirit)) {
+      setSelectedSpirit('any');
+    }
+  }, [availableSpiritOptions, selectedSpirit]);
 
   // Grocery List Modal State
   const [groceryListVisible, setGroceryListVisible] = useState(false);
@@ -240,12 +267,12 @@ export default function WhatCanIMakeScreen() {
 
     // Check rate limit first
     const isPremium = tier !== 'FREE';
-    const { canGenerate } = await checkRateLimit(user.id, isPremium);
+    const { canGenerate, dailyLimit } = await checkRateLimit(user.id, isPremium);
 
     if (!canGenerate) {
       Alert.alert(
         'Daily Limit Reached',
-        'Free users can generate 1 recipe per day. Upgrade to premium for unlimited AI recipes!',
+        `Free users can generate ${dailyLimit} recipe${dailyLimit === 1 ? '' : 's'} per day. Upgrade to premium for unlimited AI recipes!`,
         [
           { text: 'Not Now', style: 'cancel' },
           {
@@ -268,15 +295,14 @@ export default function WhatCanIMakeScreen() {
       // Get filtered inventory based on selection
       const filteredInventory = inventory.filter((item) => selectedItems.has(item.item_name));
 
-      // Use defaults for spirit, method, and flavor since user only chose difficulty
       const recipe = await generateRecipeFromInventory({
         userId: user.id,
         userInventory: filteredInventory,
         difficultyLevel: selectedDifficulty,
         isPremium,
-        selectedSpirit: 'any', // Let AI choose
-        selectedPreparationMethod: 'shake', // Default method
-        selectedFlavorProfile: 'refreshing', // Default flavor
+        selectedSpirit,
+        selectedPreparationMethod: selectedMethod,
+        selectedFlavorProfile,
       });
 
       // Add match data and required fields to the generated recipe
@@ -618,6 +644,101 @@ export default function WhatCanIMakeScreen() {
             </TouchableOpacity>
           ))}
         </ScrollView>
+
+        {/* Preparation Method Selector */}
+        <Text style={styles.aiOptionLabel}>Method</Text>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.difficultyScroll}
+          contentContainerStyle={styles.difficultyScrollContent}
+        >
+          {(['shake', 'stir', 'build'] as const).map((method) => (
+            <TouchableOpacity
+              key={method}
+              style={[
+                styles.difficultyChip,
+                selectedMethod === method && styles.difficultyChipSelected,
+              ]}
+              onPress={() => setSelectedMethod(method)}
+            >
+              <Text
+                style={[
+                  styles.difficultyText,
+                  selectedMethod === method && styles.difficultyTextSelected,
+                ]}
+              >
+                {method.charAt(0).toUpperCase() + method.slice(1)}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+
+        {/* Flavor Profile Selector */}
+        <Text style={styles.aiOptionLabel}>Flavor</Text>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.difficultyScroll}
+          contentContainerStyle={styles.difficultyScrollContent}
+        >
+          {(['refreshing', 'spirit-forward', 'sour', 'sweet', 'bitter', 'tropical'] as const).map(
+            (flavor) => (
+              <TouchableOpacity
+                key={flavor}
+                style={[
+                  styles.difficultyChip,
+                  selectedFlavorProfile === flavor && styles.difficultyChipSelected,
+                ]}
+                onPress={() => setSelectedFlavorProfile(flavor)}
+              >
+                <Text
+                  style={[
+                    styles.difficultyText,
+                    selectedFlavorProfile === flavor && styles.difficultyTextSelected,
+                  ]}
+                >
+                  {flavor.charAt(0).toUpperCase() + flavor.slice(1)}
+                </Text>
+              </TouchableOpacity>
+            ),
+          )}
+        </ScrollView>
+
+        {/* Base Spirit Selector — only shown once checking ingredients gives
+            the AI more than one spirit to choose between; "any" alone isn't
+            worth a whole row. */}
+        {availableSpiritOptions.length > 1 && (
+          <>
+            <Text style={styles.aiOptionLabel}>Base Spirit</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.difficultyScroll}
+              contentContainerStyle={styles.difficultyScrollContent}
+            >
+              {availableSpiritOptions.map((spirit) => (
+                <TouchableOpacity
+                  key={spirit}
+                  style={[
+                    styles.difficultyChip,
+                    selectedSpirit === spirit && styles.difficultyChipSelected,
+                  ]}
+                  onPress={() => setSelectedSpirit(spirit)}
+                >
+                  <Text
+                    style={[
+                      styles.difficultyText,
+                      selectedSpirit === spirit && styles.difficultyTextSelected,
+                    ]}
+                  >
+                    {spirit === 'any' ? 'Any' : spirit.charAt(0).toUpperCase() + spirit.slice(1)}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </>
+        )}
 
         {/* Generate Button */}
         <TouchableOpacity
@@ -1148,6 +1269,14 @@ const styles = StyleSheet.create({
     color: colors.subtext,
     marginBottom: spacing(1.75),
     marginTop: spacing(0.25),
+  },
+  aiOptionLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.subtext,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: spacing(0.75),
   },
   difficultyScroll: {
     marginBottom: spacing(2),
