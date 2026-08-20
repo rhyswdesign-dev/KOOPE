@@ -9,6 +9,9 @@ import { Linking } from 'react-native';
 import type { PolicyDeepLink } from '../types/consent';
 import { log } from './logger';
 import { navigateWhenReady } from './navigationRef';
+import { checkFeatureAccess } from '../hooks/useFeatureAccess';
+import type { FeatureKey } from '../config/featureRegistry';
+import { useUserTier } from '../store/useUserTier';
 
 /**
  * Deep link URL patterns
@@ -153,6 +156,30 @@ export function generatePolicyDeepLink(params: PolicyDeepLink): string {
 }
 
 /**
+ * Routes that lead to a paid feature. The in-app buttons that normally reach
+ * these screens gate through useFeatureAccess first, but a deep link
+ * (notification tap, widget, share sheet) skips that button entirely — so
+ * every resolved route is re-checked against the user's tier here, and swapped
+ * for the paywall when the destination isn't unlocked.
+ */
+const GATED_ROUTES: Partial<Record<string, FeatureKey>> = {
+  WhatCanIMake: 'what_can_i_make',
+};
+
+function applyFeatureGate(route: NotificationRoute): NotificationRoute {
+  const featureKey = GATED_ROUTES[route.name];
+  if (!featureKey) return route;
+
+  const tier = useUserTier.getState().tier;
+  if (checkFeatureAccess(featureKey, tier)) return route;
+
+  return {
+    name: 'Paywall',
+    params: { displayCloseButton: true, source: featureKey },
+  };
+}
+
+/**
  * Resolve a notification `actionUrl` to a concrete navigator route.
  * Returns null when the URL isn't one of the notification targets above —
  * callers then fall through to the generic deep-link handler.
@@ -192,12 +219,13 @@ export function resolveNotificationRoute(url: string): NotificationRoute | null 
  * NavigationContainer mounts. Returns true if a route was matched.
  */
 export function navigateToActionUrl(url: string): boolean {
-  const route = resolveNotificationRoute(url);
-  if (!route) {
+  const resolved = resolveNotificationRoute(url);
+  if (!resolved) {
     log.warn('DeepLinking', 'No route for notification actionUrl', { url });
     return false;
   }
 
+  const route = applyFeatureGate(resolved);
   log.nav('DeepLinking', route.name, { url, params: route.params });
   navigateWhenReady(route.name, route.params);
   return true;
@@ -239,8 +267,9 @@ export function handleDeepLink(url: string, navigation: any): boolean {
     }
 
     // Notification / in-app deep links (koope://hosting, koope://what-can-i-make, ...)
-    const notificationRoute = resolveNotificationRoute(url);
-    if (notificationRoute) {
+    const resolvedRoute = resolveNotificationRoute(url);
+    if (resolvedRoute) {
+      const notificationRoute = applyFeatureGate(resolvedRoute);
       log.info('DeepLinking', 'Notification deep link detected', { notificationRoute });
       navigation.navigate(notificationRoute.name, notificationRoute.params);
       return true;

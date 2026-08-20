@@ -7,6 +7,10 @@ export interface Cocktail {
   id: string;
   name: string;
   ingredients: string; // Comma-separated list of ingredients
+  // Structured mirror of `ingredients` (name/amount/unit), populated for
+  // AI-generated recipes from migration 034 onward. NULL for curated rows
+  // and anything generated before that migration.
+  ingredients_structured?: { name: string; amount: string; unit?: string }[] | null;
   instructions?: string;
   category?: string;
   glass_type?: string;

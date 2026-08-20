@@ -25,11 +25,7 @@ interface CreateRecipeModalProps {
 type RecipeType = 'cocktail' | 'syrup' | 'bitter' | 'infusion' | 'shrub' | 'cordial' | 'tincture';
 type RecipeMethod = 'shake' | 'stir' | 'build' | 'blend' | 'muddle' | 'layer' | 'swizzle' | 'throw';
 
-export default function CreateRecipeModal({
-  visible,
-  onClose,
-  onSuccess,
-}: CreateRecipeModalProps) {
+export default function CreateRecipeModal({ visible, onClose, onSuccess }: CreateRecipeModalProps) {
   const [recipe, setRecipe] = useState<Partial<RecipeSubmission>>({
     title: '',
     description: '',
@@ -50,11 +46,8 @@ export default function CreateRecipeModal({
   const [recipeType, setRecipeType] = useState<RecipeType>('cocktail');
   const [recipeMethod, setRecipeMethod] = useState<RecipeMethod | null>(null);
 
-  const updateField = <K extends keyof RecipeSubmission>(
-    key: K,
-    value: RecipeSubmission[K]
-  ) => {
-    setRecipe(prev => ({ ...prev, [key]: value }));
+  const updateField = <K extends keyof RecipeSubmission>(key: K, value: RecipeSubmission[K]) => {
+    setRecipe((prev) => ({ ...prev, [key]: value }));
   };
 
   const addIngredient = () => {
@@ -98,7 +91,7 @@ export default function CreateRecipeModal({
   };
 
   const removeTag = (tag: string) => {
-    const updated = (recipe.tags || []).filter(t => t !== tag);
+    const updated = (recipe.tags || []).filter((t) => t !== tag);
     updateField('tags', updated);
   };
 
@@ -163,7 +156,7 @@ export default function CreateRecipeModal({
     // Adjust suggestions for non-cocktail types
     if (type === 'syrup') {
       return [
-        'Combine ingredients in a saucepan',
+        'Combine ingredients in a pot',
         'Heat gently until sugar dissolves',
         'Simmer for recommended time',
         'Remove from heat and let cool',
@@ -282,14 +275,12 @@ export default function CreateRecipeModal({
             <Ionicons name="close" size={24} color={colors.text} />
           </Pressable>
           <Text style={styles.headerTitle}>Create Recipe</Text>
-          <Pressable 
-            style={[styles.headerButton, styles.submitButton]} 
+          <Pressable
+            style={[styles.headerButton, styles.submitButton]}
             onPress={handleSubmit}
             disabled={isSubmitting}
           >
-            <Text style={styles.submitText}>
-              {isSubmitting ? 'Saving...' : 'Save'}
-            </Text>
+            <Text style={styles.submitText}>{isSubmitting ? 'Saving...' : 'Save'}</Text>
           </Pressable>
         </View>
 
@@ -297,7 +288,7 @@ export default function CreateRecipeModal({
           {/* Basic Info */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Basic Information</Text>
-            
+
             <View style={styles.field}>
               <Text style={styles.fieldLabel}>Recipe Title *</Text>
               <TextInput
@@ -357,10 +348,7 @@ export default function CreateRecipeModal({
                   return (
                     <Pressable
                       key={type.key}
-                      style={[
-                        styles.typeOption,
-                        isSelected && styles.typeOptionSelected,
-                      ]}
+                      style={[styles.typeOption, isSelected && styles.typeOptionSelected]}
                       onPress={() => setRecipeType(type.key as RecipeType)}
                     >
                       <Ionicons
@@ -368,10 +356,7 @@ export default function CreateRecipeModal({
                         size={20}
                         color={isSelected ? colors.gold : colors.text}
                       />
-                      <Text style={[
-                        styles.typeText,
-                        isSelected && styles.typeTextSelected,
-                      ]}>
+                      <Text style={[styles.typeText, isSelected && styles.typeTextSelected]}>
                         {type.label}
                       </Text>
                     </Pressable>
@@ -418,19 +403,16 @@ export default function CreateRecipeModal({
                       key={option.key}
                       style={[
                         styles.difficultyOption,
-                        isSelected && { backgroundColor: option.color, borderColor: option.color }
+                        isSelected && { backgroundColor: option.color, borderColor: option.color },
                       ]}
                       onPress={() => updateField('difficulty', option.key as any)}
                     >
-                      <Ionicons 
-                        name={option.icon as any} 
-                        size={20} 
-                        color={isSelected ? colors.white : option.color} 
+                      <Ionicons
+                        name={option.icon as any}
+                        size={20}
+                        color={isSelected ? colors.white : option.color}
                       />
-                      <Text style={[
-                        styles.difficultyText,
-                        isSelected && { color: colors.white }
-                      ]}>
+                      <Text style={[styles.difficultyText, isSelected && { color: colors.white }]}>
                         {option.label}
                       </Text>
                     </Pressable>
@@ -480,9 +462,7 @@ export default function CreateRecipeModal({
           {recipeType === 'cocktail' && (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Preparation Method</Text>
-              <Text style={styles.helperText}>
-                Select a method to get step-by-step guidance
-              </Text>
+              <Text style={styles.helperText}>Select a method to get step-by-step guidance</Text>
 
               <View style={styles.methodGrid}>
                 {[
@@ -499,10 +479,7 @@ export default function CreateRecipeModal({
                   return (
                     <Pressable
                       key={method.key}
-                      style={[
-                        styles.methodOption,
-                        isSelected && styles.methodOptionSelected,
-                      ]}
+                      style={[styles.methodOption, isSelected && styles.methodOptionSelected]}
                       onPress={() => {
                         const selectedMethod = method.key as RecipeMethod;
                         setRecipeMethod(selectedMethod);
@@ -516,10 +493,7 @@ export default function CreateRecipeModal({
                         size={24}
                         color={isSelected ? colors.white : colors.accent}
                       />
-                      <Text style={[
-                        styles.methodText,
-                        isSelected && styles.methodTextSelected,
-                      ]}>
+                      <Text style={[styles.methodText, isSelected && styles.methodTextSelected]}>
                         {method.label}
                       </Text>
                     </Pressable>
@@ -580,18 +554,18 @@ export default function CreateRecipeModal({
           {/* Media */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Photos & Videos</Text>
-            
+
             <View style={styles.mediaButtons}>
               <Pressable style={styles.mediaButton} onPress={handleAddImage}>
                 <Ionicons name="images" size={20} color={colors.accent} />
                 <Text style={styles.mediaButtonText}>Add Photos</Text>
               </Pressable>
-              
+
               <Pressable style={styles.mediaButton} onPress={handleTakePhoto}>
                 <Ionicons name="camera" size={20} color={colors.accent} />
                 <Text style={styles.mediaButtonText}>Take Photo</Text>
               </Pressable>
-              
+
               <Pressable style={styles.mediaButton} onPress={handleAddVideo}>
                 <Ionicons name="videocam" size={20} color={colors.accent} />
                 <Text style={styles.mediaButtonText}>Add Video</Text>
@@ -599,12 +573,12 @@ export default function CreateRecipeModal({
             </View>
 
             {/* Media Preview */}
-            {(recipe.images && recipe.images.length > 0) && (
+            {recipe.images && recipe.images.length > 0 && (
               <View style={styles.mediaGrid}>
                 {recipe.images.map((image, index) => (
                   <View key={index} style={styles.mediaItem}>
                     <Image source={{ uri: image.uri }} style={styles.mediaPreview} />
-                    <Pressable 
+                    <Pressable
                       style={styles.removeMedia}
                       onPress={() => removeMedia('images', index)}
                     >
@@ -619,7 +593,7 @@ export default function CreateRecipeModal({
           {/* Tags */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Tags</Text>
-            
+
             <View style={styles.tagInput}>
               <TextInput
                 style={[styles.textInput, { flex: 1 }]}
@@ -635,7 +609,7 @@ export default function CreateRecipeModal({
               </Pressable>
             </View>
 
-            {(recipe.tags && recipe.tags.length > 0) && (
+            {recipe.tags && recipe.tags.length > 0 && (
               <View style={styles.tagsList}>
                 {recipe.tags.map((tag, index) => (
                   <View key={index} style={styles.tag}>

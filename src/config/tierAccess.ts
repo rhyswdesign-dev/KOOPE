@@ -347,8 +347,5 @@ export function getUpgradeMessage(tier: UserTier, feature?: string): string {
   if (tier === 'FREE') {
     return 'Upgrade to KŌOPE+ to unlock unlimited bottles and the full recipe catalog';
   }
-  if (tier === 'PLUS' && feature === 'pro-exclusive') {
-    return 'Upgrade to KŌOPE PRO for Vault drops, the recipe builder, and full hosting tools';
-  }
   return 'Upgrade to access this feature';
 }

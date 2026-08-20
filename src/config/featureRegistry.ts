@@ -38,6 +38,7 @@ export type FeatureKey =
   | 'flavor_tags_visible'
   | 'mood_suggestions'
   | 'saved_cocktails_unlimited'
+  | 'what_can_i_make'
 
   // AI
   | 'ai_unlimited'
@@ -215,6 +216,13 @@ export const FEATURE_REGISTRY: Record<FeatureKey, FeatureDefinition> = {
     minTier: 'PLUS',
     displayName: 'Unlimited Saves',
     description: 'Save as many cocktails as you want.',
+    paywallTarget: 'plus',
+    category: 'discovery',
+  },
+  what_can_i_make: {
+    minTier: 'PLUS',
+    displayName: 'What Can I Make',
+    description: 'See every cocktail your shelf can make right now, ranked by match.',
     paywallTarget: 'plus',
     category: 'discovery',
   },

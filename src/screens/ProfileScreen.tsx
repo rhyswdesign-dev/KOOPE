@@ -11,6 +11,7 @@ import {
   Animated,
   Share,
   Alert,
+  Dimensions,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -25,17 +26,17 @@ import type { RootStackParamList } from '../navigation/RootNavigator';
 import { useSavedItems } from '../hooks/useSavedItems';
 import { useUserRecipes } from '../store/useUserRecipes';
 import RecipePreferencesModal from '../components/RecipePreferencesModal';
-import {
-  achievementService,
-  Achievement,
-  levelForXP,
-  xpForLevel,
-} from '../services/achievementService';
+import { achievementService, Achievement } from '../services/achievementService';
 import { useXPSystem } from '../store/useXPSystem';
 import { useUser } from '../store/useUser';
 import { useUserTier } from '../store/useUserTier';
-import { cocktailVariations, techniquePlaybooks, drinkingGames } from '../config/vaultContent';
-import { getProIdentityProgress, PRO_XP_MULTIPLIER } from '../config/proIdentity';
+import { getProIdentityProgress } from '../config/proIdentity';
+import {
+  getVariationsForDisplay,
+  getTechniquePlaybooksByType,
+  getAllPlaybookTypes,
+  getBartenderHacksForDisplay,
+} from '../config/vaultContent';
 import { WEEKLY_FOR_YOU_DROP_RECIPES } from '../data/weeklyForYouDropRecipes';
 import { notificationService } from '../services/notificationService';
 import { ScanHistoryService, ScanRecord } from '../services/scanHistoryService';
@@ -45,6 +46,10 @@ const CERT_SEEN_KEY = 'koope_last_seen_cert_id';
 
 const serifFont = serif;
 
+// Featured-badge carousel page width — full content width (screen minus the
+// ScrollView's own horizontal padding), so exactly one badge pages at a time.
+const FEATURED_BADGE_WIDTH = Dimensions.get('window').width - spacing(3) * 2;
+
 export default function ProfileScreen() {
   const { user, isAuthenticated, isLoading, signOut } = useAuth();
   const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -52,7 +57,7 @@ export default function ProfileScreen() {
   const [preferencesModalVisible, setPreferencesModalVisible] = useState(false);
   const { savedItems } = useSavedItems();
   const { recipes } = useUserRecipes();
-  const { balance: totalXP } = useXPSystem();
+  const { balance: totalXP, unlockedVaultItems } = useXPSystem();
   const { tier } = useUserTier();
   const { completedLessons } = useUser();
   const [achievements, setAchievements] = useState<Achievement[]>([]);
@@ -61,13 +66,15 @@ export default function ProfileScreen() {
     null,
   );
   const [scanHistory, setScanHistory] = useState<ScanRecord[]>([]);
+  const [featuredBadgeIndex, setFeaturedBadgeIndex] = useState(0);
   const certModalScale = useRef(new Animated.Value(0.7)).current;
   const certModalOpacity = useRef(new Animated.Value(0)).current;
 
-  const currentLevel = Math.floor(totalXP / 100) + 1;
-  const xpInLevel = totalXP % 100;
-  const xpForNextLevel = 100;
-  const unlockedAchievementCount = achievements.filter((a) => a.unlocked).length;
+  const unlockedAchievements = useMemo(
+    () => achievements.filter((a) => a.unlocked),
+    [achievements],
+  );
+  const unlockedAchievementCount = unlockedAchievements.length;
   const savedCocktailCount = savedItems.savedCocktails?.length || 0;
   const savedDrinkCount = savedItems.savedDrinks?.length || 0;
   const savedRecipeCardCount = savedItems.savedRecipeCards?.length || 0;
@@ -75,6 +82,18 @@ export default function ProfileScreen() {
   const createdRecipeCount = recipes.filter(
     (r) => r.type === 'created' || r.type === 'ai_generated',
   ).length;
+  // Vault items are level-gated and auto-unlock as XP grows (VaultScreen owns
+  // that sync). Count against the same level-gated pool it walks — variations,
+  // playbooks and hacks — so the Profile row can't drift from the Vault itself.
+  const unlockedVaultCount = useMemo(() => {
+    const unlocked = new Set(unlockedVaultItems || []);
+    const allVaultItems = [
+      ...getVariationsForDisplay(),
+      ...getAllPlaybookTypes().flatMap((type) => getTechniquePlaybooksByType(type)),
+      ...getBartenderHacksForDisplay(),
+    ];
+    return allVaultItems.filter((item) => unlocked.has(item.id)).length;
+  }, [unlockedVaultItems]);
   const claimedDropCount = useMemo(() => {
     const weeklyDropIds = new Set<string>(WEEKLY_FOR_YOU_DROP_RECIPES.map((recipe) => recipe.id));
     return (savedItems.savedCocktails || []).filter((item) => weeklyDropIds.has(item.id)).length;
@@ -169,49 +188,6 @@ export default function ProfileScreen() {
     },
     [user],
   );
-
-  // Compute what vault content the user has reached with their XP level.
-  // Only used in the free-user affordability card; shows XP as currency, not just a score.
-  // Phase 0.6: vault items are level-gated, not spend-XP-to-unlock.
-  const vaultAffordability = useMemo(() => {
-    const currentLevel = levelForXP(totalXP);
-    const safeVariations = cocktailVariations || [];
-    const safePlaybooks = techniquePlaybooks || [];
-    const safeGames = drinkingGames || [];
-    const freeVariations = safeVariations.filter((v) => !v.requiredTier);
-    const freePlaybooks = safePlaybooks.filter((p) => !p.requiredTier);
-    const freeGames = safeGames.filter((g) => !g.requiredTier);
-
-    const affordableVariations = freeVariations.filter(
-      (v) => v.requiredLevel <= currentLevel,
-    ).length;
-    const affordablePlaybooks = freePlaybooks.filter((p) => p.requiredLevel <= currentLevel).length;
-    const affordableGames = freeGames.filter((g) => g.requiredLevel <= currentLevel).length;
-
-    const plusGatedCount = [
-      ...safeVariations.filter((v) => v.requiredTier === 'PLUS'),
-      ...safePlaybooks.filter((p) => p.requiredTier === 'PLUS'),
-      ...safeGames.filter((g) => g.requiredTier === 'PLUS'),
-    ].length;
-
-    const cheapestFreeLevel = Math.min(
-      ...freeVariations.map((v) => v.requiredLevel),
-      ...freePlaybooks.map((p) => p.requiredLevel),
-      ...freeGames.map((g) => g.requiredLevel),
-    );
-
-    return {
-      affordableVariations,
-      affordablePlaybooks,
-      affordableGames,
-      plusGatedCount,
-      totalAffordable: affordableVariations + affordablePlaybooks + affordableGames,
-      xpToFirstItem: Math.max(
-        0,
-        xpForLevel(isFinite(cheapestFreeLevel) ? cheapestFreeLevel : 2) - totalXP,
-      ),
-    };
-  }, [totalXP]);
 
   // Debug: Log authentication state
   useEffect(() => {
@@ -320,141 +296,8 @@ export default function ProfileScreen() {
             ]}
           />
           <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-            {/* Profile Header with Avatar */}
-            <View style={styles.profileHeaderSection}>
-              <View style={styles.avatarLarge}>
-                <MaterialCommunityIcons name="glass-cocktail" size={48} color={colors.accent} />
-              </View>
-              <Heading level={2} style={styles.userHandle}>
-                {user?.email?.split('@')[0] || 'Bartender'}
-              </Heading>
-              <Text style={styles.userTitle}>
-                Level {currentLevel} | {totalXP.toLocaleString()} XP
-              </Text>
-              {/* Daily streak badge removed per KOOPE-MASTER-PLAN.md:
-                  "Kill: ... daily streaks (daily mechanics on an alcohol app
-                  are an ethical and App Store error — weekly rituals only)." */}
-            </View>
-
-            {/* Level Progress Bar */}
-            <View style={styles.levelSection}>
-              <View style={styles.levelHeader}>
-                <Text style={styles.levelText}>Level {currentLevel}</Text>
-                <Text style={styles.levelXP}>
-                  {xpInLevel} / {xpForNextLevel} XP
-                </Text>
-              </View>
-              <View style={styles.progressBarContainer}>
-                <View
-                  style={[
-                    styles.progressBarFill,
-                    { width: `${(xpInLevel / xpForNextLevel) * 100}%` },
-                  ]}
-                />
-              </View>
-            </View>
-
-            {/* Wave 4 Identity — archived, pending redesign */}
-
-            {/* XP Affordability Card — free users only.
-                Makes XP feel like currency ("you can unlock X items") rather than an abstract score. */}
-            {tier === 'FREE' && (
-              <View style={styles.xpCurrencyCard}>
-                <View style={styles.xpCurrencyHeader}>
-                  <Text style={styles.xpCurrencyTitle}>Your XP Can Unlock</Text>
-                  <Text style={styles.xpCurrencyBalance}>{totalXP.toLocaleString()} XP</Text>
-                </View>
-
-                {vaultAffordability.totalAffordable > 0 ? (
-                  <>
-                    {vaultAffordability.affordableVariations > 0 && (
-                      <View style={styles.xpCurrencyRow}>
-                        <Ionicons name="checkmark-circle" size={16} color={colors.accent} />
-                        <Text style={styles.xpCurrencyItem}>
-                          {vaultAffordability.affordableVariations} Cocktail Variation
-                          {vaultAffordability.affordableVariations !== 1 ? 's' : ''}{' '}
-                          <Text style={styles.xpCurrencyXP}>(300–950 XP)</Text>
-                        </Text>
-                      </View>
-                    )}
-                    {vaultAffordability.affordablePlaybooks > 0 && (
-                      <View style={styles.xpCurrencyRow}>
-                        <Ionicons name="checkmark-circle" size={16} color={colors.accent} />
-                        <Text style={styles.xpCurrencyItem}>
-                          {vaultAffordability.affordablePlaybooks} Technique Playbook
-                          {vaultAffordability.affordablePlaybooks !== 1 ? 's' : ''}{' '}
-                          <Text style={styles.xpCurrencyXP}>(400–550 XP)</Text>
-                        </Text>
-                      </View>
-                    )}
-                    {vaultAffordability.affordableGames > 0 && (
-                      <View style={styles.xpCurrencyRow}>
-                        <Ionicons name="checkmark-circle" size={16} color={colors.accent} />
-                        <Text style={styles.xpCurrencyItem}>
-                          {vaultAffordability.affordableGames} Party Game
-                          {vaultAffordability.affordableGames !== 1 ? 's' : ''}{' '}
-                          <Text style={styles.xpCurrencyXP}>(200–250 XP)</Text>
-                        </Text>
-                      </View>
-                    )}
-                    {vaultAffordability.plusGatedCount > 0 && (
-                      <View style={styles.xpCurrencyRow}>
-                        <Ionicons name="lock-closed-outline" size={16} color={colors.subtext} />
-                        <Text style={[styles.xpCurrencyItem, { color: colors.subtext }]}>
-                          {vaultAffordability.plusGatedCount}+ more with KŌOPE+
-                        </Text>
-                      </View>
-                    )}
-                  </>
-                ) : (
-                  <View style={styles.xpCurrencyRow}>
-                    <Ionicons name="time-outline" size={16} color={colors.subtext} />
-                    <Text style={[styles.xpCurrencyItem, { color: colors.subtext }]}>
-                      Earn {vaultAffordability.xpToFirstItem} more XP to unlock your first item
-                    </Text>
-                  </View>
-                )}
-
-                {/* Phase 0.6 (gamification spine): daily XP caps are gone —
-                    XP -> Level -> Unlocks is the only progression math left,
-                    so the "Today: X / 300 XP" cap-progress bar that lived
-                    here was removed rather than shown against an infinite
-                    cap. */}
-
-                <TouchableOpacity
-                  style={styles.viewVaultButton}
-                  onPress={() => (nav as any).navigate('Vault')}
-                >
-                  <Text style={styles.viewVaultButtonText}>View Vault</Text>
-                  <Ionicons name="arrow-forward" size={14} color={colors.accent} />
-                </TouchableOpacity>
-              </View>
-            )}
-
-            {/* Stats Overview */}
-            <View style={styles.section}>
-              <Heading level={2} style={styles.sectionTitle}>
-                Stats Overview
-              </Heading>
-              <View style={styles.statsGrid}>
-                <View style={styles.statBox}>
-                  <Text style={styles.statBoxLabel}>Bottles{'\n'}Scanned</Text>
-                  <Text style={styles.statValue}>{scanHistory.length}</Text>
-                </View>
-                <View style={styles.statBox}>
-                  <Text style={styles.statBoxLabel}>Saved{'\n'}Drinks</Text>
-                  <Text style={styles.statValue}>{savedTotalCount}</Text>
-                </View>
-                <View style={styles.statBox}>
-                  <Text style={styles.statBoxLabel}>Achievements</Text>
-                  <Text style={styles.statValue}>
-                    {achievements.filter((a) => a.unlocked).length}/{achievements.length}
-                  </Text>
-                </View>
-              </View>
-            </View>
-
-            {/* Badges & Achievements */}
+            {/* Badges & Achievements — one large featured badge at a time,
+                paged horizontally, instead of a row of small icons. */}
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
                 <Heading level={2} style={styles.sectionTitle}>
@@ -464,107 +307,172 @@ export default function ProfileScreen() {
                   <Text style={styles.seeAllText}>See All</Text>
                 </TouchableOpacity>
               </View>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                style={styles.badgesScroll}
-              >
-                {achievements.filter((a) => a.unlocked).length > 0 ? (
-                  achievements
-                    .filter((a) => a.unlocked)
-                    .slice(0, 5)
-                    .map((achievement) => (
+              {unlockedAchievements.length > 0 ? (
+                <>
+                  <ScrollView
+                    horizontal
+                    pagingEnabled
+                    showsHorizontalScrollIndicator={false}
+                    onMomentumScrollEnd={(e) => {
+                      const index = Math.round(
+                        e.nativeEvent.contentOffset.x / FEATURED_BADGE_WIDTH,
+                      );
+                      setFeaturedBadgeIndex(
+                        Math.max(0, Math.min(index, unlockedAchievements.length - 1)),
+                      );
+                    }}
+                  >
+                    {unlockedAchievements.map((achievement) => (
                       <TouchableOpacity
                         key={achievement.id}
-                        style={styles.badgeItem}
+                        style={[styles.featuredBadgeSlide, { width: FEATURED_BADGE_WIDTH }]}
+                        activeOpacity={0.85}
                         onPress={() => nav.navigate('Achievements')}
                       >
-                        <View style={styles.badgeIcon}>
-                          <Ionicons
-                            name={(achievement.icon || 'trophy') as any}
-                            size={32}
-                            color={colors.gold}
+                        <View style={styles.featuredBadgeLaurelRow}>
+                          <MaterialCommunityIcons
+                            name="leaf"
+                            size={22}
+                            color={colors.line}
+                            style={styles.featuredBadgeLaurelLeft}
+                          />
+                          <View style={styles.featuredBadgeRing}>
+                            <Ionicons
+                              name={(achievement.icon || 'trophy') as any}
+                              size={48}
+                              color={colors.gold}
+                            />
+                          </View>
+                          <MaterialCommunityIcons
+                            name="leaf"
+                            size={22}
+                            color={colors.line}
+                            style={styles.featuredBadgeLaurelRight}
                           />
                         </View>
-                        <Text style={styles.badgeName} numberOfLines={2}>
-                          {achievement.title}
-                        </Text>
+                        <Text style={styles.featuredBadgeTitle}>{achievement.title}</Text>
                       </TouchableOpacity>
-                    ))
-                ) : (
-                  <TouchableOpacity
-                    style={styles.badgeItem}
-                    onPress={() => nav.navigate('Achievements')}
-                  >
-                    <View style={[styles.badgeIcon, { opacity: 0.4 }]}>
-                      <Ionicons name="trophy-outline" size={32} color={colors.subtext} />
+                    ))}
+                  </ScrollView>
+                  {unlockedAchievements.length > 1 && (
+                    <View style={styles.featuredBadgeDots}>
+                      {unlockedAchievements.map((achievement, index) => (
+                        <View
+                          key={achievement.id}
+                          style={[
+                            styles.featuredBadgeDot,
+                            index === featuredBadgeIndex && styles.featuredBadgeDotActive,
+                          ]}
+                        />
+                      ))}
                     </View>
-                    <Text style={styles.badgeName}>Start earning!</Text>
-                  </TouchableOpacity>
-                )}
-              </ScrollView>
+                  )}
+                </>
+              ) : (
+                <TouchableOpacity
+                  style={[styles.featuredBadgeSlide, { width: FEATURED_BADGE_WIDTH }]}
+                  onPress={() => nav.navigate('Achievements')}
+                >
+                  <View style={[styles.featuredBadgeRing, { opacity: 0.4 }]}>
+                    <Ionicons name="trophy-outline" size={48} color={colors.subtext} />
+                  </View>
+                  <Text style={styles.featuredBadgeTitle}>Start earning!</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {/* Progress Overview */}
+            <View style={styles.section}>
+              <Heading level={2} style={styles.sectionTitle}>
+                Progress Overview
+              </Heading>
+              <View style={styles.progressOverviewRow}>
+                <View style={styles.progressStatItem}>
+                  <View style={styles.progressStatIconWrap}>
+                    <MaterialCommunityIcons
+                      name="bottle-wine-outline"
+                      size={22}
+                      color={colors.accent}
+                    />
+                  </View>
+                  <Text style={styles.progressStatValue}>{scanHistory.length}</Text>
+                  <Text style={styles.progressStatLabel}>Bottles{'\n'}Scanned</Text>
+                </View>
+                <View style={styles.progressStatDivider} />
+                <View style={styles.progressStatItem}>
+                  <View style={styles.progressStatIconWrap}>
+                    <Ionicons name="bookmark-outline" size={20} color={colors.accent} />
+                  </View>
+                  <Text style={styles.progressStatValue}>{savedTotalCount}</Text>
+                  <Text style={styles.progressStatLabel}>Saved{'\n'}Drinks</Text>
+                </View>
+                <View style={styles.progressStatDivider} />
+                <View style={styles.progressStatItem}>
+                  <View style={styles.progressStatIconWrap}>
+                    <Ionicons name="star-outline" size={20} color={colors.accent} />
+                  </View>
+                  <Text style={styles.progressStatValue}>
+                    {unlockedAchievementCount}/{achievements.length}
+                  </Text>
+                  <Text style={styles.progressStatLabel}>Achievements</Text>
+                </View>
+              </View>
             </View>
 
             {/* My Collection */}
-            <View style={styles.section}>
-              <View style={styles.sectionHeader}>
-                <Heading level={2} style={styles.sectionTitle}>
-                  My Collection
-                </Heading>
-                <TouchableOpacity onPress={() => nav.navigate('ProfileSavedItems')}>
-                  <Text style={styles.seeAllText}>See All</Text>
-                </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.navRowCard}
+              onPress={() => nav.navigate('ProfileSavedItems')}
+              activeOpacity={0.82}
+            >
+              <View style={styles.navRowIconWrap}>
+                <Ionicons name="create-outline" size={20} color={colors.accent} />
               </View>
-              <TouchableOpacity
-                style={styles.collectionCard}
-                onPress={() => nav.navigate('ProfileSavedItems')}
-              >
-                <View style={styles.collectionStats}>
-                  <View style={styles.collectionStatItem}>
-                    <Ionicons name="create" size={18} color={colors.accent} />
-                    <Text style={styles.collectionStatValue}>{createdRecipeCount}</Text>
-                    <Text style={styles.collectionStatLabel}>Created</Text>
-                  </View>
-                  <View style={styles.collectionDivider} />
-                  <View style={styles.collectionStatItem}>
-                    <Ionicons name="diamond" size={18} color={colors.accent} />
-                    <Text style={styles.collectionStatValue}>
-                      {savedItems.savedVaultItems?.length || 0}
-                    </Text>
-                    <Text style={styles.collectionStatLabel}>Vault</Text>
-                  </View>
-                </View>
-                <View style={styles.collectionArrow}>
-                  <Ionicons name="chevron-forward" size={20} color={colors.subtext} />
-                </View>
-              </TouchableOpacity>
-            </View>
+              <View style={styles.navRowTextWrap}>
+                <Text style={styles.navRowTitle}>My Collection</Text>
+                <Text style={styles.navRowSubtitle}>
+                  {createdRecipeCount} Created · {savedItems.savedVaultItems?.length || 0} Vault
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={colors.subtext} />
+            </TouchableOpacity>
 
             {/* Lessons — relocated here from the retired Lessons tab (1.4d) */}
-            <View style={styles.section}>
-              <View style={styles.sectionHeader}>
-                <Heading level={2} style={styles.sectionTitle}>
-                  Lessons
-                </Heading>
+            <TouchableOpacity
+              style={styles.navRowCard}
+              onPress={() => (nav as any).navigate('Lessons')}
+              activeOpacity={0.82}
+            >
+              <View style={styles.navRowIconWrap}>
+                <Ionicons name="school-outline" size={20} color={colors.accent} />
               </View>
-              <TouchableOpacity
-                style={styles.collectionCard}
-                onPress={() => (nav as any).navigate('Lessons')}
-              >
-                <View style={styles.collectionStats}>
-                  <View style={styles.collectionStatItem}>
-                    <Ionicons name="school" size={18} color={colors.accent} />
-                    <Text style={styles.collectionStatValue}>{completedLessons.length}</Text>
-                    <Text style={styles.collectionStatLabel}>Completed</Text>
-                  </View>
-                </View>
-                <View style={styles.collectionArrow}>
-                  <Ionicons name="chevron-forward" size={20} color={colors.subtext} />
-                </View>
-              </TouchableOpacity>
-            </View>
+              <View style={styles.navRowTextWrap}>
+                <Text style={styles.navRowTitle}>Lessons</Text>
+                <Text style={styles.navRowSubtitle}>{completedLessons.length} Completed</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={colors.subtext} />
+            </TouchableOpacity>
 
-            {/* Scan History Journal */}
+            {/* Vault — permanent entry point; the Vault stack screen previously
+                had no menu row anywhere in the app. */}
+            <TouchableOpacity
+              style={styles.navRowCard}
+              onPress={() => nav.navigate('Vault')}
+              activeOpacity={0.82}
+            >
+              <View style={styles.navRowIconWrap}>
+                <Ionicons name="sparkles-outline" size={20} color={colors.accent} />
+              </View>
+              <View style={styles.navRowTextWrap}>
+                <Text style={styles.navRowTitle}>Vault</Text>
+                <Text style={styles.navRowSubtitle}>{unlockedVaultCount} Unlocked</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={colors.subtext} />
+            </TouchableOpacity>
+
+            {/* Bottle Journal — plain section title, not a nav button (there's
+                nowhere else for it to go; the full list is already right
+                here below it). */}
             {scanHistory.length > 0 && (
               <View style={styles.section}>
                 <View style={styles.sectionHeader}>
@@ -618,38 +526,6 @@ export default function ProfileScreen() {
                     +{scanHistory.length - 5} more in history
                   </Text>
                 )}
-              </View>
-            )}
-
-            {/* Quick Summary — only shown once there's something to report */}
-            {(completedLessons.length > 0 ||
-              savedTotalCount > 0 ||
-              unlockedAchievementCount > 0) && (
-              <View style={styles.section}>
-                <Heading level={2} style={styles.sectionTitle}>
-                  Your Journey
-                </Heading>
-                <View style={styles.insightCard}>
-                  <View style={styles.insightContent}>
-                    <Heading level={3} style={styles.insightSubtitle}>
-                      {completedLessons.length > 0
-                        ? completedLessons.length < 10
-                          ? 'Great start!'
-                          : 'Making great progress!'
-                        : savedTotalCount > 0
-                          ? 'Building your collection'
-                          : 'Getting started!'}
-                    </Heading>
-                    <Text style={styles.insightDescription}>
-                      {completedLessons.length > 0
-                        ? `You've completed ${completedLessons.length} lesson${completedLessons.length !== 1 ? 's' : ''}, saved ${savedTotalCount} drink${savedTotalCount !== 1 ? 's' : ''}, unlocked ${unlockedAchievementCount} achievement${unlockedAchievementCount !== 1 ? 's' : ''}, and earned ${totalXP.toLocaleString()} XP.`
-                        : `You've saved ${savedTotalCount} drink${savedTotalCount !== 1 ? 's' : ''}, scanned ${scanHistory.length} bottle${scanHistory.length !== 1 ? 's' : ''}, and earned ${totalXP.toLocaleString()} XP so far.`}
-                    </Text>
-                  </View>
-                  <View style={styles.insightImage}>
-                    <MaterialCommunityIcons name="glass-cocktail" size={48} color={colors.accent} />
-                  </View>
-                </View>
               </View>
             )}
           </ScrollView>
@@ -751,59 +627,139 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: spacing(1),
   },
-  profileHeaderSection: {
+  // Featured-badge carousel (Badges & Achievements)
+  featuredBadgeSlide: {
     alignItems: 'center',
-    paddingVertical: spacing(4),
+    paddingVertical: spacing(2),
   },
-  avatarLarge: {
-    width: 100,
-    height: 100,
-    borderRadius: radii.full,
-    backgroundColor: colors.card,
+  featuredBadgeLaurelRow: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing(2),
+    gap: spacing(1.5),
+    marginBottom: spacing(1.5),
   },
-  userHandle: {
+  featuredBadgeLaurelLeft: {
+    transform: [{ scaleX: -1 }, { rotate: '-20deg' }],
+    opacity: 0.5,
+  },
+  featuredBadgeLaurelRight: {
+    transform: [{ rotate: '20deg' }],
+    opacity: 0.5,
+  },
+  featuredBadgeRing: {
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    backgroundColor: colors.card,
+    borderWidth: 2,
+    borderColor: 'rgba(224, 168, 84, 0.35)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: colors.gold,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.25,
+    shadowRadius: 24,
+    elevation: 6,
+  },
+  featuredBadgeTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+    fontFamily: serifFont,
+    textAlign: 'center',
+  },
+  featuredBadgeDots: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: spacing(1),
+    marginTop: spacing(1.5),
+  },
+  featuredBadgeDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.line,
+  },
+  featuredBadgeDotActive: {
+    backgroundColor: colors.accent,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+
+  // Progress Overview
+  progressOverviewRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.card,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.line,
+    paddingVertical: spacing(2.5),
+  },
+  progressStatItem: {
+    flex: 1,
+    alignItems: 'center',
+    gap: spacing(0.75),
+  },
+  progressStatIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(224, 168, 84, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  progressStatValue: {
     fontSize: 20,
     fontWeight: '700',
     color: colors.text,
-    marginBottom: spacing(0.5),
-    fontFamily: serifFont,
   },
-  userTitle: {
-    fontSize: 13,
+  progressStatLabel: {
+    fontSize: 11,
     color: colors.subtext,
-    marginBottom: spacing(1.5),
+    textAlign: 'center',
+    lineHeight: 14,
   },
-  levelSection: {
-    marginBottom: spacing(3),
+  progressStatDivider: {
+    width: 1,
+    height: 40,
+    backgroundColor: colors.line,
   },
-  levelHeader: {
+
+  // Nav-row cards (My Collection / Lessons / Bottle Journal)
+  navRowCard: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: spacing(1),
+    backgroundColor: colors.card,
+    borderRadius: radii.lg,
+    padding: spacing(2.5),
+    borderWidth: 1,
+    borderColor: colors.line,
+    gap: spacing(2),
+    marginBottom: spacing(2),
   },
-  levelText: {
-    fontSize: 14,
+  navRowIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: radii.lg,
+    backgroundColor: 'rgba(224, 168, 84, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  navRowTextWrap: {
+    flex: 1,
+  },
+  navRowTitle: {
+    fontSize: 15,
     fontWeight: '700',
     color: colors.text,
   },
-  levelXP: {
+  navRowSubtitle: {
     fontSize: 13,
     color: colors.subtext,
-  },
-  progressBarContainer: {
-    height: 8,
-    backgroundColor: colors.line,
-    borderRadius: 4,
-    overflow: 'hidden',
-  },
-  progressBarFill: {
-    height: '100%',
-    backgroundColor: colors.accent,
-    borderRadius: 4,
+    marginTop: spacing(0.25),
   },
   quickStatsRow: {
     flexDirection: 'row',
@@ -981,15 +937,6 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: spacing(1.5),
   },
-  collectionCard: {
-    flexDirection: 'row',
-    backgroundColor: colors.card,
-    borderRadius: radii.lg,
-    padding: spacing(2.5),
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.line,
-  },
   collectionIconContainer: {
     width: 48,
     height: 48,
@@ -1045,94 +992,6 @@ const styles = StyleSheet.create({
     color: colors.subtext,
     lineHeight: 20,
   },
-  statsGrid: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  statBox: {
-    width: '24%',
-    backgroundColor: colors.card,
-    borderRadius: radii.lg,
-    paddingVertical: spacing(1.1),
-    paddingHorizontal: spacing(0.5),
-    borderWidth: 1,
-    borderColor: colors.line,
-    alignItems: 'center',
-  },
-  statBoxLabel: {
-    fontSize: 11,
-    color: colors.subtext,
-    marginBottom: spacing(0.5),
-    lineHeight: 14,
-    minHeight: 28,
-    textAlign: 'center',
-  },
-  statValue: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.text,
-    textAlign: 'center',
-  },
-  badgesScroll: {
-    marginTop: spacing(1),
-  },
-  badgeItem: {
-    alignItems: 'center',
-    marginRight: spacing(2),
-    width: 100,
-  },
-  badgeIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: radii.full,
-    backgroundColor: colors.card,
-    borderWidth: 2,
-    borderColor: colors.line,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing(1),
-  },
-  badgeName: {
-    fontSize: 11,
-    color: colors.text,
-    textAlign: 'center',
-    fontWeight: '600',
-  },
-  insightCard: {
-    backgroundColor: colors.card,
-    borderRadius: radii.lg,
-    padding: spacing(3),
-    borderWidth: 1,
-    borderColor: colors.line,
-    flexDirection: 'row',
-    gap: spacing(2),
-  },
-  insightContent: {
-    flex: 1,
-  },
-  insightTitle: {
-    fontSize: 11,
-    color: colors.subtext,
-    textTransform: 'uppercase',
-    marginBottom: spacing(0.5),
-    fontWeight: '600',
-  },
-  insightSubtitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: spacing(1),
-  },
-  insightDescription: {
-    fontSize: 13,
-    color: colors.subtext,
-    lineHeight: 18,
-  },
-  insightImage: {
-    width: 80,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -1143,33 +1002,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.accent,
     fontWeight: '600',
-  },
-  collectionStats: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-around',
-  },
-  collectionStatItem: {
-    alignItems: 'center',
-    gap: spacing(0.5),
-  },
-  collectionStatValue: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  collectionStatLabel: {
-    fontSize: 11,
-    color: colors.subtext,
-  },
-  collectionDivider: {
-    width: 1,
-    height: 40,
-    backgroundColor: colors.line,
-  },
-  collectionArrow: {
-    paddingLeft: spacing(2),
   },
   proIdentityCard: {
     backgroundColor: colors.card,
@@ -1284,63 +1116,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 
-  // XP Affordability Card (free users)
-  xpCurrencyCard: {
-    backgroundColor: colors.card,
-    borderRadius: radii.lg,
-    padding: spacing(3),
-    marginBottom: spacing(3),
-    borderWidth: 1,
-    borderColor: colors.line,
-    gap: spacing(1.5),
-  },
-  xpCurrencyHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing(0.5),
-  },
-  xpCurrencyTitle: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.text,
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
-  },
-  xpCurrencyBalance: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.accent,
-  },
-  xpCurrencyRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing(1),
-  },
-  xpCurrencyItem: {
-    fontSize: 14,
-    color: colors.text,
-    flex: 1,
-  },
-  xpCurrencyXP: {
-    color: colors.subtext,
-    fontSize: 13,
-  },
-  viewVaultButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: spacing(0.5),
-    paddingTop: spacing(1.5),
-    borderTopWidth: 1,
-    borderTopColor: colors.line,
-    gap: spacing(0.75),
-  },
-  viewVaultButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.accent,
-  },
   scanHistoryCount: {
     fontSize: 12,
     color: colors.subtext,
@@ -1402,6 +1177,7 @@ const styles = StyleSheet.create({
     marginTop: spacing(1.25),
     fontWeight: '600',
   },
+
   certModalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.65)',

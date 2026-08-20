@@ -22,11 +22,12 @@ import {
 import { Image } from 'expo-image';
 import { colors, spacing, radii, fonts, serif } from '../theme/tokens';
 import { Heading, MainPageHeader } from '../components/ui';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { FlavorIcon } from '../components/FlavorIcon';
 import { useNavigation, useFocusEffect, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/RootNavigator';
+import type { ManualBottleEntryParams } from './ManualBottleEntryScreen';
 import { HomeBar, BarIngredient, HomeBarService } from '../services/homeBarService';
 import { InventoryService } from '../services/inventoryService';
 import { challengeProgressService } from '../services/challengeProgressService';
@@ -56,7 +57,15 @@ import * as Images from '../../assets/images';
 
 // Category definitions
 type InventoryCategory =
-  'spirits' | 'mixers' | 'garnishes' | 'ingredients' | 'liqueur' | 'bitters' | 'syrup' | 'other';
+  | 'spirits'
+  | 'mixers'
+  | 'garnishes'
+  | 'ingredients'
+  | 'liqueur'
+  | 'wine'
+  | 'bitters'
+  | 'syrup'
+  | 'other';
 
 interface InventoryItem extends BarIngredient {
   purchase_price?: number | null;
@@ -82,6 +91,22 @@ function hasCellarRecord(item: InventoryItem): boolean {
   );
 }
 
+// Coarse relative-time label for Want-tab cards (e.g. "Last logged 2d ago",
+// "Spotted 1w ago"). No exact-day precision needed — just today / yesterday /
+// Nd / Nw / Nmo granularity.
+function relativeTimeFromNow(isoDate: string): string {
+  const then = new Date(isoDate).getTime();
+  if (Number.isNaN(then)) return '';
+  const diffMs = Date.now() - then;
+  const dayMs = 24 * 60 * 60 * 1000;
+  const days = Math.floor(diffMs / dayMs);
+  if (days <= 0) return 'today';
+  if (days === 1) return 'yesterday';
+  if (days < 7) return `${days}d ago`;
+  if (days < 30) return `${Math.floor(days / 7)}w ago`;
+  return `${Math.floor(days / 30)}mo ago`;
+}
+
 // Empty initialiser — prevents null state on mount. Ingredients are loaded from Supabase.
 const mockHomeBar: HomeBar = {
   id: 'default',
@@ -105,6 +130,7 @@ export default function HomeBarScreen() {
     useFeatureAccess('cellar_mode');
   const { gate: expiryAlertsGate } = useFeatureAccess('expiry_alerts');
   const { gate: barHealthGate } = useFeatureAccess('bar_health_score');
+  const { gate: whatCanIMakeGate } = useFeatureAccess('what_can_i_make');
   const { user } = useAuth();
   const { items: wishlistItems, removeFromWishlist, addPriceEntry } = useWishlist();
   const sortedWishlistItems = useMemo(
@@ -136,7 +162,7 @@ export default function HomeBarScreen() {
         key: 'optimize',
         title: 'Optimize',
         subtitle: 'What to buy next',
-        icon: 'bar-chart-outline' as const,
+        icon: 'trending-up-outline' as const,
         onPress: () => optimizeMyBarGate('T4', () => nav.navigate('BarOptimizer')),
       },
       {
@@ -151,7 +177,7 @@ export default function HomeBarScreen() {
         key: 'health',
         title: 'Bar Health',
         subtitle: 'Coverage score',
-        icon: 'analytics-outline' as const,
+        icon: 'pulse-outline' as const,
         onPress: () => barHealthGate(() => nav.navigate('InventoryInsights', { mode: 'health' })),
       },
     ],
@@ -178,6 +204,7 @@ export default function HomeBarScreen() {
   const [itemNoteDraft, setItemNoteDraft] = useState('');
   const [showItemOptionsModal, setShowItemOptionsModal] = useState(false);
   const [showInventorySwitcher, setShowInventorySwitcher] = useState(false);
+  const [showAddMenu, setShowAddMenu] = useState(false);
   const [showCellarIntakeModal, setShowCellarIntakeModal] = useState(false);
   const [cellarIntakePrice, setCellarIntakePrice] = useState('');
   const [cellarIntakeValuation, setCellarIntakeValuation] = useState('');
@@ -252,6 +279,7 @@ export default function HomeBarScreen() {
         const validCategories: BarIngredient['category'][] = [
           'spirit',
           'liqueur',
+          'wine',
           'mixer',
           'bitters',
           'syrup',
@@ -260,11 +288,20 @@ export default function HomeBarScreen() {
           'other',
         ];
         const rawCategory = String(item.category || '').toLowerCase();
+        const rawItemType = String(item.item_type || '').toLowerCase();
+        // Recovery order when the DB row's own `category` is missing or not
+        // one of our 9 values: try `item_type` next (it's the same shape of
+        // string for rows where it was set correctly), and only land on
+        // 'other' — not 'ingredient' — when neither tells us anything. The
+        // old fallback special-cased only 'spirit' and dumped every other
+        // unrecognized row into 'ingredient', which is how liqueurs like
+        // vermouth and wine-family items like Champagne ended up filed under
+        // Ingredients with a fruit icon instead of Liqueur/Mixer/Other.
         const inferredCategory = validCategories.includes(rawCategory as BarIngredient['category'])
           ? (rawCategory as BarIngredient['category'])
-          : item.item_type === 'spirit'
-            ? 'spirit'
-            : 'ingredient';
+          : validCategories.includes(rawItemType as BarIngredient['category'])
+            ? (rawItemType as BarIngredient['category'])
+            : 'other';
 
         if (!parsedBrand && rawName.includes(' - ')) {
           const [maybeBrand, ...rest] = rawName.split(' - ');
@@ -362,13 +399,25 @@ export default function HomeBarScreen() {
     }
   };
 
-  const categories: { key: InventoryCategory | 'all'; label: string; icon: any }[] = [
-    { key: 'all', label: 'All', icon: 'apps' },
-    { key: 'spirits', label: 'Spirits', icon: 'wine' },
-    { key: 'liqueur', label: 'Liqueurs', icon: 'wine-outline' },
-    { key: 'mixers', label: 'Mixers', icon: 'water' },
-    { key: 'garnishes', label: 'Garnishes', icon: 'leaf' },
-    { key: 'ingredients', label: 'Ingredients', icon: 'nutrition' },
+  // Chip icons render through CategoryIcon (defined below), same
+  // ionicons/mci dual-family system the item-level icons use — Ionicons
+  // alone doesn't have enough distinct bottle/glass glyphs to give Spirits,
+  // Liqueurs, and Wine each their own look.
+  const categories: {
+    key: InventoryCategory | 'all';
+    label: string;
+    icon: { family: 'ionicons' | 'mci'; name: string };
+  }[] = [
+    { key: 'all', label: 'All', icon: { family: 'ionicons', name: 'apps' } },
+    { key: 'spirits', label: 'Spirits', icon: { family: 'ionicons', name: 'wine' } },
+    { key: 'liqueur', label: 'Liqueurs', icon: { family: 'ionicons', name: 'beer' } },
+    { key: 'wine', label: 'Wine', icon: { family: 'mci', name: 'bottle-wine' } },
+    { key: 'mixers', label: 'Mixers', icon: { family: 'ionicons', name: 'water' } },
+    { key: 'garnishes', label: 'Garnishes', icon: { family: 'ionicons', name: 'leaf' } },
+    { key: 'ingredients', label: 'Ingredients', icon: { family: 'ionicons', name: 'nutrition' } },
+    { key: 'bitters', label: 'Bitters', icon: { family: 'ionicons', name: 'eyedrop' } },
+    { key: 'syrup', label: 'Syrups', icon: { family: 'ionicons', name: 'beaker' } },
+    { key: 'other', label: 'Other', icon: { family: 'ionicons', name: 'cube' } },
   ];
 
   const getFilteredInventory = () => {
@@ -416,8 +465,69 @@ export default function HomeBarScreen() {
     [homeBar.ingredients],
   );
 
+  // How many items to preview per category row before collapsing the rest
+  // into a "+N more" tile — 5 reads cleanly at the 56x56 thumbnail size
+  // without the row feeling cramped or requiring much scroll.
+  const CATEGORY_PREVIEW_CAP = 5;
+
+  // Maps the chip/category-group key ("spirits") to the singular value
+  // stored on each item (item.category === "spirit"), mirroring the
+  // switch in getFilteredInventory above.
+  const categoryKeyToItemCategory: Record<string, string> = {
+    spirits: 'spirit',
+    liqueur: 'liqueur',
+    wine: 'wine',
+    mixers: 'mixer',
+    garnishes: 'garnish',
+    ingredients: 'ingredient',
+    bitters: 'bitters',
+    syrup: 'syrup',
+    other: 'other',
+  };
+
+  // Maps the same chip/category-group key to the exact Category value
+  // ManualBottleEntryScreen's CATEGORIES picker expects, so the "+" add-tile
+  // below opens that form pre-set to the right category.
+  const categoryKeyToManualEntryCategory: Record<
+    string,
+    ManualBottleEntryParams['initialCategory']
+  > = {
+    spirits: 'Spirit',
+    liqueur: 'Liqueur',
+    wine: 'Wine',
+    mixers: 'Mixer',
+    garnishes: 'Garnish',
+    ingredients: 'Ingredient',
+    bitters: 'Bitters',
+    syrup: 'Syrup',
+    other: 'Other',
+  };
+
+  // Default "All categories, no search" view: group owned items into one
+  // section per non-empty category (Option C — "Category Sections").
+  // Tapping a category's flat drill-down grid, which already exists below.
+  const categoryGroups = useMemo(() => {
+    if (activeCategory !== 'all' || searchQuery.trim()) return [];
+
+    let list = [...homeBar.ingredients].sort((a, b) => a.name.localeCompare(b.name));
+    if (tier === 'FREE') {
+      list = list.slice(0, TIER_LIMITS.FREE.maxBottles);
+    }
+
+    return categories
+      .filter((cat) => cat.key !== 'all')
+      .map((cat) => ({
+        ...cat,
+        items: list.filter(
+          (item) => item.category === (categoryKeyToItemCategory[cat.key] || cat.key),
+        ),
+      }))
+      .filter((group) => group.items.length > 0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeCategory, searchQuery, homeBar.ingredients, tier]);
+
   const handleSeeRecipes = () => {
-    nav.navigate('WhatCanIMake');
+    whatCanIMakeGate(() => nav.navigate('WhatCanIMake'));
   };
 
   const handleAddIngredient = () => {
@@ -629,6 +739,24 @@ export default function HomeBarScreen() {
     const haystack =
       `${item.category || ''} ${item.subcategory || ''} ${item.name || ''} ${item.brand || ''}`.toLowerCase();
 
+    // Checked before the generic fruit/herb photos below — otherwise
+    // "Blueberry Syrup" (category 'syrup') would match the raw-blueberry
+    // photo meant for a garnish/juice, since 'blueberry' appears in both maps.
+    if (item.category === 'syrup') {
+      const syrupFamilyMap: { pattern: RegExp; key: keyof typeof Images.syrups }[] = [
+        { pattern: /(blueberry)/, key: 'blueberry' },
+        { pattern: /(mango)/, key: 'mango' },
+        { pattern: /(raspberry)/, key: 'raspberry' },
+        { pattern: /(herb|orgeat|falernum)/, key: 'herbal' },
+      ];
+      for (const entry of syrupFamilyMap) {
+        if (entry.pattern.test(haystack)) {
+          return Images.syrups[entry.key];
+        }
+      }
+      return Images.syrups.simple;
+    }
+
     const spiritFamilyMap: { pattern: RegExp; key: keyof typeof Images.spirits }[] = [
       { pattern: /(gin|juniper)/, key: 'gin' },
       { pattern: /(scotch)/, key: 'scotch' },
@@ -679,56 +807,187 @@ export default function HomeBarScreen() {
       }
     }
 
+    // A syrup-shaped item that somehow didn't get category 'syrup' (e.g.
+    // "Grenadine" filed under 'mixer' or 'other') — catch it by name too.
+    if (/(syrup|grenadine|orgeat|agave nectar)/.test(haystack)) {
+      return Images.syrups.simple;
+    }
+
     return null;
   };
 
-  const getCategoryIcon = (category: string, subcategory?: string, name?: string) => {
+  // Returns which icon family a glyph name belongs to, since Ionicons and
+  // MaterialCommunityIcons glyph names aren't interchangeable — spirit
+  // families below use whichever library actually has a fitting icon
+  // instead of forcing everything into one generic "wine glass" glyph.
+  // Shared fruit-name → dedicated glyph lookup, used by the mixer/garnish/
+  // ingredient branches below. Kept in one place so a specific fruit (cherry,
+  // citrus, pineapple, watermelon) that has a real MaterialCommunityIcons
+  // glyph doesn't get flattened to the generic Ionicons "nutrition-outline"
+  // apple in one branch just because another branch's copy of this list
+  // was updated and this one wasn't.
+  const getFruitIcon = (haystack: string): { family: 'ionicons' | 'mci'; name: string } | null => {
+    if (/(cherry|cherries|maraschino)/.test(haystack)) {
+      return { family: 'mci', name: 'fruit-cherries' };
+    }
+    if (/(lemon|lime|orange|grapefruit|citrus)/.test(haystack)) {
+      return { family: 'mci', name: 'fruit-citrus' };
+    }
+    if (/pineapple/.test(haystack)) return { family: 'mci', name: 'fruit-pineapple' };
+    if (/watermelon/.test(haystack)) return { family: 'mci', name: 'fruit-watermelon' };
+    // Everything else has no dedicated glyph in either library.
+    if (
+      /(passionfruit|berry|strawberry|blueberry|raspberry|blackberry|peach|apple|mango|fruit|juice)/.test(
+        haystack,
+      )
+    ) {
+      return { family: 'ionicons', name: 'nutrition-outline' };
+    }
+    return null;
+  };
+
+  const getCategoryIcon = (
+    category: string,
+    subcategory?: string,
+    name?: string,
+  ): { family: 'ionicons' | 'mci'; name: string } => {
     const haystack = `${subcategory || ''} ${name || ''}`.toLowerCase();
 
     switch (category) {
       case 'spirit':
-        return 'wine';
+        // Whiskey family (bourbon/rye/scotch) — barrel-aged, evokes the cask.
+        if (/(whiskey|whisky|bourbon|rye|scotch)/.test(haystack)) {
+          return { family: 'mci', name: 'barrel' };
+        }
+        // Rum — tropical/Caribbean association.
+        if (/(rum|rhum|cachaça|cachaca)/.test(haystack)) {
+          return { family: 'mci', name: 'palm-tree' };
+        }
+        // Tequila/mezcal — agave plant, desert association.
+        if (/(tequila|mezcal|agave)/.test(haystack)) {
+          return { family: 'mci', name: 'cactus' };
+        }
+        // Brandy/cognac — grape-distillate.
+        if (/(brandy|cognac|armagnac)/.test(haystack)) {
+          return { family: 'mci', name: 'fruit-grapes' };
+        }
+        // Gin/vodka and anything else unmatched — no distinct symbol exists,
+        // stay on the neutral bottle glyph. This is a bottle (mci
+        // bottle-wine), not the Ionicons "wine" glass — a shelf screen is
+        // showing bottles, not glasses of it poured.
+        return { family: 'mci', name: 'bottle-wine' };
+      case 'wine':
+        // Vermouth, champagne, prosecco, sherry, port — one bottle glyph
+        // covers the family; no dedicated "sparkling"/"fortified" icon
+        // exists in either library, and none of these need to be told apart
+        // from each other the way spirits or liqueur families do.
+        return { family: 'mci', name: 'bottle-wine' };
       case 'liqueur':
-        return 'wine-outline';
+        // Coffee liqueurs (Kahlúa, etc.).
+        if (/(coffee|kahl[uú]a|espresso)/.test(haystack)) {
+          return { family: 'ionicons', name: 'cafe-outline' };
+        }
+        // Orange/citrus liqueurs (Cointreau, triple sec, Grand Marnier, curaçao).
+        if (/(orange|triple sec|cointreau|curaçao|curacao|grand marnier)/.test(haystack)) {
+          return { family: 'mci', name: 'fruit-citrus' };
+        }
+        // Bitter amari (Campari, Aperol, Fernet, Cynar) — same "intense,
+        // small-pour" bottle glyph used for aromatic bitters below, since
+        // no dedicated amaro icon exists in either library.
+        if (/(campari|aperol|fernet|cynar|amaro|chartreuse|nonino|picon)/.test(haystack)) {
+          return { family: 'mci', name: 'bottle-tonic-plus-outline' };
+        }
+        // Anything else (herbal/fruit liqueurs with no specific match) — no
+        // distinct symbol exists, stay on the neutral bottle glyph.
+        return { family: 'mci', name: 'bottle-wine-outline' };
       case 'bitters':
-        return 'flask-outline';
+        // Matches the amari "bottle-tonic-plus-outline" above (dasher-bottle
+        // shape) so the two intense, small-pour categories actually read as
+        // related, as the comment above claims.
+        return { family: 'mci', name: 'bottle-tonic-outline' };
       case 'syrup':
-        return 'water-outline';
-      case 'mixer':
-        if (/(milk|cream|coconut cream)/.test(haystack)) return 'cafe-outline';
-        if (
-          /(juice|lemon|lime|orange|grapefruit|pineapple|passionfruit|berry|strawberry|blueberry|raspberry|blackberry|peach|apple|mango|fruit)/.test(
-            haystack,
-          )
-        ) {
-          return 'nutrition-outline';
+        return { family: 'mci', name: 'spoon-sugar' };
+      case 'mixer': {
+        // Champagne/prosecco/sparkling wine — closest fitting bottle glyph;
+        // no dedicated "sparkling" icon exists in either library.
+        if (/(champagne|prosecco|sparkling wine|cava)/.test(haystack)) {
+          return { family: 'mci', name: 'bottle-wine-outline' };
         }
-        return 'water';
-      case 'garnish':
-        if (
-          /(lemon|lime|orange|grapefruit|pineapple|passionfruit|berry|strawberry|blueberry|raspberry|blackberry|peach|apple|mango|fruit)/.test(
-            haystack,
-          )
-        ) {
-          return 'nutrition-outline';
+        // Coffee/espresso used as a mixer (e.g. in an Espresso Martini).
+        if (/(coffee|espresso)/.test(haystack)) {
+          return { family: 'ionicons', name: 'cafe-outline' };
         }
-        return 'leaf-outline';
-      case 'ingredient':
-        if (/(egg|egg white)/.test(haystack)) return 'egg-outline';
-        if (/(salt|pepper|cinnamon|nutmeg|spice)/.test(haystack)) return 'restaurant-outline';
-        if (/(sugar|honey|agave|syrup|grenadine|orgeat)/.test(haystack)) return 'water-outline';
-        if (
-          /(lemon|lime|orange|grapefruit|pineapple|passionfruit|berry|strawberry|blueberry|raspberry|blackberry|peach|apple|mango|fruit|juice)/.test(
-            haystack,
-          )
-        ) {
-          return 'nutrition-outline';
+        // Real dairy — milk/cream/half-and-half. Coconut cream/milk is NOT
+        // dairy, so it's split out below rather than sharing this glyph.
+        // Uses its own cup glyph, not the coffee branch's cafe-outline —
+        // cream and cold brew shouldn't look identical on the shelf.
+        if (/(milk|half.and.half)/.test(haystack) && !/coconut/.test(haystack)) {
+          return { family: 'mci', name: 'cup-outline' };
         }
-        return 'nutrition';
+        if (/coconut/.test(haystack)) {
+          return { family: 'ionicons', name: 'nutrition-outline' };
+        }
+        if (/\bcream\b/.test(haystack)) {
+          return { family: 'mci', name: 'cup-outline' };
+        }
+        const fruit = getFruitIcon(haystack);
+        if (fruit) return fruit;
+        return { family: 'ionicons', name: 'water-outline' };
+      }
+      case 'garnish': {
+        const fruit = getFruitIcon(haystack);
+        if (fruit) return fruit;
+        return { family: 'ionicons', name: 'leaf-outline' };
+      }
+      case 'ingredient': {
+        if (/(egg|egg white)/.test(haystack)) return { family: 'ionicons', name: 'egg-outline' };
+        if (/(coffee|espresso)/.test(haystack)) return { family: 'ionicons', name: 'cafe-outline' };
+        // Real dairy again — same glyph as the mixer branch, not the coffee
+        // cup used two lines up.
+        if (/\bcream\b/.test(haystack) && !/coconut/.test(haystack)) {
+          return { family: 'mci', name: 'cup-outline' };
+        }
+        // A literal salt shaker, not a restaurant place-setting — this is
+        // seasoning, not dining out.
+        if (/(salt|pepper|cinnamon|nutmeg|spice)/.test(haystack)) {
+          return { family: 'mci', name: 'shaker-outline' };
+        }
+        if (/(sugar|honey|agave|syrup|grenadine|orgeat)/.test(haystack)) {
+          return { family: 'ionicons', name: 'water-outline' };
+        }
+        if (/coconut/.test(haystack)) return { family: 'ionicons', name: 'nutrition-outline' };
+        // Vermouth and sparkling wine get scanned in under 'ingredient' as
+        // often as under 'liqueur'/'mixer' — same wine-bottle glyph those
+        // branches use, so the category an item lands in doesn't change
+        // whether it looks like a bottle of wine or a piece of fruit.
+        if (/(vermouth|champagne|prosecco|sparkling wine|cava)/.test(haystack)) {
+          return { family: 'mci', name: 'bottle-wine-outline' };
+        }
+        const fruit = getFruitIcon(haystack);
+        if (fruit) return fruit;
+        return { family: 'ionicons', name: 'nutrition-outline' };
+      }
       default:
-        return 'cube';
+        return { family: 'ionicons', name: 'cube' };
     }
   };
+
+  // Small helper so call sites don't need an if/else to pick the right icon
+  // component for whichever family getCategoryIcon() returned.
+  const CategoryIcon = ({
+    icon,
+    size,
+    color,
+  }: {
+    icon: { family: 'ionicons' | 'mci'; name: string };
+    size: number;
+    color: string;
+  }) =>
+    icon.family === 'mci' ? (
+      <MaterialCommunityIcons name={icon.name as any} size={size} color={color} />
+    ) : (
+      <Ionicons name={icon.name as any} size={size} color={color} />
+    );
 
   const getCategoryDisplay = (item: InventoryItem) => {
     const base = item.subcategory || item.category;
@@ -746,7 +1005,10 @@ export default function HomeBarScreen() {
   };
 
   const isCellarEligible = (item: InventoryItem) =>
-    item.category === 'spirit' || item.category === 'liqueur' || isBottleLike(item);
+    item.category === 'spirit' ||
+    item.category === 'liqueur' ||
+    item.category === 'wine' ||
+    isBottleLike(item);
 
   const getInventoryInsight = (item: InventoryItem) => {
     if (item.category === 'spirit') {
@@ -756,6 +1018,9 @@ export default function HomeBarScreen() {
     }
     if (item.category === 'liqueur') {
       return 'Modifier bottle that adds sweetness, bitterness, or depth to recipes.';
+    }
+    if (item.category === 'wine') {
+      return 'Fortified or sparkling wine for stirred cocktails, spritzes, and toppers.';
     }
     if (item.category === 'mixer') {
       return /juice|citrus|fruit/i.test(`${item.subcategory || ''} ${item.name}`)
@@ -834,7 +1099,7 @@ export default function HomeBarScreen() {
 
   const renderInventoryCard = (item: InventoryItem) => {
     const pills = getInventoryPills(item);
-    const ingredientImage = getIngredientImage(item);
+    const realPhotoUri = (item as any).imageUri || item.imageUrl;
     const isSpirit = item.category === 'spirit' || item.category === 'liqueur';
     return (
       <TouchableOpacity
@@ -843,23 +1108,19 @@ export default function HomeBarScreen() {
         onPress={withHaptic(() => handleItemPress(item))}
         activeOpacity={0.82}
       >
-        {isSpirit && <View style={styles.cardAccentStrip} />}
-
         <View style={styles.cardImageContainer}>
-          {item.imageUrl ? (
+          {realPhotoUri ? (
             <Image
-              source={{ uri: item.imageUrl }}
+              source={{ uri: realPhotoUri }}
               style={styles.cardImage}
               contentFit="cover"
               cachePolicy="memory-disk"
             />
-          ) : ingredientImage ? (
-            <Image source={ingredientImage as any} style={styles.cardImage} contentFit="cover" />
           ) : (
             <View style={styles.cardIconWrap}>
-              <Ionicons
-                name={getCategoryIcon(item.category, item.subcategory, item.name)}
-                size={48}
+              <CategoryIcon
+                icon={getCategoryIcon(item.category, item.subcategory, item.name)}
+                size={32}
                 color={colors.accent}
               />
             </View>
@@ -897,6 +1158,126 @@ export default function HomeBarScreen() {
     );
   };
 
+  // Small 56x56 preview tile used inside a category-section horizontal row
+  // (Option C). Separate from renderInventoryCard's larger grid card — same
+  // real-photo-or-icon-badge fallback rule, just a condensed thumbnail
+  // treatment sized to match the Want tab's badge.
+  const renderCategoryPreviewTile = (item: InventoryItem) => {
+    const realPhotoUri = (item as any).imageUri || item.imageUrl;
+    return (
+      <TouchableOpacity
+        key={item.id}
+        style={styles.categoryPreviewTile}
+        onPress={withHaptic(() => handleItemPress(item))}
+        activeOpacity={0.82}
+      >
+        <View style={styles.categoryPreviewThumbWrap}>
+          {realPhotoUri ? (
+            <Image
+              source={{ uri: realPhotoUri }}
+              style={styles.categoryPreviewImage}
+              contentFit="cover"
+              cachePolicy="memory-disk"
+            />
+          ) : (
+            <View style={styles.categoryPreviewIconWrap}>
+              <CategoryIcon
+                icon={getCategoryIcon(item.category, item.subcategory, item.name)}
+                size={32}
+                color={colors.accent}
+              />
+            </View>
+          )}
+        </View>
+        <Text style={styles.categoryPreviewName} numberOfLines={1}>
+          {item.name}
+        </Text>
+        <Text style={styles.categoryPreviewSubtitle} numberOfLines={1}>
+          {item.volume ? `${item.volume}ml` : getCategoryDisplay(item)}
+        </Text>
+      </TouchableOpacity>
+    );
+  };
+
+  // The trailing "+N more" tile in a category row — tapping it, like the
+  // header chevron, drills into that category's existing flat grid by
+  // setting activeCategory (no separate single-category view to build).
+  const renderCategoryMoreTile = (
+    cat: { key: InventoryCategory | 'all'; label: string },
+    remaining: number,
+  ) => (
+    <TouchableOpacity
+      key={`${cat.key}-more`}
+      style={styles.categoryPreviewTile}
+      onPress={withHaptic(() => setActiveCategory(cat.key as InventoryCategory), 'selection')}
+      activeOpacity={0.82}
+    >
+      <View style={[styles.categoryPreviewThumbWrap, styles.categoryPreviewMoreWrap]}>
+        <Text style={styles.categoryPreviewMoreCount}>+{remaining}</Text>
+      </View>
+      <Text style={styles.categoryPreviewName} numberOfLines={1}>
+        more
+      </Text>
+    </TouchableOpacity>
+  );
+
+  // Full-size "Add" card appended to a single-category drill-down grid
+  // (chip tapped) so there's a way to manually add to that category from
+  // the drill-down itself — previously the only "+ Add" tile lived in the
+  // category-row preview on the "All" page, which doesn't render at all
+  // once a category's items no longer fit that page, and never existed for
+  // a category with zero items in the first place.
+  const renderInventoryAddCard = (cat: { key: InventoryCategory | 'all'; label: string }) => (
+    <TouchableOpacity
+      key={`${cat.key}-inventory-add`}
+      style={[styles.inventoryCard, styles.inventoryAddCard]}
+      onPress={withHaptic(
+        () =>
+          nav.navigate('ManualBottleEntry', {
+            initialCategory: categoryKeyToManualEntryCategory[cat.key],
+          }),
+        'selection',
+      )}
+      activeOpacity={0.82}
+    >
+      <View style={styles.cardImageContainer}>
+        <View style={[styles.cardIconWrap, styles.inventoryAddIconWrap]}>
+          <Ionicons name="add" size={32} color={colors.accent} />
+        </View>
+      </View>
+      <View style={styles.cardContent}>
+        <Text style={styles.cardTitle} numberOfLines={1}>
+          Add {cat.label}
+        </Text>
+      </View>
+    </TouchableOpacity>
+  );
+
+  // Trailing "+ Add" tile in every category row — opens the manual add form
+  // (ManualBottleEntryScreen) pre-set to that section's category. Same
+  // 80x80 tile treatment as the preview/"+N more" tiles for visual consistency.
+  const renderCategoryAddTile = (cat: { key: InventoryCategory | 'all'; label: string }) => (
+    <TouchableOpacity
+      key={`${cat.key}-add`}
+      style={styles.categoryPreviewTile}
+      onPress={withHaptic(
+        () =>
+          nav.navigate('ManualBottleEntry', {
+            initialCategory: categoryKeyToManualEntryCategory[cat.key],
+          }),
+        'selection',
+      )}
+      activeOpacity={0.82}
+    >
+      <View style={[styles.categoryPreviewThumbWrap, styles.categoryPreviewAddWrap]}>
+        <Ionicons name="add" size={28} color={colors.accent} />
+      </View>
+      <Text style={styles.categoryPreviewName} numberOfLines={1}>
+        Add
+      </Text>
+    </TouchableOpacity>
+  );
+
   if (initialLoading) {
     return (
       <SafeAreaView style={styles.container}>
@@ -930,6 +1311,11 @@ export default function HomeBarScreen() {
           </TouchableOpacity>
         }
         rightActions={[
+          {
+            icon: 'add-circle-outline',
+            onPress: () => setShowAddMenu(true),
+            accessibilityLabel: 'Add an item',
+          },
           {
             icon: 'scan-outline',
             onPress: () => (nav as any).navigate('Camera', { screen: 'SmartScan' }),
@@ -982,6 +1368,58 @@ export default function HomeBarScreen() {
                 <Text style={styles.barDropdownItemTitle}>The Cellar</Text>
                 <Text style={styles.barDropdownItemMeta}>
                   Collector showcase, tracked bottles, and portfolio view
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={16} color={colors.subtext} />
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Add menu — the header "+" button opens this instead of assuming
+          which list the user means. Manual entry only exists for the Shelf
+          today, so "Add to Want" routes to Scan instead — the existing
+          save-to-Want action already lives on the scan result screen. */}
+      <Modal
+        visible={showAddMenu}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowAddMenu(false)}
+      >
+        <View style={styles.inventorySwitcherOverlay}>
+          <TouchableOpacity
+            style={StyleSheet.absoluteFillObject}
+            activeOpacity={1}
+            onPress={() => setShowAddMenu(false)}
+          />
+          <View style={styles.inventorySwitcherMenu}>
+            <Text style={styles.barDropdownSubtitle}>Add an item</Text>
+            <TouchableOpacity
+              style={styles.barDropdownItem}
+              onPress={withHaptic(() => {
+                setShowAddMenu(false);
+                nav.navigate('ManualBottleEntry', {});
+              }, 'selection')}
+            >
+              <Ionicons name="wine-outline" size={18} color={colors.gold} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.barDropdownItemTitle}>Add to Shelf</Text>
+                <Text style={styles.barDropdownItemMeta}>Something you already own</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={16} color={colors.subtext} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.barDropdownItem}
+              onPress={withHaptic(() => {
+                setShowAddMenu(false);
+                (nav as any).navigate('Camera', { screen: 'SmartScan' });
+              }, 'selection')}
+            >
+              <Ionicons name="bookmark-outline" size={18} color={colors.gold} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.barDropdownItemTitle}>Add to Want List</Text>
+                <Text style={styles.barDropdownItemMeta}>
+                  Something you've spotted but don't own yet — scan it to save
                 </Text>
               </View>
               <Ionicons name="chevron-forward" size={16} color={colors.subtext} />
@@ -1086,8 +1524,8 @@ export default function HomeBarScreen() {
                 ]}
                 onPress={withHaptic(() => setActiveCategory(cat.key), 'selection')}
               >
-                <Ionicons
-                  name={cat.icon}
+                <CategoryIcon
+                  icon={cat.icon}
                   size={16}
                   color={activeCategory === cat.key ? colors.bg : colors.text}
                 />
@@ -1245,46 +1683,57 @@ export default function HomeBarScreen() {
                       )}
                       activeOpacity={0.82}
                     >
-                      <View style={styles.cardAccentStrip} />
-                      <View style={styles.cardImageContainer}>
-                        {item.imageUri ? (
-                          <Image
-                            source={{ uri: item.imageUri }}
-                            style={styles.cardImage}
-                            contentFit="cover"
-                            cachePolicy="memory-disk"
-                          />
-                        ) : (
-                          <View style={styles.cardIconWrap}>
-                            <Ionicons name="wine-outline" size={48} color={colors.accent} />
-                          </View>
-                        )}
-                        <View style={styles.cardFavBadge}>
-                          <Ionicons name="bookmark" size={10} color={colors.accent} />
-                        </View>
+                      <View style={styles.wantCardFavBadge}>
+                        <Ionicons name="bookmark-outline" size={16} color={colors.accent} />
                       </View>
-                      <View style={styles.cardContent}>
-                        <Text style={styles.cardTitle} numberOfLines={2}>
+                      <TouchableOpacity
+                        style={styles.savedRemoveButton}
+                        onPress={withHaptic(() => removeFromWishlist(item.bottleId), 'selection')}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      >
+                        <Ionicons name="close-circle-outline" size={20} color={colors.subtext} />
+                      </TouchableOpacity>
+                      <View style={styles.wantCardBody}>
+                        <View style={styles.wantCardIconWrap}>
+                          <MaterialCommunityIcons
+                            name="bottle-wine-outline"
+                            size={32}
+                            color={colors.accent}
+                          />
+                        </View>
+                        <Text
+                          style={[styles.cardTitle, styles.wantCardCenterText]}
+                          numberOfLines={2}
+                        >
                           {item.name}
                         </Text>
-                        <Text style={styles.cardSubtitle} numberOfLines={1}>
+                        <Text
+                          style={[styles.cardSubtitle, styles.wantCardCenterText]}
+                          numberOfLines={1}
+                        >
                           {item.brand}
                         </Text>
                         {lowestEntry ? (
-                          <View style={styles.cardPillRow}>
-                            <View style={styles.cardPill}>
-                              <Text style={styles.cardPillText}>
+                          <View style={styles.wantPriceBlock}>
+                            <View style={styles.wantPricePill}>
+                              <Text style={styles.wantPricePillText}>
                                 {lowestEntry.currency} {lowestEntry.price.toFixed(0)}
-                                {lowestEntry.locationLabel ? ` · ${lowestEntry.locationLabel}` : ''}
                               </Text>
                             </View>
+                            <Text style={styles.wantPriceCaption}>
+                              Last logged {relativeTimeFromNow(lowestEntry.seenAt)}
+                            </Text>
                           </View>
                         ) : (
-                          <Text style={styles.savedNoPriceText}>No price logged yet</Text>
+                          <View style={styles.wantNoPriceBox}>
+                            <Text style={styles.savedNoPriceText}>No price logged yet</Text>
+                          </View>
                         )}
                         <View style={styles.savedActionsRow}>
                           <TouchableOpacity
-                            style={styles.savedLogPriceButton}
+                            style={
+                              lowestEntry ? styles.wantButtonPrimary : styles.wantButtonOutline
+                            }
                             onPress={withHaptic((e?: any) => {
                               e?.stopPropagation?.();
                               setLogPriceItem(item);
@@ -1293,11 +1742,24 @@ export default function HomeBarScreen() {
                             }, 'selection')}
                             hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
                           >
-                            <Ionicons name="pricetag-outline" size={11} color={colors.accent} />
-                            <Text style={styles.savedLogPriceText}>Log price</Text>
+                            <Ionicons
+                              name="pricetag-outline"
+                              size={11}
+                              color={lowestEntry ? colors.bg : colors.accent}
+                            />
+                            <Text
+                              style={
+                                lowestEntry
+                                  ? styles.wantButtonPrimaryText
+                                  : styles.wantButtonOutlineText
+                              }
+                              numberOfLines={1}
+                            >
+                              {lowestEntry ? 'Update' : 'Log price'}
+                            </Text>
                           </TouchableOpacity>
                           <TouchableOpacity
-                            style={styles.savedBuyButton}
+                            style={styles.wantButtonOutline}
                             onPress={withHaptic((e?: any) => {
                               e?.stopPropagation?.();
                               buyIngredient(item.name, item.type, 'homebar_wishlist');
@@ -1305,17 +1767,26 @@ export default function HomeBarScreen() {
                             hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
                           >
                             <Ionicons name="cart-outline" size={11} color={colors.accent} />
-                            <Text style={styles.savedLogPriceText}>Buy</Text>
+                            <Text style={styles.wantButtonOutlineText} numberOfLines={1}>
+                              Buy
+                            </Text>
                           </TouchableOpacity>
                         </View>
+                        <View style={styles.wantCardFooter}>
+                          <View style={styles.wantCardFooterItem}>
+                            <Ionicons name="apps-outline" size={10} color={colors.muted} />
+                            <Text style={styles.wantCardFooterTypeText} numberOfLines={1}>
+                              {item.type || 'Other'}
+                            </Text>
+                          </View>
+                          <View style={styles.wantCardFooterItem}>
+                            <Ionicons name="eye-outline" size={10} color={colors.muted} />
+                            <Text style={styles.wantCardFooterText} numberOfLines={1}>
+                              Spotted {relativeTimeFromNow(item.dateSaved)}
+                            </Text>
+                          </View>
+                        </View>
                       </View>
-                      <TouchableOpacity
-                        style={styles.savedRemoveButton}
-                        onPress={withHaptic(() => removeFromWishlist(item.bottleId), 'selection')}
-                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                      >
-                        <Ionicons name="close-circle" size={18} color={colors.subtext} />
-                      </TouchableOpacity>
                     </TouchableOpacity>
                   );
                 })}
@@ -1361,8 +1832,50 @@ export default function HomeBarScreen() {
               </View>
             )}
 
-            {/* All Items or Filtered Items */}
-            {all.length > 0 && (
+            {/* Default "All" view, no search — Option C: one section per
+                non-empty category instead of a single flat grid. */}
+            {activeCategory === 'all' &&
+              !searchQuery.trim() &&
+              categoryGroups.map((group) => {
+                const visible = group.items.slice(0, CATEGORY_PREVIEW_CAP);
+                const remaining = group.items.length - visible.length;
+                return (
+                  <View key={group.key} style={styles.section}>
+                    <TouchableOpacity
+                      style={styles.categoryGroupHeader}
+                      onPress={withHaptic(
+                        () => setActiveCategory(group.key as InventoryCategory),
+                        'selection',
+                      )}
+                      activeOpacity={0.7}
+                    >
+                      <View style={styles.categoryGroupHeaderLeft}>
+                        <View style={styles.categoryGroupIconWrap}>
+                          <CategoryIcon icon={group.icon} size={15} color={colors.accent} />
+                        </View>
+                        <Text style={styles.categoryGroupLabel}>{group.label}</Text>
+                        <View style={styles.categoryGroupCountBadge}>
+                          <Text style={styles.categoryGroupCountText}>{group.items.length}</Text>
+                        </View>
+                      </View>
+                      <Ionicons name="chevron-forward" size={18} color={colors.subtext} />
+                    </TouchableOpacity>
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      contentContainerStyle={styles.categoryGroupRow}
+                    >
+                      {visible.map(renderCategoryPreviewTile)}
+                      {remaining > 0 && renderCategoryMoreTile(group, remaining)}
+                      {renderCategoryAddTile(group)}
+                    </ScrollView>
+                  </View>
+                );
+              })}
+
+            {/* Single-category drill-down (chip tapped) or search results —
+                the existing flat grid, unchanged. */}
+            {(activeCategory !== 'all' || !!searchQuery.trim()) && all.length > 0 && (
               <View style={styles.section}>
                 <View style={styles.sectionHeader}>
                   <View style={styles.sectionHeaderLine} />
@@ -1374,22 +1887,35 @@ export default function HomeBarScreen() {
                   </Text>
                   <View style={styles.sectionHeaderLine} />
                 </View>
-                <View style={styles.grid}>{all.map(renderInventoryCard)}</View>
+                <View style={styles.grid}>
+                  {all.map(renderInventoryCard)}
+                  {activeCategory !== 'all' &&
+                    !searchQuery.trim() &&
+                    renderInventoryAddCard({
+                      key: activeCategory,
+                      label: categories.find((c) => c.key === activeCategory)?.label || 'Item',
+                    })}
+                </View>
               </View>
             )}
 
             {all.length === 0 && !searchQuery.trim() && (
               <View style={styles.emptyShelf}>
                 <Ionicons
-                  name="scan-outline"
+                  name={activeCategory === 'all' ? 'scan-outline' : 'add-circle-outline'}
                   size={52}
                   color={colors.accent}
                   style={{ marginBottom: 20 }}
                 />
-                <Text style={styles.emptyShelfTitle}>Your shelf is what you own</Text>
+                <Text style={styles.emptyShelfTitle}>
+                  {activeCategory === 'all'
+                    ? 'Your shelf is what you own'
+                    : `No ${(categories.find((c) => c.key === activeCategory)?.label || 'items').toLowerCase()} yet`}
+                </Text>
                 <Text style={styles.emptyShelfBody}>
-                  Scan a bottle at home to add it.{'\n'}Your shelf powers your recipes — only add
-                  what's actually in your bar.
+                  {activeCategory === 'all'
+                    ? "Scan a bottle at home to add it.\nYour shelf powers your recipes — only add what's actually in your bar."
+                    : "Scan a bottle, or add one manually if it doesn't scan well."}
                 </Text>
                 <TouchableOpacity
                   style={styles.emptyShelfButton}
@@ -1400,6 +1926,19 @@ export default function HomeBarScreen() {
                   <Ionicons name="camera-outline" size={18} color={colors.bg} />
                   <Text style={styles.emptyShelfButtonText}>Scan a Bottle</Text>
                 </TouchableOpacity>
+                {activeCategory !== 'all' && (
+                  <TouchableOpacity
+                    style={styles.emptyShelfButtonSecondary}
+                    onPress={withHaptic(() =>
+                      nav.navigate('ManualBottleEntry', {
+                        initialCategory: categoryKeyToManualEntryCategory[activeCategory],
+                      }),
+                    )}
+                  >
+                    <Ionicons name="create-outline" size={18} color={colors.text} />
+                    <Text style={styles.emptyShelfButtonSecondaryText}>Add Manually</Text>
+                  </TouchableOpacity>
+                )}
               </View>
             )}
 
@@ -1509,8 +2048,8 @@ export default function HomeBarScreen() {
               ) : (
                 selectedItem && (
                   <View style={[styles.inventoryDetailImage, styles.inventoryDetailImageFallback]}>
-                    <Ionicons
-                      name={getCategoryIcon(
+                    <CategoryIcon
+                      icon={getCategoryIcon(
                         selectedItem.category,
                         selectedItem.subcategory,
                         selectedItem.name,
@@ -1597,7 +2136,7 @@ export default function HomeBarScreen() {
                   </Text>
                   <View style={styles.itemStatPills}>
                     <View style={styles.itemStatPill}>
-                      <Ionicons name="pricetag" size={13} color={colors.gold} />
+                      <Ionicons name="apps" size={13} color={colors.gold} />
                       <Text style={styles.itemStatPillText}>
                         {selectedBottleDetails?.type
                           ? String(selectedBottleDetails.type).replace(/\b\w/g, (letter) =>
@@ -2363,6 +2902,16 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(214,138,56,0.4)',
     backgroundColor: 'rgba(214,138,56,0.05)',
   },
+  inventoryAddCard: {
+    borderStyle: 'dashed',
+    borderColor: colors.line,
+  },
+  inventoryAddIconWrap: {
+    backgroundColor: 'rgba(214,138,56,0.1)',
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderStyle: 'dashed',
+  },
   cardImageContainer: {
     width: '100%',
     height: 130,
@@ -2372,9 +2921,9 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   cardIconWrap: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     backgroundColor: 'rgba(214,138,56,0.1)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -2382,6 +2931,101 @@ const styles = StyleSheet.create({
   cardImage: {
     width: '100%',
     height: '100%',
+  },
+  // Category Sections (Option C) — header row + horizontal preview row.
+  categoryGroupHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing(1.5),
+  },
+  categoryGroupHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(1.25),
+  },
+  categoryGroupIconWrap: {
+    width: 26,
+    height: 26,
+    borderRadius: 8,
+    backgroundColor: 'rgba(214,138,56,0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  categoryGroupLabel: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  categoryGroupCountBadge: {
+    paddingHorizontal: spacing(1),
+    paddingVertical: 2,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    minWidth: 22,
+    alignItems: 'center',
+  },
+  categoryGroupCountText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.subtext,
+  },
+  categoryGroupRow: {
+    gap: spacing(1.5),
+    paddingRight: spacing(1.5),
+  },
+  categoryPreviewTile: {
+    width: 84,
+    alignItems: 'center',
+  },
+  categoryPreviewThumbWrap: {
+    width: 80,
+    height: 80,
+    borderRadius: 16,
+    overflow: 'hidden',
+    backgroundColor: '#17100B',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  categoryPreviewImage: {
+    width: '100%',
+    height: '100%',
+  },
+  categoryPreviewIconWrap: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: 'rgba(214,138,56,0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  categoryPreviewMoreWrap: {
+    backgroundColor: 'rgba(214,138,56,0.1)',
+  },
+  categoryPreviewAddWrap: {
+    backgroundColor: 'rgba(214,138,56,0.1)',
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderStyle: 'dashed',
+  },
+  categoryPreviewMoreCount: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: colors.accent,
+  },
+  categoryPreviewName: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.text,
+    marginTop: spacing(0.75),
+    width: 84,
+    textAlign: 'center',
+  },
+  categoryPreviewSubtitle: {
+    fontSize: 10,
+    color: colors.subtext,
+    marginTop: 1,
+    width: 84,
+    textAlign: 'center',
   },
   cardFavBadge: {
     position: 'absolute',
@@ -3152,6 +3796,22 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.bg,
   },
+  emptyShelfButtonSecondary: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(1),
+    borderRadius: radii.lg,
+    borderWidth: 1.5,
+    borderColor: colors.line,
+    paddingHorizontal: spacing(4),
+    paddingVertical: spacing(2),
+    marginTop: spacing(1.5),
+  },
+  emptyShelfButtonSecondaryText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.text,
+  },
   shelfCapBar: {
     marginHorizontal: spacing(2),
     marginBottom: spacing(1.5),
@@ -3295,8 +3955,8 @@ const styles = StyleSheet.create({
   savedActionsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing(2),
-    marginTop: spacing(0.75),
+    gap: spacing(1),
+    marginTop: spacing(1),
   },
   savedLogPriceButton: {
     flexDirection: 'row',
@@ -3312,6 +3972,123 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: colors.accent,
     fontWeight: '600',
+  },
+  // ── Want tab (Option C "Price Focus" card) ──────────────────────────────
+  wantCardFavBadge: {
+    position: 'absolute',
+    top: spacing(1),
+    left: spacing(1),
+    zIndex: 2,
+  },
+  wantCardBody: {
+    paddingTop: spacing(3.5),
+    paddingHorizontal: spacing(1.75),
+    paddingBottom: spacing(1.75),
+  },
+  wantCardIconWrap: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: 'rgba(214,138,56,0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'center',
+    marginBottom: spacing(1.25),
+  },
+  wantPriceBlock: {
+    alignItems: 'center',
+    marginTop: spacing(0.75),
+    marginBottom: spacing(0.25),
+  },
+  wantPricePill: {
+    backgroundColor: 'rgba(214,138,56,0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(214,138,56,0.4)',
+    borderRadius: radii.pill,
+    paddingHorizontal: spacing(1.75),
+    paddingVertical: spacing(0.75),
+  },
+  wantPricePillText: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: colors.accent,
+    letterSpacing: 0.3,
+  },
+  wantPriceCaption: {
+    fontSize: 10,
+    color: colors.muted,
+    marginTop: spacing(0.4),
+    textAlign: 'center',
+  },
+  wantCardCenterText: {
+    textAlign: 'center',
+  },
+  wantNoPriceBox: {
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.06)',
+    borderRadius: radii.md,
+    paddingVertical: spacing(1),
+    paddingHorizontal: spacing(1.25),
+    marginTop: spacing(0.75),
+    marginBottom: spacing(0.25),
+  },
+  wantButtonPrimary: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing(0.5),
+    backgroundColor: colors.accent,
+    borderRadius: radii.md,
+    paddingVertical: spacing(1),
+    paddingHorizontal: spacing(1),
+  },
+  wantButtonPrimaryText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.bg,
+  },
+  wantButtonOutline: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing(0.5),
+    borderWidth: 1,
+    borderColor: 'rgba(214,138,56,0.35)',
+    backgroundColor: 'rgba(214,138,56,0.06)',
+    borderRadius: radii.md,
+    paddingVertical: spacing(1),
+    paddingHorizontal: spacing(1),
+  },
+  wantButtonOutlineText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.accent,
+  },
+  wantCardFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: spacing(1),
+  },
+  wantCardFooterItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(0.4),
+  },
+  // Category label only (e.g. "gin" -> "Gin") — kept separate from
+  // wantCardFooterText so the "Spotted Xd ago" side never gets its "ago"
+  // capitalized by a shared textTransform.
+  wantCardFooterTypeText: {
+    fontSize: 10,
+    color: colors.muted,
+    textTransform: 'capitalize',
+  },
+  wantCardFooterText: {
+    fontSize: 10,
+    color: colors.muted,
   },
   pricePromptOverlay: {
     flex: 1,
@@ -3375,6 +4152,7 @@ const styles = StyleSheet.create({
     color: colors.subtext,
     marginTop: spacing(0.5),
     fontStyle: 'italic',
+    textAlign: 'center',
   },
   savedRemoveButton: {
     position: 'absolute',

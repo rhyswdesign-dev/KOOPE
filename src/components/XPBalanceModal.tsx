@@ -34,13 +34,56 @@ export default function XPBalanceModal({ visible, onClose }: XPBalanceModalProps
   const totalEarned = getTotalEarned();
   const totalSpent = getTotalSpent();
 
-  // Ways to earn XP
+  // Ways to earn XP.
+  //
+  // Every row here must correspond to something the app actually pays out —
+  // this list previously advertised six actions with no call site anywhere
+  // (make a cocktail, save a recipe, share, vault drops, invite a friend)
+  // while omitting scanning, cocktail logging, bottle submission and
+  // price-spotting entirely. Ordered highest-value first, so the actions
+  // worth the most are the ones a user reads first.
   const earningMethods = [
     {
-      icon: 'calendar-outline',
-      label: 'Daily Login',
-      amount: XP_EARNING_RATES.dailyLogin,
-      frequency: 'Once per day',
+      icon: 'add-circle-outline',
+      label: 'Add a New Bottle to the Database',
+      amount: XP_EARNING_RATES.bottleSubmitted,
+      frequency: 'Per new bottle',
+    },
+    {
+      icon: 'person-outline',
+      label: 'Complete Your Taste Profile',
+      amount: XP_EARNING_RATES.tasteProfileCompleted,
+      frequency: 'One-time',
+    },
+    {
+      icon: 'create-outline',
+      label: 'Correct a Wrong Scan',
+      amount: XP_EARNING_RATES.scanCorrected,
+      frequency: 'Per correction',
+    },
+    {
+      icon: 'clipboard-outline',
+      label: 'Log a Cocktail with Notes',
+      amount: XP_EARNING_RATES.cocktailLoggedDetailed,
+      frequency: 'Per log',
+    },
+    {
+      icon: 'checkmark-done-outline',
+      label: 'Log a Cocktail You Made',
+      amount: XP_EARNING_RATES.cocktailLoggedQuick,
+      frequency: 'Per log',
+    },
+    {
+      icon: 'scan-outline',
+      label: 'Scan a Bottle',
+      amount: XP_EARNING_RATES.bottleScannedFirst,
+      frequency: 'First scan of each bottle',
+    },
+    {
+      icon: 'pricetag-outline',
+      label: 'Log a Price with the Store',
+      amount: XP_EARNING_RATES.spottedPriceWithLocation,
+      frequency: 'Per price spotted',
     },
     {
       icon: 'school-outline',
@@ -49,52 +92,34 @@ export default function XPBalanceModal({ visible, onClose }: XPBalanceModalProps
       frequency: 'Per lesson',
     },
     {
-      icon: 'beer-outline',
-      label: 'Make a Cocktail',
-      amount: XP_EARNING_RATES.makeCocktail,
-      frequency: 'Once per day per recipe',
-    },
-    {
-      icon: 'heart-outline',
-      label: 'Save a Recipe',
-      amount: XP_EARNING_RATES.saveRecipe,
-      frequency: 'Per save',
-    },
-    {
-      icon: 'cart-outline',
-      label: 'Add to Shopping Cart',
-      amount: XP_EARNING_RATES.addToCart,
-      frequency: 'Per item',
-    },
-    {
-      icon: 'share-outline',
-      label: 'Share a Cocktail',
-      amount: XP_EARNING_RATES.shareCocktail,
-      frequency: 'Per share',
-    },
-    {
-      icon: 'gift-outline',
-      label: 'Open Vault Daily Drop',
-      amount: XP_EARNING_RATES.vaultDailyDrop,
-      frequency: 'Once per day',
+      icon: 'bookmark-outline',
+      label: 'Save a Bottle to Your Want List',
+      amount: XP_EARNING_RATES.wantListAdd,
+      frequency: 'Per bottle',
     },
     {
       icon: 'star-outline',
-      label: 'Earn Seasonal Item',
-      amount: XP_EARNING_RATES.vaultSeasonalItem,
-      frequency: 'Per item',
+      label: 'Rate a Recipe',
+      amount: XP_EARNING_RATES.recipeRating,
+      frequency: 'Per rating',
     },
     {
-      icon: 'person-outline',
-      label: 'Complete Profile',
-      amount: XP_EARNING_RATES.tasteProfileCompleted,
-      frequency: 'One-time',
+      icon: 'calendar-outline',
+      label: 'Open the App',
+      amount: XP_EARNING_RATES.dailyLogin,
+      frequency: 'Once per day',
     },
     {
-      icon: 'people-outline',
-      label: 'Invite a Friend',
-      amount: XP_EARNING_RATES.inviteFriend,
-      frequency: 'Per friend signup',
+      icon: 'eye-outline',
+      label: 'Browse a Recipe',
+      amount: XP_EARNING_RATES.recipeViewed,
+      frequency: 'Up to 5 per day',
+    },
+    {
+      icon: 'cart-outline',
+      label: 'Add Ingredients to Your Cart',
+      amount: XP_EARNING_RATES.addToCart,
+      frequency: 'Per recipe',
     },
   ];
 

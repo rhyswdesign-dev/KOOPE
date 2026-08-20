@@ -150,7 +150,7 @@ export function setAffiliateTag(providerId: string, tag: string): void {
 // ============================================================================
 
 /** Ingredient categories that should use alcohol-specific retailers */
-const ALCOHOL_CATEGORIES = ['spirit', 'liqueur', 'bitters'];
+const ALCOHOL_CATEGORIES = ['spirit', 'liqueur', 'wine', 'bitters'];
 
 /**
  * Generate affiliate links for an ingredient across all active providers.

@@ -4,6 +4,7 @@ import React, {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   ReactNode,
 } from 'react';
@@ -14,6 +15,7 @@ import * as WebBrowser from 'expo-web-browser';
 import { Platform } from 'react-native';
 import { supabase } from '../lib/supabase';
 import { log } from '../lib/logger';
+import { useWishlist } from '../store/useWishlist';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -120,6 +122,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       subscription.unsubscribe();
     };
   }, []);
+
+  // Pull-and-merge the want-list from Supabase once per signed-in user
+  // (migration 035 / wantListService). AsyncStorage stays the source of
+  // truth — this only restores items the server has that this device
+  // doesn't, and pushes up anything saved while offline or signed out.
+  // Best-effort: a failure here must never affect auth state.
+  const wantListSyncedForRef = useRef<string | null>(null);
+  useEffect(() => {
+    const userId = user?.id;
+    if (!userId || wantListSyncedForRef.current === userId) return;
+    wantListSyncedForRef.current = userId;
+    useWishlist
+      .getState()
+      .syncFromServer(userId)
+      .catch((error) => {
+        log.warn('AuthContext', 'Want-list sync failed (non-fatal)', { error });
+      });
+  }, [user?.id]);
 
   // Moved above the "Handle Google OAuth response" effect below (Phase 0.9):
   // that effect's dependency array now references this function, and a

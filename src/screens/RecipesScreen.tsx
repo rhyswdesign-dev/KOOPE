@@ -58,6 +58,7 @@ import { useUserTier } from '../store/useUserTier';
 import { isCocktailAccessible, FREE_TIER_COCKTAILS, getUpgradeMessage } from '../config/tierAccess';
 import { useFeatureAccess } from '../hooks/useFeatureAccess';
 import LockedRecipeCard from '../components/LockedRecipeCard';
+import VaultRailCard from '../components/VaultRailCard';
 import { useXPSystem } from '../store/useXPSystem';
 import CocktailUnlockSheet from '../components/CocktailUnlockSheet';
 import XPBalanceModal from '../components/XPBalanceModal';
@@ -72,8 +73,14 @@ import {
 import HeroCard from '../components/HeroCard';
 import { afStyles } from './RecipesScreen.afStyles';
 import MainPageHeader from '../components/ui/MainPageHeader';
-import { cocktailVariations } from '../config/vaultContent';
-import { getVaultVariationThumbnail } from '../data/vaultImages';
+import {
+  cocktailVariations,
+  getVariationsForDisplay,
+  getTechniquePlaybooksByType,
+  getAllPlaybookTypes,
+  getBartenderHacksForDisplay,
+} from '../config/vaultContent';
+import { getVaultVariationThumbnail, getVaultPlaybookThumbnail } from '../data/vaultImages';
 import { useScrollHaptic, withHaptic } from '../lib/haptics';
 import { ingredientListToSearchText } from '../utils/ingredientFormatting';
 import { curriculumData } from '../utils/curriculumAdapter';
@@ -117,6 +124,23 @@ const tasteMatchBadgeTextStyle = {
   color: GOLD,
 };
 
+// Vault rail: how many cards one visit shows, and the stand-in art for
+// Bartender Hacks (the only Vault category with no per-item image — VaultScreen
+// falls back to this same Unsplash photo for them).
+const VAULT_RAIL_SAMPLE_SIZE = 7;
+const VAULT_HACK_PLACEHOLDER_IMAGE =
+  'https://images.unsplash.com/photo-1578474846511-04ba529f0b88?w=400';
+
+/** Fisher-Yates shuffle of a copy, then take the first `count`. */
+function sampleRandom<T>(items: T[], count: number): T[] {
+  const copy = [...items];
+  for (let i = copy.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy.slice(0, count);
+}
+
 function uniqueById(items: any[]) {
   const seen = new Set<string>();
   return items.filter((item) => {
@@ -154,6 +178,7 @@ export default function RecipesScreen() {
   const { gateWithTrigger: predictiveEngineGate } = useFeatureAccess('predictive_engine');
   const { gateWithTrigger: flavorControlsGate } = useFeatureAccess('adjustable_flavor_controls');
   const { gateWithTrigger: advancedFilterGate } = useFeatureAccess('advanced_filters');
+  const { gate: whatCanIMakeGate } = useFeatureAccess('what_can_i_make');
 
   // XP System
   const {
@@ -162,7 +187,6 @@ export default function RecipesScreen() {
     canAffordCocktail,
     unlockCocktail,
     isCocktailUnlockedWithXP,
-    checkDailyLogin,
     unlockedCocktails,
     unlockedVaultItems,
   } = useXPSystem();
@@ -170,10 +194,45 @@ export default function RecipesScreen() {
   // Engagement System
   const { isRecipeUnlocked: isRecipeUnlockedWithEngagement } = useEngagement();
 
-  // Check daily login on mount
-  useEffect(() => {
-    checkDailyLogin();
-  }, []);
+  // Vault rail — the Vault stack screen had no entry point on any main
+  // surface, so nothing in it (playbooks, variations, hacks) was discoverable.
+  // Sourced from the same live vaultContent pool VaultScreen renders, so the
+  // ids line up with the unlock state the XP store persists. All three
+  // categories are mixed together (Seasonal is deliberately left out for now).
+  // Purely a discovery surface: taps open the Vault, where the existing
+  // level/tier gating still applies.
+  const vaultRailPool = useMemo(() => {
+    const unlocked = new Set(unlockedVaultItems || []);
+    const pool = [
+      ...getVariationsForDisplay().map((item) => ({ item, kind: 'variation' as const })),
+      ...getAllPlaybookTypes().flatMap((type) =>
+        getTechniquePlaybooksByType(type).map((item) => ({ item, kind: 'playbook' as const })),
+      ),
+      ...getBartenderHacksForDisplay().map((item) => ({ item, kind: 'hack' as const })),
+    ];
+    return pool.map((entry) => ({ ...entry, isUnlocked: unlocked.has(entry.item.id) }));
+  }, [unlockedVaultItems]);
+
+  const [vaultRailItems, setVaultRailItems] = useState<typeof vaultRailPool>([]);
+
+  // The rail shows a fresh random sample every time the screen regains focus,
+  // so repeat visits surface different corners of the Vault. The pool is read
+  // through a ref with an empty-dep callback on purpose: it keeps the focus
+  // effect's identity stable (a changing callback would re-run — and re-roll —
+  // on every render), and it also means the rail never reshuffles underneath a
+  // user who is still looking at it.
+  const vaultRailPoolRef = useRef(vaultRailPool);
+  vaultRailPoolRef.current = vaultRailPool;
+  useFocusEffect(
+    useCallback(() => {
+      setVaultRailItems(sampleRandom(vaultRailPoolRef.current, VAULT_RAIL_SAMPLE_SIZE));
+    }, []),
+  );
+
+  // Daily-login XP is granted in App.tsx on app open — the single call site
+  // after the 2026-08 XP-funnel pass. It used to also fire here, and because
+  // App.tsx's grant bypassed checkDailyLogin's once-per-day dedupe, the two
+  // together could pay the bonus twice on the same calendar day.
 
   // Unlock sheet state
   const [unlockSheetVisible, setUnlockSheetVisible] = useState(false);
@@ -726,20 +785,24 @@ export default function RecipesScreen() {
                 cocktail.ingredients || [],
               ).toLowerCase();
               const tags = (cocktail.tags || []).join(' ').toLowerCase();
-              const searchable = `${name} ${description} ${ingredientText} ${tags}`;
-
-              // Must match at least one term
-              if (!queryTerms.some((term) => searchable.includes(term))) return null;
-
+              // Every typed word must appear together in ONE field (name, or
+              // ingredients, or tags, or description) — not just any single
+              // word landing anywhere across the four fields OR'd together.
+              // The old logic required only one term to match anywhere in the
+              // combined blob, so e.g. searching "Rum Punch" would surface any
+              // rum cocktail with no relation to "punch". There's also no
+              // catch-all inclusion anymore (the old `else score += 10`) — a
+              // cocktail that doesn't fully match on any single field is
+              // excluded, not just ranked last.
               let score = 0;
-              if (name === queryLower) score += 100;
-              else if (name.startsWith(queryLower)) score += 80;
-              else if (name.includes(queryLower)) score += 60;
-              else if (queryTerms.every((term) => name.includes(term))) score += 55;
-              else if (ingredientText.includes(queryLower)) score += 40;
-              else if (tags.includes(queryLower)) score += 30;
-              else if (description.includes(queryLower)) score += 20;
-              else score += 10;
+              if (name === queryLower) score = 100;
+              else if (name.startsWith(queryLower)) score = 80;
+              else if (name.includes(queryLower)) score = 60;
+              else if (queryTerms.every((term) => name.includes(term))) score = 55;
+              else if (queryTerms.every((term) => ingredientText.includes(term))) score = 40;
+              else if (queryTerms.every((term) => tags.includes(term))) score = 30;
+              else if (queryTerms.every((term) => description.includes(term))) score = 20;
+              else return null;
 
               return { cocktail, score };
             })
@@ -768,17 +831,24 @@ export default function RecipesScreen() {
     };
   }, []);
 
-  // Hide tab bar while searching + focus input after overlay mounts
+  // Hide tab bar while searching + focus input after overlay mounts.
+  // Focus and the tab-bar-hide used to fire in the same tick (focus merely
+  // delayed 50ms). Hiding the tab bar changes this screen's layout height at
+  // roughly the same moment the keyboard's own ~250ms show animation is
+  // still in flight — on some devices, typing the first character while that
+  // animation is still settling caused iOS to treat it as an interrupted
+  // gesture and dismiss the keyboard. Focusing immediately (the ref is
+  // already attached by the time an effect runs, since effects fire after
+  // commit) and pushing the tab-bar layout change out past the keyboard's own
+  // animation window keeps the two from competing for the same frame.
   useEffect(() => {
     const tabNavigator = navigation.getParent();
     if (showSearchInput) {
-      tabNavigator?.setOptions({ tabBarStyle: { display: 'none' } });
-      // Delay focus so it happens after the overlay is fully mounted,
-      // avoiding conflicts with any mount-time layout calculations on iOS
-      const timer = setTimeout(() => {
-        searchInputRef.current?.focus();
-      }, 50);
-      return () => clearTimeout(timer);
+      searchInputRef.current?.focus();
+      const hideTabBarTimer = setTimeout(() => {
+        tabNavigator?.setOptions({ tabBarStyle: { display: 'none' } });
+      }, 300);
+      return () => clearTimeout(hideTabBarTimer);
     } else {
       tabNavigator?.setOptions({
         tabBarStyle: { backgroundColor: colors.bg, borderTopColor: 'transparent' },
@@ -1389,7 +1459,6 @@ export default function RecipesScreen() {
                       {/* What Can I Make — ported from the retired HomeScreen */}
                       <TouchableOpacity
                         style={{
-                          width: '100%',
                           backgroundColor: colors.card,
                           borderRadius: radii.lg,
                           borderWidth: 1,
@@ -1397,45 +1466,85 @@ export default function RecipesScreen() {
                           marginHorizontal: spacing(2),
                           marginTop: spacing(1),
                           marginBottom: spacing(3),
+                          padding: spacing(2.5),
                         }}
-                        onPress={() => navigation.navigate('WhatCanIMake')}
+                        onPress={() => whatCanIMakeGate(() => navigation.navigate('WhatCanIMake'))}
                         activeOpacity={0.82}
                       >
-                        <View
-                          style={{
-                            flexDirection: 'row',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            paddingHorizontal: spacing(2.5),
-                            paddingVertical: spacing(2),
-                          }}
-                        >
-                          <View>
+                        <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+                          <View style={{ flex: 1, minWidth: 0, paddingRight: spacing(2) }}>
                             <Text
                               style={{
                                 fontSize: 11,
-                                fontWeight: '600',
+                                fontWeight: '700',
                                 color: colors.gold,
                                 letterSpacing: 1,
                                 textTransform: 'uppercase',
-                                marginBottom: spacing(0.5),
+                                marginBottom: spacing(0.75),
                               }}
                             >
                               Your Bar
                             </Text>
                             <Text
                               style={{
-                                fontSize: 17,
+                                fontSize: 22,
                                 fontWeight: '700',
                                 color: colors.text,
                                 fontFamily: serif,
+                                lineHeight: 27,
+                                marginBottom: spacing(1),
                               }}
                             >
                               What can I make tonight?
                             </Text>
+                            <Text
+                              style={{
+                                fontSize: 13,
+                                color: colors.subtext,
+                                marginBottom: spacing(2),
+                              }}
+                            >
+                              Ideas based on what's in your bar.
+                            </Text>
+                            <View
+                              style={{
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                alignSelf: 'flex-start',
+                                backgroundColor: colors.gold,
+                                borderRadius: radii.pill,
+                                paddingHorizontal: spacing(2.5),
+                                paddingVertical: spacing(1.25),
+                              }}
+                            >
+                              <Text
+                                style={{
+                                  fontSize: 14,
+                                  fontWeight: '700',
+                                  color: colors.goldText,
+                                }}
+                              >
+                                See Matches
+                              </Text>
+                            </View>
                           </View>
-                          <Ionicons name="chevron-forward" size={20} color={colors.gold} />
+                          <Image
+                            source={getCocktailImage('old-fashioned')}
+                            style={{
+                              width: 90,
+                              height: 90,
+                              borderRadius: radii.md,
+                              flexShrink: 0,
+                            }}
+                            resizeMode="cover"
+                          />
                         </View>
+                        <Ionicons
+                          name="chevron-forward"
+                          size={18}
+                          color={colors.gold}
+                          style={{ position: 'absolute', right: spacing(2), bottom: spacing(2) }}
+                        />
                       </TouchableOpacity>
 
                       {/* Tonight's Pick — inventory-aware, all tiers */}
@@ -1527,6 +1636,51 @@ export default function RecipesScreen() {
                           </ScrollView>
                         </>
                       ) : null}
+
+                      {/* Vault — discovery rail into the Vault stack screen */}
+                      {vaultRailItems.length > 0 && (
+                        <>
+                          <SectionHeader
+                            title="Vault"
+                            onPress={() => navigation.navigate('Vault')}
+                          />
+                          <ScrollView
+                            horizontal
+                            nestedScrollEnabled
+                            showsHorizontalScrollIndicator={false}
+                            style={{ paddingLeft: spacing(2), marginBottom: spacing(2) }}
+                          >
+                            {vaultRailItems.map(({ item, kind, isUnlocked }, index) => {
+                              // Hacks ship without art, so they borrow the same
+                              // placeholder photo VaultScreen uses for them.
+                              const image =
+                                kind === 'variation'
+                                  ? getVaultVariationThumbnail(item.id)
+                                  : kind === 'playbook'
+                                    ? getVaultPlaybookThumbnail(item.id)
+                                    : { uri: VAULT_HACK_PLACEHOLDER_IMAGE };
+                              const levelLabel = item.requiredTier
+                                ? `Level ${item.requiredLevel} · ${item.requiredTier}`
+                                : `Level ${item.requiredLevel}`;
+                              return (
+                                <Animated.View
+                                  key={item.id}
+                                  entering={FadeInRight.delay(index * 100).duration(500)}
+                                >
+                                  <VaultRailCard
+                                    image={image}
+                                    title={item.title}
+                                    levelLabel={levelLabel}
+                                    isUnlocked={isUnlocked}
+                                    onPress={() => navigation.navigate('Vault')}
+                                    style={{ marginRight: 16 }}
+                                  />
+                                </Animated.View>
+                              );
+                            })}
+                          </ScrollView>
+                        </>
+                      )}
 
                       {/* Cocktail of the Week */}
                       <View style={{ marginTop: spacing(1) }}>

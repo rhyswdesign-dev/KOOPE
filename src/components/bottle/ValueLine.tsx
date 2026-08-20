@@ -10,8 +10,16 @@
  *   2. The verdict, when the user has a spotted price for this bottle:
  *      "✓ Good buy — you saw $32" (computeValueVerdict).
  *   3. At-scan capture, when they don't: a "Seen a price?" chip revealing
- *      a one-field inline input (founder decision 2026-07-18: capture
- *      lives at-scan AND post-wishlist).
+ *      an inline price input (founder decision 2026-07-18: capture
+ *      lives at-scan AND post-wishlist), plus an OPTIONAL store field.
+ *
+ * On the store field being optional here (2026-08): location_label is the
+ * most commercially useful column in spotted_prices, and this path used to
+ * send null every time. The other two capture points are modals that require
+ * a store. This one is deliberately the low-friction path — making the store
+ * mandatory would turn a one-field inline row into a form and cost price
+ * captures — so the field is offered but never blocks Save. The XP rates
+ * carry the incentive instead (40 XP with a store, 15 without).
  *
  * Pure presentation + local input state; all writes go through the
  * onLogPrice callback (which routes to spottedPriceService).
@@ -39,7 +47,8 @@ interface ValueLineProps {
   spotted: SpottedPrice | undefined;
   giftMode: boolean;
   onOpenCurrencyPicker: () => void;
-  onLogPrice: (price: number) => void;
+  /** locationLabel is undefined when the user left the optional store field blank. */
+  onLogPrice: (price: number, locationLabel?: string) => void;
 }
 
 export default function ValueLine({
@@ -53,6 +62,7 @@ export default function ValueLine({
 }: ValueLineProps) {
   const [capturing, setCapturing] = useState(false);
   const [priceInput, setPriceInput] = useState('');
+  const [locationInput, setLocationInput] = useState('');
 
   if (!range) return null;
 
@@ -69,8 +79,9 @@ export default function ValueLine({
       Alert.alert('Invalid price', 'Enter a price greater than 0.');
       return;
     }
-    onLogPrice(price);
+    onLogPrice(price, locationInput.trim() || undefined);
     setPriceInput('');
+    setLocationInput('');
     setCapturing(false);
   };
 
@@ -134,25 +145,40 @@ export default function ValueLine({
 
       {/* Row 3 — capture input (fresh entry, or editing an existing spotted price) */}
       {capturing ? (
-        <View style={styles.captureRow}>
-          <Text style={styles.capturePrefix}>{CURRENCY_META[currency].symbol}</Text>
-          <TextInput
-            style={styles.captureInput}
-            value={priceInput}
-            onChangeText={setPriceInput}
-            keyboardType="decimal-pad"
-            placeholder="0.00"
-            placeholderTextColor={colors.subtext}
-            autoFocus
-            returnKeyType="done"
-            onSubmitEditing={handleSave}
-          />
-          <TouchableOpacity style={styles.captureSave} onPress={handleSave}>
-            <Text style={styles.captureSaveText}>Save</Text>
-          </TouchableOpacity>
-          <TouchableOpacity hitSlop={8} onPress={() => setCapturing(false)}>
-            <Ionicons name="close" size={16} color={colors.subtext} />
-          </TouchableOpacity>
+        <View style={styles.captureBlock}>
+          <View style={styles.captureRow}>
+            <Text style={styles.capturePrefix}>{CURRENCY_META[currency].symbol}</Text>
+            <TextInput
+              style={styles.captureInput}
+              value={priceInput}
+              onChangeText={setPriceInput}
+              keyboardType="decimal-pad"
+              placeholder="0.00"
+              placeholderTextColor={colors.subtext}
+              autoFocus
+              returnKeyType="next"
+              onSubmitEditing={handleSave}
+            />
+            <TouchableOpacity style={styles.captureSave} onPress={handleSave}>
+              <Text style={styles.captureSaveText}>Save</Text>
+            </TouchableOpacity>
+            <TouchableOpacity hitSlop={8} onPress={() => setCapturing(false)}>
+              <Ionicons name="close" size={16} color={colors.subtext} />
+            </TouchableOpacity>
+          </View>
+          {/* Optional store — never blocks Save (see the note in the docblock) */}
+          <View style={styles.captureRow}>
+            <Ionicons name="storefront-outline" size={14} color={colors.subtext} />
+            <TextInput
+              style={styles.captureInput}
+              value={locationInput}
+              onChangeText={setLocationInput}
+              placeholder="Where? (optional)"
+              placeholderTextColor={colors.subtext}
+              returnKeyType="done"
+              onSubmitEditing={handleSave}
+            />
+          </View>
         </View>
       ) : (
         !spotted && (
@@ -234,6 +260,9 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     color: colors.accent,
+  },
+  captureBlock: {
+    gap: spacing(1),
   },
   captureRow: {
     flexDirection: 'row',

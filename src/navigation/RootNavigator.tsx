@@ -71,6 +71,9 @@ import CellarNavigator from './CellarNavigator';
 import CellarBottleDetailScreen from '../screens/CellarBottleDetailScreen';
 import BottleSearchScreen from '../screens/BottleSearchScreen';
 import BottleDetailScreen from '../screens/BottleDetailScreen';
+import ManualBottleEntryScreen, {
+  type ManualBottleEntryParams,
+} from '../screens/ManualBottleEntryScreen';
 import type { CameraStackParamList } from './CameraStack';
 import CellarRegisterScreen from '../screens/CellarRegisterScreen';
 import CellarWatchlistScreen from '../screens/CellarWatchlistScreen';
@@ -178,6 +181,10 @@ export type RootStackParamList = {
   // the visible tab and needs a `returnTo` hack on the way back out.
   BottleSearch: CameraStackParamList['BottleSearch'];
   BottleDetail: CameraStackParamList['BottleDetail'];
+  // Manual add-item form for the Owned/Shelf tab's category sections — root-level
+  // (not CameraStack) so HomeBarScreen can navigate straight to it, same pattern
+  // as BottleSearch/BottleDetail above.
+  ManualBottleEntry: ManualBottleEntryParams | undefined;
   ShoppingCart: undefined;
   InventoryInsights: { mode: 'expiry' | 'health' };
   Achievements: undefined;
@@ -685,6 +692,11 @@ export default function RootNavigator({ initialRouteName = 'Main' }: RootNavigat
           name="BottleDetail"
           component={BottleDetailScreen}
           options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="ManualBottleEntry"
+          component={ManualBottleEntryScreen}
+          options={{ headerShown: false, presentation: 'modal' }}
         />
         <Stack.Screen
           name="SpiritRecognition"

@@ -30,7 +30,8 @@ function fmt(value: number): string {
 }
 
 function getRecommendation(item: CellarRecord): 'Hold' | 'Open Soon' | 'Review' {
-  if ((item.valuationEstimate || 0) > (item.purchasePrice || 0) && !!item.purchasePrice) return 'Hold';
+  if ((item.valuationEstimate || 0) > (item.purchasePrice || 0) && !!item.purchasePrice)
+    return 'Hold';
   if ((item.drinkingWindowStart || '').toLowerCase() === 'now') return 'Open Soon';
   return 'Review';
 }
@@ -73,9 +74,12 @@ function getTopMovers(items: CellarRecord[]): CellarRecord[] {
 }
 
 function getVaultIntelligence(items: CellarRecord[]): string {
-  if (!items.length) return 'Start building your collection to receive curated market intelligence tailored to your portfolio.';
+  if (!items.length)
+    return 'Start building your collection to receive curated market intelligence tailored to your portfolio.';
   const holdItems = items.filter((i) => getRecommendation(i) === 'Hold');
-  const topByValue = [...items].sort((a, b) => (b.valuationEstimate || 0) - (a.valuationEstimate || 0))[0];
+  const topByValue = [...items].sort(
+    (a, b) => (b.valuationEstimate || 0) - (a.valuationEstimate || 0),
+  )[0];
   if (holdItems.length > items.length / 2) {
     return `Secondary market demand for ${topByValue?.type || 'premium'} expressions has surged this quarter. Consider reviewing your longest-held bottles for emerging exit windows.`;
   }
@@ -88,14 +92,15 @@ function ProLockedScreen() {
   const { gate } = useFeatureAccess('cellar_mode');
   return (
     <SafeAreaView style={styles.container}>
-      <LinearGradient colors={['#1A120D', '#0F0A07']} style={styles.lockedFill}>
+      <LinearGradient colors={[colors.bg, '#0F0A07']} style={styles.lockedFill}>
         <View style={styles.lockedIconWrap}>
           <Ionicons name="lock-closed" size={44} color={colors.accent} />
         </View>
         <Text style={styles.lockedEyebrow}>PRO</Text>
         <Text style={styles.lockedTitle}>The Cellar</Text>
         <Text style={styles.lockedBody}>
-          Track your private spirits collection like a portfolio. Monitor valuations, drinking windows, and collector intelligence in one place.
+          Track your private spirits collection like a portfolio. Monitor valuations, drinking
+          windows, and collector intelligence in one place.
         </Text>
         <View style={styles.lockedFeatures}>
           {[
@@ -141,7 +146,7 @@ function TheCellarScreen() {
   useFocusEffect(
     useCallback(() => {
       loadData();
-    }, [loadData])
+    }, [loadData]),
   );
 
   if (!hasAccess) return <ProLockedScreen />;
@@ -172,13 +177,12 @@ function TheCellarScreen() {
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.content}
-        refreshControl={<RefreshControl refreshing={loading} onRefresh={loadData} tintColor={colors.accent} />}
+        refreshControl={
+          <RefreshControl refreshing={loading} onRefresh={loadData} tintColor={colors.accent} />
+        }
       >
         {/* ── Portfolio Card ──────────────────────────────────────────────── */}
-        <LinearGradient
-          colors={['#2A1A0F', '#160F0B']}
-          style={styles.portfolioCard}
-        >
+        <LinearGradient colors={['#2A1A0F', '#160F0B']} style={styles.portfolioCard}>
           <View style={styles.portfolioCardHeader}>
             <Text style={styles.portfolioLabel}>ESTIMATED PORTFOLIO VALUE</Text>
             <View style={styles.portfolioHeaderIcons}>
@@ -209,8 +213,14 @@ function TheCellarScreen() {
                 size={12}
                 color={changePositive ? '#4FC38A' : '#F56565'}
               />
-              <Text style={[styles.portfolioChangePct, { color: changePositive ? '#4FC38A' : '#F56565' }]}>
-                {changePositive ? '+' : '-'}{changePctAbs.toFixed(1)}%
+              <Text
+                style={[
+                  styles.portfolioChangePct,
+                  { color: changePositive ? '#4FC38A' : '#F56565' },
+                ]}
+              >
+                {changePositive ? '+' : '-'}
+                {changePctAbs.toFixed(1)}%
               </Text>
               <Text style={styles.portfolioChangeSub}>vs cost basis of {fmt(costBasis)}</Text>
             </View>
@@ -221,7 +231,9 @@ function TheCellarScreen() {
         <View style={styles.statsRow}>
           <View style={styles.statCard}>
             <Text style={styles.statLabel}>TOTAL COLLECTION</Text>
-            <Text style={styles.statValue}>{items.length} Bottle{items.length !== 1 ? 's' : ''}</Text>
+            <Text style={styles.statValue}>
+              {items.length} Bottle{items.length !== 1 ? 's' : ''}
+            </Text>
           </View>
           <View style={styles.statCard}>
             <Text style={styles.statLabel}>MARKET HEALTH</Text>
@@ -257,11 +269,17 @@ function TheCellarScreen() {
             <TouchableOpacity
               key={item.inventoryItemId}
               style={styles.readyCard}
-              onPress={() => nav.navigate('CellarBottleDetail', { inventoryItemId: item.inventoryItemId })}
+              onPress={() =>
+                nav.navigate('CellarBottleDetail', { inventoryItemId: item.inventoryItemId })
+              }
               activeOpacity={0.85}
             >
               {item.imageUrl ? (
-                <Image source={{ uri: item.imageUrl }} style={styles.readyCardImage} resizeMode="cover" />
+                <Image
+                  source={{ uri: item.imageUrl }}
+                  style={styles.readyCardImage}
+                  resizeMode="cover"
+                />
               ) : (
                 <View style={[styles.readyCardImage, styles.readyCardImageFallback]}>
                   <Ionicons name="wine-outline" size={32} color="rgba(214,138,56,0.6)" />
@@ -272,12 +290,18 @@ function TheCellarScreen() {
                   <Text style={styles.readyCardType}>{(item.type || 'SPIRIT').toUpperCase()}</Text>
                   <Ionicons name="star" size={14} color={colors.accent} />
                 </View>
-                <Text style={styles.readyCardName} numberOfLines={2}>{item.itemName}</Text>
+                <Text style={styles.readyCardName} numberOfLines={2}>
+                  {item.itemName}
+                </Text>
                 <Text style={styles.readyCardDesc} numberOfLines={2}>
-                  {item.tastingNotes || item.serveGuidance || `${item.brand || 'Private Reserve'} • ${item.region || 'Private Collection'}`}
+                  {item.tastingNotes ||
+                    item.serveGuidance ||
+                    `${item.brand || 'Private Reserve'} • ${item.region || 'Private Collection'}`}
                 </Text>
                 <View style={styles.readyCardBottom}>
-                  <Text style={styles.readyCardPrice}>{item.valuationEstimate ? fmt(item.valuationEstimate) : 'Not tracked'}</Text>
+                  <Text style={styles.readyCardPrice}>
+                    {item.valuationEstimate ? fmt(item.valuationEstimate) : 'Not tracked'}
+                  </Text>
                   <View style={styles.readyCardBasket}>
                     <Ionicons name="basket-outline" size={16} color={colors.accent} />
                   </View>
@@ -292,14 +316,38 @@ function TheCellarScreen() {
           <>
             <Text style={styles.distLabel}>STATUS DISTRIBUTION</Text>
             <View style={styles.distSection}>
-              <BarRow label="Sealed" count={sealedCount} pct={sealedPct} total={items.length} color={colors.accent} />
-              <BarRow label="Opened" count={openedCount} pct={openedPct} total={items.length} color="#C7B8A5" />
+              <BarRow
+                label="Sealed"
+                count={sealedCount}
+                pct={sealedPct}
+                total={items.length}
+                color={colors.accent}
+              />
+              <BarRow
+                label="Opened"
+                count={openedCount}
+                pct={openedPct}
+                total={items.length}
+                color={colors.subtext}
+              />
             </View>
 
             <Text style={styles.distLabel}>STRATEGY ALIGNMENT</Text>
             <View style={styles.distSection}>
-              <BarRow label="Hold for Growth" count={holdCount} pct={holdPct} total={items.length} color="#4FC38A" />
-              <BarRow label="Drink Now" count={openSoonCount} pct={openSoonPct} total={items.length} color="#F6AD55" />
+              <BarRow
+                label="Hold for Growth"
+                count={holdCount}
+                pct={holdPct}
+                total={items.length}
+                color="#4FC38A"
+              />
+              <BarRow
+                label="Drink Now"
+                count={openSoonCount}
+                pct={openSoonPct}
+                total={items.length}
+                color="#F6AD55"
+              />
             </View>
           </>
         )}
@@ -317,7 +365,9 @@ function TheCellarScreen() {
                   <TouchableOpacity
                     key={item.inventoryItemId}
                     style={styles.moverRow}
-                    onPress={() => nav.navigate('CellarBottleDetail', { inventoryItemId: item.inventoryItemId })}
+                    onPress={() =>
+                      nav.navigate('CellarBottleDetail', { inventoryItemId: item.inventoryItemId })
+                    }
                   >
                     <Ionicons
                       name={positive ? 'trending-up' : delta < 0 ? 'trending-down' : 'remove'}
@@ -325,15 +375,23 @@ function TheCellarScreen() {
                       color={positive ? '#4FC38A' : delta < 0 ? '#F56565' : colors.subtext}
                     />
                     <View style={styles.moverInfo}>
-                      <Text style={styles.moverName} numberOfLines={1}>{item.itemName}</Text>
-                      <Text style={styles.moverBrand}>{item.brand || item.type || 'Private Reserve'}</Text>
+                      <Text style={styles.moverName} numberOfLines={1}>
+                        {item.itemName}
+                      </Text>
+                      <Text style={styles.moverBrand}>
+                        {item.brand || item.type || 'Private Reserve'}
+                      </Text>
                     </View>
                     <View style={styles.moverRight}>
-                      <Text style={[styles.moverDelta, { color: positive ? '#4FC38A' : '#F56565' }]}>
-                        {positive ? '+' : ''}{fmt(delta)}
+                      <Text
+                        style={[styles.moverDelta, { color: positive ? '#4FC38A' : '#F56565' }]}
+                      >
+                        {positive ? '+' : ''}
+                        {fmt(delta)}
                       </Text>
                       <Text style={[styles.moverPct, { color: positive ? '#4FC38A' : '#F56565' }]}>
-                        {positive ? '+' : ''}{pct.toFixed(1)}%
+                        {positive ? '+' : ''}
+                        {pct.toFixed(1)}%
                       </Text>
                     </View>
                   </TouchableOpacity>
@@ -361,10 +419,7 @@ function TheCellarScreen() {
             <Ionicons name="add-outline" size={16} color={colors.accent} />
             <Text style={styles.ctaGhostAmberText}>ADD ASSET</Text>
           </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.ctaGhost}
-            onPress={() => nav.navigate('CellarAnalytics')}
-          >
+          <TouchableOpacity style={styles.ctaGhost} onPress={() => nav.navigate('CellarAnalytics')}>
             <Ionicons name="pulse-outline" size={16} color={colors.text} />
             <Text style={styles.ctaGhostText}>ACTIVITY</Text>
           </TouchableOpacity>
@@ -488,7 +543,7 @@ const styles = StyleSheet.create({
   },
   statCard: {
     flex: 1,
-    backgroundColor: '#1A120D',
+    backgroundColor: colors.bg,
     borderRadius: radii.md,
     padding: spacing(1.75),
     borderWidth: 1,
@@ -550,7 +605,7 @@ const styles = StyleSheet.create({
 
   // Empty hint
   emptyHint: {
-    backgroundColor: '#1A120D',
+    backgroundColor: colors.bg,
     borderRadius: radii.md,
     padding: spacing(2.5),
     alignItems: 'center',
@@ -569,7 +624,7 @@ const styles = StyleSheet.create({
   // Ready to open cards
   readyCard: {
     flexDirection: 'row',
-    backgroundColor: '#1A120D',
+    backgroundColor: colors.bg,
     borderRadius: radii.lg,
     overflow: 'hidden',
     borderWidth: 1,
@@ -645,7 +700,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing(0.75),
   },
   distSection: {
-    backgroundColor: '#1A120D',
+    backgroundColor: colors.bg,
     borderRadius: radii.md,
     padding: spacing(1.75),
     gap: spacing(1.1),
@@ -684,7 +739,7 @@ const styles = StyleSheet.create({
 
   // Top movers
   topMoversCard: {
-    backgroundColor: '#1A120D',
+    backgroundColor: colors.bg,
     borderRadius: radii.md,
     overflow: 'hidden',
     borderWidth: 1,
@@ -727,7 +782,7 @@ const styles = StyleSheet.create({
 
   // Intelligence card
   intelligenceCard: {
-    backgroundColor: '#1A120D',
+    backgroundColor: colors.bg,
     borderRadius: radii.lg,
     padding: spacing(2),
     borderWidth: 1,
@@ -859,6 +914,6 @@ const styles = StyleSheet.create({
   lockedCtaText: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#1A120D',
+    color: colors.bg,
   },
 });

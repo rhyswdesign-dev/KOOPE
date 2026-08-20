@@ -7,16 +7,18 @@ import {
   ActivityIndicator,
   Modal,
   ScrollView,
+  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../theme/tokens';
+import { colors, spacing } from '../theme/tokens';
 import { styles } from '../screens/CocktailDetailScreen.styles';
 import type { CompletionPromptConfig } from '../lib/completions/brandCapture';
 import type { MadeItFlowIngredient } from '../hooks/useMadeItFlow';
+import IngredientLeaderRow from './recipe/IngredientLeaderRow';
 
 interface MakeItModalProps {
   visible: boolean;
@@ -74,10 +76,22 @@ export default function MakeItModal({
               const suggestions = getSuggestionsForIngredient(ingredient.name);
               return (
                 <View key={ingredient.key} style={styles.modalSection}>
-                  <Text style={styles.modalSectionTitle}>
-                    {ingredient.name}
-                    {ingredient.amount ? ` (${ingredient.amount})` : ''}
-                  </Text>
+                  {/* Lighter-touch adaptation: only the name+amount heading
+                      becomes a dot-leader row. The brand input and suggestion
+                      chips below stay a stacked section, so no trailing icon
+                      and no row divider here. */}
+                  <IngredientLeaderRow
+                    name={ingredient.name}
+                    amount={ingredient.amount || ''}
+                    iconSize={14}
+                    iconColor={colors.subtext}
+                    trailingIcon={null}
+                    rowStyle={localStyles.leaderRow}
+                    iconStyle={localStyles.leaderIcon}
+                    nameStyle={localStyles.leaderName}
+                    dotsStyle={localStyles.leaderDots}
+                    amountStyle={localStyles.leaderAmount}
+                  />
 
                   <TextInput
                     style={styles.modalInput}
@@ -171,3 +185,38 @@ export default function MakeItModal({
     </Modal>
   );
 }
+
+// Local to the ingredient heading's dot-leader row. Everything else in this
+// modal still comes from the shared CocktailDetailScreen style sheet; these
+// four exist because the heading is a stacked-section title, not a table row,
+// so it needs its own spacing rather than the shared specRow tokens.
+const localStyles = StyleSheet.create({
+  leaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing(1),
+  },
+  leaderIcon: {
+    marginRight: spacing(0.75),
+  },
+  leaderName: {
+    flexShrink: 1,
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  leaderDots: {
+    flex: 1,
+    flexShrink: 1,
+    marginHorizontal: spacing(0.75),
+    fontSize: 14,
+    letterSpacing: 1.5,
+    color: 'rgba(214,165,102,0.2)',
+  },
+  leaderAmount: {
+    flexShrink: 0,
+    fontSize: 13,
+    fontWeight: '500',
+    color: colors.subtext,
+  },
+});
