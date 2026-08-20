@@ -8,6 +8,8 @@
  * - Provides clean, formatted output with timestamps
  */
 
+import { captureException } from './crashReporting';
+
 type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
 interface LogConfig {
@@ -26,8 +28,8 @@ const LOG_LEVELS: Record<LogLevel, number> = {
 
 const LOG_COLORS = {
   debug: '\x1b[36m', // Cyan
-  info: '\x1b[32m',  // Green
-  warn: '\x1b[33m',  // Yellow
+  info: '\x1b[32m', // Green
+  warn: '\x1b[33m', // Yellow
   error: '\x1b[31m', // Red
   reset: '\x1b[0m',
 };
@@ -130,10 +132,9 @@ class Logger {
   error(context: string, message: string, error?: Error | any, ...args: any[]) {
     this.output('error', context, message, error, ...args);
 
-    // In production, send to crash reporting service
     if (!__DEV__ && error) {
-      // TODO: Send to a crash reporting SDK (Sentry, etc.) once one is chosen
-      // crashlytics().recordError(error);
+      // No-op until EXPO_PUBLIC_SENTRY_DSN is set; see src/lib/crashReporting.ts
+      captureException(error, { context, message });
     }
   }
 
