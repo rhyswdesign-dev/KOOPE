@@ -194,7 +194,7 @@ export const nonAlcoholicBeverages = [
     category: 'Wellness Drinks',
     region: 'United States',
     tier: 'bronze',
-    image: require('../../assets/images/mocktails/ginger_kombucha_mule.png'),
+    image: require('../../assets/images/mocktails/ginger_kombucha_mule.jpg'),
     tagline: 'Probiotic & Refreshing',
     description:
       'Living kombucha with organic ginger providing digestive benefits and refreshing taste.',
@@ -226,7 +226,7 @@ export const nonAlcoholicBeverages = [
     category: 'Wellness Drinks',
     region: 'United States',
     tier: 'silver',
-    image: require('../../assets/images/mocktails/zen_garden_spritz.png'),
+    image: require('../../assets/images/mocktails/zen_garden_spritz.jpg'),
     tagline: 'Calm & Focused',
     description:
       'Sparkling water infused with hemp extract and adaptogens for relaxation and focus.',
@@ -395,7 +395,7 @@ export const nonAlcoholicBeverages = [
     category: 'Low-ABV Options',
     region: 'United States',
     tier: 'gold',
-    image: require('../../assets/images/mocktails/high_rhode_spritz.png'),
+    image: require('../../assets/images/mocktails/high_rhode_spritz.jpg'),
     tagline: 'Mood-Elevating',
     description:
       'A euphoric blend of adaptogens, nootropics, and botanicals designed to elevate your mood naturally.',
@@ -472,7 +472,7 @@ export const nonAlcoholicBeverages = [
     category: 'Low-ABV Options',
     region: 'Australia',
     tier: 'silver',
-    image: require('../../assets/images/mocktails/italian_sunset.png'),
+    image: require('../../assets/images/mocktails/italian_sunset.jpg'),
     tagline: 'Italian Aperitivo',
     description:
       'Zero-proof alternative to Italian orange aperitif with bitter orange and herbal complexity.',
@@ -517,7 +517,7 @@ export const nonAlcoholicBeverages = [
     category: 'Low-ABV Options',
     region: 'United States',
     tier: 'bronze',
-    image: require('../../assets/images/mocktails/curious_spritz.png'),
+    image: require('../../assets/images/mocktails/curious_spritz.jpg'),
     tagline: 'Negroni Inspired',
     description:
       'A sophisticated blend inspired by the classic Negroni with bitter and sweet botanicals.',

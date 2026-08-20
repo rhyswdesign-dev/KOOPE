@@ -38,7 +38,7 @@ import { PRICING_DISPLAY, SUBSCRIPTION_PRODUCTS } from '../constants/subscriptio
 import { PAYWALL_TRIGGERS } from '../config/paywallTriggers';
 
 const getSafeAreaTop = () => (Platform.OS === 'ios' ? 50 : StatusBar.currentHeight || 24);
-const HERO_IMAGE = require('../../assets/images/branding/MMS Backsplash.png');
+const HERO_IMAGE = require('../../assets/images/branding/MMS Backsplash.jpg');
 
 const formatCurrency = (amount: number, currencyCode?: string): string => {
   if (!Number.isFinite(amount)) return '$0';

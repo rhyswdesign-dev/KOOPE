@@ -5,7 +5,7 @@ export const HOSTING_MOCKTAIL_RECIPES = [
     name: 'Virgin Mojito',
     subtitle: 'Non-Alcoholic • Refreshing',
     category: 'Mocktails',
-    image: require('../../assets/images/mocktails/virgin_mojito.png'),
+    image: require('../../assets/images/mocktails/virgin_mojito.jpg'),
     difficulty: 'Easy',
     ingredients: [
       { name: 'Fresh Lime Juice' },
@@ -24,7 +24,7 @@ export const HOSTING_MOCKTAIL_RECIPES = [
     name: 'Garden 108 & Tonic',
     subtitle: 'Zero-Proof • Herbal & Garden Fresh',
     category: 'Mocktails',
-    image: require('../../assets/images/mocktails/garden_108_tonic.png'),
+    image: require('../../assets/images/mocktails/garden_108_tonic.jpg'),
     difficulty: 'Easy',
     ingredients: [
       { name: 'Seedlip Garden 108' },
@@ -43,7 +43,7 @@ export const HOSTING_MOCKTAIL_RECIPES = [
     name: 'Herbaceous Spritz',
     subtitle: 'Zero-Proof • Garden Fresh',
     category: 'Mocktails',
-    image: require('../../assets/images/mocktails/herbaceous_spritz.png'),
+    image: require('../../assets/images/mocktails/herbaceous_spritz.jpg'),
     difficulty: 'Easy',
     ingredients: [
       { name: 'Seedlip Garden 108' },
@@ -62,7 +62,7 @@ export const HOSTING_MOCKTAIL_RECIPES = [
     name: 'Garden Gimlet',
     subtitle: 'Zero-Proof • Classic Style',
     category: 'Mocktails',
-    image: require('../../assets/images/mocktails/garden_gimlet.png'),
+    image: require('../../assets/images/mocktails/garden_gimlet.jpg'),
     difficulty: 'Easy',
     ingredients: [
       { name: 'Seedlip Garden 108' },
@@ -76,4 +76,3 @@ export const HOSTING_MOCKTAIL_RECIPES = [
     baseSpirit: 'none',
   },
 ];
-
