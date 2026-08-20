@@ -11,7 +11,6 @@ interface SplashScreenProps {
   onFinish: () => void;
 }
 
-
 export default function SplashScreen({ onFinish }: SplashScreenProps) {
   const fadeAnim = React.useRef(new Animated.Value(0)).current;
   const scaleAnim = React.useRef(new Animated.Value(0.8)).current;
@@ -20,21 +19,19 @@ export default function SplashScreen({ onFinish }: SplashScreenProps) {
 
   // Array of video sources - all your bartending segments
   const videoSources = [
-    require('../../assets/videos/bartending-splash-2.mov'),
-    require('../../assets/videos/bartending-splash-3.mov'),
     require('../../assets/videos/bartending-splash-4.mov'),
     require('../../assets/videos/bartending-splash-5.mov'),
-    require('../../assets/videos/bartending-splash-6.mov'),
-    require('../../assets/videos/bartending-splash-7.mov'),
     require('../../assets/videos/bartending-splash-8.mov'),
-    require('../../assets/videos/bartending-splash-9.mov'),
   ];
 
   // Randomly select a video each time the splash screen loads
   const [selectedVideo] = useState(() => {
     const randomIndex = Math.floor(Math.random() * videoSources.length);
     const selectedVideoFile = videoSources[randomIndex];
-    log.info('SplashScreen', 'Playing bartending video', { videoIndex: randomIndex + 1, totalVideos: videoSources.length });
+    log.info('SplashScreen', 'Playing bartending video', {
+      videoIndex: randomIndex + 1,
+      totalVideos: videoSources.length,
+    });
     return selectedVideoFile;
   });
 
@@ -102,8 +99,7 @@ export default function SplashScreen({ onFinish }: SplashScreenProps) {
             transform: [{ scale: scaleAnim }],
           },
         ]}
-      >
-      </Animated.View>
+      ></Animated.View>
 
       {/* Loading indicator - show while video is loading */}
       {!isVideoLoaded && !videoUnavailable && (

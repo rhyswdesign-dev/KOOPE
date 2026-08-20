@@ -1,10 +1,13 @@
 # Production Readiness Checklist
 
+> **STALE — written Jan 2026.** Codebase has moved on significantly since (Firebase migration is complete, Supabase is fully primary, more features are built than described here). Do not treat this as current status; check git history / State-of-KOOPE-App.md instead.
+
 This document tracks the production readiness status of the KŌOPE bartending app.
 
 ## ✅ Completed Tasks
 
 ### Authentication & User Management
+
 - [x] Migrated from Firebase to Supabase Auth
 - [x] Implemented Apple Sign-In with `expo-apple-authentication`
 - [x] Implemented Google Sign-In with `expo-auth-session`
@@ -17,6 +20,7 @@ This document tracks the production readiness status of the KŌOPE bartending ap
 - [x] Removed anonymous sign-in (OAuth-only strategy)
 
 ### Onboarding Experience
+
 - [x] Created WelcomeCarouselScreen with 6 feature slides
 - [x] Implemented swipe-only navigation
 - [x] Added Skip button functionality
@@ -25,6 +29,7 @@ This document tracks the production readiness status of the KŌOPE bartending ap
 - [x] Smooth carousel transitions (native ScrollView)
 
 ### Challenge System
+
 - [x] Created challenge type definitions
 - [x] Implemented ChallengeService with Supabase
 - [x] Designed daily/weekly/monthly rotation system
@@ -36,6 +41,7 @@ This document tracks the production readiness status of the KŌOPE bartending ap
 - [x] Documented setup in CHALLENGE_SYSTEM_SETUP.md
 
 ### Code Quality
+
 - [x] Replaced all 468 console.log statements with structured logger
 - [x] Implemented development-only logging with `__DEV__` guards
 - [x] Consistent logging patterns across all files
@@ -44,6 +50,7 @@ This document tracks the production readiness status of the KŌOPE bartending ap
 ## 🔄 In Progress
 
 ### Database Migration
+
 - [ ] Update remaining screens to use `user.id` instead of `user.uid`
   - [ ] FeedbackScreen.tsx
   - [ ] AIRecipeFormatScreen.tsx
@@ -57,6 +64,7 @@ This document tracks the production readiness status of the KŌOPE bartending ap
 ## 📋 Pending Tasks
 
 ### Supabase Configuration (Required Before Launch)
+
 - [ ] Configure Supabase Dashboard
   - [ ] Enable Apple OAuth provider
   - [ ] Enable Google OAuth provider
@@ -70,6 +78,7 @@ This document tracks the production readiness status of the KŌOPE bartending ap
   - [ ] Test Google Sign-In on iOS/Android
 
 ### Challenge System Integration
+
 - [ ] Connect challenge progress to actual user actions
   - [ ] Link lesson completion to "lesson_complete" challenges
   - [ ] Link XP earning to "xp_earn" challenges
@@ -89,6 +98,7 @@ This document tracks the production readiness status of the KŌOPE bartending ap
   - [ ] Remove unused design
 
 ### Data Migration
+
 - [ ] Migrate existing Firebase data to Supabase
   - [ ] User profiles
   - [ ] User progress
@@ -105,6 +115,7 @@ This document tracks the production readiness status of the KŌOPE bartending ap
   - [ ] Delete unused auth screens (SignInScreen, SignUpScreen, ForgotPasswordScreen, AuthScreen)
 
 ### Screen Polish
+
 - [ ] Recipe/Vault Screens
   - [ ] Ensure vault unlocking works with Supabase
   - [ ] Test recipe saving/loading
@@ -123,6 +134,7 @@ This document tracks the production readiness status of the KŌOPE bartending ap
   - [ ] Verify account deletion flow
 
 ### Error Handling & Loading States
+
 - [ ] Add error boundaries to key screens
 - [ ] Implement loading skeletons
 - [ ] Add retry mechanisms for failed requests
@@ -130,6 +142,7 @@ This document tracks the production readiness status of the KŌOPE bartending ap
 - [ ] Show user-friendly error messages
 
 ### Performance Optimization
+
 - [ ] Implement image lazy loading
 - [ ] Add query result caching
 - [ ] Optimize re-renders with React.memo
@@ -137,6 +150,7 @@ This document tracks the production readiness status of the KŌOPE bartending ap
 - [ ] Test on low-end devices
 
 ### Testing
+
 - [ ] End-to-end flow testing
   - [ ] Onboarding → OAuth → Main App
   - [ ] Lesson completion → XP → Level up
@@ -153,6 +167,7 @@ This document tracks the production readiness status of the KŌOPE bartending ap
   - [ ] Physical devices
 
 ### App Store Preparation
+
 - [ ] Configure app.json/app.config.js
   - [ ] Update version number
   - [ ] Set bundle identifiers
@@ -172,17 +187,20 @@ This document tracks the production readiness status of the KŌOPE bartending ap
 ## 📚 Documentation
 
 ### Created Documentation
+
 - [x] SUPABASE_AUTH_MIGRATION.md - Complete auth migration guide
 - [x] CHALLENGE_SYSTEM_SETUP.md - Challenge system setup and usage
 - [x] PRODUCTION_READINESS.md - This checklist
 
 ### Documentation Needed
+
 - [ ] API_DOCUMENTATION.md - Document all Supabase schemas and APIs
 - [ ] DEPLOYMENT.md - Deployment process and CI/CD setup
 - [ ] CONTRIBUTING.md - Guidelines for future developers
 - [ ] README.md - Update with latest architecture and setup
 
 ## 🔒 Security Checklist
+
 - [x] Row Level Security enabled on all Supabase tables
 - [x] Auth storage uses secure AsyncStorage
 - [ ] Environment variables properly configured
@@ -193,6 +211,7 @@ This document tracks the production readiness status of the KŌOPE bartending ap
 - [ ] Test for common vulnerabilities (XSS, injection, etc.)
 
 ## 🚀 Deployment Checklist
+
 - [ ] Set up staging environment
 - [ ] Configure production Supabase project
 - [ ] Set up error tracking (Sentry, Bugsnag, etc.)
@@ -206,6 +225,7 @@ This document tracks the production readiness status of the KŌOPE bartending ap
 ## 📊 Current Architecture
 
 ### Tech Stack
+
 - **Frontend**: React Native + Expo
 - **Language**: TypeScript
 - **Auth**: Supabase Auth (Apple & Google OAuth)
@@ -215,12 +235,14 @@ This document tracks the production readiness status of the KŌOPE bartending ap
 - **Styling**: StyleSheet + Theme Tokens
 
 ### Key Services
+
 - `challengeService` - Challenge rotation and progress tracking
 - `achievementService` - User achievements and badges
 - `streakService` - Daily streak tracking
 - `AuthContext` - Authentication state management
 
 ### Database Schema
+
 - `challenges` - Challenge definitions
 - `user_challenge_progress` - Per-user challenge progress
 - `profiles` - User profile data
