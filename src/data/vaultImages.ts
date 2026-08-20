@@ -1,25 +1,25 @@
 import type { ImageSourcePropType } from 'react-native';
 
-const DEFAULT_VAULT_IMAGE = require('../../assets/images/vault/variations/headers/Smoked Old Fashioned.png');
+const DEFAULT_VAULT_IMAGE = require('../../assets/images/vault/variations/headers/Smoked Old Fashioned.jpg');
 
 const VARIATION_HEADERS: Record<string, ImageSourcePropType> = {
-  var_smoked_old_fashioned: require('../../assets/images/vault/variations/headers/Smoked Old Fashioned.png'),
-  var_spicy_margarita: require('../../assets/images/vault/variations/headers/Spicy Margarita.png'),
-  var_brown_butter_old_fashioned: require('../../assets/images/vault/variations/headers/Brown Butter Old Fashioned.png'),
+  var_smoked_old_fashioned: require('../../assets/images/vault/variations/headers/Smoked Old Fashioned.jpg'),
+  var_spicy_margarita: require('../../assets/images/vault/variations/headers/Spicy Margarita.jpg'),
+  var_brown_butter_old_fashioned: require('../../assets/images/vault/variations/headers/Brown Butter Old Fashioned.jpg'),
   var_clarified_whiskey_sour: require('../../assets/images/vault/variations/headers/Clarified Whiskey Sour.png'),
-  var_nitro_espresso_martini: require('../../assets/images/vault/variations/headers/Nitro Espresso Martini.png'),
+  var_nitro_espresso_martini: require('../../assets/images/vault/variations/headers/Nitro Espresso Martini.jpg'),
   var_oleo_saccharum_daiquiri: require('../../assets/images/vault/variations/headers/Oleo Saccharum Daiquiri.png'),
-  var_split_base_negroni: require('../../assets/images/vault/variations/headers/Split-Base Negroni.png'),
+  var_split_base_negroni: require('../../assets/images/vault/variations/headers/Split-Base Negroni.jpg'),
   var_aged_manhattan: require('../../assets/images/vault/variations/headers/Barrel-Aged Manhattan.png'),
-  var_fermented_pineapple_margarita: require('../../assets/images/vault/variations/headers/Fermented Pineapple Margarita.png'),
-  var_winter_spiced_negroni: require('../../assets/images/vault/variations/headers/Winter Spiced Negroni.png'),
-  var_summer_berry_daiquiri: require('../../assets/images/vault/variations/headers/Summer Berry Daiquiri.png'),
+  var_fermented_pineapple_margarita: require('../../assets/images/vault/variations/headers/Fermented Pineapple Margarita.jpg'),
+  var_winter_spiced_negroni: require('../../assets/images/vault/variations/headers/Winter Spiced Negroni.jpg'),
+  var_summer_berry_daiquiri: require('../../assets/images/vault/variations/headers/Summer Berry Daiquiri.jpg'),
 };
 
 const SEASONAL_HEADERS: Record<string, ImageSourcePropType> = {
-  drop_winter_2025: require('../../assets/images/vault/seasonal/headers/drop_winter_2025-header.png'),
-  drop_summer_2025: require('../../assets/images/vault/seasonal/headers/drop_summer_2025-header.png'),
-  drop_spring_2025: require('../../assets/images/vault/seasonal/headers/drop_spring_2025-header.png'),
+  drop_winter_2025: require('../../assets/images/vault/seasonal/headers/drop_winter_2025-header.jpg'),
+  drop_summer_2025: require('../../assets/images/vault/seasonal/headers/drop_summer_2025-header.jpg'),
+  drop_spring_2025: require('../../assets/images/vault/seasonal/headers/drop_spring_2025-header.jpg'),
 };
 
 const PLAYBOOK_IMAGES: Record<string, ImageSourcePropType> = {
