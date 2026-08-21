@@ -74,17 +74,14 @@ export const PRICING_DISPLAY = {
 } as const;
 
 /**
- * Stripe Price IDs for web / Stripe Checkout flows
- * These must match the price IDs configured in the Stripe dashboard
+ * Founders pricing cap (Phase 2.1).
+ *
+ * The authoritative count lives server-side — see migration
+ * 036_founders_pricing.sql (`founders_claims` + `claim_founders_pricing()`).
+ * This constant only mirrors the DB's own limit for display copy
+ * ("#N of 300"); never gate on it client-side alone.
  */
-export const STRIPE_PRICE_IDS = {
-  PLUS_YEARLY: process.env.EXPO_PUBLIC_STRIPE_PLUS_YEARLY || 'price_PLACEHOLDER_plus_yearly',
-  PLUS_MONTHLY: process.env.EXPO_PUBLIC_STRIPE_PLUS_MONTHLY || 'price_PLACEHOLDER_plus_monthly',
-  PLUS_FOUNDERS: process.env.EXPO_PUBLIC_STRIPE_PLUS_FOUNDERS || 'price_PLACEHOLDER_plus_founders',
-  PRO_YEARLY: process.env.EXPO_PUBLIC_STRIPE_PRO_YEARLY || 'price_PLACEHOLDER_pro_yearly',
-  PRO_MONTHLY: process.env.EXPO_PUBLIC_STRIPE_PRO_MONTHLY || 'price_PLACEHOLDER_pro_monthly',
-  PRO_FOUNDERS: process.env.EXPO_PUBLIC_STRIPE_PRO_FOUNDERS || 'price_PLACEHOLDER_pro_founders',
-} as const;
+export const FOUNDERS_LIMIT = 300;
 
 /**
  * Offering identifiers for RevenueCat Paywalls

@@ -719,11 +719,17 @@ export default function RootNavigator({ initialRouteName = 'Main' }: RootNavigat
           component={AchievementsScreen}
           options={{ headerShown: true, title: 'Achievements' }}
         />
-        <Stack.Screen
-          name="SubscriptionDebug"
-          component={SubscriptionDebugScreen}
-          options={{ headerShown: true, title: 'Subscription Debug' }}
-        />
+        {/* Phase 2.1: dev-only. The debug screen can force tier state and
+            read raw RevenueCat customer info — it must never be reachable in
+            a release build, even by deep link. __DEV__ is compiled out by
+            Metro in production, so the screen is dropped entirely. */}
+        {__DEV__ && (
+          <Stack.Screen
+            name="SubscriptionDebug"
+            component={SubscriptionDebugScreen}
+            options={{ headerShown: true, title: 'Subscription Debug' }}
+          />
+        )}
         <Stack.Screen
           name="Paywall"
           component={PaywallScreen}

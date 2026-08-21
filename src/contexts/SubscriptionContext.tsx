@@ -28,7 +28,7 @@ import {
   SUBSCRIPTION_ENTITLEMENTS,
   REVENUECAT_CONFIG,
   SUBSCRIPTION_PRODUCTS,
-  PRICING_DISPLAY,
+  FOUNDERS_LIMIT,
   getRevenueCatConfigValidation,
 } from '../constants/subscriptions';
 import { setUserId, setUserProperties } from '../lib/analytics';
@@ -131,8 +131,19 @@ interface SubscriptionState {
    * After success, stores trial state in useUserTier.
    */
   startFreeTrial: (tier: 'plus' | 'pro') => Promise<PurchaseResult>;
-  /** Current total user count — used for founders urgency banner in PaywallScreen */
+  /**
+   * How many founders slots have actually been claimed, read from Supabase
+   * (`founders_pricing_status()`, migration 036). Drives the "Founder #N of
+   * 300" copy in PaywallScreen. 0 until the first load resolves.
+   */
   founderCount: number;
+  /**
+   * Whether founders pricing is still open, per the server. False once 300
+   * slots are claimed — this is how the offer sunsets, with no app release.
+   * Defaults to false so a failed/pending lookup hides the offer rather than
+   * promising a price we can no longer honour.
+   */
+  foundersAvailable: boolean;
 }
 
 /**
@@ -162,6 +173,7 @@ const defaultState: SubscriptionState = {
   purchasePrestigeYearly: async () => ({ success: false }),
   startFreeTrial: async () => ({ success: false }),
   founderCount: 0,
+  foundersAvailable: false,
 };
 
 /**
@@ -220,9 +232,8 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
   const [offerings, setOfferings] = useState<PurchasesOfferings | null>(null);
   const [isPurchasing, setIsPurchasing] = useState(false);
   const [founderCount, setFounderCount] = useState(0);
+  const [foundersAvailable, setFoundersAvailable] = useState(false);
   const revenueCatConfiguredRef = useRef(false);
-
-  const FOUNDER_LIMIT = 300;
 
   /**
    * Update subscription state based on customer info
@@ -363,8 +374,56 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
   );
 
   /**
-   * Check founder status after a successful purchase.
-   * If total user count is ≤ FOUNDER_LIMIT, mark user as founder and lock their price.
+   * Read founders-pricing availability from the server (migration 036).
+   *
+   * Phase 2.1: this used to be a `supabase.from('auth.users')` count — a
+   * query PostgREST cannot serve, so it always failed silently and left the
+   * count at 0, which made the paywall's "Founder #1 of 300" banner show for
+   * everyone forever. The count now lives in `founders_claims` and the offer
+   * sunsets on its own once 300 slots are taken.
+   */
+  const refreshFoundersStatus = useCallback(async () => {
+    try {
+      const { data, error } = await supabase.rpc('founders_pricing_status');
+
+      if (error || !data) {
+        // Fail closed: hide the offer rather than promise a price we may no
+        // longer be able to honour.
+        log.warn('SubscriptionContext', 'founders_pricing_status failed', {
+          error: error?.message,
+        });
+        setFoundersAvailable(false);
+        return;
+      }
+
+      const status = data as {
+        claimed?: number;
+        available?: boolean;
+        already_claimed?: boolean;
+        my_number?: number | null;
+      };
+
+      setFounderCount(status.claimed ?? 0);
+      // A user who already holds a founder slot keeps seeing founders pricing
+      // even after the offer closes to new subscribers.
+      setFoundersAvailable(Boolean(status.available) || Boolean(status.already_claimed));
+
+      if (status.already_claimed && status.my_number != null) {
+        useUserTier.getState().setFounderStatus(true, 0);
+      }
+    } catch (err) {
+      log.error('SubscriptionContext', 'refreshFoundersStatus failed', err);
+      setFoundersAvailable(false);
+    }
+  }, []);
+
+  /**
+   * Claim a founders-pricing slot after a successful purchase.
+   *
+   * The check-and-take is atomic server-side (`claim_founders_pricing()`
+   * holds an advisory lock across count-then-insert), so two simultaneous
+   * purchasers cannot both become founder #300. Idempotent — a restore or
+   * reinstall re-calls this and gets the original number back.
    *
    * Moved above purchaseTier (Phase 0.9): purchaseTier's useCallback deps
    * reference this function, and a const declared later in the same scope
@@ -372,25 +431,52 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
    */
   const checkAndSetFounderStatus = useCallback(async (priceCents: number) => {
     try {
-      const { count, error } = await supabase
-        .from('auth.users')
-        .select('id', { count: 'exact', head: true });
+      const { data, error } = await supabase.rpc('claim_founders_pricing', {
+        p_price_cents: priceCents,
+      });
 
-      if (error || count == null) return;
-
-      const userNumber = count;
-      setFounderCount(userNumber);
-
-      if (userNumber <= FOUNDER_LIMIT) {
-        const tierStore = useUserTier.getState();
-        tierStore.setFounderStatus(true, priceCents);
-        // Tag in RevenueCat so backend can validate
-        await Purchases.setAttributes({
-          is_founder: 'true',
-          founder_number: String(userNumber),
+      if (error || !data) {
+        log.warn('SubscriptionContext', 'claim_founders_pricing failed', {
+          error: error?.message,
         });
-        log.info('SubscriptionContext', 'Founder status set', { userNumber, priceCents });
+        return;
       }
+
+      const result = data as {
+        claimed?: boolean;
+        founder_number?: number;
+        reason?: string;
+      };
+
+      if (!result.claimed || result.founder_number == null) {
+        // Sold out, or not signed in. Purchase still succeeded — only the
+        // founders price lock did not apply.
+        log.info('SubscriptionContext', 'Founders pricing not granted', {
+          reason: result.reason,
+        });
+        setFoundersAvailable(false);
+        return;
+      }
+
+      const userNumber = result.founder_number;
+      setFounderCount(userNumber);
+      setFoundersAvailable(true);
+
+      const tierStore = useUserTier.getState();
+      tierStore.setFounderStatus(true, priceCents);
+
+      // Tag in RevenueCat so the number is visible alongside the subscription
+      // in their dashboard and in webhook payloads.
+      await Purchases.setAttributes({
+        is_founder: 'true',
+        founder_number: String(userNumber),
+      });
+
+      log.info('SubscriptionContext', 'Founder status set', {
+        userNumber,
+        priceCents,
+        limit: FOUNDERS_LIMIT,
+      });
     } catch (err) {
       log.error('SubscriptionContext', 'checkAndSetFounderStatus failed', err);
     }
@@ -758,6 +844,13 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
     initializeRevenueCat();
   }, [getOfferings, updateSubscriptionState]);
 
+  // Founders-pricing availability is independent of RevenueCat — it is a
+  // Supabase read, and must resolve even in Expo Go where the IAP init above
+  // bails out early.
+  useEffect(() => {
+    refreshFoundersStatus();
+  }, [refreshFoundersStatus]);
+
   // Phase 0.9 guardrail: memoize the context value. All the functions above
   // are now stable (useCallback) so this only recomputes when actual
   // subscription state changes, not on every provider render.
@@ -786,6 +879,7 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
       purchasePrestigeYearly,
       startFreeTrial,
       founderCount,
+      foundersAvailable,
     }),
     [
       isPro,
@@ -811,6 +905,7 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
       purchasePrestigeYearly,
       startFreeTrial,
       founderCount,
+      foundersAvailable,
     ],
   );
 

@@ -34,7 +34,7 @@ import { colors, spacing } from '../theme/tokens';
 import { useSubscription } from '../contexts/SubscriptionContext';
 import { trackEvent, ANALYTICS_EVENTS, ANALYTICS_PROPS } from '../lib/analytics';
 import { log } from '../lib/logger';
-import { PRICING_DISPLAY, SUBSCRIPTION_PRODUCTS } from '../constants/subscriptions';
+import { FOUNDERS_LIMIT, PRICING_DISPLAY, SUBSCRIPTION_PRODUCTS } from '../constants/subscriptions';
 import { PAYWALL_TRIGGERS } from '../config/paywallTriggers';
 
 const getSafeAreaTop = () => (Platform.OS === 'ios' ? 50 : StatusBar.currentHeight || 24);
@@ -188,6 +188,7 @@ export default function PaywallScreen({ route }: PaywallScreenProps) {
     purchaseTier,
     startFreeTrial,
     founderCount,
+    foundersAvailable,
   } = useSubscription();
   const [isPurchasing, setIsPurchasing] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<PlanOption>(FALLBACK_PLANS[0]);
@@ -518,12 +519,15 @@ export default function PaywallScreen({ route }: PaywallScreenProps) {
           </View>
         )}
 
-        {/* Founders Urgency Banner — shown when fewer than 300 founders have subscribed */}
-        {founderCount !== undefined && founderCount < 300 && (
+        {/* Founders Urgency Banner. Phase 2.1: `foundersAvailable` and
+            `founderCount` now come from Supabase (founders_pricing_status(),
+            migration 036) rather than a client constant, so the number is real
+            and the banner disappears by itself once 300 slots are claimed. */}
+        {foundersAvailable && (
           <View style={styles.foundersBar}>
             <Ionicons name="lock-closed" size={14} color={colors.gold} />
             <Text style={styles.foundersText}>
-              {`You're Founder #${founderCount + 1} of 300 — early access pricing, lock it in before it goes up`}
+              {`You're Founder #${Math.min(founderCount + 1, FOUNDERS_LIMIT)} of ${FOUNDERS_LIMIT} — early access pricing, lock it in before it goes up`}
             </Text>
           </View>
         )}
