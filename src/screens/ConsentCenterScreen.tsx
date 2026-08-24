@@ -24,24 +24,22 @@ import { colors, spacing, radii } from '../theme/tokens';
 import { CONSENT_CATEGORIES, privacyConfig } from '../../config/privacy';
 import type { ConsentCategory } from '../types/consent';
 import type { RootStackParamList } from '../navigation/RootNavigator';
+import { log } from '../lib/logger';
+import { useAuth } from '../contexts/AuthContext';
+import { supabase } from '../lib/supabase';
 
 /**
  * Consent center with toggles for tracking preferences and data rights
  */
 export default function ConsentCenterScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const { user, signOut: supabaseSignOut } = useAuth();
 
-  const {
-    choices,
-    loading,
-    error,
-    updateConsent,
-    acceptAllConsent,
-    rejectAllConsent,
-    hasConsent,
-  } = useConsent();
+  const { choices, loading, error, updateConsent, acceptAllConsent, rejectAllConsent, hasConsent } =
+    useConsent();
 
   const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   /**
    * Handle individual consent toggle
@@ -50,7 +48,7 @@ export default function ConsentCenterScreen() {
     if (category === 'essential') {
       Alert.alert(
         'Required Feature',
-        'Essential features are required for the app to function and cannot be disabled.'
+        'Essential features are required for the app to function and cannot be disabled.',
       );
       return;
     }
@@ -70,11 +68,9 @@ export default function ConsentCenterScreen() {
       setIsSaving(true);
       await acceptAllConsent();
 
-      Alert.alert(
-        'Preferences Saved',
-        'All tracking preferences have been enabled.',
-        [{ text: 'OK' }]
-      );
+      Alert.alert('Preferences Saved', 'All tracking preferences have been enabled.', [
+        { text: 'OK' },
+      ]);
     } catch (err) {
       Alert.alert('Error', 'Failed to save preferences. Please try again.');
     } finally {
@@ -93,7 +89,7 @@ export default function ConsentCenterScreen() {
       Alert.alert(
         'Preferences Saved',
         'Non-essential tracking has been disabled. Essential features remain enabled.',
-        [{ text: 'OK' }]
+        [{ text: 'OK' }],
       );
     } catch (err) {
       Alert.alert('Error', 'Failed to save preferences. Please try again.');
@@ -126,7 +122,7 @@ export default function ConsentCenterScreen() {
             Alert.alert('Request Submitted', 'Your data export request has been submitted.');
           },
         },
-      ]
+      ],
     );
   };
 
@@ -151,16 +147,32 @@ export default function ConsentCenterScreen() {
                 {
                   text: 'Yes, Delete',
                   style: 'destructive',
-                  onPress: () => {
-                    // In a real app, this would trigger account deletion
-                    Alert.alert('Request Submitted', 'Your data deletion request has been submitted.');
+                  onPress: async () => {
+                    if (!user) {
+                      Alert.alert('Error', 'No user is currently signed in');
+                      return;
+                    }
+
+                    try {
+                      setIsDeleting(true);
+                      const { error: deleteError } = await supabase.rpc('delete_user');
+                      if (deleteError) throw deleteError;
+
+                      log.info('ConsentCenterScreen', 'Account deleted successfully');
+                      await supabaseSignOut();
+                    } catch (err: any) {
+                      log.error('ConsentCenterScreen', 'Account deletion error', err);
+                      Alert.alert('Error', 'Failed to delete account. Please contact support.');
+                    } finally {
+                      setIsDeleting(false);
+                    }
                   },
                 },
-              ]
+              ],
             );
           },
         },
-      ]
+      ],
     );
   };
 
@@ -192,7 +204,8 @@ export default function ConsentCenterScreen() {
         <View style={styles.header}>
           <Text style={styles.title}>Your Privacy Choices</Text>
           <Text style={styles.subtitle}>
-            Control how we collect and use your information. You can change these settings at any time.
+            Control how we collect and use your information. You can change these settings at any
+            time.
           </Text>
         </View>
 
@@ -245,7 +258,9 @@ export default function ConsentCenterScreen() {
         </View>
 
         {/* Regional Compliance */}
-        {(privacyConfig.enforceGDPR || privacyConfig.enforceQuebecLaw25 || privacyConfig.enforceCPRA) && (
+        {(privacyConfig.enforceGDPR ||
+          privacyConfig.enforceQuebecLaw25 ||
+          privacyConfig.enforceCPRA) && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Your Rights</Text>
 
@@ -288,10 +303,15 @@ export default function ConsentCenterScreen() {
                   style={[styles.dataActionButton, styles.deleteActionButton]}
                   onPress={handleDeleteData}
                   activeOpacity={0.7}
+                  disabled={isDeleting}
                 >
-                  <Ionicons name="trash-outline" size={18} color="#ef4444" />
+                  {isDeleting ? (
+                    <ActivityIndicator size="small" color="#ef4444" />
+                  ) : (
+                    <Ionicons name="trash-outline" size={18} color="#ef4444" />
+                  )}
                   <Text style={[styles.dataActionText, styles.deleteActionText]}>
-                    Delete My Data
+                    {isDeleting ? 'Deleting…' : 'Delete My Data'}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -307,12 +327,15 @@ export default function ConsentCenterScreen() {
             <View style={styles.cpraCard}>
               <Text style={styles.cpraTitle}>Do Not Sell or Share My Personal Information</Text>
               <Text style={styles.cpraDescription}>
-                Under the California Consumer Privacy Act (CPRA), you have the right to opt out of the sale or sharing of your personal information.
+                Under the California Consumer Privacy Act (CPRA), you have the right to opt out of
+                the sale or sharing of your personal information.
               </Text>
 
               <TouchableOpacity
                 style={styles.cpraButton}
-                onPress={() => Alert.alert('CPRA Request', 'Your opt-out request has been recorded.')}
+                onPress={() =>
+                  Alert.alert('CPRA Request', 'Your opt-out request has been recorded.')
+                }
                 activeOpacity={0.7}
               >
                 <Text style={styles.cpraButtonText}>Submit Opt-Out Request</Text>
@@ -328,12 +351,11 @@ export default function ConsentCenterScreen() {
 
             <View style={styles.contactCard}>
               <Text style={styles.contactText}>
-                If you have questions about your privacy rights or want to exercise them, contact us:
+                If you have questions about your privacy rights or want to exercise them, contact
+                us:
               </Text>
 
-              <Text style={styles.contactEmail}>
-                {privacyConfig.contact.dataProtectionEmail}
-              </Text>
+              <Text style={styles.contactEmail}>{privacyConfig.contact.dataProtectionEmail}</Text>
 
               {privacyConfig.contact.privacyOfficer && privacyConfig.enforceQuebecLaw25 && (
                 <View style={styles.privacyOfficer}>
