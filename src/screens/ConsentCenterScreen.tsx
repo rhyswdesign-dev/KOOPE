@@ -27,6 +27,8 @@ import type { RootStackParamList } from '../navigation/RootNavigator';
 import { log } from '../lib/logger';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
 
 /**
  * Consent center with toggles for tracking preferences and data rights
@@ -40,6 +42,7 @@ export default function ConsentCenterScreen() {
 
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
 
   /**
    * Handle individual consent toggle
@@ -107,19 +110,46 @@ export default function ConsentCenterScreen() {
   };
 
   /**
-   * Handle data export request
+   * Handle data export request. Pulls the user's own rows from every
+   * user-owned table (via the export-user-data Edge Function, scoped by RLS
+   * to this user only), saves them to a local JSON file, and hands that file
+   * to the OS share sheet so the user can save or send it themselves.
    */
   const handleExportData = () => {
     Alert.alert(
       'Export Your Data',
-      'We will prepare a copy of your data and send it to your registered email address within 30 days.',
+      "We'll gather a copy of your data now, then let you save or share it as a file.",
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Request Export',
-          onPress: () => {
-            // In a real app, this would trigger a backend API call
-            Alert.alert('Request Submitted', 'Your data export request has been submitted.');
+          text: 'Export',
+          onPress: async () => {
+            try {
+              setIsExporting(true);
+              const { data, error: exportError } =
+                await supabase.functions.invoke('export-user-data');
+              if (exportError) throw exportError;
+
+              const fileUri = `${FileSystem.documentDirectory}koope-data-export.json`;
+              await FileSystem.writeAsStringAsync(fileUri, JSON.stringify(data, null, 2));
+
+              if (await Sharing.isAvailableAsync()) {
+                await Sharing.shareAsync(fileUri, {
+                  mimeType: 'application/json',
+                  dialogTitle: 'Your KŌOPE data export',
+                });
+              } else {
+                Alert.alert('Export Ready', `Your data was saved to ${fileUri}`);
+              }
+            } catch (err: any) {
+              log.error('ConsentCenterScreen', 'Data export error', err);
+              Alert.alert(
+                'Error',
+                'Failed to export your data. Please try again or contact support.',
+              );
+            } finally {
+              setIsExporting(false);
+            }
           },
         },
       ],
@@ -294,9 +324,16 @@ export default function ConsentCenterScreen() {
                   style={styles.dataActionButton}
                   onPress={handleExportData}
                   activeOpacity={0.7}
+                  disabled={isExporting}
                 >
-                  <Ionicons name="download-outline" size={18} color={colors.accent} />
-                  <Text style={styles.dataActionText}>Export My Data</Text>
+                  {isExporting ? (
+                    <ActivityIndicator size="small" color={colors.accent} />
+                  ) : (
+                    <Ionicons name="download-outline" size={18} color={colors.accent} />
+                  )}
+                  <Text style={styles.dataActionText}>
+                    {isExporting ? 'Exporting…' : 'Export My Data'}
+                  </Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
