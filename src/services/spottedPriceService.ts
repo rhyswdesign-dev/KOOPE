@@ -23,6 +23,22 @@ import { supabase } from '../lib/supabase';
 import { log } from '../lib/logger';
 import { trackEvent, ANALYTICS_EVENTS, ANALYTICS_PROPS } from '../lib/analytics';
 import { useSpottedPrices } from '../store/useSpottedPrices';
+import { getConsentChoices } from '../lib/consentStore';
+import { useXPSystem, XP_EARNING_RATES } from '../store/useXPSystem';
+
+/**
+ * Same gate scanContextService/recipeSignalService use. The local journal and
+ * the value verdict are unaffected — only the community sync is withheld.
+ */
+async function hasAnalyticsConsent(): Promise<boolean> {
+  try {
+    const choices = await getConsentChoices();
+    return choices.analytics === true;
+  } catch (error) {
+    log.warn('SpottedPriceService', 'Failed to read consent choices', { error });
+    return false;
+  }
+}
 
 export type PriceCapturePoint = 'at_scan' | 'post_wishlist' | 'home_bar';
 
@@ -47,8 +63,10 @@ export async function logSpottedPrice(params: LogSpottedPriceParams): Promise<vo
     log.warn('SpottedPriceService', 'Failed to write local price journal', { error });
   }
 
-  // 2. Community sync — fire-and-forget.
-  if (userId) {
+  // 2. Community sync — fire-and-forget, and consent-gated the same way
+  // scan_events is (previously ungated, which left three brand-insight
+  // tables on three different consent postures).
+  if (userId && (await hasAnalyticsConsent())) {
     try {
       const { error: insertError } = await supabase.from('spotted_prices').insert({
         user_id: userId,
@@ -69,7 +87,24 @@ export async function logSpottedPrice(params: LogSpottedPriceParams): Promise<vo
     }
   }
 
-  // 3. Analytics.
+  // 3. XP. Paid on the local journal write, not the server sync — the user
+  // did the work either way. A price with a retailer attached is worth
+  // materially more (location_label is the most commercially useful column
+  // in spotted_prices), so it pays the higher rate.
+  try {
+    const withLocation = !!locationLabel?.trim();
+    useXPSystem
+      .getState()
+      .earnXP(
+        withLocation ? XP_EARNING_RATES.spottedPriceWithLocation : XP_EARNING_RATES.spottedPrice,
+        'spotted-price',
+        withLocation ? 'Price spotted (with store)' : 'Price spotted',
+      );
+  } catch (error) {
+    log.warn('SpottedPriceService', 'Failed to award spotted-price XP', { error });
+  }
+
+  // 4. Analytics.
   trackEvent(ANALYTICS_EVENTS.SPOTTED_PRICE_LOGGED, {
     [ANALYTICS_PROPS.CAPTURE_POINT]: capturePoint,
     [ANALYTICS_PROPS.CURRENCY]: currency,

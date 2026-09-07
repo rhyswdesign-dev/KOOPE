@@ -43,11 +43,19 @@ export default function UnlockDeckScreen() {
   const { tier } = useUserTier();
 
   const deck = useMemo(() => getUnlockDeck(route.params.assetSlug), [route.params.assetSlug]);
-  const deckTheme = useMemo(() => getUnlockDeckTheme(route.params.assetSlug), [route.params.assetSlug]);
-  const unlock = useMemo(() => getUnlockByAssetSlug(route.params.assetSlug), [route.params.assetSlug]);
+  const deckTheme = useMemo(
+    () => getUnlockDeckTheme(route.params.assetSlug),
+    [route.params.assetSlug],
+  );
+  const unlock = useMemo(
+    () => getUnlockByAssetSlug(route.params.assetSlug),
+    [route.params.assetSlug],
+  );
   const title = route.params.title || deck?.title || unlock?.assetName || 'Unlock Deck';
   const isProLockedDeck = unlock?.tier === 'PRO';
-  const hasCompletedUnlockLesson = unlock?.lessonId ? completedLessons.includes(unlock.lessonId) : true;
+  const hasCompletedUnlockLesson = unlock?.lessonId
+    ? completedLessons.includes(unlock.lessonId)
+    : true;
   const isDeckAccessible = !isProLockedDeck || (tier === 'PRO' && hasCompletedUnlockLesson);
 
   const goToIndex = (nextIndex: number) => {
@@ -80,7 +88,8 @@ export default function UnlockDeckScreen() {
           <Text style={styles.missingEyebrow}>Unlock Asset Missing</Text>
           <Text style={styles.missingTitle}>This deck is still being prepared.</Text>
           <Text style={styles.missingBody}>
-            We wired the unlock screen correctly, but this asset slug does not have published content yet.
+            We wired the unlock screen correctly, but this asset slug does not have published
+            content yet.
           </Text>
         </View>
       </SafeAreaView>
@@ -98,7 +107,9 @@ export default function UnlockDeckScreen() {
           <Text style={styles.backText}>Back</Text>
         </Pressable>
         <View style={styles.missingCard}>
-          <Text style={styles.missingEyebrow}>{needsTierUpgrade ? 'PRO Mastery Only' : 'Finish Mastery Lesson First'}</Text>
+          <Text style={styles.missingEyebrow}>
+            {needsTierUpgrade ? 'PRO Mastery Only' : 'Finish Mastery Lesson First'}
+          </Text>
           <Text style={styles.missingTitle}>{unlock.assetName}</Text>
           <Text style={styles.missingBody}>
             {needsTierUpgrade
@@ -112,10 +123,15 @@ export default function UnlockDeckScreen() {
                 navigation.navigate('Paywall', { source: 'mastery_lessons' });
                 return;
               }
-              Alert.alert('Locked Until Completed', 'Complete the assigned mastery lesson to unlock this deck.');
+              Alert.alert(
+                'Locked Until Completed',
+                'Complete the assigned mastery lesson to unlock this deck.',
+              );
             }}
           >
-            <Text style={styles.lockedPrimaryButtonText}>{needsTierUpgrade ? 'Unlock PRO' : 'Understood'}</Text>
+            <Text style={styles.lockedPrimaryButtonText}>
+              {needsTierUpgrade ? 'Unlock PRO' : 'Understood'}
+            </Text>
           </Pressable>
         </View>
       </SafeAreaView>
@@ -126,7 +142,7 @@ export default function UnlockDeckScreen() {
     <View style={styles.container}>
       <StatusBar barStyle="light-content" />
       <LinearGradient
-        colors={deckTheme?.gradient ?? ['#090605', '#1A120D', '#120B08']}
+        colors={deckTheme?.gradient ?? ['#090605', colors.bg, '#120B08']}
         style={StyleSheet.absoluteFillObject}
         start={{ x: 0.05, y: 0 }}
         end={{ x: 0.8, y: 1 }}
@@ -141,16 +157,28 @@ export default function UnlockDeckScreen() {
           </Pressable>
           <View style={styles.headerCopy}>
             <Text style={styles.headerEyebrow}>{unlock?.watermark.label || deck.rewardLabel}</Text>
-            <Text numberOfLines={1} style={styles.headerTitle}>{title}</Text>
+            <Text numberOfLines={1} style={styles.headerTitle}>
+              {title}
+            </Text>
             {deckTheme ? (
-              <View style={[styles.categoryPill, { backgroundColor: deckTheme.accentSoft, borderColor: deckTheme.accent }]}>
+              <View
+                style={[
+                  styles.categoryPill,
+                  { backgroundColor: deckTheme.accentSoft, borderColor: deckTheme.accent },
+                ]}
+              >
                 <Ionicons name={deckTheme.icon} size={12} color={deckTheme.accent} />
-                <Text style={[styles.categoryPillText, { color: deckTheme.accent }]}>{deckTheme.label}</Text>
+                <Text style={[styles.categoryPillText, { color: deckTheme.accent }]}>
+                  {deckTheme.label}
+                </Text>
               </View>
             ) : null}
           </View>
           <Pressable
-            style={[styles.iconButton, activeIndex >= deck.slides.length - 1 && styles.iconButtonDisabled]}
+            style={[
+              styles.iconButton,
+              activeIndex >= deck.slides.length - 1 && styles.iconButtonDisabled,
+            ]}
             onPress={() => goToIndex(activeIndex + 1)}
             disabled={activeIndex >= deck.slides.length - 1}
           >
@@ -161,7 +189,8 @@ export default function UnlockDeckScreen() {
         <View style={styles.progressRow}>
           <Text style={styles.progressLabel}>{deck.kicker}</Text>
           <Text style={styles.progressLabel}>
-            {String(activeIndex + 1).padStart(2, '0')} / {String(deck.slides.length).padStart(2, '0')}
+            {String(activeIndex + 1).padStart(2, '0')} /{' '}
+            {String(deck.slides.length).padStart(2, '0')}
           </Text>
         </View>
         <View style={styles.progressTrack}>
@@ -210,7 +239,8 @@ export default function UnlockDeckScreen() {
             ))}
           </View>
           <Text style={styles.footerHint}>
-            Swipe through the field guide. Longer slides can be scrolled vertically without leaving the card.
+            Swipe through the field guide. Longer slides can be scrolled vertically without leaving
+            the card.
           </Text>
         </View>
       </SafeAreaView>
@@ -247,11 +277,26 @@ function DeckSlide({
           bounces={false}
         >
           {slide.kind === 'cover' ? (
-            <CoverSlide slide={slide} watermark={watermark} accent={accent} accentSoft={accentSoft} />
+            <CoverSlide
+              slide={slide}
+              watermark={watermark}
+              accent={accent}
+              accentSoft={accentSoft}
+            />
           ) : slide.kind === 'spec' ? (
-            <SpecSlide slide={slide} watermark={watermark} accent={accent} accentSoft={accentSoft} />
+            <SpecSlide
+              slide={slide}
+              watermark={watermark}
+              accent={accent}
+              accentSoft={accentSoft}
+            />
           ) : slide.kind === 'comparison' ? (
-            <ComparisonSlide slide={slide} watermark={watermark} accent={accent} accentSoft={accentSoft} />
+            <ComparisonSlide
+              slide={slide}
+              watermark={watermark}
+              accent={accent}
+              accentSoft={accentSoft}
+            />
           ) : (
             <FieldNotesSlide slide={slide} watermark={watermark} accent={accent} />
           )}
@@ -281,7 +326,12 @@ function CoverSlide({
         </View>
         <Text style={styles.watermarkTiny}>{watermark}</Text>
       </View>
-      <View style={[styles.coverBottleGlow, { backgroundColor: accentSoft, borderColor: accentSoft, shadowColor: accent }]} />
+      <View
+        style={[
+          styles.coverBottleGlow,
+          { backgroundColor: accentSoft, borderColor: accentSoft, shadowColor: accent },
+        ]}
+      />
       <View style={styles.coverCopyWrap}>
         <Text style={styles.coverTitle}>{slide.title}</Text>
         {slide.subtitle ? <Text style={styles.coverSubtitle}>{slide.subtitle}</Text> : null}
@@ -360,7 +410,9 @@ function ComparisonSlide({
         {slide.columns?.map((column) => (
           <View key={column.title} style={[styles.comparisonCard, { borderColor: accentSoft }]}>
             <Text style={styles.comparisonCardTitle}>{column.title}</Text>
-            {column.subtitle ? <Text style={[styles.comparisonCardSub, { color: accent }]}>{column.subtitle}</Text> : null}
+            {column.subtitle ? (
+              <Text style={[styles.comparisonCardSub, { color: accent }]}>{column.subtitle}</Text>
+            ) : null}
             {column.bullets.map((bullet) => (
               <View key={bullet} style={styles.comparisonBulletRow}>
                 <Text style={[styles.comparisonBulletMark, { color: accent }]}>•</Text>
@@ -370,7 +422,12 @@ function ComparisonSlide({
           </View>
         ))}
       </View>
-      <View style={[styles.comparisonFooterCard, { backgroundColor: accentSoft, borderColor: accentSoft }]}>
+      <View
+        style={[
+          styles.comparisonFooterCard,
+          { backgroundColor: accentSoft, borderColor: accentSoft },
+        ]}
+      >
         <Text style={styles.comparisonFooterText}>{slide.footer}</Text>
       </View>
       <Text style={styles.watermarkBottom}>{watermark}</Text>
@@ -396,7 +453,9 @@ function FieldNotesSlide({
         <Text style={styles.notesSectionLabel}>Common Pitfalls</Text>
         {slide.notes?.map((note, index) => (
           <View key={note} style={styles.noteRow}>
-            <Text style={[styles.noteIndex, { color: accent }]}>{String(index + 1).padStart(2, '0')}</Text>
+            <Text style={[styles.noteIndex, { color: accent }]}>
+              {String(index + 1).padStart(2, '0')}
+            </Text>
             <Text style={styles.noteText}>{note}</Text>
           </View>
         ))}
@@ -410,7 +469,6 @@ function FieldNotesSlide({
     </View>
   );
 }
-
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#090605' },

@@ -13,17 +13,20 @@ export const TOOLTIP_CONFIGS: Record<string, { title: string; steps: TooltipStep
       {
         icon: 'shield-outline',
         title: 'Check the Vault',
-        description: 'The Vault has exclusive cocktail recipes and seasonal drops. Tap the Vault tab above to explore.',
+        description:
+          'The Vault has exclusive cocktail recipes and seasonal drops. Tap the Vault tab above to explore.',
       },
       {
         icon: 'flag-outline',
         title: 'Take on Challenges',
-        description: 'Challenges are live now — complete them to earn XP and unlock content while you wait for lessons.',
+        description:
+          'Challenges are live now — complete them to earn XP and unlock content while you wait for lessons.',
       },
       {
         icon: 'trophy-outline',
         title: 'Earn XP',
-        description: 'Every scan, save, and challenge completion earns XP. Keep building your bar and watch the rewards grow.',
+        description:
+          'Every scan, save, and challenge completion earns XP. Keep building your bar and watch the rewards grow.',
       },
     ],
   },
@@ -35,7 +38,8 @@ export const TOOLTIP_CONFIGS: Record<string, { title: string; steps: TooltipStep
       {
         icon: 'diamond-outline',
         title: 'Unlock with XP',
-        description: 'Spend XP earned from lessons to unlock exclusive cocktail recipes and techniques.',
+        description:
+          'Spend XP earned from lessons to unlock exclusive cocktail recipes and techniques.',
       },
       {
         icon: 'key-outline',
@@ -62,7 +66,7 @@ export const TOOLTIP_CONFIGS: Record<string, { title: string; steps: TooltipStep
       {
         icon: 'person-outline',
         title: 'Complete Your Profile',
-        description: 'Take the taste profile survey to get even better personalized recommendations.',
+        description: 'Take the palate survey to get even better personalized recommendations.',
       },
       {
         icon: 'bookmark-outline',
@@ -79,17 +83,20 @@ export const TOOLTIP_CONFIGS: Record<string, { title: string; steps: TooltipStep
       {
         icon: 'chatbubble-ellipses-outline',
         title: 'Ask Questions',
-        description: 'Get instant answers about cocktails, techniques, and ingredients from our AI coach.',
+        description:
+          'Get instant answers about cocktails, techniques, and ingredients from our AI coach.',
       },
       {
         icon: 'heart-outline',
         title: 'Lives System',
-        description: 'Each question uses 1 Life. Lives regenerate daily. FREE: 3/day, PLUS: unlimited.',
+        description:
+          'Each question uses 1 Life. Lives regenerate daily. FREE: 3/day, PLUS: unlimited.',
       },
       {
         icon: 'bulb-outline',
         title: 'Learn Faster',
-        description: 'Use the AI coach to clarify lessons, get recipe suggestions, or troubleshoot techniques.',
+        description:
+          'Use the AI coach to clarify lessons, get recipe suggestions, or troubleshoot techniques.',
       },
     ],
   },
@@ -128,7 +135,8 @@ export const TOOLTIP_CONFIGS: Record<string, { title: string; steps: TooltipStep
       {
         icon: 'game-controller-outline',
         title: 'Drinking Games',
-        description: 'Learn the official rules for classic party games like King\'s Cup and Beer Pong.',
+        description:
+          "Learn the official rules for classic party games like King's Cup and Beer Pong.",
       },
       {
         icon: 'calendar-outline',

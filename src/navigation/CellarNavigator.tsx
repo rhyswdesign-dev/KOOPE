@@ -9,12 +9,7 @@
  */
 
 import React, { useCallback, useEffect, useState } from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-} from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -62,18 +57,24 @@ interface TabItem {
 }
 
 const TABS: TabItem[] = [
-  { route: 'CellarHome',   label: 'CELLAR', icon: 'cube-outline',      iconFocused: 'cube' },
-  { route: 'CellarMarket', label: 'MARKET', icon: 'bar-chart-outline',  iconFocused: 'bar-chart' },
-  { route: 'CellarAdd',    label: '',       icon: 'add',                iconFocused: 'add' }, // FAB centre
-  { route: 'CellarWatch',  label: 'WATCH',  icon: 'eye-outline',        iconFocused: 'eye' },
-  { route: 'CellarVault',  label: 'VAULT',  icon: 'shield-outline',     iconFocused: 'shield' },
+  { route: 'CellarHome', label: 'CELLAR', icon: 'cube-outline', iconFocused: 'cube' },
+  { route: 'CellarMarket', label: 'MARKET', icon: 'bar-chart-outline', iconFocused: 'bar-chart' },
+  { route: 'CellarAdd', label: '', icon: 'add', iconFocused: 'add' }, // FAB centre
+  { route: 'CellarWatch', label: 'WATCH', icon: 'eye-outline', iconFocused: 'eye' },
+  { route: 'CellarVault', label: 'VAULT', icon: 'shield-outline', iconFocused: 'shield' },
 ];
 
 // Individual tab item — extracted so hooks are called at component level
 function CellarTabItem({
-  tab, idx, state, navigation,
+  tab,
+  idx,
+  state,
+  navigation,
 }: {
-  tab: TabItem; idx: number; state: any; navigation: any;
+  tab: TabItem;
+  idx: number;
+  state: any;
+  navigation: any;
 }) {
   const focused = state.index === idx;
   const isFab = tab.route === 'CellarAdd';
@@ -118,9 +119,7 @@ function CellarTabItem({
         size={22}
         color={focused ? AMBER : MUTED}
       />
-      <Text style={[styles.tabLabel, focused && styles.tabLabelActive]}>
-        {tab.label}
-      </Text>
+      <Text style={[styles.tabLabel, focused && styles.tabLabelActive]}>{tab.label}</Text>
     </TouchableOpacity>
   );
 }
@@ -136,13 +135,7 @@ function CellarTabBar({ state, navigation }: any) {
       ]}
     >
       {TABS.map((tab, idx) => (
-        <CellarTabItem
-          key={tab.route}
-          tab={tab}
-          idx={idx}
-          state={state}
-          navigation={navigation}
-        />
+        <CellarTabItem key={tab.route} tab={tab} idx={idx} state={state} navigation={navigation} />
       ))}
     </View>
   );
@@ -151,6 +144,8 @@ function CellarTabBar({ state, navigation }: any) {
 // ─── PRO gate screen ──────────────────────────────────────────────────────────
 
 function CellarProGate() {
+  const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const insets = useSafeAreaInsets();
   const [feedbackVisible, setFeedbackVisible] = useState(false);
   const [alreadyAnswered, setAlreadyAnswered] = useState<'yes' | 'no' | null>(null);
 
@@ -160,13 +155,26 @@ function CellarProGate() {
 
   return (
     <LinearGradient colors={['#1A120D', '#2B1F17']} style={styles.gateContainer}>
+      {/* This gate has no header (CellarNavigator renders it standalone,
+          bypassing the tab navigator entirely — see the comment above
+          CellarNavigator) — without an explicit close button there was no
+          way to leave this screen at all. */}
+      <TouchableOpacity
+        style={[styles.gateCloseButton, { top: insets.top + 12 }]}
+        onPress={() => nav.goBack()}
+        accessibilityLabel="Close"
+        accessibilityRole="button"
+      >
+        <Ionicons name="close" size={22} color={AMBER} />
+      </TouchableOpacity>
       <View style={styles.gateIcon}>
         <Ionicons name="wine" size={44} color={AMBER} />
       </View>
 
       <Text style={styles.gateTitle}>The Cellar</Text>
       <Text style={styles.gateBody}>
-        A dedicated space to track, value, and curate your spirits collection — with drinking windows, portfolio value, and a curated drop watchlist.
+        A dedicated space to track, value, and curate your spirits collection — with drinking
+        windows, portfolio value, and a curated drop watchlist.
       </Text>
 
       <View style={styles.gateList}>
@@ -174,7 +182,7 @@ function CellarProGate() {
           'Portfolio valuation & tracking',
           'Drinking window management',
           'Curated drop watchlist',
-          'Collector\'s edition vault',
+          "Collector's edition vault",
         ].map((item) => (
           <View key={item} style={styles.gateListRow}>
             <Ionicons name="checkmark-circle" size={15} color={AMBER} style={{ marginTop: 1 }} />
@@ -187,7 +195,8 @@ function CellarProGate() {
         <Text style={styles.feedbackQuestion}>Would this be useful to you?</Text>
         {alreadyAnswered ? (
           <Text style={styles.feedbackThanks}>
-            Thanks for the feedback{alreadyAnswered === 'yes' ? ' — we\'ll let you know when it\'s live.' : '.'}
+            Thanks for the feedback
+            {alreadyAnswered === 'yes' ? " — we'll let you know when it's live." : '.'}
           </Text>
         ) : (
           <TouchableOpacity
@@ -225,11 +234,11 @@ export default function CellarNavigator() {
       tabBar={(props) => <CellarTabBar {...props} />}
       screenOptions={{ headerShown: false }}
     >
-      <Tab.Screen name="CellarHome"   component={TheCellarScreen} />
+      <Tab.Screen name="CellarHome" component={TheCellarScreen} />
       <Tab.Screen name="CellarMarket" component={CellarAnalyticsScreen} />
-      <Tab.Screen name="CellarAdd"    component={CellarRegisterScreen} />
-      <Tab.Screen name="CellarWatch"  component={CellarWatchlistScreen} />
-      <Tab.Screen name="CellarVault"  component={CellarVaultTab} />
+      <Tab.Screen name="CellarAdd" component={CellarRegisterScreen} />
+      <Tab.Screen name="CellarWatch" component={CellarWatchlistScreen} />
+      <Tab.Screen name="CellarVault" component={CellarVaultTab} />
     </Tab.Navigator>
   );
 }
@@ -290,6 +299,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 32,
+  },
+  gateCloseButton: {
+    position: 'absolute',
+    left: 16,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(214,138,56,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(214,138,56,0.3)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10,
   },
   gateIcon: {
     width: 88,

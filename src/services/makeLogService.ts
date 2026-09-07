@@ -23,6 +23,7 @@ import { log } from '../lib/logger';
 import { trackEvent } from '../lib/analytics';
 import { useTasteModel } from '../store/useTasteModel';
 import { RecipesRepository } from '../repos/supabase';
+import { ALL_COCKTAILS } from '../data/cocktails';
 
 export type MadeEventSource = 'recipe_detail' | 'tonights_pick' | 'hosting' | 'whatcanimake';
 
@@ -132,14 +133,24 @@ export interface MadeHistoryEntry {
   rating: number | null;
 }
 
+// `logMadeIt` stores `cocktail.id` verbatim (see useMadeItFlow.ts), and for
+// every built-in recipe that's a catalog slug like 'negroni' — not a Supabase
+// `recipes` row UUID. Looking those up via RecipesRepository.getRecipeById
+// always misses, silently degrading name to the 'Recipe' fallback and image
+// to nothing, for the majority of made-it history (only user-imported/created
+// recipes actually live in the `recipes` table). This map lets a miss fall
+// back to the local catalog instead of just giving up.
+const LOCAL_COCKTAIL_BY_ID = new Map(ALL_COCKTAILS.map((c) => [c.id, c]));
+
 /**
  * Recent "made it" history for the Drinks tab's Made-It History list, most
  * recent first. `made_events` only stores recipe_id + timestamp + source
  * (no name/image), so this resolves each *distinct* recipe_id once via
  * RecipesRepository (a repeat-made cocktail collapses N rows to 1 lookup)
- * rather than one lookup per row. Uses allSettled so one missing/failed
- * recipe lookup doesn't take down the rest of the history — the made-it
- * event itself is still real history even if its recipe was later removed.
+ * rather than one lookup per row, falling back to the local catalog on a
+ * miss. Uses allSettled so one missing/failed recipe lookup doesn't take
+ * down the rest of the history — the made-it event itself is still real
+ * history even if its recipe was later removed.
  */
 export async function getMadeHistory(
   userId: string,
@@ -171,11 +182,17 @@ export async function getMadeHistory(
 
     return data.map((row: any) => {
       const recipe = recipeById.get(row.recipe_id);
+      const localFallback = LOCAL_COCKTAIL_BY_ID.get(row.recipe_id);
+      // A few catalog entries (the syrup/prep recipes in ESSENTIAL_SYRUPS)
+      // use a bundled require() image ref, not a URL string — the Drinks
+      // screen renders recipeImage as `{ uri: recipeImage }`, which only
+      // works for strings.
+      const localImage = typeof localFallback?.image === 'string' ? localFallback.image : undefined;
       return {
         id: row.id,
         recipeId: row.recipe_id,
-        recipeName: recipe?.name || recipe?.title || 'Recipe',
-        recipeImage: recipe?.image || recipe?.imageUrl,
+        recipeName: recipe?.name || recipe?.title || localFallback?.name || 'Recipe',
+        recipeImage: recipe?.image || recipe?.imageUrl || localImage,
         madeAt: row.made_at,
         source: row.source,
         rating: row.rating,

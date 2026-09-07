@@ -1,31 +1,15 @@
 import React from 'react';
-import {
-  View,
-  Text,
-  ScrollView,
-  StyleSheet,
-  TouchableOpacity,
-  RefreshControl,
-} from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import { colors, spacing, radii, fonts } from '../theme/tokens';
 import { useReferrals, RewardTier } from '../services/referralService';
 import Button from '../components/ui/Button';
-import EmptyState from '../components/EmptyState';
 
 export default function ReferralScreen() {
-  const {
-    referralCode,
-    stats,
-    isLoading,
-    rewardTiers,
-    nextReward,
-    progress,
-    shareCode,
-    refresh,
-  } = useReferrals();
+  const { referralCode, stats, isLoading, rewardTiers, nextReward, progress, shareCode, refresh } =
+    useReferrals();
 
   const [copied, setCopied] = React.useState(false);
   const [refreshing, setRefreshing] = React.useState(false);
@@ -131,11 +115,7 @@ export default function ReferralScreen() {
     return (
       <View
         key={tier.id}
-        style={[
-          styles.tierItem,
-          isUnlocked && styles.tierUnlocked,
-          isNext && styles.tierNext,
-        ]}
+        style={[styles.tierItem, isUnlocked && styles.tierUnlocked, isNext && styles.tierNext]}
       >
         <View style={[styles.tierBadge, isUnlocked && styles.tierBadgeUnlocked]}>
           <Ionicons
@@ -154,9 +134,7 @@ export default function ReferralScreen() {
           </Text>
         </View>
 
-        {isUnlocked && (
-          <Ionicons name="checkmark-circle" size={24} color={colors.success} />
-        )}
+        {isUnlocked && <Ionicons name="checkmark-circle" size={24} color={colors.success} />}
       </View>
     );
   };

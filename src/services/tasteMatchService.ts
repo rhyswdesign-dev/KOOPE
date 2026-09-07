@@ -13,10 +13,36 @@ import { Recipe, FlavorVector, computeFlavorVector } from '../types/recipe';
  *
  * Algorithm: weighted dot product of user flavor/spirit weights and recipe attributes.
  */
-export function calculateTasteMatchPercent(
-  userProfile: TasteProfile,
-  recipe: Recipe
-): number {
+/**
+ * Difficulty label -> numeric complexity (0-1), for recipes that only carry
+ * the label. Same three-point scale used elsewhere in the app
+ * (onboarding's skill-level mapping, RecipePreferencesModal).
+ */
+const DIFFICULTY_TO_COMPLEXITY: Record<string, number> = {
+  Easy: 0.2,
+  Medium: 0.5,
+  Hard: 0.8,
+};
+
+export function calculateTasteMatchPercent(userProfile: TasteProfile, recipe: Recipe): number {
+  // The app has two recipe shapes that disagree on field names: recipes
+  // loaded from Supabase (RecipesRepository) carry baseSpirit/complexity/abv
+  // as real numbers; the local bundled catalog (data/cocktails.ts, ~94
+  // entries) uses `base` (not baseSpirit) and has no complexity/abv at all —
+  // only a `difficulty` label. Reading the missing fields directly used to
+  // silently poison the whole score to NaN (Math.abs(undefined - x) = NaN,
+  // and NaN propagates through every + after it), which made sorting by
+  // score a no-op — recipes came back in their original array order, not
+  // ranked by taste at all. This fell back to a neutral/derived value
+  // instead, for every field, so both recipe shapes score for real.
+  const anyRecipe = recipe as any;
+  const baseSpirit = recipe.baseSpirit ?? anyRecipe.base;
+  const complexity =
+    typeof recipe.complexity === 'number'
+      ? recipe.complexity
+      : (DIFFICULTY_TO_COMPLEXITY[anyRecipe.difficulty] ?? 0.5);
+  const abv = typeof recipe.abv === 'number' ? recipe.abv : 0;
+
   let score = 0;
   let maxScore = 0;
 
@@ -29,8 +55,13 @@ export function calculateTasteMatchPercent(
 
   // 2. Spirit match (30% of total score)
   const spiritWeight = 30;
-  if (recipe.baseSpirit && userProfile.spiritWeights[recipe.baseSpirit] !== undefined) {
-    score += userProfile.spiritWeights[recipe.baseSpirit] * spiritWeight;
+  if (
+    baseSpirit &&
+    userProfile.spiritWeights[baseSpirit as keyof typeof userProfile.spiritWeights] !== undefined
+  ) {
+    score +=
+      userProfile.spiritWeights[baseSpirit as keyof typeof userProfile.spiritWeights] *
+      spiritWeight;
   } else {
     // No base spirit or unknown — give neutral score
     score += 0.5 * spiritWeight;
@@ -39,14 +70,14 @@ export function calculateTasteMatchPercent(
 
   // 3. Complexity match (15% of total score)
   const complexityWeight = 15;
-  const complexityDiff = Math.abs(recipe.complexity - userProfile.preferredComplexity);
+  const complexityDiff = Math.abs(complexity - userProfile.preferredComplexity);
   const complexityScore = 1 - complexityDiff; // 1 = perfect match, 0 = opposite
   score += complexityScore * complexityWeight;
   maxScore += complexityWeight;
 
   // 4. ABV match (15% of total score)
   const abvWeight = 15;
-  const abvScore = calculateABVMatchScore(recipe.abv, userProfile.preferredABV);
+  const abvScore = calculateABVMatchScore(abv, userProfile.preferredABV);
   score += abvScore * abvWeight;
   maxScore += abvWeight;
 
@@ -64,9 +95,17 @@ export function calculateTasteMatchPercent(
  */
 function calculateFlavorDotProduct(
   userWeights: Record<FlavorProfile, number>,
-  recipeVector: FlavorVector
+  recipeVector: FlavorVector,
 ): number {
-  const allFlavors: FlavorProfile[] = ['citrus', 'herbal', 'bitter', 'sweet', 'smoky', 'floral', 'spiced'];
+  const allFlavors: FlavorProfile[] = [
+    'citrus',
+    'herbal',
+    'bitter',
+    'sweet',
+    'smoky',
+    'floral',
+    'spiced',
+  ];
 
   let dotProduct = 0;
   let userMagnitude = 0;
@@ -94,16 +133,17 @@ function calculateFlavorDotProduct(
  */
 function calculateABVMatchScore(
   recipeABV: number,
-  preferredRange: { min: number; max: number }
+  preferredRange: { min: number; max: number },
 ): number {
   if (recipeABV >= preferredRange.min && recipeABV <= preferredRange.max) {
     return 1; // Perfect match
   }
 
   // Distance from nearest boundary
-  const distance = recipeABV < preferredRange.min
-    ? preferredRange.min - recipeABV
-    : recipeABV - preferredRange.max;
+  const distance =
+    recipeABV < preferredRange.min
+      ? preferredRange.min - recipeABV
+      : recipeABV - preferredRange.max;
 
   // Decay: score drops by 0.1 per % ABV outside range
   return Math.max(0, 1 - distance * 0.1);
@@ -115,7 +155,7 @@ function calculateABVMatchScore(
  */
 export function batchCalculateTasteMatch(
   userProfile: TasteProfile,
-  recipes: Recipe[]
+  recipes: Recipe[],
 ): Map<string, number> {
   const results = new Map<string, number>();
 

@@ -22,20 +22,25 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import GroceryListModal from '../components/GroceryListModal';
+import PressableScale from '../components/animations/PressableScale';
 import { useChallengeProgress } from '../hooks/useChallengeProgress';
 import { useUserTier } from '../store/useUserTier';
 import { useXPSystem } from '../store/useXPSystem';
 import { canAccessContent } from '../utils/tierAccess';
 import { log } from '../lib/logger';
-import type { FlavorProfile } from '../types/userProfile';
+import type { FlavorProfile, RecipeCompletionDetails } from '../types/userProfile';
 import { useAuth } from '../contexts/AuthContext';
 import { InventoryService } from '../services/inventoryService';
-import { logRecipeCompletion, updateCompletionRating, syncCompletionToSupabase } from '../services/recipeCompletionService';
+import {
+  logRecipeCompletion,
+  updateCompletionRating,
+  syncCompletionToSupabase,
+} from '../services/recipeCompletionService';
 import { logMadeIt } from '../services/makeLogService';
+import { logRecipeSignal } from '../services/recipeSignalService';
 import MadeItButton from '../components/MadeItButton';
 import { getCompletionPromptConfig, tierToCompletionPlan } from '../lib/completions/brandCapture';
 import { loadUserProfile, updateUserProfileFields } from '../services/userProfileService';
-import type { RecipeCompletionDetails } from '../types/userProfile';
 import { useFeatureAccess } from '../hooks/useFeatureAccess';
 import { recipeService as supabaseRecipeService } from '../lib/supabaseData';
 import RatioBalanceEditor from '../components/ratio/RatioBalanceEditor';
@@ -44,6 +49,11 @@ import {
   RatioEditorState,
   RatioProfile,
 } from '../utils/ratioEngine';
+import { getMissingWithSubstitutions, getSubstitutionMessage } from '../utils/spiritSubstitutions';
+import { isLikelySpiritIngredient } from '../utils/cocktailDetailCopy';
+import SubstituteIngredientsModal, {
+  type SubstituteRow,
+} from '../components/SubstituteIngredientsModal';
 
 interface RecipeIngredientEntry {
   key: string;
@@ -63,43 +73,66 @@ function generateFallbackTips(recipe: any): string[] {
     .filter(Boolean);
 
   const has = (keyword: string) =>
-    ingredientNames.some((name: string) => name.includes(keyword)) || instructions.includes(keyword);
+    ingredientNames.some((name: string) => name.includes(keyword)) ||
+    instructions.includes(keyword);
 
   const tips: string[] = [];
 
   if (method.includes('stir')) {
-    tips.push('Stir with plenty of cold ice for about 20-30 seconds so the drink is chilled and properly diluted.');
+    tips.push(
+      'Stir with plenty of cold ice for about 20-30 seconds so the drink is chilled and properly diluted.',
+    );
   }
   if (method.includes('shake')) {
-    tips.push('Shake hard for 10-15 seconds; you want the tin frosty to lock in chill and texture.');
+    tips.push(
+      'Shake hard for 10-15 seconds; you want the tin frosty to lock in chill and texture.',
+    );
   }
   if (method.includes('build')) {
-    tips.push('Build over fresh ice and give one gentle lift stir so you combine without killing carbonation.');
+    tips.push(
+      'Build over fresh ice and give one gentle lift stir so you combine without killing carbonation.',
+    );
   }
   if (has('citrus') || has('lemon') || has('lime') || has('grapefruit') || has('orange')) {
-    tips.push('Use fresh citrus and taste before serving; 1/4 oz can shift a drink from flat to balanced.');
+    tips.push(
+      'Use fresh citrus and taste before serving; 1/4 oz can shift a drink from flat to balanced.',
+    );
   }
   if (has('mint') || has('basil') || has('rosemary') || has('sage')) {
-    tips.push('Treat herbs gently: slap or light press to release aroma without pulling bitter green notes.');
+    tips.push(
+      'Treat herbs gently: slap or light press to release aroma without pulling bitter green notes.',
+    );
   }
   if (has('vermouth')) {
-    tips.push('Keep vermouth refrigerated after opening and replace regularly; oxidized vermouth dulls the drink.');
+    tips.push(
+      'Keep vermouth refrigerated after opening and replace regularly; oxidized vermouth dulls the drink.',
+    );
   }
   if (has('egg white') || has('aquafaba')) {
-    tips.push('For better foam, dry shake first, then shake with ice and fine strain for a tighter head.');
+    tips.push(
+      'For better foam, dry shake first, then shake with ice and fine strain for a tighter head.',
+    );
   }
   if (has('soda') || has('tonic') || has('sparkling') || has('prosecco') || has('kombucha')) {
-    tips.push('Always add carbonated ingredients last and stir lightly to keep bubbles and aroma intact.');
+    tips.push(
+      'Always add carbonated ingredients last and stir lightly to keep bubbles and aroma intact.',
+    );
   }
   if (glass.includes('coupe') || glass.includes('martini') || glass.includes('nick')) {
-    tips.push('Pre-chill the glassware for at least 10 minutes to keep service temperature crisp from first sip.');
+    tips.push(
+      'Pre-chill the glassware for at least 10 minutes to keep service temperature crisp from first sip.',
+    );
   }
   if (has('orange peel') || has('lemon twist') || has('grapefruit twist') || has('lime peel')) {
-    tips.push('Express citrus peel oils directly over the surface right before garnish to boost first-sip aroma.');
+    tips.push(
+      'Express citrus peel oils directly over the surface right before garnish to boost first-sip aroma.',
+    );
   }
 
   if (tips.length === 0) {
-    tips.push('Use cold, dense ice and taste before serving; tiny dilution and temperature adjustments improve balance fast.');
+    tips.push(
+      'Use cold, dense ice and taste before serving; tiny dilution and temperature adjustments improve balance fast.',
+    );
   }
 
   return tips.slice(0, 3);
@@ -136,6 +169,8 @@ export default function RecipeDetailScreen() {
   const [timesMade, setTimesMade] = useState(0);
   const [isSavingRatios, setIsSavingRatios] = useState(false);
   const [inventoryOptions, setInventoryOptions] = useState<string[]>([]);
+  const [substituteRows, setSubstituteRows] = useState<SubstituteRow[]>([]);
+  const [substituteModalVisible, setSubstituteModalVisible] = useState(false);
   const [brandSelections, setBrandSelections] = useState<Record<string, string>>({});
   const [substitutions, setSubstitutions] = useState('');
   const [techniqueVariations, setTechniqueVariations] = useState('');
@@ -144,7 +179,7 @@ export default function RecipeDetailScreen() {
   const [selectedRating, setSelectedRating] = useState(0);
   const [lastCompletionId, setLastCompletionId] = useState<string | null>(null);
   const [ratioProfile, setRatioProfile] = useState<RatioProfile | null>(
-    (recipe?.ratio_profile as RatioProfile | null) || null
+    (recipe?.ratio_profile as RatioProfile | null) || null,
   );
   const [ratioEstimated, setRatioEstimated] = useState(Boolean(recipe?.ratio_estimated));
   const [ratioEditorState, setRatioEditorState] = useState<RatioEditorState>(
@@ -153,7 +188,7 @@ export default function RecipeDetailScreen() {
       sweet: 50,
       acid: 50,
       dilution: 50,
-    }
+    },
   );
   const [showRatioEditor, setShowRatioEditor] = useState(false);
   const completionConfig = getCompletionPromptConfig(tierToCompletionPlan(tier));
@@ -173,16 +208,47 @@ export default function RecipeDetailScreen() {
   const recipeIngredients = useMemo<RecipeIngredientEntry[]>(
     () =>
       (recipe?.ingredients || recipe?.tags || []).map((item: any, index: number) => {
-        const ingredient = typeof item === 'string' ? item : (item.name || item);
-        const amount = typeof item === 'string' ? '' : (item.amount || '');
+        const ingredient = typeof item === 'string' ? item : item.name || item;
+        const amount = typeof item === 'string' ? '' : item.amount || '';
         return {
           key: `${index}_${String(ingredient).toLowerCase()}`,
           name: String(ingredient),
           amount: String(amount || ''),
         };
       }),
-    [recipe]
+    [recipe],
   );
+
+  // Which recipe ingredients the user's shelf already covers, for the
+  // substitute-finder below. Uses the same substring match already used by
+  // getSuggestionsForIngredient/handleFindSubstitutes — this screen only
+  // keeps inventory as a flat name list (inventoryOptions), not the full
+  // UserInventoryItem rows CocktailDetailScreen's hasIngredient() expects.
+  const ingredientStats = useMemo(() => {
+    if (!recipeIngredients.length) {
+      return { owned: 0, total: 0, missing: [] as string[] };
+    }
+
+    const inventoryLower = inventoryOptions.map((name) => name.toLowerCase());
+    let owned = 0;
+    const missing: string[] = [];
+
+    recipeIngredients.forEach((ingredient) => {
+      const name = ingredient.name.trim();
+      if (!name) return;
+      const nameLower = name.toLowerCase();
+      const hasIt = inventoryLower.some(
+        (option) => option.includes(nameLower) || nameLower.includes(option),
+      );
+      if (hasIt) {
+        owned++;
+      } else {
+        missing.push(name);
+      }
+    });
+
+    return { owned, total: recipeIngredients.length, missing };
+  }, [recipeIngredients, inventoryOptions]);
 
   const tasteMatchPercent: number | undefined = recipe?.tasteMatchPercent;
   const proTips = useMemo(() => getRecipeProTips(recipe), [recipe]);
@@ -193,12 +259,27 @@ export default function RecipeDetailScreen() {
   // Track recipe view for challenges + award XP (10 XP, capped at 5 views/day)
   useEffect(() => {
     if (recipe?.id) {
-      trackRecipeViewed(recipe.id).catch(error => {
+      trackRecipeViewed(recipe.id).catch((error) => {
         log.error('RecipeDetailScreen', 'Error tracking recipe view', error);
       });
       earnRecipeViewedXP();
+      // Taste signal — separate from the challenge/XP tracking above, which
+      // only feeds progression. Fire-and-forget; never blocks the screen.
+      logRecipeSignal({
+        userId: user?.id,
+        recipeId: recipe.id,
+        signal: 'view',
+        source: 'recipe_detail',
+      });
     }
   }, [recipe?.id]);
+
+  // Load shelf inventory up front so "Find Ingredient Substitutes" has
+  // something to rank against the first time it's tapped, without waiting
+  // on the Made-It flow (which also refreshes this list on open).
+  useEffect(() => {
+    loadInventoryOptions();
+  }, [user?.id]);
 
   if (!recipe) {
     return (
@@ -229,7 +310,10 @@ export default function RecipeDetailScreen() {
     }
   };
 
-  const handleSaveRatioBalance = async (nextProfile: RatioProfile, nextEditorState: RatioEditorState) => {
+  const handleSaveRatioBalance = async (
+    nextProfile: RatioProfile,
+    nextEditorState: RatioEditorState,
+  ) => {
     if (!recipe?.id) {
       Alert.alert('Not Available', 'This recipe cannot be updated yet.');
       return;
@@ -293,7 +377,11 @@ export default function RecipeDetailScreen() {
   };
 
   const normalizeText = (value: string): string =>
-    value.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+    value
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
 
   const getSuggestionsForIngredient = (ingredientName: string): string[] => {
     const needle = normalizeText(ingredientName);
@@ -309,11 +397,88 @@ export default function RecipeDetailScreen() {
       .slice(0, 5);
   };
 
+  const handleFindSubstitutes = () => {
+    if (!recipeIngredients.length) {
+      Alert.alert('Substitutes', 'No ingredients listed for this recipe yet.');
+      return;
+    }
+
+    const missing = ingredientStats.missing;
+    const available = inventoryOptions;
+    const availableLower = available.map((name) => name.toLowerCase());
+    const targetIngredients = missing.length
+      ? missing
+      : recipeIngredients.map((ingredient) => ingredient.name.trim()).filter(Boolean);
+    const suggestions = getMissingWithSubstitutions(targetIngredients, available);
+
+    const rows: SubstituteRow[] = suggestions.map((entry) => {
+      if (!entry.substitutions || entry.substitutions.substitutes.length === 0) {
+        const shelfIdeas = getSuggestionsForIngredient(entry.ingredient);
+        if (shelfIdeas.length > 0) {
+          return {
+            ingredient: entry.ingredient,
+            suggestion: shelfIdeas[0],
+            note: 'Closest match from your shelf.',
+            confidence: 'low',
+            inInventory: true,
+            isSpirit: isLikelySpiritIngredient(entry.ingredient),
+            alternatives: shelfIdeas.slice(1, 3).join(', ') || undefined,
+          };
+        }
+        return {
+          ingredient: entry.ingredient,
+          suggestion: null,
+          note: 'Use original ingredient when possible.',
+          confidence: 'low',
+          inInventory: false,
+          isSpirit: isLikelySpiritIngredient(entry.ingredient),
+        };
+      }
+
+      const ranked = [...entry.substitutions.substitutes].sort((a, b) => {
+        const aIn = availableLower.some(
+          (name) => name.includes(a.name.toLowerCase()) || a.name.toLowerCase().includes(name),
+        );
+        const bIn = availableLower.some(
+          (name) => name.includes(b.name.toLowerCase()) || b.name.toLowerCase().includes(name),
+        );
+        if (aIn !== bIn) return aIn ? -1 : 1;
+        const score = { high: 0, medium: 1, low: 2 } as const;
+        return score[a.confidence] - score[b.confidence];
+      });
+
+      const top = ranked[0];
+      const inInventory = availableLower.some(
+        (name) => name.includes(top.name.toLowerCase()) || top.name.toLowerCase().includes(name),
+      );
+      const alternatives = ranked
+        .slice(1, 3)
+        .map((sub) => sub.name)
+        .join(', ');
+
+      return {
+        ingredient: entry.ingredient,
+        suggestion: top.name,
+        note: getSubstitutionMessage(entry.ingredient, [top]).replace(
+          /^Try\s+.+?\s+instead\s+-\s+/i,
+          '',
+        ),
+        confidence: top.confidence,
+        inInventory,
+        isSpirit: isLikelySpiritIngredient(entry.ingredient),
+        alternatives: alternatives || undefined,
+      };
+    });
+
+    setSubstituteRows(rows);
+    setSubstituteModalVisible(true);
+  };
+
   const syncRecipeCompletionToProfile = async (
     rating?: number,
     isRatingUpdate: boolean = false,
     completionDetails?: RecipeCompletionDetails,
-    completionId?: string
+    completionId?: string,
   ) => {
     try {
       if (!user?.id || !recipe?.id) return;
@@ -339,9 +504,17 @@ export default function RecipeDetailScreen() {
           interactionHistory.completedRecipes[actualIdx] = {
             ...interactionHistory.completedRecipes[actualIdx],
             rating: rating || undefined,
-            feedback: rating ? (rating >= 4 ? 'loved' : rating >= 3 ? 'liked' : 'disliked') : undefined,
-            completionId: completionId || interactionHistory.completedRecipes[actualIdx].completionId,
-            completionDetails: completionDetails || interactionHistory.completedRecipes[actualIdx].completionDetails,
+            feedback: rating
+              ? rating >= 4
+                ? 'loved'
+                : rating >= 3
+                  ? 'liked'
+                  : 'disliked'
+              : undefined,
+            completionId:
+              completionId || interactionHistory.completedRecipes[actualIdx].completionId,
+            completionDetails:
+              completionDetails || interactionHistory.completedRecipes[actualIdx].completionDetails,
             timestamp: new Date(),
           };
         } else {
@@ -349,7 +522,13 @@ export default function RecipeDetailScreen() {
             recipeId: recipe.id,
             timestamp: new Date(),
             rating: rating || undefined,
-            feedback: rating ? (rating >= 4 ? 'loved' : rating >= 3 ? 'liked' : 'disliked') : undefined,
+            feedback: rating
+              ? rating >= 4
+                ? 'loved'
+                : rating >= 3
+                  ? 'liked'
+                  : 'disliked'
+              : undefined,
             completionId: completionId || undefined,
             completionDetails: completionDetails || undefined,
           });
@@ -359,7 +538,13 @@ export default function RecipeDetailScreen() {
           recipeId: recipe.id,
           timestamp: new Date(),
           rating: rating || undefined,
-          feedback: rating ? (rating >= 4 ? 'loved' : rating >= 3 ? 'liked' : 'disliked') : undefined,
+          feedback: rating
+            ? rating >= 4
+              ? 'loved'
+              : rating >= 3
+                ? 'liked'
+                : 'disliked'
+            : undefined,
           completionId: completionId || undefined,
           completionDetails: completionDetails || undefined,
         });
@@ -387,8 +572,8 @@ export default function RecipeDetailScreen() {
             .map((item) => item.item_name)
             .filter((name): name is string => Boolean(name))
             .map((name) => name.trim())
-            .filter(Boolean)
-        )
+            .filter(Boolean),
+        ),
       );
       setInventoryOptions(options);
     } catch (error) {
@@ -466,22 +651,21 @@ export default function RecipeDetailScreen() {
           source: 'recipe_detail',
           flavorProfiles: recipe.flavorProfiles || recipe.flavorTags || [],
           substitutionsUsed: substitutions.trim() ? { notes: substitutions.trim() } : null,
-        }).then((result) => setTimesMade(result.timesMade))
-          .catch((error) => log.warn('RecipeDetailScreen', 'logMadeIt failed (non-blocking)', { error }));
+        })
+          .then((result) => setTimesMade(result.timesMade))
+          .catch((error) =>
+            log.warn('RecipeDetailScreen', 'logMadeIt failed (non-blocking)', { error }),
+          );
       }
 
       earnCocktailLoggedXP(isDetailed, recipe.name || recipe.title || 'Recipe');
       await syncRecipeCompletionToProfile(undefined, false, completionDetails, completion.id);
 
       setMakeFlowVisible(false);
-      Alert.alert(
-        'Logged',
-        `${recipe.name || recipe.title} added to your made drinks.`,
-        [
-          { text: 'Done', style: 'cancel' },
-          { text: 'How was it?', onPress: () => setRatingFlowVisible(true) },
-        ]
-      );
+      Alert.alert('Logged', `${recipe.name || recipe.title} added to your made drinks.`, [
+        { text: 'Done', style: 'cancel' },
+        { text: 'How was it?', onPress: () => setRatingFlowVisible(true) },
+      ]);
     } catch (error) {
       log.error('RecipeDetailScreen', 'Failed to log recipe completion', error);
       Alert.alert('Error', 'Could not log this drink. Please try again.');
@@ -497,7 +681,11 @@ export default function RecipeDetailScreen() {
     }
 
     try {
-      await updateCompletionRating(lastCompletionId, selectedRating, completionNotes.trim() || undefined);
+      await updateCompletionRating(
+        lastCompletionId,
+        selectedRating,
+        completionNotes.trim() || undefined,
+      );
       earnRecipeRatingXP(recipe?.name || recipe?.title || 'Recipe');
       await syncRecipeCompletionToProfile(
         selectedRating,
@@ -507,7 +695,7 @@ export default function RecipeDetailScreen() {
               notes: completionNotes.trim(),
             }
           : undefined,
-        lastCompletionId
+        lastCompletionId,
       );
       setRatingFlowVisible(false);
       Alert.alert('Thanks', 'Your feedback was saved.');
@@ -521,11 +709,15 @@ export default function RecipeDetailScreen() {
     <View style={styles.container}>
       <StatusBar barStyle="light-content" />
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false} bounces={false}>
-
         {/* --- Hero Section --- */}
         <View style={styles.heroContainer}>
           <Image
-            source={{ uri: recipe.image || recipe.imageUrl || 'https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?q=80&w=1000&auto=format&fit=crop' }}
+            source={{
+              uri:
+                recipe.image ||
+                recipe.imageUrl ||
+                'https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?q=80&w=1000&auto=format&fit=crop',
+            }}
             style={styles.heroImage}
           />
           <LinearGradient
@@ -557,7 +749,11 @@ export default function RecipeDetailScreen() {
                 <>
                   <Text style={styles.metaDot}>•</Text>
                   <View style={styles.metaItem}>
-                    <MaterialCommunityIcons name="glass-cocktail" size={16} color={colors.subtext} />
+                    <MaterialCommunityIcons
+                      name="glass-cocktail"
+                      size={16}
+                      color={colors.subtext}
+                    />
                     <Text style={styles.metaText}>{recipe.glassware || 'Coupe'}</Text>
                   </View>
                 </>
@@ -587,15 +783,17 @@ export default function RecipeDetailScreen() {
             madeLabel={timesMade > 1 ? `Made ${timesMade}×` : 'You Made It!'}
           />
           {ratioProfile ? (
-            <TouchableOpacity
+            <PressableScale
               style={styles.secondaryButton}
               onPress={() => setShowRatioEditor(true)}
               disabled={isSavingRatios}
+              scaleTo={0.97}
+              haptic="light"
             >
               <Text style={styles.secondaryButtonText}>
                 {ratioEstimated ? 'Adjust Estimated Ratio' : 'Edit Ratio Balance'}
               </Text>
-            </TouchableOpacity>
+            </PressableScale>
           ) : null}
         </View>
 
@@ -604,16 +802,18 @@ export default function RecipeDetailScreen() {
           <View style={styles.tasteMatchSection}>
             <View style={styles.tasteMatchRow}>
               <Ionicons name="heart" size={18} color={getTasteMatchColor(tasteMatchPercent)} />
-              <Text style={[styles.tasteMatchLabel, { color: getTasteMatchColor(tasteMatchPercent) }]}>
-                {tasteMatchPercent}% Taste Match
+              <Text
+                style={[styles.tasteMatchLabel, { color: getTasteMatchColor(tasteMatchPercent) }]}
+              >
+                {tasteMatchPercent}% Palate Match
               </Text>
             </View>
             <Text style={styles.tasteMatchDesc}>
               {tasteMatchPercent >= 80
                 ? 'Great match for your palate'
                 : tasteMatchPercent >= 60
-                ? 'Good match — worth trying'
-                : 'Something different for you'}
+                  ? 'Good match — worth trying'
+                  : 'Something different for you'}
             </Text>
           </View>
         )}
@@ -644,7 +844,9 @@ export default function RecipeDetailScreen() {
         {/* --- Ingredients --- */}
         <View style={styles.section}>
           <View style={styles.ingrHeader}>
-            <Text style={[styles.sectionHeader, { fontFamily: serifFont, marginBottom: 0 }]}>Ingredients</Text>
+            <Text style={[styles.sectionHeader, { fontFamily: serifFont, marginBottom: 0 }]}>
+              Ingredients
+            </Text>
             <View style={styles.ingrCountBadge}>
               <Text style={styles.ingrCountText}>
                 {(recipe.ingredients || recipe.tags || []).length}
@@ -653,7 +855,7 @@ export default function RecipeDetailScreen() {
           </View>
           <View style={styles.ingrContainer}>
             {(recipe.ingredients || recipe.tags || []).map((item: any, index: number) => {
-              const name = typeof item === 'string' ? item : (item.name || item);
+              const name = typeof item === 'string' ? item : item.name || item;
               const amount = typeof item === 'string' ? '' : item.amount;
               const notes = typeof item === 'string' ? '' : item.notes;
               const total = (recipe.ingredients || recipe.tags || []).length;
@@ -711,16 +913,15 @@ export default function RecipeDetailScreen() {
               {[1, 2, 4, 8].map((mult) => (
                 <TouchableOpacity
                   key={mult}
-                  style={[
-                    styles.batchChip,
-                    batchMultiplier === mult && styles.batchChipActive,
-                  ]}
+                  style={[styles.batchChip, batchMultiplier === mult && styles.batchChipActive]}
                   onPress={() => handleBatchMultiplierPress(mult)}
                 >
-                  <Text style={[
-                    styles.batchChipText,
-                    batchMultiplier === mult && styles.batchChipTextActive,
-                  ]}>
+                  <Text
+                    style={[
+                      styles.batchChipText,
+                      batchMultiplier === mult && styles.batchChipTextActive,
+                    ]}
+                  >
                     {mult === 1 ? 'Single' : `${mult}x`}
                   </Text>
                 </TouchableOpacity>
@@ -730,7 +931,7 @@ export default function RecipeDetailScreen() {
             {batchMultiplier > 1 && (
               <View style={styles.batchResult}>
                 {(recipe.ingredients || recipe.tags || []).map((item: any, index: number) => {
-                  const name = typeof item === 'string' ? item : (item.name || item);
+                  const name = typeof item === 'string' ? item : item.name || item;
                   const amount = typeof item === 'string' ? '' : item.amount;
 
                   // Try to scale numeric amounts
@@ -749,7 +950,8 @@ export default function RecipeDetailScreen() {
                       if (!isNaN(numVal)) {
                         const scaled = numVal * batchMultiplier;
                         const unit = numericMatch[2] || '';
-                        scaledAmount = `${scaled % 1 === 0 ? scaled : scaled.toFixed(1)} ${unit}`.trim();
+                        scaledAmount =
+                          `${scaled % 1 === 0 ? scaled : scaled.toFixed(1)} ${unit}`.trim();
                       }
                     }
                   }
@@ -780,7 +982,9 @@ export default function RecipeDetailScreen() {
             <MaterialCommunityIcons name="lock-outline" size={20} color={colors.gold} />
             <View style={{ flex: 1, marginLeft: spacing(1.5) }}>
               <Text style={styles.batchLockedTitle}>Batch Calculator</Text>
-              <Text style={styles.batchLockedSub}>Upgrade to KOOPE+ to scale recipes for parties</Text>
+              <Text style={styles.batchLockedSub}>
+                Upgrade to KOOPE+ to scale recipes for parties
+              </Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color={colors.subtext} />
           </TouchableOpacity>
@@ -797,7 +1001,11 @@ export default function RecipeDetailScreen() {
               <MaterialCommunityIcons name="lightbulb-on" size={20} color={colors.accent} />
               <Text style={[styles.proTipsTitle, { fontFamily: serifFont }]}>Pro Tips</Text>
             </View>
-            <Ionicons name={proTipsOpen ? "chevron-up" : "chevron-down"} size={20} color={colors.subtext} />
+            <Ionicons
+              name={proTipsOpen ? 'chevron-up' : 'chevron-down'}
+              size={20}
+              color={colors.subtext}
+            />
           </TouchableOpacity>
 
           {proTipsOpen && (
@@ -815,7 +1023,7 @@ export default function RecipeDetailScreen() {
         <View style={styles.aiSupportSection}>
           <Text style={styles.aiSupportHeader}>AI SUPPORT</Text>
           <View style={styles.aiButtonsRow}>
-            <TouchableOpacity style={styles.aiButton}>
+            <TouchableOpacity style={styles.aiButton} onPress={handleFindSubstitutes}>
               <MaterialCommunityIcons name="swap-horizontal" size={20} color={colors.accent} />
               <Text style={styles.aiButtonTitle}>Find Ingredient Substitutes</Text>
             </TouchableOpacity>
@@ -829,7 +1037,6 @@ export default function RecipeDetailScreen() {
 
         {/* Extra bottom padding */}
         <View style={{ height: 40 }} />
-
       </ScrollView>
 
       {/* Grocery List Modal */}
@@ -838,24 +1045,37 @@ export default function RecipeDetailScreen() {
           visible={groceryListVisible}
           onClose={() => setGroceryListVisible(false)}
           recipeName={recipe.name || recipe.title || 'Recipe'}
-          ingredients={
-            (recipe.ingredients || recipe.tags || []).map((item: any) =>
-              typeof item === 'string'
-                ? item
-                : `${item.amount ? item.amount + ' ' : ''}${item.name || item}`
-            )
-          }
+          ingredients={(recipe.ingredients || recipe.tags || []).map((item: any) =>
+            typeof item === 'string'
+              ? item
+              : `${item.amount ? item.amount + ' ' : ''}${item.name || item}`,
+          )}
           recipeId={recipe.id}
         />
       )}
 
-      <Modal visible={makeFlowVisible} animationType="slide" transparent onRequestClose={() => setMakeFlowVisible(false)}>
+      <SubstituteIngredientsModal
+        visible={substituteModalVisible}
+        onClose={() => setSubstituteModalVisible(false)}
+        hasMissingIngredients={ingredientStats.missing.length > 0}
+        spiritRows={substituteRows.filter((row) => row.isSpirit)}
+        otherRows={substituteRows.filter((row) => !row.isSpirit)}
+      />
+
+      <Modal
+        visible={makeFlowVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setMakeFlowVisible(false)}
+      >
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{completionConfig.promptText}</Text>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <Text style={{ color: colors.accent, fontSize: 13, fontWeight: '600' }}>+{completionConfig.xpReward} XP</Text>
+                <Text style={{ color: colors.accent, fontSize: 13, fontWeight: '600' }}>
+                  +{completionConfig.xpReward} XP
+                </Text>
                 <TouchableOpacity onPress={() => setMakeFlowVisible(false)}>
                   <Ionicons name="close" size={24} color={colors.text} />
                 </TouchableOpacity>
@@ -915,7 +1135,9 @@ export default function RecipeDetailScreen() {
                   placeholder={completionConfig.notesPlaceholder}
                   placeholderTextColor={colors.subtext}
                   value={substitutions}
-                  onChangeText={(v) => setSubstitutions(v.slice(0, completionConfig.notesCharLimit))}
+                  onChangeText={(v) =>
+                    setSubstitutions(v.slice(0, completionConfig.notesCharLimit))
+                  }
                   multiline
                   maxLength={completionConfig.notesCharLimit}
                 />
@@ -951,11 +1173,17 @@ export default function RecipeDetailScreen() {
             </ScrollView>
 
             <View style={styles.modalActions}>
-              <TouchableOpacity style={styles.modalSecondaryButton} onPress={() => setMakeFlowVisible(false)}>
+              <TouchableOpacity
+                style={styles.modalSecondaryButton}
+                onPress={() => setMakeFlowVisible(false)}
+              >
                 <Text style={styles.modalSecondaryButtonText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.modalPrimaryButton, isSavingCompletion && styles.modalPrimaryButtonDisabled]}
+                style={[
+                  styles.modalPrimaryButton,
+                  isSavingCompletion && styles.modalPrimaryButtonDisabled,
+                ]}
                 onPress={handleLogCompletion}
                 disabled={isSavingCompletion}
               >
@@ -970,7 +1198,12 @@ export default function RecipeDetailScreen() {
         </View>
       </Modal>
 
-      <Modal visible={ratingFlowVisible} animationType="fade" transparent onRequestClose={() => setRatingFlowVisible(false)}>
+      <Modal
+        visible={ratingFlowVisible}
+        animationType="fade"
+        transparent
+        onRequestClose={() => setRatingFlowVisible(false)}
+      >
         <View style={styles.modalBackdrop}>
           <View style={styles.ratingCard}>
             <Text style={styles.modalTitle}>How was it?</Text>
@@ -998,12 +1231,19 @@ export default function RecipeDetailScreen() {
             />
 
             <View style={styles.ratingActions}>
-              <TouchableOpacity style={styles.modalSecondaryButton} onPress={() => setRatingFlowVisible(false)}>
+              <TouchableOpacity
+                style={styles.modalSecondaryButton}
+                onPress={() => setRatingFlowVisible(false)}
+              >
                 <Text style={styles.modalSecondaryButtonText}>Skip</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.modalPrimaryButton} onPress={handleSaveRating}>
+              <PressableScale
+                style={styles.modalPrimaryButton}
+                onPress={handleSaveRating}
+                scaleTo={0.97}
+              >
                 <Text style={styles.modalPrimaryButtonText}>Save Feedback</Text>
-              </TouchableOpacity>
+              </PressableScale>
             </View>
           </View>
         </View>

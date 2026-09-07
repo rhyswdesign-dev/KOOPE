@@ -13,7 +13,11 @@
 
 import { Recipe } from '../types/recipe';
 import { Bottle, BottleCategory } from '../types/database';
-import { getMissingIngredients, getTopIngredientsToBuy, IngredientUnlockInfo } from './missingIngredientService';
+import {
+  getMissingIngredients,
+  getTopIngredientsToBuy,
+  IngredientUnlockInfo,
+} from './missingIngredientService';
 import { FlavorProfile } from '../types/userProfile';
 
 // ============================================================================
@@ -104,7 +108,8 @@ export interface FlavorCoverageItem {
 
 const CATEGORY_ESSENTIALS: Record<BottleCategory, string[]> = {
   spirit: ['vodka', 'gin', 'bourbon', 'rum', 'tequila'],
-  liqueur: ['triple sec', 'campari', 'sweet vermouth', 'dry vermouth'],
+  liqueur: ['triple sec', 'campari'],
+  wine: ['sweet vermouth', 'dry vermouth'],
   mixer: ['tonic water', 'soda water', 'ginger beer'],
   bitters: ['angostura bitters', 'orange bitters'],
   syrup: ['simple syrup'],
@@ -116,6 +121,7 @@ const CATEGORY_ESSENTIALS: Record<BottleCategory, string[]> = {
 const CATEGORY_DISPLAY_NAMES: Record<BottleCategory, string> = {
   spirit: 'Spirits',
   liqueur: 'Liqueurs & Modifiers',
+  wine: 'Wine',
   mixer: 'Mixers',
   bitters: 'Bitters',
   syrup: 'Syrups',
@@ -127,6 +133,7 @@ const CATEGORY_DISPLAY_NAMES: Record<BottleCategory, string> = {
 const PRICE_ESTIMATES: Record<string, string> = {
   spirit: '$20–$45',
   liqueur: '$15–$35',
+  wine: '$15–$40',
   mixer: '$3–$8',
   bitters: '$8–$15',
   syrup: '$5–$12',
@@ -145,7 +152,7 @@ const PRICE_ESTIMATES: Record<string, string> = {
  */
 export function generateOptimizationReport(
   inventory: Bottle[],
-  recipeLibrary: Recipe[]
+  recipeLibrary: Recipe[],
 ): BarOptimizationReport {
   // 1. Calculate makeability
   let makeableCount = 0;
@@ -153,9 +160,8 @@ export function generateOptimizationReport(
     const result = getMissingIngredients(recipe, inventory);
     if (result.canMake) makeableCount++;
   }
-  const makeablePercent = recipeLibrary.length > 0
-    ? Math.round((makeableCount / recipeLibrary.length) * 100)
-    : 0;
+  const makeablePercent =
+    recipeLibrary.length > 0 ? Math.round((makeableCount / recipeLibrary.length) * 100) : 0;
 
   // 2. Category breakdown
   const categoryBreakdown = analyzeCategoryBreakdown(inventory);
@@ -176,11 +182,7 @@ export function generateOptimizationReport(
   const flavorCoverage = analyzeFlavorCoverage(inventory, recipeLibrary);
 
   // 8. Completeness score (weighted blend)
-  const completenessScore = calculateCompletenessScore(
-    makeablePercent,
-    categoryBreakdown,
-    gaps
-  );
+  const completenessScore = calculateCompletenessScore(makeablePercent, categoryBreakdown, gaps);
 
   return {
     completenessScore,
@@ -201,14 +203,23 @@ export function generateOptimizationReport(
 // ============================================================================
 
 function analyzeCategoryBreakdown(inventory: Bottle[]): CategoryAnalysis[] {
-  const categories: BottleCategory[] = ['spirit', 'liqueur', 'mixer', 'bitters', 'syrup', 'garnish', 'ingredient'];
-  const invNames = inventory.map(b => b.name.toLowerCase());
+  const categories: BottleCategory[] = [
+    'spirit',
+    'liqueur',
+    'wine',
+    'mixer',
+    'bitters',
+    'syrup',
+    'garnish',
+    'ingredient',
+  ];
+  const invNames = inventory.map((b) => b.name.toLowerCase());
 
-  return categories.map(category => {
-    const count = inventory.filter(b => b.category === category).length;
+  return categories.map((category) => {
+    const count = inventory.filter((b) => b.category === category).length;
     const essentials = CATEGORY_ESSENTIALS[category];
-    const essentialsCovered = essentials.filter(e =>
-      invNames.some(inv => inv.includes(e) || e.includes(inv))
+    const essentialsCovered = essentials.filter((e) =>
+      invNames.some((inv) => inv.includes(e) || e.includes(inv)),
     ).length;
 
     let health: CategoryAnalysis['health'];
@@ -235,15 +246,15 @@ function analyzeCategoryBreakdown(inventory: Bottle[]): CategoryAnalysis[] {
 
 function identifyGaps(inventory: Bottle[], recipeLibrary: Recipe[]): BarGap[] {
   const gaps: BarGap[] = [];
-  const invNames = inventory.map(b => b.name.toLowerCase());
+  const invNames = inventory.map((b) => b.name.toLowerCase());
 
   // Check essential categories
-  const categories: BottleCategory[] = ['spirit', 'liqueur', 'bitters', 'syrup', 'garnish'];
+  const categories: BottleCategory[] = ['spirit', 'liqueur', 'wine', 'bitters', 'syrup', 'garnish'];
 
   for (const category of categories) {
     const essentials = CATEGORY_ESSENTIALS[category];
-    const missing = essentials.filter(e =>
-      !invNames.some(inv => inv.includes(e) || e.includes(inv))
+    const missing = essentials.filter(
+      (e) => !invNames.some((inv) => inv.includes(e) || e.includes(inv)),
     );
 
     if (missing.length === 0) continue;
@@ -253,18 +264,20 @@ function identifyGaps(inventory: Bottle[], recipeLibrary: Recipe[]): BarGap[] {
     for (const recipe of recipeLibrary) {
       const result = getMissingIngredients(recipe, inventory);
       if (!result.canMake) {
-        const hasCategoryBlock = result.missing.some(m => {
+        const hasCategoryBlock = result.missing.some((m) => {
           const lower = m.toLowerCase();
-          return missing.some(ess => lower.includes(ess) || ess.includes(lower));
+          return missing.some((ess) => lower.includes(ess) || ess.includes(lower));
         });
         if (hasCategoryBlock) blockedCount++;
       }
     }
 
     const severity: BarGap['severity'] =
-      blockedCount > recipeLibrary.length * 0.3 ? 'critical' :
-      blockedCount > recipeLibrary.length * 0.1 ? 'moderate' :
-      'minor';
+      blockedCount > recipeLibrary.length * 0.3
+        ? 'critical'
+        : blockedCount > recipeLibrary.length * 0.1
+          ? 'moderate'
+          : 'minor';
 
     gaps.push({
       category: CATEGORY_DISPLAY_NAMES[category],
@@ -283,7 +296,7 @@ function identifyGaps(inventory: Bottle[], recipeLibrary: Recipe[]): BarGap[] {
 
 function buildShoppingPlan(
   topPurchases: IngredientUnlockInfo[],
-  _inventory: Bottle[]
+  _inventory: Bottle[],
 ): ShoppingPlanItem[] {
   return topPurchases.map((purchase, i) => {
     // Guess the category from the ingredient name
@@ -310,8 +323,8 @@ function findUnderusedBottles(inventory: Bottle[], recipeLibrary: Recipe[]): Und
     const matchingRecipes: string[] = [];
 
     for (const recipe of recipeLibrary) {
-      const usesBottle = recipe.ingredients.some(ing => {
-        const ingName = (typeof ing === 'string' ? ing : ing?.name ?? '').toLowerCase();
+      const usesBottle = recipe.ingredients.some((ing) => {
+        const ingName = (typeof ing === 'string' ? ing : (ing?.name ?? '')).toLowerCase();
         return ingName.includes(name) || name.includes(ingName);
       });
       if (usesBottle) {
@@ -325,9 +338,10 @@ function findUnderusedBottles(inventory: Bottle[], recipeLibrary: Recipe[]): Und
       underused.push({
         bottle,
         recipeCount,
-        suggestion: recipeCount === 0
-          ? `${bottle.name} doesn't match any recipes in your library`
-          : `Try ${matchingRecipes[0]} with your ${bottle.name}`,
+        suggestion:
+          recipeCount === 0
+            ? `${bottle.name} doesn't match any recipes in your library`
+            : `Try ${matchingRecipes[0]} with your ${bottle.name}`,
       });
     }
   }
@@ -339,7 +353,15 @@ function findUnderusedBottles(inventory: Bottle[], recipeLibrary: Recipe[]): Und
 }
 
 function analyzeFlavorCoverage(inventory: Bottle[], recipeLibrary: Recipe[]): FlavorCoverageItem[] {
-  const allFlavors: FlavorProfile[] = ['citrus', 'herbal', 'bitter', 'sweet', 'smoky', 'floral', 'spiced'];
+  const allFlavors: FlavorProfile[] = [
+    'citrus',
+    'herbal',
+    'bitter',
+    'sweet',
+    'smoky',
+    'floral',
+    'spiced',
+  ];
   const displayNames: Record<FlavorProfile, string> = {
     citrus: 'Citrus & Fresh',
     herbal: 'Herbal & Green',
@@ -350,8 +372,8 @@ function analyzeFlavorCoverage(inventory: Bottle[], recipeLibrary: Recipe[]): Fl
     spiced: 'Spiced & Warm',
   };
 
-  return allFlavors.map(flavor => {
-    const recipesWithFlavor = recipeLibrary.filter(r => r.flavorProfiles.includes(flavor));
+  return allFlavors.map((flavor) => {
+    const recipesWithFlavor = recipeLibrary.filter((r) => r.flavorProfiles.includes(flavor));
     let makeableCount = 0;
 
     for (const recipe of recipesWithFlavor) {
@@ -364,9 +386,10 @@ function analyzeFlavorCoverage(inventory: Bottle[], recipeLibrary: Recipe[]): Fl
       displayName: displayNames[flavor],
       makeableCount,
       totalCount: recipesWithFlavor.length,
-      coveragePercent: recipesWithFlavor.length > 0
-        ? Math.round((makeableCount / recipesWithFlavor.length) * 100)
-        : 0,
+      coveragePercent:
+        recipesWithFlavor.length > 0
+          ? Math.round((makeableCount / recipesWithFlavor.length) * 100)
+          : 0,
     };
   });
 }
@@ -374,7 +397,7 @@ function analyzeFlavorCoverage(inventory: Bottle[], recipeLibrary: Recipe[]): Fl
 function calculateCompletenessScore(
   makeablePercent: number,
   categoryBreakdown: CategoryAnalysis[],
-  gaps: BarGap[]
+  gaps: BarGap[],
 ): number {
   let score = 0;
 
@@ -383,15 +406,15 @@ function calculateCompletenessScore(
 
   // 35% weight: category health
   const healthScores: Record<string, number> = { strong: 100, adequate: 70, weak: 40, missing: 0 };
-  const avgHealth = categoryBreakdown.reduce((sum, cat) =>
-    sum + (healthScores[cat.health] || 50), 0
-  ) / categoryBreakdown.length;
+  const avgHealth =
+    categoryBreakdown.reduce((sum, cat) => sum + (healthScores[cat.health] || 50), 0) /
+    categoryBreakdown.length;
   score += avgHealth * 0.35;
 
   // 25% weight: gap severity (inverse — fewer gaps = higher score)
-  const criticalGaps = gaps.filter(g => g.severity === 'critical').length;
-  const moderateGaps = gaps.filter(g => g.severity === 'moderate').length;
-  const gapPenalty = (criticalGaps * 20) + (moderateGaps * 10);
+  const criticalGaps = gaps.filter((g) => g.severity === 'critical').length;
+  const moderateGaps = gaps.filter((g) => g.severity === 'moderate').length;
+  const gapPenalty = criticalGaps * 20 + moderateGaps * 10;
   score += Math.max(0, 100 - gapPenalty) * 0.25;
 
   return Math.round(Math.max(0, Math.min(100, score)));
@@ -403,8 +426,10 @@ function calculateCompletenessScore(
 
 function guessCategory(ingredientName: string): string {
   const lower = ingredientName.toLowerCase();
-  if (/vodka|gin|rum|whiskey|bourbon|tequila|mezcal|brandy|cognac|scotch/i.test(lower)) return 'spirit';
-  if (/liqueur|triple sec|cointreau|campari|aperol|vermouth|amaretto/i.test(lower)) return 'liqueur';
+  if (/vodka|gin|rum|whiskey|bourbon|tequila|mezcal|brandy|cognac|scotch/i.test(lower))
+    return 'spirit';
+  if (/liqueur|triple sec|cointreau|campari|aperol|vermouth|amaretto/i.test(lower))
+    return 'liqueur';
   if (/juice|tonic|soda|water|beer|cola/i.test(lower)) return 'mixer';
   if (/bitters/i.test(lower)) return 'bitters';
   if (/syrup|honey|agave|grenadine|orgeat/i.test(lower)) return 'syrup';

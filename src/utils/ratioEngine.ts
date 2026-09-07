@@ -1,21 +1,8 @@
 export type RatioFamily =
-  | 'sour'
-  | 'old_fashioned'
-  | 'manhattan'
-  | 'martini'
-  | 'highball'
-  | 'spritz'
-  | 'other';
+  'sour' | 'old_fashioned' | 'manhattan' | 'martini' | 'highball' | 'spritz' | 'other';
 
 export type RatioIngredientRole =
-  | 'spirit'
-  | 'vermouth'
-  | 'acid'
-  | 'sweet'
-  | 'mixer'
-  | 'bitters'
-  | 'modifier'
-  | 'other';
+  'spirit' | 'vermouth' | 'acid' | 'sweet' | 'mixer' | 'bitters' | 'modifier' | 'other';
 
 export interface RatioIngredient {
   name: string;
@@ -50,11 +37,42 @@ export interface FormattedIngredient {
 }
 
 const SPIRIT_KEYWORDS = [
-  'vodka', 'gin', 'rum', 'tequila', 'whiskey', 'whisky', 'bourbon', 'rye', 'scotch', 'brandy', 'cognac', 'mezcal',
+  'vodka',
+  'gin',
+  'rum',
+  'tequila',
+  'whiskey',
+  'whisky',
+  'bourbon',
+  'rye',
+  'scotch',
+  'brandy',
+  'cognac',
+  'mezcal',
 ];
 const ACID_KEYWORDS = ['lime', 'lemon', 'grapefruit', 'citrus', 'yuzu', 'acid'];
-const SWEET_KEYWORDS = ['syrup', 'honey', 'agave', 'grenadine', 'orgeat', 'demerara', 'simple', 'maple', 'sugar'];
-const MIXER_KEYWORDS = ['soda', 'tonic', 'cola', 'ginger beer', 'ginger ale', 'prosecco', 'champagne', 'sparkling', 'juice'];
+const SWEET_KEYWORDS = [
+  'syrup',
+  'honey',
+  'agave',
+  'grenadine',
+  'orgeat',
+  'demerara',
+  'simple',
+  'maple',
+  'sugar',
+];
+const MIXER_KEYWORDS = [
+  'soda',
+  'tonic',
+  'cola',
+  'ginger beer',
+  'ginger ale',
+  'prosecco',
+  'champagne',
+  'sparkling',
+  'juice',
+];
 const BITTERS_KEYWORDS = ['bitters', 'angostura', 'peychaud'];
 const VERMOUTH_KEYWORDS = ['vermouth'];
 
@@ -78,7 +96,7 @@ const formatOz = (value: number) => {
 
 const toLower = (value: string) => value.toLowerCase().trim();
 
-const parseAmountOz = (amount: string): number => {
+export const parseAmountOz = (amount: string): number => {
   if (!amount) return 0;
   const normalized = amount.toLowerCase().trim();
   const numeric = Number.parseFloat(normalized.replace(/[^0-9.]/g, ''));
@@ -90,10 +108,16 @@ const parseAmountOz = (amount: string): number => {
   if (normalized.includes('drop')) return numeric * 0.003;
   if (normalized.includes('tsp')) return numeric * 0.169;
   if (normalized.includes('tbsp')) return numeric * 0.507;
+  // Standard bar-measurement approximation: a sugar cube dissolves to roughly
+  // 0.17 oz of simple-syrup-equivalent sweetness (not a precise citable
+  // figure, just the conventional bar rule of thumb).
+  if (normalized.includes('sugar cube')) return numeric * 0.17;
+  // Standard bar convention: 1 barspoon ≈ 1/8 oz (0.125 oz).
+  if (normalized.includes('barspoon')) return numeric * 0.125;
   return numeric;
 };
 
-const inferRole = (name: string): RatioIngredientRole => {
+export const inferRole = (name: string): RatioIngredientRole => {
   const lower = toLower(name);
   if (VERMOUTH_KEYWORDS.some((k) => lower.includes(k))) return 'vermouth';
   if (BITTERS_KEYWORDS.some((k) => lower.includes(k))) return 'bitters';
@@ -107,19 +131,28 @@ const inferRole = (name: string): RatioIngredientRole => {
 const findFirstIndex = (ingredients: RatioIngredient[], role: RatioIngredientRole) =>
   ingredients.findIndex((item) => item.role === role);
 
-const setAmountByRole = (ingredients: RatioIngredient[], role: RatioIngredientRole, amount: number) => {
+const setAmountByRole = (
+  ingredients: RatioIngredient[],
+  role: RatioIngredientRole,
+  amount: number,
+) => {
   const idx = findFirstIndex(ingredients, role);
   if (idx >= 0) {
     ingredients[idx].amount_oz = amount;
   }
 };
 
-export const inferRatioFamily = (title: string, ingredients: FormattedIngredient[]): RatioFamily => {
+export const inferRatioFamily = (
+  title: string,
+  ingredients: FormattedIngredient[],
+): RatioFamily => {
   const lowerTitle = toLower(title || '');
   const names = ingredients.map((item) => toLower(item.name)).join(' ');
 
   const hasVermouth = names.includes('vermouth');
-  const hasWhiskey = ['whiskey', 'whisky', 'bourbon', 'rye', 'scotch'].some((k) => names.includes(k));
+  const hasWhiskey = ['whiskey', 'whisky', 'bourbon', 'rye', 'scotch'].some((k) =>
+    names.includes(k),
+  );
   const hasGinVodka = ['gin', 'vodka'].some((k) => names.includes(k));
   const hasAcid = ACID_KEYWORDS.some((k) => names.includes(k));
   const hasSweet = SWEET_KEYWORDS.some((k) => names.includes(k));
@@ -197,7 +230,7 @@ const enforceBittersCap = (ingredients: RatioIngredient[]) => {
 
 export const createRatioProfile = (
   family: RatioFamily,
-  ingredients: FormattedIngredient[]
+  ingredients: FormattedIngredient[],
 ): RatioProfile => {
   const profileIngredients: RatioIngredient[] = ingredients.map((ingredient, index) => ({
     name: ingredient.name || `Ingredient ${index + 1}`,
@@ -226,7 +259,7 @@ export const createRatioProfile = (
 
 export const applyRatioProfileToIngredients = (
   originalIngredients: FormattedIngredient[],
-  profile: RatioProfile
+  profile: RatioProfile,
 ): FormattedIngredient[] => {
   const mapped = profile.ingredients
     .slice()
@@ -246,7 +279,7 @@ const sliderToMultiplier = (value: number) => 0.5 + value / 100;
 
 export const applyGuidedBalance = (
   profile: RatioProfile,
-  editorState: RatioEditorState
+  editorState: RatioEditorState,
 ): RatioProfile => {
   const spiritMult = sliderToMultiplier(editorState.spirit);
   const dilutionMult = sliderToMultiplier(editorState.dilution);
@@ -258,8 +291,10 @@ export const applyGuidedBalance = (
     let next = ingredient.amount_oz;
     if (ingredient.role === 'spirit' || ingredient.role === 'vermouth') next *= spiritMult;
     if (ingredient.role === 'mixer') next *= dilutionMult;
-    if (ingredient.role === 'acid') next *= profile.coupling.acidSweetLocked ? acidSweetMult : acidMult;
-    if (ingredient.role === 'sweet') next *= profile.coupling.acidSweetLocked ? acidSweetMult : sweetMult;
+    if (ingredient.role === 'acid')
+      next *= profile.coupling.acidSweetLocked ? acidSweetMult : acidMult;
+    if (ingredient.role === 'sweet')
+      next *= profile.coupling.acidSweetLocked ? acidSweetMult : sweetMult;
     if (ingredient.role === 'bitters') next = clamp(next, 0, 0.25);
     return {
       ...ingredient,

@@ -6,7 +6,16 @@ import { FlavorProfile } from './userProfile';
 
 export type ItemType = 'spirit' | 'ingredient';
 export type ScanType = 'bottle' | 'ingredient' | 'recipe';
-export type BottleCategory = 'spirit' | 'liqueur' | 'mixer' | 'bitters' | 'syrup' | 'garnish' | 'ingredient' | 'other';
+export type BottleCategory =
+  | 'spirit'
+  | 'liqueur'
+  | 'wine'
+  | 'mixer'
+  | 'bitters'
+  | 'syrup'
+  | 'garnish'
+  | 'ingredient'
+  | 'other';
 export type PriceRange = 'budget' | 'mid' | 'premium' | 'luxury';
 export type BottleQuantity = 'full' | 'half' | 'low' | 'empty';
 
@@ -45,7 +54,8 @@ export function toBottle(item: UserInventoryItem, extra?: Partial<Bottle>): Bott
     id: item.id,
     userId: item.user_id,
     name: item.item_name,
-    category: (item.category as BottleCategory) || (item.item_type === 'spirit' ? 'spirit' : 'ingredient'),
+    category:
+      (item.category as BottleCategory) || (item.item_type === 'spirit' ? 'spirit' : 'ingredient'),
     flavorTags: [],
     quantity: 'full',
     imageUrl: item.image_url ?? undefined,

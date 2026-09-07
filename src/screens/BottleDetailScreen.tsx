@@ -9,16 +9,12 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  FlatList,
   TouchableOpacity,
   Alert,
   Linking,
   Image,
   Modal,
-  TextInput,
-  ActivityIndicator,
   Share,
-  Dimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as FileSystem from 'expo-file-system';
@@ -29,6 +25,7 @@ import type { RouteProp, CompositeNavigationProp } from '@react-navigation/nativ
 import { Ionicons } from '@expo/vector-icons';
 import { FlavorIcon } from '../components/FlavorIcon';
 import { colors, spacing, radii } from '../theme/tokens';
+import { styles } from './BottleDetailScreen.styles';
 import type { CameraStackParamList } from '../navigation/CameraStack';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { getPriceTierDisplay } from '../data/spiritsDatabase';
@@ -38,14 +35,13 @@ import {
   useCurrencyPreference,
   convertFromUSD,
   formatPriceRange,
-  CURRENCY_META,
   type SupportedCurrency,
 } from '../store/useCurrencyPreference';
 import { supabase } from '../lib/supabase';
 import { InventoryService } from '../services/inventoryService';
 import { challengeProgressService } from '../services/challengeProgressService';
 import { useAuth } from '../contexts/AuthContext';
-import { sortByMatch, getMatchMessage } from '../utils/recipeMatching';
+import { sortByMatch } from '../utils/recipeMatching';
 import type { RecipeMatch } from '../utils/recipeMatching';
 import { RecipesRepository } from '../repos/supabase';
 import { useUserTier } from '../store/useUserTier';
@@ -59,194 +55,58 @@ import { useFeatureAccess } from '../hooks/useFeatureAccess';
 import type { UserInventoryItem } from '../types/database';
 import { BottleServeService } from '../services/bottleServeService';
 import { useEngagement } from '../store/useEngagement';
-import { getCocktailImage } from '../../assets/images/cocktails';
-import RecipeCard from '../components/RecipeCard';
-import LockedRecipeCard from '../components/LockedRecipeCard';
 import { ScanHistoryService } from '../services/scanHistoryService';
 import { trackEvent, ANALYTICS_EVENTS, ANALYTICS_PROPS } from '../lib/analytics';
 import { useWishlist, WISHLIST_FREE_CAP } from '../store/useWishlist';
 import { notificationService } from '../services/notificationService';
 import { useTasteModel } from '../store/useTasteModel';
-import type { FlavourTag } from '../store/useTasteModel';
-import { getTasteSignalLine } from '../utils/tasteSignal';
-import { logScanEvent, updateScanOutcome } from '../services/scanContextService';
+import {
+  logScanEvent,
+  updateScanOutcome,
+  shouldRecordPassOnExit,
+} from '../services/scanContextService';
+import { log } from '../lib/logger';
 import SpiritEducationPanel from '../components/SpiritEducationPanel';
 import GiftModePanel from '../components/bottle/GiftModePanel';
 import TastePromptPanel from '../components/bottle/TastePromptPanel';
+import ScanFeedbackPanel from '../components/bottle/ScanFeedbackPanel';
+import CocktailHookRail from '../components/bottle/CocktailHookRail';
 import {
   computeGiftVerdict,
   filterRecipesForGift,
   type GiftPreference,
 } from '../services/giftVerdictService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { usePersonalization } from '../store/usePersonalization';
-import type { FlavorProfile } from '../types/userProfile';
+import type { FlavorProfile, Spirit } from '../types/userProfile';
+import { useTasteSummary } from '../hooks/useTasteSummary';
+import {
+  hydrateTasteGraph,
+  initializeTasteGraph,
+  toPersistedTasteProfile,
+} from '../services/tasteGraphService';
+import { loadUserProfile, updateUserProfileFields } from '../services/userProfileService';
+import { CANONICAL_FLAVORS, CANONICAL_SPIRITS } from '../utils/flavorTaxonomy';
 import ValueLine from '../components/bottle/ValueLine';
+import CurrencyPickerModal from '../components/CurrencyPickerModal';
+import PriceSpottedPromptModal from '../components/PriceSpottedPromptModal';
 import { useSpottedPrices } from '../store/useSpottedPrices';
 import { logSpottedPrice } from '../services/spottedPriceService';
+import { parseLocalePrice } from '../utils/priceInput';
 import { computeValueVerdict } from '../services/valueVerdictService';
+import {
+  getSpiritCategoryDefaults,
+  normalizeSpiritToken,
+  getRespectThisBottleScore,
+  normalizeInventoryName,
+} from '../utils/bottleDetailHelpers';
 
 type BottleDetailScreenNavigationProp = CompositeNavigationProp<
   NativeStackNavigationProp<CameraStackParamList, 'BottleDetail'>,
   NativeStackNavigationProp<RootStackParamList>
 >;
 
-const SPIRIT_ALIAS_MAP: Record<string, string> = {
-  whisky: 'whiskey',
-  bourbon: 'whiskey',
-  scotch: 'whiskey',
-  rye: 'whiskey',
-  cognac: 'brandy',
-};
-
 const DOCUMENT_DIRECTORY =
   (FileSystem as unknown as { documentDirectory?: string }).documentDirectory ?? '';
-
-// ─── Spirit-category fallbacks ────────────────────────────────────────────────
-// Used when a specific bottle lacks flavor profile or tasting notes data.
-// Ensures every scan returns useful, contextually accurate information.
-
-interface SpiritCategoryDefaults {
-  flavorProfile: string[];
-  tastingNotes: string;
-  origin: string;
-}
-
-const SPIRIT_CATEGORY_DEFAULTS: Record<string, SpiritCategoryDefaults> = {
-  gin: {
-    flavorProfile: ['Juniper', 'Citrus', 'Botanical'],
-    tastingNotes:
-      'A London Dry-style gin with classic juniper at the fore, bright citrus notes, and a layered botanical finish. Crisp and dry.',
-    origin: 'United Kingdom',
-  },
-  vodka: {
-    flavorProfile: ['Clean', 'Smooth', 'Neutral'],
-    tastingNotes:
-      'A clean, neutral spirit with a smooth palate and a crisp finish. Subtle grain sweetness makes it exceptionally versatile.',
-    origin: 'Europe',
-  },
-  whiskey: {
-    flavorProfile: ['Caramel', 'Vanilla', 'Oak'],
-    tastingNotes:
-      'Rich caramel and vanilla upfront, underpinned by toasted oak and a hint of dried fruit. Warm, rounded finish.',
-    origin: 'United States',
-  },
-  rum: {
-    flavorProfile: ['Vanilla', 'Tropical Fruit', 'Caramel'],
-    tastingNotes:
-      'Sweet vanilla and tropical fruit on the nose, with warm caramel and a touch of molasses on the palate. Smooth finish.',
-    origin: 'Caribbean',
-  },
-  tequila: {
-    flavorProfile: ['Agave', 'Citrus', 'Pepper'],
-    tastingNotes:
-      '100% agave character — fresh vegetal notes, bright citrus, and white pepper. Clean, smooth, and true to the plant.',
-    origin: 'Mexico',
-  },
-  mezcal: {
-    flavorProfile: ['Smoke', 'Agave', 'Earthy'],
-    tastingNotes:
-      'Artisanal smoke from slow-roasted agave hearts, with earthy mineral notes and a long, complex finish.',
-    origin: 'Mexico',
-  },
-  brandy: {
-    flavorProfile: ['Dried Fruit', 'Oak', 'Vanilla'],
-    tastingNotes:
-      'Warm dried fruit and toasted oak with vanilla undertones. Smooth and balanced with a gentle warming finish.',
-    origin: 'France',
-  },
-  liqueur: {
-    flavorProfile: ['Sweet', 'Fruit', 'Herbal'],
-    tastingNotes:
-      'A sweet, approachable liqueur with fruit and herbal character. Versatile as a modifier in cocktails or over ice.',
-    origin: 'Europe',
-  },
-  other: {
-    flavorProfile: ['Complex', 'Aromatic', 'Distinct'],
-    tastingNotes:
-      'A distinctive spirit with its own character. Explore neat first to understand its personality before building cocktails.',
-    origin: 'International',
-  },
-};
-
-function getSpiritCategoryDefaults(bottle: any): SpiritCategoryDefaults {
-  const type = normalizeSpiritToken((bottle as any).type || (bottle as any).category);
-  return SPIRIT_CATEGORY_DEFAULTS[type] ?? SPIRIT_CATEGORY_DEFAULTS.other;
-}
-
-function normalizeSpiritToken(value: string | undefined | null): string {
-  const token = (value || '').toLowerCase().trim();
-  if (!token) return '';
-  return SPIRIT_ALIAS_MAP[token] || token;
-}
-
-function getRespectThisBottleScore(
-  recipe: any,
-  spiritName: string,
-  bottle: any,
-  serveRecommendation: ReturnType<typeof BottleServeService.getRecommendation>,
-): number {
-  const tags = Array.isArray(recipe.tags)
-    ? recipe.tags.map((tag: string) => String(tag).toLowerCase())
-    : [];
-  const category = String(recipe.category || '').toLowerCase();
-  const name = String(recipe.name || '').toLowerCase();
-  const description = String(recipe.description || '').toLowerCase();
-  const difficulty = String(recipe.difficulty || '').toLowerCase();
-  const ingredientsCount = Array.isArray(recipe.ingredients)
-    ? recipe.ingredients.length
-    : typeof recipe.ingredients === 'string'
-      ? recipe.ingredients.split(/[,|]/).filter(Boolean).length
-      : 0;
-
-  let score = 0;
-
-  if (tags.includes('classic')) score += 10;
-  if (tags.includes('stirred')) score += 12;
-  if (tags.includes('spirit-forward')) score += 18;
-  if (tags.includes('smoky') && serveRecommendation.spiritFamily === 'scotch') score += 10;
-  if (tags.includes('agave') && serveRecommendation.spiritFamily === 'tequila') score += 10;
-  if (['old fashioned', 'manhattan', 'sazerac'].some((needle) => name.includes(needle)))
-    score += 18;
-  if (
-    ['boozy', 'spirit-forward', 'minimal dilution'].some((needle) => description.includes(needle))
-  )
-    score += 10;
-  if (category.includes('old fashioned') || category.includes('martini')) score += 8;
-  if (difficulty === 'easy') score += 4;
-  if (ingredientsCount > 0 && ingredientsCount <= 4) score += 10;
-  if (ingredientsCount >= 7) score -= 15;
-  if (tags.includes('tiki')) score -= 25;
-  if (tags.includes('tropical')) score -= 20;
-  if (tags.includes('creamy')) score -= 18;
-  if (tags.includes('frozen')) score -= 25;
-  if (tags.includes('brunch')) score -= 10;
-  if (tags.includes('dessert')) score -= 12;
-  if (tags.includes('equal-parts')) score -= 8;
-  if (tags.includes('sour')) score -= 6;
-  if (tags.includes('highball')) score -= 4;
-
-  if (spiritName === 'whiskey' && tags.includes('whiskey')) score += 6;
-  if (spiritName === 'tequila' && tags.includes('tequila')) score += 6;
-  if (spiritName === 'mezcal' && tags.includes('mezcal')) score += 8;
-  if (spiritName === 'brandy' && (tags.includes('cognac') || tags.includes('brandy'))) score += 8;
-  if (
-    String(bottle.name || '')
-      .toLowerCase()
-      .includes('scotch') &&
-    tags.includes('scotch')
-  )
-    score += 10;
-
-  return score;
-}
-
-function normalizeInventoryName(value: string): string {
-  return value.toLowerCase().replace(/\s+/g, ' ').trim();
-}
-
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
-const HERO_HEIGHT = SCREEN_HEIGHT * 0.42;
 
 // Phase 1.6 onboarding inversion: one-time, free "what do you like" prompt
 // shown after a new user's first suggested-recipes moment. Distinct from
@@ -258,18 +118,17 @@ export default function BottleDetailScreen() {
   const navigation = useNavigation<BottleDetailScreenNavigationProp>();
   const route = useRoute<RouteProp<CameraStackParamList, 'BottleDetail'>>();
   const insets = useSafeAreaInsets();
-  const { earnScanXP, isCocktailUnlockedWithXP } = useXPSystem();
+  const { earnScanXP, earnScanCorrectedXP, isCocktailUnlockedWithXP } = useXPSystem();
   const { isRecipeUnlocked: isRecipeUnlockedWithEngagement } = useEngagement();
   const { user } = useAuth();
-  const { profile: personalizationProfile, updateProfile: updatePersonalizationProfile } =
-    usePersonalization();
+  const tasteSummary = useTasteSummary(user?.id);
   const { tier } = useUserTier();
   const { gateWithTrigger: inventoryGate } = useFeatureAccess('inventory_unlimited');
   const { hasAccess: hasPremiumServeEducation } = useFeatureAccess('premium_serve_education');
   const { hasAccess: hasPremiumServePersonalization } = useFeatureAccess(
     'premium_serve_personalization',
   );
-  const { bottle, imageUri, scanConfidence, scannedBarcode, scanSource } = route.params;
+  const { bottle, imageUri, scanConfidence, scannedBarcode, scanSource, returnTo } = route.params;
   const isLowConfidence =
     imageUri != null && typeof scanConfidence === 'number' && scanConfidence < 0.8;
   const { currency: userCurrency, setCurrency } = useCurrencyPreference();
@@ -291,19 +150,45 @@ export default function BottleDetailScreen() {
   // via the beforeRemove listener further down).
   const [scanEventId, setScanEventId] = useState<string | null>(null);
   const scanOutcomeRecordedRef = useRef(false);
+  // True when this bottle was ALREADY on the want-list when the screen
+  // opened (e.g. re-opened from the Shelf/Want grid). Browsing your own
+  // want-list is not a fresh purchase decision, so the exit listener below
+  // must not resolve that visit to 'passed' — doing so overwrote real
+  // 'wanted' signal with noise and inverted the want-conversion metric.
+  const wasWishlistedOnEntryRef = useRef(false);
+  // The base scan reward is paid once per Answer Card visit, when the scan
+  // resolves — whatever the outcome. It used to fire only from the
+  // shelf-add handler, so wanting or price-checking a bottle paid 0 XP even
+  // though the scan itself had already happened. Owning still carries the
+  // bigger downstream reward; this is just the acknowledgement of the scan.
+  const scanXPAwardedRef = useRef(false);
+  const awardScanXPOnce = () => {
+    if (scanXPAwardedRef.current) return;
+    scanXPAwardedRef.current = true;
+    earnScanXP(bottle.id);
+  };
   // Phase 1.6: free, one-time "what do you like" prompt (see
   // TastePromptPanel) — mutually exclusive with Gift mode's own panel.
   const [showTastePrompt, setShowTastePrompt] = useState(false);
   const [tasteSpiritHint, setTasteSpiritHint] = useState<string | undefined>(undefined);
   const [tasteFlavorHint, setTasteFlavorHint] = useState<FlavorProfile | undefined>(undefined);
   const [expanded, setExpanded] = useState(false);
-  // Stage 10 — scan feedback
-  const [feedbackState, setFeedbackState] = useState<
-    'pending' | 'confirmed' | 'correcting' | 'typing' | 'dismissed'
-  >('pending');
-  const [correctionName, setCorrectionName] = useState('');
-  const [correctionBrand, setCorrectionBrand] = useState('');
-  const [submittingCorrection, setSubmittingCorrection] = useState(false);
+  // "See more" jump target — used by the truncated hero story line (down to
+  // the full Tasting Notes) and by the low-confidence nudge (down to the
+  // scan-feedback panel). Everything below the fold is gated behind
+  // `expanded`, but the toggle itself sits at a fixed position whether
+  // expanded or not, so it's safe to measure and scroll to immediately.
+  const scrollViewRef = useRef<ScrollView>(null);
+  const seeMoreRef = useRef<View>(null);
+  const openSeeMoreFold = () => {
+    setExpanded(true);
+    seeMoreRef.current?.measureLayout(
+      scrollViewRef.current as unknown as number,
+      (_x, y) =>
+        scrollViewRef.current?.scrollTo({ y: Math.max(y - spacing(2), 0), animated: true }),
+      () => {},
+    );
+  };
 
   // Phase 1.5: log the scan_events row once, on mount. Fire-and-forget —
   // doesn't block render, and no-ops if there's no signed-in user or
@@ -328,26 +213,55 @@ export default function BottleDetailScreen() {
   // If the user leaves the Answer Card without Add-to-Bar/Want-it ever
   // firing, the scan resolves to 'passed' — every scan eventually gets
   // exactly one of owned/wanted/passed.
+  //
+  // Two exceptions, both of which used to poison the want-conversion metric:
+  //   - an outcome was already recorded on this visit (scanOutcomeRecordedRef)
+  //   - the bottle was already want-listed when the screen opened
+  //     (wasWishlistedOnEntryRef) — re-opening a bottle you already want is
+  //     not a pass, and logging it as one buried the real signal.
   useEffect(() => {
     const unsubscribe = navigation.addListener('beforeRemove', () => {
-      if (scanEventId && !scanOutcomeRecordedRef.current) {
+      const shouldPass = shouldRecordPassOnExit({
+        hasScanEvent: !!scanEventId,
+        outcomeAlreadyRecorded: scanOutcomeRecordedRef.current,
+        wasWishlistedOnEntry: wasWishlistedOnEntryRef.current,
+      });
+      if (scanEventId && shouldPass) {
         updateScanOutcome({ scanEventId, outcome: 'passed' });
+        awardScanXPOnce();
       }
     });
     return unsubscribe;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigation, scanEventId]);
+
+  // returnTo === 'shelf' means this screen was entered cross-tab (from the
+  // Shelf/Want grid, which lives in a different bottom-tab stack) —
+  // intercept every removal path (button tap, swipe-back gesture, Android
+  // hardware back), not just the on-screen button, so all of them return
+  // to the Shelf tab instead of popping to CameraHub underneath.
+  useEffect(() => {
+    if (returnTo !== 'shelf') return;
+    const unsubscribe = navigation.addListener('beforeRemove', (e) => {
+      e.preventDefault();
+      (navigation as any).navigate('Shelf');
+    });
+    return unsubscribe;
+  }, [navigation, returnTo]);
 
   // Phase 1.6: offer the free taste prompt once, right after the first
   // suggested-recipes moment — only for users with no taste signal yet
-  // (so it doesn't re-nag someone who's already done onboarding/
-  // RefineYourTaste), and never alongside Gift mode's own panel.
+  // (so it doesn't re-nag someone who's already built up a profile from
+  // behavior or RefineYourTaste), and never alongside Gift mode's own panel.
+  //
+  // This is currently the ONLY taste-onboarding input anywhere in the app —
+  // real onboarding asks zero questions by design. What's picked here is
+  // written as a one-time, low-confidence PRIOR straight into the canonical
+  // profile (see handleTasteSpiritSelect/handleTasteFlavorSelect below), not
+  // into the old personalization store.
   useEffect(() => {
     if (loadingCocktails || suggestedCocktails.length === 0 || giftMode) return;
-    if (!personalizationProfile) return;
-    const hasTasteSignal =
-      (personalizationProfile.favoriteSpirits?.length ?? 0) > 0 ||
-      (personalizationProfile.flavorPreferences?.length ?? 0) > 0;
-    if (hasTasteSignal) return;
+    if (tasteSummary.loading || tasteSummary.ready) return;
 
     let cancelled = false;
     AsyncStorage.getItem(TASTE_PROMPT_SHOWN_KEY).then((shown) => {
@@ -356,36 +270,90 @@ export default function BottleDetailScreen() {
     return () => {
       cancelled = true;
     };
-  }, [loadingCocktails, suggestedCocktails.length, giftMode, personalizationProfile]);
+  }, [
+    loadingCocktails,
+    suggestedCocktails.length,
+    giftMode,
+    tasteSummary.loading,
+    tasteSummary.ready,
+  ]);
 
   const dismissTastePrompt = () => {
     setShowTastePrompt(false);
     AsyncStorage.setItem(TASTE_PROMPT_SHOWN_KEY, 'true');
   };
 
+  /**
+   * Seed a single flavor/spirit pick into the canonical profile as a low
+   * weight prior — the same role an onboarding answer used to play. Not a
+   * mirror overwrite (this only ever fires once, before any real behavior
+   * exists) and not steering (there's nothing to bias yet). Merges into
+   * whatever graph already exists rather than clobbering it, since a user
+   * with e.g. a scan or two already has a thin real profile to build on.
+   */
+  const seedTastePrior = async (patch: { flavor?: FlavorProfile; spirit?: string }) => {
+    if (!user?.id) return;
+    try {
+      const existing = await loadUserProfile(user.id).catch(() => null);
+      const graph =
+        hydrateTasteGraph(existing?.tasteProfile) ??
+        initializeTasteGraph({
+          flavorWeights: Object.fromEntries(CANONICAL_FLAVORS.map((f) => [f, 0])) as Record<
+            (typeof CANONICAL_FLAVORS)[number],
+            number
+          >,
+          spiritWeights: Object.fromEntries(CANONICAL_SPIRITS.map((s) => [s, 0])) as Record<
+            Spirit,
+            number
+          >,
+          preferredABV: { min: 0, max: 40 },
+          preferredComplexity: 0.5,
+        });
+
+      const SEED_WEIGHT = 0.45; // a nudge, not a declaration — behavior still dominates from here
+      if (patch.flavor) {
+        graph.rawProfile.flavorWeights[patch.flavor] = Math.max(
+          graph.rawProfile.flavorWeights[patch.flavor] ?? 0,
+          SEED_WEIGHT,
+        );
+      }
+      if (patch.spirit) {
+        const spiritKey = patch.spirit as keyof typeof graph.rawProfile.spiritWeights;
+        graph.rawProfile.spiritWeights[spiritKey] = Math.max(
+          graph.rawProfile.spiritWeights[spiritKey] ?? 0,
+          SEED_WEIGHT,
+        );
+      }
+
+      await updateUserProfileFields(user.id, {
+        tasteProfile: toPersistedTasteProfile(graph) as any,
+      });
+    } catch (error) {
+      log.warn('BottleDetailScreen', 'Failed to seed taste prior from prompt', { error });
+    }
+  };
+
   const handleTasteSpiritSelect = (value: string | undefined) => {
     setTasteSpiritHint(value);
-    updatePersonalizationProfile({ favoriteSpirits: value ? [value] : [] });
+    if (value) seedTastePrior({ spirit: value });
     AsyncStorage.setItem(TASTE_PROMPT_SHOWN_KEY, 'true');
   };
 
   const handleTasteFlavorSelect = (value: FlavorProfile | undefined) => {
     setTasteFlavorHint(value);
-    updatePersonalizationProfile({ flavorPreferences: value ? [value] : [] });
+    if (value) seedTastePrior({ flavor: value });
     AsyncStorage.setItem(TASTE_PROMPT_SHOWN_KEY, 'true');
   };
 
-  // Taste model
-  const {
-    recordScan,
-    recordThumbsUp,
-    recordThumbsDown,
-    totalScans,
-    dominantCluster,
-    profileVisible,
-  } = useTasteModel();
-  const [thumbsState, setThumbsState] = useState<'idle' | 'up' | 'down'>('idle');
-  const [showCorrectionPills, setShowCorrectionPills] = useState(false);
+  // Taste model — write-only now. Scans and ownership reach the unified
+  // profile via scan_events and the shelf read in tasteVectorService.
+  //
+  // recordThumbsUp/recordThumbsDown existed on useTasteModel with no UI ever
+  // wired to them — no thumbs button has ever rendered on a bottle. Removed
+  // as dead scaffolding rather than built out, since a bottle-level thumbs
+  // affordance is a real product decision (mirroring the recipe thumbs flow),
+  // not a bug fix. Flagged as a follow-up, not built here.
+  const { recordScan } = useTasteModel();
   const [showCurrencyPicker, setShowCurrencyPicker] = useState(false);
 
   // Wishlist
@@ -393,6 +361,13 @@ export default function BottleDetailScreen() {
   const bottleWishlistId =
     bottle.id || `${bottle.name}_${bottle.brand}`.toLowerCase().replace(/\s+/g, '_');
   const [wishlisted, setWishlisted] = useState(() => isWishlisted(bottleWishlistId));
+  // Snapshot the entry state once (see wasWishlistedOnEntryRef above). Reads
+  // `wishlisted`'s lazy initial value, so it's the value at mount, not after
+  // a Want-it tap during this visit.
+  useEffect(() => {
+    wasWishlistedOnEntryRef.current = isWishlisted(bottleWishlistId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [showPricePrompt, setShowPricePrompt] = useState(false);
   const [priceInput, setPriceInput] = useState('');
   const [locationInput, setLocationInput] = useState('');
@@ -454,7 +429,17 @@ export default function BottleDetailScreen() {
   const storyLine = useMemo(() => {
     const notes = bottleProfile.tastingNotes || '';
     const firstSentence = notes.split(/(?<=[.!?])\s+/)[0] || notes;
-    return giftMode ? `A crowd-pleasing choice — ${firstSentence}` : firstSentence;
+    // First sentences got noticeably longer/denser once tastingNotes was
+    // expanded from a 1-2 sentence blurb into a full paragraph — this teaser
+    // sits under the hero pills at numberOfLines={2}, so cap it by length
+    // (word-boundary + ellipsis) rather than trusting sentence length to
+    // reliably fit two lines.
+    const STORY_LINE_MAX = 110;
+    const truncated =
+      firstSentence.length > STORY_LINE_MAX
+        ? `${firstSentence.slice(0, STORY_LINE_MAX).replace(/\s+\S*$/, '')}…`
+        : firstSentence;
+    return giftMode ? `A crowd-pleasing choice — ${truncated}` : truncated;
   }, [bottleProfile.tastingNotes, giftMode]);
 
   // Gift mode: re-rank the already-fetched, already-tier-gated Hook data by
@@ -766,11 +751,29 @@ export default function BottleDetailScreen() {
       }
     }
 
+    // bottle.type only carries the catalog's SpiritType union (gin/vodka/
+    // rum/whiskey/tequila/mezcal/brandy/liqueur/other) — it has no 'wine'
+    // option at all, so a straight `=== 'liqueur'` check silently wrote
+    // every vermouth, amaro, and champagne to the shelf as category
+    // 'spirit'. Check the name/type text for the wine and liqueur families
+    // this catalog can't express before falling back to spirit.
+    const shelfHaystack = `${bottle.type || ''} ${bottle.name || ''}`.toLowerCase();
+    const shelfCategory = /(vermouth|champagne|prosecco|cava|sparkling wine|sherry|port wine)/.test(
+      shelfHaystack,
+    )
+      ? 'wine'
+      : bottle.type === 'liqueur' ||
+          /(liqueur|triple sec|cointreau|campari|aperol|amaretto|chartreuse|kahl[uú]a|fernet|cynar|amaro)/.test(
+            shelfHaystack,
+          )
+        ? 'liqueur'
+        : 'spirit';
+
     const result = await InventoryService.addToInventory({
       userId: user.id,
       itemType: 'spirit',
       itemName: bottle.name,
-      category: bottle.type === 'liqueur' ? 'liqueur' : 'spirit',
+      category: shelfCategory,
       imageUrl: persistedImageUri || imageUri || undefined,
       subcategory: bottle.type,
       brand: bottle.brand,
@@ -786,8 +789,9 @@ export default function BottleDetailScreen() {
     if (result.duplicate) {
       // Already there — just reflect that in state silently
       setInventoryItem({ id: 'existing', item_name: bottle.name } as any);
+      scanOutcomeRecordedRef.current = true;
+      awardScanXPOnce();
       if (scanEventId) {
-        scanOutcomeRecordedRef.current = true;
         updateScanOutcome({ scanEventId, outcome: 'owned', context: 'home' });
       }
       return;
@@ -801,9 +805,9 @@ export default function BottleDetailScreen() {
     // Silently update shelf state — no modal, no XP celebration
     setInventoryItem({ id: 'added', item_name: bottle.name } as any);
     challengeProgressService.trackAddToInventory(user.id, bottle.id || bottle.name);
-    earnScanXP(bottle.id);
+    scanOutcomeRecordedRef.current = true;
+    awardScanXPOnce();
     if (scanEventId) {
-      scanOutcomeRecordedRef.current = true;
       updateScanOutcome({ scanEventId, outcome: 'owned', context: 'home' });
     }
     // Boost taste model with shelf signal
@@ -845,6 +849,18 @@ export default function BottleDetailScreen() {
       return;
     }
     setWishlisted(true);
+
+    // The want-conversion signal is recorded HERE, on the tap — not inside
+    // handleSavePriceEntry. It used to live there, which meant dismissing
+    // the price prompt (the common case) left the scan to resolve to
+    // 'passed' via the exit listener: the metric was inverted. The price
+    // prompt below is now purely an optional enrichment.
+    scanOutcomeRecordedRef.current = true;
+    awardScanXPOnce();
+    if (scanEventId) {
+      updateScanOutcome({ scanEventId, outcome: 'wanted', context: 'store' });
+    }
+
     setShowPricePrompt(true);
   };
 
@@ -854,27 +870,36 @@ export default function BottleDetailScreen() {
   };
 
   const handleSavePriceEntry = () => {
-    const price = parseFloat(priceInput.replace(/[^0-9.]/g, ''));
-    if (!isNaN(price) && price > 0 && locationInput.trim()) {
-      addPriceEntry(bottleWishlistId, {
-        price,
-        currency: userCurrency,
-        locationLabel: locationInput.trim(),
-      });
-      // Phase 1.2: also feed the journal + community sync (one write path).
-      logSpottedPrice({
-        bottleId: bottleWishlistId,
-        price,
-        currency: userCurrency,
-        locationLabel: locationInput.trim(),
-        capturePoint: 'post_wishlist',
-        userId: user?.id,
-      });
-      // Phase 1.5: price-capture present -> store context, wanted outcome.
-      if (scanEventId) {
-        scanOutcomeRecordedRef.current = true;
-        updateScanOutcome({ scanEventId, outcome: 'wanted', context: 'store', priceSeen: price });
-      }
+    const price = parseLocalePrice(priceInput);
+    if (!(price > 0) || !locationInput.trim()) {
+      Alert.alert(
+        'Missing info',
+        !(price > 0)
+          ? 'Enter a valid price to save this entry.'
+          : 'Enter a store or location to save this entry.',
+      );
+      return;
+    }
+    addPriceEntry(bottleWishlistId, {
+      price,
+      currency: userCurrency,
+      locationLabel: locationInput.trim(),
+    });
+    // Phase 1.2: also feed the journal + community sync (one write path).
+    logSpottedPrice({
+      bottleId: bottleWishlistId,
+      price,
+      currency: userCurrency,
+      locationLabel: locationInput.trim(),
+      capturePoint: 'post_wishlist',
+      userId: user?.id,
+    });
+    // Enrichment only — the 'wanted' outcome was already written when the
+    // user tapped Want it (handleSaveToWishlist). All this adds is the price
+    // they saw and the store context that a price sighting implies.
+    if (scanEventId) {
+      scanOutcomeRecordedRef.current = true;
+      updateScanOutcome({ scanEventId, context: 'store', priceSeen: price });
     }
     setPriceInput('');
     setLocationInput('');
@@ -985,7 +1010,6 @@ export default function BottleDetailScreen() {
   };
 
   const handleFeedbackYes = async () => {
-    setFeedbackState('confirmed');
     try {
       const lookupKey = (bottle.id || bottle.name)
         .toLowerCase()
@@ -1034,28 +1058,20 @@ export default function BottleDetailScreen() {
     }
   };
 
-  const handleFeedbackNo = () => {
-    // Show the 3-option correction picker
-    setFeedbackState('correcting');
-  };
-
-  const handleCorrectionBarcode = async () => {
+  // Re-scan the bottle. There is no "scan the barcode instead" variant — the
+  // scan screen has one mode, and its silent decoder will pick a barcode up on
+  // its own if one happens to be in frame (scanner spec A.0).
+  const handleCorrectionRescan = async () => {
     await invalidateCacheEntry();
-    setFeedbackState('dismissed');
-    navigation.navigate('SmartScan', { barcodeOnly: true });
+    navigation.navigate('SmartScan');
   };
 
   const handleCorrectionSearchLibrary = async () => {
     await invalidateCacheEntry();
-    setFeedbackState('dismissed');
     navigation.navigate('BottleSearch', { initialQuery: bottle.name });
   };
 
-  const handleCorrectionSubmit = async () => {
-    const name = correctionName.trim();
-    if (!name) return;
-
-    setSubmittingCorrection(true);
+  const handleCorrectionSubmit = async (name: string, correctionBrand: string) => {
     try {
       // 1. Invalidate the wrong cache entry so the next scan re-identifies cleanly
       await invalidateCacheEntry();
@@ -1090,17 +1106,21 @@ export default function BottleDetailScreen() {
           },
         });
       }
+
+      // 5. Reward it. scanCorrected (75 XP) has been defined since the
+      // monetization spec with zero call sites — this is the flow it was
+      // written for, and correcting a bad identification is the single most
+      // useful thing a user can do for the scan model.
+      earnScanCorrectedXP();
     } catch {
       /* silent — correction is best-effort */
     }
-
-    setSubmittingCorrection(false);
-    setFeedbackState('dismissed');
   };
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <ScrollView
+        ref={scrollViewRef}
         contentContainerStyle={[
           styles.scrollContent,
           { paddingBottom: Math.max(insets.bottom, spacing(3)) + spacing(8) },
@@ -1121,7 +1141,9 @@ export default function BottleDetailScreen() {
             style={StyleSheet.absoluteFillObject}
           />
 
-          {/* Back / close button */}
+          {/* Back / close button — returnTo==='shelf' redirect handled
+              centrally in the beforeRemove listener below, so it also
+              covers the swipe-back gesture and Android hardware back. */}
           <TouchableOpacity
             style={[styles.heroBackButton, { top: insets.top + spacing(1) }]}
             onPress={() => navigation.goBack()}
@@ -1179,146 +1201,31 @@ export default function BottleDetailScreen() {
               </View>
             </View>
 
-            <Text style={styles.heroStoryLine} numberOfLines={2}>
-              {storyLine}
-            </Text>
+            <TouchableOpacity onPress={openSeeMoreFold} activeOpacity={0.7}>
+              <Text style={styles.heroStoryLine} numberOfLines={2}>
+                {storyLine}
+              </Text>
+              <Text style={styles.heroStoryLineSeeMore}>See more</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
         {/* Body content — padded */}
         <View style={styles.bodyContent}>
-          {/* Stage 10 — Is this correct? feedback strip (only shown for scanned bottles) */}
-          {imageUri && feedbackState !== 'dismissed' && (
-            <View
-              style={[
-                styles.feedbackStrip,
-                isLowConfidence && styles.feedbackStripProminent,
-                (feedbackState === 'correcting' || feedbackState === 'typing') &&
-                  styles.feedbackStripCorrection,
-              ]}
+          {/* Low-confidence nudge — the full "is this right?" + correction
+              flow now lives below the fold (Answer Card spec §B.4), but a
+              best-match identification is worth flagging before the user
+              acts on it, so a one-line tap-target jumps down to it. */}
+          {imageUri && isLowConfidence && (
+            <TouchableOpacity
+              style={styles.lowConfidenceNudge}
+              onPress={openSeeMoreFold}
+              activeOpacity={0.8}
             >
-              {feedbackState === 'confirmed' ? (
-                <>
-                  <Ionicons name="checkmark-circle" size={18} color={colors.gold} />
-                  <Text style={styles.feedbackConfirmedText}>Thanks — noted!</Text>
-                </>
-              ) : feedbackState === 'correcting' ? (
-                <>
-                  <Text style={styles.correctionLabel}>Help us get it right</Text>
-                  <TouchableOpacity
-                    style={styles.correctionOption}
-                    onPress={handleCorrectionBarcode}
-                  >
-                    <View style={styles.correctionOptionIcon}>
-                      <Ionicons name="barcode-outline" size={20} color={colors.gold} />
-                    </View>
-                    <View style={styles.correctionOptionBody}>
-                      <Text style={styles.correctionOptionTitle}>Scan the barcode</Text>
-                      <Text style={styles.correctionOptionSub}>
-                        Fastest — point at the barcode on the bottle
-                      </Text>
-                    </View>
-                    <Ionicons name="chevron-forward" size={16} color={colors.subtext} />
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.correctionOption}
-                    onPress={handleCorrectionSearchLibrary}
-                  >
-                    <View style={styles.correctionOptionIcon}>
-                      <Ionicons name="search-outline" size={20} color={colors.accent} />
-                    </View>
-                    <View style={styles.correctionOptionBody}>
-                      <Text style={styles.correctionOptionTitle}>Search the library</Text>
-                      <Text style={styles.correctionOptionSub}>
-                        Find it by name from our database
-                      </Text>
-                    </View>
-                    <Ionicons name="chevron-forward" size={16} color={colors.subtext} />
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.correctionOption}
-                    onPress={() => setFeedbackState('typing')}
-                  >
-                    <View style={styles.correctionOptionIcon}>
-                      <Ionicons name="create-outline" size={20} color={colors.subtext} />
-                    </View>
-                    <View style={styles.correctionOptionBody}>
-                      <Text style={styles.correctionOptionTitle}>Type it in</Text>
-                      <Text style={styles.correctionOptionSub}>Enter the name manually</Text>
-                    </View>
-                    <Ionicons name="chevron-forward" size={16} color={colors.subtext} />
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.correctionCancel}
-                    onPress={() => setFeedbackState('dismissed')}
-                  >
-                    <Text style={styles.correctionCancelText}>Skip</Text>
-                  </TouchableOpacity>
-                </>
-              ) : feedbackState === 'typing' ? (
-                <>
-                  <Text style={styles.correctionLabel}>What's the right bottle?</Text>
-                  <TextInput
-                    style={styles.correctionInput}
-                    placeholder="Bottle name"
-                    placeholderTextColor={colors.subtext}
-                    value={correctionName}
-                    onChangeText={setCorrectionName}
-                    autoFocus
-                    returnKeyType="next"
-                  />
-                  <TextInput
-                    style={styles.correctionInput}
-                    placeholder="Brand (optional)"
-                    placeholderTextColor={colors.subtext}
-                    value={correctionBrand}
-                    onChangeText={setCorrectionBrand}
-                    returnKeyType="done"
-                    onSubmitEditing={handleCorrectionSubmit}
-                  />
-                  <View style={styles.correctionActions}>
-                    <TouchableOpacity
-                      style={[styles.correctionSubmit, !correctionName.trim() && { opacity: 0.5 }]}
-                      onPress={handleCorrectionSubmit}
-                      disabled={!correctionName.trim() || submittingCorrection}
-                    >
-                      {submittingCorrection ? (
-                        <ActivityIndicator size="small" color="#1A120D" />
-                      ) : (
-                        <Text style={styles.correctionSubmitText}>Submit</Text>
-                      )}
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={styles.correctionCancel}
-                      onPress={() => setFeedbackState('correcting')}
-                    >
-                      <Text style={styles.correctionCancelText}>Back</Text>
-                    </TouchableOpacity>
-                  </View>
-                </>
-              ) : (
-                <>
-                  <Text
-                    style={[
-                      styles.feedbackQuestion,
-                      isLowConfidence && styles.feedbackQuestionProminent,
-                    ]}
-                  >
-                    Is this the right bottle?
-                  </Text>
-                  <View style={styles.feedbackButtons}>
-                    <TouchableOpacity style={styles.feedbackYes} onPress={handleFeedbackYes}>
-                      <Ionicons name="thumbs-up-outline" size={15} color={colors.gold} />
-                      <Text style={styles.feedbackYesText}>Yes</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.feedbackNo} onPress={handleFeedbackNo}>
-                      <Ionicons name="thumbs-down-outline" size={15} color={colors.subtext} />
-                      <Text style={styles.feedbackNoText}>No</Text>
-                    </TouchableOpacity>
-                  </View>
-                </>
-              )}
-            </View>
+              <Ionicons name="help-circle-outline" size={16} color={colors.warning} />
+              <Text style={styles.lowConfidenceNudgeText}>Not this bottle? Fix it</Text>
+              <Ionicons name="chevron-down" size={14} color={colors.warning} />
+            </TouchableOpacity>
           )}
 
           {/* Identity — Flavor Profile (quick glance; full tasting notes live below the fold) */}
@@ -1351,11 +1258,15 @@ export default function BottleDetailScreen() {
             spotted={spottedForBottle}
             giftMode={giftMode}
             onOpenCurrencyPicker={() => setShowCurrencyPicker(true)}
-            onLogPrice={(price) =>
+            onLogPrice={(price, locationLabel) =>
               logSpottedPrice({
                 bottleId: bottleWishlistId,
                 price,
                 currency: userCurrency,
+                // Optional at this capture point by design — see ValueLine's
+                // docblock. Previously always null here, which threw away the
+                // most commercially useful column in spotted_prices.
+                locationLabel,
                 capturePoint: 'at_scan',
                 userId: user?.id,
               })
@@ -1363,129 +1274,30 @@ export default function BottleDetailScreen() {
           />
 
           {/* Currency picker modal */}
-          <Modal
+          <CurrencyPickerModal
             visible={showCurrencyPicker}
-            transparent
-            animationType="slide"
-            onRequestClose={() => setShowCurrencyPicker(false)}
-          >
-            <TouchableOpacity
-              style={styles.currencyModalOverlay}
-              activeOpacity={1}
-              onPress={() => setShowCurrencyPicker(false)}
-            >
-              <View style={styles.currencyModalSheet}>
-                <View style={styles.currencyModalHandle} />
-                <Text style={styles.currencyModalTitle}>Price Currency</Text>
-                {(Object.keys(CURRENCY_META) as SupportedCurrency[]).map((c) => (
-                  <TouchableOpacity
-                    key={c}
-                    style={[
-                      styles.currencyOption,
-                      c === userCurrency && styles.currencyOptionActive,
-                    ]}
-                    onPress={() => {
-                      setCurrency(c);
-                      setShowCurrencyPicker(false);
-                    }}
-                  >
-                    <Text style={styles.currencyOptionFlag}>{CURRENCY_META[c].flag}</Text>
-                    <View style={styles.currencyOptionLabels}>
-                      <Text
-                        style={[
-                          styles.currencyOptionCode,
-                          c === userCurrency && styles.currencyOptionCodeActive,
-                        ]}
-                      >
-                        {c}
-                      </Text>
-                      <Text style={styles.currencyOptionName}>{CURRENCY_META[c].label}</Text>
-                    </View>
-                    {c === userCurrency && (
-                      <Ionicons name="checkmark" size={18} color={colors.gold} />
-                    )}
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </TouchableOpacity>
-          </Modal>
+            onClose={() => setShowCurrencyPicker(false)}
+            currentCurrency={userCurrency}
+            onSelectCurrency={(c) => {
+              setCurrency(c);
+              setShowCurrencyPicker(false);
+            }}
+          />
 
-          {/* The Hook — recipe unlock, promoted above serve guidance / full tasting notes */}
-          {!loadingCocktails && suggestedCocktails.length > 0 && (
-            <View style={styles.section}>
-              <View style={styles.cocktailsHeader}>
-                <Ionicons name="sparkles" size={24} color={colors.gold} />
-                <View style={styles.cocktailsHeaderCopy}>
-                  <Text style={styles.cocktailsTitle}>
-                    {giftMode && giftPreference.flavorHint
-                      ? `They could make ${giftFilteredCocktails.length} cocktails with this bottle`
-                      : tier === 'FREE' && lockedCocktailCount > 0
-                        ? `Owning this unlocks ${suggestedCocktails.length + lockedCocktailCount} cocktails with your shelf`
-                        : serveRecommendation.cocktailPlacement === 'secondary'
-                          ? 'Cocktails That Respect This Bottle'
-                          : 'Cocktails You Can Make'}
-                  </Text>
-                  <Text style={styles.cocktailsSubtitle}>
-                    {giftMode && giftPreference.flavorHint
-                      ? 'Matched to how they like it'
-                      : tier === 'FREE'
-                        ? lockedCocktailCount > 0
-                          ? `${ANSWER_CARD_FREE_RECIPE_COUNT} free now — the rest with KŌOPE+`
-                          : 'From your free and unlocked recipe pool.'
-                        : 'Best matches from your current recipe access.'}
-                  </Text>
-                </View>
-              </View>
-              <FlatList
-                horizontal
-                data={giftMode ? giftFilteredCocktails : suggestedCocktails}
-                keyExtractor={(cocktail) => cocktail.id}
-                renderItem={({ item: cocktail }) => {
-                  const displayRecipe = {
-                    ...cocktail,
-                    image: getCocktailImage(cocktail.id, cocktail.image),
-                    subtitle: cocktail.match?.canMake
-                      ? 'You can make this'
-                      : cocktail.match?.almostCanMake
-                        ? getMatchMessage(cocktail.match)
-                        : cocktail.subtitle || 'Worth a closer look',
-                  };
-
-                  return (
-                    <RecipeCard
-                      recipe={displayRecipe}
-                      onPress={() =>
-                        navigation.navigate('CocktailDetail', { cocktailId: cocktail.id })
-                      }
-                      showSaveButton={false}
-                      showCartButton={false}
-                      showDeleteButton={false}
-                      style={styles.discoveryRecipeCard}
-                    />
-                  );
-                }}
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.cocktailsRail}
-                ItemSeparatorComponent={() => <View style={styles.cocktailRailSeparator} />}
-                ListFooterComponent={
-                  tier === 'FREE' && lockedCocktailCount > 0 && lockedCocktailTeaser ? (
-                    <LockedRecipeCard
-                      image={getCocktailImage(lockedCocktailTeaser.id, lockedCocktailTeaser.image)}
-                      title={lockedCocktailTeaser.name}
-                      subtitle={
-                        lockedCocktailCount > 1
-                          ? `+${lockedCocktailCount - 1} more with KŌOPE+`
-                          : 'Unlock with KŌOPE+'
-                      }
-                      onPress={() => inventoryGate('T15')}
-                      style={styles.lockedRecipeCardInRail}
-                    />
-                  ) : null
-                }
-                nestedScrollEnabled
-                removeClippedSubviews={false}
-              />
-            </View>
+          {/* The Hook — recipe unlock, promoted above serve guidance / full
+              tasting notes. The paywalled recipe is a real 4th card inside
+              the row, not a footer teaser (spec §B.4 item 3). */}
+          {!loadingCocktails && (
+            <CocktailHookRail
+              cocktails={giftMode ? giftFilteredCocktails : suggestedCocktails}
+              lockedCount={lockedCocktailCount}
+              lockedTeaser={lockedCocktailTeaser}
+              showLockedCard={tier === 'FREE'}
+              hasGiftHint={giftMode && !!giftPreference.flavorHint}
+              respectFirst={serveRecommendation.cocktailPlacement === 'secondary'}
+              onPressRecipe={(cocktailId) => navigation.navigate('CocktailDetail', { cocktailId })}
+              onPressLocked={() => inventoryGate('T15')}
+            />
           )}
 
           {/* Actions row — three peers */}
@@ -1572,6 +1384,7 @@ export default function BottleDetailScreen() {
 
           {/* See more — everything else lives below this fold */}
           <TouchableOpacity
+            ref={seeMoreRef}
             style={styles.seeMoreToggle}
             onPress={() => setExpanded((value) => !value)}
             activeOpacity={0.8}
@@ -1586,6 +1399,18 @@ export default function BottleDetailScreen() {
 
           {expanded && (
             <>
+              {/* Scan feedback + correction — real functionality, but it
+                  belongs under the decision content, not above it. */}
+              {imageUri && (
+                <ScanFeedbackPanel
+                  isLowConfidence={isLowConfidence}
+                  onConfirm={handleFeedbackYes}
+                  onCorrectViaRescan={handleCorrectionRescan}
+                  onCorrectViaLibrary={handleCorrectionSearchLibrary}
+                  onSubmitCorrection={handleCorrectionSubmit}
+                />
+              )}
+
               {/* Tasting Notes */}
               <View style={styles.infoCard}>
                 <View style={styles.infoCardHeaderRow}>
@@ -1729,1541 +1554,18 @@ export default function BottleDetailScreen() {
       )}
 
       {/* Price prompt — appears after saving to wishlist */}
-      <Modal
+      <PriceSpottedPromptModal
         visible={showPricePrompt}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowPricePrompt(false)}
-      >
-        <View style={styles.pricePromptOverlay}>
-          <View style={styles.pricePromptCard}>
-            <Text style={styles.pricePromptTitle}>Seen a price?</Text>
-            <Text style={styles.pricePromptSubtitle}>
-              Log where you spotted it and how much — you can compare stores later.
-            </Text>
-
-            <TextInput
-              style={styles.pricePromptInput}
-              value={priceInput}
-              onChangeText={setPriceInput}
-              placeholder={`Price (${userCurrency})`}
-              placeholderTextColor={colors.subtext}
-              keyboardType="decimal-pad"
-              returnKeyType="next"
-            />
-            <TextInput
-              style={styles.pricePromptInput}
-              value={locationInput}
-              onChangeText={setLocationInput}
-              placeholder="Store or location (e.g. Total Wine, Miami)"
-              placeholderTextColor={colors.subtext}
-              returnKeyType="done"
-              onSubmitEditing={handleSavePriceEntry}
-            />
-
-            <View style={styles.pricePromptActions}>
-              <TouchableOpacity
-                style={styles.pricePromptSkip}
-                onPress={() => setShowPricePrompt(false)}
-              >
-                <Text style={styles.pricePromptSkipText}>Skip</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.pricePromptSave} onPress={handleSavePriceEntry}>
-                <Text style={styles.pricePromptSaveText}>Save</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+        // Just closes a modal. Dismissing it does NOT change the scan
+        // outcome — 'wanted' was already recorded on the Want-it tap.
+        onClose={() => setShowPricePrompt(false)}
+        currency={userCurrency}
+        priceInput={priceInput}
+        onPriceInputChange={setPriceInput}
+        locationInput={locationInput}
+        onLocationInputChange={setLocationInput}
+        onSave={handleSavePriceEntry}
+      />
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.bg,
-  },
-  scrollContent: {
-    paddingTop: 0,
-  },
-  // ── Hero ──────────────────────────────────────────────────────────────────
-  heroContainer: {
-    width: '100%',
-    height: HERO_HEIGHT,
-    position: 'relative',
-    overflow: 'hidden',
-    marginBottom: spacing(3),
-  },
-  heroImage: {
-    width: '100%',
-    height: '100%',
-  },
-  heroImageFallback: {
-    width: '100%',
-    height: '100%',
-    backgroundColor: '#1A0A06',
-  },
-  heroBackButton: {
-    position: 'absolute',
-    left: spacing(2),
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 10,
-  },
-  heroBadge: {
-    position: 'absolute',
-    right: spacing(2),
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing(0.5),
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    paddingHorizontal: spacing(1.5),
-    paddingVertical: spacing(0.5),
-    borderRadius: radii.md,
-    zIndex: 10,
-  },
-  heroBadgeText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.gold,
-    letterSpacing: 0.3,
-  },
-  heroBadgeLowConfidence: {
-    backgroundColor: 'rgba(255,152,0,0.18)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,152,0,0.4)',
-  },
-  heroBadgeTextLowConfidence: {
-    color: colors.warning,
-  },
-  heroContent: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    paddingHorizontal: spacing(3),
-    paddingBottom: spacing(3),
-  },
-  heroIconFallback: {
-    marginBottom: spacing(1.5),
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: `${colors.gold}15`,
-    borderWidth: 2,
-    borderColor: `${colors.gold}40`,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  heroBottleName: {
-    fontSize: 28,
-    fontWeight: '900',
-    color: '#fff',
-    letterSpacing: -0.3,
-    marginBottom: spacing(0.5),
-  },
-  heroBottleBrand: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.65)',
-    fontWeight: '500',
-    marginBottom: spacing(2),
-    letterSpacing: 0.5,
-    textTransform: 'uppercase',
-  },
-  heroPills: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  heroPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing(0.5),
-  },
-  heroPillText: {
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.75)',
-    fontWeight: '600',
-  },
-  heroPillDivider: {
-    width: 1,
-    height: 10,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    marginHorizontal: spacing(1.5),
-  },
-  heroStoryLine: {
-    marginTop: spacing(1),
-    fontSize: 13,
-    lineHeight: 18,
-    color: 'rgba(255,255,255,0.82)',
-  },
-  bodyContent: {
-    paddingHorizontal: spacing(3),
-  },
-  // (kept for any remaining references)
-  capturedImageContainer: { display: 'none' },
-  capturedImage: { display: 'none' },
-  headerBadgeText: { display: 'none' },
-  iconContainer: { display: 'none' },
-  iconBadge: { display: 'none' },
-  bottleName: { display: 'none' },
-  bottleBrand: { display: 'none' },
-  statsContainer: { display: 'none' },
-  statCard: { display: 'none' },
-  statValue: { display: 'none' },
-  statLabel: { display: 'none' },
-  header: { display: 'none' },
-  headerBadge: { display: 'none' },
-  priceCard: {
-    backgroundColor: `${colors.accent}10`,
-    borderRadius: radii.lg,
-    padding: spacing(2),
-    marginBottom: spacing(3),
-    borderWidth: 1,
-    borderColor: `${colors.accent}30`,
-  },
-  priceHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing(1),
-    marginBottom: spacing(1.5),
-  },
-  priceTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: colors.text,
-    flex: 1,
-  },
-  regionBadge: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: colors.accent,
-    backgroundColor: `${colors.accent}20`,
-    paddingHorizontal: spacing(1),
-    paddingVertical: spacing(0.5),
-    borderRadius: radii.sm,
-  },
-  priceText: {
-    fontSize: 18,
-    color: colors.text,
-    fontWeight: '700',
-    marginBottom: spacing(0.5),
-  },
-  priceDisclaimer: {
-    fontSize: 11,
-    color: colors.subtext,
-    marginTop: spacing(1),
-    fontStyle: 'italic',
-  },
-  serveCard: {
-    backgroundColor: colors.card,
-    borderRadius: radii.lg,
-    padding: spacing(2),
-    marginBottom: spacing(3),
-    borderWidth: 1,
-    borderColor: colors.line,
-    gap: spacing(1.5),
-  },
-  serveCardPremium: {
-    backgroundColor: `${colors.gold}10`,
-    borderColor: `${colors.gold}35`,
-  },
-  serveHeader: {
-    flexDirection: 'row',
-    gap: spacing(2),
-    alignItems: 'flex-start',
-  },
-  serveHeaderCopy: {
-    flex: 1,
-    gap: spacing(0.5),
-  },
-  serveEyebrow: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: colors.gold,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  serveTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  serveSubtitle: {
-    fontSize: 13,
-    color: colors.subtext,
-    lineHeight: 18,
-  },
-  firstPourBadge: {
-    minWidth: 92,
-    paddingHorizontal: spacing(1.5),
-    paddingVertical: spacing(1),
-    borderRadius: radii.md,
-    backgroundColor: `${colors.gold}18`,
-    borderWidth: 1,
-    borderColor: `${colors.gold}30`,
-    alignItems: 'flex-start',
-  },
-  firstPourLabel: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: colors.gold,
-    textTransform: 'uppercase',
-  },
-  firstPourValue: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.text,
-    marginTop: spacing(0.25),
-  },
-  serveWhy: {
-    fontSize: 14,
-    color: colors.text,
-    lineHeight: 21,
-  },
-  serveModesRail: {
-    marginHorizontal: -spacing(2),
-  },
-  serveModesRailContent: {
-    flexDirection: 'row',
-    paddingHorizontal: spacing(2),
-    paddingBottom: spacing(0.5),
-    gap: spacing(1.5),
-  },
-  serveModeSeparator: {
-    width: 0,
-  },
-  serveModeCard: {
-    width: 188,
-    backgroundColor: `${colors.bg}90`,
-    borderRadius: radii.md,
-    padding: spacing(1.5),
-    borderWidth: 1,
-    borderColor: colors.line,
-    gap: spacing(0.5),
-  },
-  serveModeIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: `${colors.gold}12`,
-    marginBottom: spacing(0.5),
-  },
-  serveModeLabel: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  serveModeDescription: {
-    fontSize: 13,
-    color: colors.subtext,
-    lineHeight: 18,
-  },
-  serveFootnote: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing(0.75),
-  },
-  serveFootnoteText: {
-    flex: 1,
-    fontSize: 12,
-    color: colors.subtext,
-    lineHeight: 17,
-  },
-  serveUpgradeText: {
-    fontSize: 12,
-    color: colors.accent,
-    lineHeight: 17,
-  },
-  section: {
-    marginBottom: spacing(3),
-  },
-  sectionTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: spacing(1.5),
-  },
-  sectionHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing(1.5),
-    marginBottom: spacing(1.5),
-  },
-  categoryDefaultBadge: {
-    fontSize: 11,
-    fontWeight: '500',
-    color: colors.subtext,
-    backgroundColor: colors.surface,
-    paddingHorizontal: spacing(1),
-    paddingVertical: 2,
-    borderRadius: radii.sm,
-    textTransform: 'capitalize',
-    opacity: 0.7,
-  },
-  flavorGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing(1.5),
-    marginTop: spacing(0.5),
-  },
-  flavorIconCell: {
-    width: '30%',
-    alignItems: 'center',
-    gap: spacing(0.75),
-  },
-  flavorIconCircle: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: colors.gold,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  flavorIconLabel: {
-    fontSize: 11,
-    fontWeight: '500',
-    color: colors.subtext,
-    textAlign: 'center',
-    lineHeight: 14,
-  },
-  tastingNotes: {
-    fontSize: 15,
-    color: colors.subtext,
-    lineHeight: 22,
-  },
-  cellarCard: {
-    borderRadius: radii.lg,
-    padding: spacing(2),
-    marginBottom: spacing(3),
-    borderWidth: 1,
-    gap: spacing(1.5),
-  },
-  cellarCardActive: {
-    backgroundColor: `${colors.gold}10`,
-    borderColor: `${colors.gold}36`,
-  },
-  cellarCardLocked: {
-    backgroundColor: colors.card,
-    borderColor: colors.line,
-  },
-  cellarHeader: {
-    flexDirection: 'row',
-    gap: spacing(1.5),
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-  },
-  cellarHeaderActions: {
-    alignItems: 'flex-end',
-    gap: spacing(0.75),
-  },
-  cellarHeaderCopy: {
-    flex: 1,
-    gap: spacing(0.5),
-  },
-  cellarEyebrow: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: colors.accent,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-  },
-  cellarTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  cellarSubtitle: {
-    fontSize: 13,
-    lineHeight: 18,
-    color: colors.subtext,
-  },
-  cellarBadge: {
-    paddingHorizontal: spacing(1.25),
-    paddingVertical: spacing(0.75),
-    borderRadius: radii.full,
-    backgroundColor: `${colors.bg}99`,
-    borderWidth: 1,
-    borderColor: `${colors.gold}28`,
-  },
-  cellarBadgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: colors.gold,
-  },
-  cellarCollapseButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing(0.4),
-    paddingHorizontal: spacing(1),
-    paddingVertical: spacing(0.55),
-    borderRadius: radii.full,
-    borderWidth: 1,
-    borderColor: `${colors.accent}35`,
-    backgroundColor: `${colors.accent}10`,
-  },
-  cellarCollapseButtonText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: colors.accent,
-  },
-  cellarSummaryRow: {
-    flexDirection: 'row',
-    gap: spacing(0.9),
-  },
-  cellarSummaryPill: {
-    flex: 1,
-    backgroundColor: `${colors.bg}88`,
-    borderRadius: radii.full,
-    borderWidth: 1,
-    borderColor: colors.line,
-    paddingHorizontal: spacing(1.2),
-    paddingVertical: spacing(1),
-    gap: spacing(0.3),
-  },
-  cellarSummaryLabel: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: colors.subtext,
-    textTransform: 'uppercase',
-    letterSpacing: 0.7,
-  },
-  cellarSummaryValue: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  cellarMetricsRow: {
-    flexDirection: 'row',
-    gap: spacing(1.25),
-  },
-  cellarMetric: {
-    flex: 1,
-    backgroundColor: `${colors.bg}90`,
-    borderRadius: radii.md,
-    padding: spacing(1.5),
-    borderWidth: 1,
-    borderColor: colors.line,
-    gap: spacing(0.5),
-  },
-  cellarMetricLabel: {
-    fontSize: 10,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-    fontWeight: '700',
-    color: colors.subtext,
-  },
-  cellarMetricValue: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  cellarWindowCard: {
-    backgroundColor: `${colors.bg}85`,
-    borderRadius: radii.md,
-    padding: spacing(1.5),
-    borderWidth: 1,
-    borderColor: colors.line,
-    gap: spacing(0.5),
-  },
-  cellarWindowTitle: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.accent,
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
-  },
-  cellarWindowValue: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  cellarWindowNote: {
-    fontSize: 13,
-    lineHeight: 18,
-    color: colors.subtext,
-  },
-  cellarNotesCard: {
-    backgroundColor: `${colors.bg}70`,
-    borderRadius: radii.md,
-    padding: spacing(1.5),
-    borderWidth: 1,
-    borderColor: colors.line,
-    gap: spacing(0.5),
-  },
-  cellarNotesTitle: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  cellarNotesBody: {
-    fontSize: 13,
-    lineHeight: 18,
-    color: colors.subtext,
-  },
-  cellarButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing(1),
-    backgroundColor: colors.accent,
-    borderRadius: radii.lg,
-    paddingVertical: spacing(1.75),
-  },
-  cellarButtonText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: colors.white,
-  },
-  cellarSecondaryButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing(0.75),
-    borderRadius: radii.lg,
-    paddingVertical: spacing(1.5),
-    borderWidth: 1,
-    borderColor: `${colors.accent}40`,
-    backgroundColor: `${colors.accent}10`,
-  },
-  cellarSecondaryButtonText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.accent,
-  },
-  cellarUpgradeButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing(0.75),
-    borderRadius: radii.lg,
-    paddingVertical: spacing(1.5),
-    borderWidth: 1,
-    borderColor: `${colors.accent}50`,
-    backgroundColor: `${colors.accent}10`,
-  },
-  cellarUpgradeButtonText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.accent,
-  },
-  cellarEmptyState: {
-    gap: spacing(0.75),
-  },
-  cellarEmptyTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  cellarEmptyBody: {
-    fontSize: 13,
-    lineHeight: 18,
-    color: colors.subtext,
-  },
-  cellarModalBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    justifyContent: 'center',
-    padding: spacing(3),
-  },
-  cellarModalCard: {
-    backgroundColor: colors.card,
-    borderRadius: radii.lg,
-    padding: spacing(3),
-    borderWidth: 1,
-    borderColor: colors.line,
-  },
-  cellarModalTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: spacing(0.5),
-  },
-  cellarModalSubtitle: {
-    fontSize: 13,
-    lineHeight: 18,
-    color: colors.subtext,
-    marginBottom: spacing(2),
-  },
-  cellarInputLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.accent,
-    marginBottom: spacing(0.75),
-    marginTop: spacing(1.25),
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
-  },
-  cellarInput: {
-    backgroundColor: colors.bg,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    borderColor: colors.line,
-    paddingHorizontal: spacing(1.5),
-    paddingVertical: spacing(1.25),
-    color: colors.text,
-    fontSize: 15,
-  },
-  cellarWindowInputs: {
-    flexDirection: 'row',
-    gap: spacing(1),
-  },
-  cellarWindowInput: {
-    flex: 1,
-  },
-  quantityRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing(1),
-  },
-  quantityChip: {
-    paddingHorizontal: spacing(1.25),
-    paddingVertical: spacing(0.9),
-    borderRadius: radii.full,
-    borderWidth: 1,
-    borderColor: colors.line,
-    backgroundColor: colors.bg,
-  },
-  quantityChipActive: {
-    borderColor: `${colors.accent}50`,
-    backgroundColor: `${colors.accent}15`,
-  },
-  quantityChipText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.subtext,
-  },
-  quantityChipTextActive: {
-    color: colors.accent,
-  },
-  cellarNotesInput: {
-    minHeight: 96,
-    textAlignVertical: 'top',
-  },
-  cellarModalActions: {
-    flexDirection: 'row',
-    gap: spacing(1.5),
-    marginTop: spacing(2.5),
-  },
-  cellarModalSecondary: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: radii.lg,
-    paddingVertical: spacing(1.5),
-    borderWidth: 1,
-    borderColor: colors.line,
-  },
-  cellarModalSecondaryText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  cellarModalPrimary: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: radii.lg,
-    paddingVertical: spacing(1.5),
-    backgroundColor: colors.accent,
-  },
-  cellarModalPrimaryText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.white,
-  },
-  cocktailsHeader: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing(1),
-    marginBottom: spacing(2),
-  },
-  cocktailsHeaderCopy: {
-    flex: 1,
-  },
-  cocktailsTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  cocktailsSubtitle: {
-    marginTop: spacing(0.5),
-    fontSize: 12,
-    color: colors.subtext,
-  },
-  cocktailsRail: {
-    paddingLeft: spacing(0.25),
-    paddingRight: spacing(2),
-  },
-  cocktailRailSeparator: {
-    width: spacing(2),
-  },
-  discoveryRecipeCard: {
-    width: 240,
-  },
-  lockedRecipeTeaser: {
-    width: 200,
-    marginLeft: spacing(2),
-    borderRadius: 20,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(214,138,56,0.22)',
-    backgroundColor: 'rgba(20,13,9,0.92)',
-  },
-  lockedRecipeTeaserContent: {
-    flex: 1,
-    padding: spacing(2),
-    justifyContent: 'center',
-    minHeight: 220,
-  },
-  lockedRecipeLockBadge: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(214,138,56,0.14)',
-    borderWidth: 1,
-    borderColor: 'rgba(214,138,56,0.3)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing(1.25),
-  },
-  lockedRecipeTeaserName: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: 'rgba(246,236,228,0.5)',
-    lineHeight: 22,
-    marginBottom: spacing(0.5),
-  },
-  lockedRecipeTeaserSub: {
-    fontSize: 12,
-    color: 'rgba(160,140,128,0.6)',
-    marginBottom: spacing(1.5),
-  },
-  lockedRecipeTeaserDivider: {
-    height: 1,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    marginBottom: spacing(1.25),
-  },
-  lockedRecipeTeaserCta: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.accent,
-  },
-  lockedRecipeCardInRail: {
-    width: 240,
-    height: 320,
-    marginLeft: spacing(2),
-  },
-  seeMoreToggle: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing(0.5),
-    paddingVertical: spacing(2),
-  },
-  seeMoreToggleText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.accent,
-  },
-  actions: {
-    gap: spacing(2),
-    marginTop: spacing(2),
-  },
-  primaryButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing(1),
-    backgroundColor: colors.accent,
-    borderRadius: radii.lg,
-    padding: spacing(2),
-  },
-  primaryButtonText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.white,
-  },
-  tryAnotherButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing(1),
-    backgroundColor: colors.card,
-    borderRadius: radii.lg,
-    padding: spacing(2),
-    borderWidth: 2,
-    borderColor: colors.accent,
-  },
-  tryAnotherButtonText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  secondaryActions: {
-    flexDirection: 'row',
-    gap: spacing(2),
-  },
-  secondaryButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing(1),
-    backgroundColor: colors.card,
-    borderRadius: radii.lg,
-    paddingVertical: spacing(2.5),
-    paddingHorizontal: spacing(2),
-    borderWidth: 1,
-    borderColor: colors.line,
-  },
-  secondaryButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  secondaryButtonActive: {
-    backgroundColor: `${colors.gold}14`,
-    borderColor: colors.gold,
-  },
-  invConfirmBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.72)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: spacing(4),
-  },
-  invConfirmCard: {
-    width: '100%',
-    backgroundColor: '#1A1108',
-    borderRadius: radii.xl,
-    borderWidth: 1,
-    borderColor: 'rgba(214,138,56,0.25)',
-    padding: spacing(4),
-    alignItems: 'center',
-  },
-  invConfirmIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: 'rgba(214,138,56,0.12)',
-    borderWidth: 1,
-    borderColor: 'rgba(214,138,56,0.3)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing(2),
-  },
-  invConfirmTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: spacing(0.5),
-  },
-  invConfirmBottleName: {
-    fontSize: 14,
-    color: colors.subtext,
-    textAlign: 'center',
-    marginBottom: spacing(1.5),
-  },
-  invConfirmXP: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing(0.5),
-    backgroundColor: 'rgba(214,138,56,0.1)',
-    borderRadius: radii.sm,
-    paddingHorizontal: spacing(1.5),
-    paddingVertical: spacing(0.5),
-    marginBottom: spacing(3),
-  },
-  invConfirmXPText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.gold,
-  },
-  invConfirmActions: {
-    flexDirection: 'row',
-    gap: spacing(2),
-    width: '100%',
-    marginBottom: spacing(2),
-  },
-  invConfirmSecondary: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: spacing(1.75),
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: colors.line,
-    backgroundColor: colors.card,
-  },
-  invConfirmSecondaryText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  invConfirmPrimary: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: spacing(1.75),
-    borderRadius: radii.lg,
-    backgroundColor: colors.accent,
-  },
-  invConfirmPrimaryText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: colors.white,
-  },
-  invConfirmDismiss: {
-    paddingVertical: spacing(1),
-  },
-  invConfirmDismissText: {
-    fontSize: 14,
-    color: colors.subtext,
-  },
-  feedbackStrip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: `${colors.accent}12`,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: `${colors.accent}30`,
-    paddingHorizontal: spacing(2),
-    paddingVertical: spacing(1.5),
-    marginBottom: spacing(3),
-    gap: spacing(2),
-  },
-  feedbackQuestion: {
-    flex: 1,
-    fontSize: 13,
-    fontWeight: '500',
-    color: colors.subtext,
-  },
-  feedbackStripProminent: {
-    backgroundColor: 'rgba(255,152,0,0.1)',
-    borderColor: 'rgba(255,152,0,0.35)',
-  },
-  feedbackStripCorrection: {
-    flexDirection: 'column',
-    alignItems: 'stretch',
-    gap: spacing(1),
-  },
-  correctionLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: spacing(0.5),
-  },
-  correctionOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing(1.5),
-    paddingVertical: spacing(1.25),
-    borderBottomWidth: 1,
-    borderBottomColor: colors.line,
-  },
-  correctionOptionIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: radii.md,
-    backgroundColor: colors.bg,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  correctionOptionBody: {
-    flex: 1,
-    gap: 2,
-  },
-  correctionOptionTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  correctionOptionSub: {
-    fontSize: 11,
-    color: colors.subtext,
-  },
-  correctionInput: {
-    backgroundColor: colors.bg,
-    borderRadius: radii.sm,
-    borderWidth: 1,
-    borderColor: colors.line,
-    paddingHorizontal: spacing(1.5),
-    paddingVertical: spacing(1),
-    fontSize: 14,
-    color: colors.text,
-  },
-  correctionActions: {
-    flexDirection: 'row',
-    gap: spacing(1),
-    marginTop: spacing(0.5),
-  },
-  correctionSubmit: {
-    flex: 1,
-    backgroundColor: colors.gold,
-    borderRadius: radii.sm,
-    paddingVertical: spacing(1),
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  correctionSubmitText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#1A120D',
-  },
-  correctionCancel: {
-    paddingHorizontal: spacing(2),
-    paddingVertical: spacing(1),
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  correctionCancelText: {
-    fontSize: 13,
-    color: colors.subtext,
-  },
-  feedbackQuestionProminent: {
-    color: colors.text,
-    fontWeight: '600',
-  },
-  feedbackConfirmedText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.gold,
-    marginLeft: spacing(1),
-  },
-  feedbackButtons: {
-    flexDirection: 'row',
-    gap: spacing(1),
-  },
-  feedbackYes: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing(0.5),
-    backgroundColor: `${colors.accent}20`,
-    borderRadius: radii.sm,
-    paddingHorizontal: spacing(1.5),
-    paddingVertical: spacing(0.75),
-    borderWidth: 1,
-    borderColor: `${colors.accent}40`,
-  },
-  feedbackYesText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.gold,
-  },
-  feedbackNo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing(0.5),
-    backgroundColor: colors.card,
-    borderRadius: radii.sm,
-    paddingHorizontal: spacing(1.5),
-    paddingVertical: spacing(0.75),
-    borderWidth: 1,
-    borderColor: colors.line,
-  },
-  feedbackNoText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.subtext,
-  },
-  // ── Flavour strip ──────────────────────────────────────────────────────────
-  flavourStrip: {
-    marginBottom: spacing(2),
-  },
-  flavourStripContent: {
-    paddingHorizontal: spacing(2),
-    gap: spacing(1),
-    flexDirection: 'row',
-  },
-  flavourPill: {
-    backgroundColor: `${colors.accent}18`,
-    borderRadius: radii.pill,
-    borderWidth: 1,
-    borderColor: `${colors.accent}35`,
-    paddingHorizontal: spacing(1.75),
-    paddingVertical: spacing(0.6),
-  },
-  flavourPillText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.gold,
-  },
-  // ── What else do I need ────────────────────────────────────────────────────
-  missingSection: {
-    backgroundColor: colors.card,
-    borderRadius: radii.lg,
-    padding: spacing(2),
-    marginBottom: spacing(2),
-    gap: spacing(1.5),
-  },
-  missingSectionTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: spacing(0.5),
-  },
-  missingRow: {
-    gap: spacing(0.75),
-  },
-  missingRecipeName: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.subtext,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  missingIngredients: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing(0.75),
-  },
-  missingPill: {
-    backgroundColor: colors.bg,
-    borderRadius: radii.sm,
-    borderWidth: 1,
-    borderColor: colors.line,
-    paddingHorizontal: spacing(1.25),
-    paddingVertical: spacing(0.4),
-  },
-  missingPillText: {
-    fontSize: 12,
-    color: colors.text,
-  },
-  missingMore: {
-    fontSize: 12,
-    color: colors.subtext,
-    alignSelf: 'center',
-  },
-  // ── Sticky shelf action bar ────────────────────────────────────────────────
-  stickyShelfBar: {
-    borderTopWidth: 1,
-    borderTopColor: colors.line,
-    backgroundColor: colors.bg,
-    paddingHorizontal: spacing(3),
-    paddingTop: spacing(1.5),
-  },
-  stickyShelfButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing(1),
-    paddingVertical: spacing(1.75),
-    borderRadius: radii.lg,
-    backgroundColor: colors.gold,
-  },
-  stickyShelfButtonText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.goldText,
-  },
-  stickyShelfConfirmed: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing(0.75),
-    paddingVertical: spacing(1.75),
-  },
-  stickyShelfConfirmedText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.gold,
-    flex: 1,
-  },
-  // ── Legacy shelf action (kept for shelfActionViewLink ref) ─────────────────
-  shelfAction: {
-    alignItems: 'center',
-    paddingTop: spacing(2),
-    paddingHorizontal: spacing(4),
-  },
-  shelfActionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing(1),
-    paddingHorizontal: spacing(6),
-    paddingVertical: spacing(2),
-    borderRadius: radii.lg,
-    borderWidth: 1.5,
-    borderColor: colors.line,
-    backgroundColor: colors.card,
-  },
-  shelfActionButtonText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  shelfActionConfirmed: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing(0.75),
-  },
-  shelfActionConfirmedText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.gold,
-    flex: 1,
-  },
-  shelfActionViewLink: {
-    fontSize: 12,
-    color: colors.accent,
-  },
-  // ── Wrong result link ──────────────────────────────────────────────────────
-  wrongResultLink: {
-    alignItems: 'center',
-    paddingVertical: spacing(1.5),
-  },
-  wrongResultLinkText: {
-    fontSize: 12,
-    color: colors.subtext,
-    textDecorationLine: 'underline',
-  },
-  // ── Wishlist ──────────────────────────────────────────────────────────────
-  wishlistRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing(1),
-    paddingVertical: spacing(1),
-  },
-  wishlistLink: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing(0.75),
-  },
-  wishlistLinkText: {
-    fontSize: 12,
-    color: colors.subtext,
-  },
-  wishlistSavedText: {
-    fontSize: 12,
-    color: colors.accent,
-  },
-  wishlistRemoveText: {
-    fontSize: 12,
-    color: colors.subtext,
-    textDecorationLine: 'underline',
-  },
-  // ── Price prompt modal ────────────────────────────────────────────────────
-  pricePromptOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: spacing(3),
-  },
-  pricePromptCard: {
-    backgroundColor: colors.card,
-    borderRadius: radii.xl,
-    padding: spacing(3),
-    width: '100%',
-    gap: spacing(1.5),
-    borderWidth: 1,
-    borderColor: colors.line,
-  },
-  pricePromptTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  pricePromptSubtitle: {
-    fontSize: 13,
-    color: colors.subtext,
-    lineHeight: 18,
-  },
-  pricePromptInput: {
-    backgroundColor: colors.bg,
-    borderWidth: 1,
-    borderColor: colors.line,
-    borderRadius: radii.md,
-    paddingHorizontal: spacing(2),
-    paddingVertical: spacing(1.5),
-    fontSize: 14,
-    color: colors.text,
-  },
-  pricePromptActions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: spacing(2),
-    marginTop: spacing(0.5),
-  },
-  pricePromptSkip: {
-    paddingVertical: spacing(1),
-    paddingHorizontal: spacing(1.5),
-  },
-  pricePromptSkipText: {
-    fontSize: 14,
-    color: colors.subtext,
-  },
-  pricePromptSave: {
-    backgroundColor: colors.accent,
-    borderRadius: radii.md,
-    paddingVertical: spacing(1),
-    paddingHorizontal: spacing(2.5),
-  },
-  pricePromptSaveText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.bg,
-  },
-  // ── Horizontal info cards (flavor/tasting + serve/about) ──────────────────
-  infoCardsScroll: {
-    marginBottom: spacing(3),
-  },
-  infoCardsContent: {
-    gap: 0,
-  },
-  infoCard: {
-    width: Dimensions.get('window').width - spacing(3) * 2,
-    marginBottom: 0,
-  },
-  infoCardHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing(1.5),
-    marginBottom: spacing(1.5),
-  },
-  infoCardTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  infoCardDots: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: spacing(1),
-    marginBottom: spacing(3),
-    marginTop: spacing(1),
-  },
-  infoCardsDotsRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: spacing(1),
-    marginBottom: spacing(1.5),
-  },
-  infoCardDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: colors.line,
-  },
-  infoCardDotActive: {
-    backgroundColor: colors.gold,
-    width: 16,
-  },
-  // ── Currency picker ────────────────────────────────────────────────────────
-  regionBadgeTappable: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: `${colors.accent}20`,
-    paddingHorizontal: spacing(1),
-    paddingVertical: spacing(0.5),
-    borderRadius: radii.sm,
-  },
-  regionBadgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: colors.accent,
-  },
-  currencyModalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
-  },
-  currencyModalSheet: {
-    backgroundColor: colors.card,
-    borderTopLeftRadius: radii.xl,
-    borderTopRightRadius: radii.xl,
-    padding: spacing(3),
-    paddingBottom: spacing(5),
-    gap: spacing(0.5),
-  },
-  currencyModalHandle: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: colors.line,
-    alignSelf: 'center',
-    marginBottom: spacing(2),
-  },
-  currencyModalTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: spacing(1.5),
-  },
-  currencyOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing(1.5),
-    paddingVertical: spacing(1.5),
-    paddingHorizontal: spacing(1),
-    borderRadius: radii.md,
-  },
-  currencyOptionActive: {
-    backgroundColor: `${colors.gold}15`,
-  },
-  currencyOptionFlag: {
-    fontSize: 24,
-  },
-  currencyOptionLabels: {
-    flex: 1,
-    gap: 2,
-  },
-  currencyOptionCode: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  currencyOptionCodeActive: {
-    color: colors.gold,
-  },
-  currencyOptionName: {
-    fontSize: 12,
-    color: colors.subtext,
-  },
-  // ── Taste signal + thumbs ─────────────────────────────────────────────────
-  tasteSignalLine: {
-    fontSize: 13,
-    color: colors.subtext,
-    marginHorizontal: spacing(4),
-    marginTop: spacing(0.5),
-    marginBottom: spacing(1),
-    lineHeight: 18,
-  },
-  thumbsRow: {
-    flexDirection: 'row',
-    gap: spacing(2),
-    paddingHorizontal: spacing(4),
-    paddingBottom: spacing(1),
-  },
-  thumbsButton: {
-    padding: spacing(0.5),
-  },
-  correctionRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing(1),
-    paddingHorizontal: spacing(4),
-    paddingBottom: spacing(1.5),
-  },
-  correctionPill: {
-    paddingHorizontal: spacing(2),
-    paddingVertical: spacing(0.75),
-    borderRadius: radii.pill,
-    borderWidth: 1,
-    borderColor: colors.line,
-    backgroundColor: colors.card,
-  },
-  correctionPillText: {
-    fontSize: 12,
-    color: colors.subtext,
-  },
-});

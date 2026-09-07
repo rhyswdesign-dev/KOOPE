@@ -46,3 +46,6 @@ supabase/.temp/
 
 # Vitest coverage output (Phase 0.9)
 coverage/
+
+# Local pre-migration DB dumps (raw data, not for source control)
+backups/

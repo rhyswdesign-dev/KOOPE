@@ -58,20 +58,37 @@ import { useUserTier } from '../store/useUserTier';
 import { isCocktailAccessible, FREE_TIER_COCKTAILS, getUpgradeMessage } from '../config/tierAccess';
 import { useFeatureAccess } from '../hooks/useFeatureAccess';
 import LockedRecipeCard from '../components/LockedRecipeCard';
+import VaultRailCard from '../components/VaultRailCard';
 import { useXPSystem } from '../store/useXPSystem';
 import CocktailUnlockSheet from '../components/CocktailUnlockSheet';
 import XPBalanceModal from '../components/XPBalanceModal';
 import { useEngagement } from '../store/useEngagement';
-import { getCocktailsOfTheWeek } from '../utils/weeklyRotation';
+import {
+  COCKTAIL_OF_THE_WEEK,
+  COCKTAIL_MOODS,
+  PARTY_SHOTS,
+  ALL_SHOTS,
+  sampleRecipes,
+} from '../utils/recipesScreenData';
+import HeroCard from '../components/HeroCard';
+import { afStyles } from './RecipesScreen.afStyles';
 import MainPageHeader from '../components/ui/MainPageHeader';
-import { cocktailVariations } from '../config/vaultContent';
-import { getVaultVariationThumbnail } from '../data/vaultImages';
+import {
+  cocktailVariations,
+  getVariationsForDisplay,
+  getTechniquePlaybooksByType,
+  getAllPlaybookTypes,
+  getBartenderHacksForDisplay,
+} from '../config/vaultContent';
+import { getVaultVariationThumbnail, getVaultPlaybookThumbnail } from '../data/vaultImages';
 import { useScrollHaptic, withHaptic } from '../lib/haptics';
 import { ingredientListToSearchText } from '../utils/ingredientFormatting';
 import { curriculumData } from '../utils/curriculumAdapter';
 import { getCurriculumUnlockForRecipeId } from '../config/unlockContent';
 import { loadUserProfile } from '../services/userProfileService';
-import { initializeTasteGraph } from '../services/tasteGraphService';
+import { hydrateTasteGraph } from '../services/tasteGraphService';
+import { CANONICAL_FLAVORS, CANONICAL_SPIRITS } from '../utils/flavorTaxonomy';
+import type { Spirit } from '../types/userProfile';
 import {
   detectSeason,
   detectTimeOfDay,
@@ -80,10 +97,7 @@ import {
 import { calculateTasteMatchPercent } from '../services/tasteMatchService';
 import { InventoryService } from '../services/inventoryService';
 import { toBottle } from '../types/database';
-import {
-  buildTasteProfileFromPersonalization,
-  buildEnhancedProfileFallback,
-} from '../services/enhancedProfileFallback';
+import { buildEnhancedProfileFallback } from '../services/enhancedProfileFallback';
 import { getTonightsPick } from '../services/tonightsPickService';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -110,185 +124,22 @@ const tasteMatchBadgeTextStyle = {
   color: GOLD,
 };
 
-/* ------------------------- DATA ------------------------- */
+// Vault rail: how many cards one visit shows, and the stand-in art for
+// Bartender Hacks (the only Vault category with no per-item image — VaultScreen
+// falls back to this same Unsplash photo for them).
+const VAULT_RAIL_SAMPLE_SIZE = 7;
+const VAULT_HACK_PLACEHOLDER_IMAGE =
+  'https://images.unsplash.com/photo-1578474846511-04ba529f0b88?w=400';
 
-// Get the featured cocktail of the week (first cocktail from weekly rotation)
-// This rotates automatically each week and matches the FeaturedScreen
-const weeklyCocktails = getCocktailsOfTheWeek(1);
-const COCKTAIL_OF_THE_WEEK = {
-  id: weeklyCocktails[0].id,
-  name: weeklyCocktails[0].title,
-  subtitle: 'Cocktail of the Week',
-  image: weeklyCocktails[0].img,
-  description: weeklyCocktails[0].description,
-  badge: 'GOLD' as const,
-};
-
-// Mood-based categories with comprehensive cocktail listings
-const COCKTAIL_MOODS = [
-  {
-    title: 'Bold & Serious',
-    subtitle: 'Spirit-forward, strong, timeless',
-    image:
-      'https://images.unsplash.com/photo-1574096079513-d8259312b785?auto=format&fit=crop&w=800&q=60',
-    category: 'bold_serious',
-    cocktails: [
-      'old-fashioned',
-      'negroni',
-      'martinez',
-      'sazerac',
-      'manhattan',
-      'boulevardier',
-      'vesper-martini',
-      'rob-roy',
-      'brooklyn',
-      'el-presidente',
-    ],
-  },
-  {
-    title: 'Romantic & Elegant',
-    subtitle: 'Refined, sparkling, or delicate — ideal for celebrations & dates',
-    image:
-      'https://images.unsplash.com/photo-1510972527921-ce03766a1cf1?auto=format&fit=crop&w=800&q=60',
-    category: 'romantic_elegant',
-    cocktails: [
-      'french-75',
-      'bellini',
-      'aviation',
-      'kir-royale',
-      'cosmopolitan',
-      'champagne-cocktail',
-      'mimosa',
-    ],
-  },
-  {
-    title: 'Playful & Fun',
-    subtitle: 'Colorful, lively, perfect for social energy',
-    image:
-      'https://images.unsplash.com/photo-1551538827-9c037cb4f32a?auto=format&fit=crop&w=800&q=60',
-    category: 'playful_fun',
-    cocktails: [
-      'margarita',
-      'mojito',
-      'aperol-spritz',
-      'pornstar-martini',
-      'bramble',
-      'lemon-drop',
-      'woo-woo-shot',
-      'melon-ball-shot',
-    ],
-  },
-  {
-    title: 'Tropical Escape',
-    subtitle: 'Exotic, fruity, a trip to the islands',
-    image:
-      'https://images.unsplash.com/photo-1578662996442-48f60103fc96?auto=format&fit=crop&w=800&q=60',
-    category: 'tropical_escape',
-    cocktails: [
-      'mai-tai',
-      'pina-colada',
-      'zombie',
-      'painkiller',
-      'jungle-bird',
-      'navy-grog',
-      'fog-cutter',
-      'blue-hawaii',
-      'hurricane',
-      'singapore-sling',
-      'surfer-on-acid',
-      'scooby-snack',
-    ],
-  },
-  {
-    title: 'Cozy & Comforting',
-    subtitle: 'Warm, creamy, nostalgic — feels like home',
-    image:
-      'https://images.unsplash.com/photo-1578328819058-b69f3a3b0f6b?auto=format&fit=crop&w=800&q=60',
-    category: 'cozy_comforting',
-    cocktails: [
-      'irish-coffee',
-      'white-russian',
-      'hot-toddy',
-      'amaretto-sour',
-      'brandy-alexander',
-      'cinnamon-toast-crunch-shot',
-      'apple-pie-shot',
-      'chocolate-cake-shot',
-    ],
-  },
-  {
-    title: 'Late-Night Energy',
-    subtitle: 'Edgy, caffeinated, or party-fueled',
-    image:
-      'https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?auto=format&fit=crop&w=800&q=60',
-    category: 'late_night_energy',
-    cocktails: [
-      'espresso-martini',
-      'paper-plane',
-      'naked-famous',
-      'jagerbomb',
-      'espresso-shot-cocktail',
-    ],
-  },
-  {
-    title: 'Mystery & Depth',
-    subtitle: 'Complex, layered, contemplative',
-    image:
-      'https://images.unsplash.com/photo-1470337458703-46ad1756a187?auto=format&fit=crop&w=800&q=60',
-    category: 'mystery_depth',
-    cocktails: [
-      'vieux-carre',
-      'last-word',
-      'oaxaca-old-fashioned',
-      'rusty-nail',
-      'corpse-reviver-2',
-      'martinez',
-      'sidecar',
-      'between-the-sheets',
-      'naked-famous',
-      'mezcal-negroni',
-    ],
-  },
-  {
-    title: 'Party Crowd-Pleasers',
-    subtitle: 'Refreshing, simple, loved by everyone',
-    image:
-      'https://images.unsplash.com/photo-1544145945-f90425340c7e?auto=format&fit=crop&w=800&q=60',
-    category: 'party_crowd_pleasers',
-    cocktails: [
-      'moscow-mule',
-      'cuba-libre',
-      'paloma',
-      'spritz-veneziano',
-      'dark-n-stormy',
-      'tom-collins',
-      'gin-tonic',
-      'highball',
-      'caipirinha',
-      'pickleback',
-      'washington-apple',
-      'alabama-slammer-shot',
-      'red-headed-slut',
-    ],
-  },
-  {
-    title: 'After-Dinner Indulgence',
-    subtitle: 'Dessert-like, rich, and satisfying',
-    image:
-      'https://images.unsplash.com/photo-1546171753-97d7676e4602?auto=format&fit=crop&w=800&q=60',
-    category: 'after_dinner_indulgence',
-    cocktails: [
-      'grasshopper',
-      'b-52',
-      'black-russian',
-      'baby-guinness',
-      'slippery-nipple',
-      'buttery-nipple',
-      'brain-hemorrhage',
-      'sambuca-con-la-mosca',
-    ],
-  },
-];
+/** Fisher-Yates shuffle of a copy, then take the first `count`. */
+function sampleRandom<T>(items: T[], count: number): T[] {
+  const copy = [...items];
+  for (let i = copy.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy.slice(0, count);
+}
 
 function uniqueById(items: any[]) {
   const seen = new Set<string>();
@@ -297,1513 +148,6 @@ function uniqueById(items: any[]) {
     seen.add(item.id);
     return true;
   });
-}
-
-// Fun Party Shots (25 shots)
-const PARTY_SHOTS = [
-  {
-    id: 'lemon-drop-shot',
-    name: 'Lemon Drop Shot',
-    title: 'Lemon Drop Shot',
-    subtitle: 'Party Shot • Vodka-based',
-    category: 'Shots',
-    image:
-      'https://images.unsplash.com/photo-1541745537411-b8046dc6d66c?q=80&w=1200&auto=format&fit=crop',
-    difficulty: 'Easy',
-    time: '1 min',
-    rating: 4.3,
-    ingredients: [
-      { name: '1 oz Vodka', note: 'Citrus vodka preferred' },
-      { name: '1/2 oz Fresh Lemon Juice', note: 'Fresh only' },
-      { name: '1/2 oz Simple Syrup', note: 'To sweeten' },
-      { name: 'Sugar Rim', note: 'For glass' },
-    ],
-    description: 'Sweet and sour crowd favorite.',
-  },
-  {
-    id: 'washington-apple',
-    name: 'Washington Apple',
-    title: 'Washington Apple',
-    subtitle: 'Party Shot • Whiskey-based',
-    category: 'Shots',
-    image:
-      'https://images.unsplash.com/photo-1580424805313-04ac2b1fef66?q=80&w=1200&auto=format&fit=crop',
-    difficulty: 'Easy',
-    time: '1 min',
-    rating: 4.4,
-    ingredients: [
-      { name: '1/2 oz Canadian Whisky', note: 'Crown Royal' },
-      { name: '1/2 oz Apple Schnapps', note: 'Sour Apple Pucker' },
-      { name: 'Splash Cranberry Juice', note: 'For color' },
-    ],
-    description: 'Sweet apple-flavored shot.',
-  },
-  {
-    id: 'buttery-nipple',
-    name: 'Buttery Nipple',
-    title: 'Buttery Nipple',
-    subtitle: 'Party Shot • Layered',
-    category: 'Shots',
-    image:
-      'https://images.unsplash.com/photo-1578662996442-48f60103fc96?q=80&w=1200&auto=format&fit=crop',
-    difficulty: 'Easy',
-    time: '1 min',
-    rating: 4.1,
-    ingredients: [
-      { name: '1/2 oz Butterscotch Schnapps', note: 'Bottom layer' },
-      { name: '1/2 oz Irish Cream', note: 'Float on top' },
-    ],
-    description: 'Sweet layered shot with butterscotch and cream.',
-  },
-  {
-    id: 'green-tea-shot',
-    name: 'Green Tea Shot',
-    title: 'Green Tea Shot',
-    subtitle: 'Party Shot • Whiskey-based',
-    category: 'Shots',
-    image:
-      'https://images.unsplash.com/photo-1580424805313-04ac2b1fef66?q=80&w=1200&auto=format&fit=crop',
-    difficulty: 'Easy',
-    time: '1 min',
-    rating: 4.3,
-    ingredients: [
-      { name: '1/2 oz Jameson Irish Whiskey', note: 'Base spirit' },
-      { name: '1/2 oz Peach Schnapps', note: 'Sweet element' },
-      { name: '1/2 oz Sour Mix', note: 'Tart balance' },
-      { name: 'Splash Sprite', note: 'For fizz' },
-    ],
-    description: "Surprisingly doesn't taste like tea, but it's delicious.",
-  },
-  {
-    id: 'pickleback',
-    name: 'Pickleback',
-    title: 'Pickleback',
-    subtitle: 'Party Shot • Whiskey chase',
-    category: 'Shots',
-    image:
-      'https://images.unsplash.com/photo-1580424805313-04ac2b1fef66?q=80&w=1200&auto=format&fit=crop',
-    difficulty: 'Easy',
-    time: '1 min',
-    rating: 3.9,
-    ingredients: [
-      { name: '1 oz Whiskey', note: 'Any whiskey works' },
-      { name: '1 oz Pickle Juice', note: 'Dill pickle brine chaser' },
-    ],
-    description: 'Brooklyn bar classic - whiskey followed by pickle juice.',
-  },
-  {
-    id: 'redheaded-slut',
-    name: 'Redheaded Slut',
-    title: 'Redheaded Slut',
-    subtitle: 'Party Shot • Fruit-forward',
-    category: 'Shots',
-    image:
-      'https://images.unsplash.com/photo-1578662996442-48f60103fc96?q=80&w=1200&auto=format&fit=crop',
-    difficulty: 'Easy',
-    time: '1 min',
-    rating: 4.0,
-    ingredients: [
-      { name: '1/2 oz Peach Schnapps', note: 'Sweet base' },
-      { name: '1/2 oz Jägermeister', note: 'Herbal complexity' },
-      { name: 'Splash Cranberry Juice', note: 'For color and tartness' },
-    ],
-    description: 'Sweet and herbal party favorite.',
-  },
-  {
-    id: 'baby-guinness',
-    name: 'Baby Guinness',
-    title: 'Baby Guinness',
-    subtitle: 'Party Shot • Layered',
-    category: 'Shots',
-    image:
-      'https://images.unsplash.com/photo-1578662996442-48f60103fc96?q=80&w=1200&auto=format&fit=crop',
-    difficulty: 'Medium',
-    time: '2 min',
-    rating: 4.2,
-    ingredients: [
-      { name: '3/4 oz Kahlúa', note: 'Dark bottom layer' },
-      { name: '1/4 oz Irish Cream', note: 'Float to create "foam"' },
-    ],
-    description: 'Looks like a tiny pint of Guinness.',
-  },
-  {
-    id: 'scooby-snack',
-    name: 'Scooby Snack',
-    title: 'Scooby Snack',
-    subtitle: 'Party Shot • Tropical',
-    category: 'Shots',
-    image:
-      'https://images.unsplash.com/photo-1578662996442-48f60103fc96?q=80&w=1200&auto=format&fit=crop',
-    difficulty: 'Easy',
-    time: '1 min',
-    rating: 4.1,
-    ingredients: [
-      { name: '1/2 oz Coconut Rum', note: 'Malibu works well' },
-      { name: '1/2 oz Banana Liqueur', note: 'Crème de Banane' },
-      { name: '1/2 oz Pineapple Juice', note: 'Fresh preferred' },
-      { name: 'Splash Lime Juice', note: 'Just a touch' },
-    ],
-    description: "Tropical fruity shot that's always a hit.",
-  },
-  {
-    id: 'slippery-nipple',
-    name: 'Slippery Nipple',
-    title: 'Slippery Nipple',
-    subtitle: 'Party Shot • Layered',
-    category: 'Shots',
-    image:
-      'https://images.unsplash.com/photo-1578662996442-48f60103fc96?q=80&w=1200&auto=format&fit=crop',
-    difficulty: 'Medium',
-    time: '2 min',
-    rating: 3.8,
-    ingredients: [
-      { name: '1/2 oz Sambuca', note: 'Clear anise liqueur' },
-      { name: '1/2 oz Irish Cream', note: 'Float on top' },
-      { name: 'Drop Grenadine', note: 'Sink to bottom' },
-    ],
-    description: 'Three-layer shot with interesting flavor profile.',
-  },
-  {
-    id: 'birthday-cake-shot',
-    name: 'Birthday Cake Shot',
-    title: 'Birthday Cake Shot',
-    subtitle: 'Party Shot • Sweet',
-    category: 'Shots',
-    image:
-      'https://images.unsplash.com/photo-1578662996442-48f60103fc96?q=80&w=1200&auto=format&fit=crop',
-    difficulty: 'Easy',
-    time: '1 min',
-    rating: 4.4,
-    ingredients: [
-      { name: '1/2 oz Vanilla Vodka', note: 'Cake flavor base' },
-      { name: '1/2 oz Amaretto', note: 'Almond sweetness' },
-      { name: 'Splash Cranberry Juice', note: 'For color' },
-      { name: 'Vanilla Frosting Rim', note: 'With rainbow sprinkles' },
-    ],
-    description: 'Tastes like birthday cake in a shot glass.',
-  },
-  {
-    id: 'duck-fart',
-    name: 'Duck Fart',
-    title: 'Duck Fart',
-    subtitle: 'Party Shot • Layered',
-    category: 'Shots',
-    image:
-      'https://images.unsplash.com/photo-1580424805313-04ac2b1fef66?q=80&w=1200&auto=format&fit=crop',
-    difficulty: 'Medium',
-    time: '2 min',
-    rating: 3.7,
-    ingredients: [
-      { name: '1/3 oz Kahlúa', note: 'Bottom layer' },
-      { name: '1/3 oz Crown Royal', note: 'Middle layer' },
-      { name: '1/3 oz Irish Cream', note: 'Top layer' },
-    ],
-    description: 'Alaskan favorite with unfortunate name but great taste.',
-  },
-  {
-    id: 'mind-eraser',
-    name: 'Mind Eraser',
-    title: 'Mind Eraser',
-    subtitle: 'Party Shot • Strong',
-    category: 'Shots',
-    image:
-      'https://images.unsplash.com/photo-1541745537411-b8046dc6d66c?q=80&w=1200&auto=format&fit=crop',
-    difficulty: 'Easy',
-    time: '1 min',
-    rating: 3.9,
-    ingredients: [
-      { name: '1/2 oz Vodka', note: 'Quality vodka' },
-      { name: '1/2 oz Kahlúa', note: 'Coffee liqueur' },
-      { name: 'Splash Soda Water', note: 'To top' },
-    ],
-    description: 'Strong shot meant to be consumed through a straw.',
-  },
-  {
-    id: 'porn-star-martini-shot',
-    name: 'Porn Star Martini Shot',
-    title: 'Porn Star Martini Shot',
-    subtitle: 'Party Shot • Passion fruit',
-    category: 'Shots',
-    image:
-      'https://images.unsplash.com/photo-1541745537411-b8046dc6d66c?q=80&w=1200&auto=format&fit=crop',
-    difficulty: 'Medium',
-    time: '2 min',
-    rating: 4.5,
-    ingredients: [
-      { name: '1/2 oz Vanilla Vodka', note: 'Premium preferred' },
-      { name: '1/4 oz Passoã', note: 'Passion fruit liqueur' },
-      { name: '1/4 oz Lime Juice', note: 'Fresh squeezed' },
-      { name: 'Splash Prosecco', note: 'Side shot glass' },
-    ],
-    description: 'Shot version of the famous cocktail.',
-  },
-  {
-    id: 'jolly-rancher-shot',
-    name: 'Jolly Rancher Shot',
-    title: 'Jolly Rancher Shot',
-    subtitle: 'Party Shot • Candy-flavored',
-    category: 'Shots',
-    image:
-      'https://images.unsplash.com/photo-1578662996442-48f60103fc96?q=80&w=1200&auto=format&fit=crop',
-    difficulty: 'Easy',
-    time: '1 min',
-    rating: 4.2,
-    ingredients: [
-      { name: '1/2 oz Vodka', note: 'Neutral base' },
-      { name: '1/2 oz Apple Schnapps', note: 'Green apple flavor' },
-      { name: 'Splash Cranberry Juice', note: 'For color and tartness' },
-    ],
-    description: 'Tastes like the green apple candy.',
-  },
-  {
-    id: 'alien-brain-hemorrhage',
-    name: 'Alien Brain Hemorrhage',
-    title: 'Alien Brain Hemorrhage',
-    subtitle: 'Party Shot • Gross-looking',
-    category: 'Shots',
-    image:
-      'https://images.unsplash.com/photo-1578662996442-48f60103fc96?q=80&w=1200&auto=format&fit=crop',
-    difficulty: 'Hard',
-    time: '3 min',
-    rating: 3.5,
-    ingredients: [
-      { name: '1/2 oz Peach Schnapps', note: 'Base layer' },
-      { name: '1/2 oz Irish Cream', note: 'Pour slowly to curdle' },
-      { name: 'Drop Grenadine', note: 'For "blood" effect' },
-      { name: 'Drop Blue Curaçao', note: 'For alien color' },
-    ],
-    description: 'Disgusting looking but surprisingly tasty Halloween shot.',
-  },
-  {
-    id: 'chocolate-cake-shot',
-    name: 'Chocolate Cake Shot',
-    title: 'Chocolate Cake Shot',
-    subtitle: 'Party Shot • Dessert-like',
-    category: 'Shots',
-    image:
-      'https://images.unsplash.com/photo-1578662996442-48f60103fc96?q=80&w=1200&auto=format&fit=crop',
-    difficulty: 'Easy',
-    time: '1 min',
-    rating: 4.3,
-    ingredients: [
-      { name: '1/2 oz Vanilla Vodka', note: 'Cake base' },
-      { name: '1/2 oz Frangelico', note: 'Hazelnut liqueur' },
-      { name: 'Sugar Rim', note: 'With cocoa powder' },
-      { name: 'Lemon Wedge', note: 'Bite after shot' },
-    ],
-    description: 'Magically tastes like chocolate cake when done right.',
-  },
-  {
-    id: 'pineapple-upside-down-cake',
-    name: 'Pineapple Upside Down Cake',
-    title: 'Pineapple Upside Down Cake',
-    subtitle: 'Party Shot • Tropical dessert',
-    category: 'Shots',
-    image:
-      'https://images.unsplash.com/photo-1578662996442-48f60103fc96?q=80&w=1200&auto=format&fit=crop',
-    difficulty: 'Easy',
-    time: '1 min',
-    rating: 4.1,
-    ingredients: [
-      { name: '1/2 oz Vanilla Vodka', note: 'Cake element' },
-      { name: '1/4 oz Pineapple Juice', note: 'Fruit flavor' },
-      { name: '1/4 oz Grenadine', note: 'Cherry topping' },
-      { name: 'Whipped Cream', note: 'Float on top' },
-    ],
-    description: 'Dessert shot that tastes like the classic cake.',
-  },
-  {
-    id: 'blow-job-shot',
-    name: 'Blow Job Shot',
-    title: 'Blow Job Shot',
-    subtitle: 'Party Shot • No hands',
-    category: 'Shots',
-    image:
-      'https://images.unsplash.com/photo-1578662996442-48f60103fc96?q=80&w=1200&auto=format&fit=crop',
-    difficulty: 'Easy',
-    time: '1 min',
-    rating: 3.6,
-    ingredients: [
-      { name: '1/2 oz Kahlúa', note: 'Coffee base' },
-      { name: '1/4 oz Vodka', note: 'Middle layer' },
-      { name: '1/4 oz Whipped Cream', note: 'Generous top layer' },
-    ],
-    description: 'Must be consumed without using hands - party challenge shot.',
-  },
-  {
-    id: 'fuzzy-navel-shot',
-    name: 'Fuzzy Navel Shot',
-    title: 'Fuzzy Navel Shot',
-    subtitle: 'Party Shot • Peachy',
-    category: 'Shots',
-    image:
-      'https://images.unsplash.com/photo-1578662996442-48f60103fc96?q=80&w=1200&auto=format&fit=crop',
-    difficulty: 'Easy',
-    time: '1 min',
-    rating: 4.0,
-    ingredients: [
-      { name: '1/2 oz Peach Schnapps', note: 'Fuzzy peach flavor' },
-      { name: '1/2 oz Orange Juice', note: 'Fresh preferred' },
-      { name: 'Splash Cranberry Juice', note: 'For color' },
-    ],
-    description: 'Shot version of the classic fuzzy navel cocktail.',
-  },
-  {
-    id: 'leg-spreader',
-    name: 'Leg Spreader',
-    title: 'Leg Spreader',
-    subtitle: 'Party Shot • Fruity',
-    category: 'Shots',
-    image:
-      'https://images.unsplash.com/photo-1578662996442-48f60103fc96?q=80&w=1200&auto=format&fit=crop',
-    difficulty: 'Easy',
-    time: '1 min',
-    rating: 3.8,
-    ingredients: [
-      { name: '1/3 oz Vodka', note: 'Base spirit' },
-      { name: '1/3 oz Peach Schnapps', note: 'Sweet element' },
-      { name: '1/3 oz Cranberry Juice', note: 'Tart balance' },
-      { name: 'Splash Lime Juice', note: 'Citrus finish' },
-    ],
-    description: 'Dangerously smooth and fruity party shot.',
-  },
-  {
-    id: 'brain-hemorrhage',
-    name: 'Brain Hemorrhage',
-    title: 'Brain Hemorrhage',
-    subtitle: 'Party Shot • Halloween favorite',
-    category: 'Shots',
-    image:
-      'https://images.unsplash.com/photo-1578662996442-48f60103fc96?q=80&w=1200&auto=format&fit=crop',
-    difficulty: 'Medium',
-    time: '2 min',
-    rating: 3.4,
-    ingredients: [
-      { name: '1/2 oz Peach Schnapps', note: 'Base layer' },
-      { name: '1/2 oz Irish Cream', note: 'Pour slowly to create brain effect' },
-      { name: 'Few drops Grenadine', note: 'For hemorrhage effect' },
-    ],
-    description: 'Looks disturbing but tastes great - perfect for Halloween.',
-  },
-  {
-    id: 'liquid-cocaine',
-    name: 'Liquid Cocaine',
-    title: 'Liquid Cocaine',
-    subtitle: 'Party Shot • High energy',
-    category: 'Shots',
-    image:
-      'https://images.unsplash.com/photo-1541745537411-b8046dc6d66c?q=80&w=1200&auto=format&fit=crop',
-    difficulty: 'Easy',
-    time: '1 min',
-    rating: 4.0,
-    ingredients: [
-      { name: '1/4 oz Vodka', note: 'Base spirit' },
-      { name: '1/4 oz Rum', note: 'White rum' },
-      { name: '1/4 oz Amaretto', note: 'Almond flavor' },
-      { name: '1/4 oz Southern Comfort', note: 'Peach liqueur' },
-      { name: 'Splash Pineapple Juice', note: 'Tropical element' },
-    ],
-    description: 'High-octane party shot with multiple spirits.',
-  },
-  {
-    id: 'surfer-on-acid',
-    name: 'Surfer on Acid',
-    title: 'Surfer on Acid',
-    subtitle: 'Party Shot • Tropical',
-    category: 'Shots',
-    image:
-      'https://images.unsplash.com/photo-1578662996442-48f60103fc96?q=80&w=1200&auto=format&fit=crop',
-    difficulty: 'Easy',
-    time: '1 min',
-    rating: 4.2,
-    ingredients: [
-      { name: '1/3 oz Jägermeister', note: 'Herbal base' },
-      { name: '1/3 oz Coconut Rum', note: 'Tropical element' },
-      { name: '1/3 oz Pineapple Juice', note: 'Fresh preferred' },
-    ],
-    description: 'Surprisingly delicious combination of herbal and tropical.',
-  },
-];
-
-// All shots for easy access
-const ALL_SHOTS = [...PARTY_SHOTS];
-
-const sampleRecipes = [
-  {
-    id: 'virgin-mojito',
-    name: 'Virgin Mojito',
-    title: 'Virgin Mojito',
-    subtitle: 'Non-Alcoholic • Refreshing',
-    category: 'Mocktails',
-    image: require('../../assets/images/mocktails/virgin_mojito.png'),
-    img: require('../../assets/images/mocktails/virgin_mojito.png'),
-    difficulty: 'Easy',
-    time: '2 min',
-    rating: 4.6,
-    glass: 'Highball',
-    ice: 'Crushed',
-    method: 'Build',
-    ingredients: [
-      { name: 'Fresh Lime Juice', note: '3/4 oz freshly squeezed' },
-      { name: 'Simple Syrup', note: '1/2 oz' },
-      { name: 'Fresh Mint Leaves', note: '8-10 leaves' },
-      { name: 'Non-Alcoholic Rum', note: '1 1/2 oz (optional)' },
-      { name: 'Soda Water', note: 'top' },
-    ],
-    garnish: 'Mint bouquet + lime wheel',
-    instructions: [
-      'Add lime juice, simple syrup, and mint leaves to a highball glass',
-      'Gently press mint leaves with a muddler or spoon (never shred)',
-      'Add optional non-alcoholic rum if desired',
-      'Fill glass with crushed ice',
-      'Top with soda water and stir gently',
-      'Garnish with a mint bouquet and lime wheel',
-    ],
-    description: 'Refreshing non-alcoholic version of the classic mojito.',
-    tips: [
-      'Shake hard with ice for 10-12 seconds, then strain into a chilled shot glass.',
-      'If using a sugar rim, keep it thin so sweetness does not bury the lemon.',
-      'Use fresh lemon juice and taste once before serving; adjust syrup by 1/4 oz if needed.',
-    ],
-  },
-  {
-    id: 'garden-108-tonic',
-    name: 'Garden 108 & Tonic',
-    title: 'Garden 108 & Tonic',
-    subtitle: 'Zero-Proof • Herbal & Garden Fresh',
-    category: 'Mocktails',
-    image: require('../../assets/images/mocktails/garden_108_tonic.png'),
-    img: require('../../assets/images/mocktails/garden_108_tonic.png'),
-    difficulty: 'Easy',
-    time: '2 min',
-    rating: 4.7,
-    glass: 'G&T bowl or wine glass',
-    ice: 'Cubed',
-    method: 'Build',
-    ingredients: [
-      { name: 'Seedlip Garden 108', note: '2 oz' },
-      { name: 'Premium Tonic Water', note: '4 oz chilled' },
-      { name: 'Cucumber Slices', note: '3 slices' },
-      { name: 'Fresh Mint Sprig', note: 'for garnish' },
-      { name: 'Lime Wheel', note: 'for garnish' },
-    ],
-    garnish: 'Cucumber slices + mint sprig + lime wheel',
-    instructions: [
-      'Fill a G&T bowl or wine glass with cubed ice',
-      'Add Seedlip Garden 108',
-      'Add cucumber slices to the glass',
-      'Top with chilled premium tonic water',
-      'Stir gently to combine',
-      'Garnish with mint sprig and lime wheel',
-    ],
-    description: 'Herbal and garden fresh zero-proof G&T.',
-    tips: [
-      'Use fully chilled tonic and pour slowly down the side to keep carbonation tight.',
-      'Pre-chill the glass for 10 minutes so dilution stays controlled from first sip.',
-      'Add cucumber before tonic and press once lightly to release aroma without bitterness.',
-    ],
-  },
-  {
-    id: 'herbaceous-spritz',
-    name: 'Herbaceous Spritz',
-    title: 'Herbaceous Spritz',
-    subtitle: 'Zero-Proof • Garden Fresh',
-    category: 'Mocktails',
-    image: require('../../assets/images/mocktails/herbaceous_spritz.png'),
-    img: require('../../assets/images/mocktails/herbaceous_spritz.png'),
-    difficulty: 'Easy',
-    time: '3 min',
-    rating: 4.6,
-    glass: 'Wine glass',
-    ice: 'Cubed',
-    method: 'Build',
-    ingredients: [
-      { name: 'Seedlip Garden 108', note: '2 oz' },
-      { name: 'Elderflower Tonic or Sparkling Water', note: '3 oz' },
-      { name: 'Fresh Lemon Juice', note: '1/2 oz' },
-      { name: 'Rosemary Sprig', note: 'for garnish' },
-      { name: 'Grapefruit Twist', note: 'for garnish' },
-    ],
-    garnish: 'Rosemary sprig + grapefruit twist',
-    instructions: [
-      'Fill a wine glass with cubed ice',
-      'Add Seedlip Garden 108 and lemon juice',
-      'Top with elderflower tonic or sparkling water',
-      'Stir gently to combine',
-      'Express grapefruit twist over the drink and drop in',
-      'Garnish with a fresh rosemary sprig',
-    ],
-    description: 'Sophisticated spritz with herbal complexity.',
-    tips: [
-      'Clap rosemary between your hands before garnish to wake aroma without adding smoke bitterness.',
-      'If using elderflower tonic, reduce lemon slightly to keep the finish dry.',
-      'Express grapefruit oils over the surface right before service, then discard pith-heavy peel.',
-    ],
-  },
-  {
-    id: 'garden-gimlet',
-    name: 'Garden Gimlet',
-    title: 'Garden Gimlet',
-    subtitle: 'Zero-Proof • Classic Style',
-    category: 'Mocktails',
-    image: require('../../assets/images/mocktails/garden_gimlet.png'),
-    img: require('../../assets/images/mocktails/garden_gimlet.png'),
-    difficulty: 'Easy',
-    time: '3 min',
-    rating: 4.7,
-    glass: 'Coupe',
-    ice: 'Shaken',
-    method: 'Shake',
-    ingredients: [
-      { name: 'Seedlip Garden 108', note: '2 oz' },
-      { name: 'Fresh Lime Juice', note: '3/4 oz' },
-      { name: 'Simple Syrup', note: '1/2 oz' },
-      { name: 'Cucumber Wheel', note: 'for garnish' },
-      { name: 'Fresh Basil Leaf', note: 'for garnish' },
-    ],
-    garnish: 'Cucumber wheel + basil leaf',
-    instructions: [
-      'Add Seedlip Garden 108, lime juice, and simple syrup to a shaker',
-      'Fill shaker with ice',
-      'Shake vigorously for 10-15 seconds',
-      'Fine strain into a chilled coupe glass',
-      'Slap basil leaf between hands to release aromatics',
-      'Garnish with cucumber wheel and basil leaf',
-    ],
-    description: 'Zero-proof take on the classic gimlet.',
-    tips: [
-      'Dry-shake basil leaf lightly in the tin first, then add ice and shake for a cleaner herb aroma.',
-      'Pre-chill the coupe for at least 10 minutes to keep the finish crisp.',
-      'Fine strain to catch basil fragments and keep the texture polished.',
-    ],
-  },
-  {
-    id: 'smokeless-old-fashioned',
-    name: 'Smokeless Old Fashioned',
-    title: 'Smokeless Old Fashioned',
-    subtitle: 'Zero-Proof • Rich & Smoky',
-    category: 'Mocktails',
-    image: require('../../assets/images/mocktails/smokeless_old_fashioned.png'),
-    img: require('../../assets/images/mocktails/smokeless_old_fashioned.png'),
-    difficulty: 'Easy',
-    time: '3 min',
-    rating: 4.8,
-    glass: 'Rocks',
-    ice: 'Large cube',
-    method: 'Stir',
-    ingredients: [
-      { name: "Lyre's American Malt", note: '2 oz' },
-      { name: 'Maple Syrup', note: '1/4 oz (or 1 sugar cube)' },
-      { name: 'Angostura Bitters', note: '2 dashes' },
-      { name: 'Orange Bitters', note: '1 dash' },
-      { name: 'Orange Peel', note: 'for garnish' },
-      { name: 'Luxardo Cherry', note: 'for garnish (optional)' },
-    ],
-    garnish: 'Orange peel + Luxardo cherry',
-    instructions: [
-      "In a mixing glass, combine Lyre's American Malt, maple syrup, and bitters",
-      'Add ice and stir for 20-30 seconds',
-      'Strain into a rocks glass over a large ice cube',
-      'Express orange peel oils over the drink',
-      'Garnish with orange peel and optional Luxardo cherry',
-    ],
-    description: 'Classic Old Fashioned without the alcohol.',
-    tips: [
-      'Stir for a full 25-30 seconds so maple integrates fully with bitters and spirit.',
-      'Use one dense large cube to slow dilution and preserve structure.',
-      'Express orange peel over the surface and around the rim for stronger first-sip aroma.',
-    ],
-  },
-  {
-    id: 'zero-proof-manhattan',
-    name: 'Zero Proof Manhattan',
-    title: 'Zero Proof Manhattan',
-    subtitle: 'Zero-Proof • Whiskey Style',
-    category: 'Mocktails',
-    image: require('../../assets/images/mocktails/zero_proof_manhattan.png'),
-    img: require('../../assets/images/mocktails/zero_proof_manhattan.png'),
-    difficulty: 'Easy',
-    time: '3 min',
-    rating: 4.7,
-    glass: 'Coupe',
-    ice: 'Stirred',
-    method: 'Stir',
-    ingredients: [
-      { name: "Lyre's American Malt", note: '2 oz' },
-      { name: "Lyre's Aperitif Rosso", note: '1 oz (sweet vermouth alternative)' },
-      { name: 'Angostura Bitters', note: '2 dashes' },
-      { name: 'Luxardo Cherry', note: 'for garnish' },
-    ],
-    garnish: 'Luxardo cherry',
-    instructions: [
-      "Add Lyre's American Malt, Aperitif Rosso, and bitters to a mixing glass",
-      'Fill with ice and stir for 20-30 seconds',
-      'Strain into a chilled coupe glass',
-      'Garnish with a Luxardo cherry',
-    ],
-    description: 'Sophisticated zero-proof Manhattan.',
-    tips: [
-      'Stir with cold ice for about 25 seconds to reach silky texture without over-diluting.',
-      'Keep the coupe freezer-cold so the drink stays tight and aromatic.',
-      'Use a quality cherry and add a few drops of cherry syrup only if you need extra roundness.',
-    ],
-  },
-  {
-    id: 'maple-whiskey-sour',
-    name: 'Maple Whiskey Sour',
-    title: 'Maple Whiskey Sour',
-    subtitle: 'Zero-Proof • Sour & Sweet',
-    category: 'Mocktails',
-    image:
-      'https://images.unsplash.com/photo-1569529465841-dfecdab7503b?q=80&w=1200&auto=format&fit=crop',
-    img: 'https://images.unsplash.com/photo-1569529465841-dfecdab7503b?q=80&w=1200&auto=format&fit=crop',
-    difficulty: 'Medium',
-    time: '4 min',
-    rating: 4.8,
-    glass: 'Rocks',
-    ice: 'Cubed',
-    method: 'Shake',
-    ingredients: [
-      { name: "Lyre's American Malt", note: '2 oz' },
-      { name: 'Fresh Lemon Juice', note: '3/4 oz' },
-      { name: 'Maple Syrup', note: '1/2 oz' },
-      { name: 'Egg White', note: '1 (or 1/2 oz aquafaba for vegan)' },
-      { name: 'Angostura Bitters', note: '3 drops for garnish' },
-    ],
-    garnish: 'Angostura bitters (3-drop pattern on foam)',
-    instructions: [
-      'Add all ingredients to a shaker without ice (dry shake)',
-      'Shake vigorously for 15 seconds to emulsify egg white',
-      'Add ice and shake again for 10-15 seconds',
-      'Strain into a rocks glass over fresh ice',
-      'Let foam settle, then garnish with 3 drops of Angostura bitters in a pattern on the foam',
-    ],
-    description: 'Zero-proof whiskey sour with maple sweetness.',
-    tips: [
-      'Dry shake first for at least 12 seconds, then shake with ice for stable foam.',
-      'If using aquafaba, strain it first and use slightly less than egg white to avoid a beany finish.',
-      'Let foam set for 20-30 seconds before adding bitters so garnish lines stay sharp.',
-    ],
-  },
-  {
-    id: 'zero-proof-gin-tonic',
-    name: 'Zero Proof Gin & Tonic',
-    title: 'Zero Proof Gin & Tonic',
-    subtitle: 'Zero-Proof • Juniper Forward',
-    category: 'Mocktails',
-    image:
-      'https://images.unsplash.com/photo-1551538827-9c037cb4f32a?q=80&w=1200&auto=format&fit=crop',
-    img: 'https://images.unsplash.com/photo-1551538827-9c037cb4f32a?q=80&w=1200&auto=format&fit=crop',
-    difficulty: 'Easy',
-    time: '2 min',
-    rating: 4.6,
-    glass: 'G&T bowl or wine glass',
-    ice: 'Cubed',
-    method: 'Build',
-    ingredients: [
-      { name: 'Non-Alcoholic Gin', note: '2 oz (Monday Gin or similar)' },
-      { name: 'Premium Tonic Water', note: '4 oz' },
-      { name: 'Lime Peel', note: 'for garnish' },
-      { name: 'Juniper Berries', note: 'optional, cracked for garnish' },
-    ],
-    garnish: 'Lime peel or lemon peel + optional cracked juniper berries',
-    instructions: [
-      'Fill a G&T bowl or wine glass with cubed ice',
-      'Add non-alcoholic gin',
-      'Top with premium tonic water',
-      'Gently stir to combine',
-      'Garnish with lime or lemon peel and optional juniper berries',
-    ],
-    description: 'Classic G&T without the alcohol.',
-    tips: [
-      'Use a neutral tonic to keep juniper clean and dry',
-      'Crack juniper berries before adding to release aromatics',
-      'Use very cold non-alcoholic gin so the tonic stays bright and not watery.',
-    ],
-  },
-  {
-    id: 'ghia-spritz',
-    name: 'Ghia Spritz',
-    title: 'Ghia Spritz',
-    subtitle: 'Zero-Proof • Mediterranean Botanicals',
-    category: 'Mocktails',
-    image:
-      'https://images.unsplash.com/photo-1574671928146-5c89a22b2e85?q=80&w=1200&auto=format&fit=crop',
-    img: 'https://images.unsplash.com/photo-1574671928146-5c89a22b2e85?q=80&w=1200&auto=format&fit=crop',
-    difficulty: 'Easy',
-    time: '2 min',
-    rating: 4.7,
-    glass: 'Wine glass',
-    ice: 'Cubed',
-    method: 'Build',
-    ingredients: [
-      { name: 'Non-Alcoholic Aperitivo', note: '2 oz (bitter-sweet, herbal)' },
-      { name: 'Soda Water', note: '3 oz' },
-      { name: 'Orange Slice', note: 'for garnish' },
-      { name: 'Rosemary Sprig', note: 'for garnish' },
-    ],
-    garnish: 'Orange slice + rosemary sprig',
-    instructions: [
-      'Fill a wine glass with cubed ice',
-      'Add non-alcoholic aperitivo',
-      'Top with soda water',
-      'Single lift stir to combine',
-      'Garnish with orange slice and rosemary sprig',
-    ],
-    description: 'Perfect aperitif hour spritz.',
-    tips: [
-      'Serve very cold—this drink relies on bitterness, not sweetness',
-      'Start with a 2:3 aperitivo-to-soda ratio, then adjust by 1/4 oz to dial bitterness.',
-      'Use a single quick lift stir; too much agitation flattens aroma and texture.',
-    ],
-  },
-  {
-    id: 'ginger-kombucha-mule',
-    name: 'Ginger Kombucha Mule',
-    title: 'Ginger Kombucha Mule',
-    subtitle: 'Wellness • Probiotic & Refreshing',
-    category: 'Mocktails',
-    image: require('../../assets/images/mocktails/ginger_kombucha_mule.png'),
-    img: require('../../assets/images/mocktails/ginger_kombucha_mule.png'),
-    difficulty: 'Easy',
-    time: '3 min',
-    rating: 4.6,
-    glass: 'Copper mug',
-    ice: 'Cubed',
-    method: 'Build',
-    ingredients: [
-      { name: "GT's Gingerade Kombucha", note: '6 oz' },
-      { name: 'Fresh Lime Juice', note: '1/2 oz' },
-      { name: 'Agave Syrup', note: '1/4 oz (optional, to taste)' },
-      { name: 'Fresh Mint Sprig', note: 'for garnish' },
-      { name: 'Candied Ginger', note: 'for garnish' },
-      { name: 'Lime Wheel', note: 'for garnish' },
-    ],
-    garnish: 'Mint sprig + candied ginger + lime wheel',
-    instructions: [
-      'Fill a copper mug with cubed ice',
-      'Add lime juice and optional agave syrup',
-      "Top with GT's Gingerade Kombucha",
-      'Stir gently to combine',
-      'Garnish with mint sprig, candied ginger, and lime wheel',
-    ],
-    description: 'Probiotic-rich mule with fresh ginger.',
-    tips: [
-      'Use freshly opened kombucha and build over hard cold ice to preserve fizz.',
-      'Adjust agave in 1/8 oz steps since kombucha sweetness changes by brand and batch.',
-      'Give one gentle stir only; over-stirring strips carbonation and spice lift.',
-    ],
-  },
-  {
-    id: 'zen-garden-spritz',
-    name: 'Zen Garden Spritz',
-    title: 'Zen Garden Spritz',
-    subtitle: 'Wellness • Calm & Focused',
-    category: 'Mocktails',
-    image: require('../../assets/images/mocktails/zen_garden_spritz.png'),
-    img: require('../../assets/images/mocktails/zen_garden_spritz.png'),
-    difficulty: 'Easy',
-    time: '4 min',
-    rating: 4.7,
-    glass: 'Wine glass',
-    ice: 'Cubed',
-    method: 'Build',
-    ingredients: [
-      { name: 'Non-Alcoholic Gin', note: '1 1/2 oz' },
-      { name: 'Chamomile Tea', note: '3 oz (strong, chilled)' },
-      { name: 'Soda Water', note: '2 oz' },
-      { name: 'Edible Flower', note: 'for garnish' },
-      { name: 'Lemon Peel', note: 'for garnish (alternative)' },
-    ],
-    garnish: 'Edible flower or lemon peel',
-    instructions: [
-      'Fill a wine glass with cubed ice',
-      'Add non-alcoholic gin and chilled chamomile tea',
-      'Top with soda water',
-      'Stir gently',
-      'Garnish with edible flower or lemon peel',
-    ],
-    description: 'Mindful drinking with hemp and adaptogens.',
-    tips: [
-      'Brew chamomile strong, then chill—dilute later for balance',
-      'Steep chamomile 5-6 minutes max; longer extraction turns the finish woody.',
-      'Strain tea completely before building so fine particles do not mute texture.',
-    ],
-  },
-  {
-    id: 'hemp-citrus-cooler',
-    name: 'Hemp Citrus Cooler',
-    title: 'Hemp Citrus Cooler',
-    subtitle: 'Wellness • Refreshing',
-    category: 'Mocktails',
-    image: require('../../assets/images/mocktails/hemp_citrus_cooler.png'),
-    img: require('../../assets/images/mocktails/hemp_citrus_cooler.png'),
-    difficulty: 'Easy',
-    time: '3 min',
-    rating: 4.6,
-    glass: 'Highball',
-    ice: 'Cubed',
-    method: 'Build',
-    ingredients: [
-      { name: 'Hemp Syrup', note: '1/2 oz' },
-      { name: 'Fresh Lemon Juice', note: '3/4 oz' },
-      { name: 'Soda Water', note: '4 oz' },
-      { name: 'Lemon Wheel', note: 'for garnish' },
-    ],
-    garnish: 'Lemon wheel',
-    instructions: [
-      'Add hemp syrup and lemon juice to a highball glass',
-      'Fill glass with cubed ice',
-      'Top with soda water',
-      'Stir gently to combine',
-      'Garnish with lemon wheel',
-    ],
-    description: 'Citrus-forward wellness cocktail.',
-    tips: [
-      'Start with less hemp syrup and increase in 1/8 oz steps to keep the finish clean.',
-      'Balance lemon and syrup together; if one moves, adjust the other to keep structure.',
-      'Top with soda last and serve immediately while carbonation is lively.',
-    ],
-  },
-  {
-    id: 'zero-proof-negroni',
-    name: 'Zero Proof Negroni',
-    title: 'Zero Proof Negroni',
-    subtitle: 'Zero-Proof • Botanical Excellence',
-    category: 'Mocktails',
-    image:
-      'https://images.unsplash.com/photo-1578662996442-48f60103fc96?q=80&w=1200&auto=format&fit=crop',
-    img: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?q=80&w=1200&auto=format&fit=crop',
-    difficulty: 'Easy',
-    time: '3 min',
-    rating: 4.8,
-    glass: 'Rocks',
-    ice: 'Large cube',
-    method: 'Stir',
-    ingredients: [
-      { name: 'Ritual Gin Alternative', note: '1 oz' },
-      { name: "Lyre's Aperitif Rosso", note: '1 oz (sweet vermouth alternative)' },
-      { name: "Lyre's Aperitif Dry", note: '1 oz (Campari alternative)' },
-      { name: 'Orange Peel', note: 'for garnish' },
-    ],
-    garnish: 'Orange peel',
-    instructions: [
-      'Add all ingredients to a mixing glass with ice',
-      'Stir for 20-30 seconds until well-chilled',
-      'Strain into a rocks glass over a large ice cube',
-      'Express orange peel oils over the drink',
-      'Garnish with the orange peel',
-    ],
-    description: 'Classic Negroni flavor without alcohol.',
-    tips: [
-      'Keep the equal-parts build, then fine-tune bitterness with a small 1/4 oz vermouth adjustment if needed.',
-      'Stir with large cold ice for about 25 seconds to hit proper chill and dilution.',
-      'Express orange peel over the center of the drink and wipe the rim for better aroma carry.',
-    ],
-  },
-  {
-    id: 'garden-martini',
-    name: 'Garden Martini',
-    title: 'Garden Martini',
-    subtitle: 'Zero-Proof • Classic Style',
-    category: 'Mocktails',
-    image:
-      'https://images.unsplash.com/photo-1578662996442-48f60103fc96?q=80&w=1200&auto=format&fit=crop',
-    img: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?q=80&w=1200&auto=format&fit=crop',
-    difficulty: 'Easy',
-    time: '3 min',
-    rating: 4.7,
-    glass: 'Coupe',
-    ice: 'Stirred',
-    method: 'Stir',
-    ingredients: [
-      { name: 'Ritual Gin Alternative', note: '2 1/2 oz' },
-      { name: 'Dry Vermouth', note: '1/2 oz' },
-      { name: 'Orange Bitters', note: '2 dashes' },
-      { name: 'Lemon Twist', note: 'for garnish' },
-    ],
-    garnish: 'Lemon twist',
-    instructions: [
-      'Add Ritual Gin Alternative, dry vermouth, and orange bitters to a mixing glass',
-      'Fill mixing glass with ice',
-      'Stir gently for 20-30 seconds until well-chilled',
-      'Strain into a chilled coupe glass',
-      'Express lemon twist over the drink',
-      'Garnish with the lemon twist',
-    ],
-    description: 'Elegant zero-proof martini.',
-    tips: [
-      'Stir with dense cold ice for 25-30 seconds for a cleaner, silkier texture than shaking.',
-      'Use a fully chilled coupe and serve immediately to preserve snap and clarity.',
-      'Express lemon oils from a wide peel; avoid white pith to keep bitterness down.',
-    ],
-  },
-  {
-    id: 'forest-floor',
-    name: 'Forest Floor',
-    title: 'Forest Floor',
-    subtitle: 'Zero-Proof • Earthy Botanicals',
-    category: 'Mocktails',
-    image:
-      'https://images.unsplash.com/photo-1541745537411-b8046dc6d66c?q=80&w=1200&auto=format&fit=crop',
-    img: 'https://images.unsplash.com/photo-1541745537411-b8046dc6d66c?q=80&w=1200&auto=format&fit=crop',
-    difficulty: 'Easy',
-    time: '3 min',
-    rating: 4.7,
-    glass: 'Rocks',
-    ice: 'Large cube',
-    method: 'Stir',
-    ingredients: [
-      { name: 'Wilderton Earthen', note: '2 oz' },
-      { name: 'Honey Syrup', note: '1/2 oz (2:1 honey to water)' },
-      { name: 'Fresh Lemon Juice', note: '1/2 oz' },
-      { name: 'Sage Leaf', note: 'for garnish' },
-      { name: 'Dried Lavender', note: 'pinch for garnish' },
-    ],
-    garnish: 'Sage leaf + dried lavender',
-    instructions: [
-      'Add Wilderton Earthen, honey syrup, and lemon juice to a mixing glass',
-      'Fill with ice and stir for 15-20 seconds',
-      'Strain into a rocks glass over a large ice cube',
-      'Lightly slap sage leaf to release aromatics',
-      'Garnish with sage leaf and a pinch of dried lavender',
-    ],
-    description: 'Contemplative sipping with forest botanicals.',
-    tips: [
-      'Use a 2:1 honey syrup and stir until fully integrated before adding dilution.',
-      'Slap sage once, then place it near the rim so aroma hits before the sip.',
-      'Serve on one large clear cube to preserve the earthy profile longer.',
-    ],
-  },
-  {
-    id: 'coffee-spritz',
-    name: 'Coffee Spritz',
-    title: 'Coffee Spritz',
-    subtitle: 'Wellness • Performance & Flavor',
-    category: 'Mocktails',
-    image:
-      'https://images.unsplash.com/photo-1609951651556-5334e2706168?q=80&w=1200&auto=format&fit=crop',
-    img: 'https://images.unsplash.com/photo-1609951651556-5334e2706168?q=80&w=1200&auto=format&fit=crop',
-    difficulty: 'Easy',
-    time: '2 min',
-    rating: 4.6,
-    glass: 'Collins',
-    ice: 'Cubed',
-    method: 'Build',
-    ingredients: [
-      { name: 'Cold Brew Coffee', note: '2 oz' },
-      { name: 'Vanilla Syrup', note: '1/4 oz' },
-      { name: 'Soda Water', note: '3 oz' },
-      { name: 'Coffee Beans', note: 'for garnish' },
-      { name: 'Orange Peel', note: 'for garnish (optional)' },
-    ],
-    garnish: 'Coffee beans or orange peel',
-    instructions: [
-      'Fill a Collins glass with cubed ice',
-      'Add cold brew coffee and vanilla syrup',
-      'Top with soda water',
-      'Stir gently',
-      'Garnish with coffee beans or orange peel',
-    ],
-    description: 'Energy-focused coffee cocktail.',
-    tips: [
-      'Use low-acid cold brew concentrate so soda lift stays bright instead of harsh.',
-      'Express orange peel over the top only; too much peel in-glass can turn pithy.',
-      'Add soda last and give one short stir to keep carbonation intact.',
-    ],
-  },
-  {
-    id: 'espresso-martini-zero',
-    name: 'Espresso Martini Zero',
-    title: 'Espresso Martini Zero',
-    subtitle: 'Wellness • Coffee Cocktail',
-    category: 'Mocktails',
-    image:
-      'https://images.unsplash.com/photo-1609951651556-5334e2706168?q=80&w=1200&auto=format&fit=crop',
-    img: 'https://images.unsplash.com/photo-1609951651556-5334e2706168?q=80&w=1200&auto=format&fit=crop',
-    difficulty: 'Medium',
-    time: '4 min',
-    rating: 4.8,
-    glass: 'Coupe',
-    ice: 'Shaken',
-    method: 'Shake',
-    ingredients: [
-      { name: 'Cold Brew Coffee', note: '2 oz' },
-      { name: 'Coffee Syrup', note: '3/4 oz' },
-      { name: 'Aquafaba', note: '3/4 oz (chickpea liquid)' },
-      { name: 'Coffee Beans', note: '3 for garnish' },
-    ],
-    garnish: 'Three coffee beans',
-    instructions: [
-      'Add cold brew, coffee syrup, and aquafaba to shaker without ice (dry shake)',
-      'Shake hard for 15 seconds to emulsify',
-      'Add ice and shake again vigorously for 10-15 seconds',
-      'Double strain into a chilled coupe glass',
-      'Garnish with three coffee beans on the foam',
-    ],
-    description: 'Zero-proof espresso martini with clean energy.',
-    tips: [
-      'Dry shake hard first, then shake with ice to build dense, stable foam.',
-      'Double strain to remove ice chips so the foam cap stays smooth.',
-      'Use concentrated cold brew and chill it well before shaking for tighter texture.',
-    ],
-  },
-  {
-    id: 'high-rhode-spritz',
-    name: 'High Rhode Spritz',
-    title: 'High Rhode Spritz',
-    subtitle: 'Low-ABV • Mood-Elevating',
-    category: 'Mocktails',
-    image: require('../../assets/images/mocktails/high_rhode_spritz.png'),
-    img: require('../../assets/images/mocktails/high_rhode_spritz.png'),
-    difficulty: 'Easy',
-    time: '3 min',
-    rating: 4.7,
-    glass: 'Wine glass',
-    ice: 'Cubed',
-    method: 'Build',
-    ingredients: [
-      { name: 'Aromatized Wine or Verjus Aperitif', note: '2 oz' },
-      { name: 'Soda Water', note: '2 oz' },
-      { name: 'Lemon Peel', note: 'for garnish' },
-    ],
-    garnish: 'Lemon peel',
-    instructions: [
-      'Fill a wine glass with cubed ice',
-      'Add aromatized wine or verjus aperitif',
-      'Top with soda water',
-      'Stir gently',
-      'Garnish with lemon peel',
-    ],
-    description: 'Euphoric blend of adaptogens and botanicals.',
-    tips: [
-      'Measure this one precisely: low-ABV drinks lose structure fast when over-poured.',
-      'If it tastes thin, reduce soda by 1/2 oz before adding more base.',
-      'Keep all components fridge-cold and serve immediately to protect lift and aroma.',
-    ],
-  },
-  {
-    id: 'spiced-mule',
-    name: 'Spiced Mule',
-    title: 'Spiced Mule',
-    subtitle: 'Zero-Proof • Warm & Spiced',
-    category: 'Mocktails',
-    image:
-      'https://images.unsplash.com/photo-1574671928146-5c89a22b2e85?q=80&w=1200&auto=format&fit=crop',
-    img: 'https://images.unsplash.com/photo-1574671928146-5c89a22b2e85?q=80&w=1200&auto=format&fit=crop',
-    difficulty: 'Easy',
-    time: '2 min',
-    rating: 4.6,
-    glass: 'Copper mug',
-    ice: 'Cubed',
-    method: 'Build',
-    ingredients: [
-      { name: 'Seedlip Spice 94', note: '2 oz' },
-      { name: 'Fresh Lime Juice', note: '1/2 oz' },
-      { name: 'Ginger Beer', note: '4-5 oz (top)' },
-      { name: 'Lime Wheel', note: 'for garnish' },
-      { name: 'Candied Ginger', note: 'for garnish' },
-    ],
-    garnish: 'Lime wheel + candied ginger',
-    instructions: [
-      'Fill a copper mug with cubed ice',
-      'Add Seedlip Spice 94 and lime juice',
-      'Top with ginger beer',
-      'Stir gently to combine',
-      'Garnish with lime wheel and candied ginger',
-    ],
-    description: 'Warming spiced mule perfect for winter.',
-    tips: [
-      'Copper mug keeps the drink extra cold',
-      'Use a spicy ginger beer for more kick',
-      'Add fresh grated ginger for extra heat',
-    ],
-  },
-  {
-    id: 'spice-route',
-    name: 'Spice Route',
-    title: 'Spice Route',
-    subtitle: 'Zero-Proof • Aromatic Spice',
-    category: 'Mocktails',
-    image:
-      'https://images.unsplash.com/photo-1574671928146-5c89a22b2e85?q=80&w=1200&auto=format&fit=crop',
-    img: 'https://images.unsplash.com/photo-1574671928146-5c89a22b2e85?q=80&w=1200&auto=format&fit=crop',
-    difficulty: 'Easy',
-    time: '3 min',
-    rating: 4.7,
-    glass: 'Rocks',
-    ice: 'Cubed',
-    method: 'Shake',
-    ingredients: [
-      { name: 'Spiced Botanical Tea', note: '2 oz (clove, cinnamon, cardamom, chilled)' },
-      { name: 'Honey Syrup', note: '1/2 oz' },
-      { name: 'Lemon Juice', note: '3/4 oz' },
-      { name: 'Star Anise', note: 'for garnish' },
-      { name: 'Cinnamon Stick', note: 'for garnish (alternative)' },
-    ],
-    garnish: 'Star anise or cinnamon stick',
-    instructions: [
-      'Add chilled spiced botanical tea, honey syrup, and lemon juice to shaker',
-      'Fill with ice and shake hard for 10-15 seconds',
-      'Strain over fresh ice in a rocks glass',
-      'Garnish with star anise or cinnamon stick',
-    ],
-    description: 'Complex spiced cocktail with apple notes.',
-    tips: [
-      'Hard shake blooms spice aromatics',
-      'Brew tea with clove, cinnamon, and cardamom, then chill',
-      'Adjust honey to balance spice intensity',
-    ],
-  },
-  {
-    id: 'zero-proof-aperol-spritz',
-    name: 'Aperitivo Spritz',
-    title: 'Aperitivo Spritz',
-    subtitle: 'Zero-Proof • Italian Aperitivo',
-    category: 'Mocktails',
-    image:
-      'https://images.unsplash.com/photo-1578662996442-48f60103fc96?q=80&w=1200&auto=format&fit=crop',
-    img: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?q=80&w=1200&auto=format&fit=crop',
-    difficulty: 'Easy',
-    time: '2 min',
-    rating: 4.7,
-    glass: 'Wine glass',
-    ice: 'Cubed',
-    method: 'Build',
-    ingredients: [
-      { name: "Lyre's Italian Orange", note: '3 oz' },
-      { name: 'Sparkling Wine or Prosecco (NA)', note: '2 oz' },
-      { name: 'Soda Water', note: 'splash' },
-      { name: 'Orange Slice', note: 'for garnish' },
-    ],
-    garnish: 'Orange slice',
-    instructions: [
-      'Fill a wine glass with cubed ice',
-      "Add Lyre's Italian Orange",
-      'Top with non-alcoholic sparkling wine and a splash of soda water',
-      'Stir gently to combine',
-      'Garnish with an orange slice',
-    ],
-    description: 'Italian aperitif hour without the alcohol.',
-    tips: [
-      'Use non-alcoholic prosecco for authentic Aperol Spritz experience',
-      'The classic ratio is 3-2-1 (Aperitif-Prosecco-Soda)',
-      'Serve immediately while bubbles are fresh',
-    ],
-  },
-  {
-    id: 'italian-sunset',
-    name: 'Italian Sunset',
-    title: 'Italian Sunset',
-    subtitle: 'Low-ABV • Citrus & Herbs',
-    category: 'Mocktails',
-    image: require('../../assets/images/mocktails/italian_sunset.png'),
-    img: require('../../assets/images/mocktails/italian_sunset.png'),
-    difficulty: 'Easy',
-    time: '3 min',
-    rating: 4.6,
-    glass: 'Wine glass',
-    ice: 'Cubed',
-    method: 'Build',
-    ingredients: [
-      { name: "Lyre's Italian Orange", note: '2 oz' },
-      { name: 'Fresh Grapefruit Juice', note: '1 oz' },
-      { name: 'Honey Syrup', note: '1/2 oz' },
-      { name: 'Sparkling Water', note: 'top' },
-      { name: 'Grapefruit Twist', note: 'for garnish' },
-    ],
-    garnish: 'Grapefruit twist',
-    instructions: [
-      'Fill a wine glass with cubed ice',
-      "Add Lyre's Italian Orange, grapefruit juice, and honey syrup",
-      'Stir gently to combine',
-      'Top with sparkling water',
-      'Express grapefruit twist over the drink',
-      'Garnish with the grapefruit twist',
-    ],
-    description: 'Refreshing Italian-style spritz.',
-    tips: [
-      'Fresh grapefruit juice makes all the difference',
-      'Adjust honey syrup to taste based on grapefruit sweetness',
-      'Express the citrus oils before garnishing',
-    ],
-  },
-  {
-    id: 'curious-spritz',
-    name: 'Curious Spritz',
-    title: 'Curious Spritz',
-    subtitle: 'Low-ABV • Negroni Inspired',
-    category: 'Mocktails',
-    image: require('../../assets/images/mocktails/curious_spritz.png'),
-    img: require('../../assets/images/mocktails/curious_spritz.png'),
-    difficulty: 'Easy',
-    time: '2 min',
-    rating: 4.6,
-    glass: 'Wine glass',
-    ice: 'Cubed',
-    method: 'Build',
-    ingredients: [
-      { name: 'Bitter Orange Shrub or Aperitif', note: '2 oz' },
-      { name: 'Soda Water', note: '3 oz' },
-      { name: 'Orange Twist', note: 'for garnish' },
-    ],
-    garnish: 'Orange twist',
-    instructions: [
-      'Fill a wine glass with cubed ice',
-      'Add bitter orange shrub or aperitif',
-      'Top with soda water',
-      'Stir gently',
-      'Garnish with orange twist',
-    ],
-    description: 'Ready-to-drink Negroni alternative.',
-    tips: [
-      'Balance bitterness before service—shrubs vary',
-      'Adjust soda water to taste based on shrub intensity',
-      'Express orange oils over the drink before garnishing',
-    ],
-  },
-  {
-    id: 'ginger-lemon-mule',
-    name: 'Ginger Lemon Mule',
-    title: 'Ginger Lemon Mule',
-    subtitle: 'Wellness • Probiotic Power',
-    category: 'Mocktails',
-    image:
-      'https://images.unsplash.com/photo-1559181567-c3190ca9959b?q=80&w=1200&auto=format&fit=crop',
-    img: 'https://images.unsplash.com/photo-1559181567-c3190ca9959b?q=80&w=1200&auto=format&fit=crop',
-    difficulty: 'Easy',
-    time: '3 min',
-    rating: 4.7,
-    glass: 'Copper mug',
-    ice: 'Cubed',
-    method: 'Build',
-    ingredients: [
-      { name: 'Ginger Kombucha', note: '4 oz' },
-      { name: 'Fresh Lemon Juice', note: '1/2 oz' },
-      { name: 'Lemon Wheel', note: 'for garnish' },
-      { name: 'Ginger Slice', note: 'for garnish' },
-    ],
-    garnish: 'Lemon wheel + ginger slice',
-    instructions: [
-      'Fill a copper mug with cubed ice',
-      'Add fresh lemon juice',
-      'Top with ginger kombucha',
-      'Stir gently',
-      'Garnish with lemon wheel and ginger slice',
-    ],
-    description: 'Digestive health with refreshing taste.',
-    tips: [
-      'Use a cold copper mug when possible; it keeps the spice profile sharper longer.',
-      'Add ginger kombucha last and stir once from the bottom to avoid flattening.',
-      'If serving in glassware, pack with dense fresh ice so chill stays consistent.',
-    ],
-  },
-  {
-    id: 'wellness-spritzer',
-    name: 'Wellness Spritzer',
-    title: 'Wellness Spritzer',
-    subtitle: 'Wellness • Probiotic',
-    category: 'Mocktails',
-    image:
-      'https://images.unsplash.com/photo-1559181567-c3190ca9959b?q=80&w=1200&auto=format&fit=crop',
-    img: 'https://images.unsplash.com/photo-1559181567-c3190ca9959b?q=80&w=1200&auto=format&fit=crop',
-    difficulty: 'Easy',
-    time: '3 min',
-    rating: 4.6,
-    glass: 'Wine glass',
-    ice: 'Cubed',
-    method: 'Build',
-    ingredients: [
-      { name: 'Apple Cider Shrub', note: '1 oz' },
-      { name: 'Soda Water', note: '4 oz' },
-      { name: 'Apple Fan', note: 'for garnish' },
-      { name: 'Thyme Sprig', note: 'for garnish (alternative)' },
-    ],
-    garnish: 'Apple fan or thyme sprig',
-    instructions: [
-      'Fill a wine glass with cubed ice',
-      'Add apple cider shrub',
-      'Top with soda water',
-      'Stir gently',
-      'Garnish with apple fan or thyme sprig',
-    ],
-    description: 'Light and refreshing wellness drink.',
-    tips: [
-      'Use this as a low-sugar palate reset by keeping shrub at the lower end, then adjust upward.',
-      'Adjust shrub in 1/4 oz steps; acidity can swing quickly between brands.',
-      'Top with soda last and give one gentle stir so acidity stays crisp, not flat.',
-    ],
-  },
-  {
-    id: 'golden-hour-latte',
-    name: 'Golden Hour Latte',
-    title: 'Golden Hour Latte',
-    subtitle: 'Wellness • Adaptogenic Blend',
-    category: 'Mocktails',
-    image:
-      'https://images.unsplash.com/photo-1574671928146-5c89a22b2e85?q=80&w=1200&auto=format&fit=crop',
-    img: 'https://images.unsplash.com/photo-1574671928146-5c89a22b2e85?q=80&w=1200&auto=format&fit=crop',
-    difficulty: 'Easy',
-    time: '4 min',
-    rating: 4.7,
-    glass: 'Mug',
-    ice: 'None',
-    method: 'Heat / Steam',
-    ingredients: [
-      { name: 'Oat Milk', note: '6 oz' },
-      { name: 'Turmeric Blend', note: '0.5 tsp' },
-      { name: 'Honey', note: '1/2 oz' },
-      { name: 'Cinnamon Dust', note: 'for garnish' },
-    ],
-    garnish: 'Cinnamon dust',
-    instructions: [
-      'Gently heat oat milk (do not boil)',
-      'Whisk in turmeric blend and honey until fully combined',
-      'Pour into a mug',
-      'Garnish with cinnamon dust on top',
-    ],
-    description: 'Evening relaxation with stress support.',
-    tips: [
-      'Heat gently below simmer; boiling mutes spice aromatics and sweetness.',
-      'Whisk continuously while adding powder to avoid gritty turmeric pockets.',
-      'Dissolve turmeric blend with a splash of warm milk first, then combine for smoother texture.',
-    ],
-  },
-  {
-    id: 'spiced-chai-fizz',
-    name: 'Spiced Chai Fizz',
-    title: 'Spiced Chai Fizz',
-    subtitle: 'Wellness • Adaptogenic',
-    category: 'Mocktails',
-    image:
-      'https://images.unsplash.com/photo-1574671928146-5c89a22b2e85?q=80&w=1200&auto=format&fit=crop',
-    img: 'https://images.unsplash.com/photo-1574671928146-5c89a22b2e85?q=80&w=1200&auto=format&fit=crop',
-    difficulty: 'Easy',
-    time: '3 min',
-    rating: 4.6,
-    glass: 'Collins',
-    ice: 'Cubed',
-    method: 'Build',
-    ingredients: [
-      { name: 'Chai Concentrate', note: '2 oz' },
-      { name: 'Soda Water', note: '3 oz' },
-      { name: 'Cinnamon Stick', note: 'for garnish' },
-    ],
-    garnish: 'Cinnamon stick',
-    instructions: [
-      'Fill a Collins glass with cubed ice',
-      'Add chai concentrate',
-      'Top with soda water',
-      'Stir gently',
-      'Garnish with cinnamon stick',
-    ],
-    description: 'Sparkling chai with stress-relieving adaptogens.',
-    tips: [
-      'For cold service, fully chill chai concentrate first so carbonation does not collapse.',
-      'For hot service, skip soda and top with lightly frothed milk for texture.',
-      'Choose a balanced chai base; overly sweet concentrates hide spice complexity.',
-    ],
-  },
-];
-
-/* ------------------------- UI PIECES ------------------------- */
-
-function MoodCard({
-  title,
-  image,
-  subtitle,
-  onPress,
-  index = 0,
-}: {
-  title: string;
-  image: string;
-  subtitle?: string;
-  onPress?: () => void;
-  index?: number;
-}) {
-  const w = Math.min(0.78 * width, 300);
-  const h = Math.round(w * 0.66);
-  return (
-    <Animated.View entering={FadeInRight.delay(index * 100).duration(500)}>
-      <Pressable
-        onPress={onPress ? withHaptic(onPress) : undefined}
-        style={{ width: w, marginRight: spacing(1.25) }}
-      >
-        <Image
-          source={{ uri: image }}
-          style={{ width: '100%', height: h, borderRadius: radii.lg }}
-        />
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
-          <Text style={{ color: colors.text, fontWeight: '900', fontSize: 18 }}>{title}</Text>
-          <Ionicons
-            name="chevron-forward"
-            size={16}
-            color={colors.accent}
-            style={{ marginLeft: 4 }}
-          />
-        </View>
-        {subtitle ? <Text style={{ color: colors.muted }}>{subtitle}</Text> : null}
-      </Pressable>
-    </Animated.View>
-  );
-}
-
-function HeroCard({
-  cocktail,
-  onPress,
-}: {
-  cocktail: typeof COCKTAIL_OF_THE_WEEK;
-  onPress: () => void;
-}) {
-  const cardW = width - spacing(2) * 2;
-  const cardH = Math.round(cardW * 0.56);
-
-  const resolvedImage =
-    typeof cocktail.image === 'string'
-      ? getCocktailImage(cocktail.id, cocktail.image)
-      : cocktail.image;
-
-  return (
-    <Animated.View
-      entering={FadeIn.duration(600)}
-      style={{
-        marginHorizontal: spacing(2),
-        borderRadius: radii.xl,
-        overflow: 'hidden',
-        backgroundColor: colors.card,
-        marginBottom: spacing(1.5),
-      }}
-    >
-      <Pressable onPress={withHaptic(onPress)} style={{ width: cardW, height: cardH }}>
-        <Image
-          source={typeof resolvedImage === 'string' ? { uri: resolvedImage } : resolvedImage}
-          style={{ width: '100%', height: '100%' }}
-        />
-      </Pressable>
-
-      {/* gold label */}
-      <View
-        style={{
-          position: 'absolute',
-          top: 10,
-          left: 10,
-          backgroundColor: GOLD,
-          paddingHorizontal: 10,
-          paddingVertical: 6,
-          borderRadius: 999,
-        }}
-      >
-        <Text style={{ color: '#120D07', fontWeight: '900' }}>COCKTAIL OF THE WEEK</Text>
-      </View>
-
-      <View style={{ padding: spacing(2) }}>
-        <Text style={{ color: colors.text, fontSize: 28, fontWeight: '900' }}>{cocktail.name}</Text>
-        <Text style={{ color: colors.muted, fontSize: 18, marginTop: 4 }}>
-          {cocktail.description}
-        </Text>
-      </View>
-    </Animated.View>
-  );
 }
 
 /* ------------------------- SCREEN ------------------------- */
@@ -1818,13 +162,11 @@ export default function RecipesScreen() {
     savedCocktailCount,
     canSaveMoreCocktails,
   } = useSavedItems();
-  const {
-    getPersonalizedMoodOrder,
-    getFeaturedCocktails,
-    scoreMoodCategory,
-    recordInteraction,
-    profile,
-  } = usePersonalization();
+  // getPersonalizedMoodOrder/getFeaturedCocktails were removed from this
+  // destructuring when the PLUS-tier recommendations below switched to
+  // tasteMatchScores. scoreMoodCategory/recordInteraction were already dead
+  // (destructured, never called) before this session's changes.
+  const { profile } = usePersonalization();
   const { recipes: userRecipes, loadRecipes } = useUserRecipes();
   const { toast, showToast, hideToast } = useToast();
   const onScrollHaptic = useScrollHaptic('selection', 800);
@@ -1836,6 +178,7 @@ export default function RecipesScreen() {
   const { gateWithTrigger: predictiveEngineGate } = useFeatureAccess('predictive_engine');
   const { gateWithTrigger: flavorControlsGate } = useFeatureAccess('adjustable_flavor_controls');
   const { gateWithTrigger: advancedFilterGate } = useFeatureAccess('advanced_filters');
+  const { gate: whatCanIMakeGate } = useFeatureAccess('what_can_i_make');
 
   // XP System
   const {
@@ -1844,7 +187,6 @@ export default function RecipesScreen() {
     canAffordCocktail,
     unlockCocktail,
     isCocktailUnlockedWithXP,
-    checkDailyLogin,
     unlockedCocktails,
     unlockedVaultItems,
   } = useXPSystem();
@@ -1852,10 +194,45 @@ export default function RecipesScreen() {
   // Engagement System
   const { isRecipeUnlocked: isRecipeUnlockedWithEngagement } = useEngagement();
 
-  // Check daily login on mount
-  useEffect(() => {
-    checkDailyLogin();
-  }, []);
+  // Vault rail — the Vault stack screen had no entry point on any main
+  // surface, so nothing in it (playbooks, variations, hacks) was discoverable.
+  // Sourced from the same live vaultContent pool VaultScreen renders, so the
+  // ids line up with the unlock state the XP store persists. All three
+  // categories are mixed together (Seasonal is deliberately left out for now).
+  // Purely a discovery surface: taps open the Vault, where the existing
+  // level/tier gating still applies.
+  const vaultRailPool = useMemo(() => {
+    const unlocked = new Set(unlockedVaultItems || []);
+    const pool = [
+      ...getVariationsForDisplay().map((item) => ({ item, kind: 'variation' as const })),
+      ...getAllPlaybookTypes().flatMap((type) =>
+        getTechniquePlaybooksByType(type).map((item) => ({ item, kind: 'playbook' as const })),
+      ),
+      ...getBartenderHacksForDisplay().map((item) => ({ item, kind: 'hack' as const })),
+    ];
+    return pool.map((entry) => ({ ...entry, isUnlocked: unlocked.has(entry.item.id) }));
+  }, [unlockedVaultItems]);
+
+  const [vaultRailItems, setVaultRailItems] = useState<typeof vaultRailPool>([]);
+
+  // The rail shows a fresh random sample every time the screen regains focus,
+  // so repeat visits surface different corners of the Vault. The pool is read
+  // through a ref with an empty-dep callback on purpose: it keeps the focus
+  // effect's identity stable (a changing callback would re-run — and re-roll —
+  // on every render), and it also means the rail never reshuffles underneath a
+  // user who is still looking at it.
+  const vaultRailPoolRef = useRef(vaultRailPool);
+  vaultRailPoolRef.current = vaultRailPool;
+  useFocusEffect(
+    useCallback(() => {
+      setVaultRailItems(sampleRandom(vaultRailPoolRef.current, VAULT_RAIL_SAMPLE_SIZE));
+    }, []),
+  );
+
+  // Daily-login XP is granted in App.tsx on app open — the single call site
+  // after the 2026-08 XP-funnel pass. It used to also fire here, and because
+  // App.tsx's grant bypassed checkDailyLogin's once-per-day dedupe, the two
+  // together could pay the bonus twice on the same calendar day.
 
   // Unlock sheet state
   const [unlockSheetVisible, setUnlockSheetVisible] = useState(false);
@@ -1930,18 +307,37 @@ export default function RecipesScreen() {
     loadRecipes();
   }, []);
 
-  // Compute taste match scores for PLUS/PRO users once recipes are loaded
+  // Compute taste match scores for PLUS/PRO users once recipes are loaded.
+  // Reads the canonical profile directly — buildTasteProfileFromPersonalization
+  // was a fallback for when this ran off the old 0-100 store, which no longer
+  // has any bearing on taste. The canonical model's confidence-blended priors
+  // mean there's always something sensible to score against, even for a
+  // brand-new user with zero interactions.
   useEffect(() => {
-    if (allRecipes.length === 0 || tier === 'FREE') return;
-    const tasteProfile = buildTasteProfileFromPersonalization(profile);
-    if (!tasteProfile) return;
+    if (allRecipes.length === 0 || tier === 'FREE' || !user?.id) return;
+    let cancelled = false;
 
-    const scores: Record<string, number> = {};
-    for (const recipe of allRecipes) {
-      scores[recipe.id] = calculateTasteMatchPercent(tasteProfile, recipe as any);
-    }
-    setTasteMatchScores(scores);
-  }, [allRecipes, tier, profile]);
+    loadUserProfile(user.id)
+      .then((dbProfile) => {
+        if (cancelled) return;
+        const graph = hydrateTasteGraph(dbProfile?.tasteProfile);
+        if (!graph) return;
+
+        const tasteProfile = graph.rawProfile;
+        const scores: Record<string, number> = {};
+        for (const recipe of allRecipes) {
+          scores[recipe.id] = calculateTasteMatchPercent(tasteProfile, recipe as any);
+        }
+        setTasteMatchScores(scores);
+      })
+      .catch((error) => {
+        log.warn('RecipesScreen', 'Failed to compute taste match scores', { error });
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [allRecipes, tier, user?.id]);
 
   // Pull-to-refresh handler
   const onRefresh = useCallback(async () => {
@@ -2389,20 +785,24 @@ export default function RecipesScreen() {
                 cocktail.ingredients || [],
               ).toLowerCase();
               const tags = (cocktail.tags || []).join(' ').toLowerCase();
-              const searchable = `${name} ${description} ${ingredientText} ${tags}`;
-
-              // Must match at least one term
-              if (!queryTerms.some((term) => searchable.includes(term))) return null;
-
+              // Every typed word must appear together in ONE field (name, or
+              // ingredients, or tags, or description) — not just any single
+              // word landing anywhere across the four fields OR'd together.
+              // The old logic required only one term to match anywhere in the
+              // combined blob, so e.g. searching "Rum Punch" would surface any
+              // rum cocktail with no relation to "punch". There's also no
+              // catch-all inclusion anymore (the old `else score += 10`) — a
+              // cocktail that doesn't fully match on any single field is
+              // excluded, not just ranked last.
               let score = 0;
-              if (name === queryLower) score += 100;
-              else if (name.startsWith(queryLower)) score += 80;
-              else if (name.includes(queryLower)) score += 60;
-              else if (queryTerms.every((term) => name.includes(term))) score += 55;
-              else if (ingredientText.includes(queryLower)) score += 40;
-              else if (tags.includes(queryLower)) score += 30;
-              else if (description.includes(queryLower)) score += 20;
-              else score += 10;
+              if (name === queryLower) score = 100;
+              else if (name.startsWith(queryLower)) score = 80;
+              else if (name.includes(queryLower)) score = 60;
+              else if (queryTerms.every((term) => name.includes(term))) score = 55;
+              else if (queryTerms.every((term) => ingredientText.includes(term))) score = 40;
+              else if (queryTerms.every((term) => tags.includes(term))) score = 30;
+              else if (queryTerms.every((term) => description.includes(term))) score = 20;
+              else return null;
 
               return { cocktail, score };
             })
@@ -2431,17 +831,24 @@ export default function RecipesScreen() {
     };
   }, []);
 
-  // Hide tab bar while searching + focus input after overlay mounts
+  // Hide tab bar while searching + focus input after overlay mounts.
+  // Focus and the tab-bar-hide used to fire in the same tick (focus merely
+  // delayed 50ms). Hiding the tab bar changes this screen's layout height at
+  // roughly the same moment the keyboard's own ~250ms show animation is
+  // still in flight — on some devices, typing the first character while that
+  // animation is still settling caused iOS to treat it as an interrupted
+  // gesture and dismiss the keyboard. Focusing immediately (the ref is
+  // already attached by the time an effect runs, since effects fire after
+  // commit) and pushing the tab-bar layout change out past the keyboard's own
+  // animation window keeps the two from competing for the same frame.
   useEffect(() => {
     const tabNavigator = navigation.getParent();
     if (showSearchInput) {
-      tabNavigator?.setOptions({ tabBarStyle: { display: 'none' } });
-      // Delay focus so it happens after the overlay is fully mounted,
-      // avoiding conflicts with any mount-time layout calculations on iOS
-      const timer = setTimeout(() => {
-        searchInputRef.current?.focus();
-      }, 50);
-      return () => clearTimeout(timer);
+      searchInputRef.current?.focus();
+      const hideTabBarTimer = setTimeout(() => {
+        tabNavigator?.setOptions({ tabBarStyle: { display: 'none' } });
+      }, 300);
+      return () => clearTimeout(hideTabBarTimer);
     } else {
       tabNavigator?.setOptions({
         tabBarStyle: { backgroundColor: colors.bg, borderTopColor: 'transparent' },
@@ -2498,8 +905,22 @@ export default function RecipesScreen() {
           const loadedProfile = user?.id ? await loadUserProfile(user.id).catch(() => null) : null;
           const enhancedProfile =
             loadedProfile || buildEnhancedProfileFallback(user?.id, profile, savedItems);
-          enhancedProfile.tasteProfile =
-            enhancedProfile.tasteProfile || buildTasteProfileFromPersonalization(profile);
+          // Only reached if even the DB load failed — buildTasteProfileFromPersonalization
+          // used to fall back to the old 0-100 store here, which no longer has any
+          // bearing on taste. Fall back to the same flat neutral prior
+          // tasteVectorService seeds new users with instead.
+          enhancedProfile.tasteProfile = enhancedProfile.tasteProfile || {
+            flavorWeights: Object.fromEntries(CANONICAL_FLAVORS.map((f) => [f, 0.3])) as Record<
+              (typeof CANONICAL_FLAVORS)[number],
+              number
+            >,
+            spiritWeights: Object.fromEntries(CANONICAL_SPIRITS.map((s) => [s, 0.25])) as Record<
+              Spirit,
+              number
+            >,
+            preferredABV: { min: 0, max: 40 },
+            preferredComplexity: 0.5,
+          };
 
           let inventoryBottles: any[] = [];
           if (user?.id) {
@@ -2519,7 +940,9 @@ export default function RecipesScreen() {
             );
           }
 
-          const tasteGraph = initializeTasteGraph(enhancedProfile.tasteProfile);
+          // Hydrate rather than initialize — initializeTasteGraph() re-stamps all
+          // timestamps as "now", which disables decay and confidence entirely.
+          const tasteGraph = hydrateTasteGraph(enhancedProfile.tasteProfile)!;
           const predictions = getPredictiveRecommendations(
             ALL_COCKTAILS as any,
             enhancedProfile as any,
@@ -2553,7 +976,7 @@ export default function RecipesScreen() {
           if (topPredictions.length > 0) {
             formattedSections.push({
               title: 'Top Picks For You',
-              reason: 'Predicted from your taste profile, scans, and inventory.',
+              reason: 'Predicted from your palate, scans, and inventory.',
               cocktails: topPredictions,
             });
           }
@@ -2574,36 +997,52 @@ export default function RecipesScreen() {
             });
           }
         } else {
-          const featured = getFeaturedCocktails();
-          const moodOrder = getPersonalizedMoodOrder();
+          // PLUS tier — was getFeaturedCocktails()/getPersonalizedMoodOrder(),
+          // both fed by usePersonalization's separate, cruder scoring engine
+          // (built from a handful of onboarding-survey answers). Nothing has
+          // written to that engine's inputs since this session's taste-model
+          // cleanup, so both silently went flat/empty. Reuses tasteMatchScores
+          // instead — already computed above from the same canonical model
+          // driving PRO's recommendations, not a second system.
+          const featured = [...allRecipes]
+            .filter((r) => (tasteMatchScores[r.id] ?? 0) > 0)
+            .sort((a, b) => (tasteMatchScores[b.id] ?? 0) - (tasteMatchScores[a.id] ?? 0));
 
-          if (featured && featured.length > 0) {
+          if (featured.length > 0) {
             formattedSections.push({
               title: 'Top Picks For You',
-              reason: 'Based on your taste profile and preferences',
+              reason: 'Based on your palate and preferences',
               cocktails: featured.slice(0, 8),
             });
           }
 
-          if (moodOrder && moodOrder.length > 0) {
-            moodOrder.slice(0, 3).forEach((moodTitle) => {
-              const mood = COCKTAIL_MOODS.find((m) => m.title === moodTitle);
-              if (mood) {
-                const cocktails = mood.cocktails
-                  .slice(0, 6)
-                  .map((id) => ALL_COCKTAILS.find((c) => c.id === id))
-                  .filter(Boolean);
+          const moodOrder = COCKTAIL_MOODS.map((mood) => {
+            const scores = mood.cocktails
+              .map((id) => tasteMatchScores[id])
+              .filter((score): score is number => typeof score === 'number');
+            const avgScore = scores.length
+              ? scores.reduce((sum, s) => sum + s, 0) / scores.length
+              : 0;
+            return { mood, avgScore };
+          })
+            .filter((entry) => entry.avgScore > 0)
+            .sort((a, b) => b.avgScore - a.avgScore)
+            .slice(0, 3);
 
-                if (cocktails.length > 0) {
-                  formattedSections.push({
-                    title: `${moodTitle} Favorites`,
-                    reason: `Based on your preference for ${moodTitle.toLowerCase()} cocktails`,
-                    cocktails,
-                  });
-                }
-              }
-            });
-          }
+          moodOrder.forEach(({ mood }) => {
+            const cocktails = mood.cocktails
+              .slice(0, 6)
+              .map((id) => ALL_COCKTAILS.find((c) => c.id === id))
+              .filter(Boolean);
+
+            if (cocktails.length > 0) {
+              formattedSections.push({
+                title: `${mood.title} Favorites`,
+                reason: `Based on your preference for ${mood.title.toLowerCase()} cocktails`,
+                cocktails,
+              });
+            }
+          });
         }
 
         if (formattedSections.length === 0) {
@@ -2636,16 +1075,7 @@ export default function RecipesScreen() {
     return () => {
       cancelled = true;
     };
-  }, [
-    viewMode,
-    tier,
-    user?.id,
-    profile,
-    savedItems,
-    ALL_COCKTAILS,
-    getFeaturedCocktails,
-    getPersonalizedMoodOrder,
-  ]);
+  }, [viewMode, tier, user?.id, profile, savedItems, ALL_COCKTAILS, allRecipes, tasteMatchScores]);
 
   // Get current displayed recipes
   const getCurrentRecipes = () => {
@@ -3029,7 +1459,6 @@ export default function RecipesScreen() {
                       {/* What Can I Make — ported from the retired HomeScreen */}
                       <TouchableOpacity
                         style={{
-                          width: '100%',
                           backgroundColor: colors.card,
                           borderRadius: radii.lg,
                           borderWidth: 1,
@@ -3037,45 +1466,85 @@ export default function RecipesScreen() {
                           marginHorizontal: spacing(2),
                           marginTop: spacing(1),
                           marginBottom: spacing(3),
+                          padding: spacing(2.5),
                         }}
-                        onPress={() => navigation.navigate('WhatCanIMake')}
+                        onPress={() => whatCanIMakeGate(() => navigation.navigate('WhatCanIMake'))}
                         activeOpacity={0.82}
                       >
-                        <View
-                          style={{
-                            flexDirection: 'row',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            paddingHorizontal: spacing(2.5),
-                            paddingVertical: spacing(2),
-                          }}
-                        >
-                          <View>
+                        <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+                          <View style={{ flex: 1, minWidth: 0, paddingRight: spacing(2) }}>
                             <Text
                               style={{
                                 fontSize: 11,
-                                fontWeight: '600',
+                                fontWeight: '700',
                                 color: colors.gold,
                                 letterSpacing: 1,
                                 textTransform: 'uppercase',
-                                marginBottom: spacing(0.5),
+                                marginBottom: spacing(0.75),
                               }}
                             >
                               Your Bar
                             </Text>
                             <Text
                               style={{
-                                fontSize: 17,
+                                fontSize: 22,
                                 fontWeight: '700',
                                 color: colors.text,
                                 fontFamily: serif,
+                                lineHeight: 27,
+                                marginBottom: spacing(1),
                               }}
                             >
                               What can I make tonight?
                             </Text>
+                            <Text
+                              style={{
+                                fontSize: 13,
+                                color: colors.subtext,
+                                marginBottom: spacing(2),
+                              }}
+                            >
+                              Ideas based on what's in your bar.
+                            </Text>
+                            <View
+                              style={{
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                alignSelf: 'flex-start',
+                                backgroundColor: colors.gold,
+                                borderRadius: radii.pill,
+                                paddingHorizontal: spacing(2.5),
+                                paddingVertical: spacing(1.25),
+                              }}
+                            >
+                              <Text
+                                style={{
+                                  fontSize: 14,
+                                  fontWeight: '700',
+                                  color: colors.goldText,
+                                }}
+                              >
+                                See Matches
+                              </Text>
+                            </View>
                           </View>
-                          <Ionicons name="chevron-forward" size={20} color={colors.gold} />
+                          <Image
+                            source={getCocktailImage('old-fashioned')}
+                            style={{
+                              width: 90,
+                              height: 90,
+                              borderRadius: radii.md,
+                              flexShrink: 0,
+                            }}
+                            resizeMode="cover"
+                          />
                         </View>
+                        <Ionicons
+                          name="chevron-forward"
+                          size={18}
+                          color={colors.gold}
+                          style={{ position: 'absolute', right: spacing(2), bottom: spacing(2) }}
+                        />
                       </TouchableOpacity>
 
                       {/* Tonight's Pick — inventory-aware, all tiers */}
@@ -3167,6 +1636,51 @@ export default function RecipesScreen() {
                           </ScrollView>
                         </>
                       ) : null}
+
+                      {/* Vault — discovery rail into the Vault stack screen */}
+                      {vaultRailItems.length > 0 && (
+                        <>
+                          <SectionHeader
+                            title="Vault"
+                            onPress={() => navigation.navigate('Vault')}
+                          />
+                          <ScrollView
+                            horizontal
+                            nestedScrollEnabled
+                            showsHorizontalScrollIndicator={false}
+                            style={{ paddingLeft: spacing(2), marginBottom: spacing(2) }}
+                          >
+                            {vaultRailItems.map(({ item, kind, isUnlocked }, index) => {
+                              // Hacks ship without art, so they borrow the same
+                              // placeholder photo VaultScreen uses for them.
+                              const image =
+                                kind === 'variation'
+                                  ? getVaultVariationThumbnail(item.id)
+                                  : kind === 'playbook'
+                                    ? getVaultPlaybookThumbnail(item.id)
+                                    : { uri: VAULT_HACK_PLACEHOLDER_IMAGE };
+                              const levelLabel = item.requiredTier
+                                ? `Level ${item.requiredLevel} · ${item.requiredTier}`
+                                : `Level ${item.requiredLevel}`;
+                              return (
+                                <Animated.View
+                                  key={item.id}
+                                  entering={FadeInRight.delay(index * 100).duration(500)}
+                                >
+                                  <VaultRailCard
+                                    image={image}
+                                    title={item.title}
+                                    levelLabel={levelLabel}
+                                    isUnlocked={isUnlocked}
+                                    onPress={() => navigation.navigate('Vault')}
+                                    style={{ marginRight: 16 }}
+                                  />
+                                </Animated.View>
+                              );
+                            })}
+                          </ScrollView>
+                        </>
+                      )}
 
                       {/* Cocktail of the Week */}
                       <View style={{ marginTop: spacing(1) }}>
@@ -4256,153 +2770,3 @@ export default function RecipesScreen() {
     </SafeAreaView>
   );
 }
-
-// ── Advanced Filter Modal Styles ────────────────────────────────────────────
-const afStyles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-  },
-  container: {
-    backgroundColor: colors.card,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(214,138,56,0.3)',
-    maxHeight: '85%',
-  },
-  handle: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    alignSelf: 'center',
-    marginTop: spacing(1.5),
-    marginBottom: spacing(0.5),
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing(3),
-    paddingTop: spacing(1),
-    paddingBottom: spacing(1.5),
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.text,
-    fontFamily: serif,
-  },
-  closeBtn: {
-    width: 32,
-    height: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
-  },
-  scroll: {
-    flexShrink: 1,
-  },
-  scrollContent: {
-    paddingHorizontal: spacing(3),
-    paddingBottom: spacing(2),
-  },
-  section: {
-    marginTop: spacing(2),
-  },
-  sectionHead: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing(1.5),
-    marginBottom: spacing(1.5),
-  },
-  sectionLabel: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: colors.gold,
-    letterSpacing: 2,
-  },
-  sectionRule: {
-    flex: 1,
-    height: 1,
-    backgroundColor: 'rgba(214,138,56,0.18)',
-  },
-  pillRow: {
-    flexDirection: 'row',
-    gap: spacing(1.25),
-    paddingRight: spacing(2),
-  },
-  pillWrap: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing(1.25),
-  },
-  pill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: radii.pill,
-    backgroundColor: colors.bg,
-    borderWidth: 1,
-    borderColor: 'rgba(214,138,56,0.2)',
-  },
-  pillSelected: {
-    backgroundColor: colors.accent,
-    borderColor: colors.accent,
-    shadowColor: colors.accent,
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 1 },
-    elevation: 2,
-  },
-  pillText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.subtext,
-  },
-  pillTextSelected: {
-    color: colors.goldText,
-    fontWeight: '700',
-  },
-  clearBtn: {
-    marginTop: spacing(2),
-    paddingVertical: spacing(1.5),
-    borderRadius: radii.pill,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-  },
-  clearBtnText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.subtext,
-  },
-  footer: {
-    paddingHorizontal: spacing(3),
-    paddingTop: spacing(1.5),
-    paddingBottom: spacing(1),
-  },
-  applyBtn: {
-    paddingVertical: spacing(2),
-    borderRadius: radii.pill,
-    backgroundColor: colors.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: colors.accent,
-    shadowOpacity: 0.55,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 8,
-  },
-  applyBtnText: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: colors.goldText,
-    letterSpacing: 0.3,
-  },
-});

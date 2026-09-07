@@ -28,6 +28,33 @@ function parseServerTimings(data: any): ScanServerTimings | undefined {
 }
 
 /**
+ * `supabase.functions.invoke` reports a non-2xx response as a `FunctionsHttpError`
+ * whose `.message` is always the generic "Edge Function returned a non-2xx
+ * status code" — the actual reason (rate limit, missing API key, upstream
+ * vendor error) is on `.context`, the raw Response, and has to be read
+ * separately. Without this, every distinct failure mode collapses into the
+ * same unreadable log line.
+ */
+async function describeFunctionError(error: unknown): Promise<string> {
+  const context = (error as { context?: Response })?.context;
+  if (!context || typeof context.text !== 'function') {
+    return (error as Error)?.message ?? String(error);
+  }
+  try {
+    const status = context.status;
+    const bodyText = await context.clone().text();
+    try {
+      const parsed = JSON.parse(bodyText);
+      return `HTTP ${status}: ${parsed.error ?? bodyText}`;
+    } catch {
+      return `HTTP ${status}: ${bodyText}`;
+    }
+  } catch (readError) {
+    return `${(error as Error)?.message ?? String(error)} (failed to read response body: ${readError})`;
+  }
+}
+
+/**
  * True when an error means "the backend could not be reached at all" —
  * device offline, DNS failure, or the Supabase project unreachable — as
  * opposed to the backend answering with a failure. Used to surface an
@@ -295,7 +322,8 @@ export class GoogleVisionService {
       const timings = { convertMs, networkMs, server: parseServerTimings(data) };
 
       if (error) {
-        log.warn('GoogleVisionService', 'bottle-recognize call failed', error);
+        const detail = await describeFunctionError(error);
+        log.warn('GoogleVisionService', `bottle-recognize call failed: ${detail}`, error);
         // Distinguish "couldn't reach the backend" from "backend answered but
         // failed" (audit/sprint-1 device-test fix). supabase.functions.invoke
         // reports fetch-level failures as FunctionsFetchError in `error`

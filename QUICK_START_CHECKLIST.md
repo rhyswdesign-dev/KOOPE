@@ -1,5 +1,7 @@
 # Quick Start Checklist - Vault Economy
 
+> **STALE — written Jan 2026.** Codebase has moved on significantly since (Firebase migration is complete, Supabase is fully primary, more features are built than described here). Do not treat this as current status; check git history / State-of-KOOPE-App.md instead.
+
 **Use this checklist to get the vault economy running**
 
 ---
@@ -54,18 +56,21 @@
 ## ☐ Testing (TODO - 15 minutes)
 
 ### Test 1: User Signup
+
 - [ ] Sign up a new test user in the app
 - [ ] Check `users_profiles` table → user should appear
 - [ ] Check `user_vault_profiles` table → vault profile should appear
 - [ ] Verify default values: xp_balance: 0, keys_balance: 0
 
 ### Test 2: XP Awarding
+
 - [ ] Complete a lesson or trigger XP award
 - [ ] Check `user_vault_profiles` → xp_balance should increase
 - [ ] Check `xp_transactions` → transaction should be logged
 - [ ] Verify transaction has correct source (e.g., "lesson_complete")
 
 ### Test 3: Data Queries
+
 Run these queries in SQL Editor:
 
 ```sql
@@ -80,6 +85,7 @@ SELECT * FROM xp_transactions WHERE user_id = '<your-user-id>' ORDER BY created_
 ```
 
 ### Test 4: Booster (Optional)
+
 ```sql
 -- Manually activate a 1.5x XP booster for 24 hours
 SELECT activate_user_booster(
@@ -118,22 +124,27 @@ SELECT activate_user_booster(
 ## 🐛 Troubleshooting
 
 ### Issue: Tables not created
+
 **Check**: Did you run the complete migration script?
 **Fix**: Run `RUN_ALL_MIGRATIONS.sql` again
 
 ### Issue: User profile not auto-created
+
 **Check**: Is trigger `on_auth_user_created` active?
 **Fix**: Check "Database" → "Triggers", re-run migration if missing
 
 ### Issue: RLS blocks queries
+
 **Check**: Are you authenticated when querying?
 **Fix**: Ensure `auth.uid()` matches the user_id being queried
 
 ### Issue: RPC function not found
+
 **Check**: Did you run migration 007?
 **Fix**: Run `supabase/migrations/007_vault_rpc_functions.sql`
 
 ### Issue: XP not updating
+
 **Check**: Console logs for errors
 **Fix**: Verify `vaultTransactionRepo.awardXP()` is being called
 
@@ -161,6 +172,7 @@ SELECT activate_user_booster(
 ## ✅ Success Criteria
 
 You'll know it's working when:
+
 - ✅ New users get profiles automatically
 - ✅ XP awards show up in balances
 - ✅ Transactions are logged correctly

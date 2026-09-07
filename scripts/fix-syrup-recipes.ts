@@ -24,72 +24,72 @@ const syrupRecipes: Record<string, any> = {
   'simple-syrup': {
     ingredients: [
       { item: 'Sugar', amount: '1 cup', type: 'other' },
-      { item: 'Water', amount: '1 cup', type: 'other' }
+      { item: 'Water', amount: '1 cup', type: 'other' },
     ],
     instructions: [
-      'Combine sugar and water in a saucepan',
+      'Combine sugar and water in a pot',
       'Heat over medium heat, stirring until sugar dissolves',
       'Remove from heat once sugar is fully dissolved',
       'Let cool to room temperature',
-      'Store in the refrigerator for up to 1 month'
-    ]
+      'Store in the refrigerator for up to 1 month',
+    ],
   },
   'demerara-syrup': {
     ingredients: [
       { item: 'Demerara Sugar', amount: '1 cup', type: 'other' },
-      { item: 'Water', amount: '1 cup', type: 'other' }
+      { item: 'Water', amount: '1 cup', type: 'other' },
     ],
     instructions: [
-      'Combine demerara sugar and water in a saucepan',
+      'Combine demerara sugar and water in a pot',
       'Heat over medium heat, stirring until sugar dissolves',
       'Remove from heat once sugar is fully dissolved',
       'Let cool to room temperature',
-      'Store in the refrigerator for up to 1 month'
-    ]
+      'Store in the refrigerator for up to 1 month',
+    ],
   },
   'honey-syrup': {
     ingredients: [
       { item: 'Honey', amount: '1 cup', type: 'other' },
-      { item: 'Water', amount: '1 cup', type: 'other' }
+      { item: 'Water', amount: '1 cup', type: 'other' },
     ],
     instructions: [
       'Combine honey and water in a bowl or jar',
       'Stir or shake vigorously until honey is fully dissolved',
       'No heat required - room temperature water works fine',
-      'Store in the refrigerator for up to 2 weeks'
-    ]
+      'Store in the refrigerator for up to 2 weeks',
+    ],
   },
-  'grenadine': {
+  grenadine: {
     ingredients: [
       { item: 'Pomegranate Juice', amount: '2 cups', type: 'other' },
       { item: 'Sugar', amount: '2 cups', type: 'other' },
       { item: 'Pomegranate Molasses', amount: '2 tbsp', type: 'other' },
-      { item: 'Orange Flower Water', amount: '1 tsp', type: 'other' }
+      { item: 'Orange Flower Water', amount: '1 tsp', type: 'other' },
     ],
     instructions: [
-      'Combine pomegranate juice and sugar in a saucepan',
+      'Combine pomegranate juice and sugar in a pot',
       'Heat over medium heat, stirring until sugar dissolves',
       'Simmer for 5 minutes to reduce slightly',
       'Remove from heat and stir in pomegranate molasses and orange flower water',
       'Let cool completely',
-      'Store in the refrigerator for up to 2 weeks'
-    ]
+      'Store in the refrigerator for up to 2 weeks',
+    ],
   },
   'rosemary-syrup': {
     ingredients: [
       { item: 'Sugar', amount: '1 cup', type: 'other' },
       { item: 'Water', amount: '1 cup', type: 'other' },
-      { item: 'Fresh Rosemary', amount: '4 sprigs', type: 'garnish' }
+      { item: 'Fresh Rosemary', amount: '4 sprigs', type: 'garnish' },
     ],
     instructions: [
-      'Combine sugar and water in a saucepan',
+      'Combine sugar and water in a pot',
       'Heat over medium heat, stirring until sugar dissolves',
       'Add rosemary sprigs and remove from heat',
       'Let steep for 30 minutes',
       'Strain out rosemary and let cool',
-      'Store in the refrigerator for up to 2 weeks'
-    ]
-  }
+      'Store in the refrigerator for up to 2 weeks',
+    ],
+  },
 };
 
 async function fixSyrupRecipes() {
@@ -112,14 +112,26 @@ async function fixSyrupRecipes() {
         continue;
       }
 
-      // Update with fixed ingredients and instructions
-      const { error } = await supabase
+      // Update with fixed ingredients and instructions. `.select()` is
+      // required here — without it, a write silently blocked by RLS (e.g.
+      // this script's anon key has no UPDATE grant on `recipes`) returns
+      // `error: null` with zero rows affected, and the old code below would
+      // have logged "✅ Fixed" despite nothing changing. Confirmed this
+      // actually happened once already (2026-08-04): the anon key cannot
+      // write to `recipes`, and this script reported false success.
+      const { data: updated, error } = await supabase
         .from('recipes')
         .update(updates)
-        .eq('id', recipeId);
+        .eq('id', recipeId)
+        .select('id');
 
       if (error) {
         console.error(`❌ Failed to update ${existing.title}:`, error.message);
+        errorCount++;
+      } else if (!updated || updated.length === 0) {
+        console.error(
+          `❌ Update silently blocked for ${existing.title} (0 rows affected — likely an RLS policy denying this key write access). Apply the change via the Supabase Dashboard SQL Editor instead.`,
+        );
         errorCount++;
       } else {
         console.log(`✅ Fixed: ${existing.title}`);

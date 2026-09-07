@@ -58,7 +58,8 @@ import AIRecommendations from '../../components/AIRecommendations';
 import { useSavedItems } from '../../hooks/useSavedItems';
 import GroceryListModal from '../../components/GroceryListModal';
 import { useUserTier } from '../../store/useUserTier';
-import { usePersonalization } from '../../store/usePersonalization';
+import { useAuth } from '../../contexts/AuthContext';
+import { useTasteSummary } from '../../hooks/useTasteSummary';
 import { canAccessContent } from '../../utils/tierAccess';
 import { useFeatureAccess } from '../../hooks/useFeatureAccess';
 import TierBadge from '../../components/TierBadge';
@@ -77,7 +78,8 @@ import {
 export default function VaultScreen() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { tier, setTier } = useUserTier();
-  const { profile: personalizationProfile } = usePersonalization();
+  const { user } = useAuth();
+  const tasteSummary = useTasteSummary(user?.id);
   const { gateWithTrigger: vaultProGate } = useFeatureAccess('vault_pro_drops');
   const { balance: xpBalance, unlockVaultItem, isVaultItemUnlocked } = useXPSystem();
   const { savedItems, toggleSavedCocktail, isCocktailSaved, toggleSavedVaultItem } =
@@ -102,12 +104,13 @@ export default function VaultScreen() {
     return drops[0] ?? null;
   }, [tier]);
 
-  // Taste match scores for vault variations (PLUS/PRO only)
+  // Taste match scores for vault variations (PLUS/PRO only). Reads the
+  // canonical profile via useTasteSummary rather than usePersonalization —
+  // was the last remaining reader of the old store's flavorPreferences/
+  // favoriteSpirits arrays.
   const variationTasteScores = useMemo<Record<string, number>>(() => {
-    if (tier === 'FREE' || !personalizationProfile) return {};
-    const flavorPrefs: string[] = personalizationProfile.flavorPreferences || [];
-    const spiritPrefs: string[] = personalizationProfile.favoriteSpirits || [];
-    const allPrefs = new Set([...flavorPrefs, ...spiritPrefs]);
+    if (tier === 'FREE' || !tasteSummary.ready) return {};
+    const allPrefs = new Set<string>([...tasteSummary.topFlavors, ...tasteSummary.topSpirits]);
     if (allPrefs.size === 0) return {};
 
     const scores: Record<string, number> = {};
@@ -118,7 +121,7 @@ export default function VaultScreen() {
       scores[v.id] = Math.min(100, Math.round((matches / Math.max(1, tags.length)) * 100));
     }
     return scores;
-  }, [tier, personalizationProfile]);
+  }, [tier, tasteSummary.ready, tasteSummary.topFlavors, tasteSummary.topSpirits]);
 
   // Track screen view
   useScreenTracking('VaultScreen');

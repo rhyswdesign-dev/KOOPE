@@ -5,36 +5,39 @@
 
 export interface SubstitutionSuggestion {
   original: string;
-  substitutes: Array<{
+  substitutes: {
     name: string;
     confidence: 'high' | 'medium' | 'low';
     note: string;
-  }>;
+  }[];
 }
 
 /**
  * Common spirit substitution rules
  * Based on flavor profiles and cocktail compatibility
  */
-const SUBSTITUTION_RULES: Record<string, Array<{
-  name: string;
-  confidence: 'high' | 'medium' | 'low';
-  note: string;
-}>> = {
+const SUBSTITUTION_RULES: Record<
+  string,
+  {
+    name: string;
+    confidence: 'high' | 'medium' | 'low';
+    note: string;
+  }[]
+> = {
   // Vodka substitutions
-  'vodka': [
+  vodka: [
     { name: 'gin', confidence: 'high', note: 'Adds botanical notes' },
     { name: 'white rum', confidence: 'medium', note: 'Slightly sweeter' },
     { name: 'tequila blanco', confidence: 'low', note: 'Changes flavor profile' },
   ],
-  'tequila': [
+  tequila: [
     { name: 'tequila blanco', confidence: 'high', note: 'Closest clean agave profile' },
     { name: 'mezcal', confidence: 'medium', note: 'Adds smoke' },
     { name: 'white rum', confidence: 'low', note: 'Different profile but works in citrus builds' },
   ],
 
   // Gin substitutions
-  'gin': [
+  gin: [
     { name: 'vodka', confidence: 'high', note: 'Cleaner, less botanical' },
     { name: 'white rum', confidence: 'medium', note: 'Tropical twist' },
     { name: 'tequila blanco', confidence: 'low', note: 'Earthier and more savory' },
@@ -55,25 +58,25 @@ const SUBSTITUTION_RULES: Record<string, Array<{
     { name: 'dark rum', confidence: 'medium', note: 'Less spiced' },
     { name: 'aged rum', confidence: 'medium', note: 'Smoother finish' },
   ],
-  'rum': [
+  rum: [
     { name: 'white rum', confidence: 'high', note: 'Closest neutral rum base' },
     { name: 'aged rum', confidence: 'medium', note: 'Adds oak depth' },
     { name: 'dark rum', confidence: 'medium', note: 'Richer molasses tone' },
   ],
-  'cachaca': [
+  cachaca: [
     { name: 'white rum', confidence: 'high', note: 'Closest cane-spirit swap' },
     { name: 'agricole rhum', confidence: 'medium', note: 'Grassy cane character' },
     { name: 'tequila blanco', confidence: 'low', note: 'Changes profile but keeps brightness' },
   ],
 
   // Whiskey substitutions
-  'bourbon': [
+  bourbon: [
     { name: 'rye whiskey', confidence: 'high', note: 'Spicier finish' },
     { name: 'tennessee whiskey', confidence: 'high', note: 'Smoother' },
     { name: 'scotch', confidence: 'medium', note: 'Smokier profile' },
     { name: 'irish whiskey', confidence: 'medium', note: 'Lighter, smoother' },
   ],
-  'whiskey': [
+  whiskey: [
     { name: 'bourbon', confidence: 'high', note: 'Balanced and easy swap' },
     { name: 'rye whiskey', confidence: 'medium', note: 'Spicier finish' },
     { name: 'irish whiskey', confidence: 'medium', note: 'Lighter body' },
@@ -82,7 +85,7 @@ const SUBSTITUTION_RULES: Record<string, Array<{
     { name: 'bourbon', confidence: 'high', note: 'Sweeter, less spicy' },
     { name: 'scotch', confidence: 'medium', note: 'Different character' },
   ],
-  'scotch': [
+  scotch: [
     { name: 'irish whiskey', confidence: 'medium', note: 'Less smoky' },
     { name: 'bourbon', confidence: 'medium', note: 'Sweeter' },
   ],
@@ -104,19 +107,19 @@ const SUBSTITUTION_RULES: Record<string, Array<{
     { name: 'vodka', confidence: 'low', note: 'Cleaner, less oak and agave' },
     { name: 'mezcal', confidence: 'medium', note: 'Smokier character' },
   ],
-  'mezcal': [
+  mezcal: [
     { name: 'tequila blanco', confidence: 'medium', note: 'Cleaner agave with less smoke' },
     { name: 'tequila reposado', confidence: 'medium', note: 'Aged agave depth with softer smoke' },
     { name: 'dark rum', confidence: 'low', note: 'Adds richness but changes profile' },
   ],
 
   // Brandy/Cognac substitutions
-  'cognac': [
+  cognac: [
     { name: 'brandy', confidence: 'high', note: 'Similar style' },
     { name: 'armagnac', confidence: 'high', note: 'French alternative' },
     { name: 'dark rum', confidence: 'low', note: 'Different but works' },
   ],
-  'brandy': [
+  brandy: [
     { name: 'cognac', confidence: 'high', note: 'More refined' },
     { name: 'bourbon', confidence: 'medium', note: 'American alternative' },
   ],
@@ -127,22 +130,22 @@ const SUBSTITUTION_RULES: Record<string, Array<{
     { name: 'grand marnier', confidence: 'high', note: 'Cognac-based' },
     { name: 'curaçao', confidence: 'medium', note: 'Similar citrus' },
   ],
-  'cointreau': [
+  cointreau: [
     { name: 'triple sec', confidence: 'high', note: 'More affordable' },
     { name: 'grand marnier', confidence: 'high', note: 'Richer' },
   ],
-  'campari': [
-    { name: 'aperol', confidence: 'medium', note: 'Sweeter, less bitter' },
-  ],
-  'aperol': [
-    { name: 'campari', confidence: 'medium', note: 'More bitter' },
-  ],
+  campari: [{ name: 'aperol', confidence: 'medium', note: 'Sweeter, less bitter' }],
+  aperol: [{ name: 'campari', confidence: 'medium', note: 'More bitter' }],
   'coffee liqueur': [
     { name: 'cold brew concentrate', confidence: 'medium', note: 'Less sweet, strong coffee note' },
     { name: 'amaro', confidence: 'low', note: 'More herbal and bitter' },
     { name: 'espresso', confidence: 'low', note: 'Use with a touch of syrup for balance' },
   ],
-  'espresso': [
+  'creme de cacao': [
+    { name: 'chocolate liqueur', confidence: 'high', note: 'Same style, different brand' },
+    { name: 'coffee liqueur', confidence: 'low', note: 'Adds coffee notes instead of pure cocoa' },
+  ],
+  espresso: [
     { name: 'cold brew concentrate', confidence: 'high', note: 'Closest coffee intensity' },
     { name: 'strong brewed coffee', confidence: 'medium', note: 'Lighter body' },
   ],
@@ -213,13 +216,29 @@ const SUBSTITUTION_RULES: Record<string, Array<{
     { name: 'grated dark chocolate', confidence: 'medium', note: 'Dessert-forward coffee pairing' },
     { name: 'orange peel', confidence: 'low', note: 'Classic coffee-citrus aroma contrast' },
   ],
+  nutmeg: [
+    { name: 'allspice', confidence: 'medium', note: 'Warmer, slightly peppery spice' },
+    { name: 'cinnamon', confidence: 'low', note: 'Sweeter, less earthy than nutmeg' },
+  ],
   'non-alcoholic aperitivo': [
-    { name: 'aperol', confidence: 'low', note: 'Alcoholic option with similar orange-bitter profile' },
+    {
+      name: 'aperol',
+      confidence: 'low',
+      note: 'Alcoholic option with similar orange-bitter profile',
+    },
     { name: 'campari', confidence: 'low', note: 'More bitter and assertive' },
-    { name: 'grapefruit juice + soda water', confidence: 'medium', note: 'Zero-proof bitter-citrus style backup' },
+    {
+      name: 'grapefruit juice + soda water',
+      confidence: 'medium',
+      note: 'Zero-proof bitter-citrus style backup',
+    },
   ],
   'cherry garnish': [
-    { name: 'raspberries', confidence: 'medium', note: 'Bright berry accent with similar visual role' },
+    {
+      name: 'raspberries',
+      confidence: 'medium',
+      note: 'Bright berry accent with similar visual role',
+    },
     { name: 'blackberries', confidence: 'medium', note: 'Darker berry profile and color' },
     { name: 'strawberry slice', confidence: 'low', note: 'Softer berry sweetness' },
   ],
@@ -242,7 +261,7 @@ function normalizeSpirit(spirit: string): string {
 export function getSpiritSubstitutions(spirit: string): SubstitutionSuggestion | null {
   const normalized = normalizeSpirit(spirit);
   const aliases: Record<string, string> = {
-    'cachaça': 'cachaca',
+    cachaça: 'cachaca',
     'tequila silver': 'tequila blanco',
     'white tequila': 'tequila blanco',
     'fresh lime juice': 'lime juice',
@@ -315,7 +334,11 @@ export function getSpiritSubstitutions(spirit: string): SubstitutionSuggestion |
       substitutes: [
         { name: 'lemon wheel', confidence: 'medium', note: 'Same citrus family, brighter aroma' },
         { name: 'lime wheel', confidence: 'medium', note: 'Same citrus family, sharper profile' },
-        { name: 'grapefruit peel', confidence: 'medium', note: 'Same citrus family, more bitter-citrus oils' },
+        {
+          name: 'grapefruit peel',
+          confidence: 'medium',
+          note: 'Same citrus family, more bitter-citrus oils',
+        },
       ],
     };
   }
@@ -324,9 +347,21 @@ export function getSpiritSubstitutions(spirit: string): SubstitutionSuggestion |
     return {
       original: spirit,
       substitutes: [
-        { name: 'raspberries', confidence: 'medium', note: 'Berry-adjacent garnish with bright acidity' },
-        { name: 'blackberries', confidence: 'medium', note: 'Berry-adjacent garnish with deeper fruit tone' },
-        { name: 'strawberry slice', confidence: 'low', note: 'Berry-adjacent option with softer sweetness' },
+        {
+          name: 'raspberries',
+          confidence: 'medium',
+          note: 'Berry-adjacent garnish with bright acidity',
+        },
+        {
+          name: 'blackberries',
+          confidence: 'medium',
+          note: 'Berry-adjacent garnish with deeper fruit tone',
+        },
+        {
+          name: 'strawberry slice',
+          confidence: 'low',
+          note: 'Berry-adjacent option with softer sweetness',
+        },
       ],
     };
   }
@@ -339,22 +374,23 @@ export function getSpiritSubstitutions(spirit: string): SubstitutionSuggestion |
  */
 export function getMissingWithSubstitutions(
   missingIngredients: string[],
-  availableIngredients: string[]
-): Array<{
+  availableIngredients: string[],
+): {
   ingredient: string;
   canSubstitute: boolean;
   substitutions: SubstitutionSuggestion | null;
-}> {
-  return missingIngredients.map(missing => {
+}[] {
+  return missingIngredients.map((missing) => {
     const substitutions = getSpiritSubstitutions(missing);
 
     // Check if user has any of the suggested substitutes
     const canSubstitute = substitutions
-      ? substitutions.substitutes.some(sub =>
-          availableIngredients.some(available =>
-            normalizeSpirit(available).includes(normalizeSpirit(sub.name)) ||
-            normalizeSpirit(sub.name).includes(normalizeSpirit(available))
-          )
+      ? substitutions.substitutes.some((sub) =>
+          availableIngredients.some(
+            (available) =>
+              normalizeSpirit(available).includes(normalizeSpirit(sub.name)) ||
+              normalizeSpirit(sub.name).includes(normalizeSpirit(available)),
+          ),
         )
       : false;
 
@@ -371,7 +407,7 @@ export function getMissingWithSubstitutions(
  */
 export function getSubstitutionMessage(
   missing: string,
-  substitutes: Array<{ name: string; confidence: string; note: string }>
+  substitutes: { name: string; confidence: string; note: string }[],
 ): string {
   if (substitutes.length === 0) return '';
 

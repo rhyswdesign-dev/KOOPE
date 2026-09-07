@@ -79,7 +79,7 @@ export const TIERS: TierBenefit[] = [
     bulletPoints: [
       'Everything in KŌOPE+',
       'Mastery Lessons & XP Levels',
-      'Full Predictive Engine & Taste Graph',
+      'Full Predictive Engine & Full Palate',
       'Advanced Hosting (5+ Guests)',
       'Flavor Sliders & Brand Capture',
       'Vault Pro Drops',
@@ -107,19 +107,44 @@ export const FEATURE_COMPARISON: FeatureComparison[] = [
   { label: 'Shelf Bottles', free: '10 Max', plus: 'Unlimited', pro: 'Unlimited' },
   { label: 'Scans', free: 'Unlimited', plus: 'Unlimited', pro: 'Unlimited' },
   { label: 'Multi-Bar Profiles', free: false, plus: '2 Bars', pro: 'Unlimited' },
-  { label: 'Smart Shelf', free: false, plus: 'Bar Health + Expiry Alerts', pro: 'Full (Dead Bottle, Usage, Cost)' },
-  { label: '"Optimize My Bar"', free: false, plus: 'Analysis + Suggestions', pro: 'Analysis + Suggestions' },
+  {
+    label: 'Smart Shelf',
+    free: false,
+    plus: 'Bar Health + Expiry Alerts',
+    pro: 'Full (Dead Bottle, Usage, Cost)',
+  },
+  {
+    label: '"Optimize My Bar"',
+    free: false,
+    plus: 'Analysis + Suggestions',
+    pro: 'Analysis + Suggestions',
+  },
   // Discovery
   { label: 'Cocktail Library', free: 'Limited', plus: 'Full Library', pro: 'Full Library' },
   { label: 'Saved Cocktails', free: false, plus: 'Unlimited', pro: 'Unlimited' },
-  { label: 'Filters', free: 'Spirit Only', plus: 'Advanced (5-ingredient, low sugar, spirit-forward)', pro: 'Advanced + Predictive' },
+  {
+    label: 'Filters',
+    free: 'Spirit Only',
+    plus: 'Advanced (5-ingredient, low sugar, spirit-forward)',
+    pro: 'Advanced + Predictive',
+  },
   // AI
-  { label: 'AI Suggestions', free: 'Basic (No Memory)', plus: 'Mood-Based + Taste Match %', pro: 'Full Predictive Engine + Long Memory' },
-  { label: 'Taste Match %', free: false, plus: 'Basic', pro: 'Full Taste Graph' },
+  {
+    label: 'AI Suggestions',
+    free: 'Basic (No Memory)',
+    plus: 'Mood-Based + Palate Match %',
+    pro: 'Full Predictive Engine + Long Memory',
+  },
+  { label: 'Palate Match %', free: false, plus: 'Basic', pro: 'Full Palate' },
   { label: 'Flavor Tags', free: false, plus: 'Visible', pro: 'Visible + Adjustable Sliders' },
   // Hosting
   { label: 'Hosting Tools', free: false, plus: 'Basic (1-4 Guests)', pro: 'Advanced (5+ Guests)' },
-  { label: 'Shopping List', free: false, plus: 'Export + Add Missing', pro: 'Full Hosting Planner' },
+  {
+    label: 'Shopping List',
+    free: false,
+    plus: 'Export + Add Missing',
+    pro: 'Full Hosting Planner',
+  },
   { label: 'Bring to Party', free: false, plus: false, pro: true },
   { label: 'Guest Preference Matching', free: false, plus: false, pro: true },
   // Pro Builder

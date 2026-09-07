@@ -13,7 +13,6 @@ export { default as ShakerLoader } from './ShakerLoader';
 export { default as ConfettiBurst } from './ConfettiBurst';
 export { default as CountUp } from './CountUp';
 export { default as AnimatedProgressBar } from './AnimatedProgressBar';
-export { default as StreakFlame } from './StreakFlame';
 export { listItemEntering, cardEntering, popEntering, fadeEntering } from './entering';
 
 // Export types
@@ -23,7 +22,6 @@ export type { ShakerLoaderProps } from './ShakerLoader';
 export type { ConfettiBurstProps } from './ConfettiBurst';
 export type { CountUpProps } from './CountUp';
 export type { AnimatedProgressBarProps } from './AnimatedProgressBar';
-export type { StreakFlameProps } from './StreakFlame';
 
 // Re-export the hook for convenience
 export { useCompletionAnimation } from '../../hooks/useCompletionAnimation';

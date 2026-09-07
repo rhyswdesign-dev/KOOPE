@@ -22,6 +22,8 @@ import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as FileSystem from 'expo-file-system/legacy';
 import { useScrollHaptic, withHaptic } from '../lib/haptics';
+import PressableScale from '../components/animations/PressableScale';
+import { IngredientLeaderList } from '../components/recipe/IngredientLeaderRow';
 
 type RecipeType = 'cocktail' | 'syrup' | 'bitter' | 'infusion' | 'shrub' | 'cordial' | 'tincture';
 type RecipeMethod = 'shake' | 'stir' | 'build' | 'blend' | 'muddle' | 'layer' | 'swizzle' | 'throw';
@@ -29,10 +31,10 @@ type RecipeMethod = 'shake' | 'stir' | 'build' | 'blend' | 'muddle' | 'layer' | 
 type ManualRecipe = {
   title: string;
   description: string;
-  ingredients: Array<{
+  ingredients: {
     name: string;
     amount: string;
-  }>;
+  }[];
   instructions: string[];
   garnish: string;
   glassware: string;
@@ -114,20 +116,24 @@ export default function AddRecipeScreen() {
     servings: 1,
     tags: ['Easy'],
     recipeType: 'cocktail',
-    method: undefined
+    method: undefined,
   });
 
   React.useEffect(() => {
     if (!isEditMode || !editingRecipe) return;
 
     const normalizeIngredients = (ingredients: any[] = []) => {
-      if (!Array.isArray(ingredients) || ingredients.length === 0) return [{ name: '', amount: '' }];
+      if (!Array.isArray(ingredients) || ingredients.length === 0)
+        return [{ name: '', amount: '' }];
       return ingredients.map((ing: any) => {
         if (typeof ing === 'string') {
           const stringMatch = ing.match(AMOUNT_PREFIX_REGEX);
           if (stringMatch) {
             const amountRaw = `${stringMatch[1]} ${stringMatch[2] || ''}`.trim();
-            return { amount: normalizeAmount(amountRaw), name: ing.replace(AMOUNT_PREFIX_REGEX, '').trim() };
+            return {
+              amount: normalizeAmount(amountRaw),
+              name: ing.replace(AMOUNT_PREFIX_REGEX, '').trim(),
+            };
           }
           return { amount: '', name: ing };
         }
@@ -152,7 +158,8 @@ export default function AddRecipeScreen() {
       instructions: normalizeInstructions(editingRecipe.instructions),
       garnish: editingRecipe.garnish || '',
       glassware: editingRecipe.glassware || 'Rocks Glass',
-      time: String(editingRecipe.prepTime || editingRecipe.time || '5').replace(/[^\d]/g, '') || '5',
+      time:
+        String(editingRecipe.prepTime || editingRecipe.time || '5').replace(/[^\d]/g, '') || '5',
       servings: Number(editingRecipe.servings || 1),
       tags: editingRecipe.tags?.length ? editingRecipe.tags : ['Easy'],
       recipeType: 'cocktail',
@@ -185,7 +192,7 @@ export default function AddRecipeScreen() {
   const addIngredient = () => {
     setRecipe({
       ...recipe,
-      ingredients: [...recipe.ingredients, { name: '', amount: '' }]
+      ingredients: [...recipe.ingredients, { name: '', amount: '' }],
     });
   };
 
@@ -193,7 +200,7 @@ export default function AddRecipeScreen() {
     if (recipe.ingredients.length > 1) {
       setRecipe({
         ...recipe,
-        ingredients: recipe.ingredients.filter((_, i) => i !== index)
+        ingredients: recipe.ingredients.filter((_, i) => i !== index),
       });
     }
   };
@@ -207,7 +214,7 @@ export default function AddRecipeScreen() {
   const addInstruction = () => {
     setRecipe({
       ...recipe,
-      instructions: [...recipe.instructions, '']
+      instructions: [...recipe.instructions, ''],
     });
   };
 
@@ -243,7 +250,7 @@ export default function AddRecipeScreen() {
         {
           compress: 0.88,
           format: ImageManipulator.SaveFormat.JPEG,
-        }
+        },
       );
     };
 
@@ -299,7 +306,7 @@ export default function AddRecipeScreen() {
     if (recipe.instructions.length > 1) {
       setRecipe({
         ...recipe,
-        instructions: recipe.instructions.filter((_, i) => i !== index)
+        instructions: recipe.instructions.filter((_, i) => i !== index),
       });
     }
   };
@@ -365,7 +372,7 @@ export default function AddRecipeScreen() {
     // Adjust suggestions for non-cocktail types
     if (type === 'syrup') {
       return [
-        'Combine ingredients in a saucepan',
+        'Combine ingredients in a pot',
         'Heat gently until sugar dissolves',
         'Simmer for recommended time',
         'Remove from heat and let cool',
@@ -416,9 +423,15 @@ export default function AddRecipeScreen() {
     setLoading(true);
     try {
       const [persistentOriginal, persistentThumbnail, persistentHeader] = await Promise.all([
-        recipeMedia.original ? persistRecipeImage(recipeMedia.original, 'original') : Promise.resolve(undefined),
-        recipeMedia.thumbnail ? persistRecipeImage(recipeMedia.thumbnail, 'thumb') : Promise.resolve(undefined),
-        recipeMedia.header ? persistRecipeImage(recipeMedia.header, 'header') : Promise.resolve(undefined),
+        recipeMedia.original
+          ? persistRecipeImage(recipeMedia.original, 'original')
+          : Promise.resolve(undefined),
+        recipeMedia.thumbnail
+          ? persistRecipeImage(recipeMedia.thumbnail, 'thumb')
+          : Promise.resolve(undefined),
+        recipeMedia.header
+          ? persistRecipeImage(recipeMedia.header, 'header')
+          : Promise.resolve(undefined),
       ]);
 
       const mappedDifficulty: 'Easy' | 'Medium' | 'Hard' =
@@ -433,13 +446,13 @@ export default function AddRecipeScreen() {
         type: 'created' as const,
         description: recipe.description.trim() || 'Custom cocktail recipe',
         ingredients: recipe.ingredients
-          .filter(ing => ing.name.trim())
-          .map(ing => ({
+          .filter((ing) => ing.name.trim())
+          .map((ing) => ({
             name: ing.name.trim().replace(AMOUNT_PREFIX_REGEX, '').trim(),
             amount: normalizeAmount(ing.amount),
             unit: '',
           })),
-        instructions: recipe.instructions.filter(inst => inst.trim()),
+        instructions: recipe.instructions.filter((inst) => inst.trim()),
         tags: recipe.tags,
         difficulty: mappedDifficulty,
         prepTime: parseInt(recipe.time) || 5,
@@ -450,7 +463,9 @@ export default function AddRecipeScreen() {
         notes: `Garnish: ${recipe.garnish || 'None'}, Glass: ${recipe.glassware}`,
       };
 
-      const canUpdateExisting = Boolean(isEditMode && editingRecipe?.id && getRecipeById(editingRecipe.id));
+      const canUpdateExisting = Boolean(
+        isEditMode && editingRecipe?.id && getRecipeById(editingRecipe.id),
+      );
 
       if (canUpdateExisting && editingRecipe?.id) {
         await updateRecipe(editingRecipe.id, payload);
@@ -466,7 +481,7 @@ export default function AddRecipeScreen() {
           : [
               { text: 'Create Another', onPress: resetForm },
               { text: 'View My Collection', onPress: () => nav.navigate('ProfileSavedItems') },
-            ]
+            ],
       );
     } catch (error: any) {
       log.error('AddRecipeScreen', 'Save error', error, { recipeName: recipe.title });
@@ -488,7 +503,7 @@ export default function AddRecipeScreen() {
       servings: 1,
       tags: ['Easy'],
       recipeType: 'cocktail',
-      method: undefined
+      method: undefined,
     });
     setRecipeMedia({});
   };
@@ -502,305 +517,334 @@ export default function AddRecipeScreen() {
         keyboardShouldPersistTaps="handled"
         onScrollBeginDrag={onScrollHaptic}
       >
-    <View style={styles.minimalContainer}>
-      {/* Title - Large and prominent */}
-      <TextInput
-        style={styles.minimalTitle}
-        placeholder="Recipe Name"
-        placeholderTextColor={colors.muted}
-        value={recipe.title}
-        onChangeText={(text) => setRecipe({...recipe, title: text})}
-        keyboardAppearance="dark"
-      />
-
-      {/* Meta Info */}
-      <View style={styles.mediaCard}>
-        <Text style={styles.mediaTitle}>Recipe Cover</Text>
-        <Text style={styles.mediaHint}>Keep the drink centered in the frame. We auto-generate thumbnail (4:5) + header (16:9).</Text>
-        <View style={styles.mediaPreviewWrap}>
-          {recipeMedia.thumbnail ? (
-            <Image source={{ uri: recipeMedia.thumbnail }} style={styles.mediaPreview} />
-          ) : (
-            <View style={styles.mediaPlaceholder}>
-              <Ionicons name="image-outline" size={24} color={colors.subtext} />
-              <Text style={styles.mediaPlaceholderText}>No image selected</Text>
-            </View>
-          )}
-          <View style={styles.mediaFrameGuide} />
-        </View>
-        <View style={styles.mediaActionsRow}>
-          <TouchableOpacity style={styles.mediaActionButton} onPress={withHaptic(handleTakePhoto, 'selection')}>
-            <Ionicons name="camera-outline" size={16} color={colors.gold} />
-            <Text style={styles.mediaActionText}>Take Picture</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.mediaActionButton} onPress={withHaptic(handleUploadImage, 'selection')}>
-            <Ionicons name="images-outline" size={16} color={colors.gold} />
-            <Text style={styles.mediaActionText}>Upload</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      <View style={styles.minimalMeta}>
-        <TouchableOpacity
-          style={styles.minimalMetaItem}
-          onPress={withHaptic(() => setShowGlasswareModal(true), 'selection')}
-        >
-          <Text style={styles.minimalMetaLabel}>Glass</Text>
-          <Text style={styles.minimalMetaValue}>{recipe.glassware}</Text>
-        </TouchableOpacity>
-
-        <View style={styles.minimalMetaDivider} />
-
-        <TouchableOpacity
-          style={styles.minimalMetaItem}
-          onPress={withHaptic(() => setShowDifficultyModal(true), 'selection')}
-        >
-          <Text style={styles.minimalMetaLabel}>Level</Text>
-          <Text style={styles.minimalMetaValue}>{recipe.tags[0]}</Text>
-        </TouchableOpacity>
-
-        <View style={styles.minimalMetaDivider} />
-
-        <View style={styles.minimalMetaItem}>
-          <Text style={styles.minimalMetaLabel}>Time</Text>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <TextInput
-              style={styles.minimalMetaInput}
-              value={recipe.time}
-              onChangeText={(text) => setRecipe({...recipe, time: text})}
-              placeholder="5"
-              placeholderTextColor={colors.muted}
-              keyboardType="number-pad"
-              keyboardAppearance="dark"
-            />
-            <Text style={styles.minimalMetaUnit}>min</Text>
-          </View>
-        </View>
-      </View>
-
-      {/* Description */}
-      <TextInput
-        style={styles.minimalDescription}
-        placeholder="Describe this cocktail..."
-        placeholderTextColor={colors.muted}
-        value={recipe.description}
-        onChangeText={(text) => setRecipe({...recipe, description: text})}
-        multiline
-        numberOfLines={2}
-        keyboardAppearance="dark"
-      />
-
-      {/* Recipe Type Selection */}
-      <Text style={styles.minimalLabel}>What are you making?</Text>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.typeChipsContainer}
-        style={styles.typeChipsScroll}
-      >
-        {[
-          { key: 'cocktail', label: 'Cocktail', icon: 'wine' },
-          { key: 'syrup', label: 'Syrup', icon: 'water' },
-          { key: 'bitter', label: 'Bitter', icon: 'flask' },
-          { key: 'infusion', label: 'Infusion', icon: 'beaker' },
-          { key: 'shrub', label: 'Shrub', icon: 'leaf' },
-          { key: 'cordial', label: 'Cordial', icon: 'sparkles' },
-          { key: 'tincture', label: 'Tincture', icon: 'eyedropper' },
-        ].map((type) => {
-          const isSelected = recipe.recipeType === type.key;
-          return (
-            <TouchableOpacity
-              key={type.key}
-              style={[styles.typeChip, isSelected && styles.typeChipSelected]}
-              onPress={withHaptic(() => setRecipe({...recipe, recipeType: type.key as RecipeType, method: undefined}), 'selection')}
-            >
-              <Ionicons
-                name={type.icon as any}
-                size={16}
-                color={isSelected ? colors.gold : colors.subtext}
-              />
-              <Text style={[styles.typeChipText, isSelected && styles.typeChipTextSelected]}>
-                {type.label}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-      </ScrollView>
-
-      {/* Divider */}
-      <View style={styles.minimalDivider} />
-
-      {/* Ingredients Section */}
-      <Text style={styles.minimalSectionTitle}>Ingredients</Text>
-      {recipe.ingredients.map((ingredient, index) => (
-        <View key={index} style={styles.minimalIngredientRow}>
-          <View style={styles.minimalIngredientLeft}>
-            <TextInput
-              style={styles.minimalAmountInput}
-              value={ingredient.amount}
-              onChangeText={(text) => updateIngredient(index, 'amount', text)}
-              placeholder="2 oz"
-              placeholderTextColor={colors.muted}
-              keyboardAppearance="dark"
-            />
-          </View>
+        <View style={styles.minimalContainer}>
+          {/* Title - Large and prominent */}
           <TextInput
-            style={styles.minimalNameInput}
-            value={ingredient.name}
-            onChangeText={(text) => updateIngredient(index, 'name', text)}
-            placeholder="Ingredient name"
+            style={styles.minimalTitle}
+            placeholder="Recipe Name"
             placeholderTextColor={colors.muted}
+            value={recipe.title}
+            onChangeText={(text) => setRecipe({ ...recipe, title: text })}
             keyboardAppearance="dark"
           />
-          {recipe.ingredients.length > 1 && (
+
+          {/* Meta Info */}
+          <View style={styles.mediaCard}>
+            <Text style={styles.mediaTitle}>Recipe Cover</Text>
+            <Text style={styles.mediaHint}>
+              Keep the drink centered in the frame. We auto-generate thumbnail (4:5) + header
+              (16:9).
+            </Text>
+            <View style={styles.mediaPreviewWrap}>
+              {recipeMedia.thumbnail ? (
+                <Image source={{ uri: recipeMedia.thumbnail }} style={styles.mediaPreview} />
+              ) : (
+                <View style={styles.mediaPlaceholder}>
+                  <Ionicons name="image-outline" size={24} color={colors.subtext} />
+                  <Text style={styles.mediaPlaceholderText}>No image selected</Text>
+                </View>
+              )}
+              <View style={styles.mediaFrameGuide} />
+            </View>
+            <View style={styles.mediaActionsRow}>
+              <TouchableOpacity
+                style={styles.mediaActionButton}
+                onPress={withHaptic(handleTakePhoto, 'selection')}
+              >
+                <Ionicons name="camera-outline" size={16} color={colors.gold} />
+                <Text style={styles.mediaActionText}>Take Picture</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.mediaActionButton}
+                onPress={withHaptic(handleUploadImage, 'selection')}
+              >
+                <Ionicons name="images-outline" size={16} color={colors.gold} />
+                <Text style={styles.mediaActionText}>Upload</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          <View style={styles.minimalMeta}>
             <TouchableOpacity
-              onPress={withHaptic(() => removeIngredient(index), 'selection')}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              style={styles.minimalMetaItem}
+              onPress={withHaptic(() => setShowGlasswareModal(true), 'selection')}
             >
-              <Ionicons name="remove-circle-outline" size={20} color={colors.muted} />
+              <Text style={styles.minimalMetaLabel}>Glass</Text>
+              <Text style={styles.minimalMetaValue}>{recipe.glassware}</Text>
             </TouchableOpacity>
-          )}
-        </View>
-      ))}
-      <TouchableOpacity onPress={withHaptic(addIngredient, 'selection')} style={styles.minimalAddLink}>
-        <Ionicons name="add" size={16} color={colors.gold} />
-        <Text style={styles.minimalAddLinkText}>Add ingredient</Text>
-      </TouchableOpacity>
 
-      {/* Divider */}
-      <View style={styles.minimalDivider} />
+            <View style={styles.minimalMetaDivider} />
 
-      {/* Method Selection (only for cocktails) */}
-      {recipe.recipeType === 'cocktail' && (
-        <>
-          <Text style={styles.minimalSectionTitle}>Preparation Method</Text>
-          <Text style={styles.minimalHelperText}>
-            Select a method to get step-by-step guidance
-          </Text>
+            <TouchableOpacity
+              style={styles.minimalMetaItem}
+              onPress={withHaptic(() => setShowDifficultyModal(true), 'selection')}
+            >
+              <Text style={styles.minimalMetaLabel}>Level</Text>
+              <Text style={styles.minimalMetaValue}>{recipe.tags[0]}</Text>
+            </TouchableOpacity>
 
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.methodScroll} contentContainerStyle={styles.methodScrollContent}>
+            <View style={styles.minimalMetaDivider} />
+
+            <View style={styles.minimalMetaItem}>
+              <Text style={styles.minimalMetaLabel}>Time</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <TextInput
+                  style={styles.minimalMetaInput}
+                  value={recipe.time}
+                  onChangeText={(text) => setRecipe({ ...recipe, time: text })}
+                  placeholder="5"
+                  placeholderTextColor={colors.muted}
+                  keyboardType="number-pad"
+                  keyboardAppearance="dark"
+                />
+                <Text style={styles.minimalMetaUnit}>min</Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Description */}
+          <TextInput
+            style={styles.minimalDescription}
+            placeholder="Describe this cocktail..."
+            placeholderTextColor={colors.muted}
+            value={recipe.description}
+            onChangeText={(text) => setRecipe({ ...recipe, description: text })}
+            multiline
+            numberOfLines={2}
+            keyboardAppearance="dark"
+          />
+
+          {/* Recipe Type Selection */}
+          <Text style={styles.minimalLabel}>What are you making?</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.typeChipsContainer}
+            style={styles.typeChipsScroll}
+          >
             {[
-              { key: 'shake', label: 'Shake', icon: 'flash' },
-              { key: 'stir', label: 'Stir', icon: 'repeat' },
-              { key: 'build', label: 'Build', icon: 'layers' },
-              { key: 'blend', label: 'Blend', icon: 'thunderstorm' },
-              { key: 'muddle', label: 'Muddle', icon: 'leaf' },
-              { key: 'layer', label: 'Layer', icon: 'reorder-four' },
-              { key: 'swizzle', label: 'Swizzle', icon: 'sync' },
-              { key: 'throw', label: 'Throw', icon: 'return-up-forward' },
-            ].map((method) => {
-              const isSelected = recipe.method === method.key;
+              { key: 'cocktail', label: 'Cocktail', icon: 'wine' },
+              { key: 'syrup', label: 'Syrup', icon: 'water' },
+              { key: 'bitter', label: 'Bitter', icon: 'flask' },
+              { key: 'infusion', label: 'Infusion', icon: 'beaker' },
+              { key: 'shrub', label: 'Shrub', icon: 'leaf' },
+              { key: 'cordial', label: 'Cordial', icon: 'sparkles' },
+              { key: 'tincture', label: 'Tincture', icon: 'eyedropper' },
+            ].map((type) => {
+              const isSelected = recipe.recipeType === type.key;
               return (
                 <TouchableOpacity
-                  key={method.key}
-                  style={[styles.methodOption, isSelected && styles.methodOptionSelected]}
-                  onPress={withHaptic(() => applyMethodSuggestions(method.key as RecipeMethod), 'selection')}
+                  key={type.key}
+                  style={[styles.typeChip, isSelected && styles.typeChipSelected]}
+                  onPress={withHaptic(
+                    () =>
+                      setRecipe({
+                        ...recipe,
+                        recipeType: type.key as RecipeType,
+                        method: undefined,
+                      }),
+                    'selection',
+                  )}
                 >
                   <Ionicons
-                    name={method.icon as any}
-                    size={24}
-                    color={isSelected ? colors.bg : colors.gold}
+                    name={type.icon as any}
+                    size={16}
+                    color={isSelected ? colors.gold : colors.subtext}
                   />
-                  <Text style={[styles.methodText, isSelected && styles.methodTextSelected]}>
-                    {method.label}
+                  <Text style={[styles.typeChipText, isSelected && styles.typeChipTextSelected]}>
+                    {type.label}
                   </Text>
                 </TouchableOpacity>
               );
             })}
           </ScrollView>
 
-          {recipe.method && (
-            <View style={styles.methodHint}>
-              <Ionicons name="information-circle" size={16} color={colors.gold} />
-              <Text style={styles.methodHintText}>
-                Suggested steps added below. Customize as needed!
+          {/* Divider */}
+          <View style={styles.minimalDivider} />
+
+          {/* Ingredients Section */}
+          <Text style={styles.minimalSectionTitle}>Ingredients</Text>
+          <IngredientLeaderList
+            items={recipe.ingredients}
+            readOnly={false}
+            keyPrefix="add-ingredient"
+            iconSize={16}
+            iconColor={colors.muted}
+            namePlaceholder="Ingredient name"
+            amountPlaceholder="2 oz"
+            placeholderTextColor={colors.muted}
+            rowStyle={styles.minimalIngredientRow}
+            iconStyle={styles.minimalIngredientLeaderIcon}
+            nameStyle={styles.minimalNameInput}
+            dotsStyle={styles.minimalIngredientLeaderDots}
+            amountStyle={styles.minimalAmountInput}
+            onChangeName={(index, text) => updateIngredient(index, 'name', text)}
+            onChangeAmount={(index, text) => updateIngredient(index, 'amount', text)}
+            renderRemoveAction={(_item, index) =>
+              recipe.ingredients.length > 1 ? (
+                <TouchableOpacity
+                  onPress={withHaptic(() => removeIngredient(index), 'selection')}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  style={styles.minimalIngredientRemoveButton}
+                >
+                  <Ionicons name="remove-circle-outline" size={20} color={colors.muted} />
+                </TouchableOpacity>
+              ) : null
+            }
+          />
+          <TouchableOpacity
+            onPress={withHaptic(addIngredient, 'selection')}
+            style={styles.minimalAddLink}
+          >
+            <Ionicons name="add" size={16} color={colors.gold} />
+            <Text style={styles.minimalAddLinkText}>Add ingredient</Text>
+          </TouchableOpacity>
+
+          {/* Divider */}
+          <View style={styles.minimalDivider} />
+
+          {/* Method Selection (only for cocktails) */}
+          {recipe.recipeType === 'cocktail' && (
+            <>
+              <Text style={styles.minimalSectionTitle}>Preparation Method</Text>
+              <Text style={styles.minimalHelperText}>
+                Select a method to get step-by-step guidance
+              </Text>
+
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.methodScroll}
+                contentContainerStyle={styles.methodScrollContent}
+              >
+                {[
+                  { key: 'shake', label: 'Shake', icon: 'flash' },
+                  { key: 'stir', label: 'Stir', icon: 'repeat' },
+                  { key: 'build', label: 'Build', icon: 'layers' },
+                  { key: 'blend', label: 'Blend', icon: 'thunderstorm' },
+                  { key: 'muddle', label: 'Muddle', icon: 'leaf' },
+                  { key: 'layer', label: 'Layer', icon: 'reorder-four' },
+                  { key: 'swizzle', label: 'Swizzle', icon: 'sync' },
+                  { key: 'throw', label: 'Throw', icon: 'return-up-forward' },
+                ].map((method) => {
+                  const isSelected = recipe.method === method.key;
+                  return (
+                    <TouchableOpacity
+                      key={method.key}
+                      style={[styles.methodOption, isSelected && styles.methodOptionSelected]}
+                      onPress={withHaptic(
+                        () => applyMethodSuggestions(method.key as RecipeMethod),
+                        'selection',
+                      )}
+                    >
+                      <Ionicons
+                        name={method.icon as any}
+                        size={24}
+                        color={isSelected ? colors.bg : colors.gold}
+                      />
+                      <Text style={[styles.methodText, isSelected && styles.methodTextSelected]}>
+                        {method.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+
+              {recipe.method && (
+                <View style={styles.methodHint}>
+                  <Ionicons name="information-circle" size={16} color={colors.gold} />
+                  <Text style={styles.methodHintText}>
+                    Suggested steps added below. Customize as needed!
+                  </Text>
+                </View>
+              )}
+
+              <View style={styles.minimalDivider} />
+            </>
+          )}
+
+          {/* Instructions Section */}
+          <Text style={styles.minimalSectionTitle}>Instructions</Text>
+          {!recipe.method && recipe.recipeType === 'cocktail' && (
+            <View style={styles.selectMethodPrompt}>
+              <Ionicons name="arrow-up" size={18} color={colors.gold} />
+              <Text style={styles.selectMethodPromptText}>
+                Select a method above to get suggested steps!
               </Text>
             </View>
           )}
+          {recipe.instructions.map((instruction, index) => (
+            <View key={index} style={styles.minimalInstructionRow}>
+              <Text style={styles.minimalStepLabel}>Step {index + 1}</Text>
+              <View style={styles.minimalInstructionContent}>
+                <TextInput
+                  style={styles.minimalInstructionInput}
+                  value={instruction}
+                  onChangeText={(text) => updateInstruction(index, text)}
+                  placeholder="Describe this step..."
+                  placeholderTextColor={colors.muted}
+                  multiline
+                  keyboardAppearance="dark"
+                />
+                {recipe.instructions.length > 1 && (
+                  <TouchableOpacity
+                    onPress={withHaptic(() => removeInstruction(index), 'selection')}
+                    style={styles.minimalRemoveStep}
+                  >
+                    <Ionicons name="trash-outline" size={18} color={colors.muted} />
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+          ))}
+          <TouchableOpacity
+            onPress={withHaptic(addInstruction, 'selection')}
+            style={styles.minimalAddLink}
+          >
+            <Ionicons name="add" size={16} color={colors.gold} />
+            <Text style={styles.minimalAddLinkText}>Add step</Text>
+          </TouchableOpacity>
 
-          <View style={styles.minimalDivider} />
-        </>
-      )}
-
-      {/* Instructions Section */}
-      <Text style={styles.minimalSectionTitle}>Instructions</Text>
-      {!recipe.method && recipe.recipeType === 'cocktail' && (
-        <View style={styles.selectMethodPrompt}>
-          <Ionicons name="arrow-up" size={18} color={colors.gold} />
-          <Text style={styles.selectMethodPromptText}>
-            Select a method above to get suggested steps!
-          </Text>
+          {/* Garnish */}
+          {recipe.garnish || (
+            <TouchableOpacity
+              style={styles.minimalAddLink}
+              onPress={withHaptic(() => {
+                if (!recipe.garnish) {
+                  setRecipe({ ...recipe, garnish: '' });
+                }
+              }, 'selection')}
+            >
+              <Ionicons name="add" size={16} color={colors.gold} />
+              <Text style={styles.minimalAddLinkText}>Add garnish (optional)</Text>
+            </TouchableOpacity>
+          )}
+          {recipe.garnish && (
+            <View style={styles.minimalGarnishSection}>
+              <Text style={styles.minimalLabel}>Garnish</Text>
+              <TextInput
+                style={styles.minimalGarnishInput}
+                value={recipe.garnish}
+                onChangeText={(text) => setRecipe({ ...recipe, garnish: text })}
+                placeholder="e.g., Orange twist"
+                placeholderTextColor={colors.muted}
+                keyboardAppearance="dark"
+              />
+            </View>
+          )}
         </View>
-      )}
-      {recipe.instructions.map((instruction, index) => (
-        <View key={index} style={styles.minimalInstructionRow}>
-          <Text style={styles.minimalStepLabel}>Step {index + 1}</Text>
-          <View style={styles.minimalInstructionContent}>
-            <TextInput
-              style={styles.minimalInstructionInput}
-              value={instruction}
-              onChangeText={(text) => updateInstruction(index, text)}
-              placeholder="Describe this step..."
-              placeholderTextColor={colors.muted}
-              multiline
-              keyboardAppearance="dark"
-            />
-            {recipe.instructions.length > 1 && (
-              <TouchableOpacity
-                onPress={withHaptic(() => removeInstruction(index), 'selection')}
-                style={styles.minimalRemoveStep}
-              >
-                <Ionicons name="trash-outline" size={18} color={colors.muted} />
-              </TouchableOpacity>
-            )}
-          </View>
-        </View>
-      ))}
-      <TouchableOpacity onPress={withHaptic(addInstruction, 'selection')} style={styles.minimalAddLink}>
-        <Ionicons name="add" size={16} color={colors.gold} />
-        <Text style={styles.minimalAddLinkText}>Add step</Text>
-      </TouchableOpacity>
-
-      {/* Garnish */}
-      {recipe.garnish || (
-        <TouchableOpacity
-          style={styles.minimalAddLink}
-          onPress={withHaptic(() => {
-            if (!recipe.garnish) {
-              setRecipe({ ...recipe, garnish: '' });
-            }
-          }, 'selection')}
-        >
-          <Ionicons name="add" size={16} color={colors.gold} />
-          <Text style={styles.minimalAddLinkText}>Add garnish (optional)</Text>
-        </TouchableOpacity>
-      )}
-      {recipe.garnish && (
-        <View style={styles.minimalGarnishSection}>
-          <Text style={styles.minimalLabel}>Garnish</Text>
-          <TextInput
-            style={styles.minimalGarnishInput}
-            value={recipe.garnish}
-            onChangeText={(text) => setRecipe({...recipe, garnish: text})}
-            placeholder="e.g., Orange twist"
-            placeholderTextColor={colors.muted}
-            keyboardAppearance="dark"
-          />
-        </View>
-      )}
-    </View>
 
         {/* Save Button */}
-        <TouchableOpacity
+        <PressableScale
           style={[styles.saveButton, loading && styles.saveButtonDisabled]}
           onPress={withHaptic(saveRecipe, 'medium')}
           disabled={loading}
+          haptic={null}
+          scaleTo={0.97}
         >
           <Ionicons name="checkmark-circle" size={24} color={colors.bg} />
-          <Text style={styles.saveButtonText}>
-            {loading ? 'Saving Recipe...' : 'Save Recipe'}
-          </Text>
-        </TouchableOpacity>
+          <Text style={styles.saveButtonText}>{loading ? 'Saving Recipe...' : 'Save Recipe'}</Text>
+        </PressableScale>
 
         <View style={styles.bottomSpacing} />
       </ScrollView>
@@ -829,17 +873,19 @@ export default function AddRecipeScreen() {
                   key={item}
                   style={[
                     styles.modalOption,
-                    recipe.glassware === item && styles.modalOptionSelected
+                    recipe.glassware === item && styles.modalOptionSelected,
                   ]}
                   onPress={withHaptic(() => {
                     setRecipe({ ...recipe, glassware: item });
                     setShowGlasswareModal(false);
                   }, 'selection')}
                 >
-                  <Text style={[
-                    styles.modalOptionText,
-                    recipe.glassware === item && styles.modalOptionTextSelected
-                  ]}>
+                  <Text
+                    style={[
+                      styles.modalOptionText,
+                      recipe.glassware === item && styles.modalOptionTextSelected,
+                    ]}
+                  >
                     {item}
                   </Text>
                   {recipe.glassware === item && (
@@ -875,17 +921,19 @@ export default function AddRecipeScreen() {
                   key={item}
                   style={[
                     styles.modalOption,
-                    recipe.tags[0] === item && styles.modalOptionSelected
+                    recipe.tags[0] === item && styles.modalOptionSelected,
                   ]}
                   onPress={withHaptic(() => {
                     setRecipe({ ...recipe, tags: [item] });
                     setShowDifficultyModal(false);
                   }, 'selection')}
                 >
-                  <Text style={[
-                    styles.modalOptionText,
-                    recipe.tags[0] === item && styles.modalOptionTextSelected
-                  ]}>
+                  <Text
+                    style={[
+                      styles.modalOptionText,
+                      recipe.tags[0] === item && styles.modalOptionTextSelected,
+                    ]}
+                  >
                     {item}
                   </Text>
                   {recipe.tags[0] === item && (
@@ -1053,16 +1101,35 @@ const styles = StyleSheet.create({
     color: colors.text,
     marginBottom: spacing(2),
   },
+  // No `gap` here: the dot leader is what fills the row, so the pieces rely
+  // on their own margins instead.
   minimalIngredientRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing(2),
     marginBottom: spacing(2),
   },
+  minimalIngredientLeaderIcon: {
+    marginRight: spacing(1),
+  },
+  minimalIngredientLeaderDots: {
+    flex: 1,
+    flexShrink: 1,
+    marginHorizontal: spacing(1),
+    fontSize: 15,
+    letterSpacing: 1.5,
+    color: colors.line,
+  },
+  minimalIngredientRemoveButton: {
+    marginLeft: spacing(1),
+  },
+  // Unused, kept intentionally: the fixed-width wrapper the amount field sat
+  // in before the amount input took its own width.
   minimalIngredientLeft: {
     width: 80,
   },
   minimalAmountInput: {
+    width: 80,
+    textAlign: 'right',
     fontSize: 15,
     color: colors.text,
     padding: 0,
@@ -1071,7 +1138,7 @@ const styles = StyleSheet.create({
     paddingBottom: spacing(1),
   },
   minimalNameInput: {
-    flex: 1,
+    flexShrink: 1,
     fontSize: 15,
     color: colors.text,
     padding: 0,

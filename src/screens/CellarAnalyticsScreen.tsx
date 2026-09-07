@@ -91,7 +91,7 @@ type TimeRange = '1Y' | '5Y' | 'ALL';
 const BAR_HEIGHTS: Record<TimeRange, number[]> = {
   '1Y': [38, 44, 52, 48, 60, 55, 68, 72, 65, 80, 74, 88],
   '5Y': [28, 32, 40, 38, 45, 50, 58, 64, 70, 78, 85, 92],
-  ALL:  [22, 28, 35, 42, 50, 56, 62, 68, 74, 80, 86, 94],
+  ALL: [22, 28, 35, 42, 50, 56, 62, 68, 74, 80, 86, 94],
 };
 
 // ─── PRO gate ─────────────────────────────────────────────────────────────────
@@ -100,7 +100,7 @@ function LockedScreen() {
   const { gate } = useFeatureAccess('cellar_mode');
   return (
     <SafeAreaView style={styles.container}>
-      <LinearGradient colors={['#1A120D', '#0F0A07']} style={styles.lockedFill}>
+      <LinearGradient colors={[colors.bg, '#0F0A07']} style={styles.lockedFill}>
         <Ionicons name="bar-chart-outline" size={40} color={colors.accent} />
         <Text style={styles.lockedTitle}>Portfolio Analytics</Text>
         <Text style={styles.lockedBody}>
@@ -138,7 +138,7 @@ function CellarAnalyticsScreen() {
   useFocusEffect(
     useCallback(() => {
       loadData();
-    }, [loadData])
+    }, [loadData]),
   );
 
   if (!hasAccess) return <LockedScreen />;
@@ -156,7 +156,9 @@ function CellarAnalyticsScreen() {
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.content}
-        refreshControl={<RefreshControl refreshing={loading} onRefresh={loadData} tintColor={colors.accent} />}
+        refreshControl={
+          <RefreshControl refreshing={loading} onRefresh={loadData} tintColor={colors.accent} />
+        }
       >
         {/* ── Header ──────────────────────────────────────────────────────── */}
         <View style={styles.headerRow}>
@@ -177,7 +179,9 @@ function CellarAnalyticsScreen() {
         <View style={styles.actionRow}>
           <TouchableOpacity
             style={styles.actionGhost}
-            onPress={() => Alert.alert('Report Download', 'Report download is not enabled for this build yet.')}
+            onPress={() =>
+              Alert.alert('Report Download', 'Report download is not enabled for this build yet.')
+            }
           >
             <Ionicons name="download-outline" size={16} color={colors.text} />
             <Text style={styles.actionGhostText}>DOWNLOAD REPORT</Text>
@@ -186,7 +190,7 @@ function CellarAnalyticsScreen() {
             style={styles.actionAmber}
             onPress={() => nav.navigate('CellarRegister')}
           >
-            <Ionicons name="add" size={16} color="#1A120D" />
+            <Ionicons name="add" size={16} color={colors.bg} />
             <Text style={styles.actionAmberText}>ADD SPIRIT</Text>
           </TouchableOpacity>
         </View>
@@ -201,7 +205,9 @@ function CellarAnalyticsScreen() {
                 style={[styles.rangeTab, activeRange === r && styles.rangeTabActive]}
                 onPress={() => setActiveRange(r)}
               >
-                <Text style={[styles.rangeTabText, activeRange === r && styles.rangeTabTextActive]}>{r}</Text>
+                <Text style={[styles.rangeTabText, activeRange === r && styles.rangeTabTextActive]}>
+                  {r}
+                </Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -243,16 +249,23 @@ function CellarAnalyticsScreen() {
           {/* Highest Value */}
           <LinearGradient colors={['#2A1A0F', '#160F0B']} style={styles.highlightCard}>
             <Text style={styles.highlightLabel}>HIGHEST VALUE ASSET</Text>
-            <Text style={styles.highlightName} numberOfLines={2}>{topValueItem.name}</Text>
-            <Text style={styles.highlightValue}>{topValueItem.value ? fmt(topValueItem.value) : 'Not tracked'}</Text>
+            <Text style={styles.highlightName} numberOfLines={2}>
+              {topValueItem.name}
+            </Text>
+            <Text style={styles.highlightValue}>
+              {topValueItem.value ? fmt(topValueItem.value) : 'Not tracked'}
+            </Text>
           </LinearGradient>
 
           {/* Biggest Gainer */}
           <LinearGradient colors={['#0F1F14', '#0A100C']} style={styles.highlightCard}>
             <Text style={styles.highlightLabel}>BIGGEST GAINER</Text>
-            <Text style={styles.highlightName} numberOfLines={2}>{topGainer.name}</Text>
+            <Text style={styles.highlightName} numberOfLines={2}>
+              {topGainer.name}
+            </Text>
             <Text style={[styles.highlightValue, { color: '#4FC38A' }]}>
-              {topGainer.pct >= 0 ? '+' : ''}{topGainer.pct.toFixed(1)}%
+              {topGainer.pct >= 0 ? '+' : ''}
+              {topGainer.pct.toFixed(1)}%
             </Text>
           </LinearGradient>
         </View>
@@ -284,7 +297,9 @@ function CellarAnalyticsScreen() {
               <TouchableOpacity
                 key={item.inventoryItemId}
                 style={styles.holdingCard}
-                onPress={() => nav.navigate('CellarBottleDetail', { inventoryItemId: item.inventoryItemId })}
+                onPress={() =>
+                  nav.navigate('CellarBottleDetail', { inventoryItemId: item.inventoryItemId })
+                }
                 activeOpacity={0.85}
               >
                 {/* Image / fallback */}
@@ -296,9 +311,12 @@ function CellarAnalyticsScreen() {
 
                 <View style={styles.holdingInfo}>
                   <Text style={styles.holdingLocation}>{item.region || 'Private Collection'}</Text>
-                  <Text style={styles.holdingName} numberOfLines={1}>{item.itemName}</Text>
+                  <Text style={styles.holdingName} numberOfLines={1}>
+                    {item.itemName}
+                  </Text>
                   <Text style={styles.holdingAcquired}>
-                    Acquired {getAcquiredYear(item)} {item.purchasePrice ? `• ${fmt(item.purchasePrice)}` : ''}
+                    Acquired {getAcquiredYear(item)}{' '}
+                    {item.purchasePrice ? `• ${fmt(item.purchasePrice)}` : ''}
                   </Text>
                 </View>
 
@@ -309,8 +327,11 @@ function CellarAnalyticsScreen() {
                   </Text>
                   <Text style={styles.holdingPerfLabel}>PERFORMANCE</Text>
                   {perf !== null ? (
-                    <Text style={[styles.holdingPerf, { color: perf >= 0 ? '#4FC38A' : '#F56565' }]}>
-                      {perf >= 0 ? '+' : ''}{perf.toFixed(1)}%
+                    <Text
+                      style={[styles.holdingPerf, { color: perf >= 0 ? '#4FC38A' : '#F56565' }]}
+                    >
+                      {perf >= 0 ? '+' : ''}
+                      {perf.toFixed(1)}%
                     </Text>
                   ) : (
                     <Text style={styles.holdingPerfNA}>—</Text>
@@ -322,10 +343,7 @@ function CellarAnalyticsScreen() {
         )}
 
         {/* ── View all CTA ─────────────────────────────────────────────────── */}
-        <TouchableOpacity
-          style={styles.viewAllCta}
-          onPress={() => nav.navigate('TheWineCellar')}
-        >
+        <TouchableOpacity style={styles.viewAllCta} onPress={() => nav.navigate('TheWineCellar')}>
           <Text style={styles.viewAllCtaText}>
             VIEW ENTIRE COLLECTION ({items.length} ASSET{items.length !== 1 ? 'S' : ''})
           </Text>
@@ -434,13 +452,13 @@ const styles = StyleSheet.create({
   actionAmberText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#1A120D',
+    color: colors.bg,
     letterSpacing: 0.8,
   },
 
   // Chart
   chartCard: {
-    backgroundColor: '#1A120D',
+    backgroundColor: colors.bg,
     borderRadius: radii.lg,
     padding: spacing(2),
     borderWidth: 1,
@@ -469,7 +487,7 @@ const styles = StyleSheet.create({
     color: colors.subtext,
   },
   rangeTabTextActive: {
-    color: '#1A120D',
+    color: colors.bg,
   },
   barChartArea: {
     flexDirection: 'row',
@@ -503,7 +521,7 @@ const styles = StyleSheet.create({
     fontFamily: serif,
   },
   splitCard: {
-    backgroundColor: '#1A120D',
+    backgroundColor: colors.bg,
     borderRadius: radii.md,
     padding: spacing(1.75),
     borderWidth: 1,
@@ -598,7 +616,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   emptyHint: {
-    backgroundColor: '#1A120D',
+    backgroundColor: colors.bg,
     borderRadius: radii.md,
     padding: spacing(2.5),
     alignItems: 'center',
@@ -617,7 +635,7 @@ const styles = StyleSheet.create({
   // Holding card
   holdingCard: {
     flexDirection: 'row',
-    backgroundColor: '#1A120D',
+    backgroundColor: colors.bg,
     borderRadius: radii.md,
     overflow: 'hidden',
     borderWidth: 1,
@@ -745,6 +763,6 @@ const styles = StyleSheet.create({
   lockedCtaText: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#1A120D',
+    color: colors.bg,
   },
 });

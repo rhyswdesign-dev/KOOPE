@@ -1,16 +1,19 @@
-import React from 'react';
-import {
-  View,
-  Text,
-  Modal,
-  ScrollView,
-  TouchableOpacity,
-  StyleSheet,
-} from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, Modal, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, radii } from '../theme/tokens';
 import { usePersonalization } from '../store/usePersonalization';
+import { useAuth } from '../contexts/AuthContext';
 import { log } from '../lib/logger';
+import { recipePrefsFlavorToCanonical } from '../utils/flavorTaxonomy';
+import {
+  hydrateTasteGraph,
+  setFlavorOverride,
+  setSpiritOverride,
+  toPersistedTasteProfile,
+  type TasteGraphData,
+} from '../services/tasteGraphService';
+import { loadUserProfile, updateUserProfileFields } from '../services/userProfileService';
 
 interface RecipePreferencesModalProps {
   visible: boolean;
@@ -41,43 +44,55 @@ const FLAVOR_PROFILES = [
   { key: 'herbaceous', label: 'Herbaceous', icon: '🌱' },
 ];
 
+// This screen used to write flat scores (spiritScores[spirit] = 100) straight
+// into usePersonalization every time it was opened — the same destructive
+// pattern the PRO sliders had before this session's mirror/steering split:
+// nothing stopped a repeat edit from permanently erasing behavior. It now
+// reuses that same steering mechanism (setSpiritOverride/setFlavorOverride)
+// instead of inventing a second one. skillLevel isn't taste — it stays a
+// plain declarative setting in usePersonalization.
 export default function RecipePreferencesModal({ visible, onClose }: RecipePreferencesModalProps) {
-  const { profile, updateProfile, generateRecommendations } = usePersonalization();
+  const { user } = useAuth();
+  const { profile, updateProfile } = usePersonalization();
+  const [graphData, setGraphData] = useState<TasteGraphData | null>(null);
 
-  // Provide default values if profile is not initialized
-  const favoriteSpirit = profile?.favoriteSpirits?.[0] || 'vodka';
+  useEffect(() => {
+    if (!visible || !user?.id) return;
+    let cancelled = false;
+    loadUserProfile(user.id)
+      .then((p) => {
+        if (!cancelled) setGraphData(hydrateTasteGraph(p?.tasteProfile));
+      })
+      .catch((error) => {
+        log.warn('RecipePreferencesModal', 'Failed to load taste profile', { error });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [visible, user?.id]);
+
   const skillLevel = profile?.skillLevel || 'beginner';
-  const flavorPreferences = profile?.flavorPreferences || [];
+  const spiritOverrides = graphData?.overrides?.spirits ?? {};
+  const flavorOverrides = graphData?.overrides?.flavors ?? {};
 
-  const handleSpiritSelect = async (spirit: string) => {
+  const persistGraph = async (next: TasteGraphData) => {
+    setGraphData(next);
+    if (!user?.id) return;
     try {
-      // If no profile exists, create a basic one
-      if (!profile) {
-        await updateProfile({
-          favoriteSpirits: [spirit],
-          spiritScores: { [spirit]: 100 },
-          skillLevel: 'beginner',
-          preferredDifficulty: ['Easy'],
-          flavorPreferences: [],
-          flavorScores: {},
-          preferredABV: 'alcoholic'
-        });
-      } else {
-        // Update spirit scores
-        const spiritScores = { ...profile.spiritScores };
-        spiritScores[spirit] = 100;
-
-        await updateProfile({
-          favoriteSpirits: [spirit],
-          spiritScores
-        });
-      }
-
-      // Regenerate AI recommendations
-      await generateRecommendations();
+      await updateUserProfileFields(user.id, {
+        tasteProfile: toPersistedTasteProfile(next) as any,
+      });
     } catch (error) {
-      log.error('RecipePreferencesModal', 'Error updating spirit preference', error);
+      log.error('RecipePreferencesModal', 'Failed to save taste preference', error);
     }
+  };
+
+  const handleSpiritSelect = async (spiritKey: string) => {
+    if (!graphData) return;
+    // 'bourbon' is a UI convenience, not a canonical Spirit — bourbon is a
+    // whiskey, so it steers the same axis.
+    const spirit = spiritKey === 'bourbon' ? 'whiskey' : spiritKey;
+    await persistGraph(setSpiritOverride(graphData, spirit as any, 1));
   };
 
   const handleSkillLevelSelect = async (level: 'beginner' | 'intermediate' | 'advanced') => {
@@ -90,37 +105,20 @@ export default function RecipePreferencesModal({ visible, onClose }: RecipePrefe
 
       await updateProfile({
         skillLevel: level,
-        preferredDifficulty: difficultyMap[level] || ['Easy']
+        preferredDifficulty: difficultyMap[level] || ['Easy'],
       });
-
-      await generateRecommendations();
     } catch (error) {
       log.error('RecipePreferencesModal', 'Error updating skill level', error);
     }
   };
 
-  const handleFlavorToggle = async (flavor: string) => {
-    try {
-      const currentFlavors = flavorPreferences || [];
-      const newFlavors = currentFlavors.includes(flavor)
-        ? currentFlavors.filter(f => f !== flavor)
-        : [...currentFlavors, flavor];
+  const handleFlavorToggle = async (flavorKey: string) => {
+    if (!graphData) return;
+    const axis = recipePrefsFlavorToCanonical(flavorKey);
+    if (!axis) return;
 
-      // Update flavor scores
-      const flavorScores = { ...(profile?.flavorScores || {}) };
-      newFlavors.forEach(f => {
-        flavorScores[f] = 85;
-      });
-
-      await updateProfile({
-        flavorPreferences: newFlavors,
-        flavorScores
-      });
-
-      await generateRecommendations();
-    } catch (error) {
-      log.error('RecipePreferencesModal', 'Error updating flavor preferences', error);
-    }
+    const isSelected = flavorOverrides[axis] === 1;
+    await persistGraph(setFlavorOverride(graphData, axis, isSelected ? null : 1));
   };
 
   return (
@@ -149,48 +147,39 @@ export default function RecipePreferencesModal({ visible, onClose }: RecipePrefe
             </Text>
 
             <View style={styles.optionsGrid}>
-              {SPIRITS.map((spirit) => (
-                <TouchableOpacity
-                  key={spirit.key}
-                  style={[
-                    styles.optionCard,
-                    favoriteSpirit === spirit.key && styles.optionCardActive,
-                  ]}
-                  onPress={() => handleSpiritSelect(spirit.key)}
-                >
-                  <Text style={styles.optionIcon}>{spirit.icon}</Text>
-                  <Text
-                    style={[
-                      styles.optionLabel,
-                      favoriteSpirit === spirit.key && styles.optionLabelActive,
-                    ]}
+              {SPIRITS.map((spirit) => {
+                const axisKey = spirit.key === 'bourbon' ? 'whiskey' : spirit.key;
+                const isSelected = spiritOverrides[axisKey as keyof typeof spiritOverrides] === 1;
+                return (
+                  <TouchableOpacity
+                    key={spirit.key}
+                    style={[styles.optionCard, isSelected && styles.optionCardActive]}
+                    onPress={() => handleSpiritSelect(spirit.key)}
                   >
-                    {spirit.label}
-                  </Text>
-                  {favoriteSpirit === spirit.key && (
-                    <View style={styles.checkmark}>
-                      <Ionicons name="checkmark-circle" size={20} color={colors.accent} />
-                    </View>
-                  )}
-                </TouchableOpacity>
-              ))}
+                    <Text style={styles.optionIcon}>{spirit.icon}</Text>
+                    <Text style={[styles.optionLabel, isSelected && styles.optionLabelActive]}>
+                      {spirit.label}
+                    </Text>
+                    {isSelected && (
+                      <View style={styles.checkmark}>
+                        <Ionicons name="checkmark-circle" size={20} color={colors.accent} />
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           </View>
 
           {/* Skill Level Section */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Skill Level</Text>
-            <Text style={styles.sectionSubtitle}>
-              We'll match recipes to your experience
-            </Text>
+            <Text style={styles.sectionSubtitle}>We'll match recipes to your experience</Text>
 
             {SKILL_LEVELS.map((level) => (
               <TouchableOpacity
                 key={level.key}
-                style={[
-                  styles.settingItem,
-                  skillLevel === level.key && styles.settingItemActive,
-                ]}
+                style={[styles.settingItem, skillLevel === level.key && styles.settingItemActive]}
                 onPress={() => handleSkillLevelSelect(level.key)}
               >
                 <View style={styles.settingItemLeft}>
@@ -222,23 +211,16 @@ export default function RecipePreferencesModal({ visible, onClose }: RecipePrefe
 
             <View style={styles.optionsGrid}>
               {FLAVOR_PROFILES.map((flavor) => {
-                const isSelected = flavorPreferences.includes(flavor.key);
+                const axis = recipePrefsFlavorToCanonical(flavor.key);
+                const isSelected = axis ? flavorOverrides[axis] === 1 : false;
                 return (
                   <TouchableOpacity
                     key={flavor.key}
-                    style={[
-                      styles.optionCard,
-                      isSelected && styles.optionCardActive,
-                    ]}
+                    style={[styles.optionCard, isSelected && styles.optionCardActive]}
                     onPress={() => handleFlavorToggle(flavor.key)}
                   >
                     <Text style={styles.optionIcon}>{flavor.icon}</Text>
-                    <Text
-                      style={[
-                        styles.optionLabel,
-                        isSelected && styles.optionLabelActive,
-                      ]}
-                    >
+                    <Text style={[styles.optionLabel, isSelected && styles.optionLabelActive]}>
                       {flavor.label}
                     </Text>
                     {isSelected && (

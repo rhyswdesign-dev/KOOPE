@@ -2,11 +2,8 @@ import React, { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import Slider from '@react-native-community/slider';
 import { colors, radii, spacing } from '../../theme/tokens';
-import {
-  applyGuidedBalance,
-  RatioEditorState,
-  RatioProfile,
-} from '../../utils/ratioEngine';
+import { IngredientLeaderList } from '../recipe/IngredientLeaderRow';
+import { applyGuidedBalance, RatioEditorState, RatioProfile } from '../../utils/ratioEngine';
 
 interface RatioBalanceEditorProps {
   profile: RatioProfile;
@@ -67,6 +64,15 @@ export default function RatioBalanceEditor({
 
   const preview = useMemo(() => applyGuidedBalance(profile, state), [profile, state]);
 
+  const previewLeaderIngredients = useMemo(
+    () =>
+      preview.ingredients.map((ingredient) => ({
+        name: ingredient.name,
+        amount: `${ingredient.amount_oz.toFixed(2)} oz`,
+      })),
+    [preview],
+  );
+
   return (
     <View style={styles.card}>
       <Text style={styles.title}>Ratio Balance</Text>
@@ -116,12 +122,19 @@ export default function RatioBalanceEditor({
 
       <View style={styles.previewSection}>
         <Text style={styles.previewTitle}>Preview</Text>
-        {preview.ingredients.map((ingredient, index) => (
-          <View key={`${ingredient.name}-${index}`} style={styles.previewRow}>
-            <Text style={styles.previewName}>{ingredient.name}</Text>
-            <Text style={styles.previewAmount}>{ingredient.amount_oz.toFixed(2)} oz</Text>
-          </View>
-        ))}
+        {/* The shared row is string-in/string-out, so the numeric ounces are
+            formatted here at the call site. */}
+        <IngredientLeaderList
+          items={previewLeaderIngredients}
+          keyPrefix="ratio-preview"
+          iconSize={13}
+          iconColor={colors.subtext}
+          rowStyle={styles.previewRow}
+          iconStyle={styles.previewLeaderIcon}
+          nameStyle={styles.previewName}
+          dotsStyle={styles.previewLeaderDots}
+          amountStyle={styles.previewAmount}
+        />
       </View>
 
       <View style={styles.actions}>
@@ -206,15 +219,26 @@ const styles = StyleSheet.create({
   },
   previewRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  previewLeaderIcon: {
+    marginRight: spacing(0.75),
   },
   previewName: {
     color: colors.text,
     fontSize: 12,
+    flexShrink: 1,
+  },
+  previewLeaderDots: {
     flex: 1,
-    paddingRight: spacing(1),
+    flexShrink: 1,
+    marginHorizontal: spacing(0.75),
+    fontSize: 12,
+    letterSpacing: 1.5,
+    color: colors.line,
   },
   previewAmount: {
+    flexShrink: 0,
     color: colors.accent,
     fontSize: 12,
     fontWeight: '700',

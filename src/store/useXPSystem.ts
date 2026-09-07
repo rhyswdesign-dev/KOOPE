@@ -11,6 +11,12 @@ import { achievementService } from '../services/achievementService';
 import { useUserTier } from './useUserTier';
 import { PRO_XP_MULTIPLIER } from '../config/proIdentity';
 
+// NOTE: several members below ('make-cocktail', 'save-recipe',
+// 'share-cocktail', 'vault-daily-drop', 'vault-seasonal-item',
+// 'invite-friend') no longer have a matching XP_EARNING_RATES entry — their
+// rates were retired in the 2026-08 funnel pass because nothing ever awarded
+// them. The union keeps them so any transaction already sitting in a user's
+// persisted history still type-checks when it is read back.
 export type XPSource =
   | 'daily-login'
   | 'lesson-complete'
@@ -30,6 +36,9 @@ export type XPSource =
   | 'bottle-scanned-repeat' // Repeat scan of same bottle — 5 XP, max 3×/bottle
   | 'bottle-submitted' // User adds a NEW bottle to the global DB — 150 XP
   | 'scan-corrected' // User corrects a wrong scan result — 75 XP
+  // Signal capture
+  | 'spotted-price' // Logged a price sighting — 40 XP with a store, 15 without
+  | 'want-list-add' // Saved a bottle to the want list — 20 XP
   // Discovery
   | 'recipe-viewed' // Browsing recipes — 10 XP, capped at 5 views/day
   | 'taste-profile-completed' // One-time: filling out taste preferences — 100 XP
@@ -74,28 +83,32 @@ export const DEFAULT_COCKTAIL_COSTS: { [tier: string]: number } = {
 // that's not a streak, there's no counter, no pressure to not break a
 // chain, and no escalating reward for consecutive days.
 
-// XP earning rates — aligned with monetization spec
+// XP earning rates — aligned with monetization spec.
+//
+// Standing rule after the 2026-08 XP-funnel pass: every rate in this table
+// must have at least one real call site. A rate with no caller is a promise
+// the app never keeps, and XPBalanceModal advertises straight from here.
 export const XP_EARNING_RATES = {
   // Engagement
   dailyLogin: 10,
   lessonComplete: 25,
-  makeCocktail: 50,
-  saveRecipe: 5,
   addToCart: 5,
-  shareCocktail: 15,
-  vaultDailyDrop: 20,
-  vaultSeasonalItem: 30,
-  inviteFriend: 100,
-  recipeRating: 5,
+  recipeRating: 15, // Feeds made_events.rating — real, brand-relevant data
 
   // Scanning & inventory (from monetization spec)
   bottleScannedFirst: 50, // First time scanning any bottle
   bottleScannedRepeat: 5, // Diminishing returns — max 3× per bottle
+  bottleScannedBatchExtra: 5, // Each additional item in one multi-item photo
   bottleSubmitted: 150, // Adding a new bottle to the shared database
   scanCorrected: 75, // Correcting a wrong scan result
 
+  // Signal capture — the data the brand-insights product is built on
+  spottedPriceWithLocation: 40, // Price + the retailer it was seen at
+  spottedPrice: 15, // Price with no store attached
+  wantListAdd: 20, // Saving a bottle to the want list
+
   // Discovery
-  recipeViewed: 10, // Browsing recipes — capped at 5 views/day (50 XP/day max)
+  recipeViewed: 5, // Browsing recipes — capped at 5 views/day (25 XP/day max)
   tasteProfileCompleted: 100, // One-time: filling out taste preferences
 
   // Challenges
@@ -111,6 +124,12 @@ export const MAX_REPEAT_SCANS_PER_BOTTLE = 3;
 
 // Daily recipe view cap for XP (after 5 views, no more XP awarded)
 export const MAX_RECIPE_VIEWS_XP_PER_DAY = 5;
+
+// A multi-item scan (one pantry photo -> N ingredients) used to award the
+// full per-scan rate once per detected item — 8 items was 400+ XP, more than
+// logging five cocktails, for one photo. The first item now pays the real
+// rate and the rest pay a flat trickle, capped at this many extras.
+export const MAX_BATCH_SCAN_EXTRA_ITEMS = 10;
 
 interface XPSystemState {
   // Core state
@@ -151,6 +170,7 @@ interface XPSystemState {
 
   // Scan & inventory XP (monetization spec)
   earnScanXP: (bottleId: string) => { xpEarned: number; reason: string };
+  earnBatchScanXP: (itemIds: string[]) => { xpEarned: number };
   earnBottleSubmittedXP: () => void;
   earnScanCorrectedXP: () => void;
 
@@ -422,6 +442,37 @@ export const useXPSystem = create<XPSystemState>()(
           reason,
         );
         return { xpEarned, reason };
+      },
+
+      // One photo, many items (IngredientScanScreen). The first item is a
+      // real scan and pays the real rate; the rest pay a flat trickle,
+      // capped at MAX_BATCH_SCAN_EXTRA_ITEMS. Recording every item in
+      // scannedBottles is deliberate — repeat-scan diminishing returns
+      // should still apply next time regardless of how the item arrived.
+      earnBatchScanXP: (itemIds: string[]) => {
+        if (itemIds.length === 0) return { xpEarned: 0 };
+
+        const [first, ...rest] = itemIds;
+        const { xpEarned: firstXP } = get().earnScanXP(first);
+
+        const extras = Math.min(rest.length, MAX_BATCH_SCAN_EXTRA_ITEMS);
+        let extraXP = 0;
+        if (extras > 0) {
+          extraXP = extras * XP_EARNING_RATES.bottleScannedBatchExtra;
+          const state = get();
+          const scannedBottles = { ...state.scannedBottles };
+          for (const id of rest) {
+            scannedBottles[id] = (scannedBottles[id] ?? 0) + 1;
+          }
+          set({ scannedBottles });
+          get().earnXP(
+            extraXP,
+            'bottle-scanned-repeat',
+            `${extras} more item${extras === 1 ? '' : 's'} in the same photo`,
+          );
+        }
+
+        return { xpEarned: firstXP + extraXP };
       },
 
       // User submits a bottle not yet in the shared database

@@ -72,6 +72,31 @@ export async function logScanEvent(params: {
 }
 
 /**
+ * Should leaving the Answer Card resolve this scan to 'passed'?
+ *
+ * Extracted from BottleDetailScreen's beforeRemove listener so the rule that
+ * defines the want-conversion metric is testable rather than buried in a
+ * 1,500-line screen. Two things must both be false for a pass to be recorded:
+ *
+ *  - `outcomeAlreadyRecorded` — the visit already resolved (owned/wanted).
+ *    Tapping "Want it" sets this immediately, which is the fix for the
+ *    inverted metric: 'wanted' used to be written only if the user went on
+ *    to fill in the optional price prompt, so dismissing that prompt logged
+ *    a pass on a bottle the user had just said they wanted.
+ *  - `wasWishlistedOnEntry` — the bottle was already on the want-list when
+ *    the screen opened (e.g. re-opened from the Shelf/Want grid). Browsing
+ *    your own want-list is not a purchase decision and must not overwrite
+ *    an earlier real signal.
+ */
+export function shouldRecordPassOnExit(params: {
+  hasScanEvent: boolean;
+  outcomeAlreadyRecorded: boolean;
+  wasWishlistedOnEntry: boolean;
+}): boolean {
+  return params.hasScanEvent && !params.outcomeAlreadyRecorded && !params.wasWishlistedOnEntry;
+}
+
+/**
  * Update a scan_events row with an outcome and/or inferred context.
  * Never throws — degrades to a logged warning on any failure.
  */

@@ -12,20 +12,19 @@
 import { InventoryService } from './inventoryService';
 import { toBottle } from '../types/database';
 import { loadUserProfile } from './userProfileService';
-import { initializeTasteGraph } from './tasteGraphService';
+import { hydrateTasteGraph } from './tasteGraphService';
 import {
   getPredictiveRecommendations,
   detectTimeOfDay,
   detectSeason,
   type PredictedRecipe,
 } from './predictiveEngine';
-import {
-  buildEnhancedProfileFallback,
-  buildTasteProfileFromPersonalization,
-} from './enhancedProfileFallback';
+import { buildEnhancedProfileFallback } from './enhancedProfileFallback';
+import { CANONICAL_FLAVORS, CANONICAL_SPIRITS } from '../utils/flavorTaxonomy';
 import { RecipesRepository } from '../repos/supabase';
 import { log } from '../lib/logger';
 import type { Recipe } from '../types/recipe';
+import type { Spirit } from '../types/userProfile';
 
 export interface TonightsPickResult {
   hasInventory: boolean;
@@ -123,12 +122,29 @@ export async function getTonightsPick(params: {
     const loadedProfile = await loadUserProfile(userId).catch(() => null);
     const enhancedProfile =
       loadedProfile || buildEnhancedProfileFallback(userId, profile, savedItems);
-    enhancedProfile.tasteProfile =
-      enhancedProfile.tasteProfile || buildTasteProfileFromPersonalization(profile);
+    // Only reached if even the DB load failed — previously fell back to the
+    // old 0-100 personalization store, which no longer has any bearing on
+    // taste. Falls back to the same flat neutral prior tasteVectorService
+    // seeds new users with instead.
+    enhancedProfile.tasteProfile = enhancedProfile.tasteProfile || {
+      flavorWeights: Object.fromEntries(CANONICAL_FLAVORS.map((f) => [f, 0.3])) as Record<
+        (typeof CANONICAL_FLAVORS)[number],
+        number
+      >,
+      spiritWeights: Object.fromEntries(CANONICAL_SPIRITS.map((s) => [s, 0.25])) as Record<
+        Spirit,
+        number
+      >,
+      preferredABV: { min: 0, max: 40 },
+      preferredComplexity: 0.5,
+    };
 
     const scoringPool = await withFullIngredientData(allCocktails);
 
-    const tasteGraph = initializeTasteGraph(enhancedProfile.tasteProfile);
+    // Hydrate rather than initialize — initializeTasteGraph() re-stamps all
+    // timestamps as "now", which disables decay and confidence entirely.
+    // This call site was missed in the original persistence fix.
+    const tasteGraph = hydrateTasteGraph(enhancedProfile.tasteProfile)!;
     // Score the whole candidate pool (not just the overall top N) before
     // filtering for inventoryMatch — inventoryMatch is only 10 of the 100
     // scoring points (vs. 35 for tasteGraph alone), so a cocktail the user

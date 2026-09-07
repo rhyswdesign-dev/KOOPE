@@ -15,10 +15,10 @@ The category-defining move is not "cocktail app with a scanner." It is **the spi
 
 1. **What is this?** (identity, style, taste, story)
 2. **Is this price fair?** (value-on-scan)
-3. **What does it become in *my* life?** ("Buy this and you unlock 11 cocktails with what's already on your shelf")
+3. **What does it become in _my_ life?** ("Buy this and you unlock 11 cocktails with what's already on your shelf")
 4. **Is it a good gift?** (gift mode — the non-drinker's entire use case)
 
-Answers 1–2 are the Vivino playbook, executed in a category that is *easier* than wine (tens of thousands of stable SKUs, not millions of producer×vintage combinations — the database compounds faster). Answers 3–4 are structurally impossible for anyone who doesn't know your shelf. That's the moat.
+Answers 1–2 are the Vivino playbook, executed in a category that is _easier_ than wine (tens of thousands of stable SKUs, not millions of producer×vintage combinations — the database compounds faster). Answers 3–4 are structurally impossible for anyone who doesn't know your shelf. That's the moat.
 
 **The flywheel:**
 
@@ -42,13 +42,13 @@ Scan **acquires**. Making **retains**. The "unlocks N recipes" answer is the doo
 
 ### 2.1 Navigation — five slots, frozen
 
-| Slot | Tab | What lives there |
-|---|---|---|
-| 1 | **Tonight** (home, default landing after first session) | What Can I Make (hero) · Tonight's Pick (one drink chosen for you) · weekly drop · almost-makeable teaser (paywall hook) · search & browse rails · "Having people over?" → Hosting suite |
-| 2 | **Bar** | ONE collection, three states: **Owned / Want / Cellared** (replaces Shelf + Wishlist + Cellar + Watchlist as separate rooms) · bar health · Optimize My Bar · shareable Want-list (gifting registry) · cellar value view |
-| 3 | **Scan** (center, camera opens instantly — the sacred slot) | The 4-layer stack. Post-scan **Answer Card** (see 2.2) |
-| 4 | **Drinks** | Your library: saved recipes · Made It history · imports · fading-scaffold progress ("you've made this 4×") |
-| 5 | **You** | Profile · one XP spine · certifications (credential shelf) · learning library (archived Lessons content, contextual delivery is primary) · taste profile · settings · subscription |
+| Slot | Tab                                                         | What lives there                                                                                                                                                                                                         |
+| ---- | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1    | **Tonight** (home, default landing after first session)     | What Can I Make (hero) · Tonight's Pick (one drink chosen for you) · weekly drop · almost-makeable teaser (paywall hook) · search & browse rails · "Having people over?" → Hosting suite                                 |
+| 2    | **Bar**                                                     | ONE collection, three states: **Owned / Want / Cellared** (replaces Shelf + Wishlist + Cellar + Watchlist as separate rooms) · bar health · Optimize My Bar · shareable Want-list (gifting registry) · cellar value view |
+| 3    | **Scan** (center, camera opens instantly — the sacred slot) | The 4-layer stack. Post-scan **Answer Card** (see 2.2)                                                                                                                                                                   |
+| 4    | **Drinks**                                                  | Your library: saved recipes · Made It history · imports · fading-scaffold progress ("you've made this 4×")                                                                                                               |
+| 5    | **You**                                                     | Profile · one XP spine · certifications (credential shelf) · learning library (archived Lessons content, contextual delivery is primary) · taste profile · settings · subscription                                       |
 
 Rules: no feature more than two taps from a tab root. Hosting does **not** get a tab yet — it earns one with usage data (it would replace Drinks). Lessons loses its tab permanently; education moves into the act of making.
 
@@ -66,8 +66,8 @@ Every scan ends here, and it must resolve a decision, never file a catalog entry
 
 - **Identity guarantee:** every scan returns the full "what it is / how it's made / flavor notes" package (tier matrix Wave-2 item — now P0).
 - **Value-on-scan ships free.** This deletes DRAM's entire wedge (Red Team §6.2) before DRAM exists. Ranges, never false precision; sourced numbers only (Collector Blueprint rules apply from day one).
-- **Gift mode:** "scanning for someone else?" → good-gift verdict + what *they* could make. The gift buyer is the most anxious person in the aisle and our cheapest new audience.
-- **Aisle-grade performance is a company KPI:** barcode-first, < 3s to answer, tolerant of bad store lighting and weak signal. Scan success > 95%.
+- **Gift mode:** "scanning for someone else?" → good-gift verdict + what _they_ could make. The gift buyer is the most anxious person in the aisle and our cheapest new audience.
+- **Aisle-grade performance is a company KPI:** < 3s to answer, tolerant of bad store lighting and weak signal. Scan success > 95%. **The presented experience is bottle-first, never barcode-first** (founder decision 2026-07-08, see [KOOPE-SCANNER-ANSWER-CARD-SPEC.md](KOOPE-SCANNER-ANSWER-CARD-SPEC.md) §A.0): the user is always told to point the camera at the bottle, never the barcode. Barcode decode survives only as invisible, silent, always-on plumbing — no reticle, no mode switch, no UPC instruction anywhere. When a barcode happens to pass through frame it can win the race silently; the user never learns which path answered.
 
 ### 2.3 What stays (earned its place)
 
@@ -76,14 +76,17 @@ Every scan ends here, and it must resolve a decision, never file a catalog entry
 ### 2.4 The Kill List — executed, not debated
 
 **Screens/surfaces (delete from nav and tree):**
+
 - Events screen (paid gate on 3 mock events — worst trust pattern in the app; RootNavigator.tsx:247)
 - King's Cup + GameDetails (drinking games — off-brand, App Store risk; RootNavigator.tsx:347)
 - Community "Coming Soon" stub
 - MapScreen / MapsScreen stubs · duplicate Terms screens · ForYouFeed_OLD · `MixMind/` + `MixedMindsRecipes/` dirs · `recommendationEngine.old.ts` · all root-level example/backup files (per Engineering Audit §2.1)
 - Lessons **tab** (content archives under You; contextual micro-lessons are the delivery system)
 - Cart/Checkout mock screens (commerce = affiliate links out; no fake checkout ships)
+- The barcode-mode entry points and the "bottle not found → switch to barcode mode" fallback modal (`barcodeOnly` route param path) — superseded by the bottle-first decision above; last-resort fallback is a retry hint or manual search, never a barcode instruction.
 
 **Systems:**
+
 - Gamification collapses to **one spine: XP → Level → Unlocks.** Weekly cadence. Kill: daily XP caps, daily streaks (daily mechanics on an alcohol app are an ethical and App Store error — weekly rituals only), Vault keys as parallel currency (Vault items become level-gated), achievements-as-separate-track (fold into XP milestones). Challenges survive as the verb layer feeding the spine.
 - **Payments: RevenueCat only.** Delete the Stripe vault-cash path (its webhook never fulfilled anyway — Audit §3.2) and `react-native-iap`. One system, one truth.
 - **Analytics: one SDK** (keep PostHog or Mixpanel — pick one, delete the other two + `mixpanel-browser`), initialized **after consent** (closes the compliance gap, Audit finding #4).
@@ -101,15 +104,15 @@ Every scan ends here, and it must resolve a decision, never file a catalog entry
 
 Two paid tiers below ~1k payers splits a tiny base, doubles paywall complexity, and forces every feature into a three-way sort. Collapse to:
 
-| | **FREE** | **KŌOPE+** — $7.99/mo · **$59.99/yr** (annual-first, 7-day trial on annual) |
-|---|---|---|
-| Promise | *Know every bottle* | *Everything your shelf can do — and Friday handled* |
-| Scanning + Answer Card + value-on-scan | **Unlimited, forever** | Unlimited |
-| Bar | 10 bottles | Unlimited + cellar analytics |
-| Recipes | 9 classics + XP unlocks; 3 post-scan matches (+1 greyed teaser) | Full catalog; full post-scan library per bottle |
-| Make It Anyway (substitutions) | — | ✔ |
-| Hosting | First party free (≤4 guests, basic menu) | Full suite: planner, Guest Menu link, batch calc, prep timeline |
-| Network surfaces (view any shared menu/wishlist/card) | ✔ always | ✔ |
+|                                                       | **FREE**                                                        | **KŌOPE+** — $7.99/mo · **$59.99/yr** (annual-first, 7-day trial on annual) |
+| ----------------------------------------------------- | --------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| Promise                                               | _Know every bottle_                                             | _Everything your shelf can do — and Friday handled_                         |
+| Scanning + Answer Card + value-on-scan                | **Unlimited, forever**                                          | Unlimited                                                                   |
+| Bar                                                   | 10 bottles                                                      | Unlimited + cellar analytics                                                |
+| Recipes                                               | 9 classics + XP unlocks; 3 post-scan matches (+1 greyed teaser) | Full catalog; full post-scan library per bottle                             |
+| Make It Anyway (substitutions)                        | —                                                               | ✔                                                                           |
+| Hosting                                               | First party free (≤4 guests, basic menu)                        | Full suite: planner, Guest Menu link, batch calc, prep timeline             |
+| Network surfaces (view any shared menu/wishlist/card) | ✔ always                                                        | ✔                                                                           |
 
 Rules held: scanning is **never** gated (every scan feeds the database — gating the wedge starves the flywheel) · receiving ends of viral loops never gated · Founders $29/$79 runs to user #300 then sunsets forever · no lifetime deals · no purchasable XP · paywalls fire at three desire peaks only: **the greyed 4th recipe post-scan · the almost-makeable drink · "people coming Friday."** Never at curiosity peaks.
 
@@ -126,7 +129,7 @@ Later tiers, added only when their audience is proven in the data: **PRO/Host** 
 
 ## 4. The Brand Infrastructure — built to own the category
 
-The unique asset: **shelf-decision data.** Vivino knows ratings. Nielsen knows checkout. Nobody knows *the moment of decision in the aisle* — what got scanned, at what seen price, what it was compared against, whether it converted to Want/Owned, and what got made with it afterward. KŌOPE will. That is the product brands buy.
+The unique asset: **shelf-decision data.** Vivino knows ratings. Nielsen knows checkout. Nobody knows _the moment of decision in the aisle_ — what got scanned, at what seen price, what it was compared against, whether it converted to Want/Owned, and what got made with it afterward. KŌOPE will. That is the product brands buy.
 
 ### 4.1 Instrument now (Phase 1, before scale — retrofitting is impossible)
 
@@ -134,12 +137,12 @@ Scan-event schema captures, with consent: SKU + edition · context (store / home
 
 ### 4.2 The sellable surfaces (all labeled, per the covenant)
 
-| Product | What the brand gets | Gate |
-|---|---|---|
-| **Bottle-page enrichment** (Amazon A+ model) | Their own canonical page, enriched: story, serve suggestions, video | Web bottle pages live |
-| **Sponsored drops & challenges** | Labeled placement in the drop system (`source: brand`) | 5k MAU |
-| **Insight reports** | "Scanned 4,000× in-store this quarter · 34% → wishlist · #1 alternative considered: X · top cocktail made: Y" — automated, quarterly, no slot limit so it scales where placements can't | Pilots 5–10k MAU, standalone product 15k |
-| **Co-branded events** | Real supply for the Events resurrection (Act 2) | Post-supply |
+| Product                                      | What the brand gets                                                                                                                                                                     | Gate                                     |
+| -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- |
+| **Bottle-page enrichment** (Amazon A+ model) | Their own canonical page, enriched: story, serve suggestions, video                                                                                                                     | Web bottle pages live                    |
+| **Sponsored drops & challenges**             | Labeled placement in the drop system (`source: brand`)                                                                                                                                  | 5k MAU                                   |
+| **Insight reports**                          | "Scanned 4,000× in-store this quarter · 34% → wishlist · #1 alternative considered: X · top cocktail made: Y" — automated, quarterly, no slot limit so it scales where placements can't | Pilots 5–10k MAU, standalone product 15k |
+| **Co-branded events**                        | Real supply for the Events resurrection (Act 2)                                                                                                                                         | Post-supply                              |
 
 **The covenant is a KPI, not a vibe: sponsored slots inside recommendations / What Can I Make / substitutions = 0, forever.** It is also the sales pitch: honest aggregate data survives brand due diligence; corrupted placement doesn't.
 
@@ -162,58 +165,69 @@ Support Agent (launch) → **Brand Intelligence Agent** (2.5k MAU: weekly scan-d
 - **Front door:** scan → resolved decision rate (an action taken on the Answer Card), scan success > 95%, answer < 3s.
 - **Living room (North Star):** **Weekly Makers** — Made It logging is the sensor and ships before anything else is measured.
 
-| Layer | Metric |
-|---|---|
-| Activation | First scan < 60s from install · first Made It < 24h · 5 bottles by day 30 |
-| Habit | Weekly Makers / WAU · Tonight's Pick open→make · drop-day return |
-| Conversion | Trial→paid ≥ 35% · MAU→paid in the honest 4–8% band · paywall fires at desire peaks only |
-| Data engine | Scans/week · SKU coverage % · scan-context capture rate · consented-analytics rate |
-| Spread | Guest-menu → install · Want-list links shared · gift-mode scans |
-| Integrity | Sponsored slots in recommendations = **0** · valuation sources cited = 100% |
+| Layer       | Metric                                                                                   |
+| ----------- | ---------------------------------------------------------------------------------------- |
+| Activation  | First scan < 60s from install · first Made It < 24h · 5 bottles by day 30                |
+| Habit       | Weekly Makers / WAU · Tonight's Pick open→make · drop-day return                         |
+| Conversion  | Trial→paid ≥ 35% · MAU→paid in the honest 4–8% band · paywall fires at desire peaks only |
+| Data engine | Scans/week · SKU coverage % · scan-context capture rate · consented-analytics rate       |
+| Spread      | Guest-menu → install · Want-list links shared · gift-mode scans                          |
+| Integrity   | Sponsored slots in recommendations = **0** · valuation sources cited = 100%              |
 
 ---
 
 ## 6. Execution Plan — phases with exit gates, not dates
 
-### Phase 0 — Earn the right (≈ weeks 1–4): *Foundation & the Cut*
+### Phase 0 — Earn the right (≈ weeks 1–4): _Foundation & the Cut_
+
 1. Security: recipes + vault RLS fixed; Stripe vault path deleted (with its dead webhook) or the webhook completed — deleted is the default.
 2. The Kill List executed in full (§2.4) — screens, systems, Firebase, dead dirs, analytics consolidation behind consent.
 3. Gamification collapsed to the one spine; weekly cadence.
 4. Tier config collapsed to FREE / KŌOPE+.
 5. **Made It logging shipped.**
+
 - **Exit:** nothing in the app lies to a user; one payment system; one analytics SDK firing after consent; the North Star sensor is live.
 
-### Phase 1 — The Wedge (≈ weeks 5–10): *Win the aisle*
+### Phase 1 — The Wedge (≈ weeks 5–10): _Win the aisle_
+
 1. Answer Card v2: identity guarantee · value-on-scan (top ~2,000 SKUs to start) · "unlocks N recipes" hook with 3-free + greyed-4th · gift mode.
 2. Aisle performance: barcode-first path < 3s, offline-tolerant.
 3. Navigation restructure to Tonight · Bar · Scan · Drinks · You; four inventory rooms merge into Bar.
 4. Onboarding inversion: age gate → one card → camera; first scan < 60s; questionnaire post-first-recipe.
 5. Scan-context data schema live (§4.1).
+
 - **Exit:** scan→resolved-decision rate measured and climbing; X% of new users log a Made It in week 1 — **this number decides everything after.**
 
-### Phase 2 — Monetize (≈ weeks 11–16): *Desire peaks only*
+### Phase 2 — Monetize (≈ weeks 11–16): _Desire peaks only_
+
 1. RevenueCat activated (per standing go-live plan); single tier; production keys hardened (monetization audit P0).
 2. Make It Anyway v1 (blueprint matrix, shelf-first ranking) behind the paywall, surfaced on every almost-makeable recipe.
 3. Founders pricing runs to #300, then sunsets.
 4. Web landing pages behind every share card; **Want-list links ship before Q4.**
+
 - **Exit:** trial→paid ≥ 35%; first honest conversion data; gifting live for December.
 
 ### Phase 3 — Spread & brand groundwork (months 5–9)
+
 1. Guest Menu as live web link + RSVP taste poll (taste signal from non-users); party cart affiliate.
 2. Web bottle pages begin indexing (top-scanned SKUs first).
 3. KŌOPE Wrapped (December) + gifting campaign.
 4. Affiliate v1 with living partners; Brand Intelligence Agent on at ~2.5k MAU; brand covenant filed as a public document.
 5. Fading scaffolds v1 + contextual micro-lessons/hacks post-make.
+
 - **Exit:** measurable guest→install and gift→install rates; 25k+ bottle DB; internal brand reports drafting automatically.
 
 ### Phase 4 — The second engine (data decides, ~5k+ MAU)
+
 Two candidates, funded by what Phases 1–3 revealed about the audience mix:
+
 - **Collector add-on** ($99/yr): licensed price feeds (lock the partnerships first), portfolio terminal on Cellar state, insurance export, release calendar. Runs the full Collector Blueprint.
 - **Bartender drops** (`source` field vision): 3–5 bartenders, revenue share — the supply-side handshake toward community and trade.
-Plus: first brand pilots at honest prices ($3–5k/mo, framed as insight partnerships) · EN-market internationalization groundwork.
+  Plus: first brand pilots at honest prices ($3–5k/mo, framed as insight partnerships) · EN-market internationalization groundwork.
 - **Exit:** first brand check clears under the covenant; second engine chosen and compounding.
 
 ### The endgame (unchanged from the Bible, now reachable)
+
 Act 2 gathering layer → Act 3 trade bridge → Act 4 the hospitality graph. The identification wedge is how we get the density those acts require.
 
 ---
@@ -226,4 +240,4 @@ Act 2 gathering layer → Act 3 trade bridge → Act 4 the hospitality graph. Th
 4. **Never present superseded numbers** (15% conversion, Drizly, $1M@10k MAU) to anyone, ever. Bible §9 is the only model shown externally.
 5. **Two-taps-from-tab-root** rule enforced quarterly; the screen count goes down every quarter until further notice.
 
-**The one-line test:** *does this make the scan answer better, the drink more makeable, or the data more valuable under the covenant?* Yes → build. No → cut.
+**The one-line test:** _does this make the scan answer better, the drink more makeable, or the data more valuable under the covenant?_ Yes → build. No → cut.
