@@ -3,10 +3,16 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 
 import App from './App';
+import { initCrashReporting, captureException } from './src/lib/crashReporting';
+
+initCrashReporting();
 
 // Global error boundary to prevent app crashes
-class ErrorBoundary extends React.Component<{children: React.ReactNode}, {hasError: boolean, error: any}> {
-  constructor(props: {children: React.ReactNode}) {
+class ErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean; error: any }
+> {
+  constructor(props: { children: React.ReactNode }) {
     super(props);
     this.state = { hasError: false, error: null };
   }
@@ -17,6 +23,7 @@ class ErrorBoundary extends React.Component<{children: React.ReactNode}, {hasErr
 
   componentDidCatch(error: any, errorInfo: any) {
     console.log('[ErrorBoundary] Caught error:', error, errorInfo);
+    captureException(error, { componentStack: errorInfo?.componentStack });
   }
 
   render() {

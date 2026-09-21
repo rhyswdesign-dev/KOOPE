@@ -44,7 +44,7 @@ export interface SubstitutionSuggestion {
 const SUBSTITUTIONS: Record<string, string[]> = {
   'lime juice': ['lemon juice'],
   'lemon juice': ['lime juice'],
-  'bourbon': ['rye whiskey', 'whiskey'],
+  bourbon: ['rye whiskey', 'whiskey'],
   'rye whiskey': ['bourbon', 'whiskey'],
   'simple syrup': ['honey syrup', 'agave syrup', 'sugar'],
   'honey syrup': ['simple syrup', 'agave syrup'],
@@ -56,11 +56,11 @@ const SUBSTITUTIONS: Record<string, string[]> = {
   'dry vermouth': ['blanc vermouth', 'lillet blanc'],
   'sweet vermouth': ['punt e mes', 'carpano antica'],
   'triple sec': ['cointreau', 'grand marnier', 'orange liqueur'],
-  'cointreau': ['triple sec', 'grand marnier', 'orange liqueur'],
-  'campari': ['aperol'],
-  'aperol': ['campari'],
+  cointreau: ['triple sec', 'grand marnier', 'orange liqueur'],
+  campari: ['aperol'],
+  aperol: ['campari'],
   'egg white': ['aquafaba'],
-  'cream': ['coconut cream', 'half and half'],
+  cream: ['coconut cream', 'half and half'],
 };
 
 /**
@@ -68,9 +68,9 @@ const SUBSTITUTIONS: Record<string, string[]> = {
  */
 export function getMissingIngredients(
   recipe: Recipe,
-  inventory: Bottle[]
+  inventory: Bottle[],
 ): MissingIngredientResult {
-  const inventoryNames = inventory.map(b => b.name.toLowerCase());
+  const inventoryNames = inventory.map((b) => b.name.toLowerCase());
 
   const missing: string[] = [];
 
@@ -78,9 +78,7 @@ export function getMissingIngredients(
     const rawName = typeof ingredient === 'string' ? ingredient : ingredient?.name || '';
     const name = rawName.toLowerCase();
 
-    const hasIt = inventoryNames.some(invName =>
-      areIngredientsEquivalent(name, invName)
-    );
+    const hasIt = inventoryNames.some((invName) => areIngredientsEquivalent(name, invName));
 
     if (!hasIt) {
       missing.push(rawName);
@@ -93,9 +91,10 @@ export function getMissingIngredients(
     missing,
     missingCount: missing.length,
     canMake: missing.length === 0,
-    matchPercent: totalIngredients > 0
-      ? Math.round(((totalIngredients - missing.length) / totalIngredients) * 100)
-      : 0,
+    matchPercent:
+      totalIngredients > 0
+        ? Math.round(((totalIngredients - missing.length) / totalIngredients) * 100)
+        : 0,
   };
 }
 
@@ -106,7 +105,7 @@ export function getMissingIngredients(
 export function calculateUnlockCount(
   candidateIngredient: string,
   inventory: Bottle[],
-  recipeLibrary: Recipe[]
+  recipeLibrary: Recipe[],
 ): IngredientUnlockInfo {
   const candidateLower = candidateIngredient.toLowerCase();
 
@@ -151,29 +150,63 @@ export function calculateUnlockCount(
 /**
  * Get the top ingredients to buy, ranked by how many cocktails they unlock.
  * This powers the "Optimize My Bar" suggestions and "Add Missing Ingredients" UI.
+ *
+ * Deliberately does NOT call calculateUnlockCount per candidate — that would
+ * re-run getMissingIngredients(recipe, inventory) against a rebuilt
+ * "simulated inventory" for every (candidate × recipe) pair, i.e.
+ * candidates × recipes × ingredients × inventory string comparisons. With a
+ * ~100-recipe catalog, a few dozen candidate ingredients, and a real
+ * inventory, that's easily 500k-1M+ areIngredientsEquivalent calls — enough
+ * to visibly freeze the JS thread (React Native is single-threaded; a
+ * synchronous computation like this blocks touch handling app-wide for its
+ * whole duration, not just this screen). The baseline "what's this recipe
+ * missing without any candidate" doesn't depend on the candidate at all, so
+ * computing it once per recipe and reusing it for every candidate turns this
+ * into recipes × ingredients × inventory (once) + candidates × recipes ×
+ * avg-missing-count (cheap set-membership checks, no inventory rescan).
  */
 export function getTopIngredientsToBuy(
   inventory: Bottle[],
   recipeLibrary: Recipe[],
-  limit: number = 10
+  limit: number = 10,
 ): IngredientUnlockInfo[] {
-  // Collect all unique ingredient names across recipes that user doesn't have
-  const candidateSet = new Set<string>();
+  // One pass: each not-yet-makeable recipe's missing list, computed once.
+  const notYetMakeable = recipeLibrary
+    .map((recipe) => ({ recipe, result: getMissingIngredients(recipe, inventory) }))
+    .filter(({ result }) => !result.canMake);
 
-  for (const recipe of recipeLibrary) {
-    const result = getMissingIngredients(recipe, inventory);
+  const candidateSet = new Set<string>();
+  for (const { result } of notYetMakeable) {
     for (const missing of result.missing) {
       candidateSet.add(missing);
     }
   }
 
-  // Calculate unlock count for each candidate
+  // A candidate unlocks a recipe only if it covers every remaining missing
+  // ingredient — for the overwhelmingly common case of one missing
+  // ingredient, that's a single equivalence check instead of a full inventory rescan.
   const results: IngredientUnlockInfo[] = [];
-
   for (const candidate of candidateSet) {
-    const info = calculateUnlockCount(candidate, inventory, recipeLibrary);
-    if (info.unlockCount > 0) {
-      results.push(info);
+    const unlockedRecipeIds: string[] = [];
+    const unlockedRecipeTitles: string[] = [];
+
+    for (const { recipe, result } of notYetMakeable) {
+      const stillMissingWithCandidate = result.missing.some(
+        (missing) => !areIngredientsEquivalent(missing, candidate),
+      );
+      if (!stillMissingWithCandidate) {
+        unlockedRecipeIds.push(recipe.id);
+        unlockedRecipeTitles.push(recipe.title);
+      }
+    }
+
+    if (unlockedRecipeIds.length > 0) {
+      results.push({
+        ingredientName: candidate,
+        unlockCount: unlockedRecipeIds.length,
+        unlockedRecipeIds,
+        unlockedRecipeTitles,
+      });
     }
   }
 
@@ -192,7 +225,7 @@ export function getSubstitutions(missingIngredient: string): SubstitutionSuggest
   // Direct lookup
   for (const [key, subs] of Object.entries(SUBSTITUTIONS)) {
     if (areIngredientsEquivalent(lower, key)) {
-      return subs.map(sub => ({
+      return subs.map((sub) => ({
         original: missingIngredient,
         substitute: sub,
         similarity: 0.8,
@@ -214,7 +247,8 @@ function areIngredientsEquivalent(a: string, b: string): boolean {
 
   // Normalize: strip common modifiers
   const normalize = (s: string) =>
-    s.replace(/\b(fresh|freshly squeezed|oz|ml|dash|dashes|splash|of|the|a)\b/gi, '')
+    s
+      .replace(/\b(fresh|freshly squeezed|oz|ml|dash|dashes|splash|of|the|a)\b/gi, '')
       .replace(/\s+/g, ' ')
       .trim();
 

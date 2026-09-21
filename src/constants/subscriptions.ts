@@ -50,10 +50,12 @@ export const SUBSCRIPTION_PRODUCTS = {
  * These are fallback display values
  */
 export const PRICING_DISPLAY = {
+  // KŌOPE+ — confirmed live production pricing (App Store Connect / RevenueCat).
+  // $59/yr (shown as $4.92/mo, "SAVE 30%" vs monthly) or $6.99/mo.
   PLUS: {
-    yearly: '$49',
-    yearlyPerMonth: '$4.08',
-    yearlySavings: '42%',
+    yearly: '$59',
+    yearlyPerMonth: '$4.92',
+    yearlySavings: '30%',
     monthly: '$6.99',
     monthlyPerMonth: '$6.99',
   },
@@ -72,17 +74,14 @@ export const PRICING_DISPLAY = {
 } as const;
 
 /**
- * Stripe Price IDs for web / Stripe Checkout flows
- * These must match the price IDs configured in the Stripe dashboard
+ * Founders pricing cap (Phase 2.1).
+ *
+ * The authoritative count lives server-side — see migration
+ * 036_founders_pricing.sql (`founders_claims` + `claim_founders_pricing()`).
+ * This constant only mirrors the DB's own limit for display copy
+ * ("#N of 300"); never gate on it client-side alone.
  */
-export const STRIPE_PRICE_IDS = {
-  PLUS_YEARLY: process.env.EXPO_PUBLIC_STRIPE_PLUS_YEARLY || 'price_PLACEHOLDER_plus_yearly',
-  PLUS_MONTHLY: process.env.EXPO_PUBLIC_STRIPE_PLUS_MONTHLY || 'price_PLACEHOLDER_plus_monthly',
-  PLUS_FOUNDERS: process.env.EXPO_PUBLIC_STRIPE_PLUS_FOUNDERS || 'price_PLACEHOLDER_plus_founders',
-  PRO_YEARLY: process.env.EXPO_PUBLIC_STRIPE_PRO_YEARLY || 'price_PLACEHOLDER_pro_yearly',
-  PRO_MONTHLY: process.env.EXPO_PUBLIC_STRIPE_PRO_MONTHLY || 'price_PLACEHOLDER_pro_monthly',
-  PRO_FOUNDERS: process.env.EXPO_PUBLIC_STRIPE_PRO_FOUNDERS || 'price_PLACEHOLDER_pro_founders',
-} as const;
+export const FOUNDERS_LIMIT = 300;
 
 /**
  * Offering identifiers for RevenueCat Paywalls
@@ -124,12 +123,7 @@ function isInvalidRevenueCatKey(key: string | undefined, platform: 'ios' | 'andr
 
   if (!normalized.startsWith(requiredPrefix)) return true;
 
-  const blockedFragments = [
-    'PLACEHOLDER',
-    'REPLACE_ME',
-    'appl_your',
-    'goog_your',
-  ];
+  const blockedFragments = ['PLACEHOLDER', 'REPLACE_ME', 'appl_your', 'goog_your'];
 
   return blockedFragments.some((fragment) => normalized.includes(fragment));
 }
@@ -151,5 +145,7 @@ export function getRevenueCatConfigValidation() {
 /**
  * Type definitions for type-safe subscription handling
  */
-export type SubscriptionEntitlement = typeof SUBSCRIPTION_ENTITLEMENTS[keyof typeof SUBSCRIPTION_ENTITLEMENTS];
-export type SubscriptionProduct = typeof SUBSCRIPTION_PRODUCTS[keyof typeof SUBSCRIPTION_PRODUCTS];
+export type SubscriptionEntitlement =
+  (typeof SUBSCRIPTION_ENTITLEMENTS)[keyof typeof SUBSCRIPTION_ENTITLEMENTS];
+export type SubscriptionProduct =
+  (typeof SUBSCRIPTION_PRODUCTS)[keyof typeof SUBSCRIPTION_PRODUCTS];

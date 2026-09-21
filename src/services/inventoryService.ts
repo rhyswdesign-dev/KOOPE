@@ -9,6 +9,22 @@ import * as Localization from 'expo-localization';
 import { log } from '../lib/logger';
 import { formatIngredientName } from '../utils/recipeMatching';
 import { submitWeightedCorrection, submitNewBottle } from './scanCorrectionService';
+import { getConsentChoices } from '../lib/consentStore';
+
+/**
+ * Analytics-consent gate, matching scanContextService's. recordScan below
+ * writes user_scans, which exists purely for brand-data analytics — it was
+ * the last of the brand-insight tables still writing ungated.
+ */
+async function hasAnalyticsConsent(): Promise<boolean> {
+  try {
+    const choices = await getConsentChoices();
+    return choices.analytics === true;
+  } catch (error) {
+    log.warn('InventoryService', 'Failed to read consent choices', { error });
+    return false;
+  }
+}
 
 export class InventoryService {
   /**
@@ -16,8 +32,7 @@ export class InventoryService {
    */
   static async getMonthlyScanCount(userId: string): Promise<number> {
     try {
-      const { data, error } = await supabase
-        .rpc('get_monthly_scan_count', { p_user_id: userId });
+      const { data, error } = await supabase.rpc('get_monthly_scan_count', { p_user_id: userId });
 
       if (error) {
         log.error('InventoryService', 'Error getting scan count', error);
@@ -40,7 +55,10 @@ export class InventoryService {
    * downstream feature access are the relevant monetization checks.
    * getMonthlyScanCount is preserved for analytics/brand-data purposes.
    */
-  static async canUserScan(_userId: string | null, _isPaidUser: boolean = false): Promise<{
+  static async canUserScan(
+    _userId: string | null,
+    _isPaidUser: boolean = false,
+  ): Promise<{
     canScan: boolean;
     scansRemaining: number;
     isGuest: boolean;
@@ -61,22 +79,24 @@ export class InventoryService {
     confidence?: number;
     addedToInventory?: boolean;
   }): Promise<void> {
+    // Skip silently without analytics consent — never blocks the scan flow,
+    // exactly as scan_events behaves.
+    if (!(await hasAnalyticsConsent())) return;
+
     try {
       const locale = Localization.getLocales()[0];
       const userLocation = locale.regionCode || null;
 
-      const { error } = await supabase
-        .from('user_scans')
-        .insert({
-          user_id: params.userId,
-          scan_type: params.scanType,
-          item_name: params.itemName || null,
-          brand_name: params.brandName || null,
-          image_url: params.imageUrl || null,
-          detection_confidence: params.confidence || null,
-          user_location: userLocation,
-          added_to_inventory: params.addedToInventory || false,
-        });
+      const { error } = await supabase.from('user_scans').insert({
+        user_id: params.userId,
+        scan_type: params.scanType,
+        item_name: params.itemName || null,
+        brand_name: params.brandName || null,
+        image_url: params.imageUrl || null,
+        detection_confidence: params.confidence || null,
+        user_location: userLocation,
+        added_to_inventory: params.addedToInventory || false,
+      });
 
       if (error) {
         log.error('InventoryService', 'Error recording scan', error);
@@ -180,9 +200,7 @@ export class InventoryService {
 
       let error: any = null;
       for (let attempt = 0; attempt < 8; attempt++) {
-        const result = await supabase
-          .from('user_inventory')
-          .insert(insertPayload);
+        const result = await supabase.from('user_inventory').insert(insertPayload);
         error = result.error;
         if (!error) break;
 
@@ -211,7 +229,9 @@ export class InventoryService {
           // Remove only the reported column if we can parse it; otherwise, strip all optional columns and retry.
           const columnsToStrip = missingColumn
             ? [missingColumn]
-            : optionalColumns.filter((col) => Object.prototype.hasOwnProperty.call(insertPayload, col));
+            : optionalColumns.filter((col) =>
+                Object.prototype.hasOwnProperty.call(insertPayload, col),
+              );
 
           let stripped = false;
           for (const col of columnsToStrip) {
@@ -249,7 +269,7 @@ export class InventoryService {
    */
   static async addMultipleToInventory(
     userId: string,
-    items: Array<{
+    items: {
       itemType: ItemType;
       itemName: string;
       category?: string;
@@ -257,7 +277,7 @@ export class InventoryService {
       subcategory?: string;
       brand?: string;
       notes?: string;
-    }>
+    }[],
   ): Promise<{ successCount: number; duplicates: string[] }> {
     let successCount = 0;
     const duplicates: string[] = [];
@@ -364,7 +384,7 @@ export class InventoryService {
       cellarNotes?: string | null;
       valuationEstimate?: number | null;
       category?: string;
-    }
+    },
   ): Promise<boolean> {
     try {
       const updatePayload: Record<string, any> = {};
@@ -409,17 +429,13 @@ export class InventoryService {
 
       let error: any = null;
       for (let attempt = 0; attempt < 4; attempt++) {
-        const result = await supabase
-          .from('user_inventory')
-          .update(updatePayload)
-          .eq('id', itemId);
+        const result = await supabase.from('user_inventory').update(updatePayload).eq('id', itemId);
 
         error = result.error;
         if (!error) break;
 
         const missingColumnMatch =
-          error?.code === 'PGRST204' &&
-          typeof error?.message === 'string'
+          error?.code === 'PGRST204' && typeof error?.message === 'string'
             ? error.message.match(/Could not find the '([^']+)' column/i)
             : null;
 

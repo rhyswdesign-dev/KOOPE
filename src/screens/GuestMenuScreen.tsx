@@ -1,12 +1,5 @@
 import React, { useMemo } from 'react';
-import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  StyleSheet,
-  Share,
-} from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Share } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
@@ -15,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors, spacing, radii, serif } from '../theme/tokens';
 import type { RootStackParamList } from '../navigation/RootNavigator';
+import IngredientLeaderRow from '../components/recipe/IngredientLeaderRow';
 
 type RouteParams = RouteProp<RootStackParamList, 'GuestMenu'>;
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -45,16 +39,14 @@ function getPrepTasks(
   ingredients: string[],
   difficulty: string,
   category: string,
-  servings: number
+  servings: number,
 ): PrepTask[] {
   const tasks: PrepTask[] = [];
   const cat = category.toLowerCase();
   const lower = cocktailName.toLowerCase();
 
   // Make-ahead tasks
-  const needsSyrup = ingredients.some((i) =>
-    /syrup|honey|agave|grenadine|orgeat/i.test(i)
-  );
+  const needsSyrup = ingredients.some((i) => /syrup|honey|agave|grenadine|orgeat/i.test(i));
   const isBatch =
     difficulty === 'easy' ||
     cat.includes('punch') ||
@@ -63,19 +55,25 @@ function getPrepTasks(
     lower.includes('sangria');
 
   if (isBatch && servings >= 6) {
-    tasks.push({ timing: 'ahead', label: `Batch ${servings} servings of ${cocktailName} in a pitcher` });
+    tasks.push({
+      timing: 'ahead',
+      label: `Batch ${servings} servings of ${cocktailName} in a pitcher`,
+    });
   }
   if (needsSyrup) {
     tasks.push({ timing: 'ahead', label: 'Prepare any homemade syrups (simple, honey, etc.)' });
   }
   if (servings >= 8) {
-    tasks.push({ timing: 'ahead', label: 'Pre-measure and batch spirit + modifiers into a bottle' });
+    tasks.push({
+      timing: 'ahead',
+      label: 'Pre-measure and batch spirit + modifiers into a bottle',
+    });
   }
 
   // On-arrival tasks
   tasks.push({ timing: 'arrival', label: 'Fill ice bucket and chill glassware' });
   const needsGarnish = ingredients.some((i) =>
-    /lemon|lime|orange|cherry|mint|cucumber|olive|twist/i.test(i)
+    /lemon|lime|orange|cherry|mint|cucumber|olive|twist/i.test(i),
   );
   if (needsGarnish) {
     tasks.push({ timing: 'arrival', label: 'Cut and prep garnishes' });
@@ -125,7 +123,7 @@ export default function GuestMenuScreen() {
 
   const prepTasks = useMemo(
     () => getPrepTasks(cocktailName, ingredients, difficulty, category, totalServings),
-    [cocktailName, ingredients, difficulty, category, totalServings]
+    [cocktailName, ingredients, difficulty, category, totalServings],
   );
 
   const aheadTasks = prepTasks.filter((t) => t.timing === 'ahead');
@@ -149,16 +147,14 @@ export default function GuestMenuScreen() {
       '',
       'INGREDIENTS',
       ingredientLines,
-      missingIngredients.length > 0
-        ? `\n⚠ Still need: ${missingIngredients.join(', ')}`
-        : '',
+      missingIngredients.length > 0 ? `\n⚠ Still need: ${missingIngredients.join(', ')}` : '',
       '',
       'PREP PLAN',
       aheadTasks.length > 0 ? `Make Ahead:\n${aheadLines}` : '',
       arrivalTasks.length > 0 ? `On Arrival:\n${arrivalLines}` : '',
       orderTasks.length > 0 ? `Made to Order:\n${orderLines}` : '',
       '',
-      'Built with KOOPE — the bartender\'s app.',
+      "Built with KOOPE — the bartender's app.",
     ]
       .filter(Boolean)
       .join('\n');
@@ -176,7 +172,9 @@ export default function GuestMenuScreen() {
           </TouchableOpacity>
           <View style={styles.headerText}>
             <Text style={styles.headerTitle}>Guest Menu</Text>
-            <Text style={styles.headerSub}>{vibeLabel} · {guestCount} guests</Text>
+            <Text style={styles.headerSub}>
+              {vibeLabel} · {guestCount} guests
+            </Text>
           </View>
           <TouchableOpacity onPress={handleShare} style={styles.shareButton}>
             <Ionicons name="share-outline" size={22} color={colors.accent} />
@@ -215,20 +213,36 @@ export default function GuestMenuScreen() {
             <Text style={styles.sectionSub}>
               Quantities are for {totalServings} servings · scale per batch as needed
             </Text>
+            {/* No amounts on this surface — the dot leader runs to the
+                have/need status icon instead. The "Need to buy" text badge is
+                kept alongside the icon (not replaced by it): per the Kill List
+                note below it is now the only explicit missing-item signal on
+                this guest-facing screen, and an icon alone reads as ambiguous
+                to a guest who has never seen the app. */}
             {ingredients.map((ingredient, i) => {
               const isMissing = missingSet.has(ingredient.toLowerCase().trim());
               return (
-                <View key={i} style={[styles.ingredientRow, isMissing && styles.ingredientRowMissing]}>
-                  <Ionicons
-                    name={isMissing ? 'alert-circle-outline' : 'checkmark-circle-outline'}
-                    size={16}
-                    color={isMissing ? colors.gold : colors.accent}
-                  />
-                  <Text style={[styles.ingredientText, isMissing && styles.ingredientTextMissing]}>
-                    {ingredient}
-                  </Text>
-                  {isMissing && <Text style={styles.ingredientMissingBadge}>Need to buy</Text>}
-                </View>
+                <IngredientLeaderRow
+                  key={i}
+                  name={ingredient}
+                  iconSize={16}
+                  iconColor={colors.subtext}
+                  rowStyle={[styles.ingredientRow, isMissing && styles.ingredientRowMissing]}
+                  iconStyle={styles.ingredientLeaderIcon}
+                  nameStyle={[styles.ingredientText, isMissing && styles.ingredientTextMissing]}
+                  dotsStyle={styles.ingredientLeaderDots}
+                  trailingIcon={
+                    <>
+                      <Ionicons
+                        name={isMissing ? 'alert-circle-outline' : 'checkmark-circle-outline'}
+                        size={16}
+                        color={isMissing ? colors.gold : colors.accent}
+                        style={styles.ingredientStatusIcon}
+                      />
+                      {isMissing && <Text style={styles.ingredientMissingBadge}>Need to buy</Text>}
+                    </>
+                  }
+                />
               );
             })}
             {/* Kill List (Master Plan §2.4): "Add missing items to cart" removed
@@ -241,11 +255,11 @@ export default function GuestMenuScreen() {
           {/* Prep Timeline */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Prep Timeline</Text>
-            {([
+            {[
               { tasks: aheadTasks, timing: 'ahead' as const },
               { tasks: arrivalTasks, timing: 'arrival' as const },
               { tasks: orderTasks, timing: 'order' as const },
-            ]).map(({ tasks, timing }) =>
+            ].map(({ tasks, timing }) =>
               tasks.length > 0 ? (
                 <View key={timing} style={styles.prepGroup}>
                   <View style={styles.prepGroupHeader}>
@@ -259,10 +273,12 @@ export default function GuestMenuScreen() {
                     </Text>
                   </View>
                   {tasks.map((task, i) => (
-                    <Text key={i} style={styles.prepTask}>· {task.label}</Text>
+                    <Text key={i} style={styles.prepTask}>
+                      · {task.label}
+                    </Text>
                   ))}
                 </View>
-              ) : null
+              ) : null,
             )}
           </View>
 
@@ -380,10 +396,11 @@ const styles = StyleSheet.create({
     color: colors.subtext,
     marginBottom: spacing(0.5),
   },
+  // No `gap` here: the dot leader is what fills the row, so the pieces rely
+  // on their own margins instead.
   ingredientRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing(1),
     paddingVertical: spacing(0.75),
     borderBottomWidth: 1,
     borderBottomColor: colors.line,
@@ -391,18 +408,33 @@ const styles = StyleSheet.create({
   ingredientRowMissing: {
     opacity: 0.85,
   },
+  ingredientLeaderIcon: {
+    marginRight: spacing(1),
+  },
   ingredientText: {
-    flex: 1,
+    flexShrink: 1,
     fontSize: 14,
     color: colors.text,
   },
   ingredientTextMissing: {
     color: colors.subtext,
   },
+  ingredientLeaderDots: {
+    flex: 1,
+    flexShrink: 1,
+    marginHorizontal: spacing(1),
+    fontSize: 14,
+    letterSpacing: 1.5,
+    color: colors.line,
+  },
+  ingredientStatusIcon: {
+    marginLeft: spacing(0.5),
+  },
   ingredientMissingBadge: {
     fontSize: 11,
     color: colors.gold,
     fontWeight: '600',
+    marginLeft: spacing(1),
   },
   addToCartButton: {
     flexDirection: 'row',

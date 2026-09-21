@@ -52,50 +52,82 @@ interface BartendingContext {
 const BARTENDING_CONTEXT: Record<string, BartendingContext> = {
   citrus: {
     role: 'Acid & Brightness',
-    techniques: ['Fresh juice only — bottle juice is flat', 'Zest expresses oils for garnish or fat-washing', 'Oleo saccharum: peel + sugar = intense citrus syrup'],
+    techniques: [
+      'Fresh juice only — bottle juice is flat',
+      'Zest expresses oils for garnish or fat-washing',
+      'Oleo saccharum: peel + sugar = intense citrus syrup',
+    ],
     tip: 'Always juice to order. Citrus oxidises fast — juice older than 30 min turns flat and bitter.',
   },
   herbs: {
     role: 'Aromatics & Garnish',
-    techniques: ['Muddle gently — bruise, don\'t shred', 'Clap between palms to release oils before garnishing', 'Herb syrups: simmer with equal-weight sugar + water'],
+    techniques: [
+      "Muddle gently — bruise, don't shred",
+      'Clap between palms to release oils before garnishing',
+      'Herb syrups: simmer with equal-weight sugar + water',
+    ],
     tip: 'Add herbs last when possible. Heat and ice both kill delicate aromatics.',
   },
   fruits: {
     role: 'Flavour & Sweetness',
-    techniques: ['Puree and strain for a clean fruit base', 'Macerate in sugar to draw out juice naturally', 'Sous vide infusion into spirit for intensity without cooking'],
+    techniques: [
+      'Puree and strain for a clean fruit base',
+      'Macerate in sugar to draw out juice naturally',
+      'Sous vide infusion into spirit for intensity without cooking',
+    ],
     tip: 'Ripe fruit = more sugar, less acid. Adjust your citrus balance accordingly.',
   },
   vegetables: {
     role: 'Savoury & Umami',
-    techniques: ['Juice for clean vegetal base (cucumber, celery)', 'Infuse into vodka or gin for 24–48h', 'Fermented veg brine (kimchi, pickle) as a seasoning'],
-    tip: 'A pinch of salt enhances vegetal flavours. Use sparingly — it\'s a seasoning, not an ingredient.',
+    techniques: [
+      'Juice for clean vegetal base (cucumber, celery)',
+      'Infuse into vodka or gin for 24–48h',
+      'Fermented veg brine (kimchi, pickle) as a seasoning',
+    ],
+    tip: "A pinch of salt enhances vegetal flavours. Use sparingly — it's a seasoning, not an ingredient.",
   },
   garnishes: {
     role: 'Aroma & Presentation',
-    techniques: ['Express citrus peel over the glass before placing', 'Dehydrate slices for shelf-stable garnish', 'Flame orange peel for caramelised oils'],
-    tip: 'Garnish should be functional — it should add something the drink doesn\'t already have.',
+    techniques: [
+      'Express citrus peel over the glass before placing',
+      'Dehydrate slices for shelf-stable garnish',
+      'Flame orange peel for caramelised oils',
+    ],
+    tip: "Garnish should be functional — it should add something the drink doesn't already have.",
   },
   spices: {
     role: 'Bitters & Infusions',
-    techniques: ['Tincture: steep in high-proof spirit (1–2 weeks)', 'Oleo saccharum with spice for complex syrups', 'Toast whole spices before steeping to deepen flavour'],
-    tip: 'Start light. Spice infusions are hard to dilute — taste every 24h and strain when it\'s right.',
+    techniques: [
+      'Tincture: steep in high-proof spirit (1–2 weeks)',
+      'Oleo saccharum with spice for complex syrups',
+      'Toast whole spices before steeping to deepen flavour',
+    ],
+    tip: "Start light. Spice infusions are hard to dilute — taste every 24h and strain when it's right.",
   },
   sweeteners: {
     role: 'Balance & Texture',
-    techniques: ['1:1 simple syrup (equal parts sugar + water)', '2:1 rich syrup for more viscosity and less dilution', 'Flavoured syrups: add herbs/spices to base before cooling'],
+    techniques: [
+      '1:1 simple syrup (equal parts sugar + water)',
+      '2:1 rich syrup for more viscosity and less dilution',
+      'Flavoured syrups: add herbs/spices to base before cooling',
+    ],
     tip: 'Rich 2:1 syrup changes texture not just sweetness. Use half the volume of a 1:1 recipe.',
   },
 };
 
 const DEFAULT_CONTEXT: BartendingContext = {
   role: 'Cocktail Ingredient',
-  techniques: ['Taste before using — fresh quality matters', 'Consider whether it adds acid, sweet, bitter, or texture', 'Experiment with small infusions in a neutral spirit first'],
+  techniques: [
+    'Taste before using — fresh quality matters',
+    'Consider whether it adds acid, sweet, bitter, or texture',
+    'Experiment with small infusions in a neutral spirit first',
+  ],
   tip: 'Unknown ingredients often work best as small-batch infusions. Start with 24h and adjust.',
 };
 
 export default function IngredientScanScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { earnScanXP } = useXPSystem();
+  const { earnBatchScanXP } = useXPSystem();
   const { user } = useAuth();
   const { isSubscriber } = useSubscription();
   const { tier } = useUserTier();
@@ -104,17 +136,21 @@ export default function IngredientScanScreen() {
   const [cameraVisible, setCameraVisible] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [imageUri, setImageUri] = useState<string | null>(null);
-  const [currentIngredients, setCurrentIngredients] = useState<Array<{
-    name: string;
-    category: string;
-    confidence: number;
-  }>>([]);
-  const [scannedIngredients, setScannedIngredients] = useState<Array<{
-    name: string;
-    category: string;
-    confidence: number;
-    imageUri: string;
-  }>>([]);
+  const [currentIngredients, setCurrentIngredients] = useState<
+    {
+      name: string;
+      category: string;
+      confidence: number;
+    }[]
+  >([]);
+  const [scannedIngredients, setScannedIngredients] = useState<
+    {
+      name: string;
+      category: string;
+      confidence: number;
+      imageUri: string;
+    }[]
+  >([]);
   const [scansRemaining, setScansRemaining] = useState<number>(10);
   const [suggestedCocktails, setSuggestedCocktails] = useState<any[]>([]);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
@@ -151,7 +187,7 @@ export default function IngredientScanScreen() {
 
       if (detectedIngredients.length > 0) {
         setCurrentIngredients(detectedIngredients);
-        await fetchCocktailSuggestions(detectedIngredients.map(i => i.name));
+        await fetchCocktailSuggestions(detectedIngredients.map((i) => i.name));
       } else {
         Alert.alert(
           'Nothing Detected',
@@ -159,13 +195,15 @@ export default function IngredientScanScreen() {
           [
             { text: 'Try Again', onPress: () => handleScanMore() },
             { text: 'Cancel', style: 'cancel' },
-          ]
+          ],
         );
         setImageUri(null);
       }
     } catch (error) {
       log.error('IngredientScanScreen', 'Error analysing ingredient', error);
-      Alert.alert('Analysis Failed', 'Failed to analyse the image. Please try again.', [{ text: 'OK' }]);
+      Alert.alert('Analysis Failed', 'Failed to analyse the image. Please try again.', [
+        { text: 'OK' },
+      ]);
       setImageUri(null);
     } finally {
       setAnalyzing(false);
@@ -185,21 +223,23 @@ export default function IngredientScanScreen() {
       const accessible = recipesData;
 
       // Normalise scanned names for fuzzy matching
-      const scannedNormalised = ingredientNames.map(n => n.toLowerCase().trim());
+      const scannedNormalised = ingredientNames.map((n) => n.toLowerCase().trim());
 
       // Keep only recipes that actually contain the scanned ingredient
-      const containing = accessible.filter(recipe => {
+      const containing = accessible.filter((recipe) => {
         const recipeIngredients = recipe.ingredients || [];
         const ingredientText = Array.isArray(recipeIngredients)
-          ? recipeIngredients.map((i: any) =>
-              typeof i === 'string' ? i : (i.name || i.item || '')
-            ).join(' ').toLowerCase()
+          ? recipeIngredients
+              .map((i: any) => (typeof i === 'string' ? i : i.name || i.item || ''))
+              .join(' ')
+              .toLowerCase()
           : String(recipeIngredients).toLowerCase();
 
-        return scannedNormalised.some(scanned =>
-          ingredientText.includes(scanned) ||
-          // handle short names like "lemon" matching "lemon juice"
-          scanned.split(' ').some(word => word.length > 3 && ingredientText.includes(word))
+        return scannedNormalised.some(
+          (scanned) =>
+            ingredientText.includes(scanned) ||
+            // handle short names like "lemon" matching "lemon juice"
+            scanned.split(' ').some((word) => word.length > 3 && ingredientText.includes(word)),
         );
       });
 
@@ -213,9 +253,9 @@ export default function IngredientScanScreen() {
 
   const handleScanMore = () => {
     if (currentIngredients.length > 0 && imageUri) {
-      setScannedIngredients(prev => [
+      setScannedIngredients((prev) => [
         ...prev,
-        ...currentIngredients.map(i => ({ ...i, imageUri: imageUri! })),
+        ...currentIngredients.map((i) => ({ ...i, imageUri: imageUri! })),
       ]);
     }
     setImageUri(null);
@@ -233,39 +273,43 @@ export default function IngredientScanScreen() {
       return;
     }
 
-    const allIngredients = currentIngredients.length > 0 && imageUri
-      ? [...scannedIngredients, ...currentIngredients.map(i => ({ ...i, imageUri: imageUri! }))]
-      : scannedIngredients;
+    const allIngredients =
+      currentIngredients.length > 0 && imageUri
+        ? [...scannedIngredients, ...currentIngredients.map((i) => ({ ...i, imageUri: imageUri! }))]
+        : scannedIngredients;
 
     if (allIngredients.length === 0) return;
 
     const deduped = Array.from(
-      new Map(allIngredients.map(i => [`${i.name}|${i.category}`, i])).values()
+      new Map(allIngredients.map((i) => [`${i.name}|${i.category}`, i])).values(),
     );
 
     const result = await InventoryService.addMultipleToInventory(
       user.id,
-      deduped.map(ing => ({
+      deduped.map((ing) => ({
         itemType: 'ingredient' as const,
         itemName: ing.name,
         category: ing.category,
         imageUrl: ing.imageUri,
-      }))
+      })),
     );
 
-    let totalXP = 0;
-    for (let i = 0; i < result.successCount; i++) {
-      const { xpEarned } = earnScanXP(deduped[i].name);
-      totalXP += xpEarned;
-    }
+    // One photo is one scan, not N scans. Was: the full per-scan rate once
+    // per detected item, which made a single pantry photo worth more XP than
+    // logging five cocktails. earnBatchScanXP pays the real rate for the
+    // first item and a capped flat trickle for the rest.
+    const { xpEarned: totalXP } = earnBatchScanXP(
+      deduped.slice(0, result.successCount).map((i) => i.name),
+    );
 
     const successNames = deduped
       .filter((_, idx) => !result.duplicates.includes(deduped[idx].name))
-      .map(i => i.name).join(', ');
+      .map((i) => i.name)
+      .join(', ');
 
     const addedNames = deduped
       .filter((_, idx) => !result.duplicates.includes(deduped[idx].name))
-      .map(i => i.name);
+      .map((i) => i.name);
 
     setResultModal({
       type: result.successCount > 0 ? 'added' : 'duplicate',
@@ -280,18 +324,26 @@ export default function IngredientScanScreen() {
   if (!imageUri && !cameraVisible) {
     return (
       <SafeAreaView style={styles.container}>
-        <ScrollView contentContainerStyle={styles.emptyContent} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          contentContainerStyle={styles.emptyContent}
+          showsVerticalScrollIndicator={false}
+        >
           <View style={styles.emptyHero}>
             <View style={styles.emptyIconRing}>
               <Ionicons name="leaf" size={32} color={colors.gold} />
             </View>
             <Text style={styles.emptyTitle}>Scan Ingredient</Text>
             <Text style={styles.emptySubtitle}>
-              Point at any ingredient — citrus, herbs, spices, garnishes. We'll tell you how to use it.
+              Point at any ingredient — citrus, herbs, spices, garnishes. We'll tell you how to use
+              it.
             </Text>
           </View>
 
-          <TouchableOpacity style={styles.primaryButton} onPress={() => setCameraVisible(true)} activeOpacity={0.82}>
+          <TouchableOpacity
+            style={styles.primaryButton}
+            onPress={() => setCameraVisible(true)}
+            activeOpacity={0.82}
+          >
             <Ionicons name="camera" size={20} color={colors.goldText} />
             <Text style={styles.primaryButtonText}>Take Photo</Text>
           </TouchableOpacity>
@@ -299,7 +351,7 @@ export default function IngredientScanScreen() {
           <View style={styles.worksWithCard}>
             <Text style={styles.worksWithLabel}>Works best with</Text>
             <View style={styles.worksWithRow}>
-              {['Citrus', 'Herbs', 'Spices', 'Garnishes', 'Fruits'].map(item => (
+              {['Citrus', 'Herbs', 'Spices', 'Garnishes', 'Fruits'].map((item) => (
                 <View key={item} style={styles.worksWithChip}>
                   <Text style={styles.worksWithChipText}>{item}</Text>
                 </View>
@@ -345,22 +397,18 @@ export default function IngredientScanScreen() {
   // ─── Result state ─────────────────────────────────────────────────────────
   const primaryIngredient = currentIngredients[0];
   const bartendingContext = primaryIngredient
-    ? (BARTENDING_CONTEXT[primaryIngredient.category.toLowerCase()] || DEFAULT_CONTEXT)
+    ? BARTENDING_CONTEXT[primaryIngredient.category.toLowerCase()] || DEFAULT_CONTEXT
     : DEFAULT_CONTEXT;
   const confidencePct = primaryIngredient ? Math.round(primaryIngredient.confidence * 100) : 0;
 
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.resultContent}>
-
         {/* Image + detection overlay */}
         {imageUri && (
           <View style={styles.resultImageWrap}>
             <Image source={{ uri: imageUri }} style={styles.resultImage} resizeMode="cover" />
-            <LinearGradient
-              colors={['transparent', colors.bg]}
-              style={styles.resultImageFade}
-            />
+            <LinearGradient colors={['transparent', colors.bg]} style={styles.resultImageFade} />
           </View>
         )}
 
@@ -388,16 +436,18 @@ export default function IngredientScanScreen() {
               <View>
                 <Text style={styles.detectionEyebrow}>Ingredient Detected</Text>
                 <Text style={styles.detectionName}>
-                  {currentIngredients.map(i => i.name).join(', ')}
+                  {currentIngredients.map((i) => i.name).join(', ')}
                 </Text>
                 <Text style={styles.detectionCategory}>
                   {primaryIngredient?.category} · {confidencePct}% confidence
                 </Text>
               </View>
-              <View style={[
-                styles.confidenceBadge,
-                confidencePct >= 75 ? styles.confidenceHigh : styles.confidenceMed,
-              ]}>
+              <View
+                style={[
+                  styles.confidenceBadge,
+                  confidencePct >= 75 ? styles.confidenceHigh : styles.confidenceMed,
+                ]}
+              >
                 <Text style={styles.confidenceBadgeText}>{confidencePct}%</Text>
               </View>
             </View>
@@ -431,13 +481,17 @@ export default function IngredientScanScreen() {
           {tier === 'FREE' ? (
             <TouchableOpacity
               style={styles.upgradePrompt}
-              onPress={() => navigation.navigate('Paywall', { offering: null, displayCloseButton: true })}
+              onPress={() =>
+                navigation.navigate('Paywall', { offering: null, displayCloseButton: true })
+              }
               activeOpacity={0.82}
             >
               <Ionicons name="lock-closed" size={16} color={colors.gold} />
               <View style={{ flex: 1 }}>
                 <Text style={styles.upgradePromptTitle}>See every cocktail this works in</Text>
-                <Text style={styles.upgradePromptSub}>Upgrade to KŌOPE+ to browse the full recipe catalog by ingredient</Text>
+                <Text style={styles.upgradePromptSub}>
+                  Upgrade to KŌOPE+ to browse the full recipe catalog by ingredient
+                </Text>
               </View>
               <Ionicons name="chevron-forward" size={16} color={colors.gold} />
             </TouchableOpacity>
@@ -455,7 +509,7 @@ export default function IngredientScanScreen() {
                   <View style={styles.suggestionsTitleRow}>
                     <Text style={styles.suggestionsTitle}>Cocktails Using This</Text>
                     <Text style={styles.suggestionsSubtitle}>
-                      {currentIngredients.map(i => i.name).join(' + ')}
+                      {currentIngredients.map((i) => i.name).join(' + ')}
                     </Text>
                   </View>
 
@@ -484,7 +538,9 @@ export default function IngredientScanScreen() {
 
               {!loadingSuggestions && suggestedCocktails.length === 0 && (
                 <View style={styles.suggestionsEmpty}>
-                  <Text style={styles.suggestionsEmptyText}>No recipes found using this ingredient</Text>
+                  <Text style={styles.suggestionsEmptyText}>
+                    No recipes found using this ingredient
+                  </Text>
                 </View>
               )}
             </>
@@ -492,14 +548,22 @@ export default function IngredientScanScreen() {
 
           {/* Action buttons */}
           <View style={styles.actions}>
-            <TouchableOpacity style={styles.primaryButton} onPress={handleAddToInventory} activeOpacity={0.82}>
+            <TouchableOpacity
+              style={styles.primaryButton}
+              onPress={handleAddToInventory}
+              activeOpacity={0.82}
+            >
               <Ionicons name="add-circle" size={20} color={colors.goldText} />
               <Text style={styles.primaryButtonText}>
                 Add to Inventory ({scannedIngredients.length + currentIngredients.length})
               </Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.secondaryButton} onPress={handleScanMore} activeOpacity={0.75}>
+            <TouchableOpacity
+              style={styles.secondaryButton}
+              onPress={handleScanMore}
+              activeOpacity={0.75}
+            >
               <Ionicons name="camera-outline" size={18} color={colors.gold} />
               <Text style={styles.secondaryButtonText}>Scan Another</Text>
             </TouchableOpacity>
@@ -529,10 +593,14 @@ export default function IngredientScanScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             {/* Icon */}
-            <View style={[
-              styles.modalIconRing,
-              resultModal?.type === 'added' ? styles.modalIconRingSuccess : styles.modalIconRingInfo,
-            ]}>
+            <View
+              style={[
+                styles.modalIconRing,
+                resultModal?.type === 'added'
+                  ? styles.modalIconRingSuccess
+                  : styles.modalIconRingInfo,
+              ]}
+            >
               <Ionicons
                 name={resultModal?.type === 'added' ? 'checkmark' : 'layers-outline'}
                 size={26}
@@ -570,8 +638,7 @@ export default function IngredientScanScreen() {
               <Text style={styles.modalDuplicateNote}>
                 {resultModal.type === 'duplicate'
                   ? `${resultModal.duplicates.join(', ')} ${resultModal.duplicates.length === 1 ? 'is' : 'are'} already in your inventory.`
-                  : `${resultModal.duplicates.join(', ')} already logged.`
-                }
+                  : `${resultModal.duplicates.join(', ')} already logged.`}
               </Text>
             )}
 
@@ -772,8 +839,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing(1.5),
     paddingVertical: spacing(0.5),
   },
-  confidenceHigh: { backgroundColor: `${colors.gold}20`, borderWidth: 1, borderColor: `${colors.gold}40` },
-  confidenceMed: { backgroundColor: `${colors.subtext}15`, borderWidth: 1, borderColor: `${colors.subtext}25` },
+  confidenceHigh: {
+    backgroundColor: `${colors.gold}20`,
+    borderWidth: 1,
+    borderColor: `${colors.gold}40`,
+  },
+  confidenceMed: {
+    backgroundColor: `${colors.subtext}15`,
+    borderWidth: 1,
+    borderColor: `${colors.subtext}25`,
+  },
   confidenceBadgeText: { fontSize: 13, fontWeight: '700', color: colors.gold },
 
   contextCard: {
@@ -842,7 +917,12 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.text,
   },
-  suggestionsSubtitle: { fontSize: 13, color: colors.subtext, marginTop: 2, textTransform: 'capitalize' },
+  suggestionsSubtitle: {
+    fontSize: 13,
+    color: colors.subtext,
+    marginTop: 2,
+    textTransform: 'capitalize',
+  },
   suggestionsScroll: { gap: spacing(2), paddingRight: spacing(1) },
   suggestionCardWrap: { position: 'relative' },
   matchBadge: {

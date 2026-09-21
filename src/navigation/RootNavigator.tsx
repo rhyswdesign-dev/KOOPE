@@ -33,11 +33,6 @@ import VaultScreen from '../screens/vault/VaultScreen';
 import VaultCategoryScreen from '../screens/vault/VaultCategoryScreen';
 import CategoriesListScreen from '../screens/CategoriesListScreen';
 import CategoryDetailScreen from '../screens/CategoryDetailScreen';
-// Onboarding screens
-import WelcomeScreen from '../screens/onboarding/WelcomeScreen';
-import ConsentScreen from '../screens/onboarding/ConsentScreen';
-import SurveyScreen from '../screens/onboarding/SurveyScreen';
-import SurveyResultsScreen from '../screens/onboarding/SurveyResultsScreen';
 import RefineYourTasteScreen from '../screens/RefineYourTasteScreen';
 import OnboardingPreviewScreen from '../screens/onboarding/OnboardingPreviewScreen';
 // Commerce screens
@@ -74,6 +69,12 @@ import UnlockDeckScreen from '../screens/UnlockDeckScreen';
 import RecipeCardDetailScreen from '../screens/RecipeCardDetailScreen';
 import CellarNavigator from './CellarNavigator';
 import CellarBottleDetailScreen from '../screens/CellarBottleDetailScreen';
+import BottleSearchScreen from '../screens/BottleSearchScreen';
+import BottleDetailScreen from '../screens/BottleDetailScreen';
+import ManualBottleEntryScreen, {
+  type ManualBottleEntryParams,
+} from '../screens/ManualBottleEntryScreen';
+import type { CameraStackParamList } from './CameraStack';
 import CellarRegisterScreen from '../screens/CellarRegisterScreen';
 import CellarWatchlistScreen from '../screens/CellarWatchlistScreen';
 import CellarAnalyticsScreen from '../screens/CellarAnalyticsScreen';
@@ -127,7 +128,9 @@ export type RootStackParamList = {
   CocktailDetail: { cocktailId: string };
   CocktailList: { title: string; cocktailIds: string[]; category: string };
   WhatCanIMake: undefined;
-  Hosting: undefined;
+  // `focus` is the hosting countdown's deep-link hint (T-72h -> shopping,
+  // T-24h -> prep, day-of -> menu). See notificationService.scheduleHostingCountdown.
+  Hosting: { focus?: 'shopping' | 'prep' | 'menu' } | undefined;
   GuestMenu: {
     cocktailName: string;
     ingredients: string[];
@@ -149,10 +152,6 @@ export type RootStackParamList = {
   CategoryDetail: { categoryId: string; categoryName: string };
   FeaturedBar: { barId: string };
   // Onboarding screens
-  Welcome: undefined;
-  Consent: undefined;
-  Survey: undefined;
-  SurveyResults: { answers: any };
   RefineYourTaste: undefined;
   OnboardingPreview: { preview?: boolean } | undefined;
   // Commerce screens
@@ -176,6 +175,16 @@ export type RootStackParamList = {
   VoiceRecipe: undefined;
   HomeBar: undefined;
   SpiritRecognition: undefined;
+  // Root-level access to the bottle library/detail screens — lets any tab
+  // (not just Camera) reach them directly via a modal, instead of the
+  // cross-tab `navigate('Camera', { screen, params })` jump, which switches
+  // the visible tab and needs a `returnTo` hack on the way back out.
+  BottleSearch: CameraStackParamList['BottleSearch'];
+  BottleDetail: CameraStackParamList['BottleDetail'];
+  // Manual add-item form for the Owned/Shelf tab's category sections — root-level
+  // (not CameraStack) so HomeBarScreen can navigate straight to it, same pattern
+  // as BottleSearch/BottleDetail above.
+  ManualBottleEntry: ManualBottleEntryParams | undefined;
   ShoppingCart: undefined;
   InventoryInsights: { mode: 'expiry' | 'health' };
   Achievements: undefined;
@@ -599,15 +608,6 @@ export default function RootNavigator({ initialRouteName = 'Main' }: RootNavigat
           component={LegacyRemovedContentScreen}
           options={{ headerShown: true, title: 'Featured Bar' }}
         />
-        {/* Onboarding screens */}
-        <Stack.Screen name="Welcome" component={WelcomeScreen} options={{ headerShown: false }} />
-        <Stack.Screen name="Consent" component={ConsentScreen} options={{ headerShown: false }} />
-        <Stack.Screen name="Survey" component={SurveyScreen} options={{ headerShown: false }} />
-        <Stack.Screen
-          name="SurveyResults"
-          component={SurveyResultsScreen}
-          options={{ headerShown: false }}
-        />
         <Stack.Screen
           name="RefineYourTaste"
           component={RefineYourTasteScreen}
@@ -684,6 +684,21 @@ export default function RootNavigator({ initialRouteName = 'Main' }: RootNavigat
         />
         <Stack.Screen name="HomeBar" component={HomeBarScreen} options={{ headerShown: false }} />
         <Stack.Screen
+          name="BottleSearch"
+          component={BottleSearchScreen}
+          options={{ headerShown: false, presentation: 'modal' }}
+        />
+        <Stack.Screen
+          name="BottleDetail"
+          component={BottleDetailScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="ManualBottleEntry"
+          component={ManualBottleEntryScreen}
+          options={{ headerShown: false, presentation: 'modal' }}
+        />
+        <Stack.Screen
           name="SpiritRecognition"
           component={SpiritRecognitionScreen}
           options={{ headerShown: true, title: 'Scan Spirit' }}
@@ -704,11 +719,17 @@ export default function RootNavigator({ initialRouteName = 'Main' }: RootNavigat
           component={AchievementsScreen}
           options={{ headerShown: true, title: 'Achievements' }}
         />
-        <Stack.Screen
-          name="SubscriptionDebug"
-          component={SubscriptionDebugScreen}
-          options={{ headerShown: true, title: 'Subscription Debug' }}
-        />
+        {/* Phase 2.1: dev-only. The debug screen can force tier state and
+            read raw RevenueCat customer info — it must never be reachable in
+            a release build, even by deep link. __DEV__ is compiled out by
+            Metro in production, so the screen is dropped entirely. */}
+        {__DEV__ && (
+          <Stack.Screen
+            name="SubscriptionDebug"
+            component={SubscriptionDebugScreen}
+            options={{ headerShown: true, title: 'Subscription Debug' }}
+          />
+        )}
         <Stack.Screen
           name="Paywall"
           component={PaywallScreen}

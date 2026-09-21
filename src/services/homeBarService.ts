@@ -6,7 +6,15 @@ export interface BarIngredient {
   id: string;
   name: string;
   category:
-    'spirit' | 'liqueur' | 'mixer' | 'bitters' | 'syrup' | 'garnish' | 'ingredient' | 'other';
+    | 'spirit'
+    | 'liqueur'
+    | 'wine'
+    | 'mixer'
+    | 'bitters'
+    | 'syrup'
+    | 'garnish'
+    | 'ingredient'
+    | 'other';
   subcategory?: string; // e.g., 'whiskey', 'gin', 'citrus', etc.
   brand?: string;
   abv?: number; // Alcohol by volume percentage
@@ -836,7 +844,7 @@ export class HomeBarService {
       // Must-have Vermouth & Modifiers
       {
         name: 'Dry Vermouth',
-        category: 'liqueur',
+        category: 'wine',
         subcategory: 'vermouth',
         commonBrands: ['Dolin', 'Noilly Prat', 'Martini & Rossi'],
         description: 'Essential fortified wine modifier for martinis and stirred cocktails',
@@ -846,7 +854,7 @@ export class HomeBarService {
       },
       {
         name: 'Sweet Vermouth',
-        category: 'liqueur',
+        category: 'wine',
         subcategory: 'vermouth',
         commonBrands: ['Carpano Antica', 'Dolin Rouge', 'Cinzano'],
         description: 'Key fortified wine modifier for Manhattans and Negronis',
@@ -921,7 +929,7 @@ export class HomeBarService {
       },
       {
         name: 'Champagne',
-        category: 'mixer',
+        category: 'wine',
         subcategory: 'sparkling wine',
         commonBrands: ['Moët & Chandon', 'Veuve Clicquot', 'Perrier-Jouët'],
         description: 'Sparkling wine topper for elegant champagne cocktails',
@@ -931,7 +939,7 @@ export class HomeBarService {
       },
       {
         name: 'Prosecco',
-        category: 'mixer',
+        category: 'wine',
         subcategory: 'sparkling wine',
         commonBrands: ['La Marca', 'Mionetto', 'Zonin'],
         description: 'Italian sparkling wine for spritzes and cocktail tops',

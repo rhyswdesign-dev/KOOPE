@@ -4,14 +4,12 @@
  */
 
 export { default as LoadingState } from './LoadingState';
-export { default as EmptyState } from './EmptyState';
 export { default as ErrorState } from './ErrorState';
 export { default as Skeleton } from '../Skeleton';
 
 // Type exports
-export type {
-  // Add type exports if needed in the future
-} from './LoadingState';
+export type {} from // Add type exports if needed in the future
+'./LoadingState';
 
 // Re-export commonly used props for convenience
 export interface StateComponentProps {

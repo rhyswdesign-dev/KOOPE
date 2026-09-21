@@ -371,6 +371,16 @@ export const ANALYTICS_EVENTS = {
   UPLOAD_FAILED: 'Upload Failed',
   RECIPE_SUBMITTED: 'Recipe Submitted',
   COMPETITION_ENTRY_SUBMITTED: 'Competition Entry Submitted',
+
+  // Notifications (Notification Playbook §3 Phase A, step 5). Every send is
+  // mirrored here with { type, layer, slot } so tap rate can be computed per
+  // recurring send — that ratio drives the Playbook's kill rule (any recurring
+  // send under 2% tap rate for two consecutive months is cut or rewritten).
+  NOTIFICATION_SCHEDULED: 'Notification Scheduled',
+  NOTIFICATION_RECEIVED: 'Notification Received',
+  NOTIFICATION_TAPPED: 'Notification Tapped',
+  NOTIFICATION_PERMISSION_PRIMED: 'Notification Permission Primed',
+  NOTIFICATION_PERMISSION_RESULT: 'Notification Permission Result',
 } as const;
 
 /**
@@ -480,4 +490,10 @@ export const ANALYTICS_PROPS = {
   FILE_COUNT: 'file_count',
   DURATION_MS: 'duration_ms',
   ERROR_MESSAGE: 'error_message',
+
+  // Notifications (Playbook §3 step 5). These three travel together on every
+  // Notification Scheduled/Received/Tapped event.
+  NOTIFICATION_TYPE: 'type', // NotificationType, e.g. 'friday_maker_prompt'
+  NOTIFICATION_LAYER: 'layer', // 'L1' | 'L2' | 'L3' | 'L4'
+  NOTIFICATION_SLOT: 'slot', // human-readable cadence slot, e.g. 'fri_1630'
 } as const;

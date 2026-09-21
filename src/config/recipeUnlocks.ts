@@ -40,15 +40,11 @@ export const EARNABLE_RECIPES: RecipeUnlock[] = [
   {
     recipeId: 'tom-collins',
     recipeName: 'Tom Collins',
-    thumbnailUrl: 'https://images.unsplash.com/photo-1551538827-9c037cb4f32a?q=80&w=1200&auto=format&fit=crop',
+    thumbnailUrl:
+      'https://images.unsplash.com/photo-1551538827-9c037cb4f32a?q=80&w=1200&auto=format&fit=crop',
     difficulty: 'easy',
     estimatedDays: 3,
     methods: [
-      {
-        type: 'streak',
-        required: 3,
-        description: 'Maintain a 3-day login streak',
-      },
       {
         type: 'app-opens',
         required: 7,
@@ -58,8 +54,9 @@ export const EARNABLE_RECIPES: RecipeUnlock[] = [
   },
   {
     recipeId: 'dark-stormy',
-    recipeName: 'Dark \'n\' Stormy',
-    thumbnailUrl: 'https://images.unsplash.com/photo-1581795669633-91ef2c6cebaf?q=80&w=1200&auto=format&fit=crop',
+    recipeName: "Dark 'n' Stormy",
+    thumbnailUrl:
+      'https://images.unsplash.com/photo-1581795669633-91ef2c6cebaf?q=80&w=1200&auto=format&fit=crop',
     difficulty: 'easy',
     estimatedDays: 2,
     methods: [
@@ -78,7 +75,8 @@ export const EARNABLE_RECIPES: RecipeUnlock[] = [
   {
     recipeId: 'paloma',
     recipeName: 'Paloma',
-    thumbnailUrl: 'https://images.unsplash.com/photo-1582745689430-86cd52ad5bf1?q=80&w=1200&auto=format&fit=crop',
+    thumbnailUrl:
+      'https://images.unsplash.com/photo-1582745689430-86cd52ad5bf1?q=80&w=1200&auto=format&fit=crop',
     difficulty: 'easy',
     estimatedDays: 5,
     methods: [
@@ -99,15 +97,11 @@ export const EARNABLE_RECIPES: RecipeUnlock[] = [
   {
     recipeId: 'gimlet',
     recipeName: 'Gimlet',
-    thumbnailUrl: 'https://images.unsplash.com/photo-1551538827-9c037cb4f32a?q=80&w=1200&auto=format&fit=crop',
+    thumbnailUrl:
+      'https://images.unsplash.com/photo-1551538827-9c037cb4f32a?q=80&w=1200&auto=format&fit=crop',
     difficulty: 'medium',
     estimatedDays: 7,
     methods: [
-      {
-        type: 'streak',
-        required: 7,
-        description: 'Maintain a 7-day login streak',
-      },
       {
         type: 'saved-recipes',
         required: 5,
@@ -118,15 +112,11 @@ export const EARNABLE_RECIPES: RecipeUnlock[] = [
   {
     recipeId: 'aperol-spritz',
     recipeName: 'Aperol Spritz',
-    thumbnailUrl: 'https://images.unsplash.com/photo-1574671928146-5c89a22b2e85?q=80&w=1200&auto=format&fit=crop',
+    thumbnailUrl:
+      'https://images.unsplash.com/photo-1574671928146-5c89a22b2e85?q=80&w=1200&auto=format&fit=crop',
     difficulty: 'medium',
     estimatedDays: 7,
     methods: [
-      {
-        type: 'streak',
-        required: 7,
-        description: 'Maintain a 7-day login streak',
-      },
       {
         type: 'invites',
         required: 1,
@@ -137,7 +127,8 @@ export const EARNABLE_RECIPES: RecipeUnlock[] = [
   {
     recipeId: 'cosmopolitan',
     recipeName: 'Cosmopolitan',
-    thumbnailUrl: 'https://images.unsplash.com/photo-1569529465841-dfecdab7503b?q=80&w=1200&auto=format&fit=crop',
+    thumbnailUrl:
+      'https://images.unsplash.com/photo-1569529465841-dfecdab7503b?q=80&w=1200&auto=format&fit=crop',
     difficulty: 'medium',
     estimatedDays: 7,
     methods: [
@@ -156,7 +147,8 @@ export const EARNABLE_RECIPES: RecipeUnlock[] = [
   {
     recipeId: 'french-75',
     recipeName: 'French 75',
-    thumbnailUrl: 'https://images.unsplash.com/photo-1551538827-9c037cb4f32a?q=80&w=1200&auto=format&fit=crop',
+    thumbnailUrl:
+      'https://images.unsplash.com/photo-1551538827-9c037cb4f32a?q=80&w=1200&auto=format&fit=crop',
     difficulty: 'medium',
     estimatedDays: 10,
     methods: [
@@ -177,7 +169,8 @@ export const EARNABLE_RECIPES: RecipeUnlock[] = [
   {
     recipeId: 'espresso-martini',
     recipeName: 'Espresso Martini',
-    thumbnailUrl: 'https://images.unsplash.com/photo-1609951651556-5334e2706168?q=80&w=1200&auto=format&fit=crop',
+    thumbnailUrl:
+      'https://images.unsplash.com/photo-1609951651556-5334e2706168?q=80&w=1200&auto=format&fit=crop',
     difficulty: 'hard',
     estimatedDays: 15,
     methods: [
@@ -191,7 +184,8 @@ export const EARNABLE_RECIPES: RecipeUnlock[] = [
   {
     recipeId: 'sidecar',
     recipeName: 'Sidecar',
-    thumbnailUrl: 'https://images.unsplash.com/photo-1574671928146-5c89a22b2e85?q=80&w=1200&auto=format&fit=crop',
+    thumbnailUrl:
+      'https://images.unsplash.com/photo-1574671928146-5c89a22b2e85?q=80&w=1200&auto=format&fit=crop',
     difficulty: 'hard',
     estimatedDays: 14,
     methods: [
@@ -205,7 +199,8 @@ export const EARNABLE_RECIPES: RecipeUnlock[] = [
   {
     recipeId: 'hemingway-daiquiri',
     recipeName: 'Hemingway Daiquiri',
-    thumbnailUrl: 'https://images.unsplash.com/photo-1581795669633-91ef2c6cebaf?q=80&w=1200&auto=format&fit=crop',
+    thumbnailUrl:
+      'https://images.unsplash.com/photo-1581795669633-91ef2c6cebaf?q=80&w=1200&auto=format&fit=crop',
     difficulty: 'hard',
     estimatedDays: 14,
     methods: [
@@ -219,7 +214,8 @@ export const EARNABLE_RECIPES: RecipeUnlock[] = [
   {
     recipeId: 'mai-tai',
     recipeName: 'Mai Tai',
-    thumbnailUrl: 'https://images.unsplash.com/photo-1581795669633-91ef2c6cebaf?q=80&w=1200&auto=format&fit=crop',
+    thumbnailUrl:
+      'https://images.unsplash.com/photo-1581795669633-91ef2c6cebaf?q=80&w=1200&auto=format&fit=crop',
     difficulty: 'hard',
     estimatedDays: 30,
     methods: [
@@ -236,26 +232,26 @@ export const EARNABLE_RECIPES: RecipeUnlock[] = [
  * Get unlock requirements for a specific recipe
  */
 export function getRecipeUnlock(recipeId: string): RecipeUnlock | undefined {
-  return EARNABLE_RECIPES.find(r => r.recipeId === recipeId);
+  return EARNABLE_RECIPES.find((r) => r.recipeId === recipeId);
 }
 
 /**
  * Get all earnable recipe IDs
  */
 export function getEarnableRecipeIds(): string[] {
-  return EARNABLE_RECIPES.map(r => r.recipeId);
+  return EARNABLE_RECIPES.map((r) => r.recipeId);
 }
 
 /**
  * Check if a recipe is earnable (vs tier-locked)
  */
 export function isRecipeEarnable(recipeId: string): boolean {
-  return EARNABLE_RECIPES.some(r => r.recipeId === recipeId);
+  return EARNABLE_RECIPES.some((r) => r.recipeId === recipeId);
 }
 
 /**
  * Get recipes by difficulty
  */
 export function getRecipesByDifficulty(difficulty: 'easy' | 'medium' | 'hard'): RecipeUnlock[] {
-  return EARNABLE_RECIPES.filter(r => r.difficulty === difficulty);
+  return EARNABLE_RECIPES.filter((r) => r.difficulty === difficulty);
 }

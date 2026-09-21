@@ -20,10 +20,27 @@ interface MethodSectionProps {
   onShowEverything: () => void;
   sectionStyle?: StyleProp<ViewStyle>;
   titleStyle?: StyleProp<TextStyle>;
+  /**
+   * When provided, renders the "eyebrow label + trailing rule" header
+   * (matching the Ingredients section) instead of the bare `titleStyle`
+   * heading. Pass headerRowStyle/eyebrowStyle/ruleStyle together.
+   */
+  headerRowStyle?: StyleProp<ViewStyle>;
+  eyebrowStyle?: StyleProp<TextStyle>;
+  ruleStyle?: StyleProp<ViewStyle>;
   listStyle?: StyleProp<ViewStyle>;
   rowStyle?: StyleProp<ViewStyle>;
   indexStyle?: StyleProp<TextStyle>;
   textStyle?: StyleProp<TextStyle>;
+  /**
+   * Connected-timeline treatment (reference/`headerRowStyle` layout only):
+   * the circular step-number badge, its number text, and the vertical
+   * connector line drawn down to the next badge. Unused by the legacy
+   * plain index+text row.
+   */
+  markerStyle?: StyleProp<ViewStyle>;
+  markerTextStyle?: StyleProp<TextStyle>;
+  connectorStyle?: StyleProp<ViewStyle>;
 }
 
 /**
@@ -40,15 +57,28 @@ export default function MethodSection({
   onShowEverything,
   sectionStyle,
   titleStyle,
+  headerRowStyle,
+  eyebrowStyle,
+  ruleStyle,
   listStyle,
   rowStyle,
   indexStyle,
   textStyle,
+  markerStyle,
+  markerTextStyle,
+  connectorStyle,
 }: MethodSectionProps) {
   return (
     <View style={sectionStyle}>
       <View style={localStyles.titleRow}>
-        <Text style={titleStyle}>Method</Text>
+        {headerRowStyle ? (
+          <View style={[headerRowStyle, localStyles.headerFlex]}>
+            <Text style={eyebrowStyle}>Method</Text>
+            <View style={ruleStyle} />
+          </View>
+        ) : (
+          <Text style={titleStyle}>Method</Text>
+        )}
         {showEscapeHatch && (
           <TouchableOpacity
             onPress={onShowEverything}
@@ -65,12 +95,30 @@ export default function MethodSection({
         </View>
       ) : (
         <View style={listStyle}>
-          {steps.map((step, index) => (
-            <View key={`step-${index}`} style={rowStyle}>
-              <Text style={indexStyle}>{String(index + 1).padStart(2, '0')}</Text>
-              <Text style={textStyle}>{step}</Text>
-            </View>
-          ))}
+          {steps.map((step, index) =>
+            headerRowStyle ? (
+              // Reference layout: connected vertical timeline — a circular
+              // marker per step with a connector line down to the next
+              // marker (omitted after the final step).
+              <View key={`step-${index}`} style={rowStyle}>
+                <View style={localStyles.markerColumn}>
+                  <View style={markerStyle}>
+                    <Text style={markerTextStyle}>{String(index + 1).padStart(2, '0')}</Text>
+                  </View>
+                  {index < steps.length - 1 && (
+                    <View style={[localStyles.connector, connectorStyle]} />
+                  )}
+                </View>
+                <Text style={textStyle}>{step}</Text>
+              </View>
+            ) : (
+              // Legacy plain index+text row.
+              <View key={`step-${index}`} style={rowStyle}>
+                <Text style={indexStyle}>{String(index + 1).padStart(2, '0')}</Text>
+                <Text style={textStyle}>{step}</Text>
+              </View>
+            ),
+          )}
         </View>
       )}
     </View>
@@ -82,6 +130,19 @@ const localStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+  },
+  headerFlex: {
+    flex: 1,
+  },
+  // Structural only — sizing/color for the marker circle and connector
+  // line itself come from markerStyle/connectorStyle (call site). This
+  // just centers the badge and lets the connector fill the rest of the
+  // row's stretched height so it reaches the next marker.
+  markerColumn: {
+    alignItems: 'center',
+  },
+  connector: {
+    flex: 1,
   },
   showEverythingText: {
     color: colors.accent,

@@ -34,17 +34,41 @@ import { withHaptic } from '../lib/haptics';
 
 type AppNavParamList = RootStackParamList & CameraStackParamList;
 type ManualBottleEntryNav = NativeStackNavigationProp<AppNavParamList>;
-type ManualBottleEntryParams = {
+export type ManualBottleEntryParams = {
   initialName?: string;
   initialBrand?: string;
   imageUri?: string;
+  initialCategory?: Category;
 };
-type ManualBottleEntryRoute = RouteProp<Record<string, ManualBottleEntryParams | undefined>, string>;
+type ManualBottleEntryRoute = RouteProp<
+  Record<string, ManualBottleEntryParams | undefined>,
+  string
+>;
 
-const CATEGORIES = ['Spirit', 'Liqueur', 'Bitters', 'Syrup', 'Ingredient', 'Garnish', 'Other'] as const;
-const SPIRIT_TYPES = ['Gin', 'Vodka', 'Rum', 'Whiskey', 'Tequila', 'Mezcal', 'Brandy', 'Other'] as const;
+const CATEGORIES = [
+  'Spirit',
+  'Liqueur',
+  'Wine',
+  'Bitters',
+  'Syrup',
+  'Mixer',
+  'Ingredient',
+  'Garnish',
+  'Other',
+] as const;
+const SPIRIT_TYPES = [
+  'Gin',
+  'Vodka',
+  'Rum',
+  'Whiskey',
+  'Tequila',
+  'Mezcal',
+  'Brandy',
+  'Other',
+] as const;
 const NON_SPIRIT_TYPES: Record<string, readonly string[]> = {
   Liqueur: ['Orange Liqueur', 'Coffee Liqueur', 'Herbal Liqueur', 'Fruit Liqueur', 'Other'],
+  Wine: ['Vermouth', 'Champagne', 'Prosecco', 'Sherry', 'Port', 'Other'],
   Mixer: ['Tonic Water', 'Soda Water', 'Ginger Beer', 'Ginger Ale', 'Cola', 'Juice', 'Other'],
   Bitters: ['Aromatic Bitters', 'Orange Bitters', 'Chocolate Bitters', 'Other'],
   Syrup: ['Simple Syrup', 'Demerara Syrup', 'Honey Syrup', 'Agave Syrup', 'Grenadine', 'Other'],
@@ -75,8 +99,17 @@ const NON_SPIRIT_TYPES: Record<string, readonly string[]> = {
 };
 const MATCH_ALIASES: Record<string, readonly string[]> = {
   Spirit: ['gin', 'vodka', 'rum', 'whiskey', 'tequila', 'mezcal', 'brandy'],
-  Liqueur: ['triple sec', 'campari', 'aperol', 'vermouth'],
-  Mixer: ['soda water', 'tonic water', 'ginger beer', 'ginger ale', 'cola', 'orange juice', 'pineapple juice'],
+  Liqueur: ['triple sec', 'campari', 'aperol'],
+  Wine: ['vermouth', 'champagne', 'prosecco', 'sherry', 'port'],
+  Mixer: [
+    'soda water',
+    'tonic water',
+    'ginger beer',
+    'ginger ale',
+    'cola',
+    'orange juice',
+    'pineapple juice',
+  ],
   Bitters: ['angostura bitters', 'orange bitters'],
   Syrup: ['simple syrup', 'demerara syrup', 'honey syrup', 'agave syrup', 'grenadine'],
   Garnish: ['lime', 'lemon', 'orange', 'mint', 'cherry', 'olive'],
@@ -84,7 +117,7 @@ const MATCH_ALIASES: Record<string, readonly string[]> = {
   Other: ['lime juice', 'lemon juice', 'orange juice', 'mint', 'cucumber'],
 };
 
-type Category = typeof CATEGORIES[number];
+export type Category = (typeof CATEGORIES)[number];
 const sortAlpha = (items: readonly string[]) => [...items].sort((a, b) => a.localeCompare(b));
 const cleanPrefill = (value?: string | null): string => {
   const v = String(value || '').trim();
@@ -104,7 +137,7 @@ export default function ManualBottleEntryScreen() {
 
   const [name, setName] = useState(route.params?.initialName ?? '');
   const [brand, setBrand] = useState(cleanPrefill(route.params?.initialBrand));
-  const [category, setCategory] = useState<Category>('Spirit');
+  const [category, setCategory] = useState<Category>(route.params?.initialCategory ?? 'Spirit');
   const [subcategory, setSubcategory] = useState<string | null>(null);
   const [matchAs, setMatchAs] = useState<string | null>(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -130,18 +163,21 @@ export default function ManualBottleEntryScreen() {
   }, []);
 
   const typeOptions = useMemo(
-    () => sortAlpha(category === 'Spirit' ? SPIRIT_TYPES : (NON_SPIRIT_TYPES[category] || NON_SPIRIT_TYPES.Other)),
-    [category]
+    () =>
+      sortAlpha(
+        category === 'Spirit' ? SPIRIT_TYPES : NON_SPIRIT_TYPES[category] || NON_SPIRIT_TYPES.Other,
+      ),
+    [category],
   );
   const matchAliasOptions = useMemo(
     () => sortAlpha(MATCH_ALIASES[category] || MATCH_ALIASES.Other),
-    [category]
+    [category],
   );
 
   const brandPlaceholder = useMemo(() => {
     switch (category) {
       case 'Spirit':
-        return 'e.g. Tito\'s';
+        return "e.g. Tito's";
       case 'Liqueur':
         return 'e.g. Cointreau';
       case 'Bitters':
@@ -168,14 +204,10 @@ export default function ManualBottleEntryScreen() {
     }
 
     if (!user) {
-      Alert.alert(
-        'Sign In Required',
-        'Please sign in to add bottles to your inventory.',
-        [
-          { text: 'Sign In', onPress: () => navigation.navigate('CameraHub') },
-          { text: 'Cancel', style: 'cancel' },
-        ]
-      );
+      Alert.alert('Sign In Required', 'Please sign in to add bottles to your inventory.', [
+        { text: 'Sign In', onPress: () => navigation.navigate('CameraHub') },
+        { text: 'Cancel', style: 'cancel' },
+      ]);
       return;
     }
 
@@ -190,7 +222,9 @@ export default function ManualBottleEntryScreen() {
     setSubmitting(true);
 
     const itemName = name.trim();
-    const derivedMatchAs = (matchAs || (category === 'Spirit' ? subcategory : null) || '').toLowerCase().trim();
+    const derivedMatchAs = (matchAs || (category === 'Spirit' ? subcategory : null) || '')
+      .toLowerCase()
+      .trim();
     const notes = derivedMatchAs ? `match_as=${derivedMatchAs}` : undefined;
 
     const result = await InventoryService.addToInventory({
@@ -207,7 +241,9 @@ export default function ManualBottleEntryScreen() {
     setSubmitting(false);
 
     if (result.duplicate) {
-      Alert.alert('Already in Inventory', `${itemName} is already in your inventory!`, [{ text: 'OK' }]);
+      Alert.alert('Already in Inventory', `${itemName} is already in your inventory!`, [
+        { text: 'OK' },
+      ]);
       return;
     }
 
@@ -225,7 +261,7 @@ export default function ManualBottleEntryScreen() {
         { text: 'View Inventory', onPress: () => navigation.navigate('CameraHub') },
         { text: 'Scan Another', onPress: () => navigation.navigate('SmartScan') },
         { text: 'OK' },
-      ]
+      ],
     );
   };
 
@@ -239,7 +275,10 @@ export default function ManualBottleEntryScreen() {
         <View style={[styles.header, { paddingTop: insets.top + spacing(1) }]}>
           <Text style={styles.headerTitle}>Add Ingredient</Text>
           <View style={styles.headerActions}>
-            <TouchableOpacity style={styles.headerActionGhost} onPress={withHaptic(() => navigation.goBack(), 'selection')}>
+            <TouchableOpacity
+              style={styles.headerActionGhost}
+              onPress={withHaptic(() => navigation.goBack(), 'selection')}
+            >
               <Text style={styles.headerActionGhostText}>Cancel</Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -262,7 +301,9 @@ export default function ManualBottleEntryScreen() {
           keyboardDismissMode="interactive"
         >
           <Text style={styles.modalEyebrow}>Manual Entry</Text>
-          <Text style={styles.modalSubtitle}>Add details first, then choose type for better matching.</Text>
+          <Text style={styles.modalSubtitle}>
+            Add details first, then choose type for better matching.
+          </Text>
 
           {(route.params?.initialBrand || route.params?.initialName) && (
             <View style={styles.prefillNotice}>
@@ -299,18 +340,30 @@ export default function ManualBottleEntryScreen() {
           <View style={styles.formSectionCard}>
             <Text style={styles.sectionTitleCompact}>Type</Text>
             <Text style={styles.formLabel}>Category *</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryPicker}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.categoryPicker}
+            >
               {CATEGORIES.map((cat) => (
                 <TouchableOpacity
                   key={cat}
-                  style={[styles.categoryPickerButton, category === cat && styles.categoryPickerButtonActive]}
+                  style={[
+                    styles.categoryPickerButton,
+                    category === cat && styles.categoryPickerButtonActive,
+                  ]}
                   onPress={withHaptic(() => {
                     setCategory(cat);
                     setSubcategory(null);
                     setMatchAs(null);
                   }, 'selection')}
                 >
-                  <Text style={[styles.categoryPickerButtonText, category === cat && styles.categoryPickerButtonTextActive]}>
+                  <Text
+                    style={[
+                      styles.categoryPickerButtonText,
+                      category === cat && styles.categoryPickerButtonTextActive,
+                    ]}
+                  >
                     {cat}
                   </Text>
                 </TouchableOpacity>
@@ -330,7 +383,9 @@ export default function ManualBottleEntryScreen() {
                     }
                   }, 'selection')}
                 >
-                  <Text style={[styles.chipText, subcategory === sub && styles.chipTextSelected]}>{sub}</Text>
+                  <Text style={[styles.chipText, subcategory === sub && styles.chipTextSelected]}>
+                    {sub}
+                  </Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -359,7 +414,9 @@ export default function ManualBottleEntryScreen() {
                       style={[styles.chip, matchAs === alias && styles.chipSelected]}
                       onPress={withHaptic(() => setMatchAs(alias), 'selection')}
                     >
-                      <Text style={[styles.chipText, matchAs === alias && styles.chipTextSelected]}>{alias}</Text>
+                      <Text style={[styles.chipText, matchAs === alias && styles.chipTextSelected]}>
+                        {alias}
+                      </Text>
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -367,7 +424,6 @@ export default function ManualBottleEntryScreen() {
             )}
           </View>
         </ScrollView>
-
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

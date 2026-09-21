@@ -19,11 +19,15 @@ import type { RootStackParamList } from '../navigation/RootNavigator';
 import { getCollectibleRecipeCard } from '../data/recipeCards';
 import type { CollectibleRecipeCard } from '../types/recipeCards';
 import { useSavedItems } from '../hooks/useSavedItems';
+import { IngredientLeaderList } from '../components/recipe/IngredientLeaderRow';
+import TasteProfileCard from '../components/recipe/TasteProfileCard';
 
 type RecipeCardRoute = RouteProp<RootStackParamList, 'RecipeCardDetail'>;
 
 function trimSentence(value: string, maxLength: number): string {
-  const normalized = String(value || '').trim().replace(/\s+/g, ' ');
+  const normalized = String(value || '')
+    .trim()
+    .replace(/\s+/g, ' ');
   if (!normalized) return '';
   if (normalized.length <= maxLength) return normalized;
 
@@ -83,13 +87,45 @@ function deriveCardBestFor(card: CollectibleRecipeCard): string {
     .join(' ')
     .toLowerCase();
 
-  const isAperitif = infoText.includes('negroni') || infoText.includes('campari') || infoText.includes('amaro') || infoText.includes('aperitif') || infoText.includes('bitter');
-  const isSpiritForward = infoText.includes('martini') || infoText.includes('manhattan') || infoText.includes('stirred') || infoText.includes('old fashioned');
-  const isCitrusLed = infoText.includes('sour') || infoText.includes('citrus') || infoText.includes('lime') || infoText.includes('lemon') || infoText.includes('grapefruit');
-  const isTropical = infoText.includes('tiki') || infoText.includes('pineapple') || infoText.includes('coconut') || infoText.includes('orgeat');
-  const isDessert = infoText.includes('coffee') || infoText.includes('espresso') || infoText.includes('cream') || infoText.includes('dessert') || infoText.includes('chocolate');
-  const isSparkling = infoText.includes('spritz') || infoText.includes('sparkling') || infoText.includes('soda') || infoText.includes('tonic') || infoText.includes('highball');
-  const isZeroProof = infoText.includes('zero-proof') || infoText.includes('zero proof') || infoText.includes('non-alcoholic') || infoText.includes('mocktail');
+  const isAperitif =
+    infoText.includes('negroni') ||
+    infoText.includes('campari') ||
+    infoText.includes('amaro') ||
+    infoText.includes('aperitif') ||
+    infoText.includes('bitter');
+  const isSpiritForward =
+    infoText.includes('martini') ||
+    infoText.includes('manhattan') ||
+    infoText.includes('stirred') ||
+    infoText.includes('old fashioned');
+  const isCitrusLed =
+    infoText.includes('sour') ||
+    infoText.includes('citrus') ||
+    infoText.includes('lime') ||
+    infoText.includes('lemon') ||
+    infoText.includes('grapefruit');
+  const isTropical =
+    infoText.includes('tiki') ||
+    infoText.includes('pineapple') ||
+    infoText.includes('coconut') ||
+    infoText.includes('orgeat');
+  const isDessert =
+    infoText.includes('coffee') ||
+    infoText.includes('espresso') ||
+    infoText.includes('cream') ||
+    infoText.includes('dessert') ||
+    infoText.includes('chocolate');
+  const isSparkling =
+    infoText.includes('spritz') ||
+    infoText.includes('sparkling') ||
+    infoText.includes('soda') ||
+    infoText.includes('tonic') ||
+    infoText.includes('highball');
+  const isZeroProof =
+    infoText.includes('zero-proof') ||
+    infoText.includes('zero proof') ||
+    infoText.includes('non-alcoholic') ||
+    infoText.includes('mocktail');
 
   if (isZeroProof) {
     return pickCardVariant(card.id, [
@@ -169,10 +205,19 @@ function deriveCardTastingNote(card: CollectibleRecipeCard): string {
     .join(' ')
     .toLowerCase();
 
-  if (infoText.includes('martini') || infoText.includes('manhattan') || infoText.includes('stirred')) {
+  if (
+    infoText.includes('martini') ||
+    infoText.includes('manhattan') ||
+    infoText.includes('stirred')
+  ) {
     return 'Spirit character lands first, the middle stays composed, and the finish remains dry and polished.';
   }
-  if (infoText.includes('sour') || infoText.includes('citrus') || infoText.includes('lime') || infoText.includes('lemon')) {
+  if (
+    infoText.includes('sour') ||
+    infoText.includes('citrus') ||
+    infoText.includes('lime') ||
+    infoText.includes('lemon')
+  ) {
     return 'Bright citrus opens first, sweetness rounds the middle, and the finish stays crisp and refreshing.';
   }
   if (infoText.includes('tiki') || infoText.includes('pineapple') || infoText.includes('coconut')) {
@@ -211,7 +256,10 @@ export default function RecipeCardDetailScreen() {
   const tierLabel = getTierLabel(card);
   const isFreeTier = tierLabel === 'FREE';
   const displayedMethod = isFreeTier
-    ? card.method.slice(0, 2).map((step) => trimSentence(step, 96)).filter(Boolean)
+    ? card.method
+        .slice(0, 2)
+        .map((step) => trimSentence(step, 96))
+        .filter(Boolean)
     : card.method;
   const rawTastingNote = (card.tastingNote || deriveCardTastingNote(card)).trim();
   const displayedTastingNote = rawTastingNote
@@ -258,9 +306,13 @@ export default function RecipeCardDetailScreen() {
       <StatusBar barStyle="light-content" />
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.heroContainer}>
-          <ImageBackground source={{ uri: card.heroImage }} style={styles.heroImage} imageStyle={styles.heroImageInner}>
+          <ImageBackground
+            source={{ uri: card.heroImage }}
+            style={styles.heroImage}
+            imageStyle={styles.heroImageInner}
+          >
             <LinearGradient
-              colors={['rgba(6,5,5,0.1)', 'rgba(16,12,10,0.3)', 'rgba(22,16,13,0.72)', '#1A120D']}
+              colors={['rgba(6,5,5,0.1)', 'rgba(16,12,10,0.3)', 'rgba(22,16,13,0.72)', colors.bg]}
               style={styles.heroGradient}
             >
               <View style={styles.topRow}>
@@ -272,7 +324,11 @@ export default function RecipeCardDetailScreen() {
                     <Ionicons name="share-outline" size={22} color={colors.white} />
                   </TouchableOpacity>
                   <TouchableOpacity style={styles.iconButton} onPress={handleSave}>
-                    <Ionicons name={isSaved ? 'bookmark' : 'bookmark-outline'} size={22} color={colors.white} />
+                    <Ionicons
+                      name={isSaved ? 'bookmark' : 'bookmark-outline'}
+                      size={22}
+                      color={colors.white}
+                    />
                   </TouchableOpacity>
                 </View>
               </View>
@@ -301,14 +357,22 @@ export default function RecipeCardDetailScreen() {
                   </View>
                   <Text style={styles.metaDot}>•</Text>
                   <View style={styles.metaItem}>
-                    <MaterialCommunityIcons name="glass-cocktail" size={16} color={colors.subtext} />
+                    <MaterialCommunityIcons
+                      name="glass-cocktail"
+                      size={16}
+                      color={colors.subtext}
+                    />
                     <Text style={styles.metaText}>{card.meta.glassware}</Text>
                   </View>
                 </View>
 
                 <View style={styles.tierPill}>
                   <MaterialCommunityIcons
-                    name={tierLabel === 'FREE' ? 'checkbox-marked-circle-outline' : 'star-circle-outline'}
+                    name={
+                      tierLabel === 'FREE'
+                        ? 'checkbox-marked-circle-outline'
+                        : 'star-circle-outline'
+                    }
                     size={16}
                     color={colors.accent}
                   />
@@ -322,7 +386,9 @@ export default function RecipeCardDetailScreen() {
         <View style={styles.contentShell}>
           <View style={styles.actionButtonsContainer}>
             <TouchableOpacity style={styles.primaryButton} onPress={handleSave}>
-              <Text style={styles.primaryButtonText}>{isSaved ? 'Saved to Recipe Cards' : 'Save Recipe Card'}</Text>
+              <Text style={styles.primaryButtonText}>
+                {isSaved ? 'Saved to Recipe Cards' : 'Save Recipe Card'}
+              </Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.secondaryButton} onPress={handleShare}>
               <Text style={styles.secondaryButtonText}>How did you make it?</Text>
@@ -335,14 +401,18 @@ export default function RecipeCardDetailScreen() {
               <View style={styles.sectionRule} />
             </View>
 
-            <View style={styles.specTable}>
-              {card.spec.map((line, index) => (
-                <View key={`${line.name}_${index}`} style={[styles.specRow, index === card.spec.length - 1 && styles.specRowLast]}>
-                  <Text style={styles.specName}>{line.name}</Text>
-                  <Text style={styles.specAmount}>{line.amount}</Text>
-                </View>
-              ))}
-            </View>
+            <IngredientLeaderList
+              containerStyle={styles.specTable}
+              items={card.spec}
+              iconSize={16}
+              iconColor={colors.subtext}
+              rowStyle={styles.specRow}
+              lastRowStyle={styles.specRowLast}
+              iconStyle={styles.specLeaderIcon}
+              nameStyle={styles.specName}
+              dotsStyle={styles.specLeaderDots}
+              amountStyle={styles.specAmount}
+            />
 
             <View style={styles.copySection}>
               <Text style={styles.copyTitle}>Method</Text>
@@ -356,7 +426,24 @@ export default function RecipeCardDetailScreen() {
               </View>
             </View>
 
-            {(displayedTastingNote || displayedBestFor) ? (
+            <TasteProfileCard
+              ingredients={card.spec}
+              headerVariant="title"
+              containerStyle={styles.copySection}
+              titleStyle={styles.copyTitle}
+              groupStyle={styles.tasteAxisGroup}
+              rowStyle={styles.tasteAxisRow}
+              iconWrapStyle={styles.tasteAxisIconWrap}
+              labelStyle={styles.tasteAxisLabel}
+              trackWrapStyle={styles.tasteAxisTrackWrap}
+              trackStyle={styles.tasteAxisTrack}
+              trackFillStyle={styles.tasteAxisTrackFill}
+              dotStyle={styles.tasteAxisDot}
+              scaleRowStyle={styles.tasteAxisScaleRow}
+              scaleTextStyle={styles.tasteAxisScaleText}
+            />
+
+            {displayedTastingNote || displayedBestFor ? (
               <View style={[styles.copySection, styles.copySectionLast]}>
                 <Text style={styles.copyTitle}>Taste & Fit</Text>
                 {displayedTastingNote ? (
@@ -384,7 +471,9 @@ export default function RecipeCardDetailScreen() {
                   <Text style={styles.notesTitle}>Pro Tips</Text>
                 </View>
                 {proTips.map((tip, index) => (
-                  <Text key={`${tip}_${index}`} style={styles.notesCopy}>• {tip}</Text>
+                  <Text key={`${tip}_${index}`} style={styles.notesCopy}>
+                    • {tip}
+                  </Text>
                 ))}
               </View>
             </View>
@@ -393,7 +482,9 @@ export default function RecipeCardDetailScreen() {
           <View style={styles.notesSection}>
             <Text style={styles.sectionEyebrow}>Unlock</Text>
             <View style={styles.notesCard}>
-              <Text style={styles.notesTitle}>{card.whyUnlockedTitle || 'Why You Unlocked This'}</Text>
+              <Text style={styles.notesTitle}>
+                {card.whyUnlockedTitle || 'Why You Unlocked This'}
+              </Text>
               <Text style={styles.notesCopy}>{card.unlockLabel}</Text>
             </View>
           </View>
@@ -410,7 +501,7 @@ function showBlockTitle(proTips: string[]) {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#1A120D',
+    backgroundColor: colors.bg,
   },
   scrollContent: {
     paddingBottom: 48,
@@ -614,12 +705,14 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(214,165,102,0.08)',
   },
+  // Ingredient row: category icon, name, dotted leader line, then the
+  // amount — the shared IngredientLeaderRow layout. No `gap`/`justifyContent`
+  // here: the leader dots are the element that fills the row, so the pieces
+  // must butt up against their own margins instead.
   specRow: {
     minHeight: 66,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing(2),
     paddingHorizontal: spacing(1.75),
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(214,165,102,0.06)',
@@ -627,18 +720,105 @@ const styles = StyleSheet.create({
   specRowLast: {
     borderBottomWidth: 0,
   },
+  specLeaderIcon: {
+    marginRight: spacing(1),
+  },
   specName: {
-    flex: 1,
+    flexShrink: 1,
     color: '#EADDCF',
     fontSize: 18,
     lineHeight: 22,
   },
+  // flex:1 lets the dot run grow into the leftover space; the row component
+  // clips it to one line, producing the table-of-contents leader.
+  specLeaderDots: {
+    flex: 1,
+    flexShrink: 1,
+    marginHorizontal: spacing(1),
+    color: 'rgba(214,165,102,0.18)',
+    fontSize: 18,
+    lineHeight: 22,
+    letterSpacing: 1.5,
+  },
   specAmount: {
+    flexShrink: 0,
     color: '#F0E4D6',
     fontSize: 18,
     lineHeight: 22,
     fontWeight: '800',
     marginLeft: spacing(1),
+  },
+  // Taste Profile card — five icon + horizontal-track rows estimated from the
+  // spec's ingredients (see utils/tasteProfileAxes.ts), sharing one
+  // LOW/BALANCED/HIGH caption.
+  tasteAxisGroup: {
+    gap: spacing(1.75),
+  },
+  tasteAxisRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(1.25),
+  },
+  tasteAxisIconWrap: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(214,165,102,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(214,165,102,0.3)',
+  },
+  tasteAxisLabel: {
+    width: 92,
+    fontSize: 13,
+    lineHeight: 17,
+    fontWeight: '600',
+    color: '#EADDCF',
+  },
+  tasteAxisTrackWrap: {
+    flex: 1,
+    height: 16,
+    justifyContent: 'center',
+  },
+  tasteAxisTrack: {
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: 'rgba(214,165,102,0.14)',
+    overflow: 'hidden',
+  },
+  tasteAxisTrackFill: {
+    height: '100%',
+    borderRadius: 2,
+    backgroundColor: 'rgba(214,165,102,0.4)',
+  },
+  tasteAxisDot: {
+    position: 'absolute',
+    top: '50%',
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    marginTop: -6,
+    marginLeft: -6,
+    backgroundColor: '#D59C58',
+    borderWidth: 2,
+    borderColor: '#1A120D',
+  },
+  // Left offset mirrors the icon (26) + gap (10) + label (92) + gap (10) that
+  // precede the track, so the caption lines up under the tracks.
+  tasteAxisScaleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: spacing(0.5),
+    paddingLeft: 26 + spacing(1.25) + 92 + spacing(1.25),
+  },
+  tasteAxisScaleText: {
+    fontSize: 9,
+    lineHeight: 12,
+    letterSpacing: 0.8,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    color: 'rgba(214,165,102,0.45)',
   },
   copySection: {
     paddingTop: spacing(1.75),

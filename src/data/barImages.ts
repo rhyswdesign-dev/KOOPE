@@ -72,21 +72,21 @@ export const BAR_PAGE_HEADERS = {
 
 // Spirit Images
 export const SPIRIT_IMAGES = {
-  brandy: require('../../assets/images/spirits/koope-brandy.png'),
-  gin: require('../../assets/images/spirits/koope-gin.png'),
-  gin_1: require('../../assets/images/spirits/koope-gin01.png'),
-  mezcal: require('../../assets/images/spirits/koope-mezcal.png'),
-  rum: require('../../assets/images/spirits/koope-rum.png'),
-  rum_1: require('../../assets/images/spirits/koope-rum01.png'),
-  scotch: require('../../assets/images/spirits/koope-scotch.png'),
-  tequila: require('../../assets/images/spirits/koope-tequila.png'),
-  whiskey: require('../../assets/images/spirits/koope-whiskey.png'),
-  vodka: require('../../assets/images/spirits/koope-vodka.png'),
+  brandy: require('../../assets/images/spirits/koope-brandy.jpg'),
+  gin: require('../../assets/images/spirits/koope-gin.jpg'),
+  gin_1: require('../../assets/images/spirits/koope-gin01.jpg'),
+  mezcal: require('../../assets/images/spirits/koope-mezcal.jpg'),
+  rum: require('../../assets/images/spirits/koope-rum.jpg'),
+  rum_1: require('../../assets/images/spirits/koope-rum01.jpg'),
+  scotch: require('../../assets/images/spirits/koope-scotch.jpg'),
+  tequila: require('../../assets/images/spirits/koope-tequila.jpg'),
+  whiskey: require('../../assets/images/spirits/koope-whiskey.jpg'),
+  vodka: require('../../assets/images/spirits/koope-vodka.jpg'),
 };
 
 // Featured Spirit Images
 export const FEATURED_SPIRIT_IMAGES = {
-  amaro: require('../../assets/images/featured-spirits/Feature Amaro.png'),
+  amaro: require('../../assets/images/featured-spirits/Feature Amaro.jpg'),
   aperol: require('../../assets/images/featured-spirits/Feature Aperol.png'),
   campari: require('../../assets/images/featured-spirits/Feature Campari.png'),
   campari_1: require('../../assets/images/featured-spirits/Feature Campari 1.png'),
@@ -107,30 +107,30 @@ export const BAR_DATA = [
     name: 'Aqua Lounge',
     description: 'Refreshing Cocktails & Ocean Views',
     image: BAR_IMAGES.aqua_lounge,
-    featured: true
+    featured: true,
   },
   {
     id: 'the_alchemist',
     name: 'The Alchemist',
     description: 'Craft Cocktails',
-    image: BAR_IMAGES.the_alchemist
+    image: BAR_IMAGES.the_alchemist,
   },
   {
     id: 'the_velvet_curtain',
     name: 'The Velvet Curtain',
     description: 'Wine Bar',
-    image: BAR_IMAGES.the_velvet_curtain
+    image: BAR_IMAGES.the_velvet_curtain,
   },
   {
     id: 'the_gilded_lily',
     name: 'The Gilded Lily',
     description: 'Live Music',
-    image: BAR_IMAGES.the_gilded_lily
+    image: BAR_IMAGES.the_gilded_lily,
   },
   {
     id: 'the_iron_flask',
     name: 'The Iron Flask',
     description: 'Speakeasy',
-    image: BAR_IMAGES.the_iron_flask
-  }
+    image: BAR_IMAGES.the_iron_flask,
+  },
 ];
